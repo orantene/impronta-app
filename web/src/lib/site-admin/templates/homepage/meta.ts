@@ -21,7 +21,11 @@ import type { TemplateMeta } from "../types";
  * A slot without `allowedSectionTypes` accepts ANY registered section,
  * which is the right default — we want admins to experiment freely. Only
  * the hero slot is typed because a non-hero section at the hero slot would
- * almost certainly break above-the-fold layout.
+ * almost certainly break above-the-fold layout. The allow-list is the set
+ * of registered hero-class section types (full-bleed, above-the-fold
+ * layouts): the base `hero`, plus the search-first `hero_search` and the
+ * two-column `editorial_split_hero`. Adding a new hero-class section type
+ * means adding its key here so it can occupy the hero slot.
  */
 export const homepageMeta: TemplateMeta = {
   key: "homepage",
@@ -30,7 +34,12 @@ export const homepageMeta: TemplateMeta = {
     "Agency storefront homepage. System-owned (is_system_owned = true); slug is '' (empty) per locale; composed via cms_page_sections junction.",
   systemOwned: true,
   slots: [
-    { key: "hero", label: "Hero", required: true, allowedSectionTypes: ["hero"] },
+    {
+      key: "hero",
+      label: "Hero",
+      required: true,
+      allowedSectionTypes: ["hero", "hero_search", "editorial_split_hero"],
+    },
     { key: "trust_band", label: "Trust band (under hero)", required: false },
     { key: "services", label: "Services / categories", required: false },
     { key: "featured", label: "Featured professionals", required: false },

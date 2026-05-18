@@ -68,6 +68,93 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       columnsDesktop: 4,
     },
   },
+  talent_type_grid: {
+    name: "Talent by discipline — new",
+    props: {
+      eyebrow: "The roster",
+      headline: "Talent, by discipline",
+      subheadline: "",
+      mode: "manual",
+      // DEFAULT seed content only — never hardcoded in the renderer.
+      // Operators replace these or switch to dynamic tenant-roster mode.
+      items: [
+        { label: "Models" },
+        { label: "Hosts & Promo" },
+        { label: "Chefs & Culinary" },
+        { label: "Performers" },
+        { label: "Wellness & Beauty" },
+        { label: "Music & DJs" },
+        { label: "Photo, Video & Creative" },
+      ],
+      maxItems: 7,
+      desktopLayout: "equal-grid",
+      mobileLayout: "stacked",
+      cardRatio: "3/4",
+      textPosition: "overlay-bottom",
+      imageOverlayStrength: "medium",
+    },
+  },
+  hero_search: {
+    name: "Hero search — new",
+    props: {
+      eyebrow: "Models & Image Agency",
+      headline: "Find the right talent",
+      highlight: "for your brief.",
+      subheadline:
+        "Search the directory by role, location or fit — agency-managed, no direct contact.",
+      search: {
+        enabled: true,
+        mode: "directory-query",
+        placeholder: "Search talent by role, location or fit…",
+        submitLabel: "Search",
+      },
+      primaryCta: { label: "Start an Inquiry", href: "/inquiry/new" },
+      secondaryCta: { label: "Apply as talent", href: "/talent/apply" },
+      chipsSource: "manual",
+      chips: [
+        { label: "Riviera Maya" },
+        { label: "Mexico City" },
+        { label: "Buenos Aires" },
+      ],
+      statSource: "manual",
+      statItems: [
+        { value: "120+", label: "represented talent" },
+      ],
+      layout: "centered",
+    },
+  },
+  location_discovery: {
+    name: "Location discovery — new",
+    props: {
+      eyebrow: "Markets",
+      headline: "Local faces, international reach",
+      subheadline: "",
+      source: "manual",
+      items: [
+        { label: "Riviera Maya", region: "MX" },
+        { label: "Mexico City", region: "MX" },
+        { label: "Buenos Aires", region: "AR" },
+      ],
+      maxItems: 8,
+      layout: "grid",
+    },
+  },
+  editorial_split_hero: {
+    name: "Editorial split hero — new",
+    props: {
+      eyebrow: "The agency",
+      headline: "Discover premium talent across",
+      highlight: "destination cities.",
+      body: "Agency-managed talent for events, productions and brand experiences.",
+      primaryCta: { label: "Explore talent", href: "/directory" },
+      secondaryCta: { label: "Start an inquiry", href: "/inquiry/new" },
+      mediaMode: "static",
+      mediaRatio: "4/3",
+      mediaSide: "right",
+      mobileOrder: "text-first",
+      overlayStrength: "none",
+    },
+  },
   destinations_mosaic: {
     name: "Destinations — new",
     props: {

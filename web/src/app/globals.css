@@ -7,45 +7,51 @@
 @import "./token-presets.css";
 
 :root {
-  /* Brand aliases (used by directory + legacy utilities) */
-  /* Defaults match the dashboard light theme — eliminates flash on initial paint. */
-  --impronta-black: #f7f4ec;
-  --impronta-surface: #fffdf8;
-  --impronta-gold: #9b7a21;
-  --impronta-gold-bright: #b18a24;
-  --impronta-gold-dim: #7b6424;
-  --impronta-gold-border: rgba(155, 122, 33, 0.18);
-  --impronta-foreground: #231d10;
-  --impronta-muted: #7a6f58;
+  /* P0-2: NEUTRAL platform default. This block is ONLY the no-theme
+   * fallback. A tenant's brand look (e.g. Impronta black/gold) comes from
+   * the token resolver setting data-token-* attrs, which token-presets.css
+   * keys off (editorial-noir / editorial-ivory etc. fully re-feed these
+   * vars). With no theme_json a tenant must render clean neutral white —
+   * never an Impronta-flavored default. The --impronta-* names are kept
+   * as compatibility aliases for directory/legacy utilities, but here they
+   * carry NEUTRAL values, not literal Impronta cream/gold. */
+  --impronta-black: #ffffff;
+  --impronta-surface: #ffffff;
+  --impronta-gold: #171717;
+  --impronta-gold-bright: #171717;
+  --impronta-gold-dim: #525252;
+  --impronta-gold-border: rgba(23, 23, 23, 0.14);
+  --impronta-foreground: #171717;
+  --impronta-muted: #6b7280;
 
-  /* shadcn semantic */
+  /* shadcn semantic — neutral white/near-black/gray, no brand hue */
   --background: var(--impronta-black);
   --foreground: var(--impronta-foreground);
 
   --card: var(--impronta-surface);
-  --card-foreground: #231d10;
+  --card-foreground: #171717;
 
-  --popover: rgba(255, 253, 248, 1);
-  --popover-foreground: #231d10;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
 
-  --primary: #8d6f1d;
-  --primary-foreground: #fffaf0;
+  --primary: #171717;
+  --primary-foreground: #ffffff;
 
-  --secondary: #efe9da;
-  --secondary-foreground: #231d10;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
 
-  --muted: #f2ede2;
-  --muted-foreground: #7a6f58;
+  --muted: #f5f5f5;
+  --muted-foreground: #6b7280;
 
-  --accent: rgba(155, 122, 33, 0.1);
-  --accent-foreground: #231d10;
+  --accent: rgba(23, 23, 23, 0.06);
+  --accent-foreground: #171717;
 
   --destructive: #b42318;
   --destructive-foreground: #fff5f5;
 
-  --border: rgba(35, 29, 16, 0.09);
-  --input: rgba(35, 29, 16, 0.08);
-  --ring: #b18a24;
+  --border: rgba(23, 23, 23, 0.1);
+  --input: rgba(23, 23, 23, 0.1);
+  --ring: #171717;
 
   --radius: 0.5rem;
 }

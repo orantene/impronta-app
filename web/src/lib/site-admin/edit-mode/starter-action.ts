@@ -236,6 +236,241 @@ const RECIPES: Record<string, Recipe> = {
       },
     ],
   },
+  // ── Impronta — production-quality reference composition ───────────────
+  // The first real tenant test case for Page Builder 2.0. This is canonical
+  // builder DATA (reusable, theme-driven, tenant-agnostic) — applied to a
+  // tenant via the admin one-click starter (tenant resolved from
+  // requireTenantScope(), never hardcoded). Slot keys are chosen so the
+  // homepage template's slot order yields the intended section order:
+  // hero(hero_search, editorial_split_hero) → trust_band(talent_type_grid)
+  // → services(featured_talent) → featured(location_discovery) →
+  // process(process_steps) → destinations(values_trio) → gallery(talent
+  // CTA) → final_cta(client CTA). No "Curated" copy; no Impronta colors in
+  // props (theme comes from the editorial-noir preset + tokens).
+  "impronta-home": {
+    slug: "impronta-home",
+    label: "Impronta — Homepage",
+    presetSlug: "editorial-noir",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero_search",
+        propsOverride: {
+          headline: "Find the right talent",
+          highlight: "for your brief.",
+          subheadline:
+            "Search models, hosts, performers, creators, and event talent across Riviera Maya.",
+          search: {
+            enabled: true,
+            mode: "directory-query",
+            placeholder: "Search talent, disciplines, or locations…",
+            actionHref: "/directory",
+            submitLabel: "Search",
+          },
+          primaryCta: { label: "Start Inquiry", href: "/contact" },
+          secondaryCta: { label: "Explore Talent", href: "/directory" },
+          chipsSource: "manual",
+          chips: [
+            { label: "Playa del Carmen", href: "/directory" },
+            { label: "Tulum", href: "/directory" },
+            { label: "Cancún", href: "/directory" },
+            { label: "Riviera Maya", href: "/directory" },
+          ],
+          // Manual stat for launch. The dynamic `tenant_talent_count`
+          // counts only publicly site-visible roster (shared storefront
+          // isolation primitive `listTalentIdsOnTenantRoster`). On Impronta
+          // …0001 only 1 of 28 active roster rows is `site_visible` (27 are
+          // `roster_only`), so the dynamic stat read "1+". Making it
+          // dynamic-correct needs a product/data decision (publish more
+          // roster to site_visible) — out of scope here. Manual until then.
+          statSource: "manual",
+          statItems: [{ value: "28", label: "represented talent" }],
+          layout: "editorial",
+        },
+      },
+      {
+        slotKey: "hero",
+        sectionTypeKey: "editorial_split_hero",
+        propsOverride: {
+          eyebrow: "Impronta",
+          headline: "Premium talent for events, shoots, and",
+          highlight: "brand experiences.",
+          body: "Impronta helps clients discover and request agency-managed talent across Playa del Carmen, Tulum, Cancún, and the Riviera Maya.",
+          primaryCta: { label: "Explore Talent", href: "/directory" },
+          mediaMode: "static",
+          mediaRatio: "4/3",
+          overlayStrength: "none",
+          mediaSide: "right",
+          mobileOrder: "text-first",
+        },
+      },
+      {
+        slotKey: "trust_band",
+        sectionTypeKey: "talent_type_grid",
+        propsOverride: {
+          headline: "Talent, by Discipline",
+          mode: "manual",
+          items: [
+            { label: "Models", href: "/directory" },
+            { label: "Hosts & Promo", href: "/directory" },
+            { label: "Chefs & Culinary", href: "/directory" },
+            { label: "Performers", href: "/directory" },
+            { label: "Wellness & Beauty", href: "/directory" },
+            { label: "Music & DJs", href: "/directory" },
+            { label: "Photo, Video & Creative", href: "/directory" },
+          ],
+          maxItems: 7,
+          showCount: false,
+          showCta: true,
+          seeAllLabel: "Browse all talent",
+          seeAllHref: "/directory",
+          desktopLayout: "editorial-asymmetric",
+          mobileLayout: "horizontal-scroll",
+          cardRatio: "3/4",
+          textPosition: "overlay-bottom",
+          imageOverlayStrength: "medium",
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "featured_talent",
+        propsOverride: {
+          headline: "Featured Talent",
+          copy: "Selected profiles available for events, productions, campaigns, and private experiences.",
+          sourceMode: "auto_featured_flag",
+          limit: 12,
+          columnsDesktop: 3,
+          variant: "grid",
+          cardVariant: "editorial",
+          showName: true,
+          showPrimaryType: true,
+          showCity: true,
+          requestCta: { label: "Add to inquiry", href: "/contact" },
+          emptyStateText:
+            "Featured profiles appear here as talent are added to the roster.",
+        },
+      },
+      {
+        slotKey: "featured",
+        sectionTypeKey: "location_discovery",
+        propsOverride: {
+          headline: "Find Talent Near Your Event Location",
+          subheadline:
+            "Explore talent availability across key destinations in the Riviera Maya.",
+          source: "manual",
+          items: [
+            { label: "Playa del Carmen", region: "Riviera Maya", href: "/directory" },
+            { label: "Tulum", region: "Riviera Maya", href: "/directory" },
+            { label: "Cancún", region: "Riviera Maya", href: "/directory" },
+            { label: "Riviera Maya", region: "Quintana Roo", href: "/directory" },
+          ],
+          maxItems: 8,
+          showCount: false,
+          showMap: false,
+          ctaLabel: "Browse all talent",
+          ctaHref: "/directory",
+          layout: "grid",
+          emptyStateText:
+            "Location coverage appears here as talent join the roster.",
+        },
+      },
+      {
+        slotKey: "process",
+        sectionTypeKey: "process_steps",
+        propsOverride: {
+          headline: "A Clear, Professional Process",
+          steps: [
+            {
+              label: "Tell Us the Brief",
+              detail:
+                "Share your event, dates, location, and the kind of talent you need.",
+            },
+            {
+              label: "We Shortlist Options",
+              detail:
+                "Our team builds a focused shortlist of available, agency-approved talent.",
+            },
+            {
+              label: "Confirm Talent",
+              detail:
+                "Review profiles, ask questions, and confirm your selection.",
+            },
+            {
+              label: "Coordinate the Booking",
+              detail:
+                "We handle scheduling, logistics, and on-the-ground coordination.",
+            },
+          ],
+          variant: "numbered-column",
+          numberStyle: "serif-italic",
+        },
+      },
+      {
+        slotKey: "destinations",
+        sectionTypeKey: "values_trio",
+        propsOverride: {
+          headline: "An Agency, Not a Directory",
+          items: [
+            {
+              title: "Verified Profiles",
+              detail:
+                "Every profile is reviewed and represented by the agency — not an open listing.",
+            },
+            {
+              title: "Local Coordination",
+              detail:
+                "On-the-ground support across Playa del Carmen, Tulum, Cancún, and the Riviera Maya.",
+            },
+            {
+              title: "Booking Support",
+              detail:
+                "We manage scheduling, logistics, and communication from brief to wrap.",
+            },
+          ],
+          variant: "numbered-cards",
+          numberStyle: "serif-italic",
+        },
+      },
+      {
+        slotKey: "gallery",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "For talent",
+          headline: "Are you a model, host, performer, or creator?",
+          copy: "Join Impronta's represented talent and get discovered for events, productions, and campaigns across the Riviera Maya.",
+          reassurance: "",
+          // Auth CTAs: short-term route decision (2026-05-17, owner Option
+          // 1). `/register` + `/login` are AUTH_PREFIXES-allow-listed on
+          // agency/custom-domain hosts (200 on the production-primary
+          // `improntamodels.com`); `/talent/register` is NOT allow-listed
+          // there (404). No app-host hardcoding, no new auth route. The
+          // path-based `tulala.digital/<slug>` pattern still 404s these
+          // (storefront prefixes root auth paths) — accepted degradation
+          // until the builder gains a reusable `platform-auth` link kind
+          // (documented future platform improvement).
+          primaryCta: { label: "Apply as Talent", href: "/register" },
+          secondaryCta: { label: "Talent Login", href: "/login" },
+          variant: "minimal-band",
+          bandTone: "espresso",
+          insetCard: true,
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "For clients",
+          headline:
+            "Planning an event, shoot, activation, or private experience?",
+          copy: "Tell us your brief and we'll return available, agency-approved talent with a suggested shortlist.",
+          reassurance: "",
+          primaryCta: { label: "Start Inquiry", href: "/contact" },
+          secondaryCta: { label: "Explore Talent", href: "/directory" },
+          variant: "centered-overlay",
+        },
+      },
+    ],
+  },
   "editorial-bridal": {
     slug: "editorial-bridal",
     label: "Editorial Bridal starter",

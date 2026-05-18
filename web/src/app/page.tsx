@@ -99,10 +99,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  // Dev-only convenience: when hitting localhost root, jump straight to the
-  // QA admin roster so the Claude Preview tab lands on the working surface
-  // instead of the marketing landing. Production unaffected.
-  if (process.env.NODE_ENV === "development") {
+  // Dev-only convenience: when hitting localhost root, optionally jump to a
+  // working surface so a preview tab doesn't land on the marketing landing.
+  // Target is env-driven (no tenant hardcoded); unset = no redirect.
+  // Production unaffected.
+  const devRootRedirect = process.env.DEV_ROOT_REDIRECT?.trim();
+  if (process.env.NODE_ENV === "development" && devRootRedirect) {
     const h = await headers();
     const host = h.get("host") ?? "";
     const originalPathname = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
@@ -110,7 +112,7 @@ export default async function HomePage() {
       originalPathname === "/" &&
       (host.startsWith("localhost") || host.startsWith("127.0.0.1"))
     ) {
-      redirect("/impronta/admin/roster");
+      redirect(devRootRedirect);
     }
   }
 

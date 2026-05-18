@@ -6,6 +6,7 @@ import {
 } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteFooterV1 } from "./schema";
+import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -146,12 +147,17 @@ function textNodeDecls(
  * the snapshot-shell feature flag is on AND the tenant has a published
  * shell.
  */
-export function SiteFooterComponent({
+export async function SiteFooterComponent({
   props,
   sectionId,
+  tenantId,
   builderNodeBindings,
 }: SectionComponentProps<SiteFooterV1>) {
   const { brand, columns, social, legal, variant, tone, nodePresentation, presentation } = props;
+  const brandLogoUrl = await resolveShellBrandLogoUrl({
+    tenantId,
+    brandLogoUrl: brand.logoUrl,
+  });
   const hasColumns = columns.length > 0;
   const hasSocial = social.length > 0;
   const hasLegal = Boolean(legal.copyright?.trim()) || legal.links.length > 0;
@@ -186,13 +192,13 @@ export function SiteFooterComponent({
     >
       {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
       <div className="site-footer__inner">
-        {(brand.label || brand.logoUrl || brand.tagline) ? (
+        {(brand.label || brandLogoUrl || brand.tagline) ? (
           <div className="site-footer__brand">
-            {brand.logoUrl ? (
+            {brandLogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 className="site-footer__brand-mark"
-                src={brand.logoUrl}
+                src={brandLogoUrl}
                 alt={brand.logoAlt ?? brand.label ?? ""}
                 loading="lazy"
                 decoding="async"

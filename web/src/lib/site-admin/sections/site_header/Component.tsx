@@ -7,6 +7,7 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1 } from "./schema";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
+import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import type { Locale } from "@/i18n/config";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
@@ -215,9 +216,10 @@ function ctaDecls(
  * snapshot-shell feature flag is on AND the tenant has a published shell.
  * Tenants without a shell continue to render the hard-coded `PublicHeader`.
  */
-export function SiteHeaderComponent({
+export async function SiteHeaderComponent({
   props,
   sectionId,
+  tenantId,
   locale,
   builderNodeBindings,
 }: SectionComponentProps<SiteHeaderV1>) {
@@ -233,6 +235,10 @@ export function SiteHeaderComponent({
     presentation,
   } = props;
   const brandHref = brand.href || "/";
+  const brandLogoUrl = await resolveShellBrandLogoUrl({
+    tenantId,
+    brandLogoUrl: brand.logoUrl,
+  });
   const showAccount = authArea?.showAccountMenu ?? true;
   const showLanguage = authArea?.showLanguageToggle ?? true;
   const showDiscovery = authArea?.showDiscoveryTools ?? true;
@@ -269,11 +275,11 @@ export function SiteHeaderComponent({
       {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
       <div className="site-header__inner">
         <a className="site-header__brand" href={brandHref}>
-          {brand.logoUrl ? (
+          {brandLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               className="site-header__brand-mark"
-              src={brand.logoUrl}
+              src={brandLogoUrl}
               alt={brand.logoAlt ?? brand.label ?? ""}
               loading="eager"
               decoding="sync"

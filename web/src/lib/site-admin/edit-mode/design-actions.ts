@@ -28,6 +28,7 @@ import {
   designSaveDraftSchema,
 } from "@/lib/site-admin/forms/design";
 import {
+  applyThemePreset,
   loadDesignForStaff,
   publishDesign,
   saveDesignDraft,
@@ -68,6 +69,20 @@ export type DesignSaveResult =
       code?: string;
       currentVersion?: number;
       fieldErrors?: Record<string, string>;
+    };
+
+export type DesignPresetResult =
+  | {
+      ok: true;
+      version: number;
+      themeDraft: Record<string, string>;
+      presetSlug: string;
+    }
+  | {
+      ok: false;
+      error: string;
+      code?: string;
+      currentVersion?: number;
     };
 
 export type DesignPublishResult =
@@ -230,6 +245,66 @@ export async function saveDesignDraftFromEditAction(input: {
   } catch (error) {
     logServerError("edit-mode/save-design-draft", error);
     return { ok: false, error: "Could not save theme draft." };
+  }
+}
+
+// ── apply theme preset ─────────────────────────────────────────────────────
+
+/**
+ * Apply a curated theme preset (neutral / classic / editorial-bridal /
+ * studio-minimal / editorial-noir) to `theme_json_draft`. Delegates to the
+ * already-tested `applyThemePreset` lib op — same capability / tenant-scope /
+ * CAS / audit discipline as save/publish; zero logic duplicated here.
+ *
+ * NOTE (honest preview semantics): like every other ThemeDrawer move this
+ * writes the DRAFT only. The operator must Publish to promote the preset
+ * bundle into `theme_json` (the live storefront). The drawer surfaces this.
+ */
+export async function applyThemePresetFromEditAction(input: {
+  presetSlug: string;
+  expectedVersion: number;
+}): Promise<DesignPresetResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before applying a theme preset.",
+    };
+  }
+
+  try {
+    const result = await applyThemePreset(auth.supabase, {
+      tenantId: scope.tenantId,
+      presetSlug: input.presetSlug,
+      expectedVersion: input.expectedVersion,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Theme changed elsewhere; reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: result.message ?? "Could not apply theme preset.",
+        code: result.code,
+      };
+    }
+    return {
+      ok: true,
+      version: result.data.version,
+      themeDraft: result.data.themeDraft,
+      presetSlug: result.data.presetSlug,
+    };
+  } catch (error) {
+    logServerError("edit-mode/apply-theme-preset", error);
+    return { ok: false, error: "Could not apply theme preset." };
   }
 }
 

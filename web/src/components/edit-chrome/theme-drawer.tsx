@@ -65,6 +65,7 @@ import {
 import { useEditContext } from "./edit-context";
 
 import {
+  applyThemePresetFromEditAction,
   loadDesignAction,
   publishDesignFromEditAction,
   saveDesignDraftFromEditAction,
@@ -432,6 +433,50 @@ export function ThemeDrawer(): ReactElement | null {
     setConfirmingPublish(false);
   }, []);
 
+  // Decision-1 — theme preset picker. Delegates to the tested
+  // `applyThemePreset` lib op via the gated edit action; merges the preset
+  // bundle into the DRAFT (operator must Publish to go live — surfaced in UI).
+  const handleApplyPreset = useCallback(
+    async (slug: string) => {
+      if (!snapshot) return;
+      setBusy("saving");
+      setError(null);
+      try {
+        const res = await applyThemePresetFromEditAction({
+          presetSlug: slug,
+          expectedVersion: snapshot.version,
+        });
+        if (!res.ok) {
+          setError(res.error);
+          if (res.code === "VERSION_CONFLICT") {
+            const fresh = await loadDesignAction();
+            if (fresh.ok) setSnapshot(fresh.snapshot);
+          }
+          return;
+        }
+        setSnapshot((prev) =>
+          prev
+            ? {
+                ...prev,
+                themeDraft: { ...res.themeDraft },
+                version: res.version,
+                presetSlug: res.presetSlug,
+              }
+            : prev,
+        );
+        setDraft({ ...res.themeDraft });
+        setConfirmingPublish(false);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not apply theme preset.",
+        );
+      } finally {
+        setBusy("idle");
+      }
+    },
+    [snapshot],
+  );
+
   const handleSaveDraft = useCallback(async () => {
     if (!snapshot || !draft) return;
     setBusy("saving");
@@ -740,6 +785,9 @@ export function ThemeDrawer(): ReactElement | null {
               <AdvancedTab
                 draft={draft}
                 onResetDefaults={resetToDefaults}
+                onApplyPreset={handleApplyPreset}
+                currentPreset={snapshot?.presetSlug ?? null}
+                presetBusy={busy === "saving" || busy === "publishing"}
                 onBulkApply={(tokens) => {
                   for (const [k, v] of Object.entries(tokens)) {
                     set(k, v);
@@ -979,14 +1027,32 @@ function PresetsTab({
  * The "Advanced" label on the tab itself signals: power-user territory,
  * not "secret features." Compare against builder-experience.html §12.
  */
+/** Decision-1 — the 5 curated presets. Slugs are the source of truth in
+ * `lib/site-admin/presets/theme-presets.ts`; the server action validates
+ * the slug (NOT_FOUND on mismatch), so this UI list need not import the
+ * registry into the client bundle. */
+const PRESET_OPTIONS: { slug: string; label: string; hint: string }[] = [
+  { slug: "neutral", label: "Neutral", hint: "Clean white default" },
+  { slug: "classic", label: "Classic", hint: "Sans, crisp, legacy" },
+  { slug: "editorial-bridal", label: "Editorial Bridal", hint: "Warm ivory serif" },
+  { slug: "studio-minimal", label: "Studio Minimal", hint: "Monochrome gallery" },
+  { slug: "editorial-noir", label: "Editorial Noir", hint: "Black + gold (Impronta)" },
+];
+
 function AdvancedTab({
   draft,
   onResetDefaults,
   onBulkApply,
+  onApplyPreset,
+  currentPreset,
+  presetBusy,
 }: {
   draft: Record<string, string>;
   onResetDefaults: () => void;
   onBulkApply: (tokens: Record<string, string>) => void;
+  onApplyPreset: (slug: string) => void;
+  currentPreset: string | null;
+  presetBusy: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const json = useMemo(() => {
@@ -1073,6 +1139,62 @@ function AdvancedTab({
               boxShadow: CHROME_SHADOWS.inputInset,
             }}
           />
+          <div
+            style={{
+              marginTop: 14,
+              paddingTop: 12,
+              borderTop: `1px solid ${CHROME.line}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: CHROME.text2,
+                marginBottom: 6,
+              }}
+            >
+              Theme preset
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {PRESET_OPTIONS.map((p) => {
+                const active = currentPreset === p.slug;
+                return (
+                  <button
+                    key={p.slug}
+                    type="button"
+                    disabled={presetBusy}
+                    onClick={() => onApplyPreset(p.slug)}
+                    title={p.hint}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      padding: "5px 10px",
+                      borderRadius: 6,
+                      cursor: presetBusy ? "not-allowed" : "pointer",
+                      color: active ? CHROME.paper : CHROME.text2,
+                      background: active ? CHROME.text2 : "transparent",
+                      border: `1px solid ${active ? CHROME.text2 : CHROME.line}`,
+                      opacity: presetBusy ? 0.5 : 1,
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p
+              style={{
+                fontSize: 10.5,
+                color: CHROME.muted,
+                marginTop: 6,
+                lineHeight: 1.45,
+              }}
+            >
+              Applies the preset bundle to your <b>draft</b>. Click{" "}
+              <b>Publish</b> to make it live on the storefront.
+            </p>
+          </div>
           <div
             style={{
               marginTop: 10,

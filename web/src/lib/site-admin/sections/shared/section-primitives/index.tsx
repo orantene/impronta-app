@@ -204,7 +204,13 @@ export function SectionHead({
  * single anchor shape with three deliberate variants.
  */
 
-export type CtaVariant = "primary" | "secondary" | "ghost";
+/**
+ * P0-3 — variants extended to 5 (added `outline`, `text`). All token-driven
+ * via `.site-prim-cta` CSS (no hardcoded brand colors). `primary/secondary/
+ * ghost` keep their exact prior visuals so existing callers are unaffected.
+ */
+export type CtaVariant = "primary" | "secondary" | "outline" | "ghost" | "text";
+export type CtaSize = "sm" | "md" | "lg";
 
 export interface CtaProps {
   href: string;
@@ -212,37 +218,375 @@ export interface CtaProps {
   children: ReactNodeType;
   /** Defaults to "primary". */
   variant?: CtaVariant;
+  /** Defaults to "md". */
+  size?: CtaSize;
+  /** Optional leading icon node (hidden while loading). */
+  iconLeft?: ReactNodeType;
+  /** Optional trailing icon node. */
+  iconRight?: ReactNodeType;
+  /** Stretch to full width on narrow viewports. */
+  fullWidthMobile?: boolean;
+  /** Non-interactive, dimmed. Anchor de-activated (no href, aria-disabled). */
+  disabled?: boolean;
+  /** Shows a token-colored spinner; implies disabled. CSS-only (no client JS). */
+  loading?: boolean;
   /** External-link target. Auto-set to "_blank" when href is an absolute URL. */
   newTab?: boolean;
-  /** Optional class additions for section-level layout (e.g. width-full on mobile). */
+  /** Optional class additions for section-level layout. */
   className?: string;
   /** Optional BuilderNode id marker for canvas child-node selection. */
   builderNodeId?: string;
   /** Optional inline style overrides for node-level builder controls. */
   style?: CSSProperties;
+  /** Accessible label when the visible text is insufficient. */
+  "aria-label"?: string;
 }
 
 export function Cta({
   href,
   children,
   variant = "primary",
+  size = "md",
+  iconLeft,
+  iconRight,
+  fullWidthMobile,
+  disabled,
+  loading,
   newTab,
   className,
   builderNodeId,
   style,
+  "aria-label": ariaLabel,
 }: CtaProps) {
   const isExternal = /^https?:\/\//i.test(href) || newTab === true;
+  const inert = disabled === true || loading === true;
+  const classes = [
+    "site-prim-cta",
+    `site-prim-cta--${variant}`,
+    `site-prim-cta--${size}`,
+    fullWidthMobile ? "site-prim-cta--fullw-m" : "",
+    loading ? "site-prim-cta--loading" : "",
+    className ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <a
-      href={href}
+      href={inert ? undefined : href}
       data-cta-variant={variant}
+      data-cta-size={size}
+      data-cta-state={loading ? "loading" : disabled ? "disabled" : undefined}
       data-builder-node-id={builderNodeId}
-      className={`site-prim-cta site-prim-cta--${variant}${className ? ` ${className}` : ""}`}
+      className={classes}
       style={style}
-      target={isExternal ? "_blank" : undefined}
-      rel={isExternal ? "noopener noreferrer" : undefined}
+      role={inert ? "link" : undefined}
+      aria-disabled={inert ? true : undefined}
+      aria-busy={loading ? true : undefined}
+      aria-label={ariaLabel}
+      tabIndex={inert ? -1 : undefined}
+      target={!inert && isExternal ? "_blank" : undefined}
+      rel={!inert && isExternal ? "noopener noreferrer" : undefined}
     >
-      {children}
+      {loading ? (
+        <span className="site-prim-cta__spinner" aria-hidden="true" />
+      ) : iconLeft ? (
+        <span className="site-prim-cta__ic" aria-hidden="true">
+          {iconLeft}
+        </span>
+      ) : null}
+      <span className="site-prim-cta__label">{children}</span>
+      {!loading && iconRight ? (
+        <span className="site-prim-cta__ic" aria-hidden="true">
+          {iconRight}
+        </span>
+      ) : null}
     </a>
+  );
+}
+
+// ── SearchInput (P1-1.1) ────────────────────────────────────────────────
+/**
+ * Token-driven search field. Server component: `directory-query` mode is a
+ * native GET form (no client JS). `ai-interpret` only differs by the
+ * action route the caller supplies — we never fake AI. `visual-only`
+ * renders a non-submitting field for demo composition (not a prod default).
+ */
+export type SearchInputMode = "directory-query" | "ai-interpret" | "visual-only";
+
+export interface SearchInputProps {
+  /** Form action route (e.g. "/directory"). Required for submitting modes. */
+  action?: string;
+  mode?: SearchInputMode;
+  placeholder?: string;
+  defaultValue?: string;
+  /** Query param name. Default "q". */
+  name?: string;
+  submitLabel?: string;
+  size?: "sm" | "md" | "lg";
+  fullWidthMobile?: boolean;
+  builderNodeId?: string;
+}
+
+export function SearchInput({
+  action,
+  mode = "directory-query",
+  placeholder = "Search…",
+  defaultValue,
+  name = "q",
+  submitLabel = "Search",
+  size = "md",
+  fullWidthMobile = true,
+  builderNodeId,
+}: SearchInputProps) {
+  const submitting = mode !== "visual-only" && !!action;
+  const cls = [
+    "site-prim-search",
+    `site-prim-search--${size}`,
+    fullWidthMobile ? "site-prim-search--fullw-m" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <form
+      className={cls}
+      action={submitting ? action : undefined}
+      method={submitting ? "get" : undefined}
+      role="search"
+      data-search-mode={mode}
+      data-builder-node-id={builderNodeId}
+    >
+      <span className="site-prim-search__ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="7" strokeWidth="2" />
+          <path d="m21 21-4.3-4.3" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </span>
+      <input
+        className="site-prim-search__input"
+        type="search"
+        name={name}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        autoComplete="off"
+        readOnly={!submitting}
+      />
+      {submitting ? (
+        <button className="site-prim-search__submit" type="submit">
+          {submitLabel}
+        </button>
+      ) : null}
+    </form>
+  );
+}
+
+// ── StatLine (P1-1.2) ───────────────────────────────────────────────────
+/**
+ * Presentational stat row. The consuming section resolves any dynamic value
+ * (e.g. tenant talent count, tenant-scoped) and passes it in — the primitive
+ * never queries data, keeping it reusable + tenant-safe by construction.
+ */
+export interface StatLineProps {
+  items: { value: string; label: string }[];
+  separator?: "dot" | "pipe" | "slash" | "none";
+  align?: "left" | "center" | "right";
+  tone?: "default" | "muted" | "on-dark";
+  className?: string;
+}
+
+export function StatLine({
+  items,
+  separator = "dot",
+  align = "center",
+  tone = "muted",
+  className,
+}: StatLineProps) {
+  if (!items.length) return null;
+  return (
+    <p
+      className={`site-prim-statline site-prim-statline--${align} site-prim-statline--${tone}${className ? ` ${className}` : ""}`}
+      data-sep={separator}
+    >
+      {items.map((it, i) => (
+        <span className="site-prim-statline__item" key={`${it.label}-${i}`}>
+          <b className="site-prim-statline__value">{it.value}</b>{" "}
+          <span className="site-prim-statline__label">{it.label}</span>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+// ── Badge (P1-1.3) ──────────────────────────────────────────────────────
+export type BadgeVariant =
+  | "neutral"
+  | "featured"
+  | "status"
+  | "availability"
+  | "outline";
+
+export interface BadgeProps {
+  label: ReactNode;
+  variant?: BadgeVariant;
+  size?: "sm" | "md";
+  icon?: ReactNode;
+  className?: string;
+}
+
+export function Badge({
+  label,
+  variant = "neutral",
+  size = "sm",
+  icon,
+  className,
+}: BadgeProps) {
+  return (
+    <span
+      className={`site-prim-badge site-prim-badge--${variant} site-prim-badge--${size}${className ? ` ${className}` : ""}`}
+    >
+      {icon ? (
+        <span className="site-prim-badge__ic" aria-hidden="true">
+          {icon}
+        </span>
+      ) : null}
+      {label}
+    </span>
+  );
+}
+
+// ── ChipList (P1-1.4) ───────────────────────────────────────────────────
+/**
+ * Chips render whatever the section passes. Source (manual / serviceAreas /
+ * rosterCities) is resolved tenant-scoped by the section, not here.
+ */
+export interface ChipItem {
+  label: ReactNode;
+  href?: string;
+  value?: string;
+  active?: boolean;
+  dot?: boolean;
+}
+
+export interface ChipListProps {
+  chips: ChipItem[];
+  layout?: "wrap" | "scroll";
+  size?: "sm" | "md";
+  className?: string;
+}
+
+export function ChipList({
+  chips,
+  layout = "wrap",
+  size = "md",
+  className,
+}: ChipListProps) {
+  if (!chips.length) return null;
+  return (
+    <div
+      className={`site-prim-chips site-prim-chips--${layout} site-prim-chips--${size}${className ? ` ${className}` : ""}`}
+      role="list"
+    >
+      {chips.map((c, i) => {
+        const inner = (
+          <>
+            {c.dot ? (
+              <span className="site-prim-chip__dot" aria-hidden="true" />
+            ) : null}
+            {c.label}
+          </>
+        );
+        const klass = `site-prim-chip${c.active ? " site-prim-chip--on" : ""}`;
+        return c.href ? (
+          <a
+            key={`${c.value ?? i}`}
+            href={c.href}
+            className={klass}
+            role="listitem"
+          >
+            {inner}
+          </a>
+        ) : (
+          <span key={`${c.value ?? i}`} className={klass} role="listitem">
+            {inner}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── MediaFrame (P1-1.5) ─────────────────────────────────────────────────
+/**
+ * Ratio-boxed media with token-driven overlay + safe fallback. Plain <img>
+ * (server-component safe, no next/image domain config coupling); object-fit
+ * cover. Overlay uses the P0-4 presentation overlay controls when supplied.
+ */
+export interface MediaFrameProps {
+  src?: string | null;
+  alt?: string;
+  ratio?: "1/1" | "3/4" | "4/3" | "16/9" | "21/9";
+  overlayColor?: string;
+  overlayOpacity?: number;
+  overlayStrength?: "none" | "soft" | "medium" | "strong";
+  objectPosition?: string;
+  /** Shown when src is absent (e.g. initials or label). */
+  fallback?: ReactNode;
+  caption?: ReactNode;
+  className?: string;
+  builderNodeId?: string;
+}
+
+export function MediaFrame({
+  src,
+  alt = "",
+  ratio = "3/4",
+  overlayColor,
+  overlayOpacity,
+  overlayStrength,
+  objectPosition,
+  fallback,
+  caption,
+  className,
+  builderNodeId,
+}: MediaFrameProps) {
+  const strengthOpacity =
+    overlayStrength && overlayStrength !== "none"
+      ? { soft: 0.2, medium: 0.4, strong: 0.62 }[overlayStrength]
+      : undefined;
+  const ov = overlayOpacity ?? strengthOpacity;
+  return (
+    <figure
+      className={`site-prim-media${className ? ` ${className}` : ""}`}
+      style={{ aspectRatio: ratio.replace("/", " / ") }}
+      data-builder-node-id={builderNodeId}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="site-prim-media__img"
+          src={src}
+          alt={alt}
+          loading="lazy"
+          style={objectPosition ? { objectPosition } : undefined}
+        />
+      ) : (
+        <span className="site-prim-media__fallback" aria-hidden={!alt}>
+          {fallback ?? alt}
+        </span>
+      )}
+      {ov != null && ov > 0 ? (
+        <span
+          className="site-prim-media__overlay"
+          aria-hidden="true"
+          style={{
+            background: overlayColor ?? "#000",
+            opacity: ov,
+          }}
+        />
+      ) : null}
+      {caption ? (
+        <figcaption className="site-prim-media__cap">{caption}</figcaption>
+      ) : null}
+    </figure>
   );
 }

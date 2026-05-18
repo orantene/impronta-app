@@ -1,0 +1,372 @@
+"use client";
+
+import { PresentationPanel } from "../shared/PresentationPanel";
+import { LinkPicker } from "../shared/LinkPicker";
+import type { SectionEditorProps } from "../types";
+import type { TalentTypeGridV1, TalentTypeGridItem } from "./schema";
+
+const FIELD = "flex flex-col gap-1.5 text-sm";
+const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
+const INPUT =
+  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+
+export function TalentTypeGridEditor({
+  initial,
+  onChange,
+}: SectionEditorProps<TalentTypeGridV1>) {
+  const value: TalentTypeGridV1 = {
+    eyebrow: initial.eyebrow ?? "",
+    headline: initial.headline ?? "Talent, by discipline",
+    subheadline: initial.subheadline ?? "",
+    mode: initial.mode ?? "manual",
+    items: initial.items ?? [],
+    selectedTermIds: initial.selectedTermIds ?? [],
+    parentCategoryMode: initial.parentCategoryMode,
+    maxItems: initial.maxItems ?? 7,
+    showCount: initial.showCount,
+    showCta: initial.showCta,
+    ctaLabel: initial.ctaLabel ?? "",
+    seeAllLabel: initial.seeAllLabel ?? "",
+    seeAllHref: initial.seeAllHref ?? "",
+    desktopLayout: initial.desktopLayout ?? "equal-grid",
+    mobileLayout: initial.mobileLayout ?? "stacked",
+    cardRatio: initial.cardRatio ?? "3/4",
+    textPosition: initial.textPosition ?? "overlay-bottom",
+    overlayOpacity: initial.overlayOpacity,
+    imageOverlayStrength: initial.imageOverlayStrength ?? "medium",
+    emptyStateText: initial.emptyStateText ?? "",
+    presentation: initial.presentation,
+  };
+  const patch = (p: Partial<TalentTypeGridV1>) =>
+    onChange({ ...value, ...p });
+
+  const items = value.items ?? [];
+  const setItem = (i: number, p: Partial<TalentTypeGridItem>) =>
+    patch({
+      items: items.map((it, idx) => (idx === i ? { ...it, ...p } : it)),
+    });
+  const addItem = () =>
+    patch({ items: [...items, { label: "New discipline" }].slice(0, 18) });
+  const removeItem = (i: number) =>
+    patch({ items: items.filter((_, idx) => idx !== i) });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className={FIELD}>
+          <span className={LABEL}>Eyebrow</span>
+          <input
+            className={INPUT}
+            value={value.eyebrow ?? ""}
+            onChange={(e) => patch({ eyebrow: e.target.value })}
+          />
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Heading</span>
+          <input
+            className={INPUT}
+            value={value.headline ?? ""}
+            onChange={(e) => patch({ headline: e.target.value })}
+          />
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Subheading</span>
+          <input
+            className={INPUT}
+            value={value.subheadline ?? ""}
+            onChange={(e) => patch({ subheadline: e.target.value })}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className={FIELD}>
+          <span className={LABEL}>Mode</span>
+          <select
+            className={INPUT}
+            value={value.mode}
+            onChange={(e) =>
+              patch({ mode: e.target.value as TalentTypeGridV1["mode"] })
+            }
+          >
+            <option value="manual">Manual cards</option>
+            <option value="dynamic">Dynamic — from tenant roster</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Max items</span>
+          <input
+            className={INPUT}
+            type="number"
+            min={1}
+            max={18}
+            value={value.maxItems}
+            onChange={(e) =>
+              patch({
+                maxItems: Math.max(
+                  1,
+                  Math.min(18, Number(e.target.value) || 7),
+                ),
+              })
+            }
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm md:mt-6">
+          <input
+            type="checkbox"
+            checked={value.parentCategoryMode === true}
+            onChange={(e) => patch({ parentCategoryMode: e.target.checked })}
+          />
+          Parent-category rollup
+        </label>
+      </div>
+
+      {value.mode === "dynamic" ? (
+        <label className={FIELD}>
+          <span className={LABEL}>
+            Restrict to taxonomy term ids (optional, comma-separated)
+          </span>
+          <input
+            className={INPUT}
+            placeholder="empty = all roster disciplines"
+            value={(value.selectedTermIds ?? []).join(", ")}
+            onChange={(e) =>
+              patch({
+                selectedTermIds: e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                  .slice(0, 40),
+              })
+            }
+          />
+          <span className="text-[11px] text-muted-foreground">
+            Visual taxonomy picker is a documented follow-up; this manual
+            term-id restrict is the safe interim. Tenant-scoped automatically.
+          </span>
+        </label>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <span className={LABEL}>Manual cards</span>
+          {items.map((it, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-1 gap-2 rounded-md border border-border/50 p-2 md:grid-cols-2"
+            >
+              <input
+                className={INPUT}
+                placeholder="Label"
+                value={it.label}
+                onChange={(e) => setItem(i, { label: e.target.value })}
+              />
+              <input
+                className={INPUT}
+                placeholder="Description (optional)"
+                value={it.description ?? ""}
+                onChange={(e) => setItem(i, { description: e.target.value })}
+              />
+              <input
+                className={INPUT}
+                placeholder="Image URL (optional)"
+                value={it.imageUrl ?? ""}
+                onChange={(e) => setItem(i, { imageUrl: e.target.value })}
+              />
+              <input
+                className={INPUT}
+                placeholder="Taxonomy term id (optional → directory link)"
+                value={it.taxonomyTermId ?? ""}
+                onChange={(e) =>
+                  setItem(i, { taxonomyTermId: e.target.value })
+                }
+              />
+              <button
+                type="button"
+                className="text-xs text-destructive md:col-span-2"
+                onClick={() => removeItem(i)}
+              >
+                Remove card
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="self-start rounded-md border border-border/60 px-2 py-1 text-xs"
+            onClick={addItem}
+          >
+            + Add card
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className={FIELD}>
+          <span className={LABEL}>Desktop layout</span>
+          <select
+            className={INPUT}
+            value={value.desktopLayout}
+            onChange={(e) =>
+              patch({
+                desktopLayout: e.target
+                  .value as TalentTypeGridV1["desktopLayout"],
+              })
+            }
+          >
+            <option value="equal-grid">Equal grid</option>
+            <option value="editorial-asymmetric">Editorial asymmetric</option>
+            <option value="compact-grid">Compact grid</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Mobile layout</span>
+          <select
+            className={INPUT}
+            value={value.mobileLayout}
+            onChange={(e) =>
+              patch({
+                mobileLayout: e.target
+                  .value as TalentTypeGridV1["mobileLayout"],
+              })
+            }
+          >
+            <option value="stacked">Stacked</option>
+            <option value="horizontal-scroll">Horizontal scroll</option>
+            <option value="compact-grid">Compact grid</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Card ratio</span>
+          <select
+            className={INPUT}
+            value={value.cardRatio}
+            onChange={(e) =>
+              patch({
+                cardRatio: e.target.value as TalentTypeGridV1["cardRatio"],
+              })
+            }
+          >
+            <option value="3/4">3 / 4</option>
+            <option value="1/1">1 / 1</option>
+            <option value="4/3">4 / 3</option>
+            <option value="16/9">16 / 9</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className={FIELD}>
+          <span className={LABEL}>Text position</span>
+          <select
+            className={INPUT}
+            value={value.textPosition}
+            onChange={(e) =>
+              patch({
+                textPosition: e.target
+                  .value as TalentTypeGridV1["textPosition"],
+              })
+            }
+          >
+            <option value="overlay-bottom">Overlay (on image)</option>
+            <option value="below">Below image</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Overlay strength</span>
+          <select
+            className={INPUT}
+            value={value.imageOverlayStrength}
+            onChange={(e) =>
+              patch({
+                imageOverlayStrength: e.target
+                  .value as TalentTypeGridV1["imageOverlayStrength"],
+              })
+            }
+          >
+            <option value="none">None</option>
+            <option value="soft">Soft</option>
+            <option value="medium">Medium</option>
+            <option value="strong">Strong</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Overlay opacity (0–1, optional)</span>
+          <input
+            className={INPUT}
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={value.overlayOpacity ?? ""}
+            onChange={(e) =>
+              patch({
+                overlayOpacity:
+                  e.target.value === ""
+                    ? undefined
+                    : Math.max(0, Math.min(1, Number(e.target.value))),
+              })
+            }
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={value.showCount === true}
+            onChange={(e) => patch({ showCount: e.target.checked })}
+          />
+          Show talent counts
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={value.showCta === true}
+            onChange={(e) => patch({ showCta: e.target.checked })}
+          />
+          Show card CTA
+        </label>
+        {value.showCta ? (
+          <input
+            className={`${INPUT} max-w-[160px]`}
+            placeholder="CTA label"
+            value={value.ctaLabel ?? ""}
+            onChange={(e) => patch({ ctaLabel: e.target.value })}
+          />
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className={FIELD}>
+          <span className={LABEL}>“See all” label</span>
+          <input
+            className={INPUT}
+            value={value.seeAllLabel ?? ""}
+            onChange={(e) => patch({ seeAllLabel: e.target.value })}
+          />
+        </label>
+        <div className={FIELD}>
+          <span className={LABEL}>“See all” href</span>
+          <LinkPicker
+            value={value.seeAllHref ?? ""}
+            onChange={(next) => patch({ seeAllHref: next })}
+          />
+        </div>
+      </div>
+
+      <label className={FIELD}>
+        <span className={LABEL}>Empty-state text</span>
+        <input
+          className={INPUT}
+          placeholder="No talent disciplines to show yet."
+          value={value.emptyStateText ?? ""}
+          onChange={(e) => patch({ emptyStateText: e.target.value })}
+        />
+      </label>
+
+      <PresentationPanel
+        value={value.presentation}
+        onChange={(next) => patch({ presentation: next })}
+      />
+    </div>
+  );
+}

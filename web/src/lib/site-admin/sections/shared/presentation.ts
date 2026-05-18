@@ -283,6 +283,46 @@ export const sectionPresentationSchema = z
     gridArea: z.string().max(60).optional(),
     zIndex: z.number().int().min(-10).max(50).optional(),
     pinScrollSection: z.boolean().optional(),
+
+    /**
+     * ── P0-4 — shared appearance foundation for the smart sections ────
+     * All optional + additive. The schema is non-strict, so existing
+     * saved compositions keep parsing unchanged (missing keys = unset).
+     * Enum-based so they map to `data-section-*` attrs like the rest;
+     * per-section CSS wiring lands with the sections that consume them
+     * (Hero Search / Talent Collection / Talent Type Grid / Location /
+     * CTA / media+card sections). containerWidth · align · paddingTop|
+     * Bottom · background · backgroundColorCustom already cover
+     * container / spacing / alignment / background — not duplicated here.
+     */
+    /** Section-level visual preset (bulk-sets a coherent appearance). */
+    designPreset: z
+      .enum(["neutral", "editorial", "minimal", "bold", "luxury-noir"])
+      .optional(),
+    /** Text tone token hint (legibility over varied backgrounds). */
+    textTone: z.enum(["auto", "ink", "muted", "on-dark", "on-light"]).optional(),
+    /** Image/section overlay color (hex/rgba/token ref). */
+    overlayColor: z.string().max(32).optional(),
+    /** Image/section overlay opacity 0–1 (raw control). */
+    overlayOpacity: z.number().min(0).max(1).optional(),
+    /** Preset overlay strength for image-backed cards/sections. */
+    imageOverlayStrength: z
+      .enum(["none", "soft", "medium", "strong"])
+      .optional(),
+    /** Desktop layout variant (values are section-defined). */
+    desktopLayout: z.string().max(40).optional(),
+    /** Mobile layout variant (values are section-defined). */
+    mobileLayout: z.string().max(40).optional(),
+    /** Card treatment for sections that render cards. */
+    cardStyle: z
+      .enum(["flat", "outlined", "elevated", "glass", "editorial"])
+      .optional(),
+    /** Border treatment. */
+    borderStyle: z.enum(["none", "hairline", "solid", "accent"]).optional(),
+    /** Corner radius scale for cards/media in the section. */
+    radiusScale: z.enum(["none", "sm", "md", "lg", "pill"]).optional(),
+    /** Shadow/elevation strength. */
+    elevation: z.enum(["none", "sm", "md", "lg"]).optional(),
   })
   .optional();
 
@@ -322,6 +362,23 @@ export function presentationDataAttrs(
   if (p.dividerTop) out["data-section-divider-top"] = p.dividerTop;
   if (p.mobileStack) out["data-section-mobile-stack"] = p.mobileStack;
   if (p.visibility) out["data-section-visibility"] = p.visibility;
+
+  // P0-4 — shared appearance foundation attrs. Inert until a section's
+  // CSS/renderer consumes them; safe to emit now so smart sections can
+  // bind without re-touching this flattener.
+  if (p.designPreset) out["data-section-preset"] = p.designPreset;
+  if (p.textTone) out["data-section-text-tone"] = p.textTone;
+  if (p.overlayColor) out["data-section-overlay-color"] = p.overlayColor;
+  if (p.overlayOpacity != null)
+    out["data-section-overlay-opacity"] = String(p.overlayOpacity);
+  if (p.imageOverlayStrength)
+    out["data-section-overlay-strength"] = p.imageOverlayStrength;
+  if (p.desktopLayout) out["data-section-desktop-layout"] = p.desktopLayout;
+  if (p.mobileLayout) out["data-section-mobile-layout"] = p.mobileLayout;
+  if (p.cardStyle) out["data-section-card-style"] = p.cardStyle;
+  if (p.borderStyle) out["data-section-border-style"] = p.borderStyle;
+  if (p.radiusScale) out["data-section-radius"] = p.radiusScale;
+  if (p.elevation) out["data-section-elevation"] = p.elevation;
 
   // Per-breakpoint overrides. CSS @media rules pick these up; missing
   // attrs simply fall through to the base via natural cascade.

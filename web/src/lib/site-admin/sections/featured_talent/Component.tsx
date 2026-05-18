@@ -271,9 +271,24 @@ export async function FeaturedTalentComponent({
     columnsDesktop,
     footerCta,
     presentation,
+    requestCta,
+    emptyStateText,
   } = props;
 
-  const cards = await fetchFeaturedTalentForSection(tenantId, props, locale);
+  // P1-2 — render-layer display controls (undefined = show; back-compat).
+  const cardDisplay = {
+    showName: props.showName,
+    showPrimaryType: props.showPrimaryType,
+    showCity: props.showCity,
+    showBadge: props.showBadge,
+    parentCategoryDisplay: props.parentCategoryDisplay,
+    cardVariant: props.cardVariant,
+  };
+
+  // Hard cap at 15 regardless of source mode (schema also bounds `limit`).
+  const cards = (
+    await fetchFeaturedTalentForSection(tenantId, props, locale)
+  ).slice(0, 15);
   const hasCards = cards.length > 0;
   const columns = Math.max(2, Math.min(4, columnsDesktop ?? 3));
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
@@ -648,6 +663,12 @@ export async function FeaturedTalentComponent({
                 card={card}
                 priority={i < columns}
                 publicPathPrefix={publicPathPrefix}
+                display={cardDisplay}
+                requestCta={
+                  requestCta
+                    ? { label: requestCta.label, href: requestCta.href }
+                    : null
+                }
               />
             ))}
           </div>
@@ -658,7 +679,9 @@ export async function FeaturedTalentComponent({
             role="status"
           >
             <p className="site-featured-talent__empty-note">
-              {emptyCopy(sourceMode, props)}
+              {emptyStateText && emptyStateText.trim().length > 0
+                ? emptyStateText
+                : emptyCopy(sourceMode, props)}
             </p>
             <a href={rosterAddHref} className="site-featured-talent__empty-action">
               Add or publish roster profiles

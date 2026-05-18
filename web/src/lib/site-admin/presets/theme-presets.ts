@@ -60,6 +60,80 @@ export interface ThemePreset {
 }
 
 /**
+ * NEUTRAL — the clean white default foundation. Zero brand color: white
+ * canvas, near-black ink, monochrome accent, system sans, crisp shadows,
+ * plain background. This is what a brand-new tenant should render as before
+ * they pick a vertical preset (editorial-noir, editorial-bridal, …) — so the
+ * builder canvas is neutral and a tenant's look comes ONLY from choosing a
+ * preset / setting tokens, never from a baked-in Impronta default.
+ *
+ * Every token value here is reused verbatim from an existing validated
+ * preset's allowed enum/hex set, so `validateAllPresets()` cannot regress.
+ */
+const neutralPreset: ThemePreset = {
+  slug: "neutral",
+  label: "Neutral",
+  summary:
+    "Clean white canvas, near-black type, monochrome accent. The default starting point for any tenant.",
+  idealFor: ["New tenants", "Corporate", "Minimal", "Any vertical (start here)"],
+  order: 5,
+  previewSwatch: {
+    primary: "#171717",
+    secondary: "#525252",
+    accent: "#171717",
+    background: "#ffffff",
+  },
+  tokens: {
+    // colors — true neutral, no brand hue
+    "color.primary": "#171717",
+    "color.secondary": "#525252",
+    "color.accent": "#171717",
+    "color.neutral": "#737373",
+    "color.blush": "#e5e5e5",
+    "color.sage": "#d4d4d4",
+    "color.ink": "#171717",
+    "color.muted": "#6b7280",
+    "color.line": "#e5e7eb",
+    "color.surface-raised": "#ffffff",
+    // typography — system sans, standard scale
+    "typography.heading-preset": "sans",
+    "typography.body-preset": "sans",
+    "typography.label-preset": "uppercase-tracked",
+    "typography.scale-preset": "standard",
+    "typography.tracking-preset": "normal",
+    // shape & feel
+    "radius.base": "md",
+    "radius.scale-preset": "soft",
+    "shadow.preset": "crisp",
+    // motion & density
+    "motion.preset": "snappy",
+    "spacing.scale": "cozy",
+    "density.section-padding": "standard",
+    "density.container-width": "standard",
+    // icons
+    "icon.family": "lucide",
+    // shell
+    "shell.header-variant": "classic-solid",
+    "shell.header-sticky": "on",
+    "shell.header-transparent-on-hero": "off",
+    "shell.footer-variant": "classic-minimal",
+    "shell.mobile-nav-variant": "drawer-right",
+    "background.mode": "plain",
+    // template families
+    "template.directory-card-family": "classic",
+    "template.profile-layout-family": "classic",
+    // polish
+    "shell.logo-variant": "wordmark",
+    "motion.stagger-preset": "subtle",
+    "directory.card.show-destination-ready-ribbon": "off",
+    "directory.card.show-starting-from-price": "off",
+    "directory.card.specialty-chips-max": "3",
+    "profile.sticky-inquiry-bar": "off",
+    "profile.blocks-visibility": "all-visible",
+  },
+};
+
+/**
  * CLASSIC — the Impronta / Nova / legacy look. This preset's bundle matches
  * the pre-M7 platform defaults so existing tenants rendering under the
  * classic shell can round-trip `apply Classic → publish` without any
@@ -363,11 +437,19 @@ const editorialNoirPreset: ThemePreset = {
 };
 
 export const THEME_PRESETS: ThemePreset[] = [
+  neutralPreset,
   classicPreset,
   editorialBridalPreset,
   studioMinimalPreset,
   editorialNoirPreset,
 ].sort((a, b) => a.order - b.order);
+
+/**
+ * Slug of the preset a brand-new tenant starts on. Neutral by design:
+ * a fresh builder canvas must be clean white, never an Impronta-flavored
+ * default. Onboarding / tenant-creation should seed this.
+ */
+export const DEFAULT_THEME_PRESET_SLUG = "neutral" as const;
 
 export function getThemePreset(slug: string | null | undefined): ThemePreset | null {
   if (!slug) return null;

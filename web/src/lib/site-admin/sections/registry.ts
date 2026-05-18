@@ -37,6 +37,42 @@ import {
 import { CategoryGridComponent } from "./category_grid/Component";
 import { CategoryGridEditor } from "./category_grid/Editor";
 
+import { talentTypeGridMeta } from "./talent_type_grid/meta";
+import { talentTypeGridMigrations } from "./talent_type_grid/migrations";
+import {
+  talentTypeGridSchemasByVersion,
+  type TalentTypeGridV1,
+} from "./talent_type_grid/schema";
+import { TalentTypeGridComponent } from "./talent_type_grid/Component";
+import { TalentTypeGridEditor } from "./talent_type_grid/Editor";
+
+import { heroSearchMeta } from "./hero_search/meta";
+import { heroSearchMigrations } from "./hero_search/migrations";
+import {
+  heroSearchSchemasByVersion,
+  type HeroSearchV1,
+} from "./hero_search/schema";
+import { HeroSearchComponent } from "./hero_search/Component";
+import { HeroSearchEditor } from "./hero_search/Editor";
+
+import { locationDiscoveryMeta } from "./location_discovery/meta";
+import { locationDiscoveryMigrations } from "./location_discovery/migrations";
+import {
+  locationDiscoverySchemasByVersion,
+  type LocationDiscoveryV1,
+} from "./location_discovery/schema";
+import { LocationDiscoveryComponent } from "./location_discovery/Component";
+import { LocationDiscoveryEditor } from "./location_discovery/Editor";
+
+import { editorialSplitHeroMeta } from "./editorial_split_hero/meta";
+import { editorialSplitHeroMigrations } from "./editorial_split_hero/migrations";
+import {
+  editorialSplitHeroSchemasByVersion,
+  type EditorialSplitHeroV1,
+} from "./editorial_split_hero/schema";
+import { EditorialSplitHeroComponent } from "./editorial_split_hero/Component";
+import { EditorialSplitHeroEditor } from "./editorial_split_hero/Editor";
+
 import { destinationsMosaicMeta } from "./destinations_mosaic/meta";
 import { destinationsMosaicMigrations } from "./destinations_mosaic/migrations";
 import {
@@ -396,6 +432,42 @@ export const categoryGridSection: SectionRegistryEntry<CategoryGridV1> = {
   Editor: CategoryGridEditor,
 };
 
+export const talentTypeGridSection: SectionRegistryEntry<TalentTypeGridV1> = {
+  meta: talentTypeGridMeta,
+  currentVersion: 1,
+  schemasByVersion: talentTypeGridSchemasByVersion,
+  migrations: talentTypeGridMigrations,
+  Component: TalentTypeGridComponent,
+  Editor: TalentTypeGridEditor,
+};
+
+export const heroSearchSection: SectionRegistryEntry<HeroSearchV1> = {
+  meta: heroSearchMeta,
+  currentVersion: 1,
+  schemasByVersion: heroSearchSchemasByVersion,
+  migrations: heroSearchMigrations,
+  Component: HeroSearchComponent,
+  Editor: HeroSearchEditor,
+};
+
+export const locationDiscoverySection: SectionRegistryEntry<LocationDiscoveryV1> = {
+  meta: locationDiscoveryMeta,
+  currentVersion: 1,
+  schemasByVersion: locationDiscoverySchemasByVersion,
+  migrations: locationDiscoveryMigrations,
+  Component: LocationDiscoveryComponent,
+  Editor: LocationDiscoveryEditor,
+};
+
+export const editorialSplitHeroSection: SectionRegistryEntry<EditorialSplitHeroV1> = {
+  meta: editorialSplitHeroMeta,
+  currentVersion: 1,
+  schemasByVersion: editorialSplitHeroSchemasByVersion,
+  migrations: editorialSplitHeroMigrations,
+  Component: EditorialSplitHeroComponent,
+  Editor: EditorialSplitHeroEditor,
+};
+
 export const destinationsMosaicSection: SectionRegistryEntry<DestinationsMosaicV1> = {
   meta: destinationsMosaicMeta,
   currentVersion: 1,
@@ -700,6 +772,10 @@ export const SECTION_REGISTRY = {
   trust_strip: trustStripSection,
   cta_banner: ctaBannerSection,
   category_grid: categoryGridSection,
+  talent_type_grid: talentTypeGridSection,
+  hero_search: heroSearchSection,
+  location_discovery: locationDiscoverySection,
+  editorial_split_hero: editorialSplitHeroSection,
   destinations_mosaic: destinationsMosaicSection,
   testimonials_trio: testimonialsTrioSection,
   // ── M8 new ─────────────────────────────────────────────────────────────

@@ -1,0 +1,68 @@
+import { z } from "zod";
+
+import { nodePresentationSchema } from "../shared/node-presentation";
+import { sectionPresentationSchema } from "../shared/presentation";
+
+/**
+ * location_discovery — "Local faces, international reach" block.
+ *
+ * Reusable/theme-neutral. Sources:
+ *   - manual        : operator-authored location cards (safe; no data).
+ *   - roster_cities : tenant-scoped — distinct residence cities across THIS
+ *                     tenant's roster (`talent_profiles.residence_city_id`
+ *                     → `locations`, filtered by `listTalentIdsOnTenantRoster`).
+ *   - service_areas : documented follow-on (manual is the safe interim).
+ *
+ * No tenant favorite-locations table is introduced. Counts derive
+ * tenant-scoped. Map/pin embed is a documented follow-on (we render
+ * token-driven location cards, no external maps dependency / no legacy
+ * map-component duplication). Per-location links default to `/directory`
+ * with an operator override — no directory route/param is invented.
+ */
+
+const locationItemSchema = z.object({
+  label: z.string().min(1).max(80),
+  region: z.string().max(80).optional(),
+  href: z.string().max(500).optional(),
+  /** Manual count override (manual mode). */
+  count: z.number().int().min(0).max(100000).optional(),
+});
+
+export const locationDiscoverySchemaV1 = z.object({
+  eyebrow: z.string().max(60).optional(),
+  headline: z.string().max(200).optional(),
+  subheadline: z.string().max(320).optional(),
+
+  source: z
+    .enum(["manual", "roster_cities", "service_areas"])
+    .default("manual"),
+  items: z.array(locationItemSchema).max(24).optional(),
+
+  maxItems: z.number().int().min(1).max(24).default(8),
+  showCount: z.boolean().optional(),
+  /** Map/pin visual — documented follow-on; off renders the card grid. */
+  showMap: z.boolean().optional(),
+
+  ctaLabel: z.string().max(40).optional(),
+  /** Section-level CTA href (e.g. browse all). */
+  ctaHref: z.string().max(500).optional(),
+
+  layout: z.enum(["grid", "list", "compact"]).default("grid"),
+  emptyStateText: z.string().max(240).optional(),
+
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
+  presentation: sectionPresentationSchema,
+});
+
+export type LocationDiscoveryV1 = z.infer<typeof locationDiscoverySchemaV1>;
+export type LocationDiscoveryItem = z.infer<typeof locationItemSchema>;
+
+export const locationDiscoverySchemasByVersion = {
+  1: locationDiscoverySchemaV1,
+} as const;

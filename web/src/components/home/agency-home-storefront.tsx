@@ -321,7 +321,38 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           </section>
           )}
 
-          {/* M7.1 — CMS composition vs legacy hardcoded fallback.
+          {/* ⚠️ DEPRECATED (P0-8 / Phase 5 handoff) — the hardcoded
+           * fallback stack in the `: ( … )` branch below is legacy and
+           * MUST NOT be expanded. It hardcodes Impronta-flavored chrome
+           * (`--impronta-gold-border`, `TalentTypeShortcuts` /
+           * `FeaturedTalentSection` / `BestForSection` / `LocationSection`
+           * / `HowItWorks` / `CtaSection`) and renders for any tenant
+           * without a CMS composition — which leaks one tenant's look to
+           * all un-composed tenants.
+           *
+           * PHASE 5 REPLACEMENT PLAN (do NOT delete until done + verified):
+           *   1. Build the smart sections (Phase 1/2): hero_search,
+           *      talent_type_grid, talent_collection, location_discovery,
+           *      process_steps (reuse), cta_banner (reuse), value/trust
+           *      (reuse values_trio/trust_strip).
+           *   2. Add a neutral seeded default CMS composition (a
+           *      `defaultHomepageComposition` builder snapshot) keyed off
+           *      the `neutral` theme preset, seeded at tenant
+           *      provisioning / first storefront load when
+           *      `cms_pages` has no homepage row.
+           *   3. Route un-composed tenants through `HomepageCmsSections`
+           *      with that seeded snapshot (same canonical renderer as
+           *      the composed branch — no second render path).
+           *   4. Only then delete this `: ( … )` block and the 6 legacy
+           *      `components/home/*-section` imports above.
+           * Exact files to change in Phase 5:
+           *   - this file (remove the else branch + legacy imports)
+           *   - new: lib/site-admin/server/default-homepage-composition.ts
+           *   - tenant provisioning seed (server-actions/*-provision.ts)
+           * Until then the branch stays ONLY as a safety net; treat it
+           * as frozen.
+           *
+           * M7.1 — CMS composition vs legacy hardcoded fallback.
            *
            * When the operator has assigned sections to any non-hero slot
            * (trust_band, services, featured, process, destinations, gallery,
