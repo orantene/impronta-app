@@ -189,6 +189,18 @@ export function loadPublicHomepage(
         tagFor(tenantId, "homepage", { locale }),
         tagFor(tenantId, "pages-all"),
       ],
+      // Short safety-net TTL. The tags above still bust this entry
+      // INSTANTLY when `publishHomepage` runs in the SAME runtime. But a
+      // publish that runs out-of-band from the production runtime (a dev/
+      // admin/local "Publish", a direct data alignment, or a row first
+      // cached by an older deployment) cannot fire `revalidateTag` in
+      // prod, and Vercel's Data Cache persists across deployments — so a
+      // tag-only entry could serve a stale homepage composition
+      // indefinitely. The TTL bounds that staleness so production
+      // self-heals within 5 min for any tenant, without a manual
+      // prod-runtime republish. Same resilience pattern as the shell
+      // logo resolver (`shell-brand-logo.ts`).
+      revalidate: 300,
     },
   )();
 }
