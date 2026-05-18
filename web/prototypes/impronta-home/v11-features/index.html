@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Impronta — International Talent Agency</title>
+<meta name="description" content="Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires & beyond, with agency support from inquiry to confirmation." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23080807'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='40' fill='%23c9a227' text-anchor='middle'%3EI%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --black:#080807; --surface:#100f0d; --warm:#15120c; --raised:#1c1a17;
+    --gold:#c9a227; --gold-bright:#e3c052; --gold-dim:#8c7029;
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+    --gold-soft:rgba(201,162,39,.08); --gold-border:rgba(201,162,39,.28);
+    --fg:#f6f5f2; --muted:#bdbab1; --faint:#928e83; --ivory:#ece2cf;
+    --maxw:76rem;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{background:var(--black);color:var(--fg);
+    font-family:"Raleway",system-ui,sans-serif;font-size:1.0625rem;
+    line-height:1.7;font-weight:400;letter-spacing:-.005em;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:rgba(201,162,39,.3);color:#fff}
+  .display{font-family:"Cinzel",ui-serif,Georgia,serif}
+  .gold{color:var(--gold)}
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 1.75rem;
+    position:relative;z-index:2}
+  .eyebrow{font-family:"Cinzel",serif;font-size:.7rem;font-weight:600;
+    text-transform:uppercase;letter-spacing:.4em;color:var(--gold);
+    display:inline-flex;align-items:center;gap:.7rem}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--gold-dim)}
+  .center .eyebrow{justify-content:center}.center .eyebrow::before{display:none}
+  h2.title{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(2rem,4.2vw,3.1rem);line-height:1.16;letter-spacing:.03em;
+    margin-top:1.1rem}
+  .lead{margin-top:1.2rem;color:var(--muted);font-size:1.05rem;
+    font-weight:300;max-width:38rem}
+  section{position:relative}
+  .band{padding:clamp(3.5rem,8vh,6rem) 0}
+  .band--warm{background:
+    radial-gradient(ellipse 70% 60% at 50% 0%,rgba(201,162,39,.07),transparent 60%),
+    linear-gradient(180deg,var(--warm),var(--black));
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .band--surface{background:var(--surface);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .center{text-align:center}
+  .center .lead{margin-inline:auto}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;
+    font:inherit;font-weight:600;font-size:.74rem;text-transform:uppercase;
+    letter-spacing:.18em;cursor:pointer;border:1px solid transparent;
+    padding:1.05rem 2rem;transition:.2s;white-space:nowrap;border-radius:2px}
+  .btn svg{width:.95rem;height:.95rem}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    color:#0a0a0a;box-shadow:0 6px 22px -10px rgba(201,162,39,.5)}
+  .btn-gold:hover{filter:brightness(1.08);transform:translateY(-1px);
+    box-shadow:0 12px 30px -10px rgba(201,162,39,.65)}
+  .btn-line{border-color:var(--line-2);color:var(--fg);background:rgba(255,255,255,.02)}
+  .btn-line:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+  .tlink{display:inline-flex;align-items:center;gap:.5rem;color:var(--muted);
+    font-size:.8rem;letter-spacing:.06em;transition:.2s;
+    border-bottom:1px solid transparent;padding-bottom:2px}
+  .tlink:hover{color:var(--gold);border-color:var(--gold-border)}
+  .arrow{display:inline-flex;align-items:center;gap:.55rem;color:var(--gold);
+    font-family:"Cinzel",serif;font-size:.74rem;text-transform:uppercase;
+    letter-spacing:.22em;transition:gap .2s}
+  .arrow:hover{gap:.85rem}
+
+  /* ═══ Editorial portrait system (swappable → real photos later) ═══ */
+  .frame{position:relative;overflow:hidden;background:#0a0908;isolation:isolate}
+  .pt{position:absolute;inset:0;width:100%;height:100%;display:block;
+    object-fit:cover;z-index:0}
+  .frame::before{content:"";position:absolute;inset:0;z-index:1;opacity:.42;
+    mix-blend-mode:overlay;pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1' numOctaves='2'/></filter><rect width='100' height='100' filter='url(%23g)' opacity='0.4'/></svg>")}
+  .frame .sheen{position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:linear-gradient(115deg,transparent 42%,rgba(227,192,82,.10) 64%,transparent 78%)}
+  .frame .scrim{position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:linear-gradient(to top,rgba(0,0,0,.8),rgba(0,0,0,.06) 52%,transparent 72%)}
+  .frame .cap,.frame .chip,.frame .sv,.frame .nmrow,.frame .nx,.frame .tab{z-index:3}
+
+  /* ═══ Header ═══ */
+  header.site{position:sticky;top:0;z-index:90;
+    background:rgba(8,8,7,.86);backdrop-filter:blur(16px);
+    border-bottom:0;transition:.3s}
+  .h-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+    padding:1.05rem 0 .15rem;transition:padding .3s;gap:1rem}
+  header.site.small .h-top{padding:.65rem 0 .1rem}
+  .h-side{display:flex;align-items:center;min-width:0}
+  .h-left{justify-content:flex-start}
+  .h-right{justify-content:flex-end}
+  .brand{display:flex;justify-content:center;align-items:center;line-height:1;
+    padding:.15rem 0;transition:padding .3s}
+  .brand .logo{height:clamp(46px,5.4vw,68px);width:auto;display:block;
+    transition:height .3s}
+  header.site.small .brand .logo{height:clamp(38px,4.2vw,52px)}
+  .brand-tx{display:flex;flex-direction:column;align-items:center;
+    gap:.46rem;transition:.3s}
+  .brand .nm{font-family:"Cinzel",serif;font-weight:600;
+    font-size:clamp(1.6rem,3.1vw,2.25rem);letter-spacing:.32em;
+    text-indent:.32em;
+    background:linear-gradient(180deg,#f7e29a 0%,#e0b54c 50%,#bd882d 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    transition:font-size .3s}
+  header.site.small .brand .nm{font-size:clamp(1.3rem,2.3vw,1.7rem)}
+  .brand .tg{font-size:.58rem;text-transform:uppercase;letter-spacing:.34em;
+    text-indent:.34em;color:var(--gold-dim);font-weight:500;white-space:nowrap}
+  header.site.small .brand .tg{font-size:.5rem}
+  @media(max-width:560px){.brand .tg{font-size:.48rem;letter-spacing:.22em}}
+  /* nav centered, tight under the logo */
+  .h-nav-row{}
+  header.site nav.main{display:flex;justify-content:center;
+    gap:clamp(1.6rem,3vw,2.9rem);margin-top:.5rem;
+    font-family:"Cinzel",serif;font-size:.72rem;text-transform:uppercase;
+    letter-spacing:.26em;color:var(--muted);transition:margin .3s}
+  header.site.small nav.main{margin-top:.35rem}
+  /* contact / social cluster (top-left) */
+  .social{display:flex;align-items:center;gap:.15rem}
+  .si{display:flex;align-items:center;gap:.5rem;color:var(--muted);
+    padding:.5rem;border-radius:3px;transition:.18s}
+  .si svg{width:18px;height:18px;stroke-width:1.7;flex:0 0 auto}
+  .si:hover{color:var(--gold)}
+  .si-tel .ph{font-size:.7rem;letter-spacing:.06em;color:var(--muted);
+    white-space:nowrap;font-variant-numeric:tabular-nums}
+  .si-tel:hover .ph{color:var(--gold)}
+  @media(max-width:680px){.si-tel .ph{display:none}.si{padding:.45rem}
+    .social{gap:0}}
+  .acct{display:flex;align-items:center;gap:.35rem}
+  .loc{display:flex;align-items:center;gap:.1rem;font-size:.66rem;
+    letter-spacing:.14em;color:var(--faint);margin-right:.45rem}
+  .loc button{background:none;border:0;color:inherit;font:inherit;
+    font-size:.66rem;letter-spacing:.14em;cursor:pointer;padding:.3rem .35rem}
+  .loc button.on{color:var(--gold);font-weight:700}
+  .ai{position:relative;display:flex;align-items:center;gap:.5rem;height:40px;
+    padding:0 .85rem;border-radius:3px;color:var(--muted);cursor:pointer;
+    transition:.18s;background:none;border:1px solid transparent;font:inherit}
+  .ai:hover{color:var(--gold);background:var(--gold-soft);border-color:var(--gold-border)}
+  .ai svg{width:19px;height:19px;stroke-width:1.6;flex:0 0 auto}
+  .ai .al{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.16em}
+  .ai .bdg{min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    color:#0a0a0a;font-size:.58rem;font-weight:700;display:grid;place-items:center}
+  .ai .cv{width:10px;height:10px;opacity:.6}
+  .ai-ic{width:40px;padding:0;justify-content:center}
+  .ai-ic .bdg{position:absolute;top:1px;right:1px;min-width:15px;height:15px;
+    font-size:.52rem;box-shadow:0 0 0 2px rgba(8,8,7,.9)}
+  .ai[data-tip]::after{content:attr(data-tip);position:absolute;
+    top:calc(100% + 7px);left:50%;transform:translateX(-50%) translateY(4px);
+    background:var(--raised);border:1px solid var(--line-2);color:var(--fg);
+    font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.14em;
+    padding:.38rem .6rem;border-radius:3px;white-space:nowrap;opacity:0;
+    pointer-events:none;transition:.16s;z-index:30;
+    box-shadow:0 14px 30px -16px rgba(0,0,0,.9)}
+  .ai[data-tip]:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+  .acct-wrap{position:relative;z-index:40}
+  .acct-wrap .ai{border-color:var(--line-2)}
+  .menu{position:absolute;right:0;top:calc(100% + 10px);min-width:230px;
+    background:var(--raised);border:1px solid var(--line-2);border-radius:5px;
+    padding:.5rem;opacity:0;visibility:hidden;transform:translateY(-6px);
+    transition:.18s;box-shadow:0 26px 54px -20px rgba(0,0,0,.9);z-index:5}
+  .menu.open{opacity:1;visibility:visible;transform:none}
+  .menu a{display:flex;align-items:center;gap:.7rem;padding:.72rem .8rem;
+    font-size:.82rem;color:var(--muted);border-radius:3px;transition:.15s}
+  .menu a:hover{background:var(--gold-soft);color:var(--gold)}
+  .menu a svg{width:15px;height:15px;stroke-width:1.6;opacity:.85}
+  .menu .div{height:1px;background:var(--line);margin:.4rem .3rem}
+  .menu .lab{font-size:.56rem;text-transform:uppercase;letter-spacing:.2em;
+    color:var(--faint);padding:.55rem .8rem .3rem}
+  nav.main a{position:relative;padding:.4rem 0;transition:color .2s}
+  nav.main a::after{content:"";position:absolute;left:0;bottom:0;height:1px;
+    width:0;background:var(--gold);transition:width .25s}
+  nav.main a:hover{color:var(--fg)}nav.main a:hover::after{width:100%}
+  @media(max-width:900px){header.site nav.main{display:none}}
+
+  .drawer{position:fixed;inset:0;z-index:100;visibility:hidden;opacity:0;transition:.25s}
+  .drawer.open{visibility:visible;opacity:1}
+  .drawer .sc{position:absolute;inset:0;background:rgba(0,0,0,.78)}
+  .drawer .pn{position:absolute;inset:0 0 0 auto;width:min(86vw,340px);
+    background:var(--surface);border-left:1px solid var(--line);padding:1.6rem;
+    display:flex;flex-direction:column;transform:translateX(102%);
+    transition:transform .3s;overflow-y:auto}
+  .drawer.open .pn{transform:none}
+  .drawer .x{align-self:flex-end;width:40px;height:40px;background:none;
+    border:0;color:var(--muted);font-size:1.6rem;cursor:pointer}
+  .drawer nav{display:flex;flex-direction:column;margin-top:.5rem}
+  .drawer nav a{font-family:"Cinzel",serif;text-transform:uppercase;
+    letter-spacing:.2em;font-size:.95rem;padding:1rem .2rem;
+    border-bottom:1px solid var(--line)}
+  .drawer nav a:hover{color:var(--gold)}
+  .drawer .da{margin-top:1.5rem;display:flex;flex-direction:column;gap:.7rem}
+  .drawer .dl{margin-top:1.3rem;display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;
+    font-size:.82rem;color:var(--muted)}
+  .drawer .dl a:hover{color:var(--gold)}
+
+  /* ═══ Hero ═══ */
+  .hero{position:relative;display:flex;align-items:center;
+    padding:clamp(2.4rem,6vh,4.5rem) 0 clamp(3rem,7vh,5rem);overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 0%,rgba(201,162,39,.13),transparent 60%),
+      radial-gradient(ellipse 50% 50% at 50% 100%,rgba(227,192,82,.07),transparent 60%)}
+  .hero-grid{position:relative;display:grid;gap:2.5rem;align-items:center;width:100%}
+  @media(min-width:980px){.hero-grid{grid-template-columns:1fr 1.04fr;gap:3.5rem}}
+  .hero-c{position:relative;width:100%;display:flex;flex-direction:column;
+    align-items:center;text-align:center}
+  .hero-eyebrow{font-size:.62rem;text-transform:uppercase;letter-spacing:.34em;
+    color:var(--gold-dim);font-weight:600}
+  /* default = classic hero (left, restrained) */
+  h1.hero-h{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.45rem,2.9vw,2.5rem);line-height:1.22;letter-spacing:.01em;
+    margin-top:.2rem;max-width:20ch}
+  h1.hero-h .gold{font-weight:500;color:var(--gold)}
+  .hero-sub{margin-top:1.5rem;font-size:1.08rem;font-weight:300;
+    color:var(--muted);max-width:32rem;line-height:1.7}
+  /* search hero override (big, centered) */
+  .hero-find h1.hero-h{font-size:clamp(1.85rem,4vw,3.1rem);line-height:1.18;
+    margin-top:1.05rem;max-width:24ch}
+  .hero-find .hero-sub{margin-top:1.15rem;max-width:48rem;line-height:1.65;
+    font-size:clamp(.95rem,1.5vw,1.12rem)}
+  .chip-loc{display:inline-flex;align-items:center;gap:.4rem;
+    border:1px solid var(--gold-border);border-radius:999px;padding:.4rem .85rem;
+    font-size:.66rem;text-transform:uppercase;letter-spacing:.16em;
+    color:var(--ivory);background:var(--gold-soft);transition:.18s}
+  a.chip-loc:hover{border-color:var(--gold);color:var(--gold)}
+  .chip-loc .d{width:5px;height:5px;border-radius:50%;background:var(--gold)}
+  .chip-loc.soft{border-color:var(--line-2);color:var(--faint);background:none}
+  .chip-loc.soft .d{background:var(--faint)}
+  /* ── big hero search ── */
+  .hsearch{position:relative;width:100%;max-width:44rem;
+    margin:clamp(1.8rem,3.6vw,2.6rem) auto 0}
+  .hsearch input{height:clamp(3.5rem,6vw,4.1rem);width:100%;
+    border:1px solid var(--gold-border);border-radius:5px;
+    background:rgba(255,255,255,.035);color:var(--fg);
+    font:inherit;font-size:clamp(1rem,1.5vw,1.12rem);
+    padding:0 8.5rem 0 3.3rem;outline:none;transition:.2s;
+    box-shadow:0 24px 60px -36px rgba(0,0,0,.9)}
+  .hsearch input::placeholder{color:transparent}
+  .hsearch input:focus{border-color:var(--gold);
+    box-shadow:0 0 0 4px var(--gold-soft),0 24px 60px -36px rgba(0,0,0,.9)}
+  .hs-ic{position:absolute;left:1.15rem;top:50%;transform:translateY(-50%);
+    color:var(--gold-dim);display:flex;pointer-events:none}
+  .hs-ic svg{width:20px;height:20px;stroke-width:1.8}
+  .hs-ghost{position:absolute;left:3.3rem;top:50%;transform:translateY(-50%);
+    display:flex;align-items:center;color:var(--muted);pointer-events:none;
+    font-size:clamp(1rem,1.5vw,1.12rem);max-width:calc(100% - 11rem);
+    overflow:hidden;white-space:nowrap}
+  .hsearch.busy .hs-ghost{display:none}
+  .hs-caret{display:inline-block;width:2px;height:1.15em;margin-left:1px;
+    background:var(--gold);animation:hsbl 1s steps(1) infinite}
+  @keyframes hsbl{50%{opacity:0}}
+  .hs-btn{position:absolute;right:.5rem;top:50%;transform:translateY(-50%);
+    height:calc(100% - 1rem);border:0;border-radius:4px;cursor:pointer;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    color:#0a0a0a;font:inherit;font-weight:700;font-size:.74rem;
+    text-transform:uppercase;letter-spacing:.18em;padding:0 1.7rem;
+    display:flex;align-items:center;gap:.5rem;transition:.18s}
+  .hs-btn:hover{filter:brightness(1.08)}
+  .hs-btn .hs-bi{width:18px;height:18px;stroke-width:2;display:none}
+  .hero-cities{margin-top:1.6rem;display:flex;align-items:center;
+    justify-content:center;gap:.55rem;flex-wrap:wrap}
+  @media(max-width:560px){
+    .hsearch input{padding-right:3.6rem}
+    .hs-btn{padding:0 .9rem}
+    .hs-btn .hs-bl{display:none}.hs-btn .hs-bi{display:block}
+    .hs-ghost{max-width:calc(100% - 6rem)}}
+  .disc{margin-top:1.9rem;max-width:34rem}
+  .disc .dl{font-size:.6rem;text-transform:uppercase;letter-spacing:.2em;
+    color:var(--faint);font-weight:600;margin-bottom:.55rem}
+  .disc form{display:flex;flex-wrap:wrap;align-items:stretch;gap:.5rem;
+    background:rgba(255,255,255,.025);border:1px solid var(--line-2);
+    border-radius:4px;padding:.5rem}
+  .disc .f{flex:1 1 8rem;min-width:0;display:flex;flex-direction:column;
+    gap:.18rem;padding:.5rem .75rem;border-radius:3px;transition:.18s}
+  .disc .f+.f{border-left:1px solid var(--line)}
+  .disc .f:focus-within{background:rgba(255,255,255,.04)}
+  .disc .f label{font-size:.54rem;text-transform:uppercase;letter-spacing:.16em;
+    color:var(--faint);font-weight:700}
+  .disc .f select{background:none;border:0;color:var(--fg);font:inherit;
+    font-size:.84rem;font-weight:500;outline:none;cursor:pointer;width:100%}
+  .disc .f select option{background:var(--raised)}
+  .disc .go{flex:0 0 auto;border:0;border-radius:3px;cursor:pointer;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    color:#0a0a0a;padding:0 1.4rem;font:inherit;font-weight:700;font-size:.7rem;
+    text-transform:uppercase;letter-spacing:.16em;display:flex;align-items:center;
+    gap:.45rem;transition:.18s}
+  .disc .go:hover{filter:brightness(1.08)}
+  .hero-cta{margin-top:1.6rem;display:flex;align-items:center;gap:1.2rem;
+    flex-wrap:wrap}
+  .hero-tert{margin-top:1.3rem}
+  .stage{position:relative}
+  .stage-cards{position:relative;height:clamp(24rem,40vw,32rem)}
+  .stage-card{position:absolute;border:1px solid var(--line-2);border-radius:8px;
+    overflow:hidden;box-shadow:0 34px 64px -28px rgba(0,0,0,.92);
+    transition:transform .45s cubic-bezier(.2,.7,.3,1)}
+  .stage-card .cap{position:absolute;left:0;right:0;bottom:0;padding:1.1rem}
+  .stage-card .cap b{display:block;font-family:"Cinzel",serif;font-size:1rem;
+    font-weight:600;letter-spacing:.05em}
+  .stage-card .cap s{text-decoration:none;font-size:.62rem;text-transform:uppercase;
+    letter-spacing:.16em;color:var(--gold-dim)}
+  .sc-main{width:60%;aspect-ratio:3/4;left:50%;top:0;transform:translateX(-50%);z-index:4}
+  .sc-main .tab{position:absolute;top:1rem;right:0;background:var(--gold);
+    color:#0a0a0a;font-family:"Cinzel",serif;font-size:.56rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.2em;padding:.35rem .7rem}
+  .sc-b{width:42%;aspect-ratio:3/4;left:0;top:14%;z-index:2;transform:rotate(-4deg)}
+  .sc-c{width:40%;aspect-ratio:3/4;right:0;top:20%;z-index:3;transform:rotate(4deg)}
+  .stage:hover .sc-b{transform:rotate(-5deg) translate(-4%,-2%)}
+  .stage:hover .sc-c{transform:rotate(5deg) translate(4%,-2%)}
+  .stage-badge{position:absolute;left:0;bottom:5.2rem;z-index:6;display:flex;
+    align-items:center;gap:.55rem;background:var(--raised);
+    border:1px solid var(--gold-border);border-radius:999px;padding:.5rem .95rem;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,.9);white-space:nowrap}
+  .stage-badge .dt{width:6px;height:6px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 4px var(--gold-soft)}
+  .stage-badge span{font-size:.62rem;text-transform:uppercase;letter-spacing:.16em;
+    color:var(--muted)}
+  .stage-badge b{font-family:"Cinzel",serif;color:var(--ivory);font-weight:600}
+  .strip{margin-top:1.4rem}
+  .strip .sl{font-size:.58rem;text-transform:uppercase;letter-spacing:.22em;
+    color:var(--faint);font-weight:600;margin-bottom:.65rem;display:flex;
+    align-items:center;gap:.6rem}
+  .strip .sl::before{content:"";width:18px;height:1px;background:var(--gold-dim)}
+  .strip-row{display:flex;gap:.6rem;overflow-x:auto;scrollbar-width:none;
+    padding-bottom:.2rem}
+  .strip-row::-webkit-scrollbar{display:none}
+  .thumb{flex:0 0 auto;width:4.6rem;aspect-ratio:3/4;border-radius:4px;
+    overflow:hidden;border:1px solid var(--line);cursor:pointer;transition:.2s}
+  .thumb:hover{border-color:var(--gold-border);transform:translateY(-3px)}
+  .thumb .nx{position:absolute;left:0;right:0;bottom:0;padding:.3rem;
+    font-size:.5rem;text-align:center;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--ivory);
+    background:linear-gradient(to top,rgba(0,0,0,.85),transparent)}
+  .scroll-cue{position:absolute;left:50%;bottom:1.4rem;transform:translateX(-50%);
+    font-size:.56rem;text-transform:uppercase;letter-spacing:.3em;color:var(--faint);
+    display:flex;flex-direction:column;align-items:center;gap:.5rem;z-index:2}
+  .scroll-cue i{width:1px;height:30px;background:linear-gradient(var(--gold-dim),transparent)}
+  @media(max-width:980px){.scroll-cue{display:none}
+    .stage-cards{height:22rem;max-width:25rem;margin:.5rem auto 0}}
+
+  /* ═══ Categories ═══ */
+  .cat-railwrap{position:relative;margin-top:3rem}
+  .cat-rail{display:grid;grid-auto-flow:column;grid-template-rows:repeat(3,1fr);
+    grid-auto-columns:clamp(18rem,25vw,25rem);gap:1rem;
+    height:clamp(37rem,58vh,43rem);overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x proximity;scroll-behavior:smooth;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+  .cat-rail::-webkit-scrollbar{display:none}
+  .cat-rail .cat{height:100%;min-height:0;scroll-snap-align:start}
+  .cat-nav{position:absolute;top:50%;width:46px;height:46px;
+    transform:translateY(-50%);display:grid;place-items:center;border-radius:50%;
+    border:1px solid var(--gold-border);background:rgba(8,8,7,.72);
+    backdrop-filter:blur(6px);color:var(--gold);font-size:1.5rem;line-height:1;
+    cursor:pointer;z-index:6;opacity:.55;
+    transition:opacity .25s,background .2s,color .2s}
+  .cat-railwrap:hover .cat-nav{opacity:1}
+  .cat-nav:hover{background:var(--gold);color:#0a0a0a}
+  .cat-nav:focus-visible{opacity:1;outline:2px solid var(--gold-bright);outline-offset:2px}
+  .cat-nav.prev{left:.7rem}.cat-nav.next{right:.7rem}
+  .cat-railwrap:hover .cat-nav.dim{opacity:.14}
+  .cat-nav.dim{cursor:default}
+  @media(max-width:900px){
+    .cat-rail{grid-template-rows:1fr;grid-auto-columns:80vw;height:auto;
+      gap:.85rem;scroll-snap-type:x mandatory;padding:0 0 2px}
+    .cat-rail .cat{height:auto;min-height:16rem}
+    .cat-nav{display:none}}
+  .cat{position:relative;overflow:hidden;border:1px solid var(--line);
+    border-radius:6px;display:flex;flex-direction:column;justify-content:flex-end;
+    padding:1.7rem;min-height:14rem;isolation:isolate;transition:.32s}
+  .cat .frame{position:absolute;inset:0;z-index:-2}
+  .cat .frame .pt{filter:grayscale(.35) brightness(.55);transition:.4s}
+  .cat::after{content:"";position:absolute;inset:0;z-index:-1;
+    background:linear-gradient(to top,rgba(8,8,7,.93),rgba(8,8,7,.45) 55%,transparent);
+    transition:.32s}
+  .cat:hover{border-color:var(--gold-border);transform:translateY(-3px)}
+  .cat:hover .frame .pt{filter:grayscale(0) brightness(.82);transform:scale(1.05)}
+  .cat:hover::after{background:linear-gradient(to top,rgba(8,8,7,.9),
+    rgba(40,30,8,.32) 60%,transparent)}
+  .cat .gi{position:absolute;top:1.4rem;right:1.5rem;width:2.5rem;height:2.5rem;
+    display:grid;place-items:center;border:1px solid var(--gold-border);
+    border-radius:50%;color:var(--gold);font-size:1.05rem;
+    background:rgba(8,8,7,.55);backdrop-filter:blur(3px);transition:.3s;z-index:1}
+  .cat:hover .gi{background:var(--gold);color:#0a0a0a}
+  .cat h3{font-family:"Cinzel",serif;font-size:1.35rem;font-weight:500;
+    letter-spacing:.05em}
+  .cat p{margin-top:.35rem;font-size:.82rem;color:var(--muted);font-weight:300}
+  .cat .go{margin-top:1rem;font-family:"Cinzel",serif;font-size:.62rem;
+    text-transform:uppercase;letter-spacing:.24em;color:var(--gold-dim);
+    display:flex;align-items:center;gap:.5rem;transition:.25s}
+  .cat:hover .go{color:var(--gold);gap:.85rem}
+  /* Models = featured pod: fills the whole first column (all 3 rows) */
+  .cat-rail .cat--lg{grid-row:1 / span 3;grid-column:1;
+    grid-column-start:1;align-self:stretch}
+  .cat-rail .cat--lg h3{font-size:clamp(1.7rem,2.4vw,2.3rem)}
+  .cat-rail .cat--lg p{font-size:.92rem;max-width:18rem}
+  .cat-rail .cat--lg .gi{width:3rem;height:3rem;font-size:1.25rem}
+  @media(max-width:900px){.cat-rail .cat--lg{grid-row:auto;grid-column:auto}
+    .cat-rail .cat--lg h3{font-size:1.5rem}}
+
+  /* ═══ Featured ═══ */
+  .ft-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.3rem;margin-top:3rem}
+  @media(min-width:760px){.ft-grid{grid-template-columns:repeat(4,1fr)}}
+  .ft{position:relative;overflow:hidden;border:1px solid var(--line);
+    border-radius:6px;transition:.3s;background:var(--surface)}
+  .ft:hover{border-color:var(--gold-border);transform:translateY(-5px);
+    box-shadow:0 30px 58px -26px rgba(201,162,39,.34)}
+  .ft .frame{aspect-ratio:3/4}
+  .ft .frame .pt{transition:transform .55s}
+  .ft:hover .frame .pt{transform:scale(1.06)}
+  .ft .chip{position:absolute;left:.75rem;top:.75rem;font-size:.54rem;
+    font-weight:700;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--ivory);background:rgba(8,8,7,.6);border:1px solid var(--line-2);
+    border-radius:999px;padding:.26rem .62rem;backdrop-filter:blur(4px)}
+  .ft .sv{position:absolute;top:.65rem;right:.65rem;width:36px;height:36px;
+    border-radius:50%;background:rgba(8,8,7,.6);border:1px solid var(--line-2);
+    color:var(--fg);cursor:pointer;display:grid;place-items:center;
+    backdrop-filter:blur(4px);transition:.18s}
+  .ft .sv svg{width:16px;height:16px;stroke-width:1.7}
+  .ft .sv:hover{color:var(--gold);border-color:var(--gold-border)}
+  .ft .sv.on{background:var(--gold);color:#0a0a0a;border-color:var(--gold)}
+  .ft .sv.on svg{fill:currentColor}
+  .ft .nmrow{position:absolute;left:0;right:0;bottom:0;padding:1rem 1.05rem .9rem}
+  .ft .nmrow .nm{font-family:"Cinzel",serif;font-size:1.08rem;font-weight:600;
+    letter-spacing:.04em}
+  .ft .nmrow .rl{margin-top:.18rem;font-size:.62rem;color:var(--ivory);
+    text-transform:uppercase;letter-spacing:.14em;opacity:.85}
+  .ft .acts{padding:.85rem 1.05rem 1.05rem;display:flex;gap:.5rem}
+  .ft .acts .vp{flex:1;display:flex;align-items:center;justify-content:center;
+    gap:.5rem;border:1px solid var(--line-2);border-radius:3px;padding:.65rem;
+    font-family:"Cinzel",serif;font-size:.6rem;text-transform:uppercase;
+    letter-spacing:.18em;color:var(--fg);transition:.2s;background:rgba(255,255,255,.02)}
+  .ft:hover .acts .vp{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+  .ft .acts .rq{flex:0 0 auto;border:1px solid var(--line-2);border-radius:3px;
+    padding:.65rem .9rem;font-family:"Cinzel",serif;font-size:.6rem;
+    text-transform:uppercase;letter-spacing:.14em;color:var(--muted);transition:.2s;
+    background:rgba(255,255,255,.02);cursor:pointer}
+  .ft .acts .rq:hover{color:var(--gold);border-color:var(--gold-border);
+    background:var(--gold-soft)}
+
+  /* ═══ Market map ═══ */
+  .map-grid{display:grid;gap:1.5rem;margin-top:3rem}
+  @media(min-width:960px){.map-grid{grid-template-columns:1.22fr .78fr;gap:2rem;
+    align-items:stretch}}
+  .map{position:relative;border:1px solid var(--line-2);border-radius:8px;
+    overflow:hidden;background:#070b0d;min-height:25rem}
+  .map svg{display:block;width:100%;height:100%}
+  .map .legend{position:absolute;left:1rem;bottom:1rem;font-size:.56rem;
+    text-transform:uppercase;letter-spacing:.16em;color:var(--faint);
+    display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+  .map .legend i{width:7px;height:7px;border-radius:50%;background:var(--gold);
+    margin-right:.4rem;display:inline-block}
+  .map .legend i.soon{background:var(--faint)}
+  .pin{cursor:pointer}
+  .pin .rg{transform-origin:center;animation:pp 2.8s ease-out infinite}
+  @keyframes pp{0%{r:7;opacity:.5}70%{r:24;opacity:0}100%{opacity:0}}
+  .pin .dt{transition:.18s}
+  .pin:hover .dt,.pin.on .dt{fill:var(--gold-bright);r:8}
+  .pin .lb{font-family:"Cinzel",serif;font-size:12px;fill:var(--muted);
+    letter-spacing:.05em;transition:.18s}
+  .pin:hover .lb,.pin.on .lb{fill:var(--gold-bright)}
+  .pin.soon{cursor:default}.pin.soon .dt{fill:var(--faint)}
+  .pin.soon .lb{fill:var(--faint);font-style:italic}.pin.soon .rg{animation:none}
+  .pin .hl{opacity:0;transition:.2s}.pin.on .hl{opacity:1}
+  .preview{border:1px solid var(--line-2);border-radius:8px;
+    background:var(--surface);padding:1.6rem;display:flex;flex-direction:column}
+  .pv-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+  .preview .pv-loc{font-family:"Cinzel",serif;font-size:1.5rem;font-weight:500;
+    letter-spacing:.04em}
+  .pv-badge{flex:0 0 auto;font-size:.54rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.16em;padding:.3rem .6rem;border-radius:999px;
+    border:1px solid var(--gold-border);color:var(--gold);background:var(--gold-soft)}
+  .pv-badge.soon{border-color:var(--line-2);color:var(--faint);background:none}
+  .preview .pv-sub{margin-top:.35rem;font-size:.78rem;color:var(--muted);
+    font-weight:300}
+  .preview .pv-cities{margin-top:.6rem;font-size:.62rem;text-transform:uppercase;
+    letter-spacing:.12em;color:var(--gold-dim)}
+  .pv-faces{margin-top:1.2rem;display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem}
+  .pv-face{position:relative;aspect-ratio:3/4;border-radius:5px;overflow:hidden;
+    border:1px solid var(--line);transition:.25s;cursor:pointer}
+  .pv-face:hover{border-color:var(--gold-border);transform:translateY(-3px)}
+  .pv-face .nx{position:absolute;left:0;right:0;bottom:0;padding:.4rem .45rem;
+    font-size:.52rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ivory);
+    background:linear-gradient(to top,rgba(0,0,0,.88),transparent)}
+  .pv-soon{margin-top:1.3rem;border:1px dashed var(--line-2);border-radius:6px;
+    padding:1.6rem 1rem;text-align:center;color:var(--muted);font-size:.86rem;
+    font-weight:300}
+  .preview .pv-cta{margin-top:auto;padding-top:1.4rem}
+  .preview .pv-cta a{display:flex;align-items:center;justify-content:space-between;
+    border-top:1px solid var(--line);padding-top:1.1rem;font-family:"Cinzel",serif;
+    font-size:.68rem;text-transform:uppercase;letter-spacing:.18em;
+    color:var(--gold);transition:.2s}
+  .preview .pv-cta a:hover{color:var(--gold-bright);padding-left:.3rem}
+  .preview .pv-cta a.dim{color:var(--faint);pointer-events:none}
+  #talentMapMount{position:absolute;inset:0;display:none}
+  .map.live svg{display:none}.map.live #talentMapMount{display:block}
+
+  /* ═══ How it works ═══ */
+  .steps{position:relative;display:grid;gap:0;margin-top:3rem;
+    border-top:1px solid var(--line)}
+  @media(min-width:820px){.steps{grid-template-columns:repeat(4,1fr);border-top:0}
+    .steps::before{content:"";position:absolute;top:1.05rem;left:8%;right:8%;
+      height:1px;background:linear-gradient(90deg,transparent,var(--gold-border),
+      var(--gold-border),transparent)}}
+  .stp{position:relative;padding:1.9rem .2rem;border-bottom:1px solid var(--line)}
+  @media(min-width:820px){.stp{border-bottom:0;padding:0 1.8rem;text-align:center}
+    .stp:not(:first-child){border-left:1px solid var(--line)}}
+  .stp .n{display:inline-grid;place-items:center;width:2.2rem;height:2.2rem;
+    border:1px solid var(--gold-border);border-radius:50%;
+    font-family:"Cinzel",serif;font-size:.74rem;color:var(--gold);
+    background:var(--black);position:relative;z-index:1}
+  .stp h4{font-family:"Cinzel",serif;font-size:1.12rem;font-weight:500;
+    margin-top:1rem;letter-spacing:.04em}
+  .stp p{margin-top:.5rem;font-size:.84rem;color:var(--muted);font-weight:300}
+
+  /* ═══ Trust ═══ */
+  .pillars{display:grid;gap:1.2rem;margin-top:3rem}
+  @media(min-width:820px){.pillars{grid-template-columns:repeat(3,1fr)}}
+  .pil{position:relative;overflow:hidden;border:1px solid var(--line);
+    border-radius:8px;padding:2.5rem 2rem;text-align:center;
+    background:linear-gradient(180deg,var(--surface),#0b0a09);transition:.28s}
+  .pil::before{content:"";position:absolute;inset:0;opacity:0;transition:.3s;
+    background:radial-gradient(ellipse 80% 60% at 50% 0%,var(--gold-soft),transparent 60%)}
+  .pil:hover{border-color:var(--gold-border);transform:translateY(-3px)}
+  .pil:hover::before{opacity:1}
+  .pil .ic2{position:relative;width:56px;height:56px;margin:0 auto;display:grid;
+    place-items:center;color:var(--gold);border-radius:50%;
+    border:1px solid var(--gold-border);
+    background:radial-gradient(circle,var(--gold-soft),transparent)}
+  .pil .ic2 svg{width:23px;height:23px;stroke-width:1.4}
+  .pil h4{position:relative;font-family:"Cinzel",serif;font-size:1.18rem;
+    font-weight:500;margin-top:1.3rem;letter-spacing:.05em}
+  .pil p{position:relative;margin-top:.65rem;font-size:.87rem;color:var(--muted);
+    font-weight:300;line-height:1.7}
+
+  .join{position:relative;overflow:hidden;border:1px solid var(--gold-border);
+    border-radius:10px;text-align:center;padding:clamp(3.5rem,7vw,5.5rem) 2rem;
+    background:
+      radial-gradient(ellipse 60% 90% at 50% 0%,rgba(201,162,39,.14),transparent 60%),
+      linear-gradient(180deg,var(--warm),#080706)}
+  .join h3{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.7rem,3.6vw,2.5rem);line-height:1.2;letter-spacing:.04em;
+    margin-top:1rem}
+  .join p{margin:1rem auto 0;max-width:34rem;color:var(--muted);font-weight:300}
+  .join .jc{margin-top:2.1rem;display:flex;gap:1.3rem;justify-content:center;
+    align-items:center;flex-wrap:wrap}
+  .final{position:relative;text-align:center;border:1px solid var(--line-2);
+    border-radius:10px;overflow:hidden;padding:clamp(3.5rem,8vw,6rem) 2rem;
+    background:
+      radial-gradient(ellipse 55% 100% at 50% 0%,rgba(201,162,39,.14),transparent 62%),
+      linear-gradient(180deg,var(--surface),#070605)}
+  .final h2{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.9rem,4.4vw,3.1rem);line-height:1.16;letter-spacing:.03em}
+  .final p{margin:1.1rem auto 0;max-width:34rem;color:var(--muted);font-weight:300}
+  .final .fc{margin-top:2.3rem;display:flex;gap:1.3rem;justify-content:center;
+    align-items:center;flex-wrap:wrap}
+
+  footer.site{border-top:1px solid var(--line);padding:4.5rem 0 2.5rem;
+    background:var(--surface)}
+  .f-grid{display:grid;gap:3rem}
+  @media(min-width:760px){.f-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+  .f-b .logo{height:50px;width:auto;display:block}
+  .f-bx{display:none}
+  .f-b .nm{font-family:"Cinzel",serif;font-size:1.5rem;font-weight:600;
+    letter-spacing:.3em;text-indent:.3em;
+    background:linear-gradient(180deg,#f7e29a 0%,#e0b54c 50%,#bd882d 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .f-b .ftg{font-size:.56rem;text-transform:uppercase;letter-spacing:.3em;
+    color:var(--gold-dim);margin-top:.5rem;font-weight:500}
+  .f-b p{margin-top:1rem;color:var(--muted);font-size:.86rem;font-weight:300;
+    max-width:23rem}
+  .f-c h5{font-family:"Cinzel",serif;font-size:.66rem;text-transform:uppercase;
+    letter-spacing:.26em;color:var(--faint)}
+  .f-c ul{list-style:none;margin-top:1.3rem;display:flex;flex-direction:column;gap:.85rem}
+  .f-c a{color:var(--muted);font-size:.86rem;transition:.15s}
+  .f-c a:hover{color:var(--gold)}
+  .f-bot{margin-top:3.5rem;padding-top:1.7rem;border-top:1px solid var(--line);
+    display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;
+    font-size:.74rem;color:var(--faint)}
+  .f-bot .lk{display:flex;gap:1.6rem;flex-wrap:wrap}
+  .f-bot a:hover{color:var(--gold)}
+
+  .rv{opacity:0;transform:translateY(12px);transition:opacity .45s ease,transform .45s ease}
+  .rv.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    .rv{opacity:1;transform:none;transition:none}
+    .pin .rg{animation:none}html{scroll-behavior:auto}
+    .stage:hover .sc-b,.stage:hover .sc-c{transform:none}}
+
+  /* ── v10 UX pass: tap targets, a11y, editorial portraits, balance ── */
+  .skip{position:absolute;left:-999px;top:0;z-index:200;background:var(--gold);
+    color:#0a0a0a;font-weight:700;font-size:.8rem;padding:.9rem 1.3rem;
+    border-radius:0 0 4px 0;text-transform:uppercase;letter-spacing:.12em}
+  .skip:focus{left:0}
+  a:focus-visible,button:focus-visible,select:focus-visible,
+  [tabindex]:focus-visible{outline:2px solid var(--gold-bright);
+    outline-offset:3px;border-radius:2px}
+  /* 44px touch targets */
+  nav.main a{padding:.85rem 0}
+  .loc button{padding:.7rem .55rem;font-size:.74rem}
+  .menu a{padding:.9rem .9rem}
+  .tlink{padding:.6rem 0}
+  .arrow{padding:.7rem 0}
+  .f-c a{display:inline-block;padding:.35rem 0}
+  .pin{}/* (decorative) */
+  /* editorial portrait treatment */
+  .frame .pt{filter:brightness(.82) contrast(1.12) saturate(.92)}
+  .ft:hover .pt,.cat:hover .frame .pt{filter:brightness(.92) contrast(1.12)}
+  /* hero — centered composition */
+  .hero{align-items:center}
+  .hero-actions{margin-top:1.6rem;display:flex;align-items:center;
+    justify-content:center;gap:1.5rem;flex-wrap:wrap}
+  .hero-trust{margin-top:1.35rem;font-size:.76rem;color:var(--faint);
+    letter-spacing:.02em;text-align:center}
+  .hero-trust b{color:var(--ivory);font-weight:600}
+  /* lighter map */
+  .map{min-height:18rem!important}
+  .ft{display:block;cursor:pointer;text-decoration:none}
+  .ft .nmrow .vp{display:inline-block;margin-top:.7rem;font-family:"Cinzel",serif;
+    font-size:.66rem;text-transform:uppercase;letter-spacing:.18em;
+    color:var(--gold-bright);transition:letter-spacing .2s}
+  .ft:hover .nmrow .vp{letter-spacing:.24em}
+  a[href="#"]{cursor:default}
+  /* v11 — restored feature affordances (clean, low-noise) */
+  .ft{cursor:pointer}
+  .ft .nmrow .mt{margin-top:.4rem;font-size:.62rem;text-transform:uppercase;
+    letter-spacing:.12em;color:var(--muted)}
+  .ft .nmrow .mt .av{color:var(--gold-bright);font-weight:600}
+  .ft .acts .rq.added{color:var(--gold-bright);border-color:var(--gold-border);
+    background:var(--gold-soft);cursor:default}
+  .ft .sv{cursor:pointer}
+  .disc-note{margin-top:.7rem;min-height:1rem;font-size:.74rem;
+    color:var(--gold-bright);letter-spacing:.02em}
+</style>
+</head>
+<body>
+<a class="skip" href="#main" data-en="Skip to content" data-es="Saltar al contenido">Skip to content</a>
+
+<header class="site" id="hdr">
+  <div class="wrap">
+    <div class="h-top">
+      <div class="h-side h-left">
+        <div class="social" aria-label="Contact Impronta">
+          <a class="si" href="https://wa.me/5219840000000" target="_blank" rel="noopener" data-tip="WhatsApp" aria-label="WhatsApp group">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M.06 24l1.69-6.16a11.87 11.87 0 01-1.59-5.95C.16 5.34 5.5 0 12.06 0a11.82 11.82 0 018.41 3.49 11.82 11.82 0 013.48 8.41c0 6.56-5.34 11.9-11.9 11.9a11.9 11.9 0 01-5.69-1.45L.06 24zM6.6 20.13c1.68 1 3.28 1.6 5.45 1.6 5.45 0 9.89-4.43 9.89-9.88a9.83 9.83 0 00-2.9-7 9.78 9.78 0 00-6.98-2.9c-5.46 0-9.9 4.44-9.9 9.89a9.82 9.82 0 001.51 5.26l-.99 3.6 3.92-1.02zm11.39-5.7c-.07-.12-.27-.2-.56-.34-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15-.2.29-.76.96-.94 1.16-.17.2-.34.22-.64.07-.3-.15-1.25-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.34.44-.52.15-.17.2-.29.3-.49.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.19-.24-.57-.48-.5-.66-.5l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.47s1.07 2.86 1.21 3.06c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41z"/></svg>
+          </a>
+          <a class="si" href="https://instagram.com/impronta" target="_blank" rel="noopener" data-tip="Instagram" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none"/></svg>
+          </a>
+          <a class="si" href="https://tiktok.com/@impronta" target="_blank" rel="noopener" data-tip="TikTok" aria-label="TikTok">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 1.5h-3v14.2a3.1 3.1 0 11-2.3-3v-3.1a6.2 6.2 0 105.3 6.1V8.4a7.3 7.3 0 004.3 1.4V6.7a4.3 4.3 0 01-4.3-4.3v-.9z"/></svg>
+          </a>
+          <a class="si si-tel" href="tel:+5219840000000" data-tip="Call / WhatsApp" aria-label="Call or WhatsApp +52 984 000 0000">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012 4.2 2 2 0 014 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8 9.6a16 16 0 006 6l1.1-1.1a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7a2 2 0 011.7 2z"/></svg>
+            <span class="ph">+52 984 000 0000</span>
+          </a>
+        </div>
+      </div>
+      <a href="index.html" class="brand" aria-label="Impronta — Agencia de Modelos &amp; Imagen">
+        <img class="logo" src="../assets/logo/impronta-logo.png" alt="Impronta — Agencia de Modelos &amp; Imagen"
+             onload="document.getElementById('brandTx').style.display='none'"
+             onerror="this.remove()">
+        <span class="brand-tx" id="brandTx">
+          <span class="nm">IMPRONTA</span>
+          <span class="tg">Agencia de Modelos &amp; Imagen</span>
+        </span>
+      </a>
+      <div class="h-side h-right">
+        <div class="acct">
+          <span class="loc" id="loc">
+            <button class="on" data-l="en">EN</button><span style="color:#3a3a40">·</span><button data-l="es">ES</button>
+          </span>
+          <button class="ai ai-ic ai-saved" data-tip="Saved" aria-label="Saved talent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <span class="bdg" id="savedCnt" style="display:none">0</span>
+          </button>
+          <button class="ai ai-ic ai-inq" data-tip="Inquiry" aria-label="Your inquiry">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+            <span class="bdg" id="inqCnt" style="display:none">0</span>
+          </button>
+          <button class="ai ai-ic ai-menu" id="burger" data-tip="Menu" aria-label="Menu — access, login, inquiry" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <nav class="main" aria-label="Primary">
+      <a href="directory.html" data-en="Discover" data-es="Descubrir">Discover</a>
+      <a href="#featured" data-en="Talent" data-es="Talento">Talent</a>
+      <a href="#services" data-en="Services" data-es="Servicios">Services</a>
+      <a href="#locations" data-en="Markets" data-es="Mercados">Markets</a>
+      <a href="#about" data-en="About" data-es="Nosotros">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="drawer" id="drawer">
+  <div class="sc" data-x></div>
+  <div class="pn">
+    <button class="x" data-x aria-label="Close">×</button>
+    <nav aria-label="Mobile">
+      <a href="directory.html" data-en="Discover" data-es="Descubrir">Discover</a>
+      <a href="#featured" data-x data-en="Talent" data-es="Talento">Talent</a>
+      <a href="#services" data-x data-en="Services" data-es="Servicios">Services</a>
+      <a href="#locations" data-x data-en="Markets" data-es="Mercados">Markets</a>
+      <a href="#about" data-x data-en="About" data-es="Nosotros">About</a>
+    </nav>
+    <div class="da">
+      <a href="#contact" data-x class="btn btn-gold" data-en="Start an Inquiry" data-es="Iniciar Solicitud">Start an Inquiry</a>
+      <a href="directory.html" class="btn btn-line" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+    </div>
+    <div class="dl">
+      <a href="#" data-en="Client sign in" data-es="Acceso clientes">Client sign in</a>
+      <a href="#join" data-x data-en="Talent login" data-es="Acceso talento">Talent login</a>
+      <a href="#join" data-x data-en="Apply as talent" data-es="Postúlate">Apply as talent</a>
+    </div>
+  </div>
+</div>
+
+<main id="main">
+  <section class="hero hero-find">
+    <div class="wrap hero-c">
+      <p class="hero-eyebrow" data-en="Models &amp; Image Agency" data-es="Agencia de Modelos e Imagen">Models &amp; Image Agency</p>
+      <h1 class="hero-h">
+        <span data-en="Find the right talent" data-es="Encuentra el talento ideal">Find the right talent</span>
+        <span class="gold display" data-en="for your brief." data-es="para tu brief.">for your brief.</span>
+      </h1>
+      <p class="hero-sub" data-en="Search the directory by role, location or fit — agency-managed, no direct contact." data-es="Busca el directorio por rol, ubicación o perfil — gestión de agencia, sin contacto directo.">Search the directory by role, location or fit — agency-managed, no direct contact.</p>
+
+      <form class="hsearch" id="heroSearch" action="directory.html" method="get" role="search">
+        <span class="hs-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>
+        </span>
+        <input id="hsInput" name="q" type="text" autocomplete="off" spellcheck="false"
+               aria-label="Search the directory by role, location or fit">
+        <span class="hs-ghost" id="hsGhost" aria-hidden="true"><span class="hs-txt"></span><span class="hs-caret"></span></span>
+        <button class="hs-btn" type="submit" aria-label="Search">
+          <span class="hs-bl" data-en="Search" data-es="Buscar">Search</span>
+          <svg class="hs-bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/></svg>
+        </button>
+      </form>
+
+      <div class="hero-actions">
+        <a href="#contact" class="btn btn-gold" data-en="Start an Inquiry" data-es="Iniciar Solicitud">Start an Inquiry</a>
+        <a href="#join" class="tlink" data-en="Apply as talent →" data-es="Postúlate como talento →">Apply as talent →</a>
+      </div>
+
+      <p class="hero-cities" aria-label="Markets">
+        <a class="chip-loc" href="directory.html?market=Riviera+Maya"><span class="d"></span>Riviera Maya</a>
+        <a class="chip-loc" href="directory.html?market=Mexico+City"><span class="d"></span>Mexico City</a>
+        <a class="chip-loc" href="directory.html?market=Buenos+Aires"><span class="d"></span>Buenos Aires</a>
+        <span class="chip-loc soft"><span class="d"></span><span data-en="More cities coming" data-es="Más ciudades pronto">More cities coming</span></span>
+      </p>
+
+      <p class="hero-trust">
+        <b>120+</b> <span data-en="represented talent · agency-managed from inquiry to confirmation" data-es="talentos representados · gestión de agencia de la solicitud a la confirmación">represented talent · agency-managed from inquiry to confirmation</span>
+      </p>
+    </div>
+  </section>
+
+  <section class="hero hero-classic" id="discover">
+    <div class="wrap hero-grid">
+      <div>
+        <h1 class="hero-h">
+          <span data-en="Discover premium talent across" data-es="Descubre talento premium en">Discover premium talent across</span>
+          <span class="gold display" data-en="destination cities." data-es="ciudades destino.">destination cities.</span>
+        </h1>
+        <p class="hero-sub" data-en="Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires &amp; beyond." data-es="Modelos, anfitriones, performers y creadores para eventos, producciones y experiencias de marca — Riviera Maya, Ciudad de México, Buenos Aires y más.">Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires &amp; beyond.</p>
+
+        <div class="disc">
+          <div class="dl" data-en="Find talent for your event, production or brand" data-es="Encuentra talento para tu evento, producción o marca">Find talent for your event, production or brand</div>
+          <form action="directory.html" id="discForm">
+            <div class="f">
+              <label data-en="Looking for" data-es="Buscas">Looking for</label>
+              <select aria-label="Category" id="dCat">
+                <option data-en="All talent" data-es="Todo el talento">All talent</option>
+                <option data-en="Models" data-es="Modelos">Models</option>
+                <option data-en="Hosts & Promoters" data-es="Anfitriones">Hosts &amp; Promoters</option>
+                <option data-en="Performers" data-es="Performers">Performers</option>
+                <option data-en="Creators" data-es="Creadores">Creators</option>
+              </select>
+            </div>
+            <div class="f">
+              <label data-en="Market" data-es="Mercado">Market</label>
+              <select aria-label="Market" id="dMkt">
+                <option data-en="All markets" data-es="Todos los mercados">All markets</option>
+                <option>Riviera Maya</option><option>Mexico City</option>
+                <option>Buenos Aires</option>
+                <option disabled data-en="— More cities coming —" data-es="— Más ciudades pronto —">— More cities coming —</option>
+              </select>
+            </div>
+            <button class="go" type="submit">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <span data-en="Explore" data-es="Explorar">Explore</span>
+            </button>
+          </form>
+          <p class="disc-note" id="discNote" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-cards" aria-hidden="true">
+          <div class="stage-card sc-b frame" data-stage="Lucía M."><div class="scrim"></div></div>
+          <div class="stage-card sc-c frame" data-stage="Marco V."><div class="scrim"></div></div>
+          <div class="stage-card sc-main frame" data-stage="Sofía R.">
+            <div class="tab" data-en="Selected" data-es="Selección">Selected</div>
+            <div class="scrim"></div><div class="sheen"></div>
+            <div class="cap"><b>Sofía R.</b><s>Editorial · Tulum</s></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--surface rv" id="services">
+    <div class="wrap">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:2rem;flex-wrap:wrap">
+        <div>
+          <p class="eyebrow" data-en="The roster" data-es="El roster">The roster</p>
+          <h2 class="title" data-en="Talent, by discipline" data-es="Talento, por disciplina">Talent, by discipline</h2>
+        </div>
+        <a href="directory.html" class="arrow" data-en="See all →" data-es="Ver todo →">See all →</a>
+      </div>
+      <div class="cat-railwrap">
+        <button class="cat-nav prev" type="button" aria-label="Previous talent types">‹</button>
+        <div class="cat-rail" id="catGrid"></div>
+        <button class="cat-nav next" type="button" aria-label="More talent types">›</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="featured">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Selected" data-es="Selección">Selected</p>
+        <h2 class="title" data-en="Featured talent" data-es="Talento destacado">Featured talent</h2>
+      </div>
+      <div class="ft-grid" id="ftGrid"></div>
+      <div class="center" style="margin-top:2.8rem">
+        <a href="directory.html" class="arrow" data-en="Explore Talent →" data-es="Explorar Talento →">Explore Talent →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--warm rv" id="locations">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Talent network" data-es="Red de talento">Talent network</p>
+        <h2 class="title" data-en="Local faces, international reach." data-es="Rostros locales, alcance internacional.">Local faces, international reach.</h2>
+        <p class="lead" data-en="Starting with Riviera Maya, expanding across Mexico City, Buenos Aires, and other creative markets. Click a market to preview available talent." data-es="Comenzando con Riviera Maya, expandiéndonos a Ciudad de México, Buenos Aires y otros mercados creativos. Haz clic en un mercado para ver el talento disponible.">Starting with Riviera Maya, expanding across Mexico City, Buenos Aires, and other creative markets. Click a market to preview available talent.</p>
+      </div>
+      <div class="map-grid">
+        <!-- DROP-IN: existing production component
+             web/src/components/home/location-map.tsx → `LocationMap`
+             (@vis.gl/react-google-maps; props `locations: LocationItem[]` so it
+             is ALREADY multi-city/multi-market — not Riviera-Maya-hardcoded;
+             via LocationSection/LocationMapLazy; env NEXT_PUBLIC_GOOGLE_MAPS_API_KEY).
+             It renders gold pins per location and reveals featured talent on
+             pin click. Mount into #talentMapMount, add class "live" to #map,
+             forward its pin click to selectMarket(id). Each MARKETS[].faces
+             maps to LocationItem.featuredPreviews. See notes/map-component-findings.md -->
+        <div class="map" id="map">
+          <div id="talentMapMount" aria-hidden="true"></div>
+          <svg viewBox="0 0 600 480" role="img" aria-label="Impronta talent markets">
+            <defs>
+              <linearGradient id="mbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0c1116"/><stop offset="1" stop-color="#05070a"/></linearGradient>
+              <radialGradient id="mglow" cx="0.46" cy="0.42" r="0.5"><stop offset="0" stop-color="rgba(201,162,39,.14)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+            </defs>
+            <rect width="600" height="480" fill="url(#mbg)"/>
+            <g stroke="rgba(201,162,39,.10)" fill="none" stroke-width="1">
+              <path d="M0,150 Q300,110 600,150"/><path d="M0,250 Q300,210 600,250"/>
+              <path d="M0,350 Q300,310 600,350"/><path d="M120,0 Q150,240 120,480"/>
+              <path d="M300,0 Q330,240 300,480"/><path d="M480,0 Q510,240 480,480"/>
+            </g>
+            <ellipse cx="270" cy="210" rx="170" ry="120" fill="url(#mglow)"/>
+            <g stroke="rgba(201,162,39,.22)" fill="none" stroke-dasharray="2 6">
+              <path d="M270,210 C 230,150 210,140 235,150"/>
+              <path d="M270,210 C 320,300 340,360 358,372"/>
+              <path d="M270,210 C 180,170 150,150 152,138"/>
+              <path d="M270,210 C 380,160 440,140 462,134"/>
+            </g>
+            <g class="pin featured" data-m="riviera" transform="translate(270,210)">
+              <circle class="hl" r="26" fill="rgba(201,162,39,.14)"/>
+              <circle class="rg" r="8" fill="none" stroke="var(--gold)" stroke-width="1.4"/>
+              <circle class="dt" r="7" fill="var(--gold)"/>
+              <text class="lb" x="16" y="-6" style="font-size:13px;fill:var(--gold-bright)">Riviera Maya</text>
+              <text class="lb" x="16" y="10" style="font-size:9px;letter-spacing:.16em">FEATURED MARKET</text>
+            </g>
+            <g class="pin" data-m="cdmx" transform="translate(235,150)">
+              <circle class="hl" r="20" fill="rgba(201,162,39,.12)"/>
+              <circle class="rg" r="7" fill="none" stroke="var(--gold)" stroke-width="1.4"/>
+              <circle class="dt" r="6" fill="var(--gold)"/><text class="lb" x="14" y="4">Mexico City</text>
+            </g>
+            <g class="pin" data-m="baires" transform="translate(358,372)">
+              <circle class="hl" r="20" fill="rgba(201,162,39,.12)"/>
+              <circle class="rg" r="7" fill="none" stroke="var(--gold)" stroke-width="1.4"/>
+              <circle class="dt" r="6" fill="var(--gold)"/><text class="lb" x="14" y="4">Buenos Aires</text>
+            </g>
+            <g class="pin soon" data-m="soon1" transform="translate(152,138)">
+              <circle class="dt" r="5" fill="var(--faint)"/><text class="lb" x="12" y="4">Los Angeles</text>
+            </g>
+            <g class="pin soon" data-m="soon2" transform="translate(462,134)">
+              <circle class="dt" r="5" fill="var(--faint)"/><text class="lb" x="12" y="4">Madrid</text>
+            </g>
+          </svg>
+          <div class="legend">
+            <span><i></i><span data-en="Active markets" data-es="Mercados activos">Active markets</span></span>
+            <span><i class="soon"></i><span data-en="Coming soon" data-es="Próximamente">Coming soon</span></span>
+          </div>
+        </div>
+        <div class="preview" id="preview"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band rv">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="How it works" data-es="Cómo funciona">How it works</p>
+        <h2 class="title" data-en="A clear, professional process" data-es="Un proceso claro y profesional">A clear, professional process</h2>
+      </div>
+      <div class="steps">
+        <div class="stp"><span class="n">01</span><h4 data-en="Tell us the brief" data-es="Cuéntanos el brief">Tell us the brief</h4><p data-en="Market, dates, the look you need." data-es="Mercado, fechas, el look que necesitas.">Market, dates, the look you need.</p></div>
+        <div class="stp"><span class="n">02</span><h4 data-en="We shortlist options" data-es="Preseleccionamos opciones">We shortlist options</h4><p data-en="A shortlist tailored to your project." data-es="Una preselección a la medida.">A shortlist tailored to your project.</p></div>
+        <div class="stp"><span class="n">03</span><h4 data-en="Confirm talent" data-es="Confirma el talento">Confirm talent</h4><p data-en="You choose. We secure availability." data-es="Tú eliges. Aseguramos disponibilidad.">You choose. We secure availability.</p></div>
+        <div class="stp"><span class="n">04</span><h4 data-en="Coordinate the booking" data-es="Coordinamos la reserva">Coordinate the booking</h4><p data-en="Local coordination, contracts, logistics." data-es="Coordinación local, contratos, logística.">Local coordination, contracts, logistics.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--surface rv" id="about">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Why Impronta" data-es="Por qué Impronta">Why Impronta</p>
+        <h2 class="title" data-en="An agency, not a directory" data-es="Una agencia, no un directorio">An agency, not a directory</h2>
+        <p class="lead" data-en="Every booking is supported by real coordination, local knowledge, and reviewed, agency-approved talent — in every market we operate." data-es="Cada reserva está respaldada por coordinación real, conocimiento local y talento revisado y aprobado por la agencia — en cada mercado donde operamos.">Every booking is supported by real coordination, local knowledge, and reviewed, agency-approved talent — in every market we operate.</p>
+      </div>
+      <div class="pillars">
+        <div class="pil"><div class="ic2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <h4 data-en="Verified profiles" data-es="Perfiles verificados">Verified profiles</h4>
+          <p data-en="Every talent is reviewed and verified before you ever see them." data-es="Cada talento es revisado y verificado antes de que lo veas.">Every talent is reviewed and verified before you ever see them.</p></div>
+        <div class="pil"><div class="ic2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+          <h4 data-en="Local coordination" data-es="Coordinación local">Local coordination</h4>
+          <p data-en="A real team on the ground in every market — international reach, local execution." data-es="Un equipo real en terreno en cada mercado — alcance internacional, ejecución local.">A real team on the ground in every market — international reach, local execution.</p></div>
+        <div class="pil"><div class="ic2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+          <h4 data-en="Booking support" data-es="Soporte de reserva">Booking support</h4>
+          <p data-en="Contracts, usage and logistics — managed end to end." data-es="Contratos, derechos y logística — de principio a fin.">Contracts, usage and logistics — managed end to end.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band rv" id="join">
+    <div class="wrap">
+      <div class="join">
+        <p class="eyebrow" data-en="For talent" data-es="Para talento">For talent</p>
+        <h3 data-en="Are you a model, host, performer or creator?" data-es="¿Eres modelo, anfitrión, performer o creador?">Are you a model, host, performer or creator?</h3>
+        <p data-en="Build your agency-managed profile — availability, portfolio and rates in one place — and be considered for selected opportunities across our growing network of markets." data-es="Crea tu perfil gestionado por la agencia — disponibilidad, portafolio y tarifas en un solo lugar — y sé considerado para oportunidades seleccionadas en nuestra red creciente de mercados.">Build your agency-managed profile — availability, portfolio and rates in one place — and be considered for selected opportunities across our growing network of markets.</p>
+        <div class="jc">
+          <a href="#" class="btn btn-gold" data-en="Apply as Talent" data-es="Postúlate como Talento">Apply as Talent</a>
+          <a href="#" class="tlink" data-en="Talent Login →" data-es="Acceso Talento →">Talent Login →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band rv" id="contact" style="padding-top:0">
+    <div class="wrap">
+      <div class="final">
+        <p class="eyebrow" data-en="Start" data-es="Empieza">Start</p>
+        <h2 data-en="Planning an event, shoot, activation, or private experience?" data-es="¿Planeas un evento, sesión, activación o experiencia privada?">Planning an event, shoot, activation, or private experience?</h2>
+        <p data-en="Tell us the brief and your market. We'll match the right talent — a coordinator replies personally." data-es="Cuéntanos el brief y tu mercado. Seleccionaremos el talento adecuado — un coordinador responde personalmente.">Tell us the brief and your market. We'll match the right talent — a coordinator replies personally.</p>
+        <div class="fc">
+          <a href="directory.html" class="btn btn-gold" data-en="Start an Inquiry" data-es="Iniciar Solicitud">Start an Inquiry</a>
+          <a href="directory.html" class="btn btn-line" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="f-b">
+        <img class="logo" src="../assets/logo/impronta-logo.png" alt="Impronta"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <div class="f-bx">
+          <div class="nm">IMPRONTA</div>
+          <div class="ftg">Agencia de Modelos &amp; Imagen</div>
+        </div>
+        <p data-en="An international talent network — launching in Riviera Maya, expanding across Mexico City, Buenos Aires and beyond." data-es="Una red internacional de talento — lanzando en Riviera Maya, expandiéndonos a Ciudad de México, Buenos Aires y más.">An international talent network — launching in Riviera Maya, expanding across Mexico City, Buenos Aires and beyond.</p>
+      </div>
+      <div class="f-c"><h5 data-en="Explore" data-es="Explorar">Explore</h5><ul>
+        <li><a href="directory.html" data-en="All talent" data-es="Todo el talento">All talent</a></li>
+        <li><a href="#services" data-en="Categories" data-es="Categorías">Categories</a></li>
+        <li><a href="#locations" data-en="Markets" data-es="Mercados">Markets</a></li></ul></div>
+      <div class="f-c"><h5 data-en="Agency" data-es="Agencia">Agency</h5><ul>
+        <li><a href="#about" data-en="About" data-es="Nosotros">About</a></li>
+        <li><a href="#join" data-en="For talent" data-es="Para talento">For talent</a></li>
+        <li><a href="#contact" data-en="Contact" data-es="Contacto">Contact</a></li></ul></div>
+      <div class="f-c"><h5 data-en="Account" data-es="Cuenta">Account</h5><ul>
+        <li><a href="#" data-en="Client sign in" data-es="Acceso clientes">Client sign in</a></li>
+        <li><a href="#join" data-en="Talent login" data-es="Acceso talento">Talent login</a></li>
+        <li><a href="#join" data-en="Apply as talent" data-es="Postúlate">Apply as talent</a></li></ul></div>
+    </div>
+    <div class="f-bot">
+      <span>© 2026 Impronta — <span data-en="International Talent Network" data-es="Red Internacional de Talento">International Talent Network</span></span>
+      <div class="lk">
+        <a href="#" data-en="Privacy" data-es="Privacidad">Privacy</a>
+        <a href="#" data-en="Terms" data-es="Términos">Terms</a>
+        <a href="#" data-en="hello@impronta.studio" data-es="hola@impronta.studio">hello@impronta.studio</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ─────────────────────────────────────────────────────────────
+     SWAPPABLE IMAGE LAYER
+     Every talent surface is data-driven + tagged data-img-slot.
+     To use real photos later: set TALENT[name].image (or CATS[].image)
+     to an assets/ path — an <img> replaces the editorial placeholder
+     automatically. No HTML/CSS change. See notes/imagery-strategy.md.
+     Slots: heroTalentImage · featuredTalentImage · categoryImage ·
+            mapTalentFaceImage  (profileCardImage reserved)
+     ───────────────────────────────────────────────────────────── */
+  const TALENT={
+    "Sofía R.":{category:"Editorial",location:"Tulum",av:"Available",langs:"EN · ES",image:null},
+    "Marco V.":{category:"Host",location:"Mexico City",av:"This week",langs:"ES · EN",image:null},
+    "Lucía M.":{category:"Runway",location:"Riviera Maya",av:"Available",langs:"ES · EN · FR",image:null},
+    "Diego A.":{category:"Creator",location:"Buenos Aires",av:"On request",langs:"ES · EN",image:null},
+    "Renata P.":{category:"Model",location:"Mexico City",av:"Available",langs:"ES · EN",image:null},
+    "Iván C.":{category:"Commercial",location:"Mexico City",av:"This week",langs:"ES",image:null},
+    "Mara T.":{category:"Dancer",location:"Buenos Aires",av:"On request",langs:"ES · EN",image:null},
+    "Bruno H.":{category:"Host",location:"Buenos Aires",av:"Available",langs:"ES · EN",image:null},
+    "Vera L.":{category:"Model",location:"Buenos Aires",av:"Available",langs:"ES · EN · IT",image:null},
+    "Aldo S.":{category:"Promo",location:"Riviera Maya",av:"This week",langs:"EN · ES",image:null},
+    "Nadia O.":{category:"Beauty",location:"Riviera Maya",av:"Available",langs:"EN · ES",image:null},
+    "Tomás E.":{category:"Performer",location:"Riviera Maya",av:"On request",langs:"ES · EN",image:null},
+  };
+  // Category cover imagery: editorial/lifestyle stock placeholders (Unsplash CDN,
+  // free to use). Dark cinematic grade is applied by .frame .pt CSS so the wall
+  // stays cohesive. Swap to licensed Impronta photography later — same as
+  // TALENT[].image; no markup change. See notes/imagery-strategy.md.
+  const IMGQ="?auto=format&fit=crop&q=72&w=1100&h=820";
+  const U="https://images.unsplash.com/";
+  // Mirrors the canonical Supabase parent_category taxonomy
+  // (web/src/lib/taxonomy/parent-labels.ts — 19 parent categories).
+  const CATS=[
+    {key:"models",g:"◑",en:"Models",es:"Modelos",de:"Editorial, runway & commercial",ds:"Editorial, pasarela y comercial",image:U+"photo-1524504388940-b1c1722653e1"+IMGQ,lg:1},
+    {key:"hosts-promo",g:"✦",en:"Hosts & Promo",es:"Anfitriones & Promo",de:"Brand ambassadors & activations",ds:"Embajadores y activaciones",image:U+"photo-1492684223066-81342ee5ff30"+IMGQ},
+    {key:"performers",g:"♪",en:"Performers",es:"Performers",de:"Dancers, acts & entertainers",ds:"Bailarines, shows y entretenimiento",image:U+"photo-1493225457124-a3eb161ffa5f"+IMGQ},
+    {key:"music-djs",g:"♫",en:"Music & DJs",es:"Música & DJs",de:"DJs, bands & live music",ds:"DJs, bandas y música en vivo",image:U+"photo-1499364615650-ec38552f4f34"+IMGQ},
+    {key:"chefs-culinary",g:"✷",en:"Chefs & Culinary",es:"Chefs & Cocina",de:"Private chefs & catering",ds:"Chefs privados y catering",image:U+"photo-1577219491135-ce391730fb2c"+IMGQ},
+    {key:"wellness-beauty",g:"❀",en:"Wellness & Beauty",es:"Bienestar & Belleza",de:"Hair, makeup & wellness",ds:"Cabello, maquillaje y bienestar",image:U+"photo-1487412947147-5cebf100ffc2"+IMGQ},
+    {key:"photo-video-creative",g:"◉",en:"Photo, Video & Creative",es:"Foto, Video & Creativo",de:"Photographers & creatives",ds:"Fotógrafos y creativos",image:U+"photo-1478720568477-152d9b164e26"+IMGQ},
+    {key:"influencers-creators",g:"⌾",en:"Influencers & Creators",es:"Influencers & Creadores",de:"UGC & social campaigns",ds:"UGC y campañas sociales",image:U+"photo-1547355253-ff0740f6e8c1"+IMGQ},
+    {key:"event-staff",g:"◈",en:"Event Staff",es:"Staff de Eventos",de:"MCs, hosts & hospitality",ds:"MCs, anfitriones y hospitalidad",image:U+"photo-1543007630-9710e4a00a20"+IMGQ},
+    {key:"hospitality-property",g:"⌂",en:"Hospitality & Property",es:"Hospitalidad & Propiedad",de:"Venues & property hosts",ds:"Venues y anfitriones de propiedad",image:U+"photo-1542314831-068cd1dbfeeb"+IMGQ},
+    {key:"travel-concierge",g:"❖",en:"Travel & Concierge",es:"Viajes & Concierge",de:"Guides & concierge",ds:"Guías y concierge",image:U+"photo-1540541338287-41700207dee6"+IMGQ},
+    {key:"transportation",g:"▷",en:"Transportation",es:"Transporte",de:"Drivers & transfers",ds:"Choferes y traslados",image:U+"photo-1493238792000-8113da705763"+IMGQ},
+    {key:"home-technical",g:"⚙",en:"Home & Technical Services",es:"Servicios Técnicos & Hogar",de:"Technical & home crew",ds:"Equipo técnico y de hogar",image:U+"photo-1581092580497-e0d23cbdf1dc"+IMGQ},
+    {key:"security-protection",g:"⛨",en:"Security & Protection",es:"Seguridad & Protección",de:"Security & close protection",ds:"Seguridad y protección personal",image:U+"photo-1542178243-bc20204b769f"+IMGQ},
+    {key:"sports-fitness",g:"△",en:"Sports & Fitness",es:"Deporte & Fitness",de:"Trainers & athletes",ds:"Entrenadores y atletas",image:U+"photo-1517836357463-d25dfeac3438"+IMGQ},
+    {key:"kids-family",g:"❍",en:"Kids & Family Services",es:"Servicios para Niños & Familia",de:"Nannies & family care",ds:"Niñeras y cuidado familiar",image:U+"photo-1476234251651-f353703a034d"+IMGQ},
+    {key:"speakers-coaches",g:"❂",en:"Speakers, Coaches & Experts",es:"Speakers, Coaches & Expertos",de:"Speakers, coaches & experts",ds:"Speakers, coaches y expertos",image:U+"photo-1505373877841-8d25f7d46678"+IMGQ},
+    {key:"production-bts",g:"▤",en:"Production & Behind-the-Scenes",es:"Producción & Behind-the-Scenes",de:"Crew & production support",ds:"Equipo y apoyo de producción",image:U+"photo-1581092918056-0c4c3acd3789"+IMGQ},
+    {key:"animals-specialty",g:"✺",en:"Animals & Specialty Acts",es:"Animales & Actos Especiales",de:"Animal & specialty acts",ds:"Animales y actos especiales",image:U+"photo-1503095396549-807759245b35"+IMGQ},
+  ];
+  const FT=["Sofía R.","Marco V.","Lucía M.","Diego A."];
+  const STRIP=["Sofía R.","Lucía M.","Aldo S.","Nadia O.","Tomás E.","Diego A.","Renata P.","Mara T."];
+  const MARKETS=[
+    {id:"riviera",n:"Riviera Maya",badge:"Featured market",bes:"Mercado destacado",status:"on",
+      cities:"Cancún · Playa del Carmen · Tulum · Cozumel",
+      en:"Resorts, beach clubs, editorial & brand activations",
+      es:"Resorts, beach clubs, editorial y activaciones de marca",
+      faces:["Sofía R.","Lucía M.","Diego A."]},
+    {id:"cdmx",n:"Mexico City",badge:"Active",bes:"Activo",status:"on",
+      cities:"Roma · Condesa · Polanco",
+      en:"Fashion, film & commercial productions",
+      es:"Moda, cine y producción comercial",
+      faces:["Marco V.","Renata P.","Iván C."]},
+    {id:"baires",n:"Buenos Aires",badge:"Active",bes:"Activo",status:"on",
+      cities:"Palermo · Recoleta",
+      en:"Editorial, runway & creative campaigns",
+      es:"Editorial, pasarela y campañas creativas",
+      faces:["Mara T.","Bruno H.","Vera L."]},
+    {id:"soon",n:"More cities coming",badge:"Soon",bes:"Pronto",status:"soon",
+      cities:"Los Angeles · Madrid · Miami",
+      en:"Impronta is expanding across creative markets worldwide.",
+      es:"Impronta se expande a mercados creativos en todo el mundo.",
+      faces:[]},
+  ];
+  // map "soon" pins to the soon market
+  const MARKET_BY_PIN={riviera:"riviera",cdmx:"cdmx",baires:"baires",soon1:"soon",soon2:"soon"};
+  let L="en",curMarket="riviera",uid=0;
+
+  /* ── Refined editorial portrait (art-directed; chiaroscuro, warm gold,
+        hair/jaw/neck/shoulder, grain via .frame::before, editorial crop) ── */
+  const PAL=[
+    ["#231c12","#130f0a","#070504","#0d0a06","#3d3019","#876531","#bd8d3d","227,192,82"],
+    ["#1f1a12","#100d09","#060403","#0c0907","#382a17","#6f5126","#aa7730","201,162,39"],
+    ["#241d13","#13100b","#080604","#100c08","#45351d","#8c6c35","#c99c46","236,210,140"],
+  ];
+  // tighter editorial crop (viewBox 0 0 360 440) — continuous bust silhouette
+  // (no lollipop neck/disc), sculpted hair mass with hairline + highlight
+  const HAIR=[
+    "M112,166C104,92 146,46 180,44C218,42 258,86 250,176C244,140 230,110 212,96C214,124 209,150 202,168C196,128 185,104 174,100C150,124 130,138 112,166Z",
+    "M114,150C104,80 150,40 180,40C214,40 258,78 250,168C244,134 232,108 214,98C217,122 214,140 209,156C200,128 186,114 176,112C154,122 132,134 114,150Z",
+    "M110,182C102,104 144,46 180,44C222,42 262,90 256,200C252,250 244,300 236,338C233,272 226,222 212,184C216,140 206,120 192,108C166,134 134,156 110,182Z",
+  ];
+  const HEAD="M180,56C142,56 116,90 114,140C113,172 122,202 138,224C150,240 164,250 180,252C196,250 210,240 222,224C238,202 247,172 246,140C244,90 218,56 180,56Z";
+  const NECK="M158,224C158,256 156,276 180,290C204,276 202,256 202,224C196,236 164,236 158,224Z";
+  const TORSO="M180,272C146,272 104,290 80,330C60,364 50,410 48,440L312,440C310,410 300,364 280,330C256,290 214,272 180,272Z";
+  function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+  function portraitSVG(seed,slot){
+    const p=PAL[seed%3],hair=HAIR[(seed>>2)%3],flip=seed&1,tilt=((seed%5)-2)*1.2,id="g"+(uid++);
+    return `<svg class="pt" data-img-slot="${slot}" viewBox="0 0 360 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="b${id}" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0" stop-color="${p[0]}"/><stop offset=".55" stop-color="${p[1]}"/><stop offset="1" stop-color="${p[2]}"/></linearGradient>
+        <radialGradient id="k${id}" cx="0.26" cy="0.2" r="0.95"><stop offset="0" stop-color="rgba(${p[7]},.52)"/><stop offset=".42" stop-color="rgba(${p[7]},.12)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+        <linearGradient id="f${id}" x1="0.08" y1="0" x2="1" y2="0.18"><stop offset="0" stop-color="${p[3]}"/><stop offset=".46" stop-color="${p[4]}"/><stop offset=".78" stop-color="${p[5]}"/><stop offset="1" stop-color="${p[6]}"/></linearGradient>
+        <radialGradient id="c${id}" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="rgba(${p[7]},.26)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+        <linearGradient id="s${id}" x1="0.4" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(0,0,0,0)"/><stop offset="1" stop-color="rgba(0,0,0,.5)"/></linearGradient>
+        <radialGradient id="v${id}" cx="0.5" cy="0.42" r="0.8"><stop offset="0" stop-color="rgba(0,0,0,0)"/><stop offset=".64" stop-color="rgba(0,0,0,0)"/><stop offset="1" stop-color="rgba(0,0,0,.62)"/></radialGradient>
+      </defs>
+      <rect width="360" height="440" fill="url(#b${id})"/>
+      <rect width="360" height="440" fill="url(#k${id})"/>
+      <g transform="${flip?"translate(360,0) scale(-1,1) ":""}rotate(${tilt} 180 210)">
+        <path d="${TORSO}" fill="url(#f${id})"/>
+        <path d="${NECK}" fill="url(#f${id})"/>
+        <path d="${HEAD}" fill="url(#f${id})"/>
+        <ellipse cx="152" cy="146" rx="40" ry="56" fill="url(#c${id})"/>
+        <path d="M180,68C176,110 178,180 180,252C198,238 214,210 224,176C232,140 235,104 232,84C214,64 196,62 180,68Z" fill="url(#s${id})" opacity="0.55"/>
+        <path d="${hair}" fill="#090705"/>
+        <path d="M150,96C166,78 188,70 206,82" stroke="rgba(${p[7]},.3)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M124,150C120,118 128,98 142,84" stroke="rgba(${p[7]},.16)" stroke-width="1.4" fill="none"/>
+        <path d="M246,140C247,172 238,202 222,224C214,234 205,242 198,246" stroke="rgba(${p[7]},.42)" stroke-width="1.6" fill="none"/>
+        <path d="M280,330C300,364 310,410 312,440" stroke="rgba(${p[7]},.3)" stroke-width="1.6" fill="none"/>
+      </g>
+      <rect width="360" height="440" fill="url(#v${id})"/>
+    </svg>`;
+  }
+  function portrait(name,slot){
+    const t=TALENT[name]||{};
+    if(t.image) return `<img class="pt" src="${t.image}" alt="${name}" loading="lazy" data-img-slot="${slot}">`;
+    return portraitSVG(hash(name||slot),slot);
+  }
+  function catImage(c,slot){
+    if(c.image) return `<img class="pt" src="${c.image}" alt="${c.en}" loading="lazy" data-img-slot="${slot}">`;
+    return portraitSVG(hash(c.key+"cat"),slot);
+  }
+
+  // classic-hero portrait stage
+  document.querySelectorAll('.stage-card[data-stage]').forEach(el=>
+    el.insertAdjacentHTML('afterbegin',portrait(el.dataset.stage,'heroTalentImage')));
+
+  function renderCats(){
+    document.getElementById('catGrid').innerHTML=CATS.map(c=>`
+      <a class="cat ${c.lg?'cat--lg':''}" href="directory.html" aria-label="${L==="es"?c.es:c.en}">
+        <span class="frame">${catImage(c,'categoryImage')}</span>
+        <span class="gi">${c.g}</span>
+        <h3>${L==="es"?c.es:c.en}</h3>
+        <p>${L==="es"?c.ds:c.de}</p>
+        <span class="go">${L==="es"?"Explorar":"Explore"} <span>→</span></span>
+      </a>`).join("");
+  }
+  function renderFt(){
+    const g=document.getElementById('ftGrid');
+    const avT=a=>L==="es"?{ "Available":"Disponible","This week":"Esta semana","On request":"A solicitud"}[a]||a:a;
+    g.innerHTML=FT.map(n=>{
+      const t=TALENT[n]||{};
+      return `<article class="ft" data-href="directory.html" tabindex="0"
+        aria-label="${n} — ${t.category} · ${t.location}">
+        <div class="frame">${portrait(n,'featuredTalentImage')}
+          <button class="sv" type="button" aria-label="Save ${n}" aria-pressed="false" title="Save to shortlist">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+          <div class="scrim"></div>
+          <div class="nmrow"><div class="nm">${n}</div>
+            <div class="rl">${t.category} · ${t.location}</div>
+            <div class="mt"><span class="av">${avT(t.av)}</span> · ${t.langs}</div></div>
+        </div>
+        <div class="acts">
+          <a class="vp" href="directory.html">${L==="es"?"Ver perfil":"View profile"}</a>
+          <button class="rq" type="button" aria-label="${L==="es"?"Añadir":"Add"} ${n} ${L==="es"?"a la solicitud":"to inquiry"}">${L==="es"?"Solicitar":"Request"}</button>
+        </div>
+      </article>`;}).join("");
+    // whole-card → profile (ignore taps on the buttons/link)
+    g.querySelectorAll('.ft').forEach(c=>{
+      const go=()=>location.href=c.dataset.href;
+      c.addEventListener('click',e=>{if(!e.target.closest('button,a'))go();});
+      c.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.target.closest('button,a'))go();});
+    });
+    // Save → shortlist count
+    g.querySelectorAll('.sv').forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const on=b.getAttribute('aria-pressed')!=='true';
+      b.setAttribute('aria-pressed',on);b.classList.toggle('on',on);
+      bumpCount('savedCnt',g.querySelectorAll('.sv[aria-pressed="true"]').length);}));
+    // Request → inquiry count + state
+    g.querySelectorAll('.rq').forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(b.classList.contains('added'))return;
+      b.classList.add('added');b.textContent=L==="es"?"Añadido ✓":"Added ✓";
+      bumpCount('inqCnt',(+document.getElementById('inqCnt').textContent||0)+1);}));
+  }
+  function bumpCount(id,v){const e=document.getElementById(id);if(!e)return;
+    e.textContent=v;e.style.display=v>0?'grid':'none';}
+  function renderPreview(){
+    const m=MARKETS.find(x=>x.id===curMarket)||MARKETS[0];
+    document.querySelectorAll('.pin').forEach(p=>
+      p.classList.toggle('on',MARKET_BY_PIN[p.dataset.m]===m.id));
+    const soon=m.status==="soon";
+    const faces=soon?`<div class="pv-soon">${L==="es"?m.es:m.en}</div>`
+      :`<div class="pv-faces">${m.faces.map(n=>`
+        <a class="pv-face frame" href="directory.html">${portrait(n,'mapTalentFaceImage')}
+          <span class="nx">${n.split(' ')[0]} · ${(TALENT[n]||{}).category||''}</span></a>`).join('')}</div>`;
+    document.getElementById('preview').innerHTML=`
+      <div class="pv-top">
+        <div class="pv-loc">${m.n}</div>
+        <span class="pv-badge ${soon?'soon':''}">${L==="es"?m.bes:m.badge}</span>
+      </div>
+      <div class="pv-sub">${L==="es"?m.es:m.en}</div>
+      <div class="pv-cities">${m.cities}</div>
+      ${faces}
+      <div class="pv-cta"><a class="${soon?'dim':''}" href="${soon?'#contact':'directory.html'}">
+        ${soon?(L==="es"?"Pronto en más ciudades":"Coming to more cities soon")
+              :(L==="es"?"Explorar talento en "+m.n:"Explore talent in "+m.n)} <span>→</span></a></div>`;
+  }
+  function selectMarket(id){curMarket=id;renderPreview();}
+
+  function applyL(){
+    document.querySelectorAll("[data-en]").forEach(el=>{
+      const v=el.getAttribute("data-"+L);
+      if(v!=null){/<[a-z\/]/i.test(v)?el.innerHTML=v:el.textContent=v;}});
+    document.documentElement.lang=L;renderCats();renderFt();renderPreview();
+  }
+  document.getElementById("loc").addEventListener("click",e=>{
+    const b=e.target.closest("button[data-l]");if(!b)return;
+    L=b.dataset.l;document.querySelectorAll("#loc button").forEach(x=>x.classList.toggle("on",x===b));
+    applyL();});
+
+  document.querySelectorAll(".pin").forEach(p=>{
+    const mk=MARKET_BY_PIN[p.dataset.m];
+    p.addEventListener("click",()=>selectMarket(mk));
+    p.addEventListener("mouseenter",()=>selectMarket(mk));});
+
+  const dr=document.getElementById("drawer");
+  document.getElementById("burger").addEventListener("click",()=>dr.classList.add("open"));
+  dr.addEventListener("click",e=>{if(e.target.closest("[data-x]"))dr.classList.remove("open");});
+
+  const hd=document.getElementById("hdr");
+  addEventListener("scroll",()=>hd.classList.toggle("small",scrollY>30),{passive:true});
+
+  const io=new IntersectionObserver(es=>es.forEach(x=>{
+    if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target);}}),{rootMargin:"0px 0px 80px 0px"});
+  document.querySelectorAll(".rv").forEach(el=>io.observe(el));
+
+  /* #2 — prototype links: no jump-to-top, mark clearly */
+  document.querySelectorAll('a[href="#"]').forEach(a=>{
+    a.setAttribute("title","Prototype link");a.setAttribute("aria-disabled","true");
+    a.addEventListener("click",e=>e.preventDefault());
+  });
+
+  /* Real Google map drop-in — web/src/components/home/location-map.tsx
+     (`LocationMap`, @vis.gl/react-google-maps; `locations: LocationItem[]` is
+     multi-market by design). Render into #talentMapMount, add class "live" to
+     #map, forward pin click → selectMarket(id). MARKETS[].faces ↔
+     LocationItem.featuredPreviews. See notes/map-component-findings.md */
+  window.mountRealTalentMap=function(impl){try{if(typeof impl==="function"){
+    impl(document.getElementById("talentMapMount"),selectMarket);
+    document.getElementById("map").classList.add("live");}}catch(e){}};
+
+  /* Hero search — cycling typewriter ghost + submit to directory.
+     Guarded so a missing element can't throw and halt init. */
+  (function(){
+    const form=document.getElementById('heroSearch'),
+          input=document.getElementById('hsInput'),
+          ghost=document.getElementById('hsGhost'),
+          txt=ghost&&ghost.querySelector('.hs-txt');
+    if(!form||!input||!ghost||!txt)return;
+    const EX=["VIP host for a corporate gala",
+              "Bilingual hosts for a resort launch",
+              "Promotional models for a boutique venue opening",
+              "Editorial models in Tulum",
+              "DJ and dancers for a beach-club night",
+              "Brand ambassadors for a product activation"];
+    let i=0,c=0,del=false,timer=null;
+    function tick(){
+      const w=EX[i];
+      c+=del?-1:1;
+      txt.textContent=w.slice(0,c);
+      if(!del&&c===w.length){del=true;timer=setTimeout(tick,1700);return;}
+      if(del&&c===0){del=false;i=(i+1)%EX.length;timer=setTimeout(tick,360);return;}
+      timer=setTimeout(tick,del?34:62);
+    }
+    function start(){if(!timer&&!input.value){ghost.style.display='';tick();}}
+    function stop(){clearTimeout(timer);timer=null;}
+    function sync(){
+      if(input.value){form.classList.add('busy');stop();}
+      else{form.classList.remove('busy');}
+    }
+    input.addEventListener('focus',()=>{form.classList.add('busy');stop();});
+    input.addEventListener('blur',()=>{if(!input.value){form.classList.remove('busy');stop();start();}});
+    input.addEventListener('input',sync);
+    form.addEventListener('submit',e=>{
+      if(!input.value.trim()){e.preventDefault();
+        location.href='directory.html?q='+encodeURIComponent(EX[i]);}
+    });
+    start();
+  })();
+
+  /* classic hero — discovery select feedback + carries filters to directory.
+     Guarded so a missing element can't throw and halt init. */
+  (function(){
+    const cat=document.getElementById('dCat'),mkt=document.getElementById('dMkt'),
+      form=document.getElementById('discForm'),note=document.getElementById('discNote');
+    if(!form||!cat||!mkt||!note)return;
+    const upd=()=>{note.textContent=(L==="es"?"Mostrando: ":"Showing: ")+cat.value+(mkt.value?" · "+mkt.value:"");};
+    cat.addEventListener('change',upd);mkt.addEventListener('change',upd);
+    form.addEventListener('submit',e=>{
+      e.preventDefault();
+      location.href='directory.html?'+new URLSearchParams({type:cat.value,market:mkt.value}).toString();});
+    upd();
+  })();
+
+  renderCats();renderFt();renderPreview();
+
+  // Talent-by-discipline rail: desktop arrows page through the 3-row grid;
+  // mobile is a native swipe (single row). Guarded so a missing element
+  // can't throw and halt init.
+  (function(){
+    const rail=document.getElementById("catGrid");
+    const wrap=rail?rail.closest(".cat-railwrap"):null;
+    if(!wrap)return;
+    const prev=wrap.querySelector(".cat-nav.prev"),
+          next=wrap.querySelector(".cat-nav.next");
+    const page=()=>Math.max(rail.clientWidth*0.82,300);
+    // dim-only at the ends — never blocks the click (scrollBy clamps safely),
+    // and refreshed from the click handlers so it can't depend on the rail
+    // emitting scroll events.
+    function upd(){
+      if(prev)prev.classList.toggle("dim",rail.scrollLeft<8);
+      if(next)next.classList.toggle("dim",
+        rail.scrollLeft+rail.clientWidth>=rail.scrollWidth-8);
+    }
+    function go(dir){rail.scrollBy({left:dir*page()});setTimeout(upd,60);setTimeout(upd,440);}
+    if(prev)prev.addEventListener("click",()=>go(-1));
+    if(next)next.addEventListener("click",()=>go(1));
+    rail.addEventListener("scroll",upd,{passive:true});
+    addEventListener("resize",upd);
+    addEventListener("load",upd);
+    upd();
+  })();
+</script>
+</body>
+</html>

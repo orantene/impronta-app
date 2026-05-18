@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Impronta — International Talent Agency</title>
+<meta name="description" content="Premium talent for events, shoots & brand experiences — models, hosts, performers and creators with agency support from inquiry to confirmation." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --black:#080807; --surface:#100f0d; --raised:#1f1c18;
+    --gold:#cda52c; --gold-bright:#ecc659; --gold-dim:#a38437;
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.14);
+    --gold-soft:rgba(201,162,39,.08); --gold-border:rgba(201,162,39,.30);
+    --fg:#f7f6f3; --muted:#c4c1b8; --faint:#928d82; --ivory:#f0e7d6;
+    --maxw:74rem;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{background:var(--black);color:var(--fg);
+    font-family:"Raleway",system-ui,sans-serif;font-size:1.075rem;
+    line-height:1.75;font-weight:400;letter-spacing:-.003em;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:rgba(201,162,39,.3);color:#fff}
+  .display{font-family:"Cinzel",ui-serif,Georgia,serif}
+  .gold{color:var(--gold)}
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 2rem;
+    position:relative;z-index:2}
+  .eyebrow{font-family:"Cinzel",serif;font-size:.72rem;font-weight:600;
+    text-transform:uppercase;letter-spacing:.36em;color:var(--gold-dim)}
+  h2.title{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(2rem,4.4vw,3.1rem);line-height:1.16;letter-spacing:.03em;
+    margin-top:1.1rem}
+  .lead{margin-top:1.3rem;color:var(--muted);font-size:1.12rem;
+    max-width:42rem;line-height:1.75}
+  section{position:relative}
+  .band{padding:clamp(6.5rem,16vh,11rem) 0}
+  .band--surface{background:var(--surface);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .center{text-align:center}.center .lead{margin-inline:auto}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;
+    font:inherit;font-weight:600;font-size:.8rem;text-transform:uppercase;
+    letter-spacing:.16em;cursor:pointer;border:1px solid transparent;
+    padding:1.2rem 2.4rem;transition:.2s;white-space:nowrap;border-radius:3px}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    color:#0a0a0a;box-shadow:0 8px 28px -12px rgba(201,162,39,.55)}
+  .btn-gold:hover{filter:brightness(1.08);transform:translateY(-1px);
+    box-shadow:0 16px 36px -12px rgba(201,162,39,.7)}
+  .btn-line{border-color:var(--line-2);color:var(--fg);background:transparent}
+  .btn-line:hover{border-color:var(--gold);color:var(--gold-bright)}
+  .tlink{display:inline-flex;align-items:center;gap:.5rem;color:var(--muted);
+    font-size:.88rem;letter-spacing:.04em;transition:.2s;
+    border-bottom:1px solid transparent;padding-bottom:2px}
+  .tlink:hover{color:var(--gold-bright);border-color:var(--gold-border)}
+  .arrow{display:inline-flex;align-items:center;gap:.55rem;color:var(--gold-dim);
+    font-family:"Cinzel",serif;font-size:.76rem;text-transform:uppercase;
+    letter-spacing:.2em;transition:.2s}
+  .arrow:hover{gap:.85rem;color:var(--gold-bright)}
+
+  /* portrait system (swappable → real photos later) */
+  .frame{position:relative;overflow:hidden;background:#0a0908;isolation:isolate}
+  .pt{position:absolute;inset:0;width:100%;height:100%;display:block;
+    object-fit:cover;z-index:0}
+  .frame::before{content:"";position:absolute;inset:0;z-index:1;opacity:.38;
+    mix-blend-mode:overlay;pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1' numOctaves='2'/></filter><rect width='100' height='100' filter='url(%23g)' opacity='0.4'/></svg>")}
+  .frame .scrim{position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:linear-gradient(to top,rgba(0,0,0,.8),rgba(0,0,0,.04) 54%,transparent 74%)}
+  .frame .sheen{position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:linear-gradient(115deg,transparent 44%,rgba(236,198,89,.09) 64%,transparent 78%)}
+  .frame .cap,.frame .nmrow,.frame .tab{z-index:3}
+
+  /* ═══ Header ═══ */
+  header.site{position:sticky;top:0;z-index:90;background:rgba(8,8,7,.9);
+    backdrop-filter:blur(16px);border-bottom:1px solid var(--line);transition:.3s}
+  .nav{display:flex;align-items:center;justify-content:space-between;
+    height:88px;gap:1.5rem;transition:height .3s}
+  header.site.small .nav{height:70px}
+  .brand{display:flex;flex-direction:column;gap:.45rem;line-height:1}
+  .brand .nm{font-family:"Cinzel",serif;font-weight:600;
+    font-size:clamp(1.35rem,2.4vw,1.65rem);letter-spacing:.42em}
+  .brand .nm b{color:var(--gold);font-weight:600}
+  .brand .tg{font-size:.6rem;text-transform:uppercase;letter-spacing:.3em;
+    color:var(--faint)}
+  nav.main{display:none;align-items:center;gap:2.8rem;font-family:"Cinzel",serif;
+    font-size:.82rem;text-transform:uppercase;letter-spacing:.22em;color:var(--muted)}
+  nav.main a{position:relative;padding:.4rem 0;transition:color .2s}
+  nav.main a::after{content:"";position:absolute;left:0;bottom:0;height:1px;
+    width:0;background:var(--gold);transition:width .25s}
+  nav.main a:hover{color:var(--fg)}nav.main a:hover::after{width:100%}
+  .nav-r{display:flex;align-items:center;gap:1.4rem}
+  .loc{display:none;align-items:center;gap:.15rem;font-size:.68rem;
+    letter-spacing:.1em;color:var(--faint)}
+  .loc button{background:none;border:0;color:inherit;font:inherit;
+    font-size:.68rem;letter-spacing:.1em;cursor:pointer;padding:.3rem .3rem}
+  .loc button.on{color:var(--gold-bright);font-weight:700}
+  .acct-wrap{position:relative;z-index:40;display:none}
+  .acct-btn{display:flex;align-items:center;gap:.5rem;background:none;border:0;
+    color:var(--muted);font:inherit;font-size:.76rem;text-transform:uppercase;
+    letter-spacing:.16em;cursor:pointer;transition:.18s;padding:.4rem 0}
+  .acct-btn:hover{color:var(--gold-bright)}
+  .acct-btn .cv{width:11px;height:11px;opacity:.7}
+  .menu{position:absolute;right:0;top:calc(100% + 14px);min-width:210px;
+    background:var(--raised);border:1px solid var(--line-2);border-radius:5px;
+    padding:.5rem;opacity:0;visibility:hidden;transform:translateY(-6px);
+    transition:.18s;box-shadow:0 26px 54px -20px rgba(0,0,0,.92);z-index:5}
+  .menu.open{opacity:1;visibility:visible;transform:none}
+  .menu a{display:block;padding:.8rem .85rem;font-size:.86rem;color:var(--muted);
+    border-radius:3px;transition:.15s}
+  .menu a:hover{background:var(--gold-soft);color:var(--gold-bright)}
+  .h-cta{display:none}
+  .burger{display:flex;width:44px;height:44px;flex-direction:column;gap:5px;
+    align-items:center;justify-content:center;background:none;border:0;
+    cursor:pointer;color:var(--fg)}
+  .burger span{width:23px;height:2px;background:currentColor;transition:.2s}
+  @media(min-width:1000px){
+    nav.main{display:flex}.loc{display:flex}.acct-wrap{display:block}
+    .h-cta{display:inline-flex;padding:.9rem 1.8rem;font-size:.72rem}
+    .burger{display:none}}
+
+  .drawer{position:fixed;inset:0;z-index:100;visibility:hidden;opacity:0;transition:.25s}
+  .drawer.open{visibility:visible;opacity:1}
+  .drawer .sc{position:absolute;inset:0;background:rgba(0,0,0,.82)}
+  .drawer .pn{position:absolute;inset:0 0 0 auto;width:min(88vw,350px);
+    background:var(--surface);border-left:1px solid var(--line);padding:1.8rem;
+    display:flex;flex-direction:column;transform:translateX(102%);
+    transition:transform .3s;overflow-y:auto}
+  .drawer.open .pn{transform:none}
+  .drawer .x{align-self:flex-end;width:42px;height:42px;background:none;
+    border:0;color:var(--muted);font-size:1.7rem;cursor:pointer}
+  .drawer nav{display:flex;flex-direction:column;margin-top:.5rem}
+  .drawer nav a{font-family:"Cinzel",serif;text-transform:uppercase;
+    letter-spacing:.18em;font-size:1rem;padding:1.1rem .2rem;
+    border-bottom:1px solid var(--line)}
+  .drawer nav a:hover{color:var(--gold-bright)}
+  .drawer .da{margin-top:1.7rem;display:flex;flex-direction:column;gap:.8rem}
+  .drawer .dl{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.5rem 1.3rem;
+    font-size:.88rem;color:var(--muted)}
+  .drawer .dl a:hover{color:var(--gold-bright)}
+
+  /* ═══ Hero ═══ */
+  .hero{position:relative;display:flex;align-items:center;
+    padding:clamp(3rem,7vh,5.5rem) 0;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 50% 48% at 16% 38%,rgba(201,162,39,.16),transparent 60%),
+      radial-gradient(ellipse 46% 56% at 92% 64%,rgba(236,198,89,.09),transparent 55%)}
+  .hero-grid{position:relative;display:grid;gap:3rem;align-items:center;width:100%}
+  @media(min-width:980px){.hero-grid{grid-template-columns:1.05fr .95fr;gap:4.5rem}}
+  .hero-mkts{font-size:.74rem;text-transform:uppercase;letter-spacing:.22em;
+    color:var(--faint)}
+  .hero-mkts b{color:var(--muted);font-weight:600}
+  h1.hero-h{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.7rem,3.4vw,3rem);line-height:1.2;letter-spacing:.01em;
+    margin-top:1.3rem;max-width:18ch}
+  h1.hero-h .gold{font-weight:500}
+  .hero-sub{margin-top:1.8rem;font-size:1.14rem;color:var(--muted);
+    max-width:31rem;line-height:1.7}
+  .hero-cta{margin-top:2.6rem;display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap}
+  .hero-tert{margin-top:1.6rem}
+  .stage{position:relative}
+  .stage-cards{position:relative;height:clamp(28rem,46vw,38rem)}
+  .stage-card{position:absolute;border:1px solid var(--line-2);border-radius:10px;
+    overflow:hidden;box-shadow:0 40px 80px -30px rgba(0,0,0,.95);
+    transition:transform .5s cubic-bezier(.2,.7,.3,1)}
+  .stage-card .cap{position:absolute;left:0;right:0;bottom:0;padding:1.4rem}
+  .stage-card .cap b{display:block;font-family:"Cinzel",serif;font-size:1.18rem;
+    font-weight:600;letter-spacing:.05em}
+  .stage-card .cap s{text-decoration:none;font-size:.7rem;text-transform:uppercase;
+    letter-spacing:.14em;color:var(--gold-dim)}
+  .sc-main{width:70%;aspect-ratio:3/4;left:50%;top:0;transform:translateX(-50%);z-index:4}
+  .sc-b{width:40%;aspect-ratio:3/4;left:0;top:20%;z-index:2;transform:rotate(-4deg);opacity:.8}
+  .sc-c{width:38%;aspect-ratio:3/4;right:0;top:26%;z-index:3;transform:rotate(4deg);opacity:.8}
+  .stage:hover .sc-b{transform:rotate(-5deg) translate(-5%,-2%)}
+  .stage:hover .sc-c{transform:rotate(5deg) translate(5%,-2%)}
+  .scroll-cue{position:absolute;left:50%;bottom:1.6rem;transform:translateX(-50%);
+    font-size:.58rem;text-transform:uppercase;letter-spacing:.3em;color:var(--faint);
+    display:flex;flex-direction:column;align-items:center;gap:.5rem;z-index:2}
+  .scroll-cue i{width:1px;height:32px;background:linear-gradient(var(--gold-dim),transparent)}
+  @media(max-width:980px){.scroll-cue{display:none}
+    .stage-cards{height:27rem;max-width:28rem;margin:.5rem auto 0}}
+
+  /* ═══ Talent by Discipline ═══ */
+  .head-row{display:flex;align-items:flex-end;justify-content:space-between;
+    gap:2rem;flex-wrap:wrap}
+  .cat-grid{display:grid;grid-template-columns:1fr;gap:1.2rem;margin-top:3.5rem}
+  @media(min-width:680px){.cat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:1000px){.cat-grid{grid-template-columns:repeat(4,1fr)}}
+  .cat{position:relative;overflow:hidden;border-radius:8px;display:flex;
+    flex-direction:column;justify-content:flex-end;padding:2rem;
+    min-height:21rem;isolation:isolate;transition:.35s;background:#0a0908}
+  .cat>.pt{filter:grayscale(.4) brightness(.55);transition:.45s;z-index:0}
+  .cat::after{content:"";position:absolute;inset:0;z-index:2;
+    background:linear-gradient(to top,rgba(8,8,7,.95),rgba(8,8,7,.35) 58%,transparent);
+    transition:.35s}
+  .cat:hover>.pt{filter:grayscale(0) brightness(.85);transform:scale(1.05)}
+  .cat:hover::after{background:linear-gradient(to top,rgba(8,8,7,.9),
+    rgba(40,30,8,.30) 62%,transparent)}
+  .cat h3{font-family:"Cinzel",serif;font-size:1.5rem;font-weight:500;
+    letter-spacing:.04em;z-index:3}
+  .cat p{margin-top:.5rem;font-size:.9rem;color:var(--muted);z-index:3}
+  .cat .go{margin-top:1.2rem;font-family:"Cinzel",serif;font-size:.66rem;
+    text-transform:uppercase;letter-spacing:.22em;color:var(--gold-dim);
+    transition:.25s;z-index:3}
+  .cat:hover .go{color:var(--gold-bright)}
+  .also{margin-top:2.4rem;text-align:center;font-size:.92rem;color:var(--muted);
+    letter-spacing:.02em}
+  .also b{color:var(--ivory);font-weight:500}
+
+  /* ═══ Featured Talent (3 large) ═══ */
+  .ft-grid{display:grid;grid-template-columns:1fr;gap:1.5rem;margin-top:3.5rem}
+  @media(min-width:780px){.ft-grid{grid-template-columns:repeat(3,1fr)}}
+  .ft{position:relative;display:block;overflow:hidden;border-radius:10px;
+    aspect-ratio:4/5.2;background:#0a0908;transition:.32s}
+  .ft>.pt{transition:transform .6s;z-index:0}
+  .ft:hover>.pt{transform:scale(1.05)}
+  .ft:hover{transform:translateY(-4px)}
+  .ft .nmrow{position:absolute;left:0;right:0;bottom:0;padding:1.7rem}
+  .ft .nmrow .nm{font-family:"Cinzel",serif;font-size:1.4rem;font-weight:600;
+    letter-spacing:.03em}
+  .ft .nmrow .rl{margin-top:.35rem;font-size:.78rem;color:var(--ivory);
+    text-transform:uppercase;letter-spacing:.14em;opacity:.9}
+  .ft .nmrow .vp{margin-top:1.2rem;display:inline-flex;align-items:center;gap:.5rem;
+    font-family:"Cinzel",serif;font-size:.7rem;text-transform:uppercase;
+    letter-spacing:.18em;color:var(--gold-bright);transition:gap .2s}
+  .ft:hover .nmrow .vp{gap:.85rem}
+
+  /* ═══ An Agency, Not a Directory ═══ */
+  .pillars{display:grid;gap:1.4rem;margin-top:3.5rem}
+  @media(min-width:820px){.pillars{grid-template-columns:repeat(3,1fr)}}
+  .pil{padding:2.8rem 2.2rem;text-align:center;border-radius:10px;
+    background:linear-gradient(180deg,var(--surface),#0b0a09);
+    border:1px solid var(--line);transition:.28s}
+  .pil:hover{border-color:var(--gold-border);transform:translateY(-3px)}
+  .pil .ic2{width:52px;height:52px;margin:0 auto;display:grid;place-items:center;
+    color:var(--gold-bright);border-radius:50%;border:1px solid var(--gold-border)}
+  .pil .ic2 svg{width:22px;height:22px;stroke-width:1.5}
+  .pil h4{font-family:"Cinzel",serif;font-size:1.22rem;font-weight:500;
+    margin-top:1.4rem;letter-spacing:.04em}
+  .pil p{margin-top:.7rem;font-size:.92rem;color:var(--muted);line-height:1.7}
+  .flow{margin-top:3rem;display:flex;align-items:center;justify-content:center;
+    flex-wrap:wrap;gap:.5rem 1.6rem;font-family:"Cinzel",serif;font-size:.82rem;
+    text-transform:uppercase;letter-spacing:.18em;color:var(--muted)}
+  .flow b{color:var(--ivory);font-weight:600}.flow .sep{color:var(--gold-dim)}
+
+  /* ═══ Split CTA ═══ */
+  .split{display:grid;grid-template-columns:1fr;border:1px solid var(--line-2);
+    border-radius:14px;overflow:hidden}
+  @media(min-width:840px){.split{grid-template-columns:1fr 1fr}}
+  .split>div{padding:clamp(3.5rem,7vw,5.5rem) clamp(2.2rem,5vw,4rem)}
+  .split .a{background:
+    radial-gradient(ellipse 70% 100% at 30% 0%,rgba(201,162,39,.15),transparent 64%),
+    linear-gradient(180deg,var(--surface),#070605)}
+  .split .b{border-top:1px solid var(--line-2);
+    background:linear-gradient(180deg,#0c0b09,#070605)}
+  @media(min-width:840px){.split .b{border-top:0;border-left:1px solid var(--line-2)}}
+  .split .ey{font-family:"Cinzel",serif;font-size:.72rem;text-transform:uppercase;
+    letter-spacing:.3em;color:var(--gold-dim)}
+  .split h3{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.6rem,3vw,2.3rem);line-height:1.2;letter-spacing:.03em;
+    margin-top:1.1rem}
+  .split p{margin-top:1rem;color:var(--muted);font-size:1rem;max-width:25rem}
+  .split .sc{margin-top:2rem}
+
+  footer.site{border-top:1px solid var(--line);padding:5rem 0 2.6rem;
+    background:var(--surface)}
+  .f-grid{display:grid;gap:2.8rem}
+  @media(min-width:760px){.f-grid{grid-template-columns:1.8fr 1fr 1fr 1fr}}
+  .f-b .nm{font-family:"Cinzel",serif;font-size:1.4rem;font-weight:600;
+    letter-spacing:.4em}
+  .f-b .nm b{color:var(--gold)}
+  .f-b p{margin-top:1.1rem;color:var(--muted);font-size:.92rem;max-width:25rem}
+  .f-c h5{font-family:"Cinzel",serif;font-size:.7rem;text-transform:uppercase;
+    letter-spacing:.24em;color:var(--faint)}
+  .f-c ul{list-style:none;margin-top:1.4rem;display:flex;flex-direction:column;gap:.95rem}
+  .f-c a{color:var(--muted);font-size:.92rem;transition:.15s}
+  .f-c a:hover{color:var(--gold-bright)}
+  .f-bot{margin-top:3.8rem;padding-top:1.8rem;border-top:1px solid var(--line);
+    display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;
+    font-size:.78rem;color:var(--faint)}
+  .f-bot .lk{display:flex;gap:1.7rem;flex-wrap:wrap}
+  .f-bot a:hover{color:var(--gold-bright)}
+
+  .rv{opacity:0;transform:translateY(24px);transition:opacity .9s,transform .9s}
+  .rv.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    .rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}
+    .stage:hover .sc-b,.stage:hover .sc-c{transform:none}}
+</style>
+</head>
+<body>
+
+<header class="site" id="hdr">
+  <div class="wrap nav">
+    <a href="index.html" class="brand" aria-label="Impronta">
+      <span class="nm">IMPRON<b>T</b>A</span>
+      <span class="tg" data-en="International Talent Agency" data-es="Agencia Internacional de Talento">International Talent Agency</span>
+    </a>
+    <nav class="main">
+      <a href="#featured" data-en="Talent" data-es="Talento">Talent</a>
+      <a href="#services" data-en="Services" data-es="Servicios">Services</a>
+      <a href="#about" data-en="About" data-es="Nosotros">About</a>
+    </nav>
+    <div class="nav-r">
+      <span class="loc" id="loc">
+        <button class="on" data-l="en">EN</button><span style="color:#3a3a40">/</span><button data-l="es">ES</button>
+      </span>
+      <div class="acct-wrap">
+        <button class="acct-btn" id="acctBtn" aria-haspopup="true">
+          <span data-en="Access" data-es="Acceso">Access</span>
+          <svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="menu" id="acctMenu" role="menu">
+          <a href="#" data-en="Client Login" data-es="Acceso Clientes">Client Login</a>
+          <a href="#contact" data-en="Talent Login" data-es="Acceso Talento">Talent Login</a>
+          <a href="#contact" data-en="Apply as Talent" data-es="Postúlate como Talento">Apply as Talent</a>
+          <a href="#" data-en="Agency Admin" data-es="Admin de Agencia">Agency Admin</a>
+        </div>
+      </div>
+      <a href="#contact" class="btn btn-gold h-cta" data-en="Start Inquiry" data-es="Iniciar Solicitud">Start Inquiry</a>
+      <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<div class="drawer" id="drawer">
+  <div class="sc" data-x></div>
+  <div class="pn">
+    <button class="x" data-x aria-label="Close">×</button>
+    <nav>
+      <a href="#featured" data-x data-en="Talent" data-es="Talento">Talent</a>
+      <a href="#services" data-x data-en="Services" data-es="Servicios">Services</a>
+      <a href="#about" data-x data-en="About" data-es="Nosotros">About</a>
+    </nav>
+    <div class="da">
+      <a href="#contact" data-x class="btn btn-gold" data-en="Start Inquiry" data-es="Iniciar Solicitud">Start Inquiry</a>
+      <a href="directory.html" class="btn btn-line" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+    </div>
+    <div class="dl">
+      <a href="#" data-en="Client Login" data-es="Acceso Clientes">Client Login</a>
+      <a href="#contact" data-x data-en="Talent Login" data-es="Acceso Talento">Talent Login</a>
+      <a href="#contact" data-x data-en="Apply as Talent" data-es="Postúlate">Apply as Talent</a>
+      <a href="#" data-en="Agency Admin" data-es="Admin de Agencia">Agency Admin</a>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- 1 · HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="hero-mkts">
+          <b>Riviera Maya</b> · <b>Mexico City</b> · <b>Buenos Aires</b>
+          <span data-en="&amp; beyond" data-es="y más">&amp; beyond</span>
+        </p>
+        <h1 class="hero-h">
+          <span data-en="Premium talent for events, shoots &amp;" data-es="Talento premium para eventos, sesiones y">Premium talent for events, shoots &amp;</span>
+          <span class="gold display" data-en="brand experiences." data-es="experiencias de marca.">brand experiences.</span>
+        </h1>
+        <p class="hero-sub" data-en="Models, hosts, performers and creators for productions and private activations — with agency support from inquiry to confirmation." data-es="Modelos, anfitriones, performers y creadores para producciones y activaciones privadas — con soporte de agencia de la solicitud a la confirmación.">Models, hosts, performers and creators for productions and private activations — with agency support from inquiry to confirmation.</p>
+        <div class="hero-cta">
+          <a href="#contact" class="btn btn-gold" data-en="Start an Inquiry" data-es="Iniciar Solicitud">Start an Inquiry</a>
+          <a href="directory.html" class="btn btn-line" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+        </div>
+        <div class="hero-tert">
+          <a href="#contact" class="tlink" data-en="Apply as talent →" data-es="Postúlate como talento →">Apply as talent →</a>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-cards" aria-hidden="true">
+          <div class="stage-card sc-b frame" data-stage="Lucía M."><div class="scrim"></div><div class="cap"><b>Lucía M.</b><s>Runway · Riviera Maya</s></div></div>
+          <div class="stage-card sc-c frame" data-stage="Marco V."><div class="scrim"></div><div class="cap"><b>Marco V.</b><s>Host · Mexico City</s></div></div>
+          <div class="stage-card sc-main frame" data-stage="Sofía R.">
+            <div class="scrim"></div><div class="sheen"></div>
+            <div class="cap"><b>Sofía R.</b><s>Model · Host · Tulum</s></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-cue"><span data-en="Scroll" data-es="Desliza">Scroll</span><i></i></div>
+  </section>
+
+  <!-- 2 · TALENT BY DISCIPLINE -->
+  <section class="band band--surface rv" id="services">
+    <div class="wrap">
+      <div class="head-row">
+        <div>
+          <p class="eyebrow" data-en="The roster" data-es="El roster">The roster</p>
+          <h2 class="title" data-en="Talent, by discipline" data-es="Talento, por disciplina">Talent, by discipline</h2>
+        </div>
+        <a href="directory.html" class="arrow" data-en="View all categories →" data-es="Ver todas →">View all categories →</a>
+      </div>
+      <div class="cat-grid" id="catGrid"></div>
+      <p class="also">
+        <span data-en="Also available:" data-es="También disponible:">Also available:</span>
+        <b>Event Talent</b> · <b>Production Support</b> · <b>Brand Ambassadors</b>
+      </p>
+    </div>
+  </section>
+
+  <!-- 3 · FEATURED TALENT -->
+  <section class="band rv" id="featured">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Selected" data-es="Selección">Selected</p>
+        <h2 class="title" data-en="Featured talent" data-es="Talento destacado">Featured talent</h2>
+      </div>
+      <div class="ft-grid" id="ftGrid"></div>
+    </div>
+  </section>
+
+  <!-- 4 · AN AGENCY, NOT A DIRECTORY -->
+  <section class="band band--surface rv" id="about">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Why Impronta" data-es="Por qué Impronta">Why Impronta</p>
+        <h2 class="title" data-en="An agency, not a directory" data-es="Una agencia, no un directorio">An agency, not a directory</h2>
+        <p class="lead" data-en="Impronta combines agency-approved talent, local market knowledge, and human coordination so clients can move from request to confirmed booking with confidence." data-es="Impronta combina talento aprobado por la agencia, conocimiento local y coordinación humana para que los clientes pasen de la solicitud a la reserva confirmada con confianza.">Impronta combines agency-approved talent, local market knowledge, and human coordination so clients can move from request to confirmed booking with confidence.</p>
+      </div>
+      <div class="pillars">
+        <div class="pil"><div class="ic2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
+          <h4 data-en="Human Coordination" data-es="Coordinación Humana">Human Coordination</h4>
+          <p data-en="A real agency team helps manage requests, talent options, and logistics." data-es="Un equipo real de agencia gestiona solicitudes, opciones de talento y logística.">A real agency team helps manage requests, talent options, and logistics.</p></div>
+        <div class="pil"><div class="ic2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></div>
+          <h4 data-en="Agency-Approved Profiles" data-es="Perfiles Aprobados">Agency-Approved Profiles</h4>
+          <p data-en="Talent information is reviewed and organized before clients make decisions." data-es="La información del talento es revisada y organizada antes de que el cliente decida.">Talent information is reviewed and organized before clients make decisions.</p></div>
+        <div class="pil"><div class="ic2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+          <h4 data-en="Clear Booking Flow" data-es="Reserva Clara">Clear Booking Flow</h4>
+          <p data-en="From inquiry to confirmation, every step is structured and professional." data-es="De la solicitud a la confirmación, cada paso es estructurado y profesional.">From inquiry to confirmation, every step is structured and professional.</p></div>
+      </div>
+      <div class="flow">
+        <b data-en="Send Brief" data-es="Envía el Brief">Send Brief</b><span class="sep">→</span>
+        <b data-en="Review Options" data-es="Revisa Opciones">Review Options</b><span class="sep">→</span>
+        <b data-en="Confirm Booking" data-es="Confirma la Reserva">Confirm Booking</b>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · SPLIT CTA -->
+  <section class="band rv" id="contact">
+    <div class="wrap">
+      <div class="split">
+        <div class="a">
+          <p class="ey" data-en="Booking Talent?" data-es="¿Reservas Talento?">Booking Talent?</p>
+          <h3 data-en="Tell us what you need" data-es="Cuéntanos qué necesitas">Tell us what you need</h3>
+          <p data-en="Tell us what you need and Impronta will help match the right talent for your event, shoot, or activation." data-es="Cuéntanos qué necesitas e Impronta te ayudará a encontrar el talento adecuado para tu evento, sesión o activación.">Tell us what you need and Impronta will help match the right talent for your event, shoot, or activation.</p>
+          <div class="sc"><a href="#contact" class="btn btn-gold" data-en="Start Inquiry" data-es="Iniciar Solicitud">Start Inquiry</a></div>
+        </div>
+        <div class="b">
+          <p class="ey" data-en="Are You Talent?" data-es="¿Eres Talento?">Are You Talent?</p>
+          <h3 data-en="Join Impronta" data-es="Únete a Impronta">Join Impronta</h3>
+          <p data-en="Apply to join Impronta and build your agency-managed profile." data-es="Postúlate para unirte a Impronta y crea tu perfil gestionado por la agencia.">Apply to join Impronta and build your agency-managed profile.</p>
+          <div class="sc"><a href="#" class="btn btn-line" data-en="Apply as Talent" data-es="Postúlate como Talento">Apply as Talent</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="f-b">
+        <div class="nm">IMPRON<b>T</b>A</div>
+        <p data-en="Impronta is an international talent agency launching in the Riviera Maya, with reach across Mexico City, Buenos Aires and selected markets." data-es="Impronta es una agencia internacional de talento que lanza en la Riviera Maya, con alcance en Ciudad de México, Buenos Aires y mercados seleccionados.">Impronta is an international talent agency launching in the Riviera Maya, with reach across Mexico City, Buenos Aires and selected markets.</p>
+      </div>
+      <div class="f-c"><h5 data-en="Explore" data-es="Explorar">Explore</h5><ul>
+        <li><a href="directory.html" data-en="All Talent" data-es="Todo el talento">All Talent</a></li>
+        <li><a href="#services" data-en="Categories" data-es="Categorías">Categories</a></li></ul></div>
+      <div class="f-c"><h5 data-en="Agency" data-es="Agencia">Agency</h5><ul>
+        <li><a href="#about" data-en="About" data-es="Nosotros">About</a></li>
+        <li><a href="#contact" data-en="For Talent" data-es="Para Talento">For Talent</a></li>
+        <li><a href="#contact" data-en="Contact" data-es="Contacto">Contact</a></li></ul></div>
+      <div class="f-c"><h5 data-en="Access" data-es="Acceso">Access</h5><ul>
+        <li><a href="#" data-en="Client Login" data-es="Acceso Clientes">Client Login</a></li>
+        <li><a href="#contact" data-en="Talent Login" data-es="Acceso Talento">Talent Login</a></li>
+        <li><a href="#" data-en="Agency Admin" data-es="Admin de Agencia">Agency Admin</a></li></ul></div>
+    </div>
+    <div class="f-bot">
+      <span>© 2026 Impronta — <span data-en="International Talent Agency" data-es="Agencia Internacional de Talento">International Talent Agency</span></span>
+      <div class="lk">
+        <a href="#" data-en="Privacy" data-es="Privacidad">Privacy</a>
+        <a href="#" data-en="Terms" data-es="Términos">Terms</a>
+        <a href="#" data-en="hello@impronta.studio" data-es="hola@impronta.studio">hello@impronta.studio</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* SWAPPABLE IMAGE LAYER — set TALENT[name].image / CATS[].image to an
+     assets/ path and an <img> replaces the editorial placeholder.
+     Slots: heroTalentImage · featuredTalentImage · categoryImage.
+     See notes/imagery-strategy.md */
+  const TALENT={
+    "Sofía R.":{role:"Model · Host",loc:"Tulum",image:null},
+    "Marco V.":{role:"Host · Promoter",loc:"Mexico City",image:null},
+    "Lucía M.":{role:"Runway · Editorial",loc:"Riviera Maya",image:null},
+    "Renata P.":{role:"Model",loc:"Mexico City",image:null},
+    "Diego A.":{role:"Creator",loc:"Buenos Aires",image:null},
+  };
+  const CATS=[
+    {key:"models",en:"Models",es:"Modelos",de:"Fashion, commercial, lifestyle & editorial.",ds:"Moda, comercial, lifestyle y editorial.",image:null},
+    {key:"hosts",en:"Hosts & Promoters",es:"Anfitriones",de:"Brand ambassadors & event hosts.",ds:"Embajadores y anfitriones de eventos.",image:null},
+    {key:"performers",en:"Performers",es:"Performers",de:"Dancers, musicians & stage talent.",ds:"Bailarines, músicos y talento de escenario.",image:null},
+    {key:"creators",en:"Creators",es:"Creadores",de:"UGC creators & social campaigns.",ds:"Creadores UGC y campañas sociales.",image:null},
+  ];
+  const FT=["Sofía R.","Lucía M.","Diego A."];
+  let L="en",uid=0;
+
+  const PAL=[
+    ["#231c12","#130f0a","#070504","#0d0a06","#3d3019","#876531","#bd8d3d","227,192,82"],
+    ["#1f1a12","#100d09","#060403","#0c0907","#382a17","#6f5126","#aa7730","201,162,39"],
+    ["#241d13","#13100b","#080604","#100c08","#45351d","#8c6c35","#c99c46","236,210,140"],
+  ];
+  const HAIR=[
+    "M112,166C104,92 146,46 180,44C218,42 258,86 250,176C244,140 230,110 212,96C214,124 209,150 202,168C196,128 185,104 174,100C150,124 130,138 112,166Z",
+    "M114,150C104,80 150,40 180,40C214,40 258,78 250,168C244,134 232,108 214,98C217,122 214,140 209,156C200,128 186,114 176,112C154,122 132,134 114,150Z",
+    "M110,182C102,104 144,46 180,44C222,42 262,90 256,200C252,250 244,300 236,338C233,272 226,222 212,184C216,140 206,120 192,108C166,134 134,156 110,182Z",
+  ];
+  const HEAD="M180,56C142,56 116,90 114,140C113,172 122,202 138,224C150,240 164,250 180,252C196,250 210,240 222,224C238,202 247,172 246,140C244,90 218,56 180,56Z";
+  const NECK="M158,224C158,256 156,276 180,290C204,276 202,256 202,224C196,236 164,236 158,224Z";
+  const TORSO="M180,272C146,272 104,290 80,330C60,364 50,410 48,440L312,440C310,410 300,364 280,330C256,290 214,272 180,272Z";
+  function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+  function portraitSVG(seed,slot){
+    const p=PAL[seed%3],hair=HAIR[(seed>>2)%3],flip=seed&1,tilt=((seed%5)-2)*1.2,id="g"+(uid++);
+    return `<svg class="pt" data-img-slot="${slot}" viewBox="0 0 360 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="b${id}" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0" stop-color="${p[0]}"/><stop offset=".55" stop-color="${p[1]}"/><stop offset="1" stop-color="${p[2]}"/></linearGradient>
+        <radialGradient id="k${id}" cx="0.26" cy="0.2" r="0.95"><stop offset="0" stop-color="rgba(${p[7]},.52)"/><stop offset=".42" stop-color="rgba(${p[7]},.12)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+        <linearGradient id="f${id}" x1="0.08" y1="0" x2="1" y2="0.18"><stop offset="0" stop-color="${p[3]}"/><stop offset=".46" stop-color="${p[4]}"/><stop offset=".78" stop-color="${p[5]}"/><stop offset="1" stop-color="${p[6]}"/></linearGradient>
+        <radialGradient id="c${id}" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="rgba(${p[7]},.26)"/><stop offset="1" stop-color="rgba(0,0,0,0)"/></radialGradient>
+        <linearGradient id="s${id}" x1="0.4" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(0,0,0,0)"/><stop offset="1" stop-color="rgba(0,0,0,.5)"/></linearGradient>
+        <radialGradient id="v${id}" cx="0.5" cy="0.42" r="0.8"><stop offset="0" stop-color="rgba(0,0,0,0)"/><stop offset=".64" stop-color="rgba(0,0,0,0)"/><stop offset="1" stop-color="rgba(0,0,0,.62)"/></radialGradient>
+      </defs>
+      <rect width="360" height="440" fill="url(#b${id})"/>
+      <rect width="360" height="440" fill="url(#k${id})"/>
+      <g transform="${flip?"translate(360,0) scale(-1,1) ":""}rotate(${tilt} 180 210)">
+        <path d="${TORSO}" fill="url(#f${id})"/>
+        <path d="${NECK}" fill="url(#f${id})"/>
+        <path d="${HEAD}" fill="url(#f${id})"/>
+        <ellipse cx="152" cy="146" rx="40" ry="56" fill="url(#c${id})"/>
+        <path d="M180,68C176,110 178,180 180,252C198,238 214,210 224,176C232,140 235,104 232,84C214,64 196,62 180,68Z" fill="url(#s${id})" opacity="0.55"/>
+        <path d="${hair}" fill="#090705"/>
+        <path d="M150,96C166,78 188,70 206,82" stroke="rgba(${p[7]},.3)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M124,150C120,118 128,98 142,84" stroke="rgba(${p[7]},.16)" stroke-width="1.4" fill="none"/>
+        <path d="M246,140C247,172 238,202 222,224C214,234 205,242 198,246" stroke="rgba(${p[7]},.42)" stroke-width="1.6" fill="none"/>
+        <path d="M280,330C300,364 310,410 312,440" stroke="rgba(${p[7]},.3)" stroke-width="1.6" fill="none"/>
+      </g>
+      <rect width="360" height="440" fill="url(#v${id})"/>
+    </svg>`;
+  }
+  function portrait(name,slot){
+    const t=TALENT[name]||{};
+    if(t.image) return `<img class="pt" src="${t.image}" alt="${name}" loading="lazy" data-img-slot="${slot}">`;
+    return portraitSVG(hash(name||slot),slot);
+  }
+  function catImage(c,slot){
+    if(c.image) return `<img class="pt" src="${c.image}" alt="${c.en}" loading="lazy" data-img-slot="${slot}">`;
+    return portraitSVG(hash(c.key+"cat"),slot);
+  }
+
+  document.querySelectorAll('.stage-card[data-stage]').forEach(el=>
+    el.insertAdjacentHTML('afterbegin',portrait(el.dataset.stage,'heroTalentImage')));
+
+  function renderCats(){
+    document.getElementById('catGrid').innerHTML=CATS.map(c=>`
+      <a class="cat frame" href="directory.html">
+        ${catImage(c,'categoryImage')}
+        <h3 style="position:relative">${L==="es"?c.es:c.en}</h3>
+        <p style="position:relative">${L==="es"?c.ds:c.de}</p>
+        <span class="go" style="position:relative">${L==="es"?"Explorar →":"Explore →"}</span>
+      </a>`).join("");
+  }
+  function renderFt(){
+    document.getElementById('ftGrid').innerHTML=FT.map(n=>{
+      const t=TALENT[n]||{};
+      return `<a class="ft frame" href="directory.html">
+        ${portrait(n,'featuredTalentImage')}
+        <div class="scrim"></div>
+        <div class="nmrow">
+          <div class="nm">${n}</div>
+          <div class="rl">${t.role} · ${t.loc}</div>
+          <span class="vp">${L==="es"?"Ver perfil →":"View Profile →"}</span>
+        </div>
+      </a>`;}).join("");
+  }
+
+  function applyL(){
+    document.querySelectorAll("[data-en]").forEach(el=>{
+      const v=el.getAttribute("data-"+L);
+      if(v!=null){/<[a-z\/]/i.test(v)?el.innerHTML=v:el.textContent=v;}});
+    document.documentElement.lang=L;renderCats();renderFt();
+  }
+  document.getElementById("loc").addEventListener("click",e=>{
+    const b=e.target.closest("button[data-l]");if(!b)return;
+    L=b.dataset.l;document.querySelectorAll("#loc button").forEach(x=>x.classList.toggle("on",x===b));
+    applyL();});
+
+  const aB=document.getElementById("acctBtn"),aM=document.getElementById("acctMenu");
+  aB.addEventListener("click",e=>{e.stopPropagation();aM.classList.toggle("open");});
+  document.addEventListener("click",e=>{if(!e.target.closest(".acct-wrap"))aM.classList.remove("open");});
+
+  const dr=document.getElementById("drawer");
+  document.getElementById("burger").addEventListener("click",()=>dr.classList.add("open"));
+  dr.addEventListener("click",e=>{if(e.target.closest("[data-x]"))dr.classList.remove("open");});
+
+  const hd=document.getElementById("hdr");
+  addEventListener("scroll",()=>hd.classList.toggle("small",scrollY>30),{passive:true});
+
+  const io=new IntersectionObserver(es=>es.forEach(x=>{
+    if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target);}}),{rootMargin:"-50px"});
+  document.querySelectorAll(".rv").forEach(el=>io.observe(el));
+
+  renderCats();renderFt();
+</script>
+</body>
+</html>

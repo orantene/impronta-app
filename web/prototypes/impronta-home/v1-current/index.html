@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Impronta — Premium talent agency · Riviera Maya</title>
+<meta name="description" content="Discover and book premium models, hosts, performers, promoters and creators across Cancún, Playa del Carmen, Tulum and the Riviera Maya — coordinated by one trusted local agency." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ─────────────  Brand tokens  ───────────── */
+  :root{
+    --black:#0a0a0a; --surface:#0f0f0f; --elevated:#151515; --raised:#1c1c1d;
+    --gold:#c9a227; --gold-bright:#d4af37; --gold-dim:#9a7b2c;
+    --gold-border:rgba(201,162,39,.20); --gold-soft:rgba(201,162,39,.08);
+    --fg:#f4f4f5; --muted:#a1a1aa; --faint:#71717a;
+    --ivory:#ece4d3; --sand:rgba(232,225,211,.06);
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.12);
+    --radius:.65rem; --radius-lg:1.25rem; --radius-xl:1.75rem;
+    --maxw:80rem;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    background:var(--black);color:var(--fg);
+    font-family:"Raleway",system-ui,sans-serif;font-size:1.0625rem;
+    line-height:1.65;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+  ::selection{background:rgba(201,162,39,.3);color:#fff}
+  .display{font-family:"Cinzel",ui-serif,Georgia,serif}
+  .gold{color:var(--gold)}
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 1.5rem}
+  .eyebrow{font-family:"Cinzel",serif;font-size:.72rem;font-weight:600;
+    text-transform:uppercase;letter-spacing:.34em;color:var(--gold-dim)}
+  .section-title{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.7rem,3.6vw,2.6rem);line-height:1.2;letter-spacing:.03em;
+    margin-top:.9rem}
+  .section-sub{margin-top:1rem;max-width:42rem;color:var(--muted);font-size:1.02rem}
+  section{position:relative}
+  .band{padding:5.5rem 0}
+  @media(min-width:900px){.band{padding:7rem 0}}
+  .center{text-align:center}.center .section-sub{margin-left:auto;margin-right:auto}
+
+  /* ─────────────  Buttons  ───────────── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
+    font:inherit;font-weight:600;font-size:.8rem;text-transform:uppercase;
+    letter-spacing:.13em;border-radius:var(--radius);cursor:pointer;
+    border:1px solid transparent;padding:.95rem 1.6rem;transition:.18s;
+    white-space:nowrap}
+  .btn svg{width:1rem;height:1rem}
+  .btn-gold{background:var(--gold);color:var(--black)}
+  .btn-gold:hover{background:var(--gold-bright);transform:translateY(-1px);
+    box-shadow:0 12px 30px -12px rgba(201,162,39,.6)}
+  .btn-outline{border-color:var(--gold-border);color:var(--gold);background:transparent}
+  .btn-outline:hover{border-color:rgba(201,162,39,.55);background:var(--gold-soft);
+    color:var(--gold-bright)}
+  .btn-ghost{background:transparent;color:var(--muted);border:none;
+    text-transform:none;letter-spacing:.01em;font-weight:500;padding:.6rem .4rem}
+  .btn-ghost:hover{color:var(--gold)}
+  .btn-sm{padding:.65rem 1.05rem;font-size:.72rem}
+  .link-arrow{display:inline-flex;align-items:center;gap:.45rem;color:var(--gold);
+    font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.13em;
+    transition:gap .18s}
+  .link-arrow:hover{gap:.75rem;color:var(--gold-bright)}
+
+  /* ─────────────  Header  ───────────── */
+  .topbar{border-bottom:1px solid var(--line);background:#070707;
+    font-size:.73rem;color:var(--faint);letter-spacing:.04em}
+  .topbar .row{display:flex;align-items:center;justify-content:space-between;
+    height:34px}
+  .topbar .places{display:flex;gap:.5rem;align-items:center;
+    text-transform:uppercase;letter-spacing:.16em;font-size:.66rem}
+  .topbar .places i{width:4px;height:4px;border-radius:50%;
+    background:var(--gold-dim);display:inline-block}
+  .topbar .util{display:flex;align-items:center;gap:1.1rem}
+  .topbar a:hover{color:var(--gold)}
+  .locale{display:inline-flex;gap:.1rem;align-items:center}
+  .locale button{background:none;border:none;color:var(--faint);cursor:pointer;
+    font:inherit;font-size:.7rem;letter-spacing:.1em;padding:.15rem .35rem}
+  .locale button.active{color:var(--gold);font-weight:700}
+  @media(max-width:720px){
+    .topbar .places{display:none}
+    .topbar .row{justify-content:flex-end}
+    .topbar .util{gap:.85rem;font-size:.7rem}
+  }
+  @media(max-width:420px){
+    .topbar .util a[href="#"]{display:none}
+  }
+
+  header.site{position:sticky;top:0;z-index:80;
+    background:rgba(10,10,10,.78);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);transition:.25s}
+  header.site.scrolled{background:rgba(8,8,8,.93);
+    box-shadow:0 14px 40px -24px rgba(0,0,0,.9)}
+  .nav{display:flex;align-items:center;justify-content:space-between;
+    height:78px;gap:1.5rem;transition:height .25s}
+  header.site.scrolled .nav{height:66px}
+  .brand{display:flex;flex-direction:column;line-height:1}
+  .brand .name{font-family:"Cinzel",serif;font-weight:600;font-size:1.25rem;
+    letter-spacing:.34em}
+  .brand .name span{color:var(--gold)}
+  .brand .tag{font-size:.58rem;text-transform:uppercase;letter-spacing:.32em;
+    color:var(--faint);margin-top:.35rem}
+  nav.main{display:none;align-items:center;gap:2.1rem;font-size:.82rem;
+    font-weight:500;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--muted)}
+  nav.main a{position:relative;padding:.3rem 0;transition:color .18s}
+  nav.main a::after{content:"";position:absolute;left:0;bottom:-2px;height:1px;
+    width:0;background:var(--gold);transition:width .22s}
+  nav.main a:hover{color:var(--fg)}nav.main a:hover::after{width:100%}
+  .nav-right{display:flex;align-items:center;gap:.85rem}
+  .auth{display:none;align-items:center;gap:.85rem;font-size:.78rem;
+    color:var(--muted)}
+  .auth .sep{width:1px;height:18px;background:var(--line-2)}
+  .auth a{transition:color .18s;font-weight:500}
+  .auth a:hover{color:var(--gold)}
+  .auth .talent-link{display:inline-flex;align-items:center;gap:.4rem}
+  .burger{display:inline-flex;flex-direction:column;gap:5px;background:none;
+    border:none;cursor:pointer;padding:.4rem}
+  .burger span{width:22px;height:2px;background:var(--fg);
+    transition:.22s;border-radius:2px}
+  @media(min-width:1050px){
+    nav.main{display:flex}.auth{display:flex}.burger{display:none}
+  }
+
+  /* mobile drawer */
+  .drawer{position:fixed;inset:0;z-index:90;visibility:hidden;opacity:0;
+    transition:.25s}
+  .drawer.open{visibility:visible;opacity:1}
+  .drawer .scrim{position:absolute;inset:0;background:rgba(0,0,0,.7)}
+  .drawer .panel{position:absolute;top:0;right:0;height:100%;width:min(86vw,360px);
+    background:var(--surface);border-left:1px solid var(--line);
+    padding:1.6rem;display:flex;flex-direction:column;gap:.4rem;
+    transform:translateX(105%);transition:transform .28s;overflow-y:auto}
+  .drawer.open .panel{transform:translateX(0)}
+  .drawer .x{align-self:flex-end;background:none;border:none;color:var(--muted);
+    font-size:1.5rem;cursor:pointer;line-height:1;padding:.2rem .4rem}
+  .drawer nav{display:flex;flex-direction:column;margin-top:.5rem}
+  .drawer nav a{padding:.95rem .25rem;border-bottom:1px solid var(--line);
+    font-family:"Cinzel",serif;letter-spacing:.14em;font-size:.95rem;
+    text-transform:uppercase}
+  .drawer nav a:hover{color:var(--gold)}
+  .drawer .d-auth{margin-top:1.4rem;display:flex;flex-direction:column;gap:.7rem}
+
+  /* ─────────────  Hero  ───────────── */
+  .hero{position:relative;overflow:hidden;padding:5rem 0 4.5rem}
+  @media(min-width:900px){.hero{padding:7.5rem 0 6rem}}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% -10%,rgba(212,175,55,.16),transparent 60%),
+      radial-gradient(ellipse 50% 60% at 88% 30%,rgba(201,162,39,.10),transparent 55%),
+      linear-gradient(180deg,transparent 60%,rgba(0,0,0,.5))}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:64px 64px;
+    -webkit-mask-image:radial-gradient(ellipse 70% 70% at 50% 30%,#000,transparent 75%);
+    mask-image:radial-gradient(ellipse 70% 70% at 50% 30%,#000,transparent 75%)}
+  .hero .wrap{position:relative;z-index:1}
+  .hero-grid{display:grid;gap:3.5rem;align-items:center}
+  @media(min-width:1000px){.hero-grid{grid-template-columns:1.15fr .85fr;gap:4rem}}
+  .hero-badge{display:inline-flex;align-items:center;gap:.6rem;
+    border:1px solid var(--gold-border);background:var(--gold-soft);
+    border-radius:999px;padding:.45rem 1rem;font-size:.7rem;font-weight:600;
+    text-transform:uppercase;letter-spacing:.18em;color:var(--gold)}
+  .hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 4px rgba(201,162,39,.18)}
+  h1.hero-h{margin-top:1.5rem;font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(2.3rem,5.4vw,4rem);line-height:1.1;letter-spacing:.02em}
+  h1.hero-h .gold{font-weight:500}
+  .hero-p{margin-top:1.6rem;max-width:34rem;color:var(--muted);
+    font-size:1.08rem;line-height:1.7}
+  .hero-p strong{color:var(--ivory);font-weight:600}
+  /* discovery search */
+  .search{margin-top:2.4rem;background:rgba(20,20,20,.85);
+    border:1px solid var(--line-2);border-radius:var(--radius-lg);
+    padding:.55rem;display:grid;gap:.55rem;
+    box-shadow:0 24px 60px -30px rgba(0,0,0,.9)}
+  @media(min-width:640px){.search{grid-template-columns:1.3fr 1fr auto}}
+  .sf{display:flex;flex-direction:column;gap:.2rem;padding:.6rem .85rem;
+    border-radius:.5rem;transition:.15s;min-width:0}
+  .sf:focus-within{background:rgba(255,255,255,.04)}
+  .sf label{font-size:.6rem;text-transform:uppercase;letter-spacing:.18em;
+    color:var(--faint);font-weight:600}
+  .sf select,.sf input{background:none;border:none;color:var(--fg);
+    font:inherit;font-size:.92rem;font-weight:500;outline:none;
+    width:100%;cursor:pointer}
+  .sf input{cursor:text}
+  .sf select option{background:var(--raised);color:var(--fg)}
+  .sf+.sf{border-top:1px solid var(--line)}
+  @media(min-width:640px){.sf+.sf{border-top:none;border-left:1px solid var(--line)}}
+  .search .btn{border-radius:.5rem;height:auto}
+  .hero-ctas{margin-top:1.5rem;display:flex;flex-wrap:wrap;gap:.85rem}
+  .hero-trust{margin-top:2.2rem;display:flex;flex-wrap:wrap;gap:1.4rem;
+    color:var(--faint);font-size:.78rem}
+  .hero-trust span{display:inline-flex;align-items:center;gap:.5rem}
+  .hero-trust .ck{color:var(--gold)}
+  /* hero visual collage */
+  .collage{position:relative;display:grid;grid-template-columns:1fr 1fr;
+    grid-template-rows:repeat(5,1fr);gap:.9rem;aspect-ratio:4/4.4;min-height:380px}
+  .ph{position:relative;overflow:hidden;border-radius:var(--radius-lg);
+    border:1px solid var(--line-2);
+    background:
+      radial-gradient(120% 80% at 50% 12%,rgba(255,255,255,.07),transparent 55%),
+      linear-gradient(165deg,#2a2724 0%,#161514 45%,#070707 100%)}
+  .ph::after{content:attr(data-i);position:absolute;inset:0;display:grid;
+    place-items:center;font-family:"Cinzel",serif;font-size:2.4rem;
+    color:rgba(244,244,245,.10);letter-spacing:.1em}
+  .ph .cap{position:absolute;left:0;right:0;bottom:0;padding:.9rem;
+    background:linear-gradient(to top,rgba(0,0,0,.85),transparent);
+    font-size:.7rem;text-transform:uppercase;letter-spacing:.16em}
+  .ph .cap b{display:block;font-family:"Cinzel",serif;color:var(--fg);
+    font-size:.82rem;font-weight:600;letter-spacing:.08em}
+  .ph .cap s{text-decoration:none;color:var(--gold-dim)}
+  .collage .a{grid-column:1;grid-row:1/4}
+  .collage .b{grid-column:2;grid-row:1/3}
+  .collage .c{grid-column:2;grid-row:3/6}
+  .collage .d{grid-column:1;grid-row:4/6}
+  .collage .badge{position:absolute;z-index:2;left:-.6rem;top:38%;
+    background:var(--raised);border:1px solid var(--gold-border);
+    border-radius:var(--radius);padding:.7rem .9rem;display:flex;
+    align-items:center;gap:.7rem;box-shadow:0 18px 40px -20px rgba(0,0,0,.9)}
+  .collage .badge .ic{width:34px;height:34px;border-radius:50%;
+    background:var(--gold-soft);color:var(--gold);display:grid;place-items:center}
+  .collage .badge .t{font-size:.66rem;color:var(--faint);text-transform:uppercase;
+    letter-spacing:.14em}
+  .collage .badge .v{font-family:"Cinzel",serif;font-size:.95rem;font-weight:600}
+
+  /* ─────────────  Stat strip  ───────────── */
+  .stats{border-block:1px solid var(--line);background:var(--surface)}
+  .stats .grid{display:grid;grid-template-columns:repeat(2,1fr);
+    gap:1px;background:var(--line)}
+  @media(min-width:780px){.stats .grid{grid-template-columns:repeat(4,1fr)}}
+  .stat{background:var(--surface);padding:2.2rem 1.2rem;text-align:center}
+  .stat .n{font-family:"Cinzel",serif;font-size:clamp(1.7rem,3vw,2.4rem);
+    font-weight:600;color:var(--gold)}
+  .stat .l{margin-top:.4rem;font-size:.74rem;text-transform:uppercase;
+    letter-spacing:.18em;color:var(--muted)}
+
+  /* ─────────────  Cards / grids  ───────────── */
+  .head-row{display:flex;align-items:flex-end;justify-content:space-between;
+    gap:1.5rem;flex-wrap:wrap}
+  .cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;
+    margin-top:3rem}
+  @media(min-width:760px){.cat-grid{grid-template-columns:repeat(3,1fr)}}
+  .cat{position:relative;overflow:hidden;border-radius:var(--radius-lg);
+    border:1px solid var(--line);background:var(--surface);
+    padding:1.6rem;min-height:170px;display:flex;flex-direction:column;
+    justify-content:space-between;transition:.2s;isolation:isolate}
+  .cat::before{content:"";position:absolute;inset:0;z-index:-1;opacity:0;
+    background:radial-gradient(120% 100% at 0% 0%,var(--gold-soft),transparent 60%);
+    transition:.25s}
+  .cat:hover{border-color:var(--gold-border);transform:translateY(-3px)}
+  .cat:hover::before{opacity:1}
+  .cat .ic{width:42px;height:42px;border-radius:.6rem;
+    background:var(--gold-soft);border:1px solid var(--gold-border);
+    color:var(--gold);display:grid;place-items:center;font-size:1.15rem}
+  .cat h3{font-family:"Cinzel",serif;font-size:1.12rem;font-weight:600;
+    margin-top:1.3rem;letter-spacing:.04em}
+  .cat p{font-size:.86rem;color:var(--muted);margin-top:.3rem}
+  .cat .meta{display:flex;align-items:center;justify-content:space-between;
+    margin-top:1.1rem;font-size:.74rem;text-transform:uppercase;
+    letter-spacing:.14em;color:var(--faint)}
+  .cat .meta .arr{color:var(--gold);transition:transform .2s}
+  .cat:hover .meta .arr{transform:translateX(4px)}
+
+  /* featured talent */
+  .talent-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.1rem;
+    margin-top:3rem}
+  @media(min-width:680px){.talent-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(min-width:1040px){.talent-grid{grid-template-columns:repeat(4,1fr)}}
+  .tcard{display:flex;flex-direction:column;overflow:hidden;
+    border-radius:var(--radius-xl);border:1px solid var(--line-2);
+    background:linear-gradient(180deg,rgba(28,28,29,.95),var(--surface) 55%,#000);
+    transition:.22s}
+  .tcard:hover{transform:translateY(-4px);
+    box-shadow:0 26px 50px -24px rgba(201,162,39,.32);
+    border-color:var(--gold-border)}
+  .tcard.feat{border-color:rgba(201,162,39,.4)}
+  .tphoto{position:relative;aspect-ratio:3/4;overflow:hidden;
+    background:
+      radial-gradient(120% 80% at 50% 14%,rgba(255,255,255,.07),transparent 58%),
+      linear-gradient(170deg,#2c2a27 0%,#161514 45%,#060606 100%);
+    display:grid;place-items:center}
+  .tphoto .mono{font-family:"Cinzel",serif;font-size:2.7rem;
+    color:rgba(244,244,245,.10);letter-spacing:.08em}
+  .tphoto .fig{position:absolute;left:50%;bottom:0;width:62%;height:74%;
+    transform:translateX(-50%);filter:blur(2px);
+    background:radial-gradient(56% 36% at 50% 0,rgba(0,0,0,.5),transparent 70%),
+      radial-gradient(82% 70% at 50% 100%,rgba(0,0,0,.62),transparent 72%)}
+  .tphoto .vig{position:absolute;inset:0;
+    background:linear-gradient(to top,#000,rgba(0,0,0,.2) 45%,transparent 78%)}
+  .tphoto .star{position:absolute;left:.7rem;top:.7rem;color:var(--gold);
+    font-size:.6rem;letter-spacing:.05em;background:rgba(0,0,0,.5);
+    border:1px solid var(--gold-border);border-radius:999px;
+    padding:.22rem .55rem;text-transform:uppercase;letter-spacing:.16em;
+    font-weight:700}
+  .tphoto .sv{position:absolute;right:.6rem;top:.6rem;width:2.1rem;height:2.1rem;
+    border-radius:50%;background:rgba(0,0,0,.55);border:1px solid var(--line-2);
+    color:var(--gold);display:grid;place-items:center;cursor:pointer;
+    backdrop-filter:blur(4px);font-size:.85rem;transition:.16s}
+  .tphoto .sv:hover{background:rgba(0,0,0,.75)}
+  .tphoto .sv.on{background:var(--gold);color:var(--black);border-color:var(--gold)}
+  .tbody{padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.5rem}
+  .tname{font-family:"Cinzel",serif;font-size:1.12rem;font-weight:600;
+    letter-spacing:.02em}
+  .tname:hover{color:var(--gold)}
+  .tsub{font-size:.83rem;font-style:italic;color:rgba(244,244,245,.82)}
+  .tsub .dot{color:var(--gold-dim);font-style:normal;margin:0 .4rem}
+  .tchips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.15rem}
+  .tchip{border:1px solid var(--gold-border);background:rgba(0,0,0,.25);
+    border-radius:5px;padding:.2rem .45rem;font-size:.58rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.12em;color:var(--gold)}
+  .tcard .row{display:flex;gap:.5rem;margin-top:.7rem;
+    border-top:1px solid var(--line);padding-top:.85rem}
+  .tcard .row .v{flex:1;height:2.4rem;border-radius:.5rem;background:var(--gold);
+    color:var(--black);font-size:.64rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.12em;display:grid;place-items:center;transition:.16s}
+  .tcard .row .v:hover{background:var(--gold-bright)}
+  .tcard .row .i{height:2.4rem;padding:0 .95rem;border-radius:.5rem;
+    border:1px solid var(--gold-border);color:var(--gold);font-size:.64rem;
+    font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+    display:grid;place-items:center;cursor:pointer;transition:.16s}
+  .tcard .row .i:hover{background:var(--gold-soft);color:var(--gold-bright)}
+
+  /* ─────────────  Location + map  ───────────── */
+  .map-grid{display:grid;gap:2.5rem;margin-top:3rem;align-items:center}
+  @media(min-width:960px){.map-grid{grid-template-columns:1.1fr .9fr;gap:3.5rem}}
+  .map-wrap{position:relative;border:1px solid var(--line-2);
+    border-radius:var(--radius-xl);overflow:hidden;background:#070d10;
+    box-shadow:inset 0 0 80px rgba(0,0,0,.6)}
+  .map-wrap svg{display:block;width:100%;height:auto}
+  .pin{cursor:pointer}
+  .pin .ring{transform-origin:center;animation:pulse 2.6s ease-out infinite}
+  @keyframes pulse{0%{r:8;opacity:.6}70%{r:26;opacity:0}100%{opacity:0}}
+  .pin .dot{transition:.18s}
+  .pin:hover .dot,.pin.active .dot{fill:var(--gold-bright)}
+  .pin .lbl{font-family:"Cinzel",serif;font-size:13px;fill:var(--fg);
+    letter-spacing:.06em;font-weight:600}
+  .pin.active .lbl{fill:var(--gold-bright)}
+  .map-legend{position:absolute;left:1rem;bottom:1rem;font-size:.66rem;
+    color:var(--faint);text-transform:uppercase;letter-spacing:.16em;
+    display:flex;align-items:center;gap:.5rem}
+  .map-legend i{width:7px;height:7px;border-radius:50%;background:var(--gold)}
+  .city-list{display:flex;flex-direction:column}
+  .city{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    padding:1.15rem .4rem;border-bottom:1px solid var(--line);cursor:pointer;
+    transition:.16s}
+  .city:hover,.city.active{padding-left:1rem;background:linear-gradient(90deg,
+    var(--gold-soft),transparent)}
+  .city .info h4{font-family:"Cinzel",serif;font-size:1.12rem;font-weight:600;
+    letter-spacing:.04em}
+  .city .info p{font-size:.82rem;color:var(--muted);margin-top:.15rem}
+  .city .cnt{text-align:right;flex-shrink:0}
+  .city .cnt b{font-family:"Cinzel",serif;font-size:1.5rem;color:var(--gold);
+    font-weight:600;display:block;line-height:1}
+  .city .cnt s{text-decoration:none;font-size:.62rem;text-transform:uppercase;
+    letter-spacing:.16em;color:var(--faint)}
+
+  /* ─────────────  How it works  ───────────── */
+  .steps{display:grid;gap:1rem;margin-top:3rem;counter-reset:s}
+  @media(min-width:820px){.steps{grid-template-columns:repeat(4,1fr)}}
+  .step{position:relative;border:1px solid var(--line);border-radius:var(--radius-lg);
+    background:var(--surface);padding:2rem 1.5rem;counter-increment:s}
+  .step::before{content:"0" counter(s);font-family:"Cinzel",serif;
+    font-size:.8rem;font-weight:700;color:var(--gold-dim);letter-spacing:.2em}
+  .step .ic{width:3rem;height:3rem;border-radius:50%;margin-top:1.2rem;
+    border:1px solid var(--gold-border);background:var(--gold-soft);
+    color:var(--gold);display:grid;place-items:center;font-size:1.2rem}
+  .step h4{font-family:"Cinzel",serif;font-size:1.05rem;font-weight:600;
+    margin-top:1.2rem;letter-spacing:.03em}
+  .step p{font-size:.88rem;color:var(--muted);margin-top:.5rem}
+
+  /* ─────────────  Why / trust features  ───────────── */
+  .feat-grid{display:grid;grid-template-columns:1fr;gap:1px;
+    background:var(--line);border:1px solid var(--line);
+    border-radius:var(--radius-xl);overflow:hidden;margin-top:3rem}
+  @media(min-width:680px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:1000px){.feat-grid{grid-template-columns:repeat(3,1fr)}}
+  .feat{background:var(--surface);padding:2.2rem 1.9rem;transition:.2s}
+  .feat:hover{background:var(--elevated)}
+  .feat .ic{width:2.6rem;height:2.6rem;border-radius:.55rem;
+    background:var(--gold-soft);color:var(--gold);display:grid;
+    place-items:center;font-size:1.05rem;border:1px solid var(--gold-border)}
+  .feat h4{font-family:"Cinzel",serif;font-size:1.08rem;font-weight:600;
+    margin-top:1.2rem;letter-spacing:.03em}
+  .feat p{font-size:.9rem;color:var(--muted);margin-top:.55rem;line-height:1.65}
+
+  /* ─────────────  Testimonials  ───────────── */
+  .quotes{display:grid;gap:1.2rem;margin-top:3rem}
+  @media(min-width:820px){.quotes{grid-template-columns:repeat(3,1fr)}}
+  .quote{border:1px solid var(--line);border-radius:var(--radius-lg);
+    background:linear-gradient(180deg,var(--surface),#0b0b0b);
+    padding:2rem 1.8rem;display:flex;flex-direction:column}
+  .quote .mark{font-family:"Cinzel",serif;font-size:2.4rem;color:var(--gold-dim);
+    line-height:.6}
+  .quote p{margin-top:1rem;font-size:.96rem;color:var(--fg);
+    line-height:1.7;flex:1}
+  .quote .by{margin-top:1.6rem;display:flex;align-items:center;gap:.85rem;
+    border-top:1px solid var(--line);padding-top:1.2rem}
+  .quote .av{width:42px;height:42px;border-radius:50%;flex-shrink:0;
+    background:linear-gradient(150deg,#2c2a27,#0b0b0b);color:var(--gold-dim);
+    border:1px solid var(--gold-border);display:grid;place-items:center;
+    font-family:"Cinzel",serif;font-size:.85rem;font-weight:600}
+  .quote .by b{font-family:"Cinzel",serif;font-size:.92rem;font-weight:600;
+    display:block}
+  .quote .by s{text-decoration:none;font-size:.78rem;color:var(--faint)}
+  .quote .stars{color:var(--gold);font-size:.78rem;letter-spacing:.15em;
+    margin-top:1rem}
+
+  /* ─────────────  Talent join band  ───────────── */
+  .talent-band{position:relative;overflow:hidden;border:1px solid var(--gold-border);
+    border-radius:var(--radius-xl);
+    background:
+      radial-gradient(110% 130% at 100% 0%,rgba(201,162,39,.14),transparent 55%),
+      linear-gradient(180deg,var(--elevated),#0b0b0b);
+    padding:3rem 2rem}
+  @media(min-width:880px){.talent-band{padding:4rem 3.5rem;display:grid;
+    grid-template-columns:1.1fr .9fr;gap:3.5rem;align-items:center}}
+  .talent-band .eyebrow{color:var(--gold)}
+  .talent-band h3{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.6rem,3.4vw,2.4rem);line-height:1.2;margin-top:.9rem;
+    letter-spacing:.03em}
+  .talent-band p{margin-top:1rem;color:var(--muted);max-width:34rem}
+  .talent-band .tb-cta{margin-top:1.8rem;display:flex;flex-wrap:wrap;gap:.85rem}
+  .tb-perks{display:flex;flex-direction:column;gap:.9rem;margin-top:2.5rem}
+  @media(min-width:880px){.tb-perks{margin-top:0}}
+  .tb-perk{display:flex;align-items:flex-start;gap:.85rem;font-size:.92rem}
+  .tb-perk .ck{flex-shrink:0;width:1.5rem;height:1.5rem;border-radius:50%;
+    background:var(--gold-soft);border:1px solid var(--gold-border);
+    color:var(--gold);display:grid;place-items:center;font-size:.7rem}
+  .tb-perk b{font-weight:600}.tb-perk span{color:var(--muted)}
+
+  /* ─────────────  Final CTA  ───────────── */
+  .final{position:relative;overflow:hidden;text-align:center;
+    border-radius:var(--radius-xl);border:1px solid var(--line-2);
+    background:radial-gradient(ellipse 60% 100% at 50% 0%,rgba(201,162,39,.14),
+      transparent 60%),linear-gradient(180deg,var(--surface),#070707);
+    padding:4rem 2rem}
+  @media(min-width:780px){.final{padding:5.5rem 2rem}}
+  .final h2{font-family:"Cinzel",serif;font-weight:400;
+    font-size:clamp(1.9rem,4vw,3rem);line-height:1.15;letter-spacing:.03em}
+  .final p{margin:1.2rem auto 0;max-width:38rem;color:var(--muted);
+    font-size:1.05rem}
+  .final .fc{margin-top:2.3rem;display:flex;flex-wrap:wrap;gap:1rem;
+    justify-content:center}
+
+  /* ─────────────  Footer  ───────────── */
+  footer.site{border-top:1px solid var(--line);background:#070707;
+    padding:4.5rem 0 2.5rem}
+  .f-grid{display:grid;gap:2.5rem}
+  @media(min-width:760px){.f-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+  .f-brand .name{font-family:"Cinzel",serif;font-size:1.3rem;font-weight:600;
+    letter-spacing:.32em}
+  .f-brand .name span{color:var(--gold)}
+  .f-brand p{margin-top:1.1rem;color:var(--muted);font-size:.9rem;
+    max-width:24rem;line-height:1.7}
+  .f-brand .social{display:flex;gap:.6rem;margin-top:1.5rem}
+  .f-brand .social a{width:38px;height:38px;border-radius:50%;
+    border:1px solid var(--line-2);display:grid;place-items:center;
+    color:var(--muted);transition:.18s;font-size:.85rem}
+  .f-brand .social a:hover{border-color:var(--gold-border);color:var(--gold);
+    background:var(--gold-soft)}
+  .f-col h5{font-family:"Cinzel",serif;font-size:.78rem;text-transform:uppercase;
+    letter-spacing:.2em;color:var(--fg);font-weight:600}
+  .f-col ul{list-style:none;margin-top:1.2rem;display:flex;
+    flex-direction:column;gap:.8rem}
+  .f-col a{color:var(--muted);font-size:.88rem;transition:.15s}
+  .f-col a:hover{color:var(--gold);padding-left:3px}
+  .f-bottom{margin-top:3.5rem;padding-top:1.8rem;border-top:1px solid var(--line);
+    display:flex;flex-wrap:wrap;gap:1rem;align-items:center;
+    justify-content:space-between;font-size:.78rem;color:var(--faint)}
+  .f-bottom .links{display:flex;gap:1.5rem;flex-wrap:wrap}
+  .f-bottom a:hover{color:var(--gold)}
+
+  .reveal{opacity:0;transform:translateY(18px);
+    transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    .pin .ring{animation:none}html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════  TOP UTILITY BAR  ═══════════ -->
+<div class="topbar">
+  <div class="wrap row">
+    <div class="places">
+      <span>Cancún</span><i></i><span>Playa del Carmen</span><i></i>
+      <span>Tulum</span><i></i><span data-en="Riviera Maya" data-es="Riviera Maya">Riviera Maya</span>
+    </div>
+    <div class="util">
+      <a href="#contact" data-en="Contact" data-es="Contacto">Contact</a>
+      <a href="#" data-en="+52 984 000 0000" data-es="+52 984 000 0000">+52 984 000 0000</a>
+      <span class="locale" id="locale">
+        <button class="active" data-loc="en">EN</button><span style="color:#3f3f46">/</span><button data-loc="es">ES</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════  HEADER  ═══════════ -->
+<header class="site" id="hdr">
+  <div class="wrap nav">
+    <a href="index.html" class="brand" aria-label="Impronta home">
+      <span class="name">IMPRON<span>T</span>A</span>
+      <span class="tag" data-en="Models &amp; Talent · Riviera Maya" data-es="Modelos y Talento · Riviera Maya">Models &amp; Talent · Riviera Maya</span>
+    </a>
+
+    <nav class="main">
+      <a href="directory.html" data-en="Discover Talent" data-es="Descubrir Talento">Discover Talent</a>
+      <a href="#categories" data-en="Categories" data-es="Categorías">Categories</a>
+      <a href="#services" data-en="Services" data-es="Servicios">Services</a>
+      <a href="#why" data-en="About" data-es="Nosotros">About</a>
+      <a href="#contact" data-en="Contact" data-es="Contacto">Contact</a>
+    </nav>
+
+    <div class="nav-right">
+      <div class="auth">
+        <a href="#talent" class="talent-link" data-en="Talent Login" data-es="Acceso Talento">Talent Login</a>
+        <span class="sep"></span>
+        <a href="#" data-en="Client Sign In" data-es="Acceso Clientes">Client Sign In</a>
+        <a href="#contact" class="btn btn-gold btn-sm" data-en="Start an Inquiry" data-es="Iniciar Solicitud">Start an Inquiry</a>
+      </div>
+      <button class="burger" id="burger" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- mobile drawer -->
+<div class="drawer" id="drawer">
+  <div class="scrim" data-close></div>
+  <div class="panel">
+    <button class="x" data-close aria-label="Close menu">×</button>
+    <nav>
+      <a href="directory.html" data-en="Discover Talent" data-es="Descubrir Talento">Discover Talent</a>
+      <a href="#categories" data-close data-en="Categories" data-es="Categorías">Categories</a>
+      <a href="#services" data-close data-en="Services" data-es="Servicios">Services</a>
+      <a href="#why" data-close data-en="About" data-es="Nosotros">About</a>
+      <a href="#contact" data-close data-en="Contact" data-es="Contacto">Contact</a>
+      <a href="#talent" data-close data-en="Talent Area" data-es="Área de Talento">Talent Area</a>
+    </nav>
+    <div class="d-auth">
+      <a href="#contact" data-close class="btn btn-gold" data-en="Start an Inquiry" data-es="Iniciar Solicitud">Start an Inquiry</a>
+      <a href="directory.html" class="btn btn-outline" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+      <div style="display:flex;gap:.8rem;margin-top:.4rem;font-size:.82rem;color:var(--muted)">
+        <a href="#" data-en="Client Sign In" data-es="Acceso Clientes">Client Sign In</a>
+        <span style="color:#3f3f46">·</span>
+        <a href="#talent" data-close data-en="Talent Login" data-es="Acceso Talento">Talent Login</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- ═══════════  HERO  ═══════════ -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <span class="hero-badge">
+            <span class="dot"></span>
+            <span data-en="Premium talent agency · Est. Riviera Maya" data-es="Agencia de talento premium · Riviera Maya">Premium talent agency · Est. Riviera Maya</span>
+          </span>
+          <h1 class="hero-h">
+            <span data-en="Discover premium talent across the" data-es="Descubre talento premium en la">Discover premium talent across the</span>
+            <span class="gold display" data-en="Riviera Maya." data-es="Riviera Maya.">Riviera Maya.</span>
+          </h1>
+          <p class="hero-p"
+            data-en="Book models, hosts, performers, promoters and creators through <strong>one trusted local agency</strong> that curates every profile and coordinates your booking end&#8209;to&#8209;end."
+            data-es="Reserva modelos, anfitriones, performers, promotores y creadores a través de <strong>una agencia local de confianza</strong> que cura cada perfil y coordina tu reserva de principio a fin.">
+            Book models, hosts, performers, promoters and creators through <strong>one trusted local agency</strong> that curates every profile and coordinates your booking end&#8209;to&#8209;end.
+          </p>
+
+          <form class="search" id="discover" action="directory.html">
+            <div class="sf">
+              <label data-en="What are you looking for" data-es="Qué buscas">What are you looking for</label>
+              <select name="category" aria-label="Talent category">
+                <option value="" data-en="All talent &amp; categories" data-es="Todo el talento y categorías">All talent &amp; categories</option>
+                <option data-en="Models" data-es="Modelos">Models</option>
+                <option data-en="Hosts &amp; Promoters" data-es="Anfitriones y Promotores">Hosts &amp; Promoters</option>
+                <option data-en="Performers" data-es="Performers">Performers</option>
+                <option data-en="Content Creators" data-es="Creadores de Contenido">Content Creators</option>
+                <option data-en="Event Talent" data-es="Talento para Eventos">Event Talent</option>
+              </select>
+            </div>
+            <div class="sf">
+              <label data-en="Where" data-es="Dónde">Where</label>
+              <select name="location" aria-label="Location">
+                <option value="" data-en="All Riviera Maya" data-es="Toda la Riviera Maya">All Riviera Maya</option>
+                <option>Cancún</option><option>Playa del Carmen</option>
+                <option>Tulum</option><option>Cozumel</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <span data-en="Search" data-es="Buscar">Search</span>
+            </button>
+          </form>
+
+          <div class="hero-ctas">
+            <a href="directory.html" class="btn btn-gold" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+            <a href="#contact" class="btn btn-outline" data-en="Start a Booking Inquiry" data-es="Iniciar una Reserva">Start a Booking Inquiry</a>
+          </div>
+
+          <div class="hero-trust">
+            <span><span class="ck">✦</span> <span data-en="Curated &amp; verified profiles" data-es="Perfiles curados y verificados">Curated &amp; verified profiles</span></span>
+            <span><span class="ck">✦</span> <span data-en="4 cities covered" data-es="4 ciudades cubiertas">4 cities covered</span></span>
+            <span><span class="ck">✦</span> <span data-en="~24h inquiry response" data-es="Respuesta en ~24h">~24h inquiry response</span></span>
+            <span><span class="ck">✦</span> <span data-en="Agency&#8209;coordinated" data-es="Coordinado por la agencia">Agency&#8209;coordinated</span></span>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="collage" aria-hidden="true">
+            <div class="ph a" data-i="IM">
+              <div class="cap"><b>Sofía R.</b><span><s>Editorial</s> · Tulum</span></div>
+            </div>
+            <div class="ph b" data-i="PR">
+              <div class="cap"><b>Marco V.</b><span><s>Host</s> · Cancún</span></div>
+            </div>
+            <div class="ph c" data-i="NT">
+              <div class="cap"><b>Lucía M.</b><span><s>Runway</s> · Playa</span></div>
+            </div>
+            <div class="ph d" data-i="A">
+              <div class="cap"><b>Diego A.</b><span><s>Creator</s> · Riviera</span></div>
+            </div>
+            <div class="badge">
+              <span class="ic">✓</span>
+              <span><span class="t" data-en="Verified roster" data-es="Roster verificado">Verified roster</span><span class="v">120+ <span style="font-size:.7rem;color:var(--muted)" data-en="talent" data-es="talentos">talent</span></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════  STAT STRIP  ═══════════ -->
+  <div class="stats">
+    <div class="wrap"><div class="grid">
+      <div class="stat"><div class="n">120<span style="color:var(--gold-dim)">+</span></div><div class="l" data-en="Verified talent" data-es="Talento verificado">Verified talent</div></div>
+      <div class="stat"><div class="n">4</div><div class="l" data-en="Cities · Riviera Maya" data-es="Ciudades · Riviera Maya">Cities · Riviera Maya</div></div>
+      <div class="stat"><div class="n">~24<span style="color:var(--gold-dim)">h</span></div><div class="l" data-en="Avg. inquiry reply" data-es="Respuesta promedio">Avg. inquiry reply</div></div>
+      <div class="stat"><div class="n">100<span style="color:var(--gold-dim)">%</span></div><div class="l" data-en="Agency coordinated" data-es="Coordinado por agencia">Agency coordinated</div></div>
+    </div></div>
+  </div>
+
+  <!-- ═══════════  CATEGORIES  ═══════════ -->
+  <section class="band reveal" id="categories">
+    <div class="wrap">
+      <div class="head-row">
+        <div>
+          <p class="eyebrow" data-en="What you can book" data-es="Qué puedes reservar">What you can book</p>
+          <h2 class="section-title" data-en="Talent for every brief" data-es="Talento para cada brief">Talent for every brief</h2>
+        </div>
+        <a href="directory.html" class="link-arrow" data-en="Browse full roster →" data-es="Ver roster completo →">Browse full roster →</a>
+      </div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════  FEATURED TALENT  ═══════════ -->
+  <section class="band reveal" style="padding-top:0">
+    <div class="wrap">
+      <div class="head-row">
+        <div>
+          <p class="eyebrow" data-en="Featured" data-es="Destacados">Featured</p>
+          <h2 class="section-title" data-en="Selected talent this season" data-es="Talento seleccionado de la temporada">Selected talent this season</h2>
+        </div>
+        <a href="directory.html" class="link-arrow" data-en="View all talent →" data-es="Ver todo el talento →">View all talent →</a>
+      </div>
+      <div class="talent-grid" id="talentGrid"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════  LOCATION + MAP  ═══════════ -->
+  <section class="band reveal" id="services" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Local coverage" data-es="Cobertura local">Local coverage</p>
+        <h2 class="section-title" data-en="Talent available across the Riviera Maya" data-es="Talento disponible en toda la Riviera Maya">Talent available across the Riviera Maya</h2>
+        <p class="section-sub" data-en="Real local presence in the Mexican Caribbean — we know the venues, the production crews and the logistics in each city." data-es="Presencia local real en el Caribe Mexicano — conocemos los venues, los equipos de producción y la logística de cada ciudad.">Real local presence in the Mexican Caribbean — we know the venues, the production crews and the logistics in each city.</p>
+      </div>
+      <div class="map-grid">
+        <div class="map-wrap">
+          <svg viewBox="0 0 600 460" role="img" aria-label="Riviera Maya talent coverage map">
+            <defs>
+              <linearGradient id="sea" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#0a161b"/><stop offset="1" stop-color="#06090b"/>
+              </linearGradient>
+              <linearGradient id="land" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#15140f"/><stop offset="1" stop-color="#0c0b08"/>
+              </linearGradient>
+            </defs>
+            <rect width="600" height="460" fill="url(#sea)"/>
+            <path d="M0,0 L300,0 Q310,60 285,110 Q260,165 290,215 Q318,262 280,320 Q250,372 285,420 Q300,445 295,460 L0,460 Z"
+              fill="url(#land)" stroke="rgba(201,162,39,.22)" stroke-width="1"/>
+            <path d="M300,0 Q310,60 285,110 Q260,165 290,215 Q318,262 280,320 Q250,372 285,420 Q300,445 295,460"
+              fill="none" stroke="rgba(201,162,39,.5)" stroke-width="1.5" stroke-dasharray="2 5"/>
+            <ellipse cx="430" cy="250" rx="34" ry="20" fill="url(#land)" stroke="rgba(201,162,39,.22)"/>
+            <g class="pin" data-city="cancun" transform="translate(296,70)">
+              <circle class="ring" r="8" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+              <circle class="dot" r="7" fill="var(--gold)"/>
+              <text class="lbl" x="16" y="5">Cancún</text>
+            </g>
+            <g class="pin" data-city="playa" transform="translate(285,205)">
+              <circle class="ring" r="8" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+              <circle class="dot" r="7" fill="var(--gold)"/>
+              <text class="lbl" x="16" y="5">Playa del Carmen</text>
+            </g>
+            <g class="pin" data-city="tulum" transform="translate(283,358)">
+              <circle class="ring" r="8" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+              <circle class="dot" r="7" fill="var(--gold)"/>
+              <text class="lbl" x="16" y="5">Tulum</text>
+            </g>
+            <g class="pin" data-city="cozumel" transform="translate(430,250)">
+              <circle class="ring" r="8" fill="none" stroke="var(--gold)" stroke-width="1.5"/>
+              <circle class="dot" r="7" fill="var(--gold)"/>
+              <text class="lbl" x="16" y="5">Cozumel</text>
+            </g>
+          </svg>
+          <div class="map-legend"><i></i> <span data-en="Active talent hubs" data-es="Hubs de talento activos">Active talent hubs</span></div>
+        </div>
+        <div class="city-list" id="cityList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════  HOW IT WORKS  ═══════════ -->
+  <section class="band reveal">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="How it works" data-es="Cómo funciona">How it works</p>
+        <h2 class="section-title" data-en="From brief to booked — in four steps" data-es="Del brief a la reserva — en cuatro pasos">From brief to booked — in four steps</h2>
+        <p class="section-sub" data-en="No endless group chats. One structured flow, coordinated by a real person at the agency." data-es="Sin chats interminables. Un flujo estructurado, coordinado por una persona real en la agencia.">No endless group chats. One structured flow, coordinated by a real person at the agency.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="ic">⌕</div>
+          <h4 data-en="Discover" data-es="Descubre">Discover</h4>
+          <p data-en="Search the curated roster by category, location and fit. Browse freely — no account needed." data-es="Busca en el roster curado por categoría, ubicación y perfil. Explora libremente — sin cuenta.">Search the curated roster by category, location and fit. Browse freely — no account needed.</p>
+        </div>
+        <div class="step">
+          <div class="ic">❏</div>
+          <h4 data-en="Shortlist" data-es="Preselecciona">Shortlist</h4>
+          <p data-en="Save the talent that fits your brief into one shareable shortlist for your team." data-es="Guarda el talento que encaja en una preselección compartible para tu equipo.">Save the talent that fits your brief into one shareable shortlist for your team.</p>
+        </div>
+        <div class="step">
+          <div class="ic">✎</div>
+          <h4 data-en="Inquire" data-es="Solicita">Inquire</h4>
+          <p data-en="Send one inquiry with your dates and budget. The agency replies within ~24h." data-es="Envía una solicitud con fechas y presupuesto. La agencia responde en ~24h.">Send one inquiry with your dates and budget. The agency replies within ~24h.</p>
+        </div>
+        <div class="step">
+          <div class="ic">✦</div>
+          <h4 data-en="Booked" data-es="Reservado">Booked</h4>
+          <p data-en="We confirm availability, handle contracts and coordinate logistics through the shoot." data-es="Confirmamos disponibilidad, gestionamos contratos y coordinamos la logística.">We confirm availability, handle contracts and coordinate logistics through the shoot.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════  WHY IMPRONTA / TRUST  ═══════════ -->
+  <section class="band reveal" id="why" style="background:var(--surface);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="head-row">
+        <div>
+          <p class="eyebrow" data-en="Why Impronta" data-es="Por qué Impronta">Why Impronta</p>
+          <h2 class="section-title" data-en="A real agency — not a directory" data-es="Una agencia real — no un directorio">A real agency — not a directory</h2>
+        </div>
+        <p style="max-width:24rem;color:var(--muted);font-size:.95rem" data-en="Every profile is curated, every booking is coordinated by a human, every detail is handled locally." data-es="Cada perfil es curado, cada reserva coordinada por una persona, cada detalle gestionado localmente.">Every profile is curated, every booking is coordinated by a human, every detail is handled locally.</p>
+      </div>
+      <div class="feat-grid">
+        <div class="feat"><div class="ic">✓</div><h4 data-en="Curated &amp; verified" data-es="Curado y verificado">Curated &amp; verified</h4><p data-en="Profiles are reviewed and verified by the agency before they reach you. No fake accounts, no surprises." data-es="Los perfiles son revisados y verificados por la agencia antes de llegar a ti. Sin cuentas falsas, sin sorpresas.">Profiles are reviewed and verified by the agency before they reach you. No fake accounts, no surprises.</p></div>
+        <div class="feat"><div class="ic">◎</div><h4 data-en="Local expertise" data-es="Experiencia local">Local expertise</h4><p data-en="We live and work in the Riviera Maya. We know the venues, crews and permits in every city we cover." data-es="Vivimos y trabajamos en la Riviera Maya. Conocemos venues, equipos y permisos en cada ciudad.">We live and work in the Riviera Maya. We know the venues, crews and permits in every city we cover.</p></div>
+        <div class="feat"><div class="ic">⚡</div><h4 data-en="Fast, human inquiry" data-es="Solicitud rápida y humana">Fast, human inquiry</h4><p data-en="A real coordinator answers within ~24h — not a bot, not a marketplace queue." data-es="Un coordinador real responde en ~24h — sin bots, sin filas de marketplace.">A real coordinator answers within ~24h — not a bot, not a marketplace queue.</p></div>
+        <div class="feat"><div class="ic">◈</div><h4 data-en="Events &amp; activations" data-es="Eventos y activaciones">Events &amp; activations</h4><p data-en="Brand activations, launches, hospitality and on-site event staffing — fully coordinated." data-es="Activaciones de marca, lanzamientos, hospitalidad y staff de eventos — totalmente coordinado.">Brand activations, launches, hospitality and on-site event staffing — fully coordinated.</p></div>
+        <div class="feat"><div class="ic">▤</div><h4 data-en="Production support" data-es="Apoyo de producción">Production support</h4><p data-en="Need more than talent? We connect photographers, crews and locations for full shoots." data-es="¿Necesitas más que talento? Conectamos fotógrafos, equipos y locaciones para producciones completas.">Need more than talent? We connect photographers, crews and locations for full shoots.</p></div>
+        <div class="feat"><div class="ic">⛉</div><h4 data-en="Safe &amp; managed" data-es="Seguro y gestionado">Safe &amp; managed</h4><p data-en="Contracts, usage rights and payments are handled by the agency — protected for both sides." data-es="Contratos, derechos de uso y pagos gestionados por la agencia — protegido para ambas partes.">Contracts, usage rights and payments are handled by the agency — protected for both sides.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════  TESTIMONIALS  ═══════════ -->
+  <section class="band reveal">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow" data-en="Trusted by" data-es="Confían en nosotros">Trusted by</p>
+        <h2 class="section-title" data-en="Brands &amp; producers who book with us" data-es="Marcas y productores que reservan con nosotros">Brands &amp; producers who book with us</h2>
+      </div>
+      <div class="quotes">
+        <div class="quote">
+          <div class="mark">“</div>
+          <p data-en="We needed five hosts for a beach launch in Tulum on short notice. Impronta had a shortlist back to us the same day and handled every contract." data-es="Necesitábamos cinco anfitriones para un lanzamiento en Tulum con poco aviso. Impronta nos envió una preselección el mismo día y gestionó cada contrato.">We needed five hosts for a beach launch in Tulum on short notice. Impronta had a shortlist back to us the same day and handled every contract.</p>
+          <div class="stars">★★★★★</div>
+          <div class="by"><span class="av">VL</span><span><b>Valentina L.</b><s data-en="Event Producer · Cancún" data-es="Productora de Eventos · Cancún">Event Producer · Cancún</s></span></div>
+        </div>
+        <div class="quote">
+          <div class="mark">“</div>
+          <p data-en="The roster is genuinely curated — every model we shortlisted was professional and exactly as presented. Rare for this region." data-es="El roster está realmente curado — cada modelo preseleccionado fue profesional y tal como se presentaba. Raro en esta región.">The roster is genuinely curated — every model we shortlisted was professional and exactly as presented. Rare for this region.</p>
+          <div class="stars">★★★★★</div>
+          <div class="by"><span class="av">RM</span><span><b>Ricardo M.</b><s data-en="Brand Marketing · Playa" data-es="Marketing de Marca · Playa">Brand Marketing · Playa</s></span></div>
+        </div>
+        <div class="quote">
+          <div class="mark">“</div>
+          <p data-en="One inquiry, one coordinator, zero chaos. They turned a complex 3-day production into something we could actually manage." data-es="Una solicitud, un coordinador, cero caos. Convirtieron una producción compleja de 3 días en algo manejable.">One inquiry, one coordinator, zero chaos. They turned a complex 3-day production into something we could actually manage.</p>
+          <div class="stars">★★★★★</div>
+          <div class="by"><span class="av">SK</span><span><b>Sarah K.</b><s data-en="Creative Director · Tulum" data-es="Directora Creativa · Tulum">Creative Director · Tulum</s></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════  TALENT JOIN BAND  ═══════════ -->
+  <section class="band reveal" id="talent" style="padding-top:0">
+    <div class="wrap">
+      <div class="talent-band">
+        <div>
+          <p class="eyebrow" data-en="For talent" data-es="Para talento">For talent</p>
+          <h3 data-en="Are you a model, host, performer or creator?" data-es="¿Eres modelo, anfitrión, performer o creador?">Are you a model, host, performer or creator?</h3>
+          <p data-en="Join a curated local agency that presents you professionally, protects your rate, and brings you real bookings across the Riviera Maya — you keep control of your profile." data-es="Únete a una agencia local curada que te presenta profesionalmente, protege tu tarifa y te trae reservas reales en la Riviera Maya — tú controlas tu perfil.">Join a curated local agency that presents you professionally, protects your rate, and brings you real bookings across the Riviera Maya — you keep control of your profile.</p>
+          <div class="tb-cta">
+            <a href="#" class="btn btn-gold" data-en="Apply as Talent" data-es="Postúlate como Talento">Apply as Talent</a>
+            <a href="#" class="btn btn-outline" data-en="Talent Login" data-es="Acceso Talento">Talent Login</a>
+          </div>
+        </div>
+        <div class="tb-perks">
+          <div class="tb-perk"><span class="ck">✓</span><span><b data-en="Editorial presentation." data-es="Presentación editorial.">Editorial presentation.</b> <span data-en="A premium profile page that makes you look agency-represented." data-es="Una página de perfil premium que te hace ver representado por agencia.">A premium profile page that makes you look agency-represented.</span></span></div>
+          <div class="tb-perk"><span class="ck">✓</span><span><b data-en="Protected inquiries." data-es="Solicitudes protegidas.">Protected inquiries.</b> <span data-en="Clients never get your direct contact — the agency screens and coordinates." data-es="Los clientes nunca obtienen tu contacto directo — la agencia filtra y coordina.">Clients never get your direct contact — the agency screens and coordinates.</span></span></div>
+          <div class="tb-perk"><span class="ck">✓</span><span><b data-en="Real local work." data-es="Trabajo local real.">Real local work.</b> <span data-en="Bookings from brands and producers active in the Riviera Maya." data-es="Reservas de marcas y productores activos en la Riviera Maya.">Bookings from brands and producers active in the Riviera Maya.</span></span></div>
+          <div class="tb-perk"><span class="ck">✓</span><span><b data-en="You stay in control." data-es="Mantienes el control.">You stay in control.</b> <span data-en="Manage your availability and portfolio from your own talent area." data-es="Gestiona tu disponibilidad y portafolio desde tu propia área de talento.">Manage your availability and portfolio from your own talent area.</span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════  FINAL CTA  ═══════════ -->
+  <section class="band reveal" id="contact" style="padding-top:0">
+    <div class="wrap">
+      <div class="final">
+        <p class="eyebrow" data-en="Start now" data-es="Empieza ahora">Start now</p>
+        <h2 data-en="Ready to book talent in the Riviera Maya?" data-es="¿Listo para reservar talento en la Riviera Maya?">Ready to book talent in the Riviera Maya?</h2>
+        <p data-en="Browse the roster or send one inquiry with your brief — a coordinator replies within ~24 hours. No account required to start." data-es="Explora el roster o envía una solicitud con tu brief — un coordinador responde en ~24 horas. No necesitas cuenta para empezar.">Browse the roster or send one inquiry with your brief — a coordinator replies within ~24 hours. No account required to start.</p>
+        <div class="fc">
+          <a href="directory.html" class="btn btn-gold" data-en="Explore Talent" data-es="Explorar Talento">Explore Talent</a>
+          <a href="directory.html" class="btn btn-outline" data-en="Start a Booking Inquiry" data-es="Iniciar una Reserva">Start a Booking Inquiry</a>
+        </div>
+        <p style="margin-top:1.6rem;font-size:.82rem;color:var(--faint)">
+          <span data-en="Prefer to talk? " data-es="¿Prefieres hablar? ">Prefer to talk? </span>
+          <a href="#" class="gold" style="font-weight:600">+52 984 000 0000</a>
+          <span data-en=" · hello@impronta.mx" data-es=" · hola@impronta.mx"> · hello@impronta.mx</span>
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════  FOOTER  ═══════════ -->
+<footer class="site">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="f-brand">
+        <div class="name">IMPRON<span>T</span>A</div>
+        <p data-en="A premium models &amp; image agency for the Riviera Maya. Curated talent, agency-coordinated bookings, local expertise from Cancún to Tulum." data-es="Una agencia premium de modelos e imagen para la Riviera Maya. Talento curado, reservas coordinadas por la agencia, experiencia local de Cancún a Tulum.">A premium models &amp; image agency for the Riviera Maya. Curated talent, agency-coordinated bookings, local expertise from Cancún to Tulum.</p>
+        <div class="social">
+          <a href="#" aria-label="Instagram">◎</a>
+          <a href="#" aria-label="Behance">Be</a>
+          <a href="#" aria-label="LinkedIn">in</a>
+          <a href="#" aria-label="WhatsApp">✆</a>
+        </div>
+      </div>
+      <div class="f-col">
+        <h5 data-en="Discover" data-es="Descubrir">Discover</h5>
+        <ul>
+          <li><a href="directory.html" data-en="All talent" data-es="Todo el talento">All talent</a></li>
+          <li><a href="#categories" data-en="Categories" data-es="Categorías">Categories</a></li>
+          <li><a href="directory.html" data-en="Models" data-es="Modelos">Models</a></li>
+          <li><a href="directory.html" data-en="Hosts &amp; Promoters" data-es="Anfitriones">Hosts &amp; Promoters</a></li>
+          <li><a href="directory.html" data-en="Content Creators" data-es="Creadores">Content Creators</a></li>
+        </ul>
+      </div>
+      <div class="f-col">
+        <h5 data-en="Agency" data-es="Agencia">Agency</h5>
+        <ul>
+          <li><a href="#why" data-en="About Impronta" data-es="Sobre Impronta">About Impronta</a></li>
+          <li><a href="#services" data-en="Locations" data-es="Ubicaciones">Locations</a></li>
+          <li><a href="#why" data-en="Services" data-es="Servicios">Services</a></li>
+          <li><a href="#contact" data-en="Start an inquiry" data-es="Iniciar solicitud">Start an inquiry</a></li>
+          <li><a href="#contact" data-en="Contact" data-es="Contacto">Contact</a></li>
+        </ul>
+      </div>
+      <div class="f-col">
+        <h5 data-en="Talent" data-es="Talento">Talent</h5>
+        <ul>
+          <li><a href="#talent" data-en="Apply as talent" data-es="Postúlate">Apply as talent</a></li>
+          <li><a href="#" data-en="Talent login" data-es="Acceso talento">Talent login</a></li>
+          <li><a href="#" data-en="Client sign in" data-es="Acceso clientes">Client sign in</a></li>
+          <li><a href="#talent" data-en="Why join" data-es="Por qué unirse">Why join</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="f-bottom">
+      <span>© 2026 Impronta — <span data-en="Models &amp; Talent, Riviera Maya." data-es="Modelos y Talento, Riviera Maya.">Models &amp; Talent, Riviera Maya.</span></span>
+      <div class="links">
+        <a href="#" data-en="Privacy" data-es="Privacidad">Privacy</a>
+        <a href="#" data-en="Terms" data-es="Términos">Terms</a>
+        <a href="#" data-en="Talent agreement" data-es="Acuerdo de talento">Talent agreement</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ───── Data ───── */
+  const CATS = [
+    {ic:"◑",en:"Models",es:"Modelos",de:"Editorial, runway, commercial & lifestyle.",ds:"Editorial, pasarela, comercial y lifestyle.",c:64},
+    {ic:"✦",en:"Hosts & Promoters",es:"Anfitriones y Promotores",de:"Brand ambassadors, hostesses, activation staff.",ds:"Embajadores, anfitrionas, staff de activación.",c:38},
+    {ic:"♪",en:"Performers",es:"Performers",de:"Dancers, DJs, live acts & entertainers.",ds:"Bailarines, DJs, actos en vivo y entretenimiento.",c:22},
+    {ic:"⌾",en:"Content Creators",es:"Creadores de Contenido",de:"UGC creators & social talent for campaigns.",ds:"Creadores UGC y talento social para campañas.",c:29},
+    {ic:"◈",en:"Event Talent",es:"Talento para Eventos",de:"Coordinators, MCs & on-site hospitality.",ds:"Coordinadores, MCs y hospitalidad en sitio.",c:18},
+    {ic:"▤",en:"Production Support",es:"Apoyo de Producción",de:"Photographers, crews & location scouting.",ds:"Fotógrafos, equipos y scouting de locaciones.",c:14},
+  ];
+  const TALENT = [
+    {n:"Sofía R.",t:"Editorial",l:"Tulum",fit:["Editorial","Runway"],feat:true},
+    {n:"Marco V.",t:"Host",l:"Cancún",fit:["Host","Events"],feat:false},
+    {n:"Lucía M.",t:"Runway",l:"Playa del Carmen",fit:["Runway","Beauty"],feat:true},
+    {n:"Diego A.",t:"Creator",l:"Riviera Maya",fit:["UGC","Lifestyle"],feat:false},
+    {n:"Camila S.",t:"Commercial",l:"Cancún",fit:["Commercial","Beauty"],feat:false},
+    {n:"Tomás E.",t:"Performer",l:"Tulum",fit:["Dance","Live"],feat:true},
+    {n:"Renata P.",t:"Editorial",l:"Playa del Carmen",fit:["Editorial"],feat:false},
+    {n:"Andrés N.",t:"Promoter",l:"Cancún",fit:["Promo","Events"],feat:false},
+  ];
+  const CITIES = [
+    {id:"cancun",n:"Cancún",en:"Hotel zone, resorts & brand activations",es:"Zona hotelera, resorts y activaciones",c:46},
+    {id:"playa",n:"Playa del Carmen",en:"Editorial, fashion & lifestyle shoots",es:"Editorial, moda y producciones lifestyle",c:38},
+    {id:"tulum",n:"Tulum",en:"Beach clubs, launches & creators",es:"Beach clubs, lanzamientos y creadores",c:27},
+    {id:"cozumel",n:"Cozumel",en:"Island productions & hospitality",es:"Producciones de isla y hospitalidad",c:9},
+  ];
+  let loc="en";
+  const T=(o)=> o["d"+(loc==="es"?"s":"e")] ?? o[loc] ?? o.en;
+  const ini=n=>n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+  /* ───── Render: categories ───── */
+  function renderCats(){
+    document.getElementById("catGrid").innerHTML = CATS.map(c=>`
+      <a class="cat" href="directory.html">
+        <div class="ic">${c.ic}</div>
+        <div>
+          <h3>${loc==="es"?c.es:c.en}</h3>
+          <p>${loc==="es"?c.ds:c.de}</p>
+        </div>
+        <div class="meta"><span>${c.c} ${loc==="es"?"talentos":"talent"}</span><span class="arr">→</span></div>
+      </a>`).join("");
+  }
+  /* ───── Render: featured talent ───── */
+  function renderTalent(){
+    document.getElementById("talentGrid").innerHTML = TALENT.map(p=>`
+      <article class="tcard ${p.feat?'feat':''}">
+        <div class="tphoto">
+          <div class="fig"></div><div class="mono">${ini(p.n)}</div><div class="vig"></div>
+          ${p.feat?`<span class="star">${loc==="es"?"Destacado":"Featured"}</span>`:''}
+          <button class="sv" title="Save" aria-label="Save">♥</button>
+        </div>
+        <div class="tbody">
+          <a class="tname" href="directory.html">${p.n}</a>
+          <p class="tsub">${p.t}<span class="dot">•</span>${p.l}</p>
+          <div class="tchips">${p.fit.map(f=>`<span class="tchip">${f}</span>`).join("")}</div>
+          <div class="row">
+            <a class="v" href="directory.html">${loc==="es"?"Ver perfil":"View profile"}</a>
+            <span class="i">${loc==="es"?"Solicitar":"Inquire"}</span>
+          </div>
+        </div>
+      </article>`).join("");
+    document.querySelectorAll(".sv").forEach(b=>b.addEventListener("click",e=>{
+      e.preventDefault();b.classList.toggle("on");
+    }));
+  }
+  /* ───── Render: city list ───── */
+  function renderCities(){
+    document.getElementById("cityList").innerHTML = CITIES.map(c=>`
+      <div class="city" data-city="${c.id}">
+        <div class="info"><h4>${c.n}</h4><p>${loc==="es"?c.es:c.en}</p></div>
+        <div class="cnt"><b>${c.c}</b><s>${loc==="es"?"talentos":"talent"}</s></div>
+      </div>`).join("");
+    bindMap();
+  }
+  /* ───── Map ↔ list interaction ───── */
+  function bindMap(){
+    const cities=[...document.querySelectorAll(".city")];
+    const pins=[...document.querySelectorAll(".pin")];
+    const set=id=>{
+      cities.forEach(c=>c.classList.toggle("active",c.dataset.city===id));
+      pins.forEach(p=>p.classList.toggle("active",p.dataset.city===id));
+    };
+    cities.forEach(c=>{
+      c.addEventListener("mouseenter",()=>set(c.dataset.city));
+      c.addEventListener("click",()=>location.href="directory.html");
+    });
+    pins.forEach(p=>{
+      p.addEventListener("mouseenter",()=>set(p.dataset.city));
+      p.addEventListener("click",()=>location.href="directory.html");
+    });
+  }
+
+  /* ───── Locale ───── */
+  function applyLocale(){
+    document.querySelectorAll("[data-en]").forEach(el=>{
+      const v=el.getAttribute("data-"+loc);
+      if(v!=null){ /<[a-z\/]/i.test(v)?el.innerHTML=v:el.textContent=v; }
+    });
+    document.querySelectorAll("[data-en-ph]").forEach(el=>{
+      const v=el.getAttribute("data-"+loc+"-ph"); if(v!=null)el.placeholder=v;
+    });
+    document.documentElement.lang=loc;
+    renderCats();renderTalent();renderCities();
+  }
+  document.getElementById("locale").addEventListener("click",e=>{
+    const b=e.target.closest("button[data-loc]"); if(!b)return;
+    loc=b.dataset.loc;
+    document.querySelectorAll("#locale button").forEach(x=>x.classList.toggle("active",x===b));
+    applyLocale();
+  });
+
+  /* ───── Mobile drawer ───── */
+  const drawer=document.getElementById("drawer");
+  document.getElementById("burger").addEventListener("click",()=>drawer.classList.add("open"));
+  drawer.addEventListener("click",e=>{ if(e.target.closest("[data-close]"))drawer.classList.remove("open"); });
+
+  /* ───── Header scroll state ───── */
+  const hdr=document.getElementById("hdr");
+  addEventListener("scroll",()=>hdr.classList.toggle("scrolled",scrollY>20),{passive:true});
+
+  /* ───── Reveal on scroll ───── */
+  const io=new IntersectionObserver(es=>es.forEach(x=>{
+    if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target);}
+  }),{rootMargin:"-60px"});
+  document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+
+  /* init */
+  renderCats();renderTalent();renderCities();
+</script>
+</body>
+</html>
