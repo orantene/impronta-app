@@ -1802,3 +1802,68 @@ client-render artifact — server HTML has each once (curl-verified).
 (false-positive fix) · `src/lib/site-admin/edit-mode/publish-preflight-link-rules.test.ts`
 (regression test) · this tracker. No component, schema, renderer, or
 theme code touched.
+
+---
+
+## Targeted Visual Refinement Pass 2 — Header + Hero + Top Fold (2026-05-18) — SHIPPED
+
+**Status:** committed + deployed + production-QA'd on improntamodels.com.
+
+**Brand duplication — root cause.** The `site_header` rendered BOTH the
+resolved logo image (the IMPRONTA asset, which itself contains the
+"IMPRONTA" wordmark + "AGENCIA DE MODELOS & IMAGEN" tagline) AND a
+separate `brand.label="Impronta"` text wordmark, stacked vertically by
+the editorial column CSS → a visually duplicated/blocky brand. The
+header was also oversized (logo `clamp(42–62px)`, generous padding/gaps)
+so it read as a section, not a thin shell.
+
+**`brandDisplay` option (reusable, opt-in).** New `site_header.schema`
+enum `brandDisplay: image | text | image-and-text`, default
+`image-and-text` (legacy behaviour preserved for every other tenant).
+Component renders image-only / text-only / both accordingly; Editor
+defaults + a render-test fixture updated for the new required-after-
+default field. Impronta config set to `brandDisplay:"image"` (the logo
+asset already includes the wordmark) → duplicate removed
+(SSR `site-header__brand-label`=0). Editorial header CSS tightened to a
+thin premium shell (logo `→clamp 32–44px`, inner padding `→9–14px`,
+reduced gaps). `standard/minimal/split` untouched; theme-token-driven.
+
+**Hero scale/padding refinement.** Root cause of the weak/compressed
+hero: it used the generic `SectionHead` H2 scale (`clamp 28–48px`) and
+P7's uniform `standard` section padding. Fix: scoped reusable CSS
+(editorial + centered layouts only) lifts the headline to H1 presence
+(`clamp 2.4–4rem`), contains the search bar (`max-width 44rem`), adds
+internal rhythm; controlled config bumped `hero_search`
+`presentation.paddingTop/Bottom: standard→airy` (revert = `standard`).
+Split-hero assessed — no change needed (already prototype-aligned from
+P3+P7; "only tune what is needed").
+
+**Commit:** `3bbea2724` — `feat(impronta): refine editorial header and
+hero` (5 files: site_header schema/Component/Editor, token-presets.css,
+node-presentation-render.test.ts). Pushed to `origin/phase-1`
+(`890a96ecc..3bbea2724`).
+
+**Deploy/build:** production `https://tulala-2iwxd8zx0-oran-tenes-projects.vercel.app`
+(via `deploy:promote`; migration drift clean 331/331; tulala.digital +
+app.tulala.digital re-aliased; `deploy:smoke` all checks passed).
+
+**Production QA — improntamodels.com (no-cookie SSR + visual):** PASS —
+brand NOT duplicated (`brand-label`=0, single logo), header
+`variant=editorial` thin/refined, editorial nav present, Start Inquiry
+present, hero `padding-top=airy` with H1-scale heading, search bar
+contained, chips + "28 represented talent" render, split-hero
+`card-stack`=1, **9 sections** (not 65), Featured Talent = Anto · Tina
+· Nalea · Lanco · Annher · Asia, 0 Cancún, 0 "Curated", 0 QA fixture,
+0 edit chrome.
+
+**Remaining visual-polish backlog (deferred — proposed, not built):**
+- Header social cluster (WhatsApp/IG/TikTok/phone) + separate
+  Saved/Inquiry badge buttons + 3-col `h-top` layout (prototype parity;
+  needs new reusable `site_header` structure — bigger lift).
+- `location_discovery` richer treatment (SVG map + preview panel) —
+  owner-deferred per Decision D; currently honest 3-card grid.
+- Final human pixel pass at true 390 / 834 widths (agent screenshot
+  tool captures fixed ~1512px regardless of resize).
+- Per-section rhythm fine-tuning beyond the uniform P7 `standard`.
+- Featured Talent media crop/treatment consistency (Lanco/Annher/Asia
+  use IMPRONTA-watermarked agency media — real, correctly attributed).
