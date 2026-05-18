@@ -36,7 +36,7 @@ import {
 } from "@/lib/site-admin/sections/registry";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
-import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 

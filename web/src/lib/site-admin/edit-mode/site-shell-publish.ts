@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Locale } from "@/i18n/config";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
-import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 
 export type ShellRepublishResult =
   | { ok: true; applied: true; sectionCount: number; pageVersion: number }

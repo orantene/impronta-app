@@ -5,7 +5,7 @@ import {
   buildLegacySectionBuilderTree,
   deriveLegacySectionChildNodes,
   isCompositionOwnedSectionType,
-} from "./legacy-section-tree";
+} from "./snapshot-slot-bridge";
 import {
   builderSectionNodeAddressKey,
   indexBuilderSectionChildNodes,

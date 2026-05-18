@@ -26,7 +26,7 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";
 import { verifyPreviewJwt } from "@/lib/site-admin/preview/jwt";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
-import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 
 import type { HomepageSnapshot } from "./homepage";
 import type { PageRevisionRow } from "./pages";

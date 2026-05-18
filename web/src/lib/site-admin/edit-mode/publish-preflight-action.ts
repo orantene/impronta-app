@@ -43,7 +43,7 @@ import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talen
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
-import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import {
   collectBuilderPerformanceIssues,
   collectBuilderPerformanceMetrics,

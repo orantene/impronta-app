@@ -2,7 +2,7 @@ import {
   buildLegacySectionBuilderTree,
   deriveLegacySectionChildNodes,
   type LegacySnapshotSlot,
-} from "./legacy-section-tree";
+} from "./snapshot-slot-bridge";
 import { BUILDER_NODE_REGISTRY } from "./registry";
 import { resolveBuilderNodeRole, type BuilderNodeRole } from "./role-bindings";
 import type { BuilderNode, BuilderNodeTree } from "./types";

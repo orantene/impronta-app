@@ -32,7 +32,7 @@ import {
   isLocale as isPlatformLocale,
   type Locale as PlatformLocale,
 } from "@/lib/site-admin/locales";
-import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";

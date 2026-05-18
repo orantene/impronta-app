@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { buildLegacySectionBuilderTree } from "./legacy-section-tree";
+import { buildLegacySectionBuilderTree } from "./snapshot-slot-bridge";
 import {
   buildBuilderNodeRoleBindings,
   resolveBuilderNodeRole,
@@ -680,7 +680,7 @@ test("style-panel role map covers every registered section type key", () => {
 test("legacy child-node derivation handles every registered section type key", () => {
   const legacyPath = path.resolve(
     process.cwd(),
-    "src/lib/site-admin/builder-node/legacy-section-tree.ts",
+    "src/lib/site-admin/builder-node/snapshot-slot-bridge.ts",
   );
   const source = readFileSync(legacyPath, "utf8");
   const handledKeys = [...source.matchAll(/slot\.sectionTypeKey === "([a-z0-9_]+)"/g)].map(

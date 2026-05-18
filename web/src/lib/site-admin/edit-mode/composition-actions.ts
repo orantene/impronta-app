@@ -67,7 +67,7 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import {
   buildLegacySectionBuilderTree,
   type LegacySnapshotSlot,
-} from "@/lib/site-admin/builder-node/legacy-section-tree";
+} from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import { enforceFreePlanNestedBuilderDraftGuard } from "@/lib/site-admin/server/free-plan-draft-save-guard";
 import { isShellMutationAllowedForPlan } from "@/lib/site-admin/edit-mode/shell-plan-guard";

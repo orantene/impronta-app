@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildLegacySectionBuilderTree } from "./legacy-section-tree";
+import { buildLegacySectionBuilderTree } from "./snapshot-slot-bridge";
 import { insertBuilderNode, moveBuilderNode } from "./operations";
 import { resolveSnapshotBuilderTreeForPublish } from "./snapshot-tree";
 import { siblingDropGapToMoveIndex } from "./sibling-drop-gap";

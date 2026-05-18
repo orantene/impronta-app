@@ -76,7 +76,7 @@ import type {
   HomepageSaveDraftValues,
 } from "@/lib/site-admin/forms/homepage";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
-import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import {
   resolveSnapshotBuilderTree,
   resolveSnapshotBuilderTreeForPublish,
