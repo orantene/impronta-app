@@ -29,6 +29,7 @@ import {
   removePortfolioPhoto,
   removeTalentFromRoster,
 } from "./extended-actions";
+import { CuratedCityField } from "./curated-city-field";
 import { PhotoLightbox } from "@/components/media/photo-lightbox";
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
@@ -610,11 +611,11 @@ export function LanguagesSection({
 
 // ─── Service areas editor ────────────────────────────────────────────────────
 
+// Canonical V1 service kinds only. Legacy frequent/occasional/
+// available_for_travel collapse to travel_to at the write layer.
 const SERVICE_KINDS = [
-  { value: "home_base",            label: "Home base",          desc: "Primary city. One per talent." },
-  { value: "frequent",             label: "Frequent",           desc: "Cities where they regularly work." },
-  { value: "occasional",           label: "Occasional",         desc: "Available with notice." },
-  { value: "available_for_travel", label: "Travel friendly",    desc: "Will travel for the right gig." },
+  { value: "home_base", label: "Home base",    desc: "Primary city. One per talent." },
+  { value: "travel_to", label: "Service city", desc: "A city the talent works in." },
 ];
 
 export function ServiceAreasSection({
@@ -630,36 +631,35 @@ export function ServiceAreasSection({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startMutation] = useTransition();
   const [adding, setAdding] = useState(false);
-  const [draftKind, setDraftKind] = useState("frequent");
-  const [draftCity, setDraftCity] = useState("");
+  const [draftKind, setDraftKind] = useState("travel_to");
+  const [draftLocationId, setDraftLocationId] = useState("");
+  const [draftCityLabel, setDraftCityLabel] = useState("");
   const [draftRadius, setDraftRadius] = useState("");
   const [draftFee, setDraftFee] = useState(false);
-  const [draftNotes, setDraftNotes] = useState("");
 
   const [validationError, setValidationError] = useState<string | null>(null);
   const handleAdd = useCallback(() => {
-    if (!draftCity.trim()) {
-      setValidationError("Add a city name.");
+    if (!draftLocationId) {
+      setValidationError("Pick a curated city.");
       return;
     }
     setValidationError(null);
     startMutation(async () => {
       await addTalentServiceArea(tenantSlug, talentId, {
         serviceKind: draftKind,
-        city: draftCity.trim(),
+        locationId: draftLocationId,
         travelRadiusKm: draftRadius ? Number(draftRadius) : undefined,
         travelFeeRequired: draftFee,
-        notes: draftNotes.trim() || undefined,
       });
       router.refresh();
       setAdding(false);
-      setDraftKind("frequent");
-      setDraftCity("");
+      setDraftKind("travel_to");
+      setDraftLocationId("");
+      setDraftCityLabel("");
       setDraftRadius("");
       setDraftFee(false);
-      setDraftNotes("");
     });
-  }, [tenantSlug, talentId, draftKind, draftCity, draftRadius, draftFee, draftNotes, router]);
+  }, [tenantSlug, talentId, draftKind, draftLocationId, draftRadius, draftFee, router]);
 
   const handleRemove = useCallback((id: string) => {
     setPendingId(id);
@@ -686,20 +686,19 @@ export function ServiceAreasSection({
           background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
           display: "grid", gap: 8,
         }}>
-          <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 130px", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 130px", gap: 8, alignItems: "start" }}>
             <select value={draftKind} onChange={(e) => setDraftKind(e.target.value)} style={inputStyle()}>
               {SERVICE_KINDS.map((k) => (
-                <option key={k.value} value={k.value}>
-                  {t(`admin.talent.edit.serviceAreas.kinds.${k.value === "available_for_travel" ? "travelFriendly" : k.value === "home_base" ? "homeBase" : k.value}`)}
-                </option>
+                <option key={k.value} value={k.value}>{k.label}</option>
               ))}
             </select>
-            <input
-              placeholder={t("admin.talent.edit.serviceAreas.cityPlaceholder")}
-              value={draftCity}
-              onChange={(e) => { setDraftCity(e.target.value); setValidationError(null); }}
-              aria-invalid={!!validationError}
-              style={inputStyle()}
+            <CuratedCityField
+              selectedLabel={draftCityLabel}
+              onPick={(c) => {
+                setDraftLocationId(c.id);
+                setDraftCityLabel(c.label);
+                setValidationError(null);
+              }}
             />
             <input
               type="number"
@@ -719,12 +718,6 @@ export function ServiceAreasSection({
               <input type="checkbox" checked={draftFee} onChange={(e) => setDraftFee(e.target.checked)} />
               {t("admin.talent.edit.serviceAreas.travelFee")}
             </label>
-            <input
-              placeholder={t("admin.talent.edit.serviceAreas.notesPlaceholder")}
-              value={draftNotes}
-              onChange={(e) => setDraftNotes(e.target.value)}
-              style={{ ...inputStyle(), flex: 1, minWidth: 180 }}
-            />
             <button type="button" onClick={handleAdd} style={btnPrimary(false)}>{t("admin.talent.edit.languages.addBtn").replace("+ ", "")}</button>
           </div>
         </div>
@@ -751,7 +744,7 @@ export function ServiceAreasSection({
                   fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
                   textTransform: "uppercase", flexShrink: 0,
                 }}>
-                  {kindMeta ? t(`admin.talent.edit.serviceAreas.kinds.${kindMeta.value === "available_for_travel" ? "travelFriendly" : kindMeta.value === "home_base" ? "homeBase" : kindMeta.value}`) : a.serviceKind}
+                  {kindMeta?.label ?? a.serviceKind}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.ink, flex: 1 }}>
                   {a.city ?? "—"}

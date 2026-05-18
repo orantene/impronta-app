@@ -66,6 +66,7 @@ import { useLiveTaxonomy, type LiveTaxonomyParent } from "./use-taxonomy";
 import { prefetchSkillsData, SkillSlotPanel } from "./skill-slot-panel";
 import { ContextSlotPanel, prefetchContextsData } from "./context-slot-panel";
 import { LanguageSlotPanel, prefetchLanguagesData } from "./language-slot-panel";
+import { LocationSlotPanel } from "./location-slot-panel";
 import { useDashboardText } from "./dashboard-i18n";
 import { MetricsRibbon } from "./metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./profile-store";
@@ -5597,6 +5598,11 @@ function TalentProfileShellDrawer() {
     // (admin commit + self ops) MUST skip languages here or its stale
     // `state.languages` would wipe the panel's edits via the replace RPC.
     const languagesOwnedByPanel = !!(bridgeTenantIdentity?.tenantId && tid);
+    // Same rule for canonical service areas: the LocationSlotPanel writes
+    // talent_service_areas independently, so the batched save must NOT
+    // also write the panel-owned location scalars (home base / radius /
+    // fee / remote-only) or it would race/clobber the canonical state.
+    const serviceAreasOwnedByPanel = !!(bridgeTenantIdentity?.tenantId && tid);
     const id = s.identity;
     const visibilityDraft = id.visibility;
     const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)
@@ -5776,6 +5782,7 @@ function TalentProfileShellDrawer() {
         },
         shell_sync_taxonomy: shellSyncTaxonomy,
         skip_languages: languagesOwnedByPanel,
+        skip_service_areas: serviceAreasOwnedByPanel,
         shell_primary_talent_slug: s.primaryType,
         shell_secondary_talent_slugs: s.secondaryTypes,
         shell_profile_status: s.profileStatus,
@@ -5835,7 +5842,18 @@ function TalentProfileShellDrawer() {
       updateSelfIdentity(identityPayload),
       updateSelfProfileDrawerExtras(profileDrawerExtrasPayload),
       updateSelfAbout(aboutPayload),
-      updateSelfLocation(locationPayload),
+      updateSelfLocation(
+        serviceAreasOwnedByPanel
+          ? {
+              ...locationPayload,
+              home_base: undefined,
+              home_place_id: undefined,
+              travel_radius_km: undefined,
+              travel_fee_required: undefined,
+              remote_only: undefined,
+            }
+          : locationPayload,
+      ),
       updateSelfRates(ratesPayload),
       updateSelfAvailability(availPayload),
       ...(languagesOwnedByPanel ? [] : [saveSelfLanguages(langsPayload)]),
@@ -7406,40 +7424,52 @@ function TalentProfileShellDrawer() {
               open={activeSection === "location"}
               onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
             >
-              <FieldRow label="Current location" catalogId="serviceArea.homeBase">
-                <CityAutocompleteInput
-                  value={state.serviceArea.homeBase}
-                  placeId={state.serviceArea.homePlaceId}
-                  placeholder="e.g. Playa del Carmen"
-                  onChange={(city, pid) => patch({ serviceArea: { ...state.serviceArea, homeBase: city, homePlaceId: pid } })}
-                />
-              </FieldRow>
-              <ServiceAreaMap
-                homeBase={state.serviceArea.homeBase}
-                travelKm={state.serviceArea.travelKm}
-                cities={(state.serviceArea.upcomingVisits ?? []).map(v => v.city)}
-              />
+              {payload.talentId && bridgeTenantIdentity?.tenantId ? (
+                // Real tenant: canonical Service-Area panel owns home base,
+                // service cities, travel radius/fee, remote-only — writes
+                // talent_service_areas (search/AI/cache-readable). The global
+                // save skips these (serviceAreasOwnedByPanel).
+                <LocationSlotPanel talentProfileId={payload.talentId} />
+              ) : (
+                <>
+                  <FieldRow label="Current location" catalogId="serviceArea.homeBase">
+                    <CityAutocompleteInput
+                      value={state.serviceArea.homeBase}
+                      placeId={state.serviceArea.homePlaceId}
+                      placeholder="e.g. Playa del Carmen"
+                      onChange={(city, pid) => patch({ serviceArea: { ...state.serviceArea, homeBase: city, homePlaceId: pid } })}
+                    />
+                  </FieldRow>
+                  <ServiceAreaMap
+                    homeBase={state.serviceArea.homeBase}
+                    travelKm={state.serviceArea.travelKm}
+                    cities={(state.serviceArea.upcomingVisits ?? []).map(v => v.city)}
+                  />
+                  <FieldRow label={`Travel radius — ${state.serviceArea.travelKm === 999 ? "Anywhere" : `${state.serviceArea.travelKm} km`}`}>
+                    <input type="range" min={10} max={999} step={10} value={state.serviceArea.travelKm}
+                      onChange={(e) => patch({ serviceArea: { ...state.serviceArea, travelKm: Number(e.target.value) } })}
+                      style={{ width: "100%", accentColor: COLORS.accent }}
+                    />
+                  </FieldRow>
+                  <FieldRow label="Travel fee" optional>
+                    <ToggleControl value={state.serviceArea.travelFee}
+                      onChange={(v) => patch({ serviceArea: { ...state.serviceArea, travelFee: v } })}
+                      label="Charge a travel fee outside the home area" />
+                  </FieldRow>
+                  <FieldRow label="Remote only" optional>
+                    <ToggleControl value={!!state.serviceArea.remoteOnly}
+                      onChange={(v) => patch({ serviceArea: { ...state.serviceArea, remoteOnly: v } })}
+                      label="Talent works remotely / online only" />
+                  </FieldRow>
+                </>
+              )}
+              {/* Visiting / Away (upcoming_visits) — deferred concern,
+                  unchanged, still written via the global save. */}
               <FieldRow label="Visiting / Away" hint="Add cities the talent will be visiting. Shown on their public page.">
                 <UpcomingVisitsEditor
                   visits={state.serviceArea.upcomingVisits ?? []}
                   onChange={(visits) => patch({ serviceArea: { ...state.serviceArea, upcomingVisits: visits } })}
                 />
-              </FieldRow>
-              <FieldRow label={`Travel radius — ${state.serviceArea.travelKm === 999 ? "Anywhere" : `${state.serviceArea.travelKm} km`}`}>
-                <input type="range" min={10} max={999} step={10} value={state.serviceArea.travelKm}
-                  onChange={(e) => patch({ serviceArea: { ...state.serviceArea, travelKm: Number(e.target.value) } })}
-                  style={{ width: "100%", accentColor: COLORS.accent }}
-                />
-              </FieldRow>
-              <FieldRow label="Travel fee" optional>
-                <ToggleControl value={state.serviceArea.travelFee}
-                  onChange={(v) => patch({ serviceArea: { ...state.serviceArea, travelFee: v } })}
-                  label="Charge a travel fee outside the home area" />
-              </FieldRow>
-              <FieldRow label="Remote only" optional>
-                <ToggleControl value={!!state.serviceArea.remoteOnly}
-                  onChange={(v) => patch({ serviceArea: { ...state.serviceArea, remoteOnly: v } })}
-                  label="Talent works remotely / online only" />
               </FieldRow>
 
               <div>

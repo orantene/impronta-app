@@ -459,6 +459,13 @@ export type CommitTalentProfileShellAdminInput = {
    *  edits with stale `state.languages`). The `languages` payload is
    *  ignored in that case. */
   skip_languages?: boolean;
+  /** When true, the canonical LocationSlotPanel owns service areas and the
+   *  panel-owned location scalars (home_city_text, home_place_id,
+   *  travel_radius_km, travel_fee_required, remote_only) must NOT be
+   *  written here — doing so would race/clobber the canonical
+   *  talent_service_areas state. Deferred location fields
+   *  (passport/license/work_eligibility/upcoming_visits) are unaffected. */
+  skip_service_areas?: boolean;
   /** When true, shell owns talent_type assignments (SkillSlotPanel inactive). */
   shell_sync_taxonomy?: boolean;
   shell_primary_talent_slug?: string | null;
@@ -503,11 +510,18 @@ export async function commitTalentProfileShellAdmin(
     bio_tone: about.bio_tone ?? null,
     personality_traits: about.personality_traits,
     tagline: about.tagline?.trim() || null,
-    home_city_text: loc.home_base?.trim() || null,
-    home_place_id: loc.home_place_id?.trim() || null,
-    travel_radius_km: loc.travel_radius_km ?? null,
-    travel_fee_required: loc.travel_fee_required ?? false,
-    remote_only: loc.remote_only ?? false,
+    // Panel-owned location scalars — skipped when the canonical
+    // LocationSlotPanel owns service areas (else this stale state would
+    // clobber talent_service_areas). Deferred fields below stay.
+    ...(input.skip_service_areas
+      ? {}
+      : {
+          home_city_text: loc.home_base?.trim() || null,
+          home_place_id: loc.home_place_id?.trim() || null,
+          travel_radius_km: loc.travel_radius_km ?? null,
+          travel_fee_required: loc.travel_fee_required ?? false,
+          remote_only: loc.remote_only ?? false,
+        }),
     passport_status: loc.passport_status ?? null,
     drivers_license: loc.drivers_license ?? null,
     work_eligibility: loc.work_eligibility ?? [],

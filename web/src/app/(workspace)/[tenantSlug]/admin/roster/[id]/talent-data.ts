@@ -261,11 +261,13 @@ export async function loadTalentServiceAreas(
   const admin = createServiceRoleClient();
   if (!admin) return [];
 
+  // Canonical read: resolve the city label from the curated `locations`
+  // join (the source of truth), not the legacy free-text `city` column.
   const { data, error } = await admin
     .from("talent_service_areas")
     .select(`
       id, service_kind, city, travel_radius_km, travel_fee_required, notes, display_order,
-      location_id
+      location_id, locations ( display_name_en, country_code )
     `)
     .eq("tenant_id", tenantId)
     .eq("talent_profile_id", talentProfileId)
@@ -285,17 +287,26 @@ export async function loadTalentServiceAreas(
     notes: string | null;
     display_order: number;
     location_id: string | null;
-  }>).map((r) => ({
-    id: r.id,
-    serviceKind: r.service_kind,
-    city: r.city,
-    region: null,
-    country: null,
-    travelRadiusKm: r.travel_radius_km,
-    travelFeeRequired: r.travel_fee_required,
-    notes: r.notes,
-    displayOrder: r.display_order,
-  }));
+    locations:
+      | { display_name_en: string | null; country_code: string | null }
+      | { display_name_en: string | null; country_code: string | null }[]
+      | null;
+  }>).map((r) => {
+    const loc = Array.isArray(r.locations) ? r.locations[0] : r.locations;
+    return {
+      id: r.id,
+      serviceKind: r.service_kind,
+      // Canonical label first; legacy free-text only as a last-resort
+      // fallback for any pre-conversion row (none expected).
+      city: loc?.display_name_en ?? r.city,
+      region: null,
+      country: loc?.country_code ?? null,
+      travelRadiusKm: r.travel_radius_km,
+      travelFeeRequired: r.travel_fee_required,
+      notes: r.notes,
+      displayOrder: r.display_order,
+    };
+  });
 }
 
 /**

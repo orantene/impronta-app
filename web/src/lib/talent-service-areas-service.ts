@@ -25,7 +25,66 @@ export type TalentServiceAreaInput = {
   displayOrder?: number;
 };
 
-export type ServiceAreaMutationResult = { ok: true } | { ok: false; error: string };
+/** A saved row resolved against `locations` — the server-truth shape the
+ *  editor reconciles to (same join search-talent / AI / the cache use). */
+export type ResolvedServiceArea = {
+  id: string;
+  location_id: string;
+  service_kind: ServiceKind;
+  city: string; // locations.display_name_en
+  country_code: string | null;
+  travel_radius_km: number | null;
+  travel_fee_required: boolean;
+  display_order: number;
+};
+
+export type ServiceAreaMutationResult =
+  | { ok: true; rows: ResolvedServiceArea[] }
+  | { ok: false; error: string };
+
+/** Read a profile's canonical service areas, resolved against `locations`. */
+export async function getTalentServiceAreas(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<ResolvedServiceArea[]> {
+  const { data, error } = await supabase
+    .from("talent_service_areas")
+    .select(
+      "id, location_id, service_kind, travel_radius_km, travel_fee_required, display_order, locations ( display_name_en, country_code )",
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .not("location_id", "is", null)
+    .order("display_order");
+  if (error) {
+    logServerError("talent-service-areas/get", error);
+    return [];
+  }
+  type Row = {
+    id: string;
+    location_id: string;
+    service_kind: ServiceKind;
+    travel_radius_km: number | null;
+    travel_fee_required: boolean;
+    display_order: number;
+    locations:
+      | { display_name_en: string | null; country_code: string | null }
+      | { display_name_en: string | null; country_code: string | null }[]
+      | null;
+  };
+  return ((data ?? []) as unknown as Row[]).map((r) => {
+    const loc = Array.isArray(r.locations) ? r.locations[0] : r.locations;
+    return {
+      id: r.id,
+      location_id: r.location_id,
+      service_kind: r.service_kind,
+      city: loc?.display_name_en ?? "",
+      country_code: loc?.country_code ?? null,
+      travel_radius_km: r.travel_radius_km,
+      travel_fee_required: r.travel_fee_required,
+      display_order: r.display_order,
+    };
+  });
+}
 
 /**
  * Replace the full set of service-area rows for a profile.
@@ -96,7 +155,7 @@ export async function setTalentServiceAreas(
     }
   }
 
-  return { ok: true };
+  return { ok: true, rows: await getTalentServiceAreas(supabase, params.talentProfileId) };
 }
 
 export async function removeTalentServiceArea(
@@ -114,5 +173,5 @@ export async function removeTalentServiceArea(
     logServerError("talent-service-areas/remove", error);
     return { ok: false, error: "Could not remove service area." };
   }
-  return { ok: true };
+  return { ok: true, rows: await getTalentServiceAreas(supabase, params.talentProfileId) };
 }

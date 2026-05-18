@@ -465,6 +465,66 @@ async function searchLocalCities(query: string, countryIso2: string): Promise<Ci
   });
 }
 
+/**
+ * Global curated-city search — NO country pre-filter. Searches the whole
+ * curated `locations` table by city/slug so the editor can offer a single
+ * "type a city" autocomplete (no country-first step). Returns curated
+ * `locations.id` only (the canonical FK) — never Google/free-text.
+ */
+export async function searchCuratedCitiesGlobal(
+  query: string,
+): Promise<CitySuggestion[]> {
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return [];
+
+  let builder = supabase
+    .from("locations")
+    .select(
+      "id, city_slug, display_name_en, display_name_es, latitude, longitude, countries!locations_country_id_fkey(iso2, name_en, name_es)",
+    )
+    .eq("active", true)
+    .is("archived_at", null)
+    .order("display_name_en")
+    .limit(20);
+
+  const q = query.trim();
+  if (q) {
+    const escaped = q.replace(/[%_]/g, "");
+    builder = builder.or(
+      `display_name_en.ilike.%${escaped}%,display_name_es.ilike.%${escaped}%,city_slug.ilike.%${escaped}%`,
+    );
+  }
+
+  const { data } = await builder;
+  return ((data ?? []) as Array<{
+    id: string;
+    city_slug: string;
+    display_name_en: string;
+    display_name_es: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    countries:
+      | { iso2: string; name_en: string; name_es: string | null }
+      | { iso2: string; name_en: string; name_es: string | null }[]
+      | null;
+  }>).map((row) => {
+    const country = Array.isArray(row.countries)
+      ? row.countries[0] ?? null
+      : row.countries;
+    return {
+      id: row.id,
+      slug: row.city_slug,
+      name_en: row.display_name_en,
+      name_es: row.display_name_es,
+      lat: row.latitude,
+      lng: row.longitude,
+      country_iso2: country?.iso2?.toUpperCase() ?? "",
+      country_name_en: country?.name_en ?? "",
+      country_name_es: country?.name_es ?? null,
+    };
+  });
+}
+
 async function searchExternalCountries(query: string): Promise<CountrySuggestion[]> {
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("format", "jsonv2");

@@ -12,6 +12,12 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  getTalentServiceAreas,
+  setTalentServiceAreas,
+  type ServiceKind,
+  type TalentServiceAreaInput,
+} from "@/lib/talent-service-areas-service";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -292,66 +298,72 @@ export async function removeTalentLanguage(
 
 // ─── Service areas ────────────────────────────────────────────────────────────
 
+// Canonical: NO free-text city rows. The caller passes a curated
+// locations.id; legacy service_kind values collapse to the canonical set
+// (home_base | travel_to). Routed through the same setTalentServiceAreas
+// the drawer uses (read current → desired set → upsert+prune), so the
+// full-page editor and the drawer can no longer diverge.
+function toCanonicalKind(k: string): ServiceKind {
+  return k === "home_base" ? "home_base" : "travel_to";
+}
+
 export async function addTalentServiceArea(
   tenantSlug: string,
   talentId: string,
   input: {
-    serviceKind: "home_base" | "frequent" | "occasional" | "available_for_travel" | string;
-    city?: string;
+    serviceKind: "home_base" | "frequent" | "occasional" | "available_for_travel" | "travel_to" | string;
+    /** Curated locations.id — required. No free text. */
+    locationId: string;
     travelRadiusKm?: number;
     travelFeeRequired?: boolean;
-    notes?: string;
   },
-): Promise<Result<{ id: string }>> {
+): Promise<Result<null>> {
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
     if (!(await rosterMatch(r.admin, r.scope.tenantId, talentId))) {
       return { ok: false, error: "Talent not on this roster." };
     }
-
-    // Only one home_base per talent — promote.
-    if (input.serviceKind === "home_base") {
-      await r.admin
-        .from("talent_service_areas")
-        .update({ service_kind: "frequent" })
-        .eq("tenant_id", r.scope.tenantId)
-        .eq("talent_profile_id", talentId)
-        .eq("service_kind", "home_base");
+    if (!input.locationId) {
+      return { ok: false, error: "Pick a curated location." };
     }
 
-    const { data: maxRow } = await r.admin
-      .from("talent_service_areas")
-      .select("display_order")
-      .eq("tenant_id", r.scope.tenantId)
-      .eq("talent_profile_id", talentId)
-      .order("display_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const nextOrder = ((maxRow as { display_order: number } | null)?.display_order ?? 0) + 1;
+    const kind = toCanonicalKind(input.serviceKind);
 
-    const { data, error } = await r.admin
-      .from("talent_service_areas")
-      .insert({
-        tenant_id: r.scope.tenantId,
-        talent_profile_id: talentId,
-        service_kind: input.serviceKind,
-        city: input.city ?? null,
-        travel_radius_km: input.travelRadiusKm ?? null,
-        travel_fee_required: input.travelFeeRequired ?? false,
-        notes: input.notes ?? null,
-        display_order: nextOrder,
-      })
-      .select("id")
-      .single();
+    // Build the desired set from the CURRENT canonical rows + the new one.
+    const current = await getTalentServiceAreas(r.admin, talentId);
+    const desired: TalentServiceAreaInput[] = current
+      // Adding a home_base replaces any existing home_base (max-1).
+      .filter((row) => !(kind === "home_base" && row.service_kind === "home_base"))
+      // Skip an exact duplicate (same location + same kind).
+      .filter((row) => !(row.location_id === input.locationId && row.service_kind === kind))
+      .map((row) => ({
+        locationId: row.location_id,
+        serviceKind: row.service_kind,
+        travelRadiusKm: row.travel_radius_km,
+        travelFeeRequired: row.travel_fee_required,
+        displayOrder: row.display_order,
+      }));
+    desired.push({
+      locationId: input.locationId,
+      serviceKind: kind,
+      travelRadiusKm: input.travelRadiusKm ?? null,
+      travelFeeRequired: input.travelFeeRequired ?? false,
+      displayOrder: desired.length,
+    });
 
-    if (error || !data) {
-      logServerError("roster.addTalentServiceArea", error);
-      return { ok: false, error: "Could not add service area." };
+    const res = await setTalentServiceAreas(r.admin, {
+      talentProfileId: talentId,
+      tenantId: r.scope.tenantId,
+      rows: desired,
+    });
+    if (!res.ok) {
+      logServerError("roster.addTalentServiceArea", res.error);
+      return { ok: false, error: res.error };
     }
 
     refresh(tenantSlug, talentId);
-    return { ok: true, data: { id: (data as { id: string }).id } };
+    return { ok: true };
   } catch (err) {
     logServerError("roster.addTalentServiceArea", err);
     return { ok: false, error: "Unexpected error." };
