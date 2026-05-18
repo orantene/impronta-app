@@ -225,6 +225,7 @@ export async function SiteHeaderComponent({
 }: SectionComponentProps<SiteHeaderV1>) {
   const {
     brand,
+    brandDisplay,
     navItems,
     primaryCta,
     sticky,
@@ -239,6 +240,9 @@ export async function SiteHeaderComponent({
     tenantId,
     brandLogoUrl: brand.logoUrl,
   });
+  const bd = brandDisplay ?? "image-and-text";
+  const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
+  const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;
   const showAccount = authArea?.showAccountMenu ?? true;
   const showLanguage = authArea?.showLanguageToggle ?? true;
   const showDiscovery = authArea?.showDiscoveryTools ?? true;
@@ -275,7 +279,7 @@ export async function SiteHeaderComponent({
       {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
       <div className="site-header__inner">
         <a className="site-header__brand" href={brandHref}>
-          {brandLogoUrl ? (
+          {showBrandImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               className="site-header__brand-mark"
@@ -285,7 +289,7 @@ export async function SiteHeaderComponent({
               decoding="sync"
             />
           ) : null}
-          {brand.label ? (
+          {showBrandText && brand.label ? (
             <span
               className="site-header__brand-label"
               data-builder-node-id={nodeIdsByRole?.headline}

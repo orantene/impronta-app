@@ -3871,6 +3871,27 @@ a.site-prim-chip:hover { border-color: var(--token-color-primary, #1a1a1a); colo
 [data-section-background="espresso"] .site-hero-search__hl {
   color: #f6f1ea;
 }
+/* Editorial / centered hero presence — lift the headline from generic
+ * H2 scale toward true hero H1, contain the search bar to a refined
+ * width, and give the composition a touch more internal rhythm.
+ * Reusable + scoped to the prominent layouts; split/minimal untouched. */
+.site-hero-search[data-hs-layout="editorial"] .site-prim-head__headline,
+.site-hero-search[data-hs-layout="centered"] .site-prim-head__headline {
+  font-size: var(--token-typography-h1-size, clamp(2.4rem, 5.2vw, 4rem));
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+.site-hero-search[data-hs-layout="editorial"] .site-hero-search__inner,
+.site-hero-search[data-hs-layout="centered"] .site-hero-search__inner {
+  gap: clamp(20px, 2.8vw, 34px);
+  max-width: 60rem;
+  margin-inline: auto;
+}
+.site-hero-search[data-hs-layout="editorial"] .site-hero-search__searchwrap > *,
+.site-hero-search[data-hs-layout="centered"] .site-hero-search__searchwrap > * {
+  width: 100%;
+  max-width: 44rem;
+}
 
 /* ── location_discovery (P1) — token-driven, theme-neutral ── */
 .site-locdisc { padding-block: var(--site-section-y); }
@@ -4212,25 +4233,25 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="editorial"] .site-header__inner {
   flex-direction: column;
   align-items: center;
-  gap: clamp(8px, 1vw, 14px);
-  padding-block: clamp(16px, 2.2vw, 26px) clamp(10px, 1.4vw, 16px);
+  gap: clamp(5px, 0.7vw, 9px);
+  padding-block: clamp(9px, 1.2vw, 14px) clamp(7px, 0.9vw, 11px);
   flex-wrap: nowrap;
 }
 .site-header[data-variant="editorial"] .site-header__brand {
   flex-direction: column;
-  gap: 8px;
+  gap: 3px;
   text-align: center;
 }
 .site-header[data-variant="editorial"] .site-header__brand-mark {
   width: auto;
-  height: clamp(42px, 5vw, 62px);
+  height: clamp(32px, 3.4vw, 44px);
 }
 .site-header[data-variant="editorial"] .site-header__brand-label {
   font-family: var(--site-heading-font, "Cinzel", serif);
   font-weight: 600;
-  font-size: clamp(1.45rem, 3vw, 2.15rem);
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;
+  font-size: clamp(1.15rem, 2.3vw, 1.7rem);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
   text-transform: uppercase;
   line-height: 1;
   color: var(--token-color-accent, var(--token-color-ink));

@@ -44,6 +44,16 @@ export const siteHeaderSchemaV1 = z.object({
     /** href for the brand mark (default: site root `/`). */
     href: z.string().max(500).default("/"),
   }),
+  /**
+   * Which brand elements render. `image-and-text` (default) preserves
+   * legacy behaviour (logo image + text label when both present).
+   * `image` = logo asset only (use when the logo already contains the
+   * wordmark — avoids a duplicate stacked wordmark). `text` = wordmark
+   * only. Reusable, tenant-agnostic.
+   */
+  brandDisplay: z
+    .enum(["image", "text", "image-and-text"])
+    .default("image-and-text"),
   /** Primary navigation. */
   navItems: z.array(linkSchema).max(8).default([]),
   /** Optional primary CTA at the right of the header. */

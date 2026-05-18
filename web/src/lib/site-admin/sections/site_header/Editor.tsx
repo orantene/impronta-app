@@ -22,6 +22,7 @@ export function SiteHeaderEditor({
 }: SectionEditorProps<SiteHeaderV1>) {
   const value: SiteHeaderV1 = {
     brand: initial.brand ?? { href: "/" },
+    brandDisplay: initial.brandDisplay ?? "image-and-text",
     navItems: initial.navItems ?? [],
     primaryCta: initial.primaryCta,
     sticky: initial.sticky ?? true,
