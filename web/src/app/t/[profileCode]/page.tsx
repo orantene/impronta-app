@@ -36,6 +36,7 @@ import {
   getCachedServerSupabase,
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import {
   formatCityCountryLabel,
   resolveResidenceLocationEmbed,
@@ -357,6 +358,7 @@ async function fetchPublicFieldValues(
     display_order: number | null;
     field_group_id: string | null;
     admin_only: boolean | null;
+    is_sensitive: boolean | null;
     show_in_public: boolean | null;
     default_visibility: string[] | null;
     deprecated_at: string | null;
@@ -383,7 +385,7 @@ async function fetchPublicFieldValues(
       workflow_state,
       profile_field_definitions (
         field_key, label, kind, options, display_order, field_group_id,
-        admin_only, show_in_public, default_visibility, deprecated_at,
+        admin_only, is_sensitive, show_in_public, default_visibility, deprecated_at,
         profile_field_groups ( sort_order, slug )
       )
     `,
@@ -399,14 +401,24 @@ async function fetchPublicFieldValues(
       : row.profile_field_definitions;
     if (!def) continue;
     if (def.deprecated_at) continue;
-    if (def.admin_only) continue;
 
-    const effective =
-      row.visibility_override && row.visibility_override.length > 0
-        ? row.visibility_override
-        : (def.default_visibility ?? []);
-    const isPublic = effective.includes("public") || def.show_in_public === true;
-    if (!isPublic) continue;
+    // Phase 1.5 — public safety via the SINGLE shared visibility
+    // primitive (same truth the editor/resolver use). Guarantees
+    // admin_only AND is_sensitive (platform floor) and any value-level
+    // visibility_override (narrow-only) can never leak publicly. Tenant
+    // workspace override on the public surface is the deeper Phase 3
+    // resolver-gate (deliberately not ballooned here), so tenant=null.
+    const vis = effectiveFieldVisibility(
+      {
+        default_visibility: def.default_visibility,
+        admin_only: def.admin_only,
+        is_sensitive: def.is_sensitive,
+        show_in_public: def.show_in_public,
+      },
+      null,
+      row.visibility_override,
+    );
+    if (vis !== "public") continue;
 
     // Split jsonb value into the typed columns the renderer expects.
     const v = row.value;
