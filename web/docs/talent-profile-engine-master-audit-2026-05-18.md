@@ -292,14 +292,39 @@ Engine integrity is **clean** (no orphans/dupes/deprecated-leaks). The issues ar
 
 ## 18. Recommended Implementation Roadmap
 
-- **Phase 0 (security hotfix, separate):** scope-correct `media-originals` RLS (owner/tenant/path predicate; drop or supersede the broad authenticated policies). Migration. Highest urgency; not part of catalog phase.
+- **Phase 0 — Security hotfix (separate, urgent):** scope-correct `media-originals` RLS (owner/tenant/path predicate; drop/supersede the broad authenticated policies). Migration. Not part of the catalog phase.
 - **Phase 1 — Make Field Privacy real:** server actions `getWorkspaceFieldSettings` / `setWorkspaceFieldVisibility` (RLS-ready), one shared pure `effectiveVisibility()`, wire `FieldPrivacyDrawer`, `revalidateTag`. No migration. **Lowest risk; highest leverage.**
-- **Phase 2 — Field Catalog MVP real:** enable/disable/relabel/required + group settings; lock deferred items (no fake buttons).
+- **Phase 2 — Make Field Catalog MVP real:** enable/disable, relabel, helper, required, group settings; lock deferred items (no fake buttons).
 - **Phase 3 — Resolver-gate public profile:** extract shared resolver core; repoint `/t/[profileCode]`; preserve values, gate render.
-- **Phase 4 — Agency Fields truth preview:** source attribution + visibility/required + "view as" modes.
-- **Phase 5 — Talent editor IA cleanup:** converge the dual resolver; address split-brain/dual-store (per `feedback_admin_editor_field_layout` + editor-IA backlog).
-- **Phase 6 — Discover canonical alignment:** migrate facets/search to canonical (own phase).
-- **Phase 7 — Custom fields (future):** platform-governed, tier-gated.
+- **Phase 4 — Agency Fields truth preview:** read-only transparency panel — source attribution + visibility/required + "view as" modes.
+- **Phase 5 — Converge split-brain storage:** one canonical talent value store; migrate specialties/skills/contexts/refinement off legacy `field_values`; collapse the dual resolver (`getFieldsForTalentAsTalent`) + dual-store (languages/service-area/height_cm) into one shared core.
+- **Phase 6 — Discover/search canonical alignment:** facets/search read canonical `talent_profile_field_values` through the shared visibility core (own phase).
+- **Phase 7 — SaaS operations layer:** audit logs across catalog/privacy/category changes, reset-to-platform-default, plan-tier gating wired to the plan catalog, tenant-scoped cache strategy.
+- **Phase 8 — Custom fields (future):** platform-governed, tenant-scoped, tier-gated.
+- **Phase 9A — Read-Only Platform Catalog Map:** platform-admin-only inspection of the full engine — taxonomy tree, field groups/assignments, global vs category-specific, visibility/required defaults, fixed-vs-dynamic, workspace adoption + field-usage intelligence, and risk warnings. **No mutation.**
+- **Phase 9B — Editable Platform Catalog Studio:** platform-admin governed redesign — draft/preview-impact/publish/rollback, deprecate-not-delete, safe relabel/reassign/replace, override-aware. Gated behind Phases 0–7.
+
+### Phase 9 — Platform Admin Catalog Studio (expanded spec)
+
+**Audience:** Tulala **platform admin only** — *not* agencies/studios/hubs/talents. This is the global engine-governance layer above all tenant overrides. It becomes Tulala's **catalog governance intelligence system**, not a settings page.
+
+**Product goal:** one smart map of the entire talent catalog engine so platform admin can review, understand impact, and eventually safely redesign without guessing or breaking tenants. For any field (e.g. `height`): is it global or type-specific? which talent types/categories pull it in? which workspaces (agency/studio/hub/free) and how many talent profiles have a value? public? required? in Discover/AI/verification? any tenant overrides? what breaks if it changes?
+
+**Phase 9A — Read-Only Platform Catalog Map (build first):**
+- **Catalog map:** parent_category → category_group → talent_type → field groups → resolved fields; universal/global vs category-specific; public/admin-only/hidden/sensitive/required; fixed-schema vs dynamic. Answers "if a talent is this type, what does Tulala ask for and why?"
+- **Workspace usage intelligence:** per talent-type/category/field/group — counts by workspace type (agency/studio/hub/free) and plan (Free/Studio/Agency/Network), total talents, public vs hidden, active vs inactive; expandable to actual workspace names (name · type · plan · talent count · public profiles · last active).
+- **Field usage intelligence:** per field — talents with a value, workspaces/agencies/studios/hubs using it, public-displaying count, override count, which talent types/categories caused it, global vs category-specific, fixed vs dynamic; expandable type + workspace tables.
+- **Filters/analytics:** workspace type, plan, parent category, talent type, group, field, visibility, required, has-override, has-values, used-in-public/Discover/AI, deprecated/active, duplicate/conflict, high/low usage, last updated/used (e.g. "fields used by >100 talents", "fields no workspace uses", "public + sensitive", "types enabled but zero talents", "all fields overridden by Impronta").
+- **Risk warnings:** duplicate/unused/deprecated/unsafe/over-broad assignments; "risky to change" flags (many workspaces depend on it).
+- **No mutation, no delete, no publish.** Visibility + intelligence only. Reuses the canonical resolver + DB introspection; **never a second engine.**
+
+**Phase 9B — Editable Platform Catalog Studio (build later).** Prerequisites (hard gate): private files secure (Phase 0), Field Privacy real (1), Field Catalog MVP real (2), public resolver-gated (3), Discover canonical/aligned (6), audit logging + reliable cache invalidation (7). Capabilities (all governed): relabel, help text, default visibility/required, mark sensitive/admin-only, move field between groups, (re)assign to parent/group/talent-type, deprecate, create replacement/new platform field, review tenant overrides — each behind a **draft → impact preview → publish → rollback** flow with full audit. **Never delete values; deprecate, never destroy; always preserve data.**
+
+**Impact preview (mandatory before any 9B edit):** show affected talent types / workspaces / talent profiles / public-displaying count / agency-studio-hub usage / Discover+public usage / override count / duplicates — then choose save-draft / publish / deprecate / create-replacement / cancel.
+
+**Relationship to agency controls (the boundary):** Platform = the global engine (which fields exist, sensitive/admin-only hard floors, default assignments, category/type recommendations, global fields, groups, search/AI/verification flags). Agency = tenant overrides *inside allowed boundaries* only (hide/restrict/relabel/require/enable per plan). Agency **cannot** make sensitive fields public, redefine reserved fixed fields, or create global fields. Phase 9 governs the platform side; Phases 1–2 govern the tenant side; both read the same engine.
+
+**Sequencing rule:** add to the plan, **do not build before the safety/core phases**. Urgent order is unchanged: Phase 0 → 1 → 2 → 3. Phase 9A is high-value, low-risk (read-only) and can follow once the core is stable; 9B only after 0–7.
 
 ## 19. Acceptance Criteria (next phase, Phase 1)
 
