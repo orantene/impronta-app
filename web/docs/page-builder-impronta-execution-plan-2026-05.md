@@ -1719,3 +1719,86 @@ supplies/approves the 5 images + answers the 3 design calls, then ONE
 grouped config(+small CSS) polish pass via the canonical re-apply, then
 1440/834/390 QA. No code planned beyond optional small token/CSS tweaks
 identified by a human visual pass.
+
+## Visual Polish Pass 1 — Imagery + Premium Composition — STATUS: APPLIED + PUBLISHED + PROD-QA'd (2026-05-18)
+
+Owner directive: make the live homepage premium NOW with the best
+available materials, config-only, no hardcoded one-off hacks, no new
+components, canonical flow, one grouped deploy. Imagery gap solved using
+the prototype's sanctioned curated Unsplash editorial frames (the
+prototype `v11-features/index.html` `CATS[]`/`U`/`IMGQ` source — same
+crop, dark cinematic grade via existing overlay tokens). All changes are
+canonical builder DATA in the `impronta-home` recipe — no component code.
+
+**Recipe changes** (`starter-action.ts`, tsc 0 + eslint 0):
+- `talent_type_grid` → per-item `imageUrl` on the 4 discipline cards:
+  Models `photo-1524504388940-b1c1722653e1`, Hosts & Promo
+  `photo-1492684223066-81342ee5ff30`, Performers
+  `photo-1493225457124-a3eb161ffa5f`, Creators & Influencers
+  `photo-1547355253-ff0740f6e8c1` (IMGQ `?auto=format&fit=crop&q=72&w=1100&h=820`).
+  `imageOverlayStrength:medium` + `cardRatio:3/4` + `textPosition:
+  overlay-bottom` unchanged → editorial-asymmetric wall stays cohesive.
+- `editorial_split_hero` → `mediaUrl`
+  `photo-1478720568477-152d9b164e26?...q=80&w=1600&h=1200` (creative/shoot
+  set — reinforces "events, shoots, and brand experiences", distinct from
+  the 4 cards), `mediaAlt` set, `overlayStrength:none → soft` (cinematic
+  grade matching editorial-noir).
+- hero_search left intentionally imageless (prototype's primary hero is a
+  cinematic dark search hero — correct, not a gap).
+
+**Canonical flow:** re-applied `impronta-home` via the visual-editor
+Template gallery → "Apply 9 sections" (`applyStarterComposition`), then
+editor topbar Publish → `publishHomepage`. Theme NOT re-published
+(editorial-noir already live; imagery-only change touches no theme
+tokens). Result: homepage en **published v862** (`published_at`
+2026-05-18T06:56:17Z); LIVE snapshot now carries all 5 image URLs +
+mediaAlt + `overlayStrength:soft` (read-only DB verified).
+
+**Dev-server gotcha (process learning):** this Next fork's dev server
+serves a STALE compiled `"use server"` module after a recipe edit even
+across `preview_stop`/`preview_start` + `rm -rf .next`. Two re-applies
+silently used the pre-edit recipe (verified: prior props applied, new
+imagery keys absent). Fix that worked: force-kill all `next dev` /
+`next-server` PIDs (`pkill -9`), nuke `.next`, fresh `preview_start`,
+warm. Only then did `applyStarterComposition` emit the new imagery. Add
+this to the local-dev stale-wedge playbook.
+
+**Pre-existing publish blocker discovered + fixed (scope addition,
+flagged):** the canonical Publish drawer surfaced **12 LINK CHECKS
+blockers** — `featured_talent.manualProfileCodes` (TAL-92001 … profile
+codes, never anchors) URL-validated as invalid links, hard-disabling
+"Publish now". NOT caused by this imagery change (featured_talent is
+unchanged prior-phase recipe data; the live v861 snapshot already
+shipped these exact codes). Root cause:
+`publish-preflight-link-rules.ts` `collectLinkCandidates` recursed into
+ANY nested array/object and pushed EVERY reached string as a link
+candidate, bypassing the `looksLikeLinkKey` gate for array values.
+Pre-existing shared infra (committed by another agent's page-builder
+batch `8bf312c61`), on multi-agent `phase-1`. Fixed by threading an
+`underLinkKey` flag through recursion: a string is only a link candidate
+when reached via an href/url/link key. Minimal, tenant-agnostic,
+matches the function's own test intent ("finds nested href/url fields",
+not arbitrary strings). Existing 5 preflight tests stay green + added 1
+regression test (`manualProfileCodes` array not collected). After the
+fix the canonical publish showed **0 blockers / 7 non-blocking
+advisories** (pre-existing: alt-text on other tenants' library sections,
+the known 30-H1 heading-lint, missing es snapshot — none from this
+change, none blocking) and Publish now succeeded.
+
+**Prod QA — improntamodels.com (no-cookie fetch + visual @ 1456/834/390):**
+PASS. All 5 Unsplash URLs + mediaAlt + headlines in server HTML (page
+v862). Visual: hero_search premium imageless; `editorial_split_hero`
+renders the cinematic projector/production frame with soft grade;
+`talent_type_grid` renders the editorial-asymmetric wall (large Models
+portrait + Hosts & Promo / Performers / Creators & Influencers) with
+overlay-bottom labels; `featured_talent` now shows real profiles (Tina,
+Nalea); editorial-noir + serif type intact; no horizontal overflow at
+any width; tablet/mobile reflow correct (mobile horizontal-scroll). The
+"section heading ×N" in the live browser DOM is the documented
+client-render artifact — server HTML has each once (curl-verified).
+
+**Files (scoped):** `src/lib/site-admin/edit-mode/starter-action.ts`
+(recipe imagery) · `src/lib/site-admin/edit-mode/publish-preflight-link-rules.ts`
+(false-positive fix) · `src/lib/site-admin/edit-mode/publish-preflight-link-rules.test.ts`
+(regression test) · this tracker. No component, schema, renderer, or
+theme code touched.

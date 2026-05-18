@@ -301,8 +301,16 @@ const RECIPES: Record<string, Recipe> = {
           body: "Impronta helps clients discover and request agency-managed talent across Playa del Carmen, Tulum, and the Riviera Maya.",
           primaryCta: { label: "Explore Talent", href: "/directory" },
           mediaMode: "static",
+          // Editorial/creative-shoot frame (sanctioned prototype Unsplash
+          // source). Reinforces "events, shoots, and brand experiences"
+          // and is distinct from the four discipline cards below. Swap to
+          // licensed Impronta photography via the Page Builder later — no
+          // code change needed.
+          mediaUrl:
+            "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=80&w=1600&h=1200",
+          mediaAlt: "Creative team on a premium editorial production set",
           mediaRatio: "4/3",
-          overlayStrength: "none",
+          overlayStrength: "soft",
           mediaSide: "right",
           mobileOrder: "text-first",
         },
@@ -320,11 +328,37 @@ const RECIPES: Record<string, Recipe> = {
           // Music & DJs, Photo/Video & Creative removed for now — no
           // ready public roster; do not over-promise. Re-add per category
           // as real site-visible talent exist.
+          // Category cover imagery mirrors the prototype's curated
+          // editorial/lifestyle frames (sanctioned Unsplash CDN source,
+          // exact prototype crop). Cinematic grade comes from
+          // imageOverlayStrength below so the wall stays cohesive. Swap to
+          // licensed Impronta photography per card via the Page Builder
+          // later — no code change needed.
           items: [
-            { label: "Models", href: "/directory" },
-            { label: "Hosts & Promo", href: "/directory" },
-            { label: "Performers", href: "/directory" },
-            { label: "Creators & Influencers", href: "/directory" },
+            {
+              label: "Models",
+              href: "/directory",
+              imageUrl:
+                "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1100&h=820",
+            },
+            {
+              label: "Hosts & Promo",
+              href: "/directory",
+              imageUrl:
+                "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1100&h=820",
+            },
+            {
+              label: "Performers",
+              href: "/directory",
+              imageUrl:
+                "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1100&h=820",
+            },
+            {
+              label: "Creators & Influencers",
+              href: "/directory",
+              imageUrl:
+                "https://images.unsplash.com/photo-1547355253-ff0740f6e8c1?auto=format&fit=crop&q=72&w=1100&h=820",
+            },
           ],
           maxItems: 4,
           showCount: false,

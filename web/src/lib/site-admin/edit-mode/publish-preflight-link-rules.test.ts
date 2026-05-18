@@ -25,6 +25,20 @@ test("collectLinkCandidates finds nested href/url fields", () => {
   );
 });
 
+test("collectLinkCandidates ignores string arrays under non-link keys", () => {
+  // featured_talent.manualProfileCodes are talent codes, never anchors —
+  // they must not be URL-validated (else they hard-block publish).
+  const links = collectLinkCandidates({
+    manualProfileCodes: ["TAL-92001", "TAL-00033"],
+    requestCta: { href: "/contact" },
+  });
+  assert.equal(
+    links.some((item) => item.href.startsWith("TAL-")),
+    false,
+  );
+  assert.equal(links.some((item) => item.href === "/contact"), true);
+});
+
 test("classifyHrefIssue blocks unsafe protocols", () => {
   const issue = classifyHrefIssue("javascript:alert(1)");
   assert.ok(issue);

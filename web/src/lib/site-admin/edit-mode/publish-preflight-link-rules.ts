@@ -20,26 +20,30 @@ export function collectLinkCandidates(
   value: unknown,
   path: string = "props",
   out: LinkCandidate[] = [],
+  underLinkKey: boolean = false,
 ): LinkCandidate[] {
   if (typeof value === "string") {
-    out.push({ path, href: value });
+    // Only a string reached via a link-like key (href/url/link) is a link.
+    // Without this gate, every string inside a non-link array/object (e.g.
+    // featured_talent.manualProfileCodes — talent codes, never rendered as
+    // anchors) gets URL-validated and hard-blocks publish.
+    if (underLinkKey) out.push({ path, href: value });
     return out;
   }
   if (Array.isArray(value)) {
     value.forEach((entry, index) =>
-      collectLinkCandidates(entry, `${path}[${index}]`, out),
+      collectLinkCandidates(entry, `${path}[${index}]`, out, underLinkKey),
     );
     return out;
   }
   if (!value || typeof value !== "object") return out;
   for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-    if (looksLikeLinkKey(key)) {
-      collectLinkCandidates(nested, `${path}.${key}`, out);
-      continue;
-    }
-    if (nested && typeof nested === "object") {
-      collectLinkCandidates(nested, `${path}.${key}`, out);
-    }
+    collectLinkCandidates(
+      nested,
+      `${path}.${key}`,
+      out,
+      looksLikeLinkKey(key),
+    );
   }
   return out;
 }
