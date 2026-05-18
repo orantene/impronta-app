@@ -1581,3 +1581,43 @@ deployed; Featured-Talent content-realness is LIVE. talent_type_grid /
 location trims are correct in the DB but NOT yet visible on prod pending
 the cache-resilience decision above. Phase: content-real for Featured
 Talent; blocked on prod homepage cache for category/location trims.
+
+### Cache-Resilience Fix (Option 2) — RESOLVED, content-real LIVE 2026-05-18
+
+Owner chose Option 2. `fix(page-builder): add short revalidate TTL to
+public homepage cache` (`ca87d3ea9`, scoped: `homepage-reads.ts` only) —
+added `revalidate: 300` to `loadPublicHomepage`'s `unstable_cache`
+(the non-edit storefront path, also reached via `loadHomepageForRender`).
+Cache key + both tags (`homepage:{locale}`, `pages-all`) preserved;
+tenant scoping + public render unchanged; single cache in file; no new
+route, no schema/renderer change, no service-role in public path. Same
+resilience pattern as `shell-brand-logo.ts`. Pushed (FF
+`3b33c9319..ca87d3ea9`) → `deploy:promote` → prod `tulala-emjq4ddcq` →
+aliased → `deploy:smoke` passed. (One grouped blocker deploy — no
+micro-deploys.)
+
+Self-heal verified: the stale prod entry (>300s old) served stale on the
+first post-deploy request and revalidated in background; subsequent
+requests fresh.
+
+**Production QA — `https://improntamodels.com/` PASS (content-real):**
+- ✅ Featured Talent = the 6 real profiles (Sofía Herrera, Luis Ortega,
+  Marco Sánchez, Carmen Díaz, Tina, Nalea) with real thumbnails;
+  QA fixture absent.
+- ✅ talent_type_grid = 4 supported categories (Models, Hosts & Promo,
+  Performers, Creators & Influencers); Chefs/Wellness/Music/Photo gone.
+- ✅ Cancún removed everywhere (0 occurrences); locations = Playa del
+  Carmen / Tulum / Riviera Maya.
+- ✅ modern shell + logo + editorial-noir + 9 CMS sections + 0 "Curated"
+  + 0 edit chrome + "28 represented talent".
+
+**Result:** the live Impronta homepage is now content-real and honest
+(real featured talent + images, no over-promised categories/locations,
+no QA fixture). The tag-only-no-TTL stale-cache class is now bounded for
+the homepage composition platform-wide (5-min self-heal) — same as the
+logo resolver. Content + Talent Visibility workstream COMPLETE.
+
+Remaining content backlog (non-blocking, owner/content): complete the 22
+draft/hidden roster profiles (bio/city/approval/media) to grow Featured
+Talent toward 8–15 and re-enable trimmed categories/Cancún as real
+coverage exists; pixel-perfect human design pass (Workstream 1).
