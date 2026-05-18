@@ -6476,7 +6476,7 @@ function TalentProfileShellDrawer() {
              still render, but inline above the form so they participate
              in the same scroll. */
           [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: row; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0; position: relative; min-width: 0; background: #FAFAF8; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; position: relative; min-width: 0; background: #F1EFE8; box-sizing: border-box; }
           [data-tulala-pshell] [data-pshell-form-banners] {
             display: flex; flex-direction: column; gap: 10px;
             padding: 14px 18px 0;
@@ -11581,7 +11581,8 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
       background: "#fff",
       border: `1px solid ${COLORS.borderSoft}`,
       borderRadius: 16,
-      margin: 16,
+      minHeight: "100%",
+      boxSizing: "border-box",
     }}>
       {/* Compact section title row — replaces the bulky accordion button.
           The rail already shows section name + completion dot, so this is
