@@ -275,11 +275,17 @@ export async function FeaturedTalentComponent({
     emptyStateText,
   } = props;
 
-  // P1-2 — render-layer display controls (undefined = show; back-compat).
+  // P1-2 / 6A.3 — render-layer display controls (undefined = show;
+  // back-compat). showSecondaryType / showLanguages are now backed by real
+  // DTO data on the direct-query path; showAvailability is structural-only
+  // until a reliable source exists (never renders fake data).
   const cardDisplay = {
     showName: props.showName,
     showPrimaryType: props.showPrimaryType,
+    showSecondaryType: props.showSecondaryType,
     showCity: props.showCity,
+    showLanguages: props.showLanguages,
+    showAvailability: props.showAvailability,
     showBadge: props.showBadge,
     parentCategoryDisplay: props.parentCategoryDisplay,
     cardVariant: props.cardVariant,

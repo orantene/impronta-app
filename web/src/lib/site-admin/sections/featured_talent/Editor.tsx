@@ -292,10 +292,10 @@ export function FeaturedTalentEditor({
             [
               ["showName", "Name"],
               ["showPrimaryType", "Primary type"],
+              ["showSecondaryType", "Secondary type"],
               ["showCity", "City"],
+              ["showLanguages", "Languages"],
               ["showBadge", "Featured badge"],
-              ["showSecondaryType", "Secondary type *"],
-              ["showLanguages", "Languages *"],
               ["showAvailability", "Availability *"],
             ] as [keyof FeaturedTalentV1, string][]
           ).map(([key, label]) => (
@@ -322,9 +322,10 @@ export function FeaturedTalentEditor({
           </label>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          * Secondary type, languages, availability and parent-category are
-          not on the cache-trimmed card payload yet — these toggles persist
-          but render only after the documented DTO extension.
+          Secondary type and languages render real profile data when the
+          source is a manual pick, service or destination. * Availability
+          and parent-category have no reliable public source yet — these
+          toggles persist but never render fabricated data.
         </p>
       </fieldset>
 
