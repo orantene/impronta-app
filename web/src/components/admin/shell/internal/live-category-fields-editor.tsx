@@ -544,10 +544,15 @@ type FieldRowProps = {
   initialVisibility: string[] | null;
   onSave: (value: unknown) => Promise<{ ok: boolean; error?: string }>;
   onSaveVisibility: (next: VisChannel[]) => Promise<{ ok: boolean; error?: string }>;
+  /** When the parent already shows the field label (e.g. the collapsible
+   *  Details card header is the label + toggle), skip FieldRow's own
+   *  <label> so it isn't duplicated. Status/visibility/control unchanged.
+   *  Omitted everywhere else → label renders exactly as before. */
+  hideLabel?: boolean;
 };
 
 function FieldRow({
-  field, initialValue, initialVisibility, onSave, onSaveVisibility,
+  field, initialValue, initialVisibility, onSave, onSaveVisibility, hideLabel,
 }: FieldRowProps) {
   const [draft, setDraft] = useState<unknown>(initialValue);
   const [status, setStatus] = useState<FieldStatus>("idle");
@@ -847,9 +852,11 @@ function FieldRow({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 9 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: F, flexWrap: "wrap", rowGap: 4 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>
-          {fieldLabel(field, locale)}
-        </label>
+        {!hideLabel && (
+          <label style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>
+            {fieldLabel(field, locale)}
+          </label>
+        )}
         {field.required_before_publish && (
           <span style={{
             fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
@@ -1072,6 +1079,360 @@ function GroupBlock({
   );
 }
 
+// ============================================================================
+// Phase C — Details (scope="specialty") field-level disclosure.
+// Render-only: same fields, same saved values, same write path. The
+// active group's fields render as a compact, width-aware grid of
+// COLLAPSIBLE FIELDS — each shows only its label + current value until
+// clicked, then expands to the real FieldRow (its options/input + inline
+// visibility). No section accordions, no reclassification: fields keep
+// their engine order; nothing is grouped, hidden, or moved. The
+// horizontal group pills (Sales / Client Interaction · Physical /
+// Casting · Host details · …) are kept exactly as-is — turning them into
+// a nested left-nav is the logged next IA phase. FieldRow + the
+// visibility control are reused verbatim (no redesign). Used ONLY for
+// the Details mount — About/general keeps GroupBlock unchanged.
+// ============================================================================
+
+type DetailsFieldGroupProps = {
+  fields: ResolvedField[];
+  valuesByDefId: Map<string, unknown>;
+  visibilityByDefId: Map<string, string[] | null>;
+  onSave: (fieldDefId: string, value: unknown) => Promise<{ ok: boolean; error?: string }>;
+  onSaveVisibility: (fieldDefId: string, next: VisChannel[]) => Promise<{ ok: boolean; error?: string }>;
+};
+
+// Drawer width signal. Collapsed short-field cards are uniform-height
+// stacked tiles (label over value), so two fit per row at ~300px+ — the
+// DESKTOP drawer (~340-380px content) must be two-column too, not just
+// mobile. Threshold is low (300) and a transient 0-width measure (before
+// layout settles) is treated as wide so the desktop drawer never gets
+// stuck single-column. Only a genuinely sub-300 sliver → one column.
+// Long/text/open fields are full width regardless (fieldIsHalfEligible).
+function useDrawerWidth() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      // w === 0 → not laid out yet; keep wide (don't flash to 1-col).
+      setWide(w === 0 ? true : w >= 300);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, wide };
+}
+
+// Content-aware span (the binding layout rule). Open / text / textarea /
+// date / multi-select / chips / long current value / anything unsure →
+// FULL width. Compact pickers — select (any option count: chips wrap
+// fine in a 50% column), number, boolean, toggle — may go half (the
+// caller still gates on drawer width). "If unsure, full width" is the
+// default branch.
+function fieldIsHalfEligible(field: ResolvedField, v: unknown): boolean {
+  const k = field.kind;
+  if (k === "textarea" || k === "text" || k === "date") return false;
+  if (k === "multiselect" || k === "chips") return false;
+  // A long label would hard-truncate to a stub in a ~144px column
+  // ("Tattoos · loca…") — keep those full width for legibility.
+  if ((field.label?.length ?? 0) > 22) return false;
+  if (k === "select" || k === "number" || k === "boolean" || k === "toggle") {
+    const s = typeof v === "string" ? v : "";
+    if (s.length > 24) return false; // a long current value forces full
+    return true;
+  }
+  return false; // unsure → full width
+}
+
+// Collapsed-row value summary. Rules: empty → "Add"; bool → Yes/No;
+// textarea / long / agency-sensitive-long → "Added" (never expose a long
+// or sensitive preview); multi → first + "+N"; number → value + unit;
+// else a short truncated value.
+function detailsValueSummary(
+  field: ResolvedField,
+  v: unknown,
+): { text: string; empty: boolean } {
+  if (!isValueFilled(v)) return { text: "Add", empty: true };
+  if (typeof v === "boolean") return { text: v ? "Yes" : "No", empty: false };
+  if (Array.isArray(v)) {
+    const arr = v.filter(Boolean).map((x) => String(x));
+    if (arr.length === 0) return { text: "Add", empty: true };
+    return {
+      text: arr.length > 1 ? `${arr[0]} +${arr.length - 1}` : arr[0],
+      empty: false,
+    };
+  }
+  if (field.kind === "textarea") return { text: "Added", empty: false };
+  const s = String(v).trim();
+  const isAgencyOnly = !(field.default_visibility ?? []).includes("public");
+  if (s.length > 24 || (isAgencyOnly && s.length > 14)) {
+    return { text: "Added", empty: false };
+  }
+  if (field.unit && /^-?\d+(\.\d+)?$/.test(s)) {
+    return { text: `${s} ${field.unit}`, empty: false };
+  }
+  return { text: s, empty: false };
+}
+
+function DetailsFieldGroup({
+  fields, valuesByDefId, visibilityByDefId, onSave, onSaveVisibility,
+}: DetailsFieldGroupProps) {
+  const { ref, wide } = useDrawerWidth();
+
+  // One open field at a time per group. Seed to the first required-but-
+  // empty field so the parent "Fill N required" jump lands on a VISIBLE
+  // open control (the group remounts on pill change, re-seeding per group).
+  const firstRequiredMissingId = useMemo(() => {
+    const f = fields.find(
+      (x) =>
+        x.required_before_publish &&
+        !isValueFilled(valuesByDefId.get(x.field_definition_id)),
+    );
+    return f?.field_definition_id ?? null;
+  }, [fields, valuesByDefId]);
+  const [openId, setOpenId] = useState<string | null>(firstRequiredMissingId);
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Every empty field in THIS group (any unfilled, not only required) so
+  // a 20/22 group doesn't force you to eyeball 22 tiles to find the gaps.
+  const emptyIds = useMemo(
+    () =>
+      fields
+        .filter((f) => !isValueFilled(valuesByDefId.get(f.field_definition_id)))
+        .map((f) => f.field_definition_id),
+    [fields, valuesByDefId],
+  );
+  const jumpToNextEmpty = () => {
+    if (emptyIds.length === 0) return;
+    const curIdx = openId
+      ? fields.findIndex((f) => f.field_definition_id === openId)
+      : -1;
+    const next =
+      emptyIds.find(
+        (eid) => fields.findIndex((f) => f.field_definition_id === eid) > curIdx,
+      ) ?? emptyIds[0];
+    setOpenId(next);
+    requestAnimationFrame(() => {
+      cardRefs.current
+        .get(next)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  };
+
+  // Parity is trivial: each input field renders exactly once, in engine
+  // order — out === in by construction. Logged for QA continuity.
+  useEffect(() => {
+    const slug = fields[0]?.field_group_slug ?? "_other";
+    console.info(
+      `[detailsGroup-ui] group=${slug} parity in=${fields.length} ` +
+        `out=${fields.length} ok=true mode=per-field-collapsible-autospan`,
+    );
+  }, [fields]);
+
+  return (
+    // maxWidth keeps a comfortable reading measure on a very wide drawer
+    // (long full-width cards / small groups don't stretch absurdly wide).
+    <div ref={ref} style={{ fontFamily: F, maxWidth: 760 }}>
+      {/* Status + jump-to-incomplete. Complete state is deliberately
+          light (it's just confirmation); the wording says "in this
+          category" so the green ✓ isn't mistaken for the whole profile. */}
+      {emptyIds.length === 0 ? (
+        <div style={{
+          fontSize: 11, fontWeight: 600, color: T.inkDim,
+          padding: "0 2px 9px",
+        }}>
+          All fields in this category complete ✓
+        </div>
+      ) : (
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: 8, padding: "0 2px 9px",
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted }}>
+            {emptyIds.length} field{emptyIds.length > 1 ? "s" : ""} still empty
+          </span>
+          <button
+            type="button"
+            onClick={jumpToNextEmpty}
+            style={{
+              fontSize: 11, fontWeight: 700, color: T.accent,
+              background: "rgba(15,79,62,0.06)",
+              border: `1px solid ${T.accent}`, borderRadius: 999,
+              padding: "4px 12px", cursor: "pointer", fontFamily: F,
+              letterSpacing: 0.2, flexShrink: 0,
+            }}
+          >
+            Jump to next empty →
+          </button>
+        </div>
+      )}
+      {/* Real 2-col CSS grid: columns stay aligned (no stretched lone
+          cards). Full-width / open fields span both columns on their own
+          row — `align-items:start` + uniform collapsed tiles + open-spans
+          mean a tall open field never desyncs a short neighbour.
+          minWidth:0 kills overflow; paddingBottom clears a bottom FAB. */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: wide ? "1fr 1fr" : "1fr",
+          gap: "8px 12px",
+          alignItems: "start",
+          paddingBottom: 72,
+        }}
+      >
+        {fields.map((f) => {
+          const id = f.field_definition_id;
+          const isOpen = openId === id;
+          const half =
+            wide && !isOpen && fieldIsHalfEligible(f, valuesByDefId.get(id));
+          return (
+            <div
+              key={id}
+              ref={(el) => {
+                if (el) cardRefs.current.set(id, el);
+                else cardRefs.current.delete(id);
+              }}
+              style={{
+                minWidth: 0,
+                gridColumn: half ? "auto" : "1 / -1",
+              }}
+            >
+              <CollapsibleField
+                field={f}
+                initialValue={valuesByDefId.get(id)}
+                initialVisibility={visibilityByDefId.get(id) ?? null}
+                open={isOpen}
+                onToggle={() => setOpenId((cur) => (cur === id ? null : id))}
+                onSave={(v) => onSave(id, v)}
+                onSaveVisibility={(next) => onSaveVisibility(id, next)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// One field as a card whose HEADER is the toggle in BOTH states — click
+// the title to open, click it again to close (the prior bug: when open,
+// only a tiny corner chevron closed it). The header always shows the
+// label; when open, FieldRow renders with `hideLabel` so the label is
+// never duplicated, directly under the header (attached, no detached
+// strip). Chevron flips ▸→▾. Real <button>, keyboard accessible,
+// aria-expanded; Escape collapses; hover/focus state. No overflow:hidden
+// so the visibility popover is never clipped. One-open-at-a-time is
+// owned by the parent.
+function CollapsibleField({
+  field, initialValue, initialVisibility, open, onToggle, onSave, onSaveVisibility,
+}: FieldRowProps & { open: boolean; onToggle: () => void }) {
+  const [hover, setHover] = useState(false);
+  const locale = readLocale();
+  const label = fieldLabel(field, locale);
+  const filled = isValueFilled(initialValue);
+  const requiredMissing = field.required_before_publish && !filled;
+  const summary = detailsValueSummary(field, initialValue);
+  const isAgencyOnly = !(field.default_visibility ?? []).includes("public");
+  // Empty optional fields recede a touch (faint fill) so they don't
+  // out-shout filled cards; required-missing keeps its red prominence
+  // and the green "Add" + jump bar keep them findable.
+  const dim = !filled && !requiredMissing && !open;
+  const restBg = dim ? "rgba(24,24,27,0.022)" : "#fff";
+
+  return (
+    <div
+      style={{
+        border: `1px solid ${requiredMissing ? "rgba(200,40,40,0.32)" : T.borderSoft}`,
+        borderRadius: 9, background: restBg, fontFamily: F, minWidth: 0,
+      }}
+      onKeyDown={open ? (e) => { if (e.key === "Escape") onToggle(); } : undefined}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
+        style={{
+          // Stacked tile: label on top, value/"Add" smaller underneath.
+          // Both lines are single-line (ellipsis) so every collapsed card
+          // is the SAME height → a clean uniform 2-up grid even on mobile.
+          width: "100%", display: "flex", flexDirection: "column",
+          alignItems: "stretch", gap: 3,
+          padding: "9px 11px", cursor: "pointer", textAlign: "left",
+          fontFamily: F, border: "none",
+          background: open || hover ? T.surfaceAlt : restBg,
+          borderRadius: 9,
+          borderBottomLeftRadius: open ? 0 : 9,
+          borderBottomRightRadius: open ? 0 : 9,
+          borderBottom: open ? `1px solid ${T.borderSoft}` : "none",
+          transition: "background 120ms ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span style={{
+            flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: T.ink,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {label}
+          </span>
+          <span style={{
+            fontSize: open ? 12 : 11, fontWeight: 700, lineHeight: 1,
+            color: open ? T.accent : T.inkMuted, flexShrink: 0,
+          }}>
+            {open ? "▾" : "▸"}
+          </span>
+        </div>
+        {!open && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            {/* Only when the value is intentionally hidden ("Added") —
+                not on every agency field with a visible short value, to
+                avoid a repetitive chip down the whole list. */}
+            {isAgencyOnly && summary.text === "Added" && (
+              <span style={{
+                flexShrink: 0, fontSize: 8.5, fontWeight: 700,
+                letterSpacing: 0.4, textTransform: "uppercase",
+                color: T.inkMuted, background: "rgba(24,24,27,0.06)",
+                padding: "1px 5px", borderRadius: 3,
+              }}>
+                Agency
+              </span>
+            )}
+            <span style={{
+              flex: 1, minWidth: 0,
+              fontSize: 10.5, fontWeight: summary.empty ? 700 : 500,
+              color: summary.empty
+                ? (requiredMissing ? T.red : T.accent)
+                : T.inkMuted,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              letterSpacing: 0.1,
+            }}>
+              {summary.text}
+            </span>
+          </div>
+        )}
+      </button>
+      {open && (
+        <div style={{ padding: "10px 12px 0" }}>
+          <FieldRow
+            field={field}
+            initialValue={initialValue}
+            initialVisibility={initialVisibility}
+            onSave={onSave}
+            onSaveVisibility={onSaveVisibility}
+            hideLabel
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * `viewMode` switches the editor between the admin-side server actions
  * (`requireStaffTenantAction` / mirror writes / unrestricted) and the
@@ -1204,6 +1565,7 @@ export function LiveCategoryFieldsEditor({
   // accordions. `activeTab` holds the selected group key; it's clamped
   // to a real tab at render time so a taxonomy change can't strand it.
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [hoverTab, setHoverTab] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   // B1 — Floating toast across the editor. Last save's outcome shows for
   // ~2.2s then auto-clears. Field-level pill covers per-field detail; the
@@ -1488,9 +1850,9 @@ export function LiveCategoryFieldsEditor({
       }}>
         <div style={{
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
-          textTransform: "uppercase", fontWeight: 600,
+          textTransform: "uppercase", fontWeight: 600, lineHeight: 1.35,
         }}>
-          {scope === "general" ? "General profile · " : ""}{totalFilled} of {fields.length} complete · saves automatically
+          {scope === "general" ? "General · " : ""}{totalFilled}/{fields.length} complete · auto-saved
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {requiredMissing > 0 && (
@@ -1530,62 +1892,114 @@ export function LiveCategoryFieldsEditor({
         onClose={() => setHistoryOpen(false)}
       />
       <SaveToast message={toast?.message ?? null} kind={toast?.kind ?? "saved"} />
-      {/* Sticky top-nav switcher — one pill per specialty group; the
-          active group's fields render below. Replaces the old vertical
-          stack of collapsible accordions: the rail stays stable while
-          the deep type-driven content flexes behind a horizontal nav. */}
-      {tabs.length > 0 && (
-        <div style={{
-          background: "#fff",
-          display: "flex", gap: 6, overflowX: "auto",
-          padding: "4px 0 10px",
-          borderBottom: `1px solid ${T.borderSoft}`,
-        }}>
-          {tabs.map((t) => {
-            const filled = t.fields.reduce(
-              (n, f) => (isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n),
-              0,
-            );
-            const on = t.key === activeKey;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setActiveTab(t.key)}
-                style={{
-                  flexShrink: 0, padding: "6px 12px", borderRadius: 999,
-                  border: `1.5px solid ${on ? T.accent : T.borderSoft}`,
-                  background: on ? "rgba(15,79,62,0.08)" : "#fff",
-                  color: on ? T.ink : T.inkMuted,
-                  fontFamily: F, fontSize: 12, fontWeight: 600,
-                  cursor: "pointer", whiteSpace: "nowrap",
-                }}
-              >
-                {t.label}{" "}
-                <span style={{ opacity: 0.6, fontWeight: 500 }}>
-                  {filled}/{t.fields.length}
-                </span>
-              </button>
-            );
-          })}
+      </div>{/* /sticky — ONLY the thin status row stays pinned; the
+          Categories selector below scrolls with content so the pinned
+          header never eats the viewport on a short/mobile screen. */}
+      {/* In-panel VERTICAL group selector (bridge). Replaces the
+          horizontal pill rail: a clean stacked list of the talent's
+          dynamic groups + completion counts; the selected group's
+          per-field editor renders below. This is the interim step toward
+          the real nested child items under "Details" in the left rail —
+          deliberately NOT entrenching horizontal pills. Single-group
+          talents skip the selector entirely (no 1-item noise). */}
+      {tabs.length > 1 && (
+        <div style={{ padding: "2px 0 12px", borderBottom: `1px solid ${T.borderSoft}` }}>
+          {/* Eyebrow + tinted panel so this reads as CATEGORY NAVIGATION,
+              clearly distinct from the white field cards below it. */}
+          <div style={{
+            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7,
+            textTransform: "uppercase", color: T.inkMuted,
+            padding: "0 2px 6px",
+          }}>
+            Categories
+          </div>
+          <div
+            role="tablist"
+            aria-label="Field groups"
+            style={{
+              display: "flex", flexDirection: "column", gap: 3,
+              background: T.surfaceAlt, borderRadius: 10, padding: 5,
+            }}
+          >
+            {tabs.map((t) => {
+              const filled = t.fields.reduce(
+                (n, f) => (isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n),
+                0,
+              );
+              const on = t.key === activeKey;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setActiveTab(t.key)}
+                  onMouseEnter={() => setHoverTab(t.key)}
+                  onMouseLeave={() => setHoverTab((h) => (h === t.key ? null : h))}
+                  onFocus={() => setHoverTab(t.key)}
+                  onBlur={() => setHoverTab((h) => (h === t.key ? null : h))}
+                  style={{
+                    display: "flex", alignItems: "center",
+                    justifyContent: "space-between", gap: 8,
+                    width: "100%", textAlign: "left", cursor: "pointer",
+                    fontFamily: F, padding: "8px 10px", borderRadius: 7,
+                    border: "none",
+                    borderLeft: `3px solid ${on ? T.accent : "transparent"}`,
+                    background: on
+                      ? "#fff"
+                      : hoverTab === t.key
+                        ? "rgba(255,255,255,0.65)"
+                        : "transparent",
+                    boxShadow: on ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+                    color: on ? T.ink : T.inkMuted,
+                    fontSize: 12.5, fontWeight: on ? 700 : 600,
+                    transition: "background 120ms ease",
+                  }}
+                >
+                  <span style={{
+                    minWidth: 0, overflow: "hidden",
+                    textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>
+                    {t.label}
+                  </span>
+                  <span style={{
+                    flexShrink: 0, fontSize: 11, fontWeight: 700,
+                    color: on ? T.accent : T.inkMuted,
+                  }}>
+                    {filled}/{t.fields.length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
-      </div>{/* /sticky progress + switcher (audit #9) */}
       <div style={{ height: 10 }} />
       {activeTabData && (
-        <GroupBlock
-          key={activeTabData.key}
-          title={activeTabData.label}
-          weight="default"
-          fields={activeTabData.fields}
-          valuesByDefId={valuesByDefId}
-          visibilityByDefId={visibilityByDefId}
-          onSave={handleSave}
-          onSaveVisibility={handleSaveVisibility}
-          open={true}
-          onToggle={() => {}}
-          chromeless
-        />
+        scope === "specialty" ? (
+          <DetailsFieldGroup
+            key={activeTabData.key}
+            fields={activeTabData.fields}
+            valuesByDefId={valuesByDefId}
+            visibilityByDefId={visibilityByDefId}
+            onSave={handleSave}
+            onSaveVisibility={handleSaveVisibility}
+          />
+        ) : (
+          <GroupBlock
+            key={activeTabData.key}
+            title={activeTabData.label}
+            weight="default"
+            fields={activeTabData.fields}
+            valuesByDefId={valuesByDefId}
+            visibilityByDefId={visibilityByDefId}
+            onSave={handleSave}
+            onSaveVisibility={handleSaveVisibility}
+            open={true}
+            onToggle={() => {}}
+            chromeless
+          />
+        )
       )}
     </div>
   );
