@@ -1228,9 +1228,12 @@ export function LiveCategoryFieldsEditor({
   const fields = useMemo(
     () => (allFields ?? []).filter((f) =>
       scope === "general"
-        // General mount: only the always-on global groups (these have
-        // their own home here, so group-slug suppression doesn't apply).
-        ? isGeneralField(f)
+        // General mount: always-on global groups, but STILL honor
+        // suppression — a group like media-portfolio is in
+        // SUPPRESSED_GROUP_SLUGS (its real home is the fixed Media
+        // section), so it must not leak into About even though its
+        // namespace is "general".
+        ? isGeneralField(f) && !isFieldSuppressed(f)
         // Specialty mount: type-driven only — drop suppressed AND the
         // general groups (they live in About now).
         : !isFieldSuppressed(f) && !isGeneralField(f)),
