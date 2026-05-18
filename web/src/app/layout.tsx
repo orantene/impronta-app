@@ -10,7 +10,6 @@ import {
 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
-import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
@@ -181,7 +180,6 @@ export default async function RootLayout({
         <AnalyticsScripts />
         <WebVitalsReporter />
         <CspViolationReporter />
-        <AnalyticsConsentBanner />
         {children}
         <EditChromeMount />
         <Analytics />
