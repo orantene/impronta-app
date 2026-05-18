@@ -1165,11 +1165,23 @@ function detailsValueSummary(
       empty: false,
     };
   }
-  if (field.kind === "textarea") return { text: "Added", empty: false };
-  const s = String(v).trim();
+  const s = String(v).trim().replace(/\s+/g, " ");
   const isAgencyOnly = !(field.default_visibility ?? []).includes("public");
-  if (s.length > 24 || (isAgencyOnly && s.length > 14)) {
+  // Agency / private free-text or long values stay opaque ("Added") so a
+  // sensitive snippet isn't exposed at a glance in the collapsed tile.
+  if (isAgencyOnly && (field.kind === "textarea" || s.length > 14)) {
     return { text: "Added", empty: false };
+  }
+  // Non-sensitive long / textarea: show a short SNIPPET of the actual
+  // text instead of a bare "Added", so the user sees what's there. The
+  // tile CSS still ellipsis-clamps to its width; we also hard-cap the
+  // string so it never gets long.
+  const SNIPPET_MAX = 48;
+  if (field.kind === "textarea" || s.length > SNIPPET_MAX) {
+    return {
+      text: s.length > SNIPPET_MAX ? `${s.slice(0, SNIPPET_MAX).trimEnd()}…` : s,
+      empty: false,
+    };
   }
   if (field.unit && /^-?\d+(\.\d+)?$/.test(s)) {
     return { text: `${s} ${field.unit}`, empty: false };
@@ -1359,12 +1371,13 @@ function CollapsibleField({
         onFocus={() => setHover(true)}
         onBlur={() => setHover(false)}
         style={{
-          // Stacked tile: label on top, value/"Add" smaller underneath.
-          // Both lines are single-line (ellipsis) so every collapsed card
-          // is the SAME height → a clean uniform 2-up grid even on mobile.
-          width: "100%", display: "flex", flexDirection: "column",
-          alignItems: "stretch", gap: 3,
-          padding: "9px 11px", cursor: "pointer", textAlign: "left",
+          // Settings-style row: label + value stacked on the left, an
+          // explicit edit affordance vertically centered on the right.
+          // Single-line label/value keep every collapsed card the same
+          // height → clean uniform 2-up grid.
+          width: "100%", display: "flex", flexDirection: "row",
+          alignItems: "center", gap: 10,
+          padding: "10px 12px", cursor: "pointer", textAlign: "left",
           fontFamily: F, border: "none",
           background: open || hover ? T.surfaceAlt : restBg,
           borderRadius: 9,
@@ -1374,48 +1387,61 @@ function CollapsibleField({
           transition: "background 120ms ease",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <div style={{
+          flex: 1, minWidth: 0, display: "flex",
+          flexDirection: "column", gap: 3,
+        }}>
           <span style={{
-            flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: T.ink,
+            fontSize: 12, fontWeight: 600, color: T.ink,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {label}
           </span>
-          <span style={{
-            fontSize: open ? 12 : 11, fontWeight: 700, lineHeight: 1,
-            color: open ? T.accent : T.inkMuted, flexShrink: 0,
-          }}>
-            {open ? "▾" : "▸"}
+          {!open && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              {/* "Agency" only when the value is intentionally hidden
+                  ("Added"), so it isn't a repetitive chip down the list. */}
+              {isAgencyOnly && summary.text === "Added" && (
+                <span style={{
+                  flexShrink: 0, fontSize: 8.5, fontWeight: 700,
+                  letterSpacing: 0.4, textTransform: "uppercase",
+                  color: T.inkMuted, background: "rgba(24,24,27,0.06)",
+                  padding: "1px 5px", borderRadius: 3,
+                }}>
+                  Agency
+                </span>
+              )}
+              <span style={{
+                flex: 1, minWidth: 0,
+                fontSize: 10.5, fontWeight: summary.empty ? 700 : 500,
+                color: summary.empty
+                  ? (requiredMissing ? T.red : T.accent)
+                  : T.inkMuted,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                letterSpacing: 0.1,
+              }}>
+                {summary.empty ? `+ ${summary.text}` : summary.text}
+              </span>
+            </div>
+          )}
+        </div>
+        {/* Explicit, unmistakable affordance — not a bare triangle. Shows
+            "Edit ›" on hover/focus (desktop) and a clear chevron at rest;
+            opens to a down chevron. Becomes the canonical pattern. */}
+        <div style={{
+          flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+          color: open || hover ? T.accent : T.inkDim,
+          transition: "color 120ms ease",
+        }}>
+          {!open && hover && (
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }}>
+              Edit
+            </span>
+          )}
+          <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 600 }}>
+            {open ? "⌄" : "›"}
           </span>
         </div>
-        {!open && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            {/* Only when the value is intentionally hidden ("Added") —
-                not on every agency field with a visible short value, to
-                avoid a repetitive chip down the whole list. */}
-            {isAgencyOnly && summary.text === "Added" && (
-              <span style={{
-                flexShrink: 0, fontSize: 8.5, fontWeight: 700,
-                letterSpacing: 0.4, textTransform: "uppercase",
-                color: T.inkMuted, background: "rgba(24,24,27,0.06)",
-                padding: "1px 5px", borderRadius: 3,
-              }}>
-                Agency
-              </span>
-            )}
-            <span style={{
-              flex: 1, minWidth: 0,
-              fontSize: 10.5, fontWeight: summary.empty ? 700 : 500,
-              color: summary.empty
-                ? (requiredMissing ? T.red : T.accent)
-                : T.inkMuted,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              letterSpacing: 0.1,
-            }}>
-              {summary.text}
-            </span>
-          </div>
-        )}
       </button>
       {open && (
         <div style={{ padding: "10px 12px 0" }}>
