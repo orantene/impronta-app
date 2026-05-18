@@ -1732,6 +1732,56 @@ html[data-token-template-directory-card-family="editorial-bridal"] .talent-card 
   letter-spacing: 0.2em !important;
 }
 
+/* Phase 6A.1 — premium chrome for the featured-talent card under the
+ * editorial-bridal family. Scoped to `.site-featured-talent__card` so
+ * directory listing cards are untouched. Token-driven (no Impronta
+ * literals) so it travels to any tenant on this family. */
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card {
+  border-radius: var(--site-radius-lg) !important;
+}
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    var(--site-shadow-ambient),
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset;
+}
+/* Kicker (primary type · city) — warm ivory, refined tracking. */
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card [data-card-kicker] {
+  color: rgba(246, 241, 234, 0.86) !important;
+  letter-spacing: 0.14em !important;
+}
+/* Quiet meta line (secondary type · languages) over the softened scrim. */
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card [data-card-meta] {
+  color: rgba(246, 241, 234, 0.6) !important;
+  letter-spacing: 0.05em !important;
+}
+/* Availability chip — same ivory blur register as the featured ribbon. */
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card [data-card-availability] > span {
+  background: rgba(246, 241, 234, 0.9) !important;
+  color: var(--token-color-primary) !important;
+  border: 1px solid rgba(74, 64, 58, 0.1) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+/* Premium action footer on the raised paper surface. */
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card [data-card-actions] {
+  border-top: 1px solid var(--token-color-line) !important;
+  background: var(--token-color-surface-raised) !important;
+  padding: 16px !important;
+  gap: 10px !important;
+}
+html[data-token-template-directory-card-family="editorial-bridal"]
+  .site-featured-talent__card [data-card-actions] .site-prim-cta {
+  border-radius: var(--site-radius-pill);
+  letter-spacing: 0.06em;
+}
+
 /* service-professional — same shell, no ribbon, squarer ratio */
 html[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-media] {
   aspect-ratio: 1 / 1;

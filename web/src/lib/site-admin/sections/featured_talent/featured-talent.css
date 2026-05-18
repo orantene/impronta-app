@@ -39,8 +39,51 @@
   scroll-snap-align: start;
 }
 
-/* Card wrapper — base sizing; directory card families override visuals. */
-.site-featured-talent__card { min-width: 0; }
+/* Card wrapper — base sizing; directory card families override visuals.
+ *
+ * Phase 6A.1 — base premium defaults that hold up on a NEUTRAL tenant
+ * (no card-family override). Tenant card families (editorial-bridal etc.)
+ * repaint on top of these via the shared `.talent-card [data-card-*]`
+ * hooks; nothing here is Impronta-specific — all token-driven. */
+.site-featured-talent__card {
+  min-width: 0;
+  isolation: isolate;
+}
+
+/* Slightly faster, springier media reveal than the global default so the
+ * grid feels premium on hover even without a family override. */
+.site-featured-talent__card[data-card-variant] [data-card-media] img {
+  will-change: transform;
+}
+
+/* Meta line (secondary type · languages) — quiet, never competes with the
+ * name/kicker. Only present when the talent actually has the data. */
+.site-featured-talent__card [data-card-meta] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Availability chip — layout-ready; only rendered when a real label
+ * exists (never fabricated). Sits opposite the featured ribbon. */
+.site-featured-talent__card [data-card-availability] span {
+  white-space: nowrap;
+}
+
+/* Premium action row rhythm. The hairline divider reads the row as a
+ * distinct footer on the raised card surface; token-driven so it works
+ * on any tenant brand. */
+.site-featured-talent__card [data-card-actions] {
+  border-top: 1px solid var(--token-color-line, rgba(0, 0, 0, 0.08));
+  background: var(--token-color-surface-raised, transparent);
+}
+.site-featured-talent__card [data-card-actions] .site-prim-cta {
+  white-space: nowrap;
+}
+
+/* Carousel cards need a sane fixed-ish width and must not be crushed. */
+.site-featured-talent__grid[data-grid-variant="carousel"]
+  .site-featured-talent__card {
+  scroll-snap-align: start;
+}
 
 /* Empty state — admin-visible, calm. */
 .site-featured-talent__empty {

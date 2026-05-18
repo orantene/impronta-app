@@ -30,18 +30,51 @@ import {
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
 import { logServerError } from "@/lib/server/safe-error";
-import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
+import {
+  extractPrimaryRoleTerm,
+  extractSecondaryRoleTerms,
+  type ProfileTaxonomyRow,
+} from "@/lib/taxonomy/engine";
 
 import type { FeaturedTalentV1 } from "./schema";
 
-/** Trimmed card shape consumed by FeaturedTalentCard (the presentational component). */
+/**
+ * Trimmed card shape consumed by FeaturedTalentCard (the presentational
+ * component).
+ *
+ * Phase 6A.2 — extended with real, public-safe metadata so the editor's
+ * `showSecondaryType` / `showLanguages` toggles render genuine data instead
+ * of being inert. These are populated on the direct-query path
+ * (manual_pick / by_service / by_destination / direct fallback). On the
+ * cached-directory path (`auto_featured_flag` / `auto_recent`) the upstream
+ * `DirectoryCardDTO` does not carry them, so they degrade to empty rather
+ * than forcing a directory-cache key bump (deliberately bounded blast
+ * radius — see the Phase 6A plan).
+ *
+ * `availabilityLabel` and `parentCategoryLabel` are layout-ready but
+ * intentionally never populated yet (no reliable public source / no
+ * product definition). The card renders them only when present, so they
+ * never display fake data.
+ */
 export type FeaturedTalentCardDTO = {
   id: string;
   profileCode: string;
   slugPart: string | null;
   displayName: string;
   primaryTalentTypeLabel: string;
+  /**
+   * Phase 6A.2 — first secondary role term (direct path); null when none.
+   * Optional so pre-6A constructors (mock data sources, test fixtures)
+   * stay valid without churn — the fetch layer always populates it.
+   */
+  secondaryTalentTypeLabel?: string | null;
   locationLabel: string;
+  /** Phase 6A.2 — public-safe display-name language list (direct path). */
+  languages?: string[];
+  /** Layout-ready; never populated yet (no reliable source). */
+  availabilityLabel?: string | null;
+  /** Layout-ready; never populated yet (taxonomy-hierarchy follow-on). */
+  parentCategoryLabel?: string | null;
   isFeatured: boolean;
   thumbnailUrl: string | null;
 };
@@ -76,7 +109,15 @@ function projectDirectoryCard(c: DirectoryCardDTO): FeaturedTalentCardDTO {
     slugPart: c.slugPart,
     displayName: c.displayName,
     primaryTalentTypeLabel: c.primaryTalentTypeLabel,
+    // The cached directory payload does not carry secondary type or a
+    // language list (and widening it would bump the shared directory cache
+    // key for every consumer). Degrade gracefully — the card omits these
+    // rather than rendering anything fake.
+    secondaryTalentTypeLabel: null,
     locationLabel: c.locationLabel,
+    languages: [],
+    availabilityLabel: null,
+    parentCategoryLabel: null,
     isFeatured: c.isFeatured,
     thumbnailUrl: c.thumbnail.url,
   };
@@ -186,6 +227,8 @@ type FeaturedTalentRow = {
   is_featured: boolean;
   featured_level: number;
   featured_position: number;
+  /** M8 editorial denormalized display-name list (trigger-synced, public). */
+  languages: string[] | null;
   residence_city:
     | CanonicalLocationEmbed
     | CanonicalLocationEmbed[]
@@ -212,6 +255,7 @@ const FEATURED_TALENT_SELECT = `
   is_featured,
   featured_level,
   featured_position,
+  languages,
   residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
   legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
   talent_profile_taxonomy (
@@ -400,13 +444,38 @@ async function hydrateRows(
     }
   }
 
+  const localizedTermName = (
+    term: { name_en: string; name_es?: string | null } | null,
+  ): string | null => {
+    if (!term) return null;
+    return (locale === "es" && term.name_es) || term.name_en || null;
+  };
+
   return rows.map((row) => {
     // Engine-driven primary role extraction (handles v2 + legacy shapes).
     const taxonomy = (row.talent_profile_taxonomy ?? []) as ProfileTaxonomyRow[];
     const primary = extractPrimaryRoleTerm(taxonomy);
-    const typeLabel = primary
-      ? ((locale === "es" && primary.name_es) || primary.name_en || "Talent")
-      : "Talent";
+    const typeLabel = localizedTermName(primary) ?? "Talent";
+
+    // Phase 6A.2 — first secondary role term (real, on already-joined
+    // taxonomy rows; no extra query). Null when the profile has none.
+    const secondary = extractSecondaryRoleTerms(taxonomy);
+    const secondaryTalentTypeLabel =
+      localizedTermName(secondary[0] ?? null) ?? null;
+
+    // Phase 6A.2 — public-safe display-name language list (M8 editorial
+    // denormalized column). Trim + dedupe + cap at 3 for card density.
+    const seenLang = new Set<string>();
+    const languages: string[] = [];
+    for (const raw of row.languages ?? []) {
+      const name = (raw ?? "").trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seenLang.has(key)) continue;
+      seenLang.add(key);
+      languages.push(name);
+      if (languages.length >= 3) break;
+    }
 
     const residence = resolveResidenceLocationEmbed({
       residence_city: row.residence_city ?? null,
@@ -420,7 +489,13 @@ async function hydrateRows(
       slugPart: row.public_slug_part,
       displayName: row.display_name ?? "Talent",
       primaryTalentTypeLabel: typeLabel,
+      secondaryTalentTypeLabel,
       locationLabel,
+      languages,
+      // No reliable public availability source / no verified-trust model
+      // yet — never fabricate. The card is layout-ready for both.
+      availabilityLabel: null,
+      parentCategoryLabel: null,
       isFeatured: row.is_featured,
       thumbnailUrl: thumbnailMap[row.id] ?? null,
     };

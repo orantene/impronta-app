@@ -5,17 +5,23 @@
  *   - That component is a client component with save / share / inquiry /
  *     quick-preview interactivity that the homepage surface doesn't need.
  *   - The homepage featured grid is a showcase — cards link straight to
- *     the profile page and inherit the Editorial Bridal card family CSS
+ *     the profile page and inherit the active directory card family CSS
  *     via the same `talent-card` class and `data-card-*` attribute hooks.
  *   - Going server-only here keeps the homepage zero-client-JS for this
  *     slot and avoids pulling the full discovery state context into a
  *     surface that doesn't need it.
  *
- * Visual parity with directory cards comes from:
- *   - className `talent-card` (targeted by directory card family rules in
- *     `token-presets.css`).
- *   - `data-card-media` / `data-card-ribbon` / `data-card-name` /
- *     `data-card-kicker` / `data-card-body` / `data-card-chip` hooks.
+ * Phase 6A — reusable premium card system. Visual parity with the
+ * prototype card chrome (stronger frame, elevated hover, clear name /
+ * type / meta hierarchy, premium action row) is delivered entirely via
+ * the shared `.talent-card` family + `data-card-*` hooks + tenant design
+ * tokens — NOT hardcoded Impronta styling. Every tenant's active card
+ * family repaints these same hooks.
+ *
+ * Hooks emitted:
+ *   data-card-media · data-card-ribbon · data-card-name ·
+ *   data-card-kicker · data-card-meta · data-card-availability ·
+ *   data-card-actions
  */
 import Image from "next/image";
 import Link from "next/link";
@@ -31,18 +37,28 @@ function profileHref(card: FeaturedTalentCardDTO): string {
 }
 
 /**
- * P1-2 — optional render controls (all default to "show", so existing
- * callers/compositions are visually unchanged). Fields not present on the
- * cache-trimmed `FeaturedTalentCardDTO` (secondary type, languages,
- * availability, parent-vs-leaf category) are intentionally NOT invented
- * here — see the talent_collection report's documented DTO-extension
- * follow-on. `parentCategoryDisplay` therefore gracefully falls back to the
- * primary type label until the DTO carries taxonomy hierarchy.
+ * Phase 6A.3 — render controls. All visibility flags follow the codebase
+ * convention `undefined === shown` (back-compat: existing compositions are
+ * visually unchanged for fields they already showed; new metadata only
+ * appears when the talent actually has it).
+ *
+ * `showSecondaryType` / `showLanguages` are now backed by real DTO data on
+ * the direct-query path (manual_pick / by_service / by_destination). On the
+ * cached-directory path the DTO carries empty values, so the card simply
+ * omits them — never fake.
+ *
+ * `showAvailability` is honoured structurally but `availabilityLabel` is
+ * never populated yet (no reliable public source), so it never renders.
+ * `parentCategoryDisplay` is reserved — the DTO has no taxonomy hierarchy
+ * yet; it falls back to the primary type label.
  */
 export interface FeaturedTalentCardDisplay {
   showName?: boolean;
   showPrimaryType?: boolean;
+  showSecondaryType?: boolean;
   showCity?: boolean;
+  showLanguages?: boolean;
+  showAvailability?: boolean;
   showBadge?: boolean;
   /** Reserved — DTO has no parent-category yet; falls back to primary type. */
   parentCategoryDisplay?: boolean;
@@ -65,17 +81,33 @@ export function FeaturedTalentCard({
   requestCta?: { label: string; href: string } | null;
 }) {
   const href = prefixPublicHref(profileHref(card), publicPathPrefix);
+  // New 6A.2 fields are optional on the DTO (back-compat for pre-6A
+  // constructors); normalize once so the render path stays clean.
+  const cardLanguages = card.languages ?? [];
   const showName = display?.showName !== false;
   const showPrimary = display?.showPrimaryType !== false;
-  const showCity = display?.showCity !== false;
+  const showSecondary =
+    display?.showSecondaryType !== false && !!card.secondaryTalentTypeLabel;
+  const showCity = display?.showCity !== false && !!card.locationLabel;
+  const showLanguages =
+    display?.showLanguages !== false && cardLanguages.length > 0;
+  // Layout-ready: only renders when a real label exists (never fabricated).
+  const showAvailability =
+    display?.showAvailability !== false && !!card.availabilityLabel;
   const showBadge = display?.showBadge !== false && card.isFeatured;
   const variant = display?.cardVariant ?? "editorial";
+
   const wrapClass =
-    "talent-card site-featured-talent__card group/card flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-shadow duration-200 hover:shadow-lg";
+    "talent-card site-featured-talent__card group/card relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-xl";
+
+  // Secondary type and languages share one subtle meta line under the
+  // kicker. Languages are capped at 3 in the fetch layer.
+  const languageLine = showLanguages ? cardLanguages.join(" · ") : null;
+  const hasMetaLine = showSecondary || !!languageLine;
 
   const media = (
     <div
-      className="relative aspect-[3/4] w-full overflow-hidden"
+      className="relative aspect-[3/4] w-full overflow-hidden bg-muted"
       data-card-media
     >
       {card.thumbnailUrl ? (
@@ -83,13 +115,13 @@ export function FeaturedTalentCard({
           src={card.thumbnailUrl}
           alt={card.displayName}
           fill
-          className="object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
+          className="object-cover transition-transform duration-[650ms] ease-out group-hover/card:scale-[1.05]"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           priority={priority}
         />
       ) : (
         <div
-          className="flex h-full min-h-[200px] items-center justify-center bg-muted text-xs tracking-[0.25em] text-muted-foreground"
+          className="flex h-full min-h-[220px] items-center justify-center bg-muted text-sm font-medium tracking-[0.25em] text-muted-foreground"
           aria-hidden
         >
           {card.displayName
@@ -102,26 +134,37 @@ export function FeaturedTalentCard({
       )}
 
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"
         aria-hidden
       />
 
       {showBadge ? (
         <div
-          className="absolute left-2 top-2 z-[1] flex flex-wrap items-center gap-1.5"
+          className="absolute left-3 top-3 z-[2] flex flex-wrap items-center gap-1.5"
           data-card-ribbon
         >
-          <span className="pointer-events-none rounded-full border border-primary/40 bg-background/55 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary backdrop-blur-sm">
+          <span className="pointer-events-none rounded-full border border-primary/40 bg-background/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-primary backdrop-blur-sm">
             Featured
           </span>
         </div>
       ) : null}
 
-      {showName || showPrimary || showCity ? (
-        <div className="absolute inset-x-0 bottom-0 z-[1] px-3 pb-3 sm:px-4 sm:pb-4">
+      {showAvailability ? (
+        <div
+          className="absolute right-3 top-3 z-[2]"
+          data-card-availability
+        >
+          <span className="pointer-events-none rounded-full border border-white/25 bg-black/45 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
+            {card.availabilityLabel}
+          </span>
+        </div>
+      ) : null}
+
+      {showName || showPrimary || showCity || hasMetaLine ? (
+        <div className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-4 sm:px-5 sm:pb-5">
           {showName ? (
             <h3
-              className="text-base font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-lg"
+              className="text-lg font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-xl"
               style={{
                 fontFamily: "var(--site-heading-font, var(--font-display))",
               }}
@@ -132,14 +175,26 @@ export function FeaturedTalentCard({
           ) : null}
           {showPrimary || showCity ? (
             <p
-              className="mt-0.5 truncate text-xs text-white/80 sm:text-sm"
+              className="mt-1 truncate text-xs font-medium uppercase tracking-[0.14em] text-white/85 sm:text-[13px]"
               data-card-kicker
             >
               {showPrimary ? card.primaryTalentTypeLabel : null}
-              {showPrimary && showCity && card.locationLabel ? (
-                <span className="mx-1 text-white/50">·</span>
+              {showPrimary && showCity ? (
+                <span className="mx-1.5 text-white/45">·</span>
               ) : null}
               {showCity ? card.locationLabel : null}
+            </p>
+          ) : null}
+          {hasMetaLine ? (
+            <p
+              className="mt-1.5 truncate text-[11px] text-white/65 sm:text-xs"
+              data-card-meta
+            >
+              {showSecondary ? card.secondaryTalentTypeLabel : null}
+              {showSecondary && languageLine ? (
+                <span className="mx-1.5 text-white/35">·</span>
+              ) : null}
+              {languageLine}
             </p>
           ) : null}
         </div>
@@ -163,7 +218,9 @@ export function FeaturedTalentCard({
   }
 
   // With a Request CTA, avoid invalid nested-interactive: the media/name
-  // block is the "View profile" link; Request is a sibling anchor.
+  // block is the "View profile" link; Request is a sibling anchor. The
+  // action row gets premium rhythm via `data-card-actions` + the shared
+  // `site-prim-cta` button family (token-driven, reusable per tenant).
   return (
     <article className={wrapClass} data-card-variant={variant}>
       <Link
@@ -173,7 +230,10 @@ export function FeaturedTalentCard({
       >
         {media}
       </Link>
-      <div className="flex gap-2 p-3 sm:p-4">
+      <div
+        className="flex items-stretch gap-2 p-3 sm:gap-2.5 sm:p-4"
+        data-card-actions
+      >
         <Link
           href={href}
           className="site-prim-cta site-prim-cta--outline site-prim-cta--sm flex-1 justify-center"
