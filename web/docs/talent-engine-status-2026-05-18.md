@@ -71,6 +71,32 @@ deferred (below), not forgotten.
   phase is actionable right now (Phase 5/6 are gated / not approved and
   Phase 5 also depends on the dirty resolver).
 
+## Phase 2 — FINISHED (work), landing gated (2026-05-19)
+
+`WorkspaceFieldSettingsDrawer` made real — commit `f1d9327df` on branch
+`engine-phase2-finish` (base `c46c585c9` = phase-1 tip; clean +1
+fast-forward, non-overlapping ~19551 region). Real engine
+(`getWorkspaceFieldCatalog`/`setWorkspaceFieldCatalog`), search + group
+sections + expandable rows, optimistic+reconcile, plan-tier gated,
+reset/reset-all, Field-Privacy cross-link. Per the locked Phase-2 scope +
+no-fake-UI rule, the mock's 5 unbacked toggles
+(registration/editor/directory/talent-editable/review) were dropped (no
+backend); only enabled/required/custom_label/custom_helper persist.
+Removed dead 198-line `WorkspaceFieldSettingRow`. Gate (VALID): tsc 0;
+lint 78 = exact baseline, zero new. **NOT landed on shared `phase-1`** —
+blocked by concurrent other-agent uncommitted `drawers.tsx` work; forcing
+it would require committing their mixed work / hunk surgery (both
+forbidden). Lands clean the moment they commit, or on explicit go.
+
+### BINDING lesson — git worktree gate is a FALSE PASS without node_modules
+
+`git worktree add` does NOT copy `node_modules` (gitignored). Running
+`npx tsc`/`npm run lint` in a fresh worktree silently fails (module not
+found) and `grep -c "error TS"` returns 0 → a fake "clean" gate. ALWAYS
+`ln -s <main>/web/node_modules <worktree>/web/node_modules` (and root)
+before trusting tsc/lint in a worktree. Caught here before it caused a
+false "verified" claim.
+
 ## Next when unblocked
 
 When the other agents commit/clear `drawers.tsx` + `admin-taxonomy.ts`,
