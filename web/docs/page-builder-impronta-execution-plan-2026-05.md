@@ -2492,11 +2492,29 @@ insertions, **tsc 0 / eslint 0 / 15-of-15 tests pass**:
   every kind × path-based + host-based, explicit Finding-B assertions.
   Run: `npx tsx --test src/lib/site-admin/links/resolve-link-ref.test.ts`
 
-## What is NOT done (why nothing changed on any page yet)
+## STATUS UPDATE 2026-05-19 — Finding B FIXED (first wiring slice landed)
 
-**No section schema/Component/Editor imports any of the above.** The
-resolver is correct in isolation but unused. **Finding B is still live
-on the rendered site** until the wiring slice lands.
+Commit **`8e3f5cb8d`** *"fix(6C): kill Finding-B globally"*: exported
+`isPlatformAuthPath()` (single source of truth) + hardened
+`prefixPublicHref` (leaf, `src/lib/saas/public-hrefs.ts`) to return
+ROOT `(auth)` paths unchanged. One surgical guard → fixes every
+section + the deep walker + shell at once. **Verified live on
+path-based `/impronta`** (Chrome + DOM): Talent CTAs emit root
+`/login` `/register`; ZERO `/impronta/login|register`; tenant pages
+still correctly prefixed; no regression. Tests 17/17, tsc 0, eslint 0.
+
+**Finding B (the live route-safety bug) is RESOLVED.** The remaining
+6C work below is now a NORMAL-priority enhancement, no longer an
+urgent live-bug fix.
+
+## What is NOT done yet (remaining 6C — normal priority)
+
+The structured-LinkRef *migration* is not done: no section
+schema/Component/Editor persists/reads `LinkRef` yet (they still store
+flat strings; the resolver + coercion exist but only the auth-prefix
+guard is wired). Full benefit (operator picks link KIND in editor;
+tenant-directory/talent-profile/app-dashboard/inquiry-start resolve
+structurally) needs the per-section migration.
 
 ## ⚠ The blocker the wiring slice MUST solve (verified pipeline finding)
 
