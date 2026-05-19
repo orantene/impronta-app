@@ -2459,3 +2459,94 @@ existing real `authArea` discovery widget today; no new counts, no fake
 state. WhatsApp/phone/social population is owner-data-gated, not 6B.
 
 *End of Phase 6B execution log.*
+
+---
+
+# 🔴 URGENT — PHASE 6C IN PROGRESS · FOUNDATION SHIPPED BUT **NOT WIRED** · RESUME HERE (2026-05-19)
+
+> **DO NOT LOSE / DO NOT REBUILD.** The 6C foundation is committed and
+> tested but is **inert** — no section uses it yet, so nothing changed
+> functionally on any page. A future agent must (a) NOT re-create the
+> foundation, and (b) finish the wiring slice below to make it real.
+> This section is the single source of truth for 6C state.
+
+## What is DONE (committed, durable, gated)
+
+Commit **`b646c7657`** on `phase-1` — *"feat(6C): LinkRef model +
+resolveLinkRef single-source resolver (foundation)"* — 3 files, 433
+insertions, **tsc 0 / eslint 0 / 15-of-15 tests pass**:
+
+- `web/src/lib/site-admin/links/link-ref.ts` — `LinkRef
+  {kind,value?,label?,external?,openInNew?}` zod schema + 13 kinds
+  (plan §7); `coerceLegacyHref()` (legacy string → structured,
+  auto-upgrades `/login`,`/talent/register`,… to safe
+  `platform-auth-*` kinds); `linkRefOrLegacy` / `optionalLinkRefOrLegacy`
+  zod unions (schemas accept BOTH a `LinkRef` object AND a legacy string).
+- `web/src/lib/site-admin/links/resolve-link-ref.ts` —
+  `resolveLinkRef(ref,{pathPrefix,tenantId,appHostOrigin})` +
+  `resolveLinkLike(stringOrRef,ctx)`. Pure/sync/deployment-agnostic.
+  `platform-auth-*` resolve **ROOT, never tenant-prefixed** (the
+  structural Finding-B fix). app-dashboard degrades to root path if no
+  origin. Reuses `prefixPublicHref` for tenant-scoped kinds.
+- `web/src/lib/site-admin/links/resolve-link-ref.test.ts` — 15 tests,
+  every kind × path-based + host-based, explicit Finding-B assertions.
+  Run: `npx tsx --test src/lib/site-admin/links/resolve-link-ref.test.ts`
+
+## What is NOT done (why nothing changed on any page yet)
+
+**No section schema/Component/Editor imports any of the above.** The
+resolver is correct in isolation but unused. **Finding B is still live
+on the rendered site** until the wiring slice lands.
+
+## ⚠ The blocker the wiring slice MUST solve (verified pipeline finding)
+
+`prefixPublicHrefsDeep` runs on the **raw stored payload BEFORE the
+section Component renders**, with no zod-transform in between:
+
+- `web/src/components/home/homepage-cms-sections.tsx:299`
+  → `payloadForRender = prefixPublicHrefsDeep(migrated.payload, publicPathPrefix)`
+- `web/src/components/site-shell/PublishedShell.tsx:188`
+  → `props = prefixPublicHrefsDeep(slot.props, publicPathPrefix)`
+
+It blindly tenant-prefixes any string under keys `href|ctaHref|rsvpUrl|
+brandHref` (`web/src/lib/saas/public-hrefs.ts`). So a Component-only OR
+schema-only wiring **will not fix Finding B** — `/register` is already
+mutated to `/impronta/register` before the Component sees it. The
+wiring slice must reconcile/retire this global pre-mutator so
+`resolveLinkRef` becomes the single resolution point.
+
+## ▶ NEXT SLICE — exact steps to make 6C real (its own scoped task)
+
+1. **Stop the pre-mutator from clobbering structured links.** In
+   `prefixPublicHrefsDeep` (or at both call sites) skip values that are
+   `LinkRef` objects (have a `kind` in `LINK_KINDS`); leave legacy
+   strings alone there and resolve them at the Component instead.
+   Preferred end state: retire `prefixPublicHrefsDeep` for link fields
+   entirely; Components own resolution via `resolveLinkRef`.
+2. **Pilot section = `cta_banner`** (the Finding-B locus: impronta-home
+   recipe `primaryCta:/register`, `secondaryCta:/login`):
+   - `sections/cta_banner/schema.ts`: `ctaSchema.href` → `linkRefOrLegacy`.
+   - `sections/cta_banner/Component.tsx`: destructure `tenantId,
+     publicPathPrefix`; render `resolveLinkLike(cta.href,{pathPrefix:
+     publicPathPrefix??"",tenantId})` → pass `.href/.external/.rel/
+     target` to `<Cta>`. (Component may need `async` +
+     `await getCanonicalAppHostOrigin()` only if app-dashboard links are
+     used — not for impronta-home.)
+   - Editor: keep existing `LinkPicker` for now (writes legacy string →
+     coerced); the structured `LinkKindPicker` UI is a 6D-adjacent
+     follow-up.
+3. **Gate**: `npx tsc --noEmit && npm run lint` + the resolver tests.
+4. **SSR-verify Finding B fixed**: on path-based `/impronta`,
+   cta_banner Talent CTAs emit root `/register` `/login` (NOT
+   `/impronta/register` → 404). Then roll the same pattern to the other
+   link-bearing sections (hero*, header, footer, anchor_nav, …).
+5. Acceptance (plan §12): all CTAs/nav route correctly across
+   host/path/domain/auth; legacy compositions unbroken.
+
+## Do-not-duplicate
+
+The `LinkRef` model + resolver + tests already exist and are correct.
+**Build ON them.** Do not author a second link system. The only
+remaining work is the pipeline reconciliation + per-section wiring above.
+
+*End of 6C urgent handoff.*
