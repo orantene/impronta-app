@@ -16,7 +16,10 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | After Phase 1d (drawers 31k→625) | ~73–75 est. | single biggest lever — 4 worst god-files decomposed |
 | After Phase 1e (pages 12k→16) | ~75–77 est. | 5th god-file gone; gate improved 78→71 |
 | **🏁 ALL STRUCTURAL LANDED (1a-e + 2 + 2f + 3)** | **~77–80 est.** | *every structural lane in; gate exact/improved each; **formal re-audit is the next action*** |
+| Post-structural re-audit (PM2 chat) | **74** | measured (not estimated); the structural runway under-delivered vs ~77–80 estimate; 4 weak dimensions identified |
+| **After T2a CI gate landed** | **74** (+5 latent) | T2a `a4ec8e203` (2026-05-19, this chat) — gate now ENFORCES ratchets; the +5 materializes the first PR that tries to grow debt and is auto-blocked. Converts every subsequent dimension gain from honor-system → enforced. |
 | Realistic structural ceiling | ~88–92 | reachable only with T2b/T2c/T2d + RSC; 90→100 = vanity |
+| Wave 1+ honest target | **~84** | per `improvement-plan-2026-05-19-weak-dimensions.md` end-to-end (14–16 weeks) |
 
 > **🏁 ALL STRUCTURAL LANES LANDED `554e2c8cd`** — `talent 15.5k→275` (1a) ·
 > `state 9.5k→30` (1b) · `messages 16k→73` (1c) · `drawers 31k→625` (1d) ·
@@ -32,7 +35,7 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 
 ## 📋 MASTER LIST — every prompt, one place (ground-truthed 2026-05-19)
 
-Status verified against `git`, not memory. **origin/phase-1 = `554e2c8cd`.**
+Status verified against `git`, not memory. **origin/phase-1 = `a4ec8e203`** (was `554e2c8cd` pre-T2a).
 "Moves score?" is the honest distinction: **test lanes do NOT move 78→100** —
 they are the safety harness. Only the *structural* lanes move the number.
 
@@ -48,8 +51,8 @@ they are the safety harness. Only the *structural* lanes move the number.
 | 8 | **Phase 1e — pages.tsx 12k decomp** | **structural** | **YES** | ✅ **LANDED `0c8feda1e`** — full-tsc 4-relocated/0-new, public-surface identical, **gate 78→71** | close chat — **done 🎉** |
 | 9 | **Phase 2-finish — ThreadShell client** | **structural** | **YES** | ✅ **LANDED `554e2c8cd`** — 51/51 tests, tsc 4-relocated/0-new, gate exact; admin deferred w/ evidence | close chat — **done 🎉** |
 | 10 | **Phase 3 — design-token codemod** | **structural** | **YES** | ✅ **LANDED `8ddd1c117`** — −50 inline styles, conflict-free, tsc/gate EXACT before==after | close chat — **done 🎉** |
-| 11 | T2a — CI structural gate | infra | indirect | ▶ running, **0 commits** | keep open |
-| 12 | T2b — data-access layer | infra | indirect | ▶ running, **0 commits** | keep open |
+| 11 | T2a — CI structural gate | infra | indirect (multiplies every other gain) | ✅ **LANDED `a4ec8e203`** (2026-05-19, PM3) — 1 file `.github/workflows/ci.yml` (+183 LOC), 4 gates (tsc/lint/suppressions/tests), BASE TSC=4 SUPPRESSIONS=14699, all empirically integrator-verified | close chat — done 🎉 |
+| 12 | T2b — data-access layer | infra | indirect | ⏸ **PAUSED** by PM3 — must run SOLO; resume after Wave 1+2 of post-structural lanes settle | hold |
 | — | T2c residue decomp | gated | — | ⛔ GATED on 1d+1e | do NOT start |
 | — | T2d hygiene | last | — | ⛔ run LAST (0 commits — correctly parked) | do NOT start yet |
 | — | Tier-3 RSC rework | future | — | not a prompt — months-scale, post-test-net | ignore for now |
@@ -91,6 +94,7 @@ before verifying (owned); integration math still holds, the 76 is pre-existing
 | 13 | `0c8feda1e` | **🎯 Phase 1e — pages.tsx 12,074→16 barrel + 25 modules** | cherry-pick · conflict-free · **FULL tsc 4-relocated/0-new/0-in-page-modules** · public-surface BASE==HEAD (7) · suppressions 0-removed/+24-page-modules/1-documented-profile-shell-accounting · **npm-run-lint gate 78→71 (improved)** · scoped · **2026-05-19** |
 | 14 | `ff42b1648` `067a3b9e1` `8ddd1c117` | **Phase 3 — inline-style codemod −50 (22 talent/* modules)** | cherry-pick · conflict-free · suppressions 0-removed/0-added/22-talent-tightened/1d+1e-preserved · **FULL tsc 4-relocated/0-new** · **gate 71==71 / 981==981 EXACT** · scoped · **2026-05-19** |
 | 15 | `554e2c8cd` | **🏁 Phase 2-finish — client adopts shared ThreadShell via slots** | cherry-pick · conflict-free · **51/51 tests** (ThreadShell 6 + adapter 12 + Lane-E oracle 33) · FULL tsc 4-relocated/0-new · **gate 71==71 / 981==981 EXACT** · scoped · admin deferred w/ evidence · **2026-05-19** |
+| 16 | `a4ec8e203` | **T2a — CI structural quality gate (THE unlock)** | direct FF push (HEAD:phase-1) · 1 file `.github/workflows/ci.yml` (+183/-0) · YAML parses (js-yaml, 1 job/15 steps) · inline-node counter empirically=14699 (matches Python walk over 290-file JSON) · 9 `test:*` script names all exist in package.json · pre-push merge-base-ancestor re-verified immediately before push · BASE TSC=4 SUPPRESSIONS=14699 captured at base `c4f833937` · agent worktree `/Users/oranpersonal/Desktop/impronta-t2a-ci` · **2026-05-19** (PM3 first landing) |
 
 ---
 
@@ -107,8 +111,34 @@ before verifying (owned); integration math still holds, the 76 is pre-existing
 
 | Lane | Scope | Worktree | State |
 |---|---|---|---|
-| T2a | CI structural quality gate | `impronta-ci` | running · no commits yet |
-| T2b | data-access layer + generated Supabase types (~535 `.from()`) | `impronta-data-layer` | running · no commits yet |
+| T2a | CI structural quality gate | `impronta-t2a-ci` | ✅ **LANDED `a4ec8e203`** (PM3, 2026-05-19) |
+| T2b | data-access layer + generated Supabase types (~535 `.from()`) | `impronta-data-layer` | ⏸ **PAUSED by PM3** — solo lane, resume after Wave 1+2 settle |
+
+---
+
+## 🌊 Wave 1+ — post-structural improvement lanes (PM3 chat)
+
+Per `improvement-plan-2026-05-19-weak-dimensions.md` — climb the 4 weak dimensions (Security 65→80, Lint 50→75, Frontend 38→70, Style 35→78) toward honest end-to-end target **~84**.
+
+| # | Lane | Model | Worktree | State |
+|---|---|---|---|---|
+| 1 | T2a — CI structural gate | Opus high | `impronta-t2a-ci` | ✅ **LANDED `a4ec8e203`** — see row 16 above |
+| 2 | S1 — 4 MED/LOW auth-isolation hardenings | Opus high | (agent worktree) | ▶ running |
+| 3 | Q1 — trivial lint auto-fixes (no-unescaped-entities + display-name + no-explicit-any) | Sonnet | (agent worktree) | ▶ running |
+| 4 | Y4 — design-token canonical-map + Tailwind bridge | Opus high | (agent worktree) | ▶ running |
+| 5 | Q3 — `console.*` → structured logger | Sonnet | (agent worktree) | ⚠ **HALT-COORDINATED** — agent initially created duplicate `logger.ts`; integrator caught pre-commit, pivoted to existing `improntaLog` from `web/src/lib/server/structured-log.ts` + `logServerError` from `safe-error.ts`; awaiting revised 3-site sample |
+| 6 | Y1 — Phase 3 codemod replay across the app | Sonnet | (paused) | ⏸ **PAUSED** by PM3 — file-collision risk with Q3; resume after Q3 lands |
+| 7 | F1 — RSC audit + classifier (script + CSV) | Opus high | (paused) | ⏸ **PAUSED** by PM3 — resume after Q1 lands to reduce tsc concurrency |
+| 8 | T2b — data-access layer sweep (THE elephant, 4–6 wk solo) | Opus max | (paused) | ⏸ **PAUSED** by PM3 — solo by nature, do not start until Wave 1+2 settled |
+
+### Integrator protocol for PM3 (this chat)
+
+Same as previous: FF-only push grant (authorized 2026-05-19 explicitly for this remediation series), verify-each immediately before push (`fetch + merge-base --is-ancestor + merge-tree clean`), never force, never push through conflict, one wave at a time, transparent from→to SHA report per push.
+
+**Coordination hazards being actively managed:**
+- Q1 + Q3 both regen `eslint-suppressions.json` — integrator regens on combined tree at landing (no hand-merge).
+- Q3 ↔ S1 file overlap on `scope.ts` + `admin-scope.ts` — Q3 deferring those 2 files to final batch (coordinated).
+- tsc OOM at >3 concurrent gating runs — currently 5 lanes peak ≈ 3 concurrent tsc, within tolerance.
 
 ## 🧪 Test net — 6 zero-source parallel lanes (cannot break source)
 
