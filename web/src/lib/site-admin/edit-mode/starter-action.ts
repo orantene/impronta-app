@@ -319,6 +319,10 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "trust_band",
         sectionTypeKey: "talent_type_grid",
         propsOverride: {
+          // v11 band rhythm — raised surface + hairline (token-driven:
+          // muted-surface → --token-color-surface-raised, thin-line →
+          // --token-color-line; reusable, no per-tenant CSS).
+          presentation: { background: "muted-surface", dividerTop: "thin-line" },
           headline: "Talent, by Discipline",
           mode: "manual",
           // Trimmed to disciplines the current public roster actually
@@ -376,6 +380,9 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "services",
         sectionTypeKey: "featured_talent",
         propsOverride: {
+          // v11 band rhythm — plain canvas band with a top hairline so
+          // it reads as a distinct band against the surface neighbours.
+          presentation: { background: "canvas", dividerTop: "thin-line" },
           headline: "Featured Talent",
           copy: "Selected profiles available for events, productions, campaigns, and private experiences.",
           // Manual selection (verified-supported by fetch.ts
@@ -409,6 +416,7 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "featured",
         sectionTypeKey: "location_discovery",
         propsOverride: {
+          presentation: { background: "muted-surface", dividerTop: "thin-line" },
           headline: "Find Talent Near Your Event Location",
           subheadline:
             "Explore talent availability across key destinations in the Riviera Maya.",
@@ -435,6 +443,7 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "process",
         sectionTypeKey: "process_steps",
         propsOverride: {
+          presentation: { background: "canvas", dividerTop: "thin-line" },
           headline: "A Clear, Professional Process",
           steps: [
             {
@@ -466,6 +475,7 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "destinations",
         sectionTypeKey: "values_trio",
         propsOverride: {
+          presentation: { background: "muted-surface", dividerTop: "thin-line" },
           headline: "An Agency, Not a Directory",
           items: [
             {
@@ -492,6 +502,8 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "gallery",
         sectionTypeKey: "cta_banner",
         propsOverride: {
+          // Top hairline only — the CTA variant owns its own band tone.
+          presentation: { dividerTop: "thin-line" },
           eyebrow: "For talent",
           headline: "Are you a model, host, performer, or creator?",
           copy: "Join Impronta's represented talent and get discovered for events, productions, and campaigns across the Riviera Maya.",
@@ -516,6 +528,7 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "final_cta",
         sectionTypeKey: "cta_banner",
         propsOverride: {
+          presentation: { dividerTop: "thin-line" },
           eyebrow: "For clients",
           headline:
             "Planning an event, shoot, activation, or private experience?",
