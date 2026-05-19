@@ -9,6 +9,7 @@
 import type { SectionTypeKey } from "../registry";
 import { v11FeaturedTalentPreset } from "../featured_talent/presets";
 import { v11TalentTypeGridPreset } from "../talent_type_grid/presets";
+import { fashionDirectoryPreset } from "../directory/presets";
 
 export interface LibraryDefault {
   /** Admin-visible instance name; shown in /sections list + composer dropdowns. */
@@ -274,6 +275,10 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
   featured_talent: {
     name: "Featured professionals — new",
     props: v11FeaturedTalentPreset,
+  },
+  directory: {
+    name: "Directory — new",
+    props: fashionDirectoryPreset,
   },
   marquee: {
     name: "Marquee — new",
