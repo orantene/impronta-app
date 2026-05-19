@@ -4674,39 +4674,6 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="editorial-split"] .site-header__nav-link:hover::after {
   width: 100%;
 }
-@media (max-width: 680px) {
-  .site-header[data-variant="editorial-split"] .site-header__contact-label {
-    display: none;
-  }
-  /* Prototype mobile cluster: tighter glyph padding, zero inter-icon gap. */
-  .site-header[data-variant="editorial-split"] .site-header__social,
-  .site-header[data-variant="editorial-split"] .site-header__contact {
-    padding: 0.45rem;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__cluster {
-    gap: 0;
-  }
-  /* Compact the header so it doesn't tower on phones (prototype keeps a
-   * short mobile bar). Shrink logo + wordmark, tighten padding/gaps. */
-  .site-header[data-variant="editorial-split"] .site-header__inner {
-    padding-block: 0.6rem 0.15rem;
-    gap: 0.5rem;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__brand-mark {
-    height: clamp(34px, 9vw, 46px);
-  }
-  .site-header[data-variant="editorial-split"] .site-header__brand-label {
-    font-size: clamp(1.15rem, 5vw, 1.55rem);
-    letter-spacing: 0.22em;
-    text-indent: 0.22em;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__brand {
-    gap: 0.28rem;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__nav-list {
-    margin-top: 0.3rem;
-  }
-}
 
 /* ---- Optional density controls (only match when operator set them) --- */
 .site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(24px, 2.4vw, 30px); }
@@ -4719,72 +4686,6 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-nav-density="spacious"] .site-header__nav-list { gap: clamp(1.8rem, 3.6vw, 3.2rem); }
 .site-header[data-vpad="tight"] .site-header__inner { padding-block: clamp(6px, 0.8vw, 10px); }
 .site-header[data-vpad="roomy"] .site-header__inner { padding-block: clamp(16px, 2.4vw, 30px); }
-
-/* ---- Mobile safety: never ship horizontal overflow ------------------- */
-@media (max-width: 860px) {
-  .site-header[data-variant="editorial-split"] .site-header__inner {
-    grid-template-columns: 1fr auto 1fr;
-    gap: 6px clamp(10px, 2vw, 18px);
-  }
-  .site-header[data-variant="editorial-split"] .site-header__cluster {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-}
-@media (max-width: 720px) {
-  /* Contact text collapses to icons; social icons stay. Keeps the row
-     from overflowing while preserving the affordance. */
-  .site-header__contact-label { display: none; }
-  .site-header[data-variant="editorial-split"] .site-header__nav {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__nav::-webkit-scrollbar {
-    display: none;
-  }
-  /* Single-line scroll rail instead of a tall multi-line wrap — keeps
-     every nav item reachable without a JS drawer (deferred) while the
-     mobile header stays short, prototype-style. */
-  .site-header[data-variant="editorial-split"] .site-header__nav-list {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 1.15rem;
-    width: max-content;
-    margin-inline: auto;
-    padding-inline: 1rem;
-  }
-  /* compact / drawer (drawer reserved — renders as compact until a client
-     drawer ships, so it can never break the layout). */
-  .site-header[data-mobile-menu="compact"] .site-header__nav,
-  .site-header[data-mobile-menu="drawer"] .site-header__nav { display: none; }
-}
-@media (max-width: 520px) {
-  .site-header[data-variant="editorial-split"] .site-header__inner {
-    grid-template-areas: "lead actions" "brand brand" "nav nav";
-    grid-template-columns: 1fr auto;
-    row-gap: 4px;
-    padding-block: 0.5rem 0.1rem;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__brand {
-    justify-self: center;
-    gap: 0.22rem;
-  }
-  .site-header[data-variant="editorial-split"] .site-header__brand-mark {
-    height: clamp(30px, 8vw, 40px);
-  }
-  .site-header[data-variant="editorial-split"] .site-header__brand-label {
-    font-size: clamp(1.05rem, 5.4vw, 1.35rem);
-  }
-  .site-header[data-variant="editorial-split"] .site-header__actions { justify-self: end; }
-  .site-header[data-variant="editorial-split"] .site-header__cta {
-    padding: 0.45rem 0.7rem !important;
-    font-size: 0.6rem !important;
-  }
-  .site-header__social { width: 30px; height: 30px; }
-}
 
 /* ---- editorial-split right cluster + slide-out drawer ----------------
  * Prototype-faithful skin for <EditorialSplitActions>: the tight `.acct`
@@ -4897,6 +4798,113 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header__es-ic[data-tip]:hover::after {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ── Mobile (v11-faithful). Defined AFTER the cluster base so these
+ *    overrides win by source order (equal specificity). The header is a
+ *    SHORT single row: social-left · brand-center · [Saved·Inquiry·☰].
+ *    Inline nav is hidden <900px exactly like the prototype
+ *    (`@media(max-width:900px){nav.main{display:none}}`) — the ☰ opens
+ *    the full-screen portaled drawer, which IS the mobile nav. Columns
+ *    are `auto 1fr auto` (not `1fr auto 1fr`): each side sizes to its
+ *    own icon content and the brand takes the flexible centre, so the
+ *    wide utilities side can never starve the social side to 0 (that
+ *    asymmetric-1fr collapse was the bug). ── */
+@media (max-width: 900px) {
+  .site-header[data-variant="editorial-split"] .site-header__nav {
+    display: none;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__inner {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "lead brand actions";
+    gap: 0.5rem;
+    padding-block: 0.7rem 0.6rem;
+  }
+  /* Prototype `.h-side{min-width:0}` — sides may shrink so the centred
+     brand is never shoved off-axis; icons stay tappable. */
+  .site-header[data-variant="editorial-split"] .site-header__cluster,
+  .site-header[data-variant="editorial-split"] .site-header__es-acct {
+    min-width: 0;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__brand {
+    justify-self: center;
+  }
+  .site-header[data-variant="editorial-split"][data-mobile-menu="wrap"] .site-header__inner {
+    grid-template-areas: "lead brand actions" "nav nav nav";
+  }
+  .site-header[data-variant="editorial-split"][data-mobile-menu="wrap"] .site-header__nav {
+    display: block;
+    grid-area: nav;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .site-header[data-variant="editorial-split"][data-mobile-menu="wrap"] .site-header__nav::-webkit-scrollbar {
+    display: none;
+  }
+  .site-header[data-variant="editorial-split"][data-mobile-menu="wrap"] .site-header__nav-list {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 1.15rem;
+    width: max-content;
+    margin-inline: auto;
+    margin-top: 0.35rem;
+    padding-inline: 1rem;
+  }
+}
+@media (max-width: 680px) {
+  .site-header[data-variant="editorial-split"] .site-header__contact-label {
+    display: none;
+  }
+  /* Shrink the flanking icons so the centred brand keeps the spotlight
+     on a phone (premium agency bar = logo is the hero). Social/contact
+     stays present + tappable — prototype-faithful, just compact. */
+  .site-header[data-variant="editorial-split"] .site-header__social,
+  .site-header[data-variant="editorial-split"] .site-header__contact {
+    padding: 0.3rem;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__cluster-icon {
+    width: 15px;
+    height: 15px;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__cluster {
+    gap: 0;
+    flex-wrap: nowrap;
+  }
+  /* EN·ES is the first sacrifice when space is tight (language is also
+     reachable in-page); Saved · Inquiry · ☰ always stay. */
+  .site-header[data-variant="editorial-split"] .site-header__es-loc {
+    display: none;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__es-acct {
+    gap: 0.1rem;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__es-ic {
+    width: 36px;
+    height: 36px;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__es-ic svg {
+    width: 17px;
+    height: 17px;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__brand-mark {
+    height: clamp(34px, 9vw, 48px);
+  }
+  .site-header[data-variant="editorial-split"] .site-header__brand-label {
+    font-size: clamp(1.15rem, 5.4vw, 1.6rem);
+    letter-spacing: 0.2em;
+    text-indent: 0.2em;
+  }
+}
+@media (max-width: 420px) {
+  .site-header[data-variant="editorial-split"] .site-header__es-ic {
+    width: 33px;
+    height: 33px;
+  }
+  .site-header[data-variant="editorial-split"] .site-header__brand-mark {
+    height: clamp(30px, 8vw, 40px);
+  }
 }
 
 /* Drawer — prototype body-level `.drawer .pn`. Portaled to <body> by
