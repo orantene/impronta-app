@@ -14,23 +14,25 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | After CP1 (Phase 0 safety net) | ~60 | re-audit |
 | After Wave 1 (CP2 + 1c + 1b + P2 + Lane 2) | ~68 | measured re-audit |
 | After Phase 1d (drawers 31k→625) | ~73–75 est. | single biggest lever — 4 worst god-files decomposed |
-| **After Phase 1e (pages 12k→16)** | **~75–77 est.** | *5th god-file gone; lint gate IMPROVED 78→71; formal re-audit pending* |
-| Projected after 3 + 2-finish | ~77–80 | projection |
-| Realistic structural ceiling | ~88–92 | 90→100 is negative-ROI vanity |
+| After Phase 1e (pages 12k→16) | ~75–77 est. | 5th god-file gone; gate improved 78→71 |
+| **🏁 ALL STRUCTURAL LANDED (1a-e + 2 + 2f + 3)** | **~77–80 est.** | *every structural lane in; gate exact/improved each; **formal re-audit is the next action*** |
+| Realistic structural ceiling | ~88–92 | reachable only with T2b/T2c/T2d + RSC; 90→100 = vanity |
 
-> **Phase 1d landed `3db9a2922`** — `talent 15.5k→275` (1a) · `messages 16k→73`
-> (1c) · `state 9.5k→30` (1b) · `drawers 31k→625` (1d): **~73,000 lines of
-> monolith dissolved** behind byte-stable barrels, provably zero behavior
-> change. This is the structural core of the whole plan. Honest current
-> estimate **~73–75** (formal re-audit deferred until 1e/3/2-finish land too).
-> The test net is the *harness* that made landing these safe — it does not
-> raise the score itself.
+> **🏁 ALL STRUCTURAL LANES LANDED `554e2c8cd`** — `talent 15.5k→275` (1a) ·
+> `state 9.5k→30` (1b) · `messages 16k→73` (1c) · `drawers 31k→625` (1d) ·
+> `pages 12k→16` (1e) · ThreadShell primitive + client adoption (P2/P2f) ·
+> inline-style codemod −50 (P3): **~85,000 lines of monolith dissolved**
+> behind byte-stable barrels, provably zero behavior change, gate
+> exact-or-improved on every single landing. Honest estimate **~77–80**;
+> the **formal re-audit is now the explicit next action** (deferred only
+> until structure fully settled — it now is). Test net (5/6) is the harness
+> that made this safe; it does not raise the score itself.
 
 ---
 
 ## 📋 MASTER LIST — every prompt, one place (ground-truthed 2026-05-19)
 
-Status verified against `git`, not memory. **origin/phase-1 = `0c8feda1e`.**
+Status verified against `git`, not memory. **origin/phase-1 = `554e2c8cd`.**
 "Moves score?" is the honest distinction: **test lanes do NOT move 78→100** —
 they are the safety harness. Only the *structural* lanes move the number.
 
@@ -44,27 +46,28 @@ they are the safety harness. Only the *structural* lanes move the number.
 | 6 | field-catalog tests | test net | no (harness) | ✖ **NEVER LAUNCHED** (Lane 2 already shipped baseline) | optional — skip unless you want depth |
 | 7 | **Phase 1d — drawers.tsx 31k decomp** | **structural** | **YES — biggest lever** | ✅ **LANDED `3db9a2922`** — full-tsc 4-relocated/0-new, public-surface identical | close chat — **done 🎉** |
 | 8 | **Phase 1e — pages.tsx 12k decomp** | **structural** | **YES** | ✅ **LANDED `0c8feda1e`** — full-tsc 4-relocated/0-new, public-surface identical, **gate 78→71** | close chat — **done 🎉** |
-| 9 | **Phase 2-finish — ThreadShell client** | **structural** | **YES** | ✅ **REPORTED** `f0f93842b` — client shipped+proven, admin deferred w/ evidence | none — queued wave |
-| 10 | **Phase 3 — design-token codemod** | **structural** | **YES** | ✅ **REPORTED & READY** `f275561f0` — queued wave (suppressions regen) | none — queued wave |
+| 9 | **Phase 2-finish — ThreadShell client** | **structural** | **YES** | ✅ **LANDED `554e2c8cd`** — 51/51 tests, tsc 4-relocated/0-new, gate exact; admin deferred w/ evidence | close chat — **done 🎉** |
+| 10 | **Phase 3 — design-token codemod** | **structural** | **YES** | ✅ **LANDED `8ddd1c117`** — −50 inline styles, conflict-free, tsc/gate EXACT before==after | close chat — **done 🎉** |
 | 11 | T2a — CI structural gate | infra | indirect | ▶ running, **0 commits** | keep open |
 | 12 | T2b — data-access layer | infra | indirect | ▶ running, **0 commits** | keep open |
 | — | T2c residue decomp | gated | — | ⛔ GATED on 1d+1e | do NOT start |
 | — | T2d hygiene | last | — | ⛔ run LAST (0 commits — correctly parked) | do NOT start yet |
 | — | Tier-3 RSC rework | future | — | not a prompt — months-scale, post-test-net | ignore for now |
 
-**The headline (changed — big):** **5 of 6 test lanes + Phase 1d + Phase 1e
-landed.** Five god-files now decomposed (talent/messages/state/drawers/pages —
-≈85k lines dissolved). Score est. **~75–77** (was ~68). Remaining score-movers
-**Phase 3 + 2-finish reported & ready**, landing one-at-a-time next (Phase 3
-will conflict on `eslint-suppressions.json` → resolved by composed-tree regen,
-not hand-merge — proven on 1e). auth-isolation still **surfaced 3 HIGH security
-holes** (🔒 below — characterized, not fixed). Known issues, disclosed not
-masked: (a) one **pre-existing test RED** on the branch; (b) **the real
-`npm run lint` gate has carried ≈76 errors since `d9b13b62c` (pre-everything)**
-— every lane's "BASE 0 errors" claim was wrong and I repeated it before
-verifying (owned); the integration math still holds (1d +0, **1e −7**), the 76
-is pre-existing (≈ pages.tsx 62 + profile-shell 14), T2d-bound, and 1e already
-clawed 7 back. See ⚠️ Known reds for the full corrected measurement.
+**The headline — 🏁 STRUCTURAL RUNWAY COMPLETE:** **5 of 6 test lanes + ALL
+structural lanes landed** (1a-e + Phase 2 + 2-finish + Phase 3). Five god-files
+decomposed + ThreadShell shared + inline-style codemod — **≈85k lines of
+monolith dissolved**, byte-stable, **gate exact-or-improved on every landing**
+(1d +0, 1e **−7**, 3 exact, 2f exact). Score est. **~77–80** (was ~68). The
+**formal re-audit is now the explicit next action.** auth-isolation **surfaced
+3 HIGH security holes** (🔒 below — characterized, not fixed). Known issues,
+disclosed not masked: (a) one **pre-existing test RED** on the branch; (b) the
+real `npm run lint` gate has carried **≈76 errors since `d9b13b62c`
+(pre-everything)** — every lane's "BASE 0 errors" was wrong and I repeated it
+before verifying (owned); integration math still holds, the 76 is pre-existing
+(≈ pages.tsx 62 + profile-shell 14), T2d-bound, 1e already clawed 7 back.
+**Post-structure set** (queue clean after re-audit, NOT more parallel chaos):
+3 HIGH security · pre-existing RED root-cause · T2d hygiene.
 
 ---
 
@@ -86,6 +89,8 @@ clawed 7 back. See ⚠️ Known reds for the full corrected measurement.
 | 11 | `f40f44499` | **Inquiry-engine characterization — 4 files, zero-source** | cherry-pick · zero-source · scoped-tsc 0 · suite 238/0-fail · **2026-05-19** |
 | 12 | `3db9a2922` | **🎯 Phase 1d — drawers.tsx 30,935→625 barrel + 29 modules** | cherry-pick · conflict-free · **FULL tsc 4-relocated/0-new** · public-surface BASE==HEAD · suppressions 0-removed/0-changed/+27-drawers-only · scoped (only drawers+suppr) · **2026-05-19** |
 | 13 | `0c8feda1e` | **🎯 Phase 1e — pages.tsx 12,074→16 barrel + 25 modules** | cherry-pick · conflict-free · **FULL tsc 4-relocated/0-new/0-in-page-modules** · public-surface BASE==HEAD (7) · suppressions 0-removed/+24-page-modules/1-documented-profile-shell-accounting · **npm-run-lint gate 78→71 (improved)** · scoped · **2026-05-19** |
+| 14 | `ff42b1648` `067a3b9e1` `8ddd1c117` | **Phase 3 — inline-style codemod −50 (22 talent/* modules)** | cherry-pick · conflict-free · suppressions 0-removed/0-added/22-talent-tightened/1d+1e-preserved · **FULL tsc 4-relocated/0-new** · **gate 71==71 / 981==981 EXACT** · scoped · **2026-05-19** |
+| 15 | `554e2c8cd` | **🏁 Phase 2-finish — client adopts shared ThreadShell via slots** | cherry-pick · conflict-free · **51/51 tests** (ThreadShell 6 + adapter 12 + Lane-E oracle 33) · FULL tsc 4-relocated/0-new · **gate 71==71 / 981==981 EXACT** · scoped · admin deferred w/ evidence · **2026-05-19** |
 
 ---
 
