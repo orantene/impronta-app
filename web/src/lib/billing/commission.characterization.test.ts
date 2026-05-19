@@ -30,8 +30,13 @@ import { describe, it } from "node:test";
 import {
   resolveBookingCommissions,
   CommissionResolutionError,
+  isOffPlatformPaymentMethod,
+  balanceSummary,
+  formatCommissionSnapshot,
   type PlatformCommissionConfig,
   type ResolveBookingCommissionsInput,
+  type BookingCommissionSnapshot,
+  type PaymentMethod,
 } from "./commission";
 
 const TENANT = "tenant-uuid-1";
@@ -647,5 +652,212 @@ describe("lanes_do_not_sum (talent_net would go negative)", () => {
     }
     assert.ok(checked >= 100, `expected a broad grid, only checked ${checked}`);
     assert.ok(rejected > 0, "expected some floor>gross rejections in the grid");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. isOffPlatformPaymentMethod — the card-vs-cash settlement fork
+//    Decides Path A (Stripe auto-split) vs Path B (accrual → balance owed).
+//    Exhaustive over ALL 9 PaymentMethod enum values.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("isOffPlatformPaymentMethod — exhaustive over the 9-value enum", () => {
+  const ON_PLATFORM: PaymentMethod[] = ["card", "apple_pay", "google_pay", "bank_transfer"];
+  const OFF_PLATFORM: PaymentMethod[] = ["cash", "wire", "venue_paid", "crypto", "other"];
+
+  for (const m of OFF_PLATFORM) {
+    it(`'${m}' → true (Path B: accrual → balance owed)`, () => {
+      assert.equal(isOffPlatformPaymentMethod(m), true);
+    });
+  }
+  for (const m of ON_PLATFORM) {
+    it(`'${m}' → false (Path A: in-platform Stripe split)`, () => {
+      assert.equal(isOffPlatformPaymentMethod(m), false);
+    });
+  }
+
+  it("the two sets partition all 9 enum members (no gaps, no overlap)", () => {
+    const all = [...ON_PLATFORM, ...OFF_PLATFORM];
+    assert.equal(all.length, 9);
+    assert.equal(new Set(all).size, 9);
+  });
+
+  it("NON-OBVIOUS: 'wire' is OFF-platform but 'bank_transfer' is ON-platform", () => {
+    // Easy to conflate — pin the spec §4 split (bank_transfer settles like a
+    // card via Stripe; a manual wire to the workspace's own bank does not).
+    assert.equal(isOffPlatformPaymentMethod("wire"), true);
+    assert.equal(isOffPlatformPaymentMethod("bank_transfer"), false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. balanceSummary — per-currency owed ledger → sorted UI list
+//    Object.entries → filter(cents !== 0) → map → sort desc by cents.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("balanceSummary", () => {
+  it("filters exactly-zero, keeps negatives, sorts strictly descending by cents", () => {
+    assert.deepEqual(
+      balanceSummary({ USD: 500, MXN: 12_000, EUR: 0, GBP: -100 }),
+      [
+        { currency: "MXN", cents: 12_000 },
+        { currency: "USD", cents: 500 },
+        { currency: "GBP", cents: -100 }, // negative is NOT filtered (only ===0 is)
+      ],
+    );
+  });
+
+  it("empty input → []; all-zero → []", () => {
+    assert.deepEqual(balanceSummary({}), []);
+    assert.deepEqual(balanceSummary({ USD: 0, MXN: 0 }), []);
+  });
+
+  it("single non-zero entry passes through", () => {
+    assert.deepEqual(balanceSummary({ MXN: 4_500 }), [{ currency: "MXN", cents: 4_500 }]);
+  });
+
+  it("BOUNDARY: -0 is treated as zero and filtered (`-0 !== 0` is false)", () => {
+    assert.deepEqual(balanceSummary({ NEG0: -0, REAL: 5 }), [{ currency: "REAL", cents: 5 }]);
+  });
+
+  it("stable tie order: equal cents preserve object insertion order (alpha keys)", () => {
+    // Array.prototype.sort is stable (Node 20 / V8); non-integer-like keys
+    // iterate in insertion order, so equal balances keep their original order.
+    assert.deepEqual(
+      balanceSummary({ AAA: 100, BBB: 100, CCC: 100 }),
+      [
+        { currency: "AAA", cents: 100 },
+        { currency: "BBB", cents: 100 },
+        { currency: "CCC", cents: 100 },
+      ],
+    );
+  });
+
+  it("QUIRK: a NaN balance is NOT filtered (`NaN !== 0` is true) — bad ledger data survives into the UI list", () => {
+    // The fn trusts its Record<string, number> contract and does no
+    // Number.isFinite guard; a NaN cent value passes the zero-filter and
+    // the sort comparator (b-a → NaN) leaves it roughly in place.
+    const out = balanceSummary({ GOOD: 100, BADNAN: NaN });
+    assert.equal(out.length, 2);
+    const bad = out.find((e) => e.currency === "BADNAN");
+    assert.ok(bad !== undefined);
+    assert.ok(Number.isNaN(bad.cents));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. formatCommissionSnapshot — UI breakdown formatter
+// ─────────────────────────────────────────────────────────────────────────────
+
+const snap = (
+  o: Partial<BookingCommissionSnapshot> = {},
+): BookingCommissionSnapshot => ({
+  platform_take_bps: 500,
+  platform_take_floor_cents: 0,
+  gross_cents: 100_000,
+  platform_fee_cents: 5_000,
+  workspace_fee_cents: 20_000,
+  talent_net_cents: 75_000,
+  currency_code: "MXN",
+  payment_method: "card",
+  off_platform_reason: null,
+  resolved_from: "platform_default",
+  ...o,
+});
+
+describe("formatCommissionSnapshot — custom formatter contract", () => {
+  it("calls the formatter once per money lane with (cents, currency) and maps the 4 keys correctly", () => {
+    const calls: Array<[number, string]> = [];
+    const out = formatCommissionSnapshot(
+      snap({
+        gross_cents: 111,
+        platform_fee_cents: 222,
+        workspace_fee_cents: 333,
+        talent_net_cents: 444,
+        currency_code: "USD",
+      }),
+      (cents, currency) => {
+        calls.push([cents, currency]);
+        return `${currency}:${cents}`;
+      },
+    );
+    // Exact arg contract (order + currency passthrough), locale-independent.
+    assert.deepEqual(calls, [
+      [111, "USD"], // gross
+      [222, "USD"], // platformFee
+      [333, "USD"], // workspaceFee
+      [444, "USD"], // talentNet
+    ]);
+    assert.equal(out.gross, "USD:111");
+    assert.equal(out.platformFee, "USD:222");
+    assert.equal(out.workspaceFee, "USD:333");
+    assert.equal(out.talentNet, "USD:444");
+  });
+
+  it("platformTakePercent = (bps/100).toFixed(2)+'%' — independent of the money formatter, NOT clamped", () => {
+    const pct = (bps: number) =>
+      formatCommissionSnapshot(snap({ platform_take_bps: bps }), () => "x").platformTakePercent;
+    assert.equal(pct(0), "0.00%");
+    assert.equal(pct(1), "0.01%");
+    assert.equal(pct(250), "2.50%");
+    assert.equal(pct(500), "5.00%");
+    assert.equal(pct(5_000), "50.00%");
+    // Display-only: the formatter does NOT enforce the resolver's 0..5000
+    // range — it renders whatever bps the snapshot carries.
+    assert.equal(pct(12_345), "123.45%");
+  });
+});
+
+describe("formatCommissionSnapshot — default formatter (defaultFormatCents, exercised via no formatter arg)", () => {
+  it("malformed currency code → catch fallback `${code} ${(cents/100).toFixed(2)}` (cents PRESERVED)", () => {
+    // 'ZZ' (2 chars) is not a well-formed currency → Intl throws RangeError
+    // → the catch branch runs. Deterministic + locale-independent.
+    const out = formatCommissionSnapshot(snap({
+      currency_code: "ZZ",
+      gross_cents: 100_055,
+      platform_fee_cents: 5_001,
+      workspace_fee_cents: 20_000,
+      talent_net_cents: 75_054,
+    }));
+    assert.equal(out.gross, "ZZ 1000.55");
+    assert.equal(out.platformFee, "ZZ 50.01");
+    assert.equal(out.workspaceFee, "ZZ 200.00");
+    assert.equal(out.talentNet, "ZZ 750.54");
+  });
+
+  it("QUIRK: well-formed currency uses maximumFractionDigits:0 → sub-major-unit precision is DROPPED", () => {
+    // $7.50 and $7.99 both render identically (whole-unit rounding), while
+    // $6.50 and $7.50 differ. Asserted as string EQUALITY/INEQUALITY so it
+    // holds regardless of the runtime's default locale/currency symbol.
+    const g = (cents: number) =>
+      formatCommissionSnapshot(snap({ currency_code: "USD", gross_cents: cents })).gross;
+    assert.equal(g(750) === g(799), true); // 7.50 and 7.99 collide
+    assert.equal(g(650) === g(750), false); // 6.50 vs 7.50 differ
+  });
+
+  it("CONTRAST: the fallback branch (.toFixed(2)) PRESERVES the cents the Intl branch drops", () => {
+    // Same amounts, only the currency-code well-formedness differs, yet the
+    // displayed precision differs — an internal inconsistency between the
+    // two branches of the same function. Pinned, not fixed.
+    const intlPath = (c: number) =>
+      formatCommissionSnapshot(snap({ currency_code: "USD", gross_cents: c })).gross;
+    const fallbackPath = (c: number) =>
+      formatCommissionSnapshot(snap({ currency_code: "ZZ", gross_cents: c })).gross;
+    assert.equal(intlPath(750) === intlPath(799), true); // collapsed
+    assert.equal(fallbackPath(750) === fallbackPath(799), false); // distinct
+    assert.equal(fallbackPath(750), "ZZ 7.50");
+    assert.equal(fallbackPath(799), "ZZ 7.99");
+  });
+
+  it.skip("CHARACTERIZATION: a money breakdown should not round $50.01 to '$50' — maximumFractionDigits:0 loses real cents — looks wrong, reported", () => {
+    // platform_fee_cents = 5001 ($50.01). The talent/coordinator breakdown
+    // is a money document; dropping the .01 misrepresents the split and the
+    // four displayed lanes will not visibly reconcile to the gross. Expected
+    // behavior: 2 fraction digits (or the currency's minor-unit count).
+    const out = formatCommissionSnapshot(snap({ currency_code: "USD", platform_fee_cents: 5_001 }));
+    assert.ok(
+      /50\.01/.test(out.platformFee),
+      `expected the cents to survive, got ${out.platformFee}`,
+    );
   });
 });
