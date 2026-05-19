@@ -9,6 +9,7 @@ import type { SiteHeaderV1 } from "./schema";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
 import { EditorialSplitActions } from "./EditorialSplitActions";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
+import { resolveShellBrandTagline } from "@/lib/site-admin/server/shell-brand-tagline";
 import {
   resolveShellSocialContact,
   type ShellSocialLink,
@@ -454,6 +455,13 @@ export async function SiteHeaderComponent({
     tenantId,
     brandLogoUrl: brand.logoUrl,
   });
+  // Sub-wordmark line: explicit section override wins, else the canonical
+  // agency_business_identity.tagline the inspector Brand tab already edits
+  // (same pattern as social/contact + logo — no parallel store).
+  const brandTagline = await resolveShellBrandTagline({
+    tenantId,
+    brandTagline: brand.tagline,
+  });
   const bd = brandDisplay ?? "image-and-text";
   const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
   const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;
@@ -573,6 +581,9 @@ export async function SiteHeaderComponent({
               {brand.label}
             </span>
           ) : null}
+          {showBrandText && brandTagline ? (
+            <span className="site-header__brand-tagline">{brandTagline}</span>
+          ) : null}
         </a>
         {navItems.length > 0 ? (
           <nav className="site-header__nav" aria-label="Primary">
@@ -597,7 +608,13 @@ export async function SiteHeaderComponent({
             flat layout; editorial-split promotes it to a real flex zone
             so the brand stays optically centred. */}
         <div className="site-header__actions">
-          {primaryCta ? (
+          {/* The v11 prototype's top bar has NO inline CTA — "Start an
+              Inquiry" lives in the hero + the ☰ drawer, keeping the
+              wordmark dead-centre with air around it. So for
+              editorial-split we suppress the inline chip (the affordance
+              is preserved in the drawer + nav). Every other variant keeps
+              the inline CTA exactly as before. */}
+          {primaryCta && variant !== "editorial-split" ? (
             <a
               className="site-header__cta site-btn site-btn--primary"
               href={primaryCta.href}

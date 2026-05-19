@@ -4252,6 +4252,7 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; }
 .site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); }
+.site-header__brand-tagline { font-size: clamp(9px, 0.7vw, 11px); font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--token-color-muted); line-height: 1; }
 
 .site-header__nav { flex: 0 0 auto; }
 .site-header__nav-list { display: flex; gap: clamp(12px, 2vw, 24px); list-style: none; padding: 0; margin: 0; }
@@ -4472,7 +4473,10 @@ html[data-theme="dark"] [data-tone="light"] {
   height: clamp(46px, 5.4vw, 68px);
 }
 .site-header[data-variant="editorial-split"] .site-header__brand-label {
-  font-family: var(--site-heading-font, "Cinzel", serif);
+  /* The v11 editorial-split skin IS Cinzel by design — pin the bundled
+     next/font face directly instead of deferring to the tenant heading
+     preset (which is Geist/Playfair for most tenants → wrong typeface). */
+  font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   font-weight: 600;
   font-size: clamp(1.6rem, 3.1vw, 2.25rem);
   letter-spacing: 0.32em;
@@ -4491,6 +4495,25 @@ html[data-theme="dark"] [data-tone="light"] {
   background-clip: text;
   color: transparent;
 }
+/* Sub-wordmark line (prototype `.brand .tg`) — body font (inherits, NOT
+ * Cinzel, exactly like the prototype), tight uppercase, dim-gold. */
+.site-header[data-variant="editorial-split"] .site-header__brand-tagline {
+  font-size: 0.58rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  white-space: nowrap;
+  line-height: 1;
+  color: color-mix(in srgb, var(--token-color-accent, #c9a227) 70%, #000);
+}
+@media (max-width: 560px) {
+  .site-header[data-variant="editorial-split"] .site-header__brand-tagline {
+    font-size: 0.48rem;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+}
 .site-header[data-variant="editorial-split"] .site-header__actions {
   display: flex;
   grid-area: actions;
@@ -4508,7 +4531,7 @@ html[data-theme="dark"] [data-tone="light"] {
   border: 1px solid color-mix(in srgb, var(--token-color-accent, var(--token-color-ink)) 45%, transparent) !important;
   border-radius: 3px !important;
   padding: 0.62rem 1rem !important;
-  font-family: var(--site-heading-font, "Cinzel", serif);
+  font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   font-size: 0.68rem !important;
   font-weight: 600;
   text-transform: uppercase;
@@ -4617,7 +4640,7 @@ html[data-theme="dark"] [data-tone="light"] {
   margin-top: 0.5rem;
 }
 .site-header[data-variant="editorial-split"] .site-header__nav-link {
-  font-family: var(--site-heading-font, "Cinzel", serif);
+  font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   font-size: 0.72rem;
   font-weight: 500;
   text-transform: uppercase;
@@ -4922,7 +4945,7 @@ html[data-theme="dark"] [data-tone="light"] {
   margin-top: 0.5rem;
 }
 .site-header[data-variant="editorial-split"] .site-header__drawer-nav a {
-  font-family: var(--site-heading-font, "Cinzel", serif);
+  font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   text-transform: uppercase;
   letter-spacing: 0.2em;
   font-size: 0.95rem;
@@ -5061,7 +5084,9 @@ html[data-theme="dark"] [data-tone="light"] {
   height: 50px;
 }
 .site-footer[data-variant="editorial"] .site-footer__brand-label {
-  font-family: var(--site-heading-font, "Cinzel", serif);
+  /* Editorial footer is the same v11 Cinzel skin as editorial-split —
+     pin the bundled face, not the tenant heading preset. */
+  font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   font-weight: 600;
   font-size: 1.5rem;
   letter-spacing: 0.3em;
@@ -5089,7 +5114,7 @@ html[data-theme="dark"] [data-tone="light"] {
   display: contents;
 }
 .site-footer[data-variant="editorial"] .site-footer__column-heading {
-  font-family: var(--site-heading-font, "Cinzel", serif);
+  font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   font-size: 0.66rem;
   letter-spacing: 0.26em;
   text-transform: uppercase;

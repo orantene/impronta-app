@@ -76,6 +76,13 @@ export const siteHeaderSchemaV1 = z.object({
   /** Brand block. */
   brand: z.object({
     label: z.string().max(60).optional(),
+    /**
+     * Optional sub-wordmark line under the brand label (e.g. an agency
+     * descriptor like "Agencia de Modelos & Imagen"). Renders only with
+     * the text wordmark (brandDisplay `text` / `image-and-text`); ignored
+     * for logo-only mode. Reusable, tenant-agnostic.
+     */
+    tagline: z.string().max(120).optional(),
     logoUrl: z.string().url().max(2048).optional(),
     logoAlt: z.string().max(160).optional(),
     /** href for the brand mark (default: site root `/`). */
