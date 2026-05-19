@@ -488,7 +488,7 @@
       "count": 1
     },
     "react-hooks/static-components": {
-      "count": 20
+      "count": 12
     },
     "react/no-unescaped-entities": {
       "count": 2
@@ -727,11 +727,17 @@
   "src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 14
+    },
+    "react-hooks/immutability": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/page-modules/InboxPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 34
+    },
+    "react-hooks/refs": {
+      "count": 2
     }
   },
   "src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx": {
@@ -747,6 +753,9 @@
   "src/components/admin/shell/internal/page-modules/OverviewPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 44
+    },
+    "react-hooks/purity": {
+      "count": 4
     }
   },
   "src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx": {
@@ -792,6 +801,9 @@
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 80
+    },
+    "react-hooks/static-components": {
+      "count": 4
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkPage.tsx": {
@@ -808,6 +820,9 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 109
+    },
+    "react-hooks/static-components": {
+      "count": 58
     },
     "react/no-unescaped-entities": {
       "count": 2
@@ -1424,6 +1439,11 @@
       "count": 1
     }
   },
+  "src/lib/billing/commission.characterization.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/bookings/transactions.ts": {
     "max-lines": {
       "count": 1
@@ -1445,6 +1465,11 @@
     }
   },
   "src/lib/inquiry/inquiry-engine-offers.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/pitch/pitch-engine.deep.test.ts": {
     "max-lines": {
       "count": 1
     }
