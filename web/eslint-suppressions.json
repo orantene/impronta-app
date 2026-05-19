@@ -1031,12 +1031,12 @@
   },
   "src/components/admin/shell/internal/talent/pages/ActivityPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 48
+      "count": 47
     }
   },
   "src/components/admin/shell/internal/talent/pages/AgenciesPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 22
+      "count": 20
     }
   },
   "src/components/admin/shell/internal/talent/pages/CalendarPage.tsx": {
@@ -1051,7 +1051,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 25
+      "count": 23
     },
     "react/no-unescaped-entities": {
       "count": 1
@@ -1059,12 +1059,12 @@
   },
   "src/components/admin/shell/internal/talent/pages/PublicPageEditor.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 49
+      "count": 45
     }
   },
   "src/components/admin/shell/internal/talent/pages/ReachPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 13
+      "count": 11
     },
     "react/no-unescaped-entities": {
       "count": 1
@@ -1072,7 +1072,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/SettingsPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 12
+      "count": 10
     },
     "react/no-unescaped-entities": {
       "count": 1
@@ -1080,7 +1080,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 15
+      "count": 13
     }
   },
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {
@@ -1121,22 +1121,22 @@
   },
   "src/components/admin/shell/internal/talent/shared/calendar-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 44
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/talent/shared/calendar-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 32
+      "count": 30
     }
   },
   "src/components/admin/shell/internal/talent/shared/calendar-3.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 38
+      "count": 35
     }
   },
   "src/components/admin/shell/internal/talent/shared/calendar-4.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 27
+      "count": 25
     },
     "react/no-unescaped-entities": {
       "count": 1
@@ -1144,12 +1144,12 @@
   },
   "src/components/admin/shell/internal/talent/shared/client-threads-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 23
+      "count": 22
     }
   },
   "src/components/admin/shell/internal/talent/shared/client-threads-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 40
+      "count": 38
     }
   },
   "src/components/admin/shell/internal/talent/shared/conversation-adapter-1.tsx": {
@@ -1159,12 +1159,12 @@
   },
   "src/components/admin/shell/internal/talent/shared/earnings-tile-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 20
+      "count": 17
     }
   },
   "src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 7
+      "count": 6
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-1.tsx": {
@@ -1174,12 +1174,12 @@
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 38
+      "count": 37
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 45
+      "count": 43
     },
     "react/no-unescaped-entities": {
       "count": 2
@@ -1192,27 +1192,27 @@
   },
   "src/components/admin/shell/internal/talent/shared/settings-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 10
+      "count": 8
     }
   },
   "src/components/admin/shell/internal/talent/shared/today-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 38
+      "count": 30
     }
   },
   "src/components/admin/shell/internal/talent/shared/today-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 25
+      "count": 23
     }
   },
   "src/components/admin/shell/internal/talent/shared/today-3.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/talent/shared/today-4.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 8
+      "count": 7
     }
   },
   "src/components/admin/shell/internal/talent/shared/week-rhythm-1.tsx": {
