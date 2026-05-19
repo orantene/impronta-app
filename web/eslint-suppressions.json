@@ -191,6 +191,237 @@
       "count": 62
     }
   },
+  "src/components/admin/shell/internal/drawers/UpgradeModal.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 20
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/drawers/drawer-shared.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 439
+    },
+    "react-hooks/purity": {
+      "count": 1
+    },
+    "react-hooks/refs": {
+      "count": 1
+    },
+    "react-hooks/static-components": {
+      "count": 3
+    },
+    "react/display-name": {
+      "count": 4
+    },
+    "react/no-unescaped-entities": {
+      "count": 8
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-01.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 58
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-02.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 18
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-03.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 66
+    },
+    "react-hooks/rules-of-hooks": {
+      "count": 2
+    },
+    "react/no-unescaped-entities": {
+      "count": 5
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-04.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 60
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-05.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 38
+    },
+    "react-hooks/purity": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-06.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 32
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-07.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 51
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-08.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 21
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-09.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 31
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-10.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 51
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-11.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 93
+    },
+    "react/no-unescaped-entities": {
+      "count": 4
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-12.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 93
+    },
+    "react/no-unescaped-entities": {
+      "count": 11
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-13.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 49
+    },
+    "react/no-unescaped-entities": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-14.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 56
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-15.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 133
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-16.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 96
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-17.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 74
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-18.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 92
+    },
+    "react/no-unescaped-entities": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-19.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 93
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-20.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 104
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-21.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 152
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-22.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 122
+    },
+    "react-hooks/purity": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/drawers/light-23.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 82
+    },
+    "react/no-unescaped-entities": {
+      "count": 6
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 3
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 123
+    },
+    "react/no-unescaped-entities": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-internal.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "prefer-const": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 667
+    },
+    "react-hooks/purity": {
+      "count": 5
+    },
+    "react-hooks/refs": {
+      "count": 2
+    },
+    "react-hooks/static-components": {
+      "count": 3
+    },
+    "react/display-name": {
+      "count": 9
+    },
+    "react/no-children-prop": {
+      "count": 2
+    },
+    "react/no-unescaped-entities": {
+      "count": 14
+    }
+  },
   "src/components/admin/shell/internal/field-catalog.ts": {
     "max-lines": {
       "count": 1
