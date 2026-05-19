@@ -64,8 +64,14 @@ export const siteFooterSchemaV1 = z.object({
     copyright: z.string().max(200).optional(),
     links: z.array(linkSchema).max(4).default([]),
   }),
-  /** Visual variant. */
-  variant: z.enum(["standard", "compact", "rich"]).default("standard"),
+  /** Visual variant. `editorial` (Phase 6B) = premium agency footer
+   * matched to the v11 prototype: gold-gradient serif wordmark, wide
+   * brand block + link columns (1.6fr/1fr/1fr/1fr), serif column
+   * headings, refined legal row. Token-driven (accent → ink fallback);
+   * default stays `standard` so existing tenants are unchanged. */
+  variant: z
+    .enum(["standard", "compact", "rich", "editorial"])
+    .default("standard"),
   /** Tone — light surface, deep canvas, or follow page tone. */
   tone: z.enum(["follow", "light", "deep"]).default("follow"),
   nodePresentation: z
