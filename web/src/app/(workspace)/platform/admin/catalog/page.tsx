@@ -4,6 +4,7 @@
 // inspection of the talent field-engine catalog via read-only aggregates
 // + the shared visibility engine.
 
+import Link from "next/link";
 import {
   loadPlatformCatalogMap,
   type CatalogField,
@@ -174,8 +175,67 @@ const RISK_TONE: Record<CatalogRisk["kind"], string> = {
   unused: HQ.inkMuted,
 };
 
-export default async function PlatformCatalogMapPage() {
+// Phase 9A slice 2 — URL-driven filters. Pure server-render (no client JS).
+type FilterParams = {
+  tier?: string;
+  risk?: string;
+  override?: string;
+  q?: string;
+};
+
+function urlFor(current: FilterParams, patch: Partial<FilterParams>): string {
+  const next: FilterParams = { ...current, ...patch };
+  const sp = new URLSearchParams();
+  if (next.tier && next.tier !== "all") sp.set("tier", next.tier);
+  if (next.risk === "yes") sp.set("risk", "yes");
+  if (next.override === "yes") sp.set("override", "yes");
+  if (next.q) sp.set("q", next.q);
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "/platform/admin/catalog";
+}
+
+function FilterChip({
+  label,
+  href,
+  active,
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        padding: "3px 9px",
+        borderRadius: 999,
+        border: `1px solid ${active ? HQ.green : HQ.borderSoft}`,
+        background: active ? "rgba(93,211,160,0.14)" : HQ.cardSoft,
+        color: active ? HQ.green : HQ.inkMuted,
+        textDecoration: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
+
+export default async function PlatformCatalogMapPage({
+  searchParams,
+}: {
+  searchParams: Promise<FilterParams>;
+}) {
   const map = await loadPlatformCatalogMap();
+  const params = await searchParams;
+  const tier = params.tier ?? "all";
+  const riskFilter = params.risk === "yes";
+  const overrideFilter = params.override === "yes";
+  const q = (params.q ?? "").trim().toLowerCase();
+  const filtersActive =
+    tier !== "all" || riskFilter || overrideFilter || !!q;
 
   if (!map.ok) {
     return (
@@ -195,6 +255,28 @@ export default async function PlatformCatalogMapPage() {
   const s = map.summary;
   const tierEntries = Object.entries(s.byTier).sort((a, b) => b[1] - a[1]);
 
+  // Apply slice-2 filters (purely in-memory; data was already loaded).
+  const hasRiskByKey = new Set(map.risks.map((r) => r.field_key));
+  function passes(f: CatalogField): boolean {
+    if (tier !== "all" && f.tier !== tier) return false;
+    if (riskFilter && !hasRiskByKey.has(f.field_key)) return false;
+    if (overrideFilter && f.override_count === 0) return false;
+    if (
+      q &&
+      !f.field_key.toLowerCase().includes(q) &&
+      !f.label.toLowerCase().includes(q)
+    )
+      return false;
+    return true;
+  }
+  const filteredGroups = map.groups
+    .map((g) => ({ ...g, fields: g.fields.filter(passes) }))
+    .filter((g) => g.fields.length > 0);
+  const filteredUngrouped = map.ungrouped.filter(passes);
+  const filteredCount =
+    filteredGroups.reduce((n, g) => n + g.fields.length, 0) +
+    filteredUngrouped.length;
+
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
@@ -205,6 +287,137 @@ export default async function PlatformCatalogMapPage() {
         field, its group, tier, default visibility (via the shared engine),
         workspace adoption, value usage, and config risks. Zero mutation.
       </div>
+
+      <HqCard
+        title="Filters"
+        subtitle={
+          filtersActive
+            ? `Showing ${filteredCount} of ${s.totalFields} fields`
+            : `All ${s.totalFields} fields`
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>
+              Tier
+            </span>
+            <FilterChip
+              label="All"
+              href={urlFor(params, { tier: undefined })}
+              active={tier === "all"}
+            />
+            <FilterChip
+              label="Universal"
+              href={urlFor(params, { tier: "universal" })}
+              active={tier === "universal"}
+            />
+            <FilterChip
+              label="Global"
+              href={urlFor(params, { tier: "global" })}
+              active={tier === "global"}
+            />
+            <FilterChip
+              label="Type-specific"
+              href={urlFor(params, { tier: "type-specific" })}
+              active={tier === "type-specific"}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>
+              Status
+            </span>
+            <FilterChip
+              label={`Has risks (${map.risks.length})`}
+              href={urlFor(params, { risk: riskFilter ? undefined : "yes" })}
+              active={riskFilter}
+            />
+            <FilterChip
+              label={`Workspace override (${s.fieldsWithOverrides})`}
+              href={urlFor(params, {
+                override: overrideFilter ? undefined : "yes",
+              })}
+              active={overrideFilter}
+            />
+          </div>
+          <form
+            method="GET"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}>
+              Search
+            </span>
+            {/* Preserve other params on form submit. */}
+            {tier !== "all" && <input type="hidden" name="tier" value={tier} />}
+            {riskFilter && <input type="hidden" name="risk" value="yes" />}
+            {overrideFilter && (
+              <input type="hidden" name="override" value="yes" />
+            )}
+            <input
+              type="text"
+              name="q"
+              defaultValue={q}
+              placeholder="field key or label…"
+              style={{
+                fontSize: 12,
+                padding: "5px 10px",
+                borderRadius: 6,
+                border: `1px solid ${HQ.borderSoft}`,
+                background: HQ.cardSoft,
+                color: HQ.ink,
+                fontFamily: F,
+                minWidth: 240,
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "5px 11px",
+                border: `1px solid ${HQ.green}`,
+                background: "rgba(93,211,160,0.12)",
+                color: HQ.green,
+                borderRadius: 6,
+                cursor: "pointer",
+                fontFamily: F,
+              }}
+            >
+              Apply
+            </button>
+            {filtersActive && (
+              <Link
+                href="/platform/admin/catalog"
+                style={{
+                  fontSize: 11,
+                  color: HQ.inkMuted,
+                  textDecoration: "underline",
+                }}
+              >
+                Clear all
+              </Link>
+            )}
+          </form>
+        </div>
+      </HqCard>
 
       <HqCard title="Overview">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -268,11 +481,11 @@ export default async function PlatformCatalogMapPage() {
         </HqCard>
       )}
 
-      {map.groups.map((g) => (
+      {filteredGroups.map((g) => (
         <HqCard
           key={g.id}
           title={g.name}
-          subtitle={`${g.field_count} field${g.field_count === 1 ? "" : "s"} · ${g.slug}${g.is_active ? "" : " · INACTIVE"}`}
+          subtitle={`${g.fields.length} of ${g.field_count} field${g.field_count === 1 ? "" : "s"} · ${g.slug}${g.is_active ? "" : " · INACTIVE"}`}
         >
           <div>
             {g.fields.length === 0 ? (
@@ -284,15 +497,32 @@ export default async function PlatformCatalogMapPage() {
         </HqCard>
       ))}
 
-      {map.ungrouped.length > 0 && (
+      {filteredUngrouped.length > 0 && (
         <HqCard
           title="Ungrouped"
-          subtitle={`${map.ungrouped.length} field${map.ungrouped.length === 1 ? "" : "s"} with no field group`}
+          subtitle={`${filteredUngrouped.length} field${filteredUngrouped.length === 1 ? "" : "s"} with no field group`}
         >
           <div>
-            {map.ungrouped.map((f) => (
+            {filteredUngrouped.map((f) => (
               <FieldRow key={f.id} f={f} />
             ))}
+          </div>
+        </HqCard>
+      )}
+
+      {filtersActive && filteredCount === 0 && (
+        <HqCard
+          title="No matches"
+          subtitle="No fields match the current filter set."
+        >
+          <div style={{ fontSize: 12, color: HQ.inkMuted }}>
+            <Link
+              href="/platform/admin/catalog"
+              style={{ color: HQ.green, textDecoration: "underline" }}
+            >
+              Clear all filters
+            </Link>{" "}
+            to see all {s.totalFields} fields.
           </div>
         </HqCard>
       )}
