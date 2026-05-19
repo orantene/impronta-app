@@ -153,6 +153,7 @@ export async function loadHeaderSectionAction(): Promise<
       sectionId: string;
       version: number;
       variant: string;
+      brandDisplay: string;
       density: HeaderSectionDensity | null;
     };
   }>
@@ -166,13 +167,19 @@ export async function loadHeaderSectionAction(): Promise<
   if (!f) {
     return { ok: false, error: "Site header section not found.", code: "NOT_FOUND" };
   }
-  const p = f.props as { variant?: unknown; density?: unknown };
+  const p = f.props as {
+    variant?: unknown;
+    brandDisplay?: unknown;
+    density?: unknown;
+  };
   return {
     ok: true,
     section: {
       sectionId: f.sectionId,
       version: f.version,
       variant: typeof p.variant === "string" ? p.variant : "standard",
+      brandDisplay:
+        typeof p.brandDisplay === "string" ? p.brandDisplay : "image-and-text",
       density:
         p.density && typeof p.density === "object"
           ? (p.density as HeaderSectionDensity)
@@ -187,6 +194,7 @@ export async function loadHeaderSectionAction(): Promise<
 export async function saveHeaderSectionAction(input: {
   expectedVersion: number;
   variant?: string;
+  brandDisplay?: string;
   density?: HeaderSectionDensity | null;
 }): Promise<ActionResult<{ version: number }>> {
   const auth = await requireStaff();
@@ -202,6 +210,9 @@ export async function saveHeaderSectionAction(input: {
   const cur = f.props as Record<string, unknown>;
   const nextProps: Record<string, unknown> = { ...cur };
   if (input.variant !== undefined) nextProps.variant = input.variant;
+  if (input.brandDisplay !== undefined) {
+    nextProps.brandDisplay = input.brandDisplay;
+  }
   if (input.density !== undefined) {
     if (input.density === null) {
       delete nextProps.density;
@@ -320,6 +331,7 @@ export async function loadHeaderConfigAction(): Promise<
   const headerSection = await resolveHeaderSection(auth.supabase, scope.tenantId);
   const sectionProps = (headerSection?.props ?? {}) as {
     variant?: unknown;
+    brandDisplay?: unknown;
     density?: unknown;
   };
   const sectionCfg: SiteHeaderConfig["section"] = headerSection
@@ -330,6 +342,10 @@ export async function loadHeaderConfigAction(): Promise<
           typeof sectionProps.variant === "string"
             ? sectionProps.variant
             : "standard",
+        brandDisplay:
+          typeof sectionProps.brandDisplay === "string"
+            ? sectionProps.brandDisplay
+            : "image-and-text",
         density:
           sectionProps.density && typeof sectionProps.density === "object"
             ? (sectionProps.density as HeaderSectionDensity)

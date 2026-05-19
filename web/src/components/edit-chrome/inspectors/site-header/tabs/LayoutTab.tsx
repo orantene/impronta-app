@@ -251,6 +251,27 @@ export function LayoutTab({ config, patch }: Props) {
                 </option>
               </select>
             </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Brand display</label>
+              <select
+                className={KIT.input}
+                value={config.section.brandDisplay}
+                onChange={(e) =>
+                  patch.patchSection({ brandDisplay: e.target.value })
+                }
+              >
+                <option value="image-and-text">Logo image + wordmark</option>
+                <option value="text">
+                  Wordmark text only — Cinzel + tagline
+                </option>
+                <option value="image">Logo image only</option>
+              </select>
+              <p className={KIT.hint}>
+                Pick &ldquo;Wordmark text only&rdquo; for the prototype look:
+                the gold Cinzel IMPRONTA wordmark with the agency tagline
+                beneath (tagline comes from Brand → Tagline).
+              </p>
+            </div>
           </InspectorGroup>
 
           <InspectorGroup

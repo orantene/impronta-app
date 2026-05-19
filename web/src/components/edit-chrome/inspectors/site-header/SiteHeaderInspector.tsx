@@ -122,6 +122,7 @@ export interface SiteHeaderPatch {
    */
   patchSection: (input: {
     variant?: string;
+    brandDisplay?: string;
     density?: {
       logoScale?: string | null;
       navDensity?: string | null;
@@ -377,6 +378,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
               expectedVersion: entry.expectedVersion,
               ...(entry.payload as {
                 variant?: string;
+                brandDisplay?: string;
                 density?: HeaderSectionDensity | null;
               }),
             });
@@ -608,6 +610,9 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
                 ...prev.section,
                 ...(input.variant !== undefined
                   ? { variant: input.variant }
+                  : {}),
+                ...(input.brandDisplay !== undefined
+                  ? { brandDisplay: input.brandDisplay }
                   : {}),
                 ...(input.density !== undefined
                   ? {

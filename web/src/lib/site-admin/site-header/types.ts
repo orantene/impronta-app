@@ -71,6 +71,12 @@ export interface SiteHeaderConfig {
     sectionId: string;
     version: number;
     variant: string;
+    /**
+     * Which brand elements render: `image` (logo only) / `text`
+     * (wordmark + tagline) / `image-and-text`. Editable in the builder
+     * so an operator can switch to the prototype's Cinzel text wordmark.
+     */
+    brandDisplay: string;
     density: {
       logoScale?: string | null;
       navDensity?: string | null;
