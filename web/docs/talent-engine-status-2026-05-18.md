@@ -167,6 +167,144 @@ checkpoint / hand-off.
 
 **Preserved branches (do not delete):** `engine-phase2-finish`
 (`f1d9327df`, landed), `engine-phase4-finish` (`36ea80397`, clean Phase-4
-incl. the resolver fix + a fuller panel impl), `engine-phase4-finish-v2`
-(`588d96487`, bare checkout, disposable). Worktrees in `/tmp/tulala-*`
-(node_modules symlinked, ready for resume).
+incl. the resolver fix + a fuller panel impl), `engine-phase9a-catalog-map`
+(`e37813cbe`, Phase 9A MVP — gate-valid, all-new-files, conflict-free),
+`engine-phase4-finish-v2` (`588d96487`, bare checkout, disposable).
+Worktrees in `/tmp/tulala-*` (node_modules symlinked, ready for resume).
+
+## Path to Done — Multi-Workstream Execution Plan (2026-05-19)
+
+Architect's framing for a *coordinated dev team* (NOT Claude Agent-tool
+subagents — banned for this track per the binding decision after Wave-1).
+Companion to the canonical phase plan
+(`talent-engine-execution-plan-2026-05-18.md`); this layer adds the
+dependency DAG + parallelism map + coordination protocol that the
+canonical plan deliberately doesn't cover.
+
+### Workstreams
+
+| WS | Name | Files (no overlap) | Parallel? | Gate |
+|---|---|---|---|---|
+| **R** | Recovery & Landing Train | (lands existing branches) | Must lead | phase-1 tsc-green |
+| **A** | Phase 3 close-out (public-profile) | `page.tsx`, `public-profile-field-visibility.ts`, new `field-engine/resolve-public-fields.ts` | Parallel ✓ | Sidebar-keys product call |
+| **B** | Phase 5 Convergence | `talent-field-values-catalog.ts`, `profile-shell-dyn-field-values.ts`, `field-values-height-mirror.ts`, `field-engine`, `admin-taxonomy.ts`, +backfill migs | Serial; one DB-WS at a time | `db:push` approval + R green + admin-taxonomy.ts uncontended |
+| **C** | Phase 6 Discover canonical | directory loaders, ai-search, new denorm projection | After B; then ‖ D/E/F | Flag-gated cutover |
+| **D** | Phase 7a SaaS-ops infra (non-drawers) | new audit migration, cache audit, plan-tier capability lib | Parallel ✓ | Approval |
+| **E** | Phase 7b History rail UI | `drawers.tsx` | Drawers-exclusive window | Drawers uncontended + D landed |
+| **F** | Phase 9A slices 2+ | all-new platform-admin files | Parallel ✓ (truly independent) | None |
+| **G** | Phase 8 Custom fields | new mig + resolver + drawer UI | Tail after B/C/D | Ownership design call |
+| **H** | Phase 9B Editable Studio | new platform-admin route + change-set model | **HARD-GATED** on 0–7 | All prerequisites |
+
+### Critical-path
+
+```
+R ──► (A · D · F  in parallel)
+      └─► B ──► C ──► E ──► G ──► H
+```
+
+### Coordination protocol (non-negotiable — Wave-1 paid for this)
+
+1. **Branch governance:** all WS work on feature branches off the
+   current `phase-1` tip; never directly on shared.
+2. **Landing protocol** (proven): isolated worktree → `ln -s node_modules`
+   (the **false-pass guard**) → implement → tsc 0 + lint baseline + route
+   probe → rebase to current tip → re-gate → path-scoped commit →
+   conflict-free merge.
+3. **Contended-file windows:** `drawers.tsx` + `admin-taxonomy.ts` get
+   exclusive write windows. Other WS do NOT commit to those files during
+   the window. (Slack/PR pin; whatever signal — the *protocol* is what
+   matters, not the tool.)
+4. **Never land onto a broken trunk.** Never sweep other agents'
+   uncommitted work. Never hunk-surgery.
+5. **One migration per WS**, unique UTC timestamps; park-restore on
+   collision.
+6. **TS + lint gate before every commit**; red TS blocks the next WS.
+7. **Feature flag / shadow-run** every cutover (B, C, H).
+
+### Outstanding decisions (the actual schedule blockers)
+
+| # | Decision | Owner | Unblocks |
+|---|---|---|---|
+| 1 | Incident path: wait-for-SaaS vs authorize admin-taxonomy.ts checkpoint vs hand the resolver diff to its owner | You | R, B, E |
+| 2 | 6-sidebar-keys product call | You + PM | A (see brief below) |
+| 3 | Phase 5 `db:push` approval per slice | You | B → C |
+| 4 | Phase 7a go (non-drawers SaaS ops) | You | D |
+| 5 | Phase 8 design (custom fields ownership model) | You + PM + DBA | G |
+| 6 | Production deploy gates (per Vercel) | You | each shipping WS |
+
+### Acceptance — "all done"
+
+- 11 plan items (0,1,2,3,4,5,6,7,8,9A,9B) meet their plan-doc acceptance.
+- `phase-1` continuously tsc-clean; lint never exceeds the original baseline.
+- `smoke:impronta:prod` clean after each promote.
+- Phase 7 audit log shows every catalog/privacy/category change end-to-end.
+- Phase 9B change-set/preview/rollback verified on a non-destructive test edit.
+- Discover/directory reads canonical only; legacy reader dead-code-removed.
+
+### Indicative effort
+
+Serial (1 IC): ~24 weeks · 3-IC parallel: ~12 weeks · 4-IC parallel: ~9 weeks. The single biggest variable is the time waiting on the SaaS plan to finish (gates R) and Phase 8/9B which are big designs.
+
+### Plan improvements vs canonical plan doc
+
+1. **Make Phase R first-class** (recovery/landing isn't tracked there).
+2. **Split Phase 7** into 7a (non-drawers, parallelizable) and 7b (drawers-coupled).
+3. **Phase 5 sub-slicing** strictly per runbook `4f6c8002f`; never bundle "cutover readers" with "retire legacy writes" in the same slice.
+4. **Phase 9A iterative** — MVP shipped (`e37813cbe`); 3–4 small slices remaining.
+5. **Codify the coordination protocol** in `CLAUDE.md` / `AGENTS.md` (the file-windows + landing protocol + node_modules-symlink lesson).
+6. **One canonical plan doc** — *this section* folds in; do not spawn parallel plan docs.
+
+---
+
+## Pending Decision — Phase 3 six-sidebar-keys product call
+
+**Context.** `web/src/lib/public-profile-field-visibility.ts` (legacy)
+gates 6 public-profile sidebar sections via the OLD `field_definitions`
+table: `fit_labels`, `skills`, `languages`, `industries`, `event_types`,
+`tags`. Phase 3 wants to retire this and gate via the canonical engine
+instead — but a canonical-catalog check (verified) shows:
+
+| Sidebar key | Canonical equivalent in `profile_field_definitions`? |
+|---|---|
+| `skills` | ✅ yes (`skills`) |
+| `languages` | ✅ yes (`languages`) |
+| `fit_labels` | ❌ no |
+| `industries` | ❌ no |
+| `event_types` | ❌ no (only type-specific `host.event_types` / `hosp.event_types`) |
+| `tags` | ❌ no |
+
+Silently retiring the legacy gate would change which sidebar sections
+show on live public profiles — a visible behavior change. Needs a product
+call (parallel to the Gap-2-style decision you already approved earlier).
+
+### Options
+
+**A — Hybrid (recommended; smallest behavior change).** Migrate
+`skills`+`languages` to canonical engine gating; **keep the legacy gate
+for the 4 with no canonical equivalent.** Public behavior preserved; net
+debt reduced by 2 of 6. Tiny code surface in `page.tsx`. Phase 3 close-out
+ships in a day.
+
+**B — Aggressive cleanup.** Retire all 6 sidebar sections that can't be
+canonically modeled — public stops showing fit_labels / industries /
+event_types / tags. Big behavior change; requires UX/product approval.
+
+**C — Promote all 6 to canonical.** Create new platform
+`profile_field_definitions` entries for fit_labels / industries / tags
+/ event_types. Migration + governance work; effectively a small Phase 8
+slice. Most "correct" long-term but largest near-term lift.
+
+**D — Status quo (defer).** Keep all 6 on the legacy gate; Phase 3
+"closed" continues as-is. Zero work, debt persists.
+
+### Recommendation
+
+**Option A.** It's behavior-preserving for the 4 untranslatable keys,
+clears the 2 that do map (the genuine half-win), and ships in hours. C is
+the right *eventual* answer but it belongs in Phase 8 governance, not as
+a Phase 3 follow-up.
+
+### What I need from you
+
+A 1-character answer (A / B / C / D), or a tweak. I'll execute serially
+in `engine-phase3-closeout` worktree, path-scoped, no push.
