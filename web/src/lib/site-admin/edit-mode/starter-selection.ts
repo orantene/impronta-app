@@ -106,6 +106,16 @@ export const STARTER_ENTRY_STYLE_PRESETS: Partial<
     },
   },
   featured_talent: {
+    "v11-showcase": {
+      layoutPreset: "v11-showcase",
+      headerAlign: "center",
+      cardChrome: "v11-noir",
+      imageTreatment: "cinematic",
+      showBookmarkIcon: true,
+      actionStyle: "outline-duo",
+      columnsDesktop: 4,
+      limit: 4,
+    },
     "grid-standard": {
       variant: "grid",
       columnsDesktop: 4,

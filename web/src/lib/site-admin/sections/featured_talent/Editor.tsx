@@ -9,6 +9,7 @@ import {
   searchTenantTalent,
   type TenantTalentPick,
 } from "../../edit-mode/talent-picker-action";
+import { v11FeaturedTalentPreset } from "./presets";
 import type { SectionEditorProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 
@@ -33,6 +34,8 @@ const FIELD = "flex flex-col gap-1.5 text-sm";
 const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 const INPUT =
   "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const BUTTON_PRIMARY =
+  "rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90";
 
 export function FeaturedTalentEditor({
   initial,
@@ -50,6 +53,12 @@ export function FeaturedTalentEditor({
     limit: initial.limit ?? 6,
     columnsDesktop: initial.columnsDesktop ?? 3,
     variant: initial.variant ?? "grid",
+    layoutPreset: initial.layoutPreset,
+    headerAlign: initial.headerAlign,
+    cardChrome: initial.cardChrome,
+    imageTreatment: initial.imageTreatment,
+    showBookmarkIcon: initial.showBookmarkIcon,
+    actionStyle: initial.actionStyle,
     cardVariant: initial.cardVariant,
     showName: initial.showName,
     showPrimaryType: initial.showPrimaryType,
@@ -69,9 +78,31 @@ export function FeaturedTalentEditor({
   // render layer. A toggle stores `false` to hide; clearing returns to ON.
   const fieldOn = (k: keyof FeaturedTalentV1) =>
     (value[k] as boolean | undefined) !== false;
+  const applyV11Preset = () =>
+    onChange({
+      ...value,
+      ...v11FeaturedTalentPreset,
+      presentation: { ...v11FeaturedTalentPreset.presentation },
+    });
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">V11 featured talent preset</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+              Applies the prototype treatment: centered title, four-card noir
+              grid, cinematic image grade, bookmark glyphs, outline actions,
+              and an Explore Talent footer link.
+            </p>
+          </div>
+          <button type="button" className={BUTTON_PRIMARY} onClick={applyV11Preset}>
+            Apply full preset
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
           <span className={LABEL}>Eyebrow</span>
@@ -113,6 +144,98 @@ export function FeaturedTalentEditor({
         value={value.variant}
         onChange={(next) => patch({ variant: next })}
       />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <label className={FIELD}>
+          <span className={LABEL}>Section preset</span>
+          <select
+            className={INPUT}
+            value={value.layoutPreset ?? "standard"}
+            onChange={(e) =>
+              patch({
+                layoutPreset: e.target
+                  .value as FeaturedTalentV1["layoutPreset"],
+              })
+            }
+          >
+            <option value="standard">Standard</option>
+            <option value="v11-showcase">V11 showcase</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Header alignment</span>
+          <select
+            className={INPUT}
+            value={value.headerAlign ?? "split"}
+            onChange={(e) =>
+              patch({
+                headerAlign: e.target
+                  .value as FeaturedTalentV1["headerAlign"],
+              })
+            }
+          >
+            <option value="split">Split</option>
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Card chrome</span>
+          <select
+            className={INPUT}
+            value={value.cardChrome ?? "standard"}
+            onChange={(e) =>
+              patch({
+                cardChrome: e.target
+                  .value as FeaturedTalentV1["cardChrome"],
+              })
+            }
+          >
+            <option value="standard">Theme default</option>
+            <option value="v11-noir">V11 noir</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Image treatment</span>
+          <select
+            className={INPUT}
+            value={value.imageTreatment ?? "natural"}
+            onChange={(e) =>
+              patch({
+                imageTreatment: e.target
+                  .value as FeaturedTalentV1["imageTreatment"],
+              })
+            }
+          >
+            <option value="natural">Natural</option>
+            <option value="cinematic">Cinematic</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Action style</span>
+          <select
+            className={INPUT}
+            value={value.actionStyle ?? "primary-duo"}
+            onChange={(e) =>
+              patch({
+                actionStyle: e.target
+                  .value as FeaturedTalentV1["actionStyle"],
+              })
+            }
+          >
+            <option value="primary-duo">Primary request</option>
+            <option value="outline-duo">Outline duo</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 self-end text-sm">
+          <input
+            type="checkbox"
+            checked={value.showBookmarkIcon === true}
+            onChange={(e) => patch({ showBookmarkIcon: e.target.checked })}
+          />
+          Show bookmark glyph
+        </label>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>

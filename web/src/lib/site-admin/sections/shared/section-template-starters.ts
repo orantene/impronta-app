@@ -4,6 +4,7 @@ import {
   type BuilderDataSourceDefinition,
   type BuilderDataSourceKey,
 } from "../../builder-node/data-bindings";
+import { v11FeaturedTalentPreset } from "../featured_talent/presets";
 
 export type SectionTemplateStarterKind = "data" | "design" | "conversion";
 export type SectionTemplateStarterSourceKind =
@@ -555,21 +556,7 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
     name: "Featured talent grid",
     sectionTypeKey: "featured_talent",
     props: {
-      eyebrow: "Featured Talent",
-      headline: "Handpicked by the agency",
-      copy: "",
-      sourceMode: "auto_featured_flag",
-      limit: 5,
-      columnsDesktop: 4,
-      variant: "grid",
-      footerCta: { label: "View all", href: "/directory" },
-      presentation: {
-        background: "canvas",
-        paddingTop: "airy",
-        paddingBottom: "airy",
-        containerWidth: "wide",
-        align: "left",
-      },
+      ...v11FeaturedTalentPreset,
     },
   },
   "explore-by-location-map": {

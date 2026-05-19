@@ -5,6 +5,7 @@ import type { SectionComponentProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 import { fetchFeaturedTalentForSection } from "./fetch";
 import { FeaturedTalentCard } from "./FeaturedTalentCard";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { CSSProperties } from "react";
 
 import "./featured-talent.css";
@@ -273,7 +274,22 @@ export async function FeaturedTalentComponent({
     presentation,
     requestCta,
     emptyStateText,
+    layoutPreset,
+    headerAlign,
+    cardChrome,
+    imageTreatment,
+    showBookmarkIcon,
+    actionStyle,
   } = props;
+  const isV11Showcase = layoutPreset === "v11-showcase";
+  const effectiveHeaderAlign =
+    headerAlign ?? (isV11Showcase ? "center" : "split");
+  const effectiveCardChrome =
+    cardChrome ?? (isV11Showcase ? "v11-noir" : "standard");
+  const effectiveImageTreatment =
+    imageTreatment ?? (isV11Showcase ? "cinematic" : "natural");
+  const effectiveActionStyle =
+    actionStyle ?? (isV11Showcase ? "outline-duo" : "primary-duo");
 
   // P1-2 / 6A.3 — render-layer display controls (undefined = show;
   // back-compat). showSecondaryType / showLanguages are now backed by real
@@ -289,6 +305,10 @@ export async function FeaturedTalentComponent({
     showBadge: props.showBadge,
     parentCategoryDisplay: props.parentCategoryDisplay,
     cardVariant: props.cardVariant,
+    showBookmarkIcon,
+    cardChrome: effectiveCardChrome,
+    imageTreatment: effectiveImageTreatment,
+    actionStyle: effectiveActionStyle,
   };
 
   // Hard cap at 15 regardless of source mode (schema also bounds `limit`).
@@ -302,8 +322,11 @@ export async function FeaturedTalentComponent({
   const headAlign =
     nodePresentation.subheadline?.align ??
     nodePresentation.headline?.align ??
-    nodePresentation.copy?.align;
+    nodePresentation.copy?.align ??
+    (effectiveHeaderAlign === "center" ? "center" : undefined);
   const ctaAlign = nodePresentation.footerCta?.align;
+  const footerCtaInHeader = footerCta && !isV11Showcase;
+  const footerCtaBelow = footerCta && isV11Showcase;
   const rosterAddHref = publicPathPrefix
     ? `${publicPathPrefix}/admin/roster/new`
     : "/admin/roster/new";
@@ -372,6 +395,12 @@ export async function FeaturedTalentComponent({
     <section
       className="site-featured-talent"
       data-variant={variant}
+      data-ft-layout={layoutPreset ?? "standard"}
+      data-ft-header-align={effectiveHeaderAlign}
+      data-ft-card-chrome={effectiveCardChrome}
+      data-ft-image-treatment={effectiveImageTreatment}
+      data-ft-action-style={effectiveActionStyle}
+      data-ft-bookmark={showBookmarkIcon === true ? "on" : "off"}
       data-source-mode={sourceMode}
       data-card-count={cards.length}
       {...presentationDataAttrs(presentation)}
@@ -384,7 +413,7 @@ export async function FeaturedTalentComponent({
         <style dangerouslySetInnerHTML={{ __html: responsiveCss }} />
       ) : null}
       <div className="site-featured-talent__inner">
-        {(eyebrow || headline || copy || footerCta) && (
+        {(eyebrow || headline || copy || footerCtaInHeader) && (
           <header className="site-featured-talent__head">
             <div
               className="site-featured-talent__head-text"
@@ -583,9 +612,9 @@ export async function FeaturedTalentComponent({
                 </p>
               ) : null}
             </div>
-            {footerCta ? (
+            {footerCtaInHeader ? (
               <a
-                href={footerCta.href}
+                href={prefixPublicHref(footerCta.href ?? "/", publicPathPrefix ?? "")}
                 className="site-btn site-btn--outline site-btn--sm site-featured-talent__cta"
                 data-builder-node-id={nodeIdsByRole?.footerCta}
                 style={{
@@ -652,7 +681,7 @@ export async function FeaturedTalentComponent({
                   display: visibilityDisplay(nodePresentation.footerCta?.visibility),
                 }}
               >
-                {footerCta.label}
+                <span>{footerCta.label ?? "Explore"}</span>
               </a>
             ) : null}
           </header>
@@ -694,6 +723,21 @@ export async function FeaturedTalentComponent({
             </a>
           </div>
         )}
+        {footerCtaBelow ? (
+          <div className="site-featured-talent__footer">
+            <a
+              href={prefixPublicHref(footerCta.href ?? "/", publicPathPrefix ?? "")}
+              className="site-btn site-btn--outline site-btn--sm site-featured-talent__cta"
+              data-builder-node-id={nodeIdsByRole?.footerCta}
+              style={{
+                ...buttonSize(nodePresentation.footerCta?.size),
+                display: visibilityDisplay(nodePresentation.footerCta?.visibility),
+              }}
+            >
+              <span>{footerCta.label ?? "Explore"}</span>
+            </a>
+          </div>
+        ) : null}
       </div>
     </section>
   );

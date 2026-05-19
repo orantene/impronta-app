@@ -7,6 +7,7 @@
  * section's schema changes shape, update the default here alongside.
  */
 import type { SectionTypeKey } from "../registry";
+import { v11FeaturedTalentPreset } from "../featured_talent/presets";
 import { v11TalentTypeGridPreset } from "../talent_type_grid/presets";
 
 export interface LibraryDefault {
@@ -272,15 +273,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
   },
   featured_talent: {
     name: "Featured professionals — new",
-    props: {
-      eyebrow: "The collective",
-      headline: "A short list, always on call.",
-      copy: "",
-      sourceMode: "auto_featured_flag",
-      limit: 6,
-      columnsDesktop: 3,
-      variant: "grid",
-    },
+    props: v11FeaturedTalentPreset,
   },
   marquee: {
     name: "Marquee — new",
