@@ -261,27 +261,42 @@ test("INVARIANT getTenantScopeBySlug: proves an agency_membership (no service-ro
 });
 
 test(
-  "getPublicTenantScope does NOT validate the header is a UUID — isolation rests entirely on middleware stripping inbound x-impronta-tenant-id",
-  {
-    skip:
-      "SECURITY FLAG: getPublicTenantScope returns { tenantId: <header> } with zero " +
-      "shape validation. Anonymous public-storefront tenant isolation depends " +
-      "100% on edge middleware stripping any client-supplied x-impronta-tenant-id " +
-      "before this runs. If that strip ever regresses, any anon caller can read " +
-      "another tenant's public CMS/roster by setting the header. Defence-in-depth " +
-      "wanted: reject when the header is not a well-formed UUID (cheap, and the " +
-      "value is always a UUID on the legitimate path).",
-  },
+  "getPublicTenantScope UUID-validates the header before trusting it (defence-in-depth over proxy.ts strip) [HARDENED 2026-05-19]",
   () => {
     const fn = SCOPE_SRC.slice(
       SCOPE_SRC.indexOf("export async function getPublicTenantScope"),
-      SCOPE_SRC.indexOf("export async function getPublicTenantScope") + 400,
+      SCOPE_SRC.indexOf("export async function getPublicTenantScope") + 1200,
     );
-    // Current (weak) behaviour: header value is returned untransformed/unvalidated.
-    assert.match(fn, /return \{ tenantId \};/, "header is trusted verbatim — no UUID check");
-    assert.doesNotMatch(fn, /uuid|UUID|[0-9a-f]{8}-[0-9a-f]{4}/i, "no UUID-shape validation present");
+    assert.ok(fn.length > 0, "getPublicTenantScope located");
+    // HARDENING: the header is now parsed through a UUID schema and rejected
+    // on failure. The proxy.ts strip remains the primary defence — this is
+    // the second, position-independent layer.
+    assert.match(fn, /TENANT_ID_SCHEMA\.safeParse\(tenantId\)/, "UUID-validates the header value");
+    assert.match(fn, /if \(!parsed\.success\)/, "invalid header → rejected branch");
+    assert.match(
+      fn,
+      /security\.public_tenant_header_invalid/,
+      "rejected header emits a structured security audit line",
+    );
+    assert.match(fn, /return null;/, "invalid header → null (no scope leak)");
+    assert.match(
+      fn,
+      /return \{ tenantId: parsed\.data \};/,
+      "happy path returns the parsed (validated) value, not the raw header",
+    );
   },
 );
+
+test("INVARIANT TENANT_ID_SCHEMA: header tenant-id values must validate as UUID", () => {
+  // Pin the schema shape so a later refactor that loosens it (e.g. to a
+  // generic string) regresses loudly. The legitimate path always writes a
+  // UUID; nothing else should pass.
+  assert.match(
+    SCOPE_SRC,
+    /const TENANT_ID_SCHEMA = z\.string\(\)\.uuid\(\)/,
+    "TENANT_ID_SCHEMA must remain z.string().uuid()",
+  );
+});
 
 test(
   "getTenantPortalScopeBySlug proves a caller-relationship (host context OR membership/talent/client row) inside the helper [HARDENED 2026-05-19]",

@@ -1,11 +1,18 @@
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
+import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant";
+
+// Helper-level UUID guard for tenant-id header values. The legitimate path
+// always sets a UUID via middleware (PostgreSQL `uuid` column), so anything
+// non-UUID is by definition tampered or malformed. Used as defence-in-depth
+// over proxy.ts's strip of the inbound `x-impronta-tenant-id` header.
+const TENANT_ID_SCHEMA = z.string().uuid();
 
 /**
  * SaaS request scope — the tenant whose data this request is acting on.
@@ -467,7 +474,21 @@ export async function getPublicTenantScope(): Promise<
   try {
     const tenantId = (await headers()).get(ACTIVE_TENANT_HEADER);
     if (!tenantId) return null;
-    return { tenantId };
+    // SECURITY S1 (defence-in-depth, 2026-05-19) — UUID-validate the header
+    // value before trusting it. The legitimate path is middleware writing a
+    // verified UUID; the previous behaviour returned ANY string verbatim,
+    // making isolation 100% dependent on proxy.ts's positional strip of any
+    // inbound client-supplied `x-impronta-tenant-id`. If that strip ever
+    // regresses, this guard fails-closed: anything non-UUID → null (no
+    // anonymous cross-tenant read primitive).
+    const parsed = TENANT_ID_SCHEMA.safeParse(tenantId);
+    if (!parsed.success) {
+      void improntaLog("security.public_tenant_header_invalid", {
+        attempted_tenant_id_prefix: tenantId.slice(0, 12),
+      });
+      return null;
+    }
+    return { tenantId: parsed.data };
   } catch {
     return null;
   }
