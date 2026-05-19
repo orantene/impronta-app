@@ -214,7 +214,20 @@ export async function resolveInquiryTenantForParticipant(
       .eq("role", "talent")
       .maybeSingle();
     if (!part) return null;
-    if (part.status === "declined" || part.status === "removed") return null;
+    // SECURITY (fail-closed allow-list, not deny-list): the prior gate only
+    // rejected "declined"/"removed", so an unrecognised state ("pending", "",
+    // null, or any future status) silently RESOLVED — weaker than this
+    // helper's "accepted participant" contract. Allow-list exactly the states
+    // the rest of the system authorises for a participant: the DB RLS
+    // policies consistently gate on `status IN ('invited','active')`
+    // (see supabase/migrations/*phase2_inquiry_participants* et al.), so an
+    // invited participant is *intentionally* in-scope (they were deliberately
+    // added to this specific inquiry) — the hardening is that everything
+    // OUTSIDE {invited, active} now fails closed instead of falling through.
+    const PARTICIPANT_AUTHORISED_STATUSES = new Set(["invited", "active"]);
+    if (!PARTICIPANT_AUTHORISED_STATUSES.has(part.status as string)) {
+      return null;
+    }
     return (part.tenant_id as string | null) ?? null;
   }
 

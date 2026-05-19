@@ -102,10 +102,35 @@ export async function checkRosterSeatAvailability(
       .neq("status", "removed"),
   ]);
 
+  const current = Math.max(0, Math.trunc(rosterRes.count ?? 0));
+
+  if (!agency) {
+    // SECURITY (fail-closed): the agencies row is unreadable — RLS denial, a
+    // bogus / cross-tenant id, a deleted agency, or a query error that yields
+    // `data: null`. We MUST distinguish this from a legitimately-present paid
+    // agency whose `talent_seat_limit` is null (genuinely uncapped): the old
+    // `agency?.talent_seat_limit ?? null` conflated both into the
+    // `limit: null` → UNLIMITED path, so the seat cap silently stopped
+    // applying in exactly the states where it most needs to hold. Deny
+    // instead of fail-open. (evaluateRosterSeatAvailability stays pure —
+    // `limit: null` remains correctly unlimited for a *read* paid agency.)
+    const after = current + additionalSeats;
+    return {
+      ok: false,
+      planTier: null,
+      limit: 0,
+      current,
+      after,
+      message:
+        "This workspace's plan could not be verified. Seat changes are " +
+        "blocked until it can be confirmed.",
+    };
+  }
+
   return evaluateRosterSeatAvailability({
-    planTier: agency?.plan_tier ?? null,
-    limit: agency?.talent_seat_limit ?? null,
-    current: rosterRes.count ?? 0,
+    planTier: agency.plan_tier ?? null,
+    limit: agency.talent_seat_limit ?? null,
+    current,
     additionalSeats,
   });
 }

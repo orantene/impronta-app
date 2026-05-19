@@ -37,23 +37,21 @@ test("isAcceptedVercelCname: rejects an unrelated target", () => {
 });
 
 test(
-  "isAcceptedVercelCname: ANY hostname containing the substring 'vercel-dns' is accepted",
-  {
-    skip:
-      "SECURITY FLAG: acceptance is `targets.includes(x) || x.includes(\"vercel-dns\")`. " +
-      "The substring fallback accepts attacker-controlled hostnames like " +
-      "`vercel-dns.attacker.com`, `not-vercel-dns.evil.io`, or " +
-      "`x.vercel-dns.example.com` as a valid Vercel CNAME. If domain-ownership " +
-      "/ routing decisions trust this, a tenant could 'verify' a custom domain " +
-      "pointed at infrastructure they do not control (or that an attacker does). " +
-      "Hardened behaviour: exact-match the known targets (or suffix-match " +
-      "`.vercel-dns.com` / `.vercel-dns-N.com`), never a bare substring.",
-  },
+  "isAcceptedVercelCname: attacker hostnames merely CONTAINING 'vercel-dns' are REJECTED [HARDENED 2026-05-19]",
   () => {
-    // CURRENT (weak) behaviour: substring match lets these through.
-    assert.equal(isAcceptedVercelCname("vercel-dns.attacker.com"), true);
-    assert.equal(isAcceptedVercelCname("not-vercel-dns.evil.io"), true);
-    assert.equal(isAcceptedVercelCname("x.vercel-dns.example.com"), true);
+    // HARDENED behaviour (was the substring-bypass SECURITY FLAG): acceptance
+    // now requires the registrable zone to actually be vercel-dns(.|-N.)com,
+    // not a bare `includes("vercel-dns")`. These attacker-controlled zones —
+    // attacker.com / evil.io / example.com — must NOT verify as Vercel.
+    assert.equal(isAcceptedVercelCname("vercel-dns.attacker.com"), false);
+    assert.equal(isAcceptedVercelCname("not-vercel-dns.evil.io"), false);
+    assert.equal(isAcceptedVercelCname("x.vercel-dns.example.com"), false);
+    assert.equal(isAcceptedVercelCname("vercel-dns.com.attacker.net"), false, "zone is attacker.net");
+    assert.equal(isAcceptedVercelCname("evil-vercel-dns.com"), false, "label is evil-vercel-dns, not a vercel-dns subdomain");
+    // Legitimate Vercel zones still accepted (incl. non-canonical sub-labels).
+    assert.equal(isAcceptedVercelCname("cname.vercel-dns.com"), true);
+    assert.equal(isAcceptedVercelCname("cname.vercel-dns-7.com"), true, "regional vercel-dns-N zone");
+    assert.equal(isAcceptedVercelCname("vercel-dns.com"), true, "bare Vercel apex zone");
   },
 );
 

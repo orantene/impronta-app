@@ -179,29 +179,57 @@ test("resolveInquiryTenantForParticipant: empty userId / inquiryId short-circuit
 });
 
 test(
-  "resolveInquiryTenantForParticipant(talent): an INVITED / PENDING (not-yet-accepted) participant still resolves the tenant",
-  {
-    skip:
-      "SECURITY FLAG: the doc comment says this verifies an 'accepted " +
-      "(non-declined/removed) participant', but the gate only rejects status " +
-      "'declined' and 'removed'. A talent whose participant row is 'invited', " +
-      "'pending', '', or null is treated as authorised and gets the inquiry's " +
-      "tenant scope — enabling participant-scoped actions before the talent has " +
-      "accepted. Whether that is exploitable depends on downstream action " +
-      "checks, but the guard is weaker than its name/contract implies. " +
-      "Hardened behaviour: allow-list the accepted states explicitly instead of " +
-      "deny-listing only declined/removed.",
-  },
+  "resolveInquiryTenantForParticipant(talent): an INVITED participant resolves — INTENTIONAL, aligned to the DB RLS contract `status IN ('invited','active')` [VERIFIED 2026-05-19]",
   async () => {
-    // Characterizes CURRENT (weak) behaviour: 'invited' is NOT denied.
+    // The original SECURITY FLAG suspected 'invited' resolving was the hole.
+    // Verified against the system contract instead of the flag's wording: the
+    // Supabase RLS policies consistently authorise participants on
+    // `status IN ('invited','active')` (supabase/migrations/*phase2_inquiry_
+    // participants*, *offer_approval_rls*, *m1_2_inquiry_requirement_groups*).
+    // An invited participant was deliberately added to THIS inquiry and is
+    // in-scope by design — denying it here would desync this helper from RLS
+    // and break legitimate invited-talent flows. So 'invited' STILL resolves;
+    // that is correct, not the bug.
     const { supabase } = mockSupabaseByTable({
       talent_profiles: { data: { id: "tp-1" } },
       inquiry_participants: { data: { id: "p-1", tenant_id: "tenant-B", status: "invited" } },
     });
     const tid = await resolveInquiryTenantForParticipant(supabase, "user-X", "inq-9", "talent");
-    assert.equal(tid, "tenant-B", "current behaviour: invited participant resolves");
+    assert.equal(tid, "tenant-B", "invited is allow-listed (matches RLS), by design");
   },
 );
+
+test(
+  "resolveInquiryTenantForParticipant(talent): UNKNOWN / pending / '' / null status now FAILS CLOSED (deny-list → allow-list) [HARDENED 2026-05-19]",
+  async () => {
+    // The actual hardening: the gate was a deny-list (only declined/removed
+    // blocked), so ANY unrecognised state silently fell through and resolved
+    // the tenant. It is now an explicit allow-list of {invited, active}; every
+    // other / future / malformed status fails closed.
+    for (const status of ["pending", "", null, "accepted", "former_coordinator", "weird_future_state"]) {
+      const { supabase } = mockSupabaseByTable({
+        talent_profiles: { data: { id: "tp-1" } },
+        inquiry_participants: { data: { id: "p-1", tenant_id: "tenant-B", status } },
+      });
+      assert.equal(
+        await resolveInquiryTenantForParticipant(supabase, "user-X", "inq-9", "talent"),
+        null,
+        `status=${JSON.stringify(status)} is NOT in the {invited,active} allow-list → must deny`,
+      );
+    }
+  },
+);
+
+test("resolveInquiryTenantForParticipant(talent): 'active' (the canonical accepted state) still resolves — allow-list regression guard", async () => {
+  const { supabase } = mockSupabaseByTable({
+    talent_profiles: { data: { id: "tp-1" } },
+    inquiry_participants: { data: { id: "p-1", tenant_id: "tenant-B", status: "active" } },
+  });
+  assert.equal(
+    await resolveInquiryTenantForParticipant(supabase, "user-X", "inq-9", "talent"),
+    "tenant-B",
+  );
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // assertRowBelongsToTenant — pre-flight existence check before delegating an

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
@@ -101,18 +101,70 @@ test("workspacePlanPublicModelCopy matches canonical plan model", () => {
   );
 });
 
-test("domain lock and plan model copy stay centralized in shared helpers", () => {
+test("domain lock and plan model copy stay centralized in shared helpers [durable scan — was brittle stale-path, fixed 2026-05-19]", () => {
+  // ROOT CAUSE of the prior RED (predated the remediation series): this guard
+  // hardcoded three file paths; an earlier refactor deleted
+  // `admin/settings/SettingsClientShell.tsx` and moved the lock copy off
+  // `admin/site/page.tsx`, so `readFileSync` threw / `customDomainLockedCopy(`
+  // was absent — a FALSE red. The underlying invariant (the copy is NEVER
+  // re-inlined; it lives only in this module) was, and is, genuinely held.
+  // Fixed by asserting the invariant STRUCTURALLY (recursive scan) so it
+  // survives legitimate file moves but still catches real re-inlining.
   const thisDir = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(thisDir, "../../..");
-  const targets = [
-    "src/app/(workspace)/[tenantSlug]/admin/site/page.tsx",
-    "src/app/(workspace)/[tenantSlug]/admin/settings/SettingsClientShell.tsx",
-    "src/app/(workspace)/[tenantSlug]/admin/settings/domain-actions.ts",
+
+  // 1. Single source of truth: both copy helpers are defined here and nowhere
+  //    else exports them.
+  const helperSrc = readFileSync(
+    path.join(repoRoot, "src/lib/saas/workspace-public-url.ts"),
+    "utf8",
+  );
+  assert.match(helperSrc, /export function customDomainLockedCopy\(/, "lock copy centralized here");
+  assert.match(helperSrc, /export function workspacePlanPublicModelCopy\(/, "plan-model copy centralized here");
+
+  // 2. No surface re-inlines the canonical copy. Recursively scan the whole
+  //    app + components trees (not a fragile hardcoded path list) for the
+  //    verbatim phrases that must only ever come from the helper.
+  const FORBIDDEN_REINLINED = [
+    /Branded subdomains unlock on Studio/,
+    /Studio includes the branded Tulala subdomain/,
+    /tulala\.digital\/<slug> \+ up to 5 public profiles/,
   ];
-  for (const relative of targets) {
-    const source = readFileSync(path.join(repoRoot, relative), "utf8");
-    assert.match(source, /customDomainLockedCopy\(/);
-    assert.doesNotMatch(source, /Branded subdomains unlock on Studio/);
-    assert.doesNotMatch(source, /Studio includes the branded Tulala subdomain/);
+  const offenders: string[] = [];
+  for (const rel of ["src/app", "src/components"]) {
+    const root = path.join(repoRoot, rel);
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(root, { recursive: true }) as string[];
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (!/\.(tsx?|jsx?)$/.test(e)) continue;
+      const full = path.join(root, e);
+      let body: string;
+      try {
+        body = readFileSync(full, "utf8");
+      } catch {
+        continue; // a directory entry from recursive readdir
+      }
+      if (FORBIDDEN_REINLINED.some((re) => re.test(body))) {
+        offenders.push(path.join(rel, e));
+      }
+    }
   }
+  assert.deepEqual(
+    offenders,
+    [],
+    `domain-lock / plan-model copy must come from the shared helper, not be re-inlined. Offending files: ${offenders.join(", ")}`,
+  );
+
+  // 3. The surface that currently renders the lock copy goes through the
+  //    helper (positive proof the centralization is actually wired, not just
+  //    that nobody re-inlined it).
+  const domainActions = readFileSync(
+    path.join(repoRoot, "src/app/(workspace)/[tenantSlug]/admin/settings/domain-actions.ts"),
+    "utf8",
+  );
+  assert.match(domainActions, /customDomainLockedCopy\(/, "the live lock-copy surface uses the shared helper");
 });

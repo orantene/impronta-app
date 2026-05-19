@@ -86,12 +86,26 @@ export function normalizeDnsComparableValue(value: string): string {
   return value.trim().toLowerCase().replace(/\.+$/, "");
 }
 
+// SECURITY: the registrable domain MUST be `vercel-dns.com` or
+// `vercel-dns-<n>.com` (Vercel's real CNAME zones). Anchored end-to-end so the
+// only labels allowed before it are sub-labels OF that zone. This rejects the
+// old `includes("vercel-dns")` bypass class — `vercel-dns.attacker.com`
+// (zone=attacker.com), `not-vercel-dns.evil.io` (zone=evil.io),
+// `x.vercel-dns.example.com` (zone=example.com) — none of which Vercel
+// controls — while still accepting `cname.vercel-dns.com`,
+// `cname.vercel-dns-0.com`, and the bare apex `vercel-dns.com`.
+const VERCEL_DNS_CNAME_PATTERN = /^([a-z0-9-]+\.)*vercel-dns(-\d+)?\.com$/;
+
 export function isAcceptedVercelCname(value: string): boolean {
   const normalized = normalizeDnsComparableValue(value);
-  return (
-    VERCEL_ACCEPTED_CNAME_TARGETS.includes(normalized as (typeof VERCEL_ACCEPTED_CNAME_TARGETS)[number]) ||
-    normalized.includes("vercel-dns")
-  );
+  if (
+    VERCEL_ACCEPTED_CNAME_TARGETS.includes(
+      normalized as (typeof VERCEL_ACCEPTED_CNAME_TARGETS)[number],
+    )
+  ) {
+    return true;
+  }
+  return VERCEL_DNS_CNAME_PATTERN.test(normalized);
 }
 
 export function customDomainCanBecomePrimary(status: string | null): boolean {

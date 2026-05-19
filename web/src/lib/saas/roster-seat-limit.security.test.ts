@@ -160,27 +160,35 @@ test("checkRosterSeatAvailability: the seat count is tenant-scoped (eq tenant_id
 });
 
 test(
-  "checkRosterSeatAvailability: a MISSING/unreadable agency row makes the workspace effectively UNLIMITED",
-  {
-    skip:
-      "SECURITY FLAG (fail-open): when the agencies row is null — RLS denial, " +
-      "bogus/cross tenant id, deleted agency, or a query error that yields " +
-      "data:null — planTier and limit both fall back to null, and " +
-      "evaluateRosterSeatAvailability treats limit:null as UNLIMITED. So the " +
-      "seat cap silently stops applying instead of failing closed. Plan-tier " +
-      "monetization and the tenant resource guard both evaporate in exactly the " +
-      "states where you'd most want them enforced. Hardened behaviour: a " +
-      "missing/error agency row should deny (ok:false) or fall back to the most " +
-      "restrictive cap, not unlimited.",
-  },
+  "checkRosterSeatAvailability: a MISSING/unreadable agency row FAILS CLOSED (deny), it does NOT become unlimited [HARDENED 2026-05-19]",
   async () => {
-    // CURRENT (fail-open) behaviour: no agency row ⇒ ok:true, limit:null.
+    // HARDENED behaviour (was the fail-open SECURITY FLAG): when the agencies
+    // row is null — RLS denial, bogus/cross-tenant id, deleted agency, or a
+    // query error yielding data:null — we can no longer verify the plan, so
+    // the seat check must DENY instead of collapsing to limit:null/unlimited.
     const { supabase } = mockSeatSupabase({ agency: null, rosterCount: 4242 });
     const r = await checkRosterSeatAvailability(supabase, "tenant-DOES-NOT-EXIST", 1);
-    assert.equal(r.ok, true, "current behaviour: unlimited when the agency row is unreadable");
-    if (r.ok) assert.equal(r.limit, null);
+    assert.equal(r.ok, false, "unreadable agency row must fail closed (deny), not become unlimited");
+    if (!r.ok) {
+      assert.equal(r.limit, 0, "no plan could be verified → most-restrictive limit");
+      assert.equal(r.current, 4242, "current still reflects the real (tenant-scoped) roster count");
+      assert.equal(r.after, 4243);
+      assert.match(r.message, /could not be verified/i);
+    }
   },
 );
+
+test("checkRosterSeatAvailability: a PRESENT paid agency with talent_seat_limit:null is still legitimately UNLIMITED (regression guard for the fail-closed fix)", async () => {
+  // The fail-closed fix must NOT punish a legitimately-read paid agency whose
+  // limit is genuinely null (uncapped). Only an *absent* row fails closed.
+  const { supabase } = mockSeatSupabase({
+    agency: { plan_tier: "network", talent_seat_limit: null },
+    rosterCount: 9999,
+  });
+  const r = await checkRosterSeatAvailability(supabase, "tenant-PAID", 1);
+  assert.equal(r.ok, true, "present paid agency with null limit = legitimately unlimited");
+  if (r.ok) assert.equal(r.limit, null);
+});
 
 test("checkRosterSeatAvailability: a null roster count is treated as 0 current (no NaN headroom)", async () => {
   const { supabase } = mockSeatSupabase({
