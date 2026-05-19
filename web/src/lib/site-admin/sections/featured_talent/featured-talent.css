@@ -118,6 +118,10 @@
   margin-inline: auto;
 }
 .site-featured-talent[data-ft-layout="v11-showcase"]
+  .site-featured-talent__head-text {
+  max-width: min(76rem, 100%) !important;
+}
+.site-featured-talent[data-ft-layout="v11-showcase"]
   .site-featured-talent__head {
   margin-bottom: clamp(2.2rem, 4vw, 3.1rem);
 }
@@ -128,11 +132,12 @@
 .site-featured-talent[data-ft-layout="v11-showcase"]
   .site-featured-talent__headline {
   color: var(--tt-ivory, #f4f1e8);
-  font-size: clamp(2.7rem, 5.2vw, 4.9rem);
+  font-size: clamp(2.75rem, 4.25vw, 4.35rem);
   font-weight: 400;
-  line-height: 0.98;
+  line-height: 0.96;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .site-featured-talent[data-ft-layout="v11-showcase"]
   .site-featured-talent__copy {
@@ -217,6 +222,9 @@
 .site-featured-talent[data-ft-card-chrome="v11-noir"]
   .site-featured-talent__card [data-card-copy] {
   z-index: 3;
+  text-align: left !important;
+  padding-inline: clamp(1.15rem, 1.5vw, 1.55rem) !important;
+  padding-bottom: clamp(1.05rem, 1.45vw, 1.35rem) !important;
 }
 .site-featured-talent__bookmark {
   position: absolute;
@@ -255,10 +263,10 @@
 .site-featured-talent[data-ft-card-chrome="v11-noir"]
   .site-featured-talent__card [data-card-name] {
   color: var(--tt-ivory, #f4f1e8) !important;
-  font-size: clamp(1.12rem, 1.8vw, 1.55rem) !important;
+  font-size: clamp(1.18rem, 1.55vw, 1.58rem) !important;
   font-weight: 600 !important;
-  letter-spacing: 0.05em !important;
-  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+  text-transform: none !important;
 }
 .site-featured-talent[data-ft-card-chrome="v11-noir"]
   .site-featured-talent__card [data-card-kicker] {
@@ -336,6 +344,10 @@
 
 @media (max-width: 700px) {
   .site-featured-talent[data-ft-layout="v11-showcase"]
+    .site-featured-talent__head-text {
+    max-width: min(24rem, 100%) !important;
+  }
+  .site-featured-talent[data-ft-layout="v11-showcase"]
     .site-featured-talent__grid {
     grid-auto-flow: column;
     grid-auto-columns: minmax(17.5rem, 82vw);
@@ -352,6 +364,7 @@
   .site-featured-talent[data-ft-layout="v11-showcase"]
     .site-featured-talent__headline {
     font-size: clamp(2.2rem, 13vw, 3.4rem);
+    white-space: normal;
   }
 }
 
