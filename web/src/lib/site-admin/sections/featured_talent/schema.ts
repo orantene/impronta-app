@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
+import { linkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * Featured talent section — surfaces directory cards on the homepage via
@@ -15,7 +16,8 @@ import { nodePresentationSchema } from "../shared/node-presentation";
 
 const ctaSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /** 6C — structured LinkRef; legacy string auto-coerced. */
+  href: linkRefOrLegacy,
 });
 
 export const featuredTalentSchemaV1 = z.object({

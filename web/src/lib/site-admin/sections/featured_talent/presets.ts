@@ -23,8 +23,8 @@ export const v11FeaturedTalentPreset = {
   showAvailability: true,
   showBadge: false,
   parentCategoryDisplay: false,
-  requestCta: { label: "Request", href: "/contact" },
-  footerCta: { label: "Explore Talent", href: "/directory" },
+  requestCta: { label: "Request", href: { kind: "tenant-page", value: "/contact" } },
+  footerCta: { label: "Explore Talent", href: { kind: "tenant-page", value: "/directory" } },
   emptyStateText: "Featured profiles appear here as talent are added to the roster.",
   presentation: {
     background: "canvas",
