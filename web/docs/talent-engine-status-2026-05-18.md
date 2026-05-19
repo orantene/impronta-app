@@ -3,6 +3,34 @@
 Short status record. Companion to `talent-engine-execution-plan-2026-05-18.md`
 (the canonical phase plan) and `talent-profile-engine-master-audit-2026-05-18.md`.
 
+## Phase 2 & 4 — DONE on branches, landing held (2026-05-19)
+
+Both built serial-only (NO subagents) in isolated worktrees off the
+phase-1 tip, node_modules symlinked (the false-pass guard), valid gate
+(tsc 0; lint = exact 78-error baseline, zero new; only intended files).
+
+- **Phase 2 finish** — `engine-phase2-finish` commit `f1d9327df`. Real
+  `WorkspaceFieldSettingsDrawer` over the live engine; mock + 198-line
+  dead `WorkspaceFieldSettingRow` removed; 5 unbacked toggles dropped per
+  locked scope + no-fake-UI.
+- **Phase 4** — `engine-phase4-finish` commit `36ea80397` (off phase-1
+  tip `ffb90cd8b`). Read-only transparency layer in
+  `LiveCategoryFieldsPanel`: View-as (public/admin/talent) via the SHARED
+  engine (`effectiveFieldVisibility`/`canViewerSee`, reused — no new
+  resolver/visibility), per-row effective visibility (dim + 🚫 when not
+  visible), source/provenance, required-origin, platform-vs-workspace
+  override badge, value-present. Resolver reused minimally + additively
+  (`getFieldsForTalent`: ResolvedField optional `tenant_override?`/
+  `has_value?`; tenant_override from existing override map, has_value
+  from one existence-only query — zero impact on existing consumers).
+
+Both are clean `+1` fast-forwards over the phase-1 tip in
+non-overlapping regions. **NOT landed**: main `drawers.tsx` /
+`admin-taxonomy.ts` carry concurrent other-agent uncommitted work;
+forcing a merge would require committing their mixed work / hunk surgery
+(forbidden). They land conflict-free the moment that work is committed
+(plan steps 7–8), or on explicit go.
+
 ## Phase 3 — CLOSED: "correctness shipped; structural extraction deferred"
 
 Phase 3's actual public-profile safety/correctness fix **shipped in Gap 2**
