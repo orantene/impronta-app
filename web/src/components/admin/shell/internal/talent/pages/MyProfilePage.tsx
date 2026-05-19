@@ -134,7 +134,7 @@ export function MyProfilePage() {
           }}
         >
           <span aria-hidden style={{ fontSize: 14 }}>⏳</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1f4d8a" }}>
               Submitted to your agency · waiting for review
             </div>
@@ -218,7 +218,7 @@ export function MyProfilePage() {
               >{p.completeness}%</text>
             </svg>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
                 Profile {p.completeness}% complete
               </div>

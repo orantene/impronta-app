@@ -90,7 +90,7 @@ export function SettingsPage() {
         >
           <Icon name="globe" size={13} stroke={1.7} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.indigoDeep }}>
             Distribution decisions live in Reach
           </div>
@@ -124,7 +124,7 @@ export function SettingsPage() {
         <span aria-hidden style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(95,75,139,0.18)", color: COLORS.royal, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon name="team" size={14} stroke={1.7} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.royalDeep }}>My Circle</div>
           <div style={{ fontSize: 11.5, color: COLORS.royal, opacity: 0.78, marginTop: 2 }}>
             Trusted collaborators you can recommend into bookings in one tap. {MOCK_CIRCLE_PREVIEW_COUNT} people in your circle.

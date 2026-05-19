@@ -72,7 +72,7 @@ export function AgenciesPage() {
             />
           </div>
         ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {agencies.map((ag) => (
             <div
               key={ag.id}
@@ -95,7 +95,7 @@ export function AgenciesPage() {
               }}>
                 🏢
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
                   {ag.name}
                 </div>

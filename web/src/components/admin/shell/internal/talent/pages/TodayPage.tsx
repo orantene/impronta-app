@@ -232,7 +232,7 @@ export function TalentTodayPage() {
             >
               {onboardingCompleteness.percent}%
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
                 Finish setting up your profile
               </div>
@@ -442,7 +442,7 @@ export function TalentTodayPage() {
       </Grid>
 
       {/* WS-8.14 Agency analytics quick-access */}
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={() => openDrawer("talent-career-analytics")}

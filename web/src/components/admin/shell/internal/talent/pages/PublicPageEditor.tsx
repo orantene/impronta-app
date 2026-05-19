@@ -33,7 +33,7 @@ export function PublicPageEditor() {
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 0" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, margin: 0 }}>
             Public page
           </h2>
@@ -41,7 +41,7 @@ export function PublicPageEditor() {
             tulala.digital/t/{publicSlug}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setPreview((v) => !v)}
@@ -80,7 +80,7 @@ export function PublicPageEditor() {
           display: "flex", alignItems: "center", gap: 12,
         }}>
           <span style={{ fontSize: 20 }}>✨</span>
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
               Unlock Pro to customise your page
             </div>
@@ -175,7 +175,7 @@ export function PublicPageEditor() {
         borderRadius: RADIUS.lg, padding: "16px 18px",
         opacity: isPort ? 1 : 0.7,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div className="flex items-center gap-2 mb-2">
           <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
             Custom domain
           </span>

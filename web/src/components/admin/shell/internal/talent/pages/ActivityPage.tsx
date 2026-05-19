@@ -120,7 +120,7 @@ function EarningsGoalRing({ total }: { total: number }) {
       </div>
 
       {/* Right side — amount, goal, pace, edit */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             fontSize: 10.5,

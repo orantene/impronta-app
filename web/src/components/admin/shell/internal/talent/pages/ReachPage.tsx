@@ -195,7 +195,7 @@ function ReachPage() {
       <div style={{ height: 20 }} />
 
       {/* Five distribution cards — one per lane */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex flex-col gap-3">
         <DistributionCard
           kind="personal"
           title="Personal page"
@@ -291,7 +291,7 @@ function ReachPage() {
           rules as agency-routed work.
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <TextInput placeholder="Search Models.com, Cast Iron, Atelier Paris…" />
           </div>
           <SecondaryButton onClick={() => openDrawer("talent-hub-compare")}>
