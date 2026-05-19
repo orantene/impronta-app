@@ -2,10 +2,22 @@
 
 // InboxShell — client wrapper for talent inbox filter tabs.
 // Receives all inquiries from the server component and handles local filter state.
+//
+// Phase 2 (remediation plan §4): the list rail now renders through the
+// shared <ThreadShell> primitive. This file keeps the talent-specific 40%
+// (status taxonomy, filter chips, sort) and projects each TalentInquiryRow
+// onto the shell's role-agnostic ThreadShellListItem view-model. Visual
+// output is byte-for-byte the prior bespoke list — the chip metrics that
+// differed (status pill 10.5/2·8 vs state chips 10/1·7) are reproduced via
+// ThreadBadge.fontSize/padding.
 
-import Link from "next/link";
 import { useState } from "react";
 import type { TalentInquiryRow } from "../../_data-bridge";
+import {
+  ThreadShell,
+  type ThreadBadge,
+  type ThreadShellListItem,
+} from "@/components/shared/ThreadShell";
 
 const C = {
   ink:        "#0B0B0D",
@@ -94,6 +106,76 @@ function statusTone(status: string): { bg: string; color: string; label: string 
       label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
     }
   );
+}
+
+// Project a raw talent inquiry row onto the role-agnostic ThreadShell
+// view-model. All talent-specific taxonomy (status tone, "Your turn",
+// Discover provenance) is resolved here so the shared shell stays
+// taxonomy-free. Chip metrics mirror the prior inline markup exactly:
+// the status pill is 10.5px / "2px 8px" (ThreadBadge defaults); the
+// "Your turn" / "N new" / "via …" state chips are 10–10.5px / "1px 7px".
+function toThreadItem(
+  inq: TalentInquiryRow,
+  tenantSlug: string,
+): ThreadShellListItem {
+  const s = statusTone(inq.status);
+  const needsAction =
+    inq.participantStatus === "invited" || inq.status === "offer_pending";
+  const isDiscover =
+    inq.sourceChannel === "discover_single_talent" ||
+    inq.sourceChannel === "discover_shortlist";
+
+  const badges: ThreadBadge[] = [
+    { label: s.label, bg: s.bg, color: s.color, uppercase: true },
+  ];
+  if (needsAction) {
+    badges.push({
+      label: "Your turn",
+      bg: C.amberSoft,
+      color: C.amberDeep,
+      fontSize: 10,
+      padding: "1px 7px",
+    });
+  }
+  if (inq.unreadCount > 0) {
+    badges.push({
+      label: `${inq.unreadCount} new`,
+      bg: C.blueSoft,
+      color: C.blueDeep,
+      fontSize: 10.5,
+      padding: "1px 7px",
+    });
+  }
+  if (isDiscover) {
+    badges.push({
+      label: `◎ via ${inq.sourceChannel === "discover_shortlist" ? "Shortlist" : "Discover"}`,
+      bg: C.blueSoft,
+      color: C.blueDeep,
+      fontSize: 10,
+      padding: "1px 7px",
+      uppercase: true,
+      title:
+        inq.sourceChannel === "discover_shortlist"
+          ? "Client added you from a Discover shortlist alongside other talents."
+          : "Client found you on Discover and reached out directly.",
+    });
+  }
+
+  return {
+    id: inq.id,
+    title: inq.contact_name,
+    titleSuffix: inq.company ? `· ${inq.company}` : undefined,
+    meta:
+      [inq.event_location, fmtDate(inq.event_date)]
+        .filter(Boolean)
+        .join(" · ") || "No event details",
+    timestamp: relativeDate(inq.updated_at ?? inq.created_at),
+    badges,
+    accentColor: s.color,
+    highlighted: inq.unreadCount > 0 || needsAction,
+    href: `/${tenantSlug}/talent/inbox/${inq.id}`,
+    ctaLabel: "Open thread",
+  };
 }
 
 export function InboxShell({
@@ -185,193 +267,17 @@ export function InboxShell({
         })}
       </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div
-          style={{
-            padding: "40px 20px",
-            textAlign: "center",
-            background: "rgba(11,11,13,0.02)",
-            border: "1px dashed rgba(24,24,27,0.08)",
-            borderRadius: 14,
-          }}
-        >
-          <div style={{ fontSize: 13, color: C.inkMuted, fontFamily: FONT }}>
-            Nothing in this view.
-          </div>
-        </div>
-      ) : (
-        <div
-          style={{
-            background: C.cardBg,
-            border: `1px solid ${C.borderSoft}`,
-            borderRadius: 14,
-            overflow: "hidden",
-          }}
-        >
-          {filtered.map((inq, idx) => {
-            const s = statusTone(inq.status);
-            const needsAction = inq.participantStatus === "invited" || inq.status === "offer_pending";
-            const activityAt = inq.updated_at ?? inq.created_at;
-            return (
-              <div
-                key={inq.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 1fr auto",
-                  gap: 12,
-                  alignItems: "center",
-                  padding: "13px 16px",
-                  borderBottom: idx < filtered.length - 1 ? `1px solid ${C.borderSoft}` : "none",
-                  fontFamily: FONT,
-                  background: inq.unreadCount > 0 || needsAction
-                    ? "rgba(15,79,62,0.025)"
-                    : "transparent",
-                }}
-              >
-                {/* Status dot */}
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: s.color,
-                    flexShrink: 0,
-                  }}
-                />
-
-                {/* Main content */}
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3, flexWrap: "wrap" }}>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: s.bg,
-                        color: s.color,
-                        fontSize: 10.5,
-                        fontWeight: 700,
-                        letterSpacing: 0.3,
-                        textTransform: "uppercase" as const,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {s.label}
-                    </span>
-                    {needsAction && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: C.amberDeep,
-                          background: C.amberSoft,
-                          padding: "1px 7px",
-                          borderRadius: 999,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Your turn
-                      </span>
-                    )}
-                    {inq.unreadCount > 0 && (
-                      <span
-                        style={{
-                          fontSize: 10.5,
-                          fontWeight: 700,
-                          color: C.blueDeep,
-                          background: C.blueSoft,
-                          borderRadius: 999,
-                          padding: "1px 7px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {inq.unreadCount} new
-                      </span>
-                    )}
-                    {(inq.sourceChannel === "discover_single_talent" ||
-                      inq.sourceChannel === "discover_shortlist") && (
-                      <span
-                        title={
-                          inq.sourceChannel === "discover_shortlist"
-                            ? "Client added you from a Discover shortlist alongside other talents."
-                            : "Client found you on Discover and reached out directly."
-                        }
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: C.blueDeep,
-                          background: C.blueSoft,
-                          padding: "1px 7px",
-                          borderRadius: 999,
-                          whiteSpace: "nowrap",
-                          letterSpacing: 0.3,
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        ◎ via {inq.sourceChannel === "discover_shortlist" ? "Shortlist" : "Discover"}
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      color: C.ink,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {inq.contact_name}
-                    {inq.company && (
-                      <span style={{ color: C.inkMuted, fontWeight: 400, marginLeft: 6 }}>
-                        · {inq.company}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-                    {[inq.event_location, fmtDate(inq.event_date)].filter(Boolean).join(" · ") || "No event details"}
-                  </div>
-                </div>
-
-                {/* Right column */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-end",
-                    gap: 7,
-                  }}
-                >
-                  <span style={{ fontSize: 11, color: C.inkDim, whiteSpace: "nowrap" }}>
-                    {relativeDate(activityAt)}
-                  </span>
-                  <Link
-                    href={`/${tenantSlug}/talent/inbox/${inq.id}`}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      height: 28,
-                      padding: "0 10px",
-                      borderRadius: 8,
-                      border: `1px solid ${C.borderSoft}`,
-                      color: C.blueDeep,
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      textDecoration: "none",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Open thread
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* List — rendered through the shared <ThreadShell> primitive
+          (remediation plan §4, Phase 2 strangler step 1). The talent
+          inbox is list-only: no activeId / messages / details, so the
+          shell renders just its list rail and this surface keeps its
+          own role-specific filter chrome above as a sibling. */}
+      <ThreadShell
+        role="talent"
+        inquiries={filtered.map((inq) => toThreadItem(inq, tenantSlug))}
+        activeId={null}
+        actions={{}}
+      />
     </div>
   );
 }
