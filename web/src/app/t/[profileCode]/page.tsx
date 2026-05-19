@@ -36,6 +36,7 @@ import {
   getCachedServerSupabase,
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import {
   formatCityCountryLabel,
@@ -351,9 +352,12 @@ async function fetchPublicFieldValues(
   //   - effective visibility (visibility_override || default_visibility) must
   //     include 'public' OR the definition's show_in_public = true — P0 #2
   type NewDefEmbed = {
+    id: string;
     field_key: string;
     label: string;
     kind: string;
+    /** universal | global | type-specific (Gap 2b — orphan check). */
+    tier: string | null;
     options: string[] | null;
     display_order: number | null;
     field_group_id: string | null;
@@ -369,6 +373,7 @@ async function fetchPublicFieldValues(
   };
   type NewValueRow = {
     id: string;
+    field_definition_id: string;
     value: unknown;
     visibility_override: string[] | null;
     workflow_state: "live" | "pending" | "rejected";
@@ -380,11 +385,12 @@ async function fetchPublicFieldValues(
     .select(
       `
       id,
+      field_definition_id,
       value,
       visibility_override,
       workflow_state,
       profile_field_definitions (
-        field_key, label, kind, options, display_order, field_group_id,
+        id, field_key, label, kind, tier, options, display_order, field_group_id,
         admin_only, is_sensitive, show_in_public, default_visibility, deprecated_at,
         profile_field_groups ( sort_order, slug )
       )
@@ -394,6 +400,126 @@ async function fetchPublicFieldValues(
     .eq("workflow_state", "live");
   if (error || !data) return [];
 
+  // ── Gap 2 — public resolver-gate (2a tenant overrides + 2b-soft) ──────
+  // Governance reads use a SERVICE-ROLE client: the public path's client
+  // is anon and cannot read RLS-scoped workspace_profile_field_settings /
+  // agency_talent_roster, so without this the gate would silently fail
+  // OPEN. Reading governance data with service role to compute a MORE
+  // restrictive public view never exposes that data. If the service
+  // client (or any governance read) is unavailable we fail SAFE by
+  // degrading to the prior Phase 1.5 behaviour — never over-hiding,
+  // never a new leak. No data is mutated; this is a read-side filter.
+  const svc = createServiceRoleClient();
+  const fieldIds = Array.from(
+    new Set(
+      (data as NewValueRow[]).map((r) => r.field_definition_id).filter(Boolean),
+    ),
+  );
+
+  const tenantOverride = new Map<
+    string,
+    {
+      enabled_override: boolean | null;
+      show_in_public_override: boolean | null;
+      admin_only_override: boolean | null;
+      default_visibility_override: string[] | null;
+    }
+  >();
+  const recTermsByField = new Map<string, Set<string>>();
+  const applicableTerms = new Set<string>();
+  let governanceLoaded = false;
+
+  if (svc && fieldIds.length > 0) {
+    try {
+      const { data: rosterRow } = await svc
+        .from("agency_talent_roster")
+        .select("tenant_id")
+        .eq("talent_profile_id", talentProfileId)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      const tenantId =
+        (rosterRow as { tenant_id?: string } | null)?.tenant_id ?? null;
+
+      if (tenantId) {
+        const { data: wpfs } = await svc
+          .from("workspace_profile_field_settings")
+          .select(
+            "field_definition_id, enabled_override, show_in_public_override, admin_only_override, default_visibility_override",
+          )
+          .eq("tenant_id", tenantId)
+          .in("field_definition_id", fieldIds);
+        for (const o of (wpfs ?? []) as Array<{
+          field_definition_id: string;
+          enabled_override: boolean | null;
+          show_in_public_override: boolean | null;
+          admin_only_override: boolean | null;
+          default_visibility_override: string[] | null;
+        }>) {
+          tenantOverride.set(o.field_definition_id, o);
+        }
+      }
+
+      // Talent's applicable taxonomy term set: their terms + 2 levels of
+      // parents (mirrors the resolver's term → parent → parent_category
+      // walk depth) so a field recommended at the category level matches.
+      const { data: tpt } = await svc
+        .from("talent_profile_taxonomy")
+        .select("taxonomy_term_id")
+        .eq("talent_profile_id", talentProfileId);
+      let level = Array.from(
+        new Set(
+          ((tpt ?? []) as Array<{ taxonomy_term_id: string | null }>)
+            .map((r) => r.taxonomy_term_id)
+            .filter((x): x is string => !!x),
+        ),
+      );
+      for (const id of level) applicableTerms.add(id);
+      for (let depth = 0; depth < 2 && level.length > 0; depth++) {
+        const { data: parents } = await svc
+          .from("taxonomy_terms")
+          .select("id, parent_id")
+          .in("id", level);
+        const next = Array.from(
+          new Set(
+            ((parents ?? []) as Array<{ id: string; parent_id: string | null }>)
+              .map((p) => p.parent_id)
+              .filter((x): x is string => !!x),
+          ),
+        );
+        for (const id of next) applicableTerms.add(id);
+        level = next;
+      }
+
+      const { data: recs } = await svc
+        .from("profile_field_recommendations")
+        .select("field_definition_id, taxonomy_term_id")
+        .in("field_definition_id", fieldIds);
+      for (const r of (recs ?? []) as Array<{
+        field_definition_id: string;
+        taxonomy_term_id: string | null;
+      }>) {
+        if (!r.taxonomy_term_id) continue;
+        const s =
+          recTermsByField.get(r.field_definition_id) ?? new Set<string>();
+        s.add(r.taxonomy_term_id);
+        recTermsByField.set(r.field_definition_id, s);
+      }
+      governanceLoaded = true;
+    } catch {
+      // Any governance read failure → fail SAFE (degrade to Phase 1.5).
+      governanceLoaded = false;
+    }
+  }
+
+  const diag = {
+    prevPublic: 0,
+    hiddenByTenant: 0,
+    hiddenOrphan: 0,
+    keptUniversalGlobal: 0,
+    keptTypeSpecific: 0,
+  };
+
   const projected: PublicFieldValueRow[] = [];
   for (const row of data as NewValueRow[]) {
     const def = Array.isArray(row.profile_field_definitions)
@@ -402,23 +528,66 @@ async function fetchPublicFieldValues(
     if (!def) continue;
     if (def.deprecated_at) continue;
 
-    // Phase 1.5 — public safety via the SINGLE shared visibility
-    // primitive (same truth the editor/resolver use). Guarantees
-    // admin_only AND is_sensitive (platform floor) and any value-level
-    // visibility_override (narrow-only) can never leak publicly. Tenant
-    // workspace override on the public surface is the deeper Phase 3
-    // resolver-gate (deliberately not ballooned here), so tenant=null.
+    // Gap 2 — full public resolver-gate via the SINGLE shared primitive.
+    // `wasPublic` = the prior Phase 1.5 decision (tenant=null), retained
+    // only to drive the verification diff below.
+    const defVisInput = {
+      default_visibility: def.default_visibility,
+      admin_only: def.admin_only,
+      is_sensitive: def.is_sensitive,
+      show_in_public: def.show_in_public,
+    };
+    const wasPublic =
+      effectiveFieldVisibility(defVisInput, null, row.visibility_override) ===
+      "public";
+    if (wasPublic) diag.prevPublic++;
+
+    const ov = tenantOverride.get(row.field_definition_id) ?? null;
+
+    // Rule 4 — field explicitly disabled by the workspace.
+    if (ov?.enabled_override === false) {
+      if (wasPublic) diag.hiddenByTenant++;
+      continue;
+    }
+
+    // Rules 1-3,5 — tenant visibility override + platform floor + per-value
+    // override, all via the shared primitive (deprecated already skipped).
     const vis = effectiveFieldVisibility(
-      {
-        default_visibility: def.default_visibility,
-        admin_only: def.admin_only,
-        is_sensitive: def.is_sensitive,
-        show_in_public: def.show_in_public,
-      },
-      null,
+      defVisInput,
+      ov
+        ? {
+            show_in_public_override: ov.show_in_public_override,
+            admin_only_override: ov.admin_only_override,
+            default_visibility_override: ov.default_visibility_override,
+          }
+        : null,
       row.visibility_override,
     );
-    if (vis !== "public") continue;
+    if (vis !== "public") {
+      if (wasPublic) diag.hiddenByTenant++;
+      continue;
+    }
+
+    // Rules 6/7 — 2b-soft: keep universal/global; hide orphaned
+    // type-specific (the category/type that caused it is no longer on the
+    // talent). Enforced ONLY when governance data actually loaded —
+    // otherwise fail SAFE and keep showing (no regression vs Phase 1.5).
+    const tier = (def.tier ?? "").toLowerCase();
+    if (tier === "type-specific") {
+      if (governanceLoaded) {
+        const recTerms = recTermsByField.get(row.field_definition_id);
+        const stillApplicable =
+          !!recTerms &&
+          Array.from(recTerms).some((t) => applicableTerms.has(t));
+        if (!stillApplicable) {
+          if (wasPublic) diag.hiddenOrphan++;
+          continue;
+        }
+      }
+      diag.keptTypeSpecific++;
+    } else {
+      diag.keptUniversalGlobal++;
+    }
 
     // Split jsonb value into the typed columns the renderer expects.
     const v = row.value;
@@ -475,6 +644,18 @@ async function fetchPublicFieldValues(
       },
     });
   }
+
+  // Verification diff (Gap 2) — server-side, no UI change. Of the fields
+  // that WERE public under Phase 1.5: how many are now hidden by tenant
+  // privacy vs. orphaned type-specific, and what remains visible.
+  // eslint-disable-next-line no-console
+  console.info(
+    `[public-resolver-gate] talent=${talentProfileId} ` +
+      `governance=${governanceLoaded} prevPublic=${diag.prevPublic} ` +
+      `hiddenByTenant=${diag.hiddenByTenant} hiddenOrphan=${diag.hiddenOrphan} ` +
+      `keptUniversalGlobal=${diag.keptUniversalGlobal} ` +
+      `keptTypeSpecific=${diag.keptTypeSpecific}`,
+  );
 
   return projected;
 }
