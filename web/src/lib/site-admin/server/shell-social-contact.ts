@@ -19,16 +19,22 @@
 import { unstable_cache } from "next/cache";
 
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import {
+  normalizeHeaderContactLink,
+  normalizeHeaderSocialLink,
+  type HeaderContactType,
+  type HeaderSocialPlatform,
+} from "@/lib/site-admin/site-header/social-contact-normalize";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export type ShellSocialLink = {
-  platform: "instagram" | "tiktok" | "facebook" | "youtube" | "linkedin" | "x";
+  platform: HeaderSocialPlatform;
   href: string;
   /** Optional accessible label (matches the section-prop schema shape). */
   label?: string;
 };
 export type ShellContactLink = {
-  type: "phone" | "email" | "whatsapp";
+  type: HeaderContactType;
   value: string;
   /** Optional display label (matches the section-prop schema shape). */
   label?: string;
@@ -75,29 +81,56 @@ function loadShellSocialContact(tenantId: string): Promise<ShellSocialContact> {
 
       const socialLinks: ShellSocialLink[] = [];
       const ig = clean(data.social_instagram);
-      if (ig) socialLinks.push({ platform: "instagram", href: ig });
+      if (ig) {
+        const link = normalizeHeaderSocialLink("instagram", ig);
+        if (link) socialLinks.push(link);
+      }
       const tk = clean(data.social_tiktok);
-      if (tk) socialLinks.push({ platform: "tiktok", href: tk });
+      if (tk) {
+        const link = normalizeHeaderSocialLink("tiktok", tk);
+        if (link) socialLinks.push(link);
+      }
       const fb = clean(data.social_facebook);
-      if (fb) socialLinks.push({ platform: "facebook", href: fb });
+      if (fb) {
+        const link = normalizeHeaderSocialLink("facebook", fb);
+        if (link) socialLinks.push(link);
+      }
       const yt = clean(data.social_youtube);
-      if (yt) socialLinks.push({ platform: "youtube", href: yt });
+      if (yt) {
+        const link = normalizeHeaderSocialLink("youtube", yt);
+        if (link) socialLinks.push(link);
+      }
       const li = clean(data.social_linkedin);
-      if (li) socialLinks.push({ platform: "linkedin", href: li });
+      if (li) {
+        const link = normalizeHeaderSocialLink("linkedin", li);
+        if (link) socialLinks.push(link);
+      }
       const x = clean(data.social_x);
-      if (x) socialLinks.push({ platform: "x", href: x });
+      if (x) {
+        const link = normalizeHeaderSocialLink("x", x);
+        if (link) socialLinks.push(link);
+      }
 
       const contactLinks: ShellContactLink[] = [];
       const wa = clean(data.whatsapp);
-      if (wa) contactLinks.push({ type: "whatsapp", value: wa });
+      if (wa) {
+        const link = normalizeHeaderContactLink("whatsapp", wa);
+        if (link) contactLinks.push(link);
+      }
       const ph = clean(data.contact_phone);
-      if (ph) contactLinks.push({ type: "phone", value: ph });
+      if (ph) {
+        const link = normalizeHeaderContactLink("phone", ph);
+        if (link) contactLinks.push(link);
+      }
       const em = clean(data.contact_email);
-      if (em) contactLinks.push({ type: "email", value: em });
+      if (em) {
+        const link = normalizeHeaderContactLink("email", em);
+        if (link) contactLinks.push(link);
+      }
 
       return { socialLinks, contactLinks };
     },
-    ["site-admin:shell-social-contact", tenantId],
+    ["site-admin:shell-social-contact:v2", tenantId],
     {
       revalidate: SHELL_SOCIAL_TTL_SECONDS,
       // Social/contact lives in agency_business_identity, which the
@@ -120,8 +153,16 @@ export async function resolveShellSocialContact(params: {
   explicitSocial?: ShellSocialLink[] | null;
   explicitContact?: ShellContactLink[] | null;
 }): Promise<ShellSocialContact> {
-  const explicitSocial = params.explicitSocial ?? [];
-  const explicitContact = params.explicitContact ?? [];
+  const explicitSocial = (params.explicitSocial ?? [])
+    .map((link) =>
+      normalizeHeaderSocialLink(link.platform, link.href, link.label),
+    )
+    .filter((link): link is ShellSocialLink => link != null);
+  const explicitContact = (params.explicitContact ?? [])
+    .map((link) =>
+      normalizeHeaderContactLink(link.type, link.value, link.label),
+    )
+    .filter((link): link is ShellContactLink => link != null);
   if (explicitSocial.length > 0 || explicitContact.length > 0) {
     return { socialLinks: explicitSocial, contactLinks: explicitContact };
   }

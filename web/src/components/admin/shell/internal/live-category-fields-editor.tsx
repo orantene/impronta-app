@@ -566,16 +566,19 @@ function FieldRow({
   // parent owns the truth; we re-sync via prop change below.
   const [localOverride, setLocalOverride] = useState<string[] | null>(initialVisibility);
   useEffect(() => { setLocalOverride(initialVisibility); }, [initialVisibility]);
+  const [lastSavedValue, setLastSavedValue] = useState<unknown>(initialValue);
+  const lastSavedRef = useRef<unknown>(initialValue);
 
   // Reset when initial changes (e.g. external reload)
   useEffect(() => {
     setDraft(initialValue);
+    setLastSavedValue(initialValue);
+    lastSavedRef.current = initialValue;
     setStatus("idle");
     setError(null);
   }, [initialValue]);
 
-  const lastSavedRef = useRef<unknown>(initialValue);
-  const isUnchanged = JSON.stringify(draft) === JSON.stringify(lastSavedRef.current);
+  const isUnchanged = JSON.stringify(draft) === JSON.stringify(lastSavedValue);
 
   const commit = async (next: unknown) => {
     if (JSON.stringify(next) === JSON.stringify(lastSavedRef.current)) return;
@@ -584,6 +587,7 @@ function FieldRow({
     const res = await onSave(next);
     if (res.ok) {
       lastSavedRef.current = next;
+      setLastSavedValue(next);
       setStatus("saved");
       setTimeout(() => setStatus(s => (s === "saved" ? "idle" : s)), 1500);
     } else {
@@ -1809,7 +1813,7 @@ export function LiveCategoryFieldsEditor({
         padding: 12, borderRadius: 8, background: "rgba(200,40,40,0.08)",
         border: `1px solid ${T.red}`, color: T.red, fontFamily: F, fontSize: 12,
       }}>
-        Couldn't load category fields: {error}
+        Couldn&apos;t load category fields: {error}
       </div>
     );
   }

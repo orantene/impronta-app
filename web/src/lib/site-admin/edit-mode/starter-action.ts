@@ -319,11 +319,15 @@ const RECIPES: Record<string, Recipe> = {
         slotKey: "trust_band",
         sectionTypeKey: "talent_type_grid",
         propsOverride: {
-          // v11 band rhythm — raised surface + hairline (token-driven:
-          // muted-surface → --token-color-surface-raised, thin-line →
-          // --token-color-line; reusable, no per-tenant CSS).
-          presentation: { background: "muted-surface", dividerTop: "thin-line" },
-          headline: "Talent, by Discipline",
+          // v11 prototype rail: noir band, large featured pod, scrollable
+          // card wall, gold icon wells, descriptions, and CTA microcopy.
+          presentation: {
+            background: "espresso",
+            paddingTop: "editorial",
+            paddingBottom: "editorial",
+            dividerTop: "thin-line",
+          },
+          headline: "Talent, by discipline",
           mode: "manual",
           // Trimmed to disciplines the current public roster actually
           // supports (Models, Hosts & Promo, Performers, Creators &
@@ -341,24 +345,33 @@ const RECIPES: Record<string, Recipe> = {
           items: [
             {
               label: "Models",
+              description: "Editorial, runway & commercial",
+              icon: "◑",
+              featured: true,
               href: "/directory",
               imageUrl:
                 "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1100&h=820",
             },
             {
               label: "Hosts & Promo",
+              description: "Brand ambassadors & activations",
+              icon: "✦",
               href: "/directory",
               imageUrl:
                 "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1100&h=820",
             },
             {
               label: "Performers",
+              description: "Dancers, acts & entertainers",
+              icon: "♪",
               href: "/directory",
               imageUrl:
                 "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1100&h=820",
             },
             {
               label: "Creators & Influencers",
+              description: "UGC & social campaigns",
+              icon: "⌾",
               href: "/directory",
               imageUrl:
                 "https://images.unsplash.com/photo-1547355253-ff0740f6e8c1?auto=format&fit=crop&q=72&w=1100&h=820",
@@ -367,13 +380,18 @@ const RECIPES: Record<string, Recipe> = {
           maxItems: 4,
           showCount: false,
           showCta: true,
-          seeAllLabel: "Browse all talent",
+          ctaLabel: "Explore",
+          showImages: true,
+          showDescriptions: true,
+          showCardIcons: true,
+          showRailControls: true,
+          seeAllLabel: "See all",
           seeAllHref: "/directory",
-          desktopLayout: "editorial-asymmetric",
+          desktopLayout: "featured-pod-rail",
           mobileLayout: "horizontal-scroll",
-          cardRatio: "3/4",
+          cardRatio: "16/9",
           textPosition: "overlay-bottom",
-          imageOverlayStrength: "medium",
+          imageOverlayStrength: "strong",
         },
       },
       {

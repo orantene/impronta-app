@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode, type CSSProperties } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -9320,6 +9320,37 @@ function ConfigStatusRow({ label, status, value }: { label: string; status: "ok"
   );
 }
 
+function WebsiteMetricTile({
+  label,
+  value,
+  current,
+  prior,
+  accent,
+  fmtMoney,
+}: {
+  label: string;
+  value: string;
+  current: number;
+  prior: number;
+  accent?: boolean;
+  fmtMoney: (n: number) => string;
+}) {
+  const delta = prior > 0 ? ((current - prior) / prior) * 100 : 0;
+  const dir = Math.abs(delta) < 0.5 ? "flat" : (delta > 0 ? "up" : "down");
+  const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
+  const priorLabel = prior > 1000 && label === "Booking revenue" ? fmtMoney(prior) : prior.toLocaleString();
+  return (
+    <div style={{ padding: 14, borderRadius: 10, background: accent ? COLORS.accentSoft : "#fff", border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}` }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>{label}</div>
+      <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
+      <div style={{ fontSize: 11, color, marginTop: 2 }}>
+        {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
+        <span style={{ color: COLORS.inkDim, marginLeft: 4 }}>vs {priorLabel}</span>
+      </div>
+    </div>
+  );
+}
+
 function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: WebsiteAnalytics; pages: WebsitePageRow[]; fmtMoney: (n: number) => string }) {
   const [period, setPeriod] = useState<"7d" | "30d">("7d");
   const [topView, setTopView] = useState<"pages" | "talent">("pages");
@@ -9342,22 +9373,6 @@ function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: Website
     .slice(0, 4)
     .map(t => ({ ...t, topPageTitle: pages.find(pg => pg.id === t.topPageId)?.title ?? "—" }));
 
-  const Tile = ({ label, value, current, prior, accent }: { label: string; value: string; current: number; prior: number; accent?: boolean }) => {
-    const delta = prior > 0 ? ((current - prior) / prior) * 100 : 0;
-    const dir = Math.abs(delta) < 0.5 ? "flat" : (delta > 0 ? "up" : "down");
-    const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
-    return (
-      <div style={{ padding: 14, borderRadius: 10, background: accent ? COLORS.accentSoft : "#fff", border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}` }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>{label}</div>
-        <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
-        <div style={{ fontSize: 11, color, marginTop: 2 }}>
-          {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
-          <span style={{ color: COLORS.inkDim, marginLeft: 4 }}>vs {typeof prior === "number" && prior > 1000 && label === "Booking revenue" ? fmtMoney(prior) : prior.toLocaleString()}</span>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
@@ -9375,10 +9390,10 @@ function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: Website
 
       <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
-          <Tile label="Visits"           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} />
-          <Tile label="Inquiries"        value={m.inquiries.toLocaleString()} current={m.inquiries} prior={m.prior.inquiries} />
-          <Tile label="Bookings"         value={m.bookings.toLocaleString()} current={m.bookings}  prior={m.prior.bookings} />
-          <Tile label="Booking revenue"  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent />
+          <WebsiteMetricTile label="Visits"           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} fmtMoney={fmtMoney} />
+          <WebsiteMetricTile label="Inquiries"        value={m.inquiries.toLocaleString()} current={m.inquiries} prior={m.prior.inquiries} fmtMoney={fmtMoney} />
+          <WebsiteMetricTile label="Bookings"         value={m.bookings.toLocaleString()} current={m.bookings}  prior={m.prior.bookings} fmtMoney={fmtMoney} />
+          <WebsiteMetricTile label="Booking revenue"  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent fmtMoney={fmtMoney} />
         </div>
 
         {/* Funnel strip */}
@@ -10615,6 +10630,156 @@ function LockedPill({ plan }: { plan: Plan }) {
   );
 }
 
+type SettingsAccordionContextValue = {
+  isOpen: (id: string) => boolean;
+  toggleSection: (id: string) => void;
+};
+
+const SettingsAccordionContext =
+  createContext<SettingsAccordionContextValue | null>(null);
+
+function useSettingsAccordion() {
+  const context = useContext(SettingsAccordionContext);
+  if (!context) {
+    throw new Error("SettingsAccordionContext is missing");
+  }
+  return context;
+}
+
+type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
+
+const SETTINGS_TABS: {
+  id: SettingsTab;
+  label: string;
+  emoji: string;
+  sections: string[];
+}[] = [
+  { id: "workspace", label: "Workspace", emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
+  { id: "roster", label: "Roster", emoji: "🎯", sections: ["talent-types", "roster-review", "discover"] },
+  { id: "team", label: "Team & legal", emoji: "👥", sections: ["team", "compliance"] },
+  { id: "billing", label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
+  { id: "advanced", label: "Advanced", emoji: "⚙", sections: ["features", "danger"] },
+];
+
+function SettingsRow({
+  children,
+  onClick,
+  opacity,
+  borderColor,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  opacity?: number;
+  borderColor?: string;
+}) {
+  return (
+    <Card
+      interactive={!!onClick}
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "14px 16px",
+        marginBottom: 8,
+        fontFamily: FONTS.body,
+        ...(opacity !== undefined && { opacity }),
+        ...(borderColor ? { borderColor } : {}),
+      }}
+    >
+      {children}
+    </Card>
+  );
+}
+
+function AccordionItem({
+  id, label, desc, supportLink, danger, defaultBadge, children,
+}: {
+  id: string;
+  label: string;
+  desc: string;
+  supportLink: string;
+  danger?: boolean;
+  defaultBadge?: ReactNode;
+  children: ReactNode;
+}) {
+  const { isOpen, toggleSection } = useSettingsAccordion();
+  const open = isOpen(id);
+  return (
+    <div
+      data-settings-section={id}
+      data-support-link={supportLink}
+      style={{
+        marginBottom: 8,
+        background: "#fff",
+        border: `1px solid ${open ? (danger ? "#FCA5A5" : COLORS.border) : COLORS.borderSoft}`,
+        borderRadius: RADIUS.md,
+        overflow: "hidden",
+        transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
+        boxShadow: open ? "0 1px 3px rgba(11,11,13,0.04)" : "none",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => toggleSection(id)}
+        aria-expanded={open}
+        aria-controls={`settings-body-${id}`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          width: "100%",
+          padding: "14px 16px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          textAlign: "left",
+        }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{
+              fontFamily: FONTS.display, fontSize: 15, fontWeight: 600,
+              color: danger ? "#DC2626" : COLORS.ink, letterSpacing: -0.1,
+            }}>
+              {label}
+            </span>
+            {defaultBadge}
+          </div>
+          <div style={{
+            fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {desc}
+          </div>
+        </div>
+        <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkMuted, transition: `transform ${TRANSITION.sm}`, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <div
+          id={`settings-body-${id}`}
+          style={{
+            padding: "0 16px 14px",
+            borderTop: `1px solid ${COLORS.borderSoft}`,
+            animation: "settingsAccordionExpand .2s ease-out",
+          }}
+        >
+          <style>{`@keyframes settingsAccordionExpand { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <div style={{ paddingTop: 12 }}>{children}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WorkspacePageView() {
   const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
   const pendingTrustCount = verificationRequests.filter(r =>
@@ -10630,30 +10795,25 @@ function WorkspacePageView() {
   // to expand it; click again to collapse. Each accordion item carries
   // a `data-support-link` that backend can route to /help/settings/{id}.
   const [openSet, setOpenSet] = useState<Set<string>>(new Set(["account"]));
-  const isOpen = (id: string) => openSet.has(id);
-  const toggleSection = (id: string) => {
+  const toggleSection = useCallback((id: string) => {
     setOpenSet((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
+  }, []);
+  const accordionContext = useMemo(
+    () => ({
+      isOpen: (id: string) => openSet.has(id),
+      toggleSection,
+    }),
+    [openSet, toggleSection],
+  );
   const expandAll = () => setOpenSet(new Set(SETTINGS_SECTIONS.map(s => s.id)));
   const collapseAll = () => setOpenSet(new Set(["account"]));
 
-  // 2026 redesign — group the 13-accordion wall into 4 tabs.
-  // Each tab renders a subset of the accordion list; user can still
-  // expand/collapse within the tab. Clearer mental map than a giant scroll.
-  type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
-  const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
-    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
-    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "discover"] },
-    { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
-    { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
-    { id: "advanced",  label: "Advanced",      emoji: "⚙",  sections: ["features", "danger"] },
-  ];
-  const visibleSections = new Set(TABS.find(t => t.id === activeTab)!.sections);
+  const visibleSections = new Set(SETTINGS_TABS.find(t => t.id === activeTab)!.sections);
 
   // Auto-save indicator (#6) — simulates a settings save 1.2s after mount
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -10661,131 +10821,6 @@ function WorkspacePageView() {
     const t = setTimeout(() => setSavedAt(new Date()), 1200);
     return () => clearTimeout(t);
   }, []);
-
-  /** Settings list row — white card with flex-row layout + hover lift.
-   *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
-   *  Non-interactive rows (inner button only): omit `onClick`. */
-  function SettingsRow({
-    children,
-    onClick,
-    opacity,
-    borderColor,
-  }: {
-    children: ReactNode;
-    onClick?: () => void;
-    opacity?: number;
-    borderColor?: string;
-  }) {
-    return (
-      <Card
-        interactive={!!onClick}
-        onClick={onClick}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 16px",
-          marginBottom: 8,
-          fontFamily: FONTS.body,
-          ...(opacity !== undefined && { opacity }),
-          ...(borderColor ? { borderColor } : {}),
-        }}
-      >
-        {children}
-      </Card>
-    );
-  }
-  // ── Accordion item shell ────────────────────────────────────────
-  // Click the row to expand/collapse. Smooth chevron rotation + soft
-  // border highlight when open. `supportLink` is wired to a data-attr
-  // so backend deep-linking works.
-  function AccordionItem({
-    id, label, desc, supportLink, danger, defaultBadge, children,
-  }: {
-    id: string;
-    label: string;
-    desc: string;
-    supportLink: string;
-    danger?: boolean;
-    defaultBadge?: ReactNode;
-    children: ReactNode;
-  }) {
-    const open = isOpen(id);
-    return (
-      <div
-        data-settings-section={id}
-        data-support-link={supportLink}
-        style={{
-          marginBottom: 8,
-          background: "#fff",
-          border: `1px solid ${open ? (danger ? "#FCA5A5" : COLORS.border) : COLORS.borderSoft}`,
-          borderRadius: RADIUS.md,
-          overflow: "hidden",
-          transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
-          boxShadow: open ? "0 1px 3px rgba(11,11,13,0.04)" : "none",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => toggleSection(id)}
-          aria-expanded={open}
-          aria-controls={`settings-body-${id}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            width: "100%",
-            padding: "14px 16px",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            textAlign: "left",
-          }}
-          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
-          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                fontFamily: FONTS.display, fontSize: 15, fontWeight: 600,
-                color: danger ? "#DC2626" : COLORS.ink, letterSpacing: -0.1,
-              }}>
-                {label}
-              </span>
-              {defaultBadge}
-            </div>
-            <div style={{
-              fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>
-              {desc}
-            </div>
-          </div>
-          {/* Chevron — rotates 180° when open */}
-          <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkMuted, transition: `transform ${TRANSITION.sm}`, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </span>
-        </button>
-        {open && (
-          <div
-            id={`settings-body-${id}`}
-            style={{
-              padding: "0 16px 14px",
-              borderTop: `1px solid ${COLORS.borderSoft}`,
-              animation: "settingsAccordionExpand .2s ease-out",
-            }}
-          >
-            <style>{`@keyframes settingsAccordionExpand { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-            <div style={{ paddingTop: 12 }}>{children}</div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <>
@@ -10828,7 +10863,7 @@ function WorkspacePageView() {
           scrollbarWidth: "none",
         }}
       >
-        {TABS.map((t) => {
+        {SETTINGS_TABS.map((t) => {
           const active = activeTab === t.id;
           return (
             <button
@@ -10861,6 +10896,7 @@ function WorkspacePageView() {
       </div>
 
       {/* Single column accordion — click each section header to expand. */}
+      <SettingsAccordionContext.Provider value={accordionContext}>
       <div style={{ maxWidth: 760 }}>
         <div>
 
@@ -11409,6 +11445,7 @@ function WorkspacePageView() {
 
         </div>{/* end accordion list */}
       </div>{/* end max-width wrapper */}
+      </SettingsAccordionContext.Provider>
 
       {/* Legacy — keep MoreWithSection for free plan upsell below the main layout */}
       {state.plan === "free" && (

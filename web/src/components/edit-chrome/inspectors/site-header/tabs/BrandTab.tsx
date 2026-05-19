@@ -29,6 +29,10 @@ import { useEditContext } from "../../../edit-context";
 import { InspectorGroup, KIT } from "../../kit";
 import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
 import {
+  normalizeHeaderContactLink,
+  normalizeHeaderSocialLink,
+} from "@/lib/site-admin/site-header/social-contact-normalize";
+import {
   BrandLayoutThumb_Inline,
   BrandLayoutThumb_LogoOnly,
   BrandLayoutThumb_Stacked,
@@ -46,6 +50,101 @@ interface Props {
   patch: SiteHeaderPatch;
   tenantId: string;
 }
+
+type SocialContactKey =
+  | "socialInstagram"
+  | "socialTiktok"
+  | "socialFacebook"
+  | "socialYoutube"
+  | "socialLinkedin"
+  | "socialX"
+  | "whatsapp"
+  | "contactPhone"
+  | "contactEmail";
+
+type SocialContactField = {
+  key: SocialContactKey;
+  label: string;
+  placeholder: string;
+  maxLength: number;
+  normalize: (value: string) => unknown | null;
+  invalidMessage: string;
+};
+
+const SOCIAL_CONTACT_FIELDS: SocialContactField[] = [
+  {
+    key: "socialInstagram",
+    label: "Instagram",
+    placeholder: "e.g. https://instagram.com/impronta",
+    maxLength: 120,
+    normalize: (value) => normalizeHeaderSocialLink("instagram", value),
+    invalidMessage: "Use an Instagram URL or handle.",
+  },
+  {
+    key: "socialTiktok",
+    label: "TikTok",
+    placeholder: "e.g. https://tiktok.com/@impronta",
+    maxLength: 120,
+    normalize: (value) => normalizeHeaderSocialLink("tiktok", value),
+    invalidMessage: "Use a TikTok URL or handle.",
+  },
+  {
+    key: "socialFacebook",
+    label: "Facebook",
+    placeholder: "e.g. https://facebook.com/impronta",
+    maxLength: 120,
+    normalize: (value) => normalizeHeaderSocialLink("facebook", value),
+    invalidMessage: "Use a Facebook URL or handle.",
+  },
+  {
+    key: "socialYoutube",
+    label: "YouTube",
+    placeholder: "e.g. https://youtube.com/@impronta",
+    maxLength: 120,
+    normalize: (value) => normalizeHeaderSocialLink("youtube", value),
+    invalidMessage: "Use a YouTube URL or handle.",
+  },
+  {
+    key: "socialLinkedin",
+    label: "LinkedIn",
+    placeholder: "e.g. https://linkedin.com/company/impronta",
+    maxLength: 120,
+    normalize: (value) => normalizeHeaderSocialLink("linkedin", value),
+    invalidMessage: "Use a LinkedIn URL or company handle.",
+  },
+  {
+    key: "socialX",
+    label: "X (Twitter)",
+    placeholder: "e.g. https://x.com/impronta",
+    maxLength: 120,
+    normalize: (value) => normalizeHeaderSocialLink("x", value),
+    invalidMessage: "Use an X/Twitter URL or handle.",
+  },
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    placeholder: "e.g. +52 984 000 0000",
+    maxLength: 40,
+    normalize: (value) => normalizeHeaderContactLink("whatsapp", value),
+    invalidMessage: "Use a WhatsApp phone number.",
+  },
+  {
+    key: "contactPhone",
+    label: "Phone",
+    placeholder: "e.g. +52 984 000 0000",
+    maxLength: 40,
+    normalize: (value) => normalizeHeaderContactLink("phone", value),
+    invalidMessage: "Use a complete phone number.",
+  },
+  {
+    key: "contactEmail",
+    label: "Email",
+    placeholder: "e.g. hello@improntamodels.com",
+    maxLength: 240,
+    normalize: (value) => normalizeHeaderContactLink("email", value),
+    invalidMessage: "Use a valid email address.",
+  },
+];
 
 const POSITION_OPTIONS = [
   {
@@ -143,35 +242,35 @@ export function BrandTab({ config, patch, tenantId }: Props) {
         title="Social & contact"
         info="Shown in the premium header cluster (and the footer — one source of truth). Leave a field blank to hide it. Nothing is auto-generated; only what you enter renders."
       >
-        {(
-          [
-            ["socialInstagram", "Instagram", "e.g. https://instagram.com/impronta"],
-            ["socialTiktok", "TikTok", "e.g. https://tiktok.com/@impronta"],
-            ["socialFacebook", "Facebook", "e.g. https://facebook.com/impronta"],
-            ["socialYoutube", "YouTube", "e.g. https://youtube.com/@impronta"],
-            ["socialLinkedin", "LinkedIn", "e.g. https://linkedin.com/company/impronta"],
-            ["socialX", "X (Twitter)", "e.g. https://x.com/impronta"],
-            ["whatsapp", "WhatsApp", "e.g. https://wa.me/5219840000000"],
-            ["contactPhone", "Phone", "e.g. +52 984 000 0000"],
-            ["contactEmail", "Email", "e.g. hello@improntamodels.com"],
-          ] as Array<[keyof typeof config.identity, string, string]>
-        ).map(([key, label, placeholder]) => (
-          <div className={KIT.field} key={key as string}>
-            <label className={KIT.label}>{label}</label>
-            <input
-              type="text"
-              className={KIT.input}
-              placeholder={placeholder}
-              maxLength={500}
-              value={(config.identity[key] as string | null) ?? ""}
-              onChange={(e) =>
-                patch.patchIdentity({
-                  [key]: e.target.value.trim() || null,
-                } as Parameters<typeof patch.patchIdentity>[0])
-              }
-            />
-          </div>
-        ))}
+        {SOCIAL_CONTACT_FIELDS.map((field) => {
+          const value = (config.identity[field.key] as string | null) ?? "";
+          const invalid =
+            value.trim().length > 0 && field.normalize(value) == null;
+          return (
+            <div className={KIT.field} key={field.key}>
+              <label className={KIT.label}>{field.label}</label>
+              <input
+                type="text"
+                className={KIT.input}
+                placeholder={field.placeholder}
+                maxLength={field.maxLength}
+                value={value}
+                aria-invalid={invalid ? "true" : undefined}
+                onChange={(e) =>
+                  patch.patchIdentity({
+                    [field.key]: e.target.value.trim() || null,
+                  } as Parameters<typeof patch.patchIdentity>[0])
+                }
+              />
+              {invalid ? (
+                <p className="m-0 text-[11px] leading-4 text-amber-700">
+                  {field.invalidMessage} Invalid values are hidden from the
+                  live header.
+                </p>
+              ) : null}
+            </div>
+          );
+        })}
       </InspectorGroup>
 
       <InspectorGroup

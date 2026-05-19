@@ -32,6 +32,9 @@ import { CtaBannerEditor } from "./cta_banner/Editor";
 import { categoryGridMeta } from "./category_grid/meta";
 import { CategoryGridEditor } from "./category_grid/Editor";
 
+import { talentTypeGridMeta } from "./talent_type_grid/meta";
+import { TalentTypeGridEditor } from "./talent_type_grid/Editor";
+
 import { destinationsMosaicMeta } from "./destinations_mosaic/meta";
 import { DestinationsMosaicEditor } from "./destinations_mosaic/Editor";
 
@@ -177,6 +180,13 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: categoryGridMeta,
     currentVersion: 1,
     Editor: CategoryGridEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  talent_type_grid: {
+    meta: talentTypeGridMeta,
+    currentVersion: 1,
+    Editor: TalentTypeGridEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },

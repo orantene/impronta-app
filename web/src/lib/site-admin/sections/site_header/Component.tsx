@@ -15,6 +15,7 @@ import {
   type ShellSocialLink,
   type ShellContactLink,
 } from "@/lib/site-admin/server/shell-social-contact";
+import { headerContactHref } from "@/lib/site-admin/site-header/social-contact-normalize";
 import type { Locale } from "@/i18n/config";
 import { headers } from "next/headers";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
@@ -384,17 +385,6 @@ function ClusterIcon({ name }: { name: string }) {
   }
 }
 
-/** Format an owner-provided contact value into a safe href. Never invents
- * data — only prefixes the scheme when the operator gave a bare value. */
-function contactHref(type: "phone" | "email" | "whatsapp", value: string): string {
-  const v = value.trim();
-  if (type === "phone") return /^tel:/i.test(v) ? v : `tel:${v.replace(/[^\d+]/g, "")}`;
-  if (type === "email") return /^mailto:/i.test(v) ? v : `mailto:${v}`;
-  // whatsapp
-  if (/^https?:\/\//i.test(v)) return v;
-  return `https://wa.me/${v.replace(/[^\d]/g, "")}`;
-}
-
 /**
  * Phase B — public renderer for site_header sections.
  *
@@ -519,12 +509,14 @@ export async function SiteHeaderComponent({
                 key: string,
               ) => {
                 const isPhone = c.type === "phone";
+                const href = headerContactHref(c.type, c.value);
+                if (!href) return null;
                 return (
                   <a
                     key={key}
                     className="site-header__contact"
                     data-contact-type={c.type}
-                    href={contactHref(c.type, c.value)}
+                    href={href}
                     aria-label={
                       c.label ??
                       (c.type === "whatsapp"

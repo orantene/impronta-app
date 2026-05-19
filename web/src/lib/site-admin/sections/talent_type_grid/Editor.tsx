@@ -2,6 +2,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkPicker } from "../shared/LinkPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { SectionEditorProps } from "../types";
 import type { TalentTypeGridV1, TalentTypeGridItem } from "./schema";
 
@@ -9,10 +10,29 @@ const FIELD = "flex flex-col gap-1.5 text-sm";
 const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 const INPUT =
   "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const BUTTON =
+  "rounded-md border border-border/60 px-2 py-1 text-xs font-medium hover:bg-muted";
+
+const ICON_PRESETS = [
+  "",
+  "◑",
+  "✦",
+  "♪",
+  "♫",
+  "✷",
+  "❀",
+  "◉",
+  "⌾",
+  "◈",
+  "⌂",
+  "❖",
+  "△",
+];
 
 export function TalentTypeGridEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<TalentTypeGridV1>) {
   const value: TalentTypeGridV1 = {
     eyebrow: initial.eyebrow ?? "",
@@ -32,6 +52,10 @@ export function TalentTypeGridEditor({
     mobileLayout: initial.mobileLayout ?? "stacked",
     cardRatio: initial.cardRatio ?? "3/4",
     textPosition: initial.textPosition ?? "overlay-bottom",
+    showImages: initial.showImages,
+    showDescriptions: initial.showDescriptions,
+    showCardIcons: initial.showCardIcons,
+    showRailControls: initial.showRailControls,
     overlayOpacity: initial.overlayOpacity,
     imageOverlayStrength: initial.imageOverlayStrength ?? "medium",
     emptyStateText: initial.emptyStateText ?? "",
@@ -46,12 +70,62 @@ export function TalentTypeGridEditor({
       items: items.map((it, idx) => (idx === i ? { ...it, ...p } : it)),
     });
   const addItem = () =>
-    patch({ items: [...items, { label: "New discipline" }].slice(0, 18) });
+    patch({
+      items: [
+        ...items,
+        { label: "New discipline", description: "", icon: "✦" },
+      ].slice(0, 18),
+    });
   const removeItem = (i: number) =>
     patch({ items: items.filter((_, idx) => idx !== i) });
+  const setFeaturedItem = (i: number, featured: boolean) =>
+    patch({
+      items: items.map((it, idx) => ({
+        ...it,
+        featured: featured ? idx === i : idx === i ? undefined : it.featured,
+      })),
+    });
+  const applyPrototypePreset = () =>
+    patch({
+      desktopLayout: "featured-pod-rail",
+      mobileLayout: "horizontal-scroll",
+      cardRatio: "16/9",
+      textPosition: "overlay-bottom",
+      showImages: true,
+      showDescriptions: true,
+      showCardIcons: true,
+      showRailControls: true,
+      showCta: true,
+      ctaLabel: value.ctaLabel || "Explore",
+      seeAllLabel: value.seeAllLabel || "See all",
+      seeAllHref: value.seeAllHref || "/directory",
+      imageOverlayStrength: "strong",
+      presentation: {
+        ...(value.presentation ?? {}),
+        background: "espresso",
+        paddingTop: "editorial",
+        paddingBottom: "editorial",
+        dividerTop: "thin-line",
+      },
+    });
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">v11 roster layout</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Applies the prototype rail: large featured pod, three-row card
+              rail, image overlays, icons, descriptions, and scroll arrows.
+            </p>
+          </div>
+          <button type="button" className={BUTTON} onClick={applyPrototypePreset}>
+            Apply prototype layout
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
           <span className={LABEL}>Eyebrow</span>
@@ -163,22 +237,94 @@ export function TalentTypeGridEditor({
                 className={INPUT}
                 placeholder="Description (optional)"
                 value={it.description ?? ""}
-                onChange={(e) => setItem(i, { description: e.target.value })}
-              />
-              <input
-                className={INPUT}
-                placeholder="Image URL (optional)"
-                value={it.imageUrl ?? ""}
-                onChange={(e) => setItem(i, { imageUrl: e.target.value })}
-              />
-              <input
-                className={INPUT}
-                placeholder="Taxonomy term id (optional → directory link)"
-                value={it.taxonomyTermId ?? ""}
                 onChange={(e) =>
-                  setItem(i, { taxonomyTermId: e.target.value })
+                  setItem(i, { description: e.target.value || undefined })
                 }
               />
+              <label className={FIELD}>
+                <span className={LABEL}>Icon</span>
+                <select
+                  className={INPUT}
+                  value={it.icon ?? ""}
+                  onChange={(e) =>
+                    setItem(i, { icon: e.target.value || undefined })
+                  }
+                >
+                  {ICON_PRESETS.map((icon) => (
+                    <option key={icon || "none"} value={icon}>
+                      {icon || "None"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={FIELD}>
+                <span className={LABEL}>Image position</span>
+                <input
+                  className={INPUT}
+                  placeholder="50% 50%"
+                  value={it.imagePosition ?? ""}
+                  onChange={(e) =>
+                    setItem(i, { imagePosition: e.target.value || undefined })
+                  }
+                />
+              </label>
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <span className={LABEL}>Background image</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    className={`${INPUT} min-w-[220px] flex-1`}
+                    placeholder="Image URL (optional)"
+                    value={it.imageUrl ?? ""}
+                    onChange={(e) =>
+                      setItem(i, { imageUrl: e.target.value || undefined })
+                    }
+                  />
+                  {tenantId ? (
+                    <MediaPicker
+                      tenantId={tenantId}
+                      label="Pick image"
+                      onPick={(url) => setItem(i, { imageUrl: url })}
+                    />
+                  ) : null}
+                  {it.imageUrl ? (
+                    <button
+                      type="button"
+                      className={BUTTON}
+                      onClick={() => setItem(i, { imageUrl: undefined })}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <label className={FIELD}>
+                <span className={LABEL}>Taxonomy term id</span>
+                <input
+                  className={INPUT}
+                  placeholder="optional → directory link"
+                  value={it.taxonomyTermId ?? ""}
+                  onChange={(e) =>
+                    setItem(i, {
+                      taxonomyTermId: e.target.value || undefined,
+                    })
+                  }
+                />
+              </label>
+              <div className={FIELD}>
+                <span className={LABEL}>Card link</span>
+                <LinkPicker
+                  value={it.href ?? ""}
+                  onChange={(next) => setItem(i, { href: next || undefined })}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-xs md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={it.featured === true}
+                  onChange={(e) => setFeaturedItem(i, e.target.checked)}
+                />
+                Feature this card in pod layouts
+              </label>
               <button
                 type="button"
                 className="text-xs text-destructive md:col-span-2"
@@ -211,6 +357,8 @@ export function TalentTypeGridEditor({
               })
             }
           >
+            <option value="featured-pod-rail">v11 featured pod rail</option>
+            <option value="horizontal-rail">Horizontal rail</option>
             <option value="equal-grid">Equal grid</option>
             <option value="editorial-asymmetric">Editorial asymmetric</option>
             <option value="compact-grid">Compact grid</option>
@@ -309,6 +457,44 @@ export function TalentTypeGridEditor({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={value.showImages !== false}
+            onChange={(e) => patch({ showImages: e.target.checked })}
+          />
+          Show background images
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={
+              value.showDescriptions ??
+              (value.desktopLayout === "featured-pod-rail")
+            }
+            onChange={(e) => patch({ showDescriptions: e.target.checked })}
+          />
+          Show descriptions
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={
+              value.showCardIcons ??
+              (value.desktopLayout === "featured-pod-rail")
+            }
+            onChange={(e) => patch({ showCardIcons: e.target.checked })}
+          />
+          Show card icons
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={value.showRailControls !== false}
+            onChange={(e) => patch({ showRailControls: e.target.checked })}
+          />
+          Show rail arrows
+        </label>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
