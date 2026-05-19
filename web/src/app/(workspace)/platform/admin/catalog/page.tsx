@@ -10,6 +10,10 @@ import {
   type CatalogField,
   type CatalogRisk,
 } from "../../catalog-map-data";
+import {
+  canViewerSee,
+  type ViewerRole,
+} from "@/lib/field-engine/effective-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -115,7 +119,17 @@ function VisChip({ v }: { v: CatalogField["visibility"] }) {
   );
 }
 
-function FieldRow({ f }: { f: CatalogField }) {
+function FieldRow({
+  f,
+  viewAs,
+}: {
+  f: CatalogField;
+  viewAs: ViewerRole;
+}) {
+  // Phase 9A slice 3 — per-row visibility for the selected viewer.
+  // platform_admin is the default and always sees everything.
+  const seen = viewAs === "platform_admin" ? true : canViewerSee(f.visibility, viewAs);
+  const dim = !seen || f.deprecated;
   return (
     <div
       style={{
@@ -125,8 +139,8 @@ function FieldRow({ f }: { f: CatalogField }) {
         padding: "7px 10px",
         borderTop: `1px solid ${HQ.borderSoft}`,
         fontSize: 12.5,
-        color: f.deprecated ? HQ.inkDim : HQ.ink,
-        opacity: f.deprecated ? 0.65 : 1,
+        color: dim ? HQ.inkDim : HQ.ink,
+        opacity: dim ? 0.55 : 1,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -143,6 +157,14 @@ function FieldRow({ f }: { f: CatalogField }) {
           )}
           {f.admin_only && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.amber }}>ADMIN</span>
+          )}
+          {!seen && viewAs !== "platform_admin" && (
+            <span
+              style={{ fontSize: 9.5, fontWeight: 700, color: HQ.inkMuted }}
+              title={`Effective visibility (${f.visibility}) hidden from ${VIEW_LABELS[viewAs]}`}
+            >
+              🚫 not shown to {VIEW_LABELS[viewAs].toLowerCase()}
+            </span>
           )}
         </div>
         <div
@@ -181,7 +203,38 @@ type FilterParams = {
   risk?: string;
   override?: string;
   q?: string;
+  view?: string;
 };
+
+// Phase 9A slice 3 — "View-as" role preview. platform_admin = default
+// (sees everything); the other three apply canViewerSee per row.
+const VIEW_LABELS: Record<ViewerRole, string> = {
+  platform_admin: "Platform admin",
+  public: "Public client",
+  agency_admin: "Agency admin",
+  talent: "Talent",
+  client: "Client",
+  coordinator: "Coordinator",
+};
+const VIEW_PICKER: ReadonlyArray<{ role: ViewerRole; label: string }> = [
+  { role: "platform_admin", label: VIEW_LABELS.platform_admin },
+  { role: "public", label: VIEW_LABELS.public },
+  { role: "agency_admin", label: VIEW_LABELS.agency_admin },
+  { role: "talent", label: VIEW_LABELS.talent },
+];
+function parseView(raw: string | undefined): ViewerRole {
+  switch (raw) {
+    case "public":
+    case "agency_admin":
+    case "talent":
+    case "client":
+    case "coordinator":
+    case "platform_admin":
+      return raw;
+    default:
+      return "platform_admin";
+  }
+}
 
 function urlFor(current: FilterParams, patch: Partial<FilterParams>): string {
   const next: FilterParams = { ...current, ...patch };
@@ -190,6 +243,7 @@ function urlFor(current: FilterParams, patch: Partial<FilterParams>): string {
   if (next.risk === "yes") sp.set("risk", "yes");
   if (next.override === "yes") sp.set("override", "yes");
   if (next.q) sp.set("q", next.q);
+  if (next.view && next.view !== "platform_admin") sp.set("view", next.view);
   const qs = sp.toString();
   return qs ? `?${qs}` : "/platform/admin/catalog";
 }
@@ -234,8 +288,13 @@ export default async function PlatformCatalogMapPage({
   const riskFilter = params.risk === "yes";
   const overrideFilter = params.override === "yes";
   const q = (params.q ?? "").trim().toLowerCase();
+  const viewAs: ViewerRole = parseView(params.view);
   const filtersActive =
-    tier !== "all" || riskFilter || overrideFilter || !!q;
+    tier !== "all" ||
+    riskFilter ||
+    overrideFilter ||
+    !!q ||
+    viewAs !== "platform_admin";
 
   if (!map.ok) {
     return (
@@ -353,6 +412,31 @@ export default async function PlatformCatalogMapPage({
               active={overrideFilter}
             />
           </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <span
+              style={{ fontSize: 10.5, color: HQ.inkDim, minWidth: 56 }}
+              title="Preview which fields each audience sees on the public/admin/talent surface"
+            >
+              View as
+            </span>
+            {VIEW_PICKER.map(({ role, label }) => (
+              <FilterChip
+                key={role}
+                label={label}
+                href={urlFor(params, {
+                  view: role === "platform_admin" ? undefined : role,
+                })}
+                active={viewAs === role}
+              />
+            ))}
+          </div>
           <form
             method="GET"
             style={{
@@ -370,6 +454,9 @@ export default async function PlatformCatalogMapPage({
             {riskFilter && <input type="hidden" name="risk" value="yes" />}
             {overrideFilter && (
               <input type="hidden" name="override" value="yes" />
+            )}
+            {viewAs !== "platform_admin" && (
+              <input type="hidden" name="view" value={viewAs} />
             )}
             <input
               type="text"
@@ -491,7 +578,7 @@ export default async function PlatformCatalogMapPage({
             {g.fields.length === 0 ? (
               <div style={{ fontSize: 12, color: HQ.inkDim }}>No fields.</div>
             ) : (
-              g.fields.map((f) => <FieldRow key={f.id} f={f} />)
+              g.fields.map((f) => <FieldRow key={f.id} f={f} viewAs={viewAs} />)
             )}
           </div>
         </HqCard>
@@ -504,7 +591,7 @@ export default async function PlatformCatalogMapPage({
         >
           <div>
             {filteredUngrouped.map((f) => (
-              <FieldRow key={f.id} f={f} />
+              <FieldRow key={f.id} f={f} viewAs={viewAs} />
             ))}
           </div>
         </HqCard>
