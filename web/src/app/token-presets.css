@@ -449,6 +449,17 @@ html[data-token-typography-heading-preset="editorial-serif"] {
   --site-heading-tracking: -0.012em;
   --site-heading-case: none;
 }
+/* Cinzel title register — premium agency / fashion (v11 Impronta).
+ * Cinzel weight 400, airy +0.03em tracking, mixed-case titles. Pairs
+ * with uppercase Cinzel eyebrows (sections add their own eyebrow case).
+ * Reusable for any tenant; the bundled next/font Cinzel is pinned so it
+ * never falls back to the body face. */
+html[data-token-typography-heading-preset="cinzel-editorial"] {
+  --site-heading-font-preset: var(--font-cinzel, "Cinzel"), ui-serif, serif;
+  --site-heading-weight: 400;
+  --site-heading-tracking: 0.03em;
+  --site-heading-case: none;
+}
 
 html[data-token-typography-body-preset="sans"] {
   --site-body-font-preset: var(--font-body-sans, "Raleway"), ui-sans-serif, system-ui, sans-serif;
@@ -484,6 +495,11 @@ html[data-token-typography-tracking-preset="normal"] {
 }
 html[data-token-typography-tracking-preset="editorial"] {
   --site-heading-tracking: -0.018em;
+}
+/* Airy/luxe — premium agency & fashion serif titles (v11 Cinzel
+ * register). Reusable for any tenant; pairs with `cinzel-editorial`. */
+html[data-token-typography-tracking-preset="wide"] {
+  --site-heading-tracking: 0.03em;
 }
 
 /* Scale preset — adjusts display-to-body ratio. */
@@ -1637,7 +1653,7 @@ html[data-token-typography-scale-preset="editorial"] {
 .site-featured-talent__inner { width: min(var(--site-container-max), 100%); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
 .site-featured-talent__head { display: flex; justify-content: space-between; align-items: end; gap: 32px; margin-bottom: 40px; flex-wrap: wrap; }
 .site-featured-talent__head-text { max-width: 640px; display: flex; flex-direction: column; gap: 14px; }
-.site-featured-talent__headline { font-family: var(--site-heading-font); font-size: clamp(32px, 4.6vw, 52px); }
+.site-featured-talent__headline { font-family: var(--site-heading-font); font-size: clamp(32px, 4.6vw, 52px); letter-spacing: var(--site-heading-tracking, normal); }
 .site-featured-talent__copy { color: var(--token-color-muted); max-width: 520px; }
 .site-featured-talent__placeholder { padding: 60px 24px; text-align: center; border: 1px dashed var(--token-color-line); border-radius: var(--site-radius); background: var(--token-color-secondary); color: var(--token-color-muted); }
 .site-featured-talent__placeholder-note { font-size: 14px; }
@@ -3053,6 +3069,11 @@ html[data-token-icon-family="geometric"] {
 .site-prim-head__headline {
   /* H2-class headlines across sections. */
   font-size: var(--token-typography-h2-size, clamp(28px, 4vw, 48px));
+  /* Honor the heading tracking token (was implicitly inheriting a
+   * near-zero global). `normal` fallback = no change for tenants that
+   * never set a tracking preset; preset tenants now get their register
+   * (e.g. cinzel-editorial / `wide` → airy +0.03em v11 serif titles). */
+  letter-spacing: var(--site-heading-tracking, normal);
 }
 .site-hero__headline {
   /* H1 lives on the hero. */

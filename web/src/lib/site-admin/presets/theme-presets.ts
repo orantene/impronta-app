@@ -397,12 +397,14 @@ const editorialNoirPreset: ThemePreset = {
     "color.muted": "#a1a1aa",
     "color.line": "#1f1f22",
     "color.surface-raised": "#0f0f0f",
-    // typography — serif display with tracked uppercase eyebrows
-    "typography.heading-preset": "editorial-serif",
+    // typography — Cinzel display titles (v11 register) + tracked
+    // uppercase eyebrows. Cinzel weight 400, airy +0.03em, mixed-case.
+    "typography.heading-preset": "cinzel-editorial",
     "typography.body-preset": "refined-sans",
     "typography.label-preset": "uppercase-tracked",
     "typography.scale-preset": "editorial",
-    "typography.tracking-preset": "editorial",
+    // Airy Cinzel titles (v11 register) — pairs with cinzel-editorial.
+    "typography.tracking-preset": "wide",
     // shape & feel — soft radii, ambient shadow against black
     "radius.base": "md",
     "radius.scale-preset": "soft",

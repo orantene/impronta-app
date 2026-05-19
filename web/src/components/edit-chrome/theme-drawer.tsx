@@ -137,6 +137,7 @@ const TYPOGRAPHY_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "serif", label: "Serif" },
       { value: "display", label: "Display" },
       { value: "editorial-serif", label: "Editorial serif" },
+      { value: "cinzel-editorial", label: "Cinzel editorial" },
     ],
   },
   {
@@ -173,6 +174,7 @@ const TYPOGRAPHY_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "tight", label: "Tight" },
       { value: "normal", label: "Normal" },
       { value: "editorial", label: "Loose" },
+      { value: "wide", label: "Wide (airy serif)" },
     ],
   },
 ];

@@ -185,11 +185,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     label: "Heading font preset",
     scope: "typography",
     agencyConfigurable: true,
-    validator: z.enum(["sans", "serif", "display", "editorial-serif"]),
+    validator: z.enum([
+      "sans",
+      "serif",
+      "display",
+      "editorial-serif",
+      "cinzel-editorial",
+    ]),
     defaultValue: "sans",
     group: "Typography",
     description:
-      "`editorial-serif` pairs Fraunces-style variable serif with Inter body, optimised for bridal / editorial brands.",
+      "`editorial-serif` pairs Fraunces-style variable serif with Inter body, optimised for bridal / editorial brands. `cinzel-editorial` is a Cinzel title register (weight 400, airy +0.03em tracking, mixed-case) for premium agency / fashion brands — pairs with uppercase Cinzel eyebrows.",
   },
   "typography.body-preset": {
     key: "typography.body-preset",
@@ -225,7 +231,7 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     label: "Heading letter-spacing",
     scope: "typography",
     agencyConfigurable: true,
-    validator: z.enum(["tight", "normal", "editorial"]),
+    validator: z.enum(["tight", "normal", "editorial", "wide"]),
     defaultValue: "normal",
     group: "Typography",
   },
