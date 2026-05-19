@@ -10,8 +10,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { coerceLegacyHref, linkRefOrLegacy, type LinkRef } from "./link-ref";
+import {
+  coerceLegacyHref,
+  isPlatformAuthPath,
+  linkRefOrLegacy,
+  type LinkRef,
+} from "./link-ref";
 import { resolveLinkRef, resolveLinkLike } from "./resolve-link-ref";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 
 const PATH = { pathPrefix: "/impronta" } as const; // path-based tenant
 const HOST = { pathPrefix: "" } as const; // host-based custom domain
@@ -154,4 +160,31 @@ test("linkRefOrLegacy schema: accepts object AND string (auto-coerced)", () => {
   assert.equal(fromStr.kind, "platform-auth-login"); // legacy upgrade
   const fromExt = linkRefOrLegacy.parse("https://x.com");
   assert.equal(fromExt.kind, "external-url");
+});
+
+test("isPlatformAuthPath: only root (auth) routes, never tenant/external/scheme", () => {
+  for (const p of ["/login", "/register", "/register?role=talent", "/join", "/talent/register", "/client/register", "/forgot-password", "/update-password", "/auth"]) {
+    assert.equal(isPlatformAuthPath(p), true, p);
+  }
+  for (const p of ["/about", "/directory", "/contact", "/", "/loginhelp", "https://x.com/login", "//evil/login", "#login", "mailto:a@b.com", ""]) {
+    assert.equal(isPlatformAuthPath(p), false, p);
+  }
+});
+
+test("FINDING-B FIX: prefixPublicHref never tenant-prefixes root auth routes", () => {
+  // The actual live impronta-home recipe Talent CTAs:
+  assert.equal(prefixPublicHref("/login", "/impronta"), "/login"); // was /impronta/login → 404
+  assert.equal(prefixPublicHref("/register", "/impronta"), "/register");
+  assert.equal(
+    prefixPublicHref("/register?role=talent", "/impronta"),
+    "/register?role=talent",
+  );
+  assert.equal(prefixPublicHref("/talent/register", "/impronta"), "/talent/register");
+  // Non-auth internal pages still tenant-prefixed exactly as before:
+  assert.equal(prefixPublicHref("/about", "/impronta"), "/impronta/about");
+  assert.equal(prefixPublicHref("/directory", "/impronta"), "/impronta/directory");
+  assert.equal(prefixPublicHref("/contact", "/impronta"), "/impronta/contact");
+  // Host-based (no prefix) unaffected:
+  assert.equal(prefixPublicHref("/login", ""), "/login");
+  assert.equal(prefixPublicHref("/about", ""), "/about");
 });

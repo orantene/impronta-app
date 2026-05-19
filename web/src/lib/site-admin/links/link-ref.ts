@@ -80,6 +80,23 @@ function pathStartsWith(pathname: string, list: readonly string[]): string | nul
 }
 
 /**
+ * True when an internal href targets a ROOT `(auth)` route — these are
+ * NEVER tenant-scoped (a tenant page cannot live at `/login`). Single
+ * source of truth for auth-root detection, shared by `coerceLegacyHref`
+ * here AND `prefixPublicHref` (so the deep tenant-prefixer can't 404
+ * `/login` → `/impronta/login`). Scheme/external/anchor are not auth.
+ */
+export function isPlatformAuthPath(hrefRaw: string | null | undefined): boolean {
+  const href = (hrefRaw ?? "").trim();
+  if (!href.startsWith("/") || href.startsWith("//")) return false;
+  const pathname = href.split(/[?#]/)[0] || "/";
+  return (
+    pathStartsWith(pathname, AUTH_LOGIN_PATHS) !== null ||
+    pathStartsWith(pathname, AUTH_REGISTER_PATHS) !== null
+  );
+}
+
+/**
  * Legacy plain-string href → structured LinkRef. Minimal + predictable:
  * scheme/anchor/external/talent/AUTH routes are special-cased; every
  * other internal path stays a `tenant-page` (unchanged behavior). The

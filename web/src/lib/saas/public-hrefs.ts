@@ -1,3 +1,5 @@
+import { isPlatformAuthPath } from "@/lib/site-admin/links/link-ref";
+
 const INTERNAL_ROOT_PATH = /^\/(?!\/)/;
 const EXTERNAL_OR_SPECIAL_HREF = /^(?:[a-z][a-z0-9+.-]*:|#|\?)/i;
 
@@ -24,6 +26,14 @@ export function prefixPublicHref(href: string, publicPathPrefix: string): string
     return href;
   }
   if (!INTERNAL_ROOT_PATH.test(href)) {
+    return href;
+  }
+  // Phase 6C / Finding-B fix: ROOT `(auth)` routes (/login, /register,
+  // /join, /talent/register, …) are NEVER tenant-scoped — a tenant page
+  // cannot live at /login. Without this, the deep tenant-prefixer turns
+  // a CTA href `/login` into `/impronta/login` → 404 on path-based
+  // tenants. Single source of truth: isPlatformAuthPath (links/link-ref).
+  if (isPlatformAuthPath(href)) {
     return href;
   }
 
