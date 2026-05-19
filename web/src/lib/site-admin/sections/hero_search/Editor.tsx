@@ -1,7 +1,9 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
-import { LinkPicker } from "../shared/LinkPicker";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { coerceLegacyHref } from "../../links/link-ref";
+import type { LinkRef } from "../../links/link-ref";
 import type { SectionEditorProps } from "../types";
 import type { HeroSearchV1 } from "./schema";
 
@@ -36,7 +38,7 @@ export function HeroSearchEditor({
     patch({ search: { ...search, ...p } });
 
   const chips = value.chips ?? [];
-  const setChip = (i: number, p: Partial<{ label: string; href: string }>) =>
+  const setChip = (i: number, p: Partial<{ label: string; href: LinkRef }>) =>
     patch({
       chips: chips.map((c, idx) => (idx === i ? { ...c, ...p } : c)),
     });
@@ -53,7 +55,7 @@ export function HeroSearchEditor({
               [key]: e.target.value
                 ? {
                     label: e.target.value,
-                    href: value[key]?.href ?? "/directory",
+                    href: value[key]?.href ?? coerceLegacyHref("/directory"),
                   }
                 : undefined,
             } as Partial<HeroSearchV1>)
@@ -62,15 +64,13 @@ export function HeroSearchEditor({
       </label>
       <div className={FIELD}>
         <span className={LABEL}>{label} href</span>
-        <LinkPicker
-          value={value[key]?.href ?? ""}
+        <LinkKindPicker
+          value={value[key]?.href}
           onChange={(next) =>
             patch({
               [key]: value[key]
                 ? { ...value[key]!, href: next }
-                : next
-                  ? { label: label, href: next }
-                  : undefined,
+                : { label: label, href: next },
             } as Partial<HeroSearchV1>)
           }
         />
@@ -179,9 +179,13 @@ export function HeroSearchEditor({
         </div>
         <div className={FIELD}>
           <span className={LABEL}>Action href (default: /directory)</span>
-          <LinkPicker
+          <input
+            className={INPUT}
+            placeholder="/directory"
             value={search.actionHref ?? ""}
-            onChange={(next) => patchSearch({ actionHref: next })}
+            onChange={(e) =>
+              patchSearch({ actionHref: e.target.value || undefined })
+            }
           />
         </div>
         {search.mode === "ai-interpret" ? (
@@ -225,11 +229,9 @@ export function HeroSearchEditor({
               value={c.label}
               onChange={(e) => setChip(i, { label: e.target.value })}
             />
-            <input
-              className={INPUT}
-              placeholder="Href (optional)"
-              value={c.href ?? ""}
-              onChange={(e) => setChip(i, { href: e.target.value })}
+            <LinkKindPicker
+              value={c.href}
+              onChange={(next) => setChip(i, { href: next })}
             />
           </div>
         ))}

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * hero_search — search-first hero ("Find the right talent…").
@@ -17,12 +18,14 @@ import { sectionPresentationSchema } from "../shared/presentation";
 
 const ctaSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /** 6C — structured LinkRef; legacy string auto-coerced. */
+  href: linkRefOrLegacy,
 });
 
 const chipSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().max(500).optional(),
+  /** 6C — structured LinkRef; legacy string auto-coerced. */
+  href: optionalLinkRefOrLegacy,
 });
 
 const statItemSchema = z.object({
