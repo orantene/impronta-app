@@ -44,6 +44,8 @@ export type IntrospectedKind =
   | "array_of_strings"
   /** `i18nString` — a string OR a {default,en,es,...} locale map. */
   | "i18n_text"
+  /** 6C — `linkRefOrLegacy` (structured LinkRef ∪ legacy string). */
+  | "link_ref"
   | "unknown";
 
 export interface IntrospectedField {
@@ -126,6 +128,26 @@ function stripRichMarker(description: string | undefined): string | undefined {
   if (!description) return description;
   if (!description.startsWith(RICH_DESCRIBE_PREFIX)) return description;
   return description.slice(RICH_DESCRIBE_PREFIX.length).trimStart() || undefined;
+}
+
+/**
+ * 6C — `@linkref` marker (set by `linkRefOrLegacy.describe`). Detects a
+ * structured-LinkRef field so `<ZodSchemaForm>` renders `LinkKindPicker`
+ * instead of the legacy string `LinkPicker`. Same convention as `@rich`.
+ */
+const LINKREF_DESCRIBE_PREFIX = "@linkref";
+function descriptionImpliesLinkRef(description: string | undefined): boolean {
+  if (!description) return false;
+  return description.startsWith(LINKREF_DESCRIBE_PREFIX);
+}
+function stripLinkRefMarker(
+  description: string | undefined,
+): string | undefined {
+  if (!description) return description;
+  if (!description.startsWith(LINKREF_DESCRIBE_PREFIX)) return description;
+  return (
+    description.slice(LINKREF_DESCRIBE_PREFIX.length).trimStart() || undefined
+  );
 }
 
 function humanize(name: string): string {
@@ -276,7 +298,10 @@ export function introspectField(
   node: z.ZodTypeAny,
 ): IntrospectedField {
   const { inner, optional, defaultValue, description } = unwrap(node);
-  const kind = classify(node);
+  const linkRefViaDescribe = descriptionImpliesLinkRef(description);
+  const kind: IntrospectedField["kind"] = linkRefViaDescribe
+    ? "link_ref"
+    : classify(node);
   const limits = readChecks(inner);
   const richViaDescribe = descriptionImpliesRichText(description);
   const hint = richViaDescribe ? "rich_text" : NAME_HINTS[name];
@@ -285,7 +310,11 @@ export function introspectField(
     kind,
     optional,
     defaultValue,
-    description: richViaDescribe ? stripRichMarker(description) : description,
+    description: linkRefViaDescribe
+      ? stripLinkRefMarker(description)
+      : richViaDescribe
+        ? stripRichMarker(description)
+        : description,
     label: humanize(name),
     min: limits.min,
     max: limits.max,

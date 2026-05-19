@@ -29,6 +29,8 @@
 import type { IntrospectedField } from "./zod-introspect";
 import { introspectSectionSchema } from "./zod-introspect";
 import { LinkPicker } from "./LinkPicker";
+import { LinkKindPicker } from "./LinkKindPicker";
+import type { LinkRef } from "@/lib/site-admin/links/link-ref";
 import { MediaPicker } from "./MediaPicker";
 import { AltTextField } from "./AltTextField";
 import { BlueprintPicker } from "./BlueprintPicker";
@@ -112,6 +114,30 @@ function FieldNode({
   tenantId,
   sectionTypeKey,
 }: FieldNodeProps) {
+  // ---- 6C structured LinkRef field (linkRefOrLegacy) ------------------
+  // Checked BEFORE the legacy `href` hint so migrated fields get the
+  // structured picker while plain z.string() href fields keep LinkPicker.
+  if (field.kind === "link_ref") {
+    return (
+      <div className={FIELD}>
+        <span className={LABEL}>
+          {field.label}
+          {field.optional ? "" : " *"}
+        </span>
+        <LinkKindPicker
+          value={value as LinkRef | string | null | undefined}
+          onChange={(next) => onChange(next)}
+          tenantId={tenantId}
+        />
+        {field.description ? (
+          <span className="text-[11px] text-muted-foreground">
+            {field.description}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   // ---- Hint-based primitive swaps -------------------------------------
   if (field.hint === "href") {
     return (
