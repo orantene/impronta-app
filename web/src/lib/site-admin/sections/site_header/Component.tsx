@@ -6,6 +6,7 @@ import {
 } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1 } from "./schema";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
 import { EditorialSplitActions } from "./EditorialSplitActions";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
@@ -397,6 +398,7 @@ export async function SiteHeaderComponent({
   sectionId,
   tenantId,
   locale,
+  publicPathPrefix = "",
   builderNodeBindings,
 }: SectionComponentProps<SiteHeaderV1>) {
   const {
@@ -440,7 +442,31 @@ export async function SiteHeaderComponent({
     densityAttrs["data-vpad"] = density.verticalPadding;
   if (density?.mobileMenuStyle)
     densityAttrs["data-mobile-menu"] = density.mobileMenuStyle;
-  const brandHref = brand.href || "/";
+  // 6C — single-source link resolution. Resolve nav + primary CTA once
+  // here; renderRightZone / EditorialSplitActions keep their string-href
+  // interface (resolved at this boundary → no client-component change,
+  // minimal blast radius). Deep-prefixer leaves LinkRef.value alone +
+  // prefixPublicHref is idempotent, so legacy + structured both resolve.
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const brandHref = resolveLinkLike(brand.href ?? "/", linkCtx).href;
+  const navLinks = navItems.map((item) => {
+    const L = resolveLinkLike(item.href, linkCtx);
+    return {
+      label: item.label,
+      href: L.href,
+      external: item.external || L.openInNew,
+    };
+  });
+  const primaryCtaResolved = primaryCta
+    ? (() => {
+        const L = resolveLinkLike(primaryCta.href, linkCtx);
+        return {
+          label: primaryCta.label,
+          href: L.href,
+          external: primaryCta.external || L.openInNew,
+        };
+      })()
+    : null;
   const brandLogoUrl = await resolveShellBrandLogoUrl({
     tenantId,
     brandLogoUrl: brand.logoUrl,
@@ -596,10 +622,10 @@ export async function SiteHeaderComponent({
             <span className="site-header__brand-tagline">{brandTagline}</span>
           ) : null}
         </a>
-        {navItems.length > 0 ? (
+        {navLinks.length > 0 ? (
           <nav className="site-header__nav" aria-label="Primary">
             <ul className="site-header__nav-list">
-              {navItems.map((item, i) => (
+              {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">
                   <a
                     className="site-header__nav-link"
@@ -625,23 +651,27 @@ export async function SiteHeaderComponent({
               editorial-split we suppress the inline chip (the affordance
               is preserved in the drawer + nav). Every other variant keeps
               the inline CTA exactly as before. */}
-          {primaryCta && variant !== "editorial-split" ? (
+          {primaryCtaResolved && variant !== "editorial-split" ? (
             <a
               className="site-header__cta site-btn site-btn--primary"
-              href={primaryCta.href}
-              target={primaryCta.external ? "_blank" : undefined}
-              rel={primaryCta.external ? "noopener noreferrer" : undefined}
+              href={primaryCtaResolved.href}
+              target={primaryCtaResolved.external ? "_blank" : undefined}
+              rel={
+                primaryCtaResolved.external
+                  ? "noopener noreferrer"
+                  : undefined
+              }
               data-builder-node-id={nodeIdsByRole?.primaryCta}
               style={ctaNodeStyle(primaryCtaNode)}
             >
-              {primaryCta.label}
+              {primaryCtaResolved.label}
             </a>
           ) : null}
           {await renderRightZone(
             variant,
             locale as Locale,
-            primaryCta ?? null,
-            navItems,
+            primaryCtaResolved,
+            navLinks,
             showAccount,
             showLanguage,
             showDiscovery,

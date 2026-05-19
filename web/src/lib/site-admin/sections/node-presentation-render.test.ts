@@ -2181,10 +2181,13 @@ test("blog detail renderer applies category/title/byline nodePresentation and ch
 
 test("site header renderer applies brand/cta nodePresentation and child node ids", () => {
   const props: SiteHeaderV1 = {
-    brand: { label: "Impronta", href: "/" },
+    brand: { label: "Impronta", href: { kind: "tenant-page", value: "/" } },
     brandDisplay: "image-and-text",
-    navItems: [{ label: "Home", href: "/" }],
-    primaryCta: { label: "Book now", href: "/book" },
+    navItems: [{ label: "Home", href: { kind: "tenant-page", value: "/" } }],
+    primaryCta: {
+      label: "Book now",
+      href: { kind: "tenant-page", value: "/book" },
+    },
     sticky: true,
     tone: "surface",
     variant: "standard",
