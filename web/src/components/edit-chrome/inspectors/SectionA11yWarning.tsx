@@ -128,7 +128,7 @@ function evaluate(
     if (missing > 0) {
       issues.push({
         severity: "warn",
-        message: `${missing} item image${missing > 1 ? "s are" : " is"} missing alt text — add descriptions so screen readers can describe them.`,
+        message: `${missing} item image${missing > 1 ? "s are" : " is"} missing alt text — add image descriptions so screen readers can describe them.`,
       });
     }
   }

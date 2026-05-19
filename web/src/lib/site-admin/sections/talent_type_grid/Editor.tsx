@@ -4,14 +4,18 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkPicker } from "../shared/LinkPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import type { SectionEditorProps } from "../types";
+import { v11TalentTypeGridItems, v11TalentTypeGridPreset } from "./presets";
 import type { TalentTypeGridV1, TalentTypeGridItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
+const LABEL =
+  "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 const INPUT =
   "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
 const BUTTON =
   "rounded-md border border-border/60 px-2 py-1 text-xs font-medium hover:bg-muted";
+const BUTTON_PRIMARY =
+  "rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90";
 
 const ICON_PRESETS = [
   "",
@@ -61,8 +65,7 @@ export function TalentTypeGridEditor({
     emptyStateText: initial.emptyStateText ?? "",
     presentation: initial.presentation,
   };
-  const patch = (p: Partial<TalentTypeGridV1>) =>
-    onChange({ ...value, ...p });
+  const patch = (p: Partial<TalentTypeGridV1>) => onChange({ ...value, ...p });
 
   const items = value.items ?? [];
   const setItem = (i: number, p: Partial<TalentTypeGridItem>) =>
@@ -87,43 +90,37 @@ export function TalentTypeGridEditor({
     });
   const applyPrototypePreset = () =>
     patch({
-      desktopLayout: "featured-pod-rail",
-      mobileLayout: "horizontal-scroll",
-      cardRatio: "16/9",
-      textPosition: "overlay-bottom",
-      showImages: true,
-      showDescriptions: true,
-      showCardIcons: true,
-      showRailControls: true,
-      showCta: true,
-      ctaLabel: value.ctaLabel || "Explore",
-      seeAllLabel: value.seeAllLabel || "See all",
-      seeAllHref: value.seeAllHref || "/directory",
-      imageOverlayStrength: "strong",
+      ...v11TalentTypeGridPreset,
+      items: v11TalentTypeGridItems.map((item) => ({ ...item })),
       presentation: {
-        ...(value.presentation ?? {}),
-        background: "espresso",
-        paddingTop: "editorial",
-        paddingBottom: "editorial",
-        dividerTop: "thin-line",
+        ...v11TalentTypeGridPreset.presentation,
       },
     });
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">v11 roster layout</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Applies the prototype rail: large featured pod, three-row card
-              rail, image overlays, icons, descriptions, and scroll arrows.
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">V11 prototype preset</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+              Resets this section to the prototype roster: seven cards, one
+              featured pod, rail arrows, overlays, descriptions, icons, image
+              alt text, and the prototype spacing.
             </p>
           </div>
-          <button type="button" className={BUTTON} onClick={applyPrototypePreset}>
-            Apply prototype layout
+          <button
+            type="button"
+            className={BUTTON_PRIMARY}
+            onClick={applyPrototypePreset}
+          >
+            Apply full preset
           </button>
         </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-amber-800">
+          After applying, tune images, alt text, links, and featured card in the
+          manual cards below.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -297,6 +294,17 @@ export function TalentTypeGridEditor({
                   ) : null}
                 </div>
               </div>
+              <label className={`${FIELD} md:col-span-2`}>
+                <span className={LABEL}>Image alt text</span>
+                <input
+                  className={INPUT}
+                  placeholder="Describe the image for screen readers"
+                  value={it.imageAlt ?? ""}
+                  onChange={(e) =>
+                    setItem(i, { imageAlt: e.target.value || undefined })
+                  }
+                />
+              </label>
               <label className={FIELD}>
                 <span className={LABEL}>Taxonomy term id</span>
                 <input
@@ -470,7 +478,7 @@ export function TalentTypeGridEditor({
             type="checkbox"
             checked={
               value.showDescriptions ??
-              (value.desktopLayout === "featured-pod-rail")
+              value.desktopLayout === "featured-pod-rail"
             }
             onChange={(e) => patch({ showDescriptions: e.target.checked })}
           />
@@ -480,8 +488,7 @@ export function TalentTypeGridEditor({
           <input
             type="checkbox"
             checked={
-              value.showCardIcons ??
-              (value.desktopLayout === "featured-pod-rail")
+              value.showCardIcons ?? value.desktopLayout === "featured-pod-rail"
             }
             onChange={(e) => patch({ showCardIcons: e.target.checked })}
           />

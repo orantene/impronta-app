@@ -4,7 +4,12 @@ import {
   presentationDataAttrs,
   presentationInlineStyles,
 } from "../shared/presentation";
-import { Container, SectionHead, Cta, MediaFrame } from "../shared/section-primitives";
+import {
+  Container,
+  SectionHead,
+  Cta,
+  MediaFrame,
+} from "../shared/section-primitives";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { SectionComponentProps } from "../types";
 import type { TalentTypeGridV1 } from "./schema";
@@ -18,6 +23,7 @@ type Card = {
   icon?: string;
   imageUrl?: string;
   imagePosition?: string;
+  imageAlt?: string;
   href: string;
   count?: number;
   featured?: boolean;
@@ -26,8 +32,7 @@ type Card = {
 function colsFor(layout: TalentTypeGridV1["desktopLayout"]): string {
   if (layout === "featured-pod-rail" || layout === "horizontal-rail")
     return "none";
-  if (layout === "compact-grid")
-    return "repeat(auto-fill, minmax(180px, 1fr))";
+  if (layout === "compact-grid") return "repeat(auto-fill, minmax(180px, 1fr))";
   if (layout === "editorial-asymmetric")
     return "repeat(auto-fill, minmax(240px, 1fr))";
   return "repeat(auto-fill, minmax(220px, 1fr))";
@@ -35,6 +40,132 @@ function colsFor(layout: TalentTypeGridV1["desktopLayout"]): string {
 
 function safeDomId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 96);
+}
+
+function renderCardIcon(icon?: string) {
+  switch (icon) {
+    case "◑":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle
+            cx="12"
+            cy="12"
+            r="7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor" />
+        </svg>
+      );
+    case "✦":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 3.8l2.1 5.9 5.9 2.1-5.9 2.1L12 20.2l-2.1-6.3L4 11.8l5.9-2.1z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "✷":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.8"
+          />
+        </svg>
+      );
+    case "♪":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M14 5v10.6a3.1 3.1 0 1 1-1.9-2.9V7.1l7-1.8v3.1z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "♫":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M9 6.5l8-1.9v10.2a2.8 2.8 0 1 1-1.7-2.6V7.7l-4.6 1.1v8.3a2.8 2.8 0 1 1-1.7-2.6z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "❀":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+          <circle
+            cx="12"
+            cy="6.5"
+            r="3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="17.2"
+            cy="10.5"
+            r="3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="14.8"
+            cy="16.7"
+            r="3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="8.1"
+            cy="16.2"
+            r="3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="6.8"
+            cy="9.8"
+            r="3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      );
+    case "◉":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle
+            cx="12"
+            cy="12"
+            r="7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <circle cx="12" cy="12" r="3" fill="currentColor" />
+          <path
+            d="M12 4.5v3M12 16.5v3M4.5 12h3M16.5 12h3"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.5"
+          />
+        </svg>
+      );
+    default:
+      return icon;
+  }
 }
 
 export async function TalentTypeGridComponent({
@@ -104,23 +235,33 @@ export async function TalentTypeGridComponent({
       icon: it.icon,
       imageUrl: it.imageUrl,
       imagePosition: it.imagePosition,
+      imageAlt: it.imageAlt,
       href: dirHref(it.taxonomyTermId, it.href),
       featured: it.featured,
     }));
   }
 
   const isRailLayout =
-    desktopLayout === "featured-pod-rail" || desktopLayout === "horizontal-rail";
+    desktopLayout === "featured-pod-rail" ||
+    desktopLayout === "horizontal-rail";
   const isFeaturedPodLayout = desktopLayout === "featured-pod-rail";
   const requestedFeaturedIndex = cards.findIndex((c) => c.featured === true);
-  const featuredIndex = requestedFeaturedIndex >= 0 ? requestedFeaturedIndex : 0;
+  const featuredIndex =
+    requestedFeaturedIndex >= 0 ? requestedFeaturedIndex : 0;
+  const displayCards =
+    isFeaturedPodLayout && cards.length > 1
+      ? [
+          cards[featuredIndex],
+          ...cards.filter((_, i) => i !== featuredIndex),
+        ].filter((card): card is Card => Boolean(card))
+      : cards;
   const railKey = sectionId ?? (cards.map((c) => c.key).join("-") || "grid");
   const railId = safeDomId(`tt-${railKey}`);
   const shouldShowImages = showImages !== false;
   const shouldShowDescriptions =
-    showDescriptions ?? (desktopLayout === "featured-pod-rail");
+    showDescriptions ?? desktopLayout === "featured-pod-rail";
   const shouldShowIcons =
-    showCardIcons ?? (desktopLayout === "featured-pod-rail");
+    showCardIcons ?? desktopLayout === "featured-pod-rail";
   const shouldShowRailControls =
     isRailLayout && showRailControls !== false && cards.length > 2;
 
@@ -141,6 +282,7 @@ export async function TalentTypeGridComponent({
       data-tt-mobile={mobileLayout}
       data-tt-images={shouldShowImages ? "on" : "off"}
       data-tt-icons={shouldShowIcons ? "on" : "off"}
+      data-tt-overlay={imageOverlayStrength ?? "medium"}
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
@@ -157,7 +299,9 @@ export async function TalentTypeGridComponent({
               href={prefixPublicHref(seeAllHref, publicPathPrefix)}
               variant="text"
               size="sm"
-              iconRight={isRailLayout ? <span aria-hidden="true">→</span> : undefined}
+              iconRight={
+                isRailLayout ? <span aria-hidden="true">→</span> : undefined
+              }
             >
               {seeAllLabel}
             </Cta>
@@ -185,17 +329,18 @@ export async function TalentTypeGridComponent({
                   : undefined
               }
             >
-              {cards.map((c, i) => (
+              {displayCards.map((c, i) => (
                 <a
                   key={c.key}
                   href={c.href}
                   className="site-tt-card"
                   data-tt-featured={
-                    isFeaturedPodLayout && i === featuredIndex ? "true" : undefined
+                    isFeaturedPodLayout && i === 0 ? "true" : undefined
                   }
                   data-tt-text={textPosition}
                   style={
-                    desktopLayout === "editorial-asymmetric" && i === featuredIndex
+                    desktopLayout === "editorial-asymmetric" &&
+                    i === featuredIndex
                       ? { gridColumn: "span 2", gridRow: "span 2" }
                       : undefined
                   }
@@ -204,10 +349,14 @@ export async function TalentTypeGridComponent({
                   {shouldShowImages ? (
                     <MediaFrame
                       src={c.imageUrl ?? null}
-                      alt={c.label}
+                      alt={c.imageAlt ?? c.description ?? c.label}
                       ratio={cardRatio ?? "3/4"}
-                      overlayOpacity={overlayOpacity}
-                      overlayStrength={imageOverlayStrength ?? "medium"}
+                      overlayOpacity={isRailLayout ? 0 : overlayOpacity}
+                      overlayStrength={
+                        isRailLayout
+                          ? "none"
+                          : (imageOverlayStrength ?? "medium")
+                      }
                       objectPosition={c.imagePosition}
                       fallback={c.label}
                       className="site-tt-card__media"
@@ -218,7 +367,7 @@ export async function TalentTypeGridComponent({
                   <span className="site-tt-card__content">
                     {shouldShowIcons && c.icon ? (
                       <span className="site-tt-card__icon" aria-hidden="true">
-                        {c.icon}
+                        {renderCardIcon(c.icon)}
                       </span>
                     ) : null}
                     <span className="site-tt-card__copy">

@@ -24,6 +24,8 @@ const cardItemSchema = z.object({
   imageUrl: z.string().url().max(2048).optional(),
   /** CSS object-position for the card image, e.g. "50% 35%". */
   imagePosition: z.string().max(40).optional(),
+  /** Optional image alt text for screen readers. */
+  imageAlt: z.string().max(200).optional(),
   /** Optional taxonomy_term id → builds the directory filter link. */
   taxonomyTermId: z.string().max(64).optional(),
   /** Explicit link override (else derived from taxonomyTermId). */
