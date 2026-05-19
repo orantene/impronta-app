@@ -68,34 +68,11 @@
   "src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx": {
     "max-lines": {
       "count": 1
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
-    }
-  },
-  "src/app/(workspace)/[tenantSlug]/talent/settings/payouts/PayoutsShell.tsx": {
-    "react/no-unescaped-entities": {
-      "count": 3
     }
   },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
       "count": 3
-    }
-  },
-  "src/app/checkout/cancel/page.tsx": {
-    "react/no-unescaped-entities": {
-      "count": 1
-    }
-  },
-  "src/app/prototypes/drawer-preview/page.tsx": {
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "src/app/share/pitch/[token]/_pitch-landing.tsx": {
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/app/t/[profileCode]/page.tsx": {
@@ -153,50 +130,9 @@
       "count": 14
     }
   },
-  "src/components/admin/shell/internal/drawers.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "prefer-const": {
-      "count": 1
-    },
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 4
-    },
-    "ratchet/no-new-inline-style": {
-      "count": 2914
-    },
-    "react-hooks/purity": {
-      "count": 8
-    },
-    "react-hooks/refs": {
-      "count": 3
-    },
-    "react-hooks/rules-of-hooks": {
-      "count": 2
-    },
-    "react-hooks/static-components": {
-      "count": 6
-    },
-    "react/display-name": {
-      "count": 13
-    },
-    "react/no-children-prop": {
-      "count": 2
-    },
-    "react/no-unescaped-entities": {
-      "count": 62
-    }
-  },
   "src/components/admin/shell/internal/drawers/UpgradeModal.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 20
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/drawer-shared.tsx": {
@@ -214,18 +150,9 @@
     },
     "react-hooks/static-components": {
       "count": 3
-    },
-    "react/display-name": {
-      "count": 4
-    },
-    "react/no-unescaped-entities": {
-      "count": 8
     }
   },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "ratchet/no-new-inline-style": {
       "count": 58
     }
@@ -241,9 +168,6 @@
     },
     "react-hooks/rules-of-hooks": {
       "count": 2
-    },
-    "react/no-unescaped-entities": {
-      "count": 5
     }
   },
   "src/components/admin/shell/internal/drawers/light-04.tsx": {
@@ -252,9 +176,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 60
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/light-05.tsx": {
@@ -293,25 +214,16 @@
   "src/components/admin/shell/internal/drawers/light-11.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 93
-    },
-    "react/no-unescaped-entities": {
-      "count": 4
     }
   },
   "src/components/admin/shell/internal/drawers/light-12.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 93
-    },
-    "react/no-unescaped-entities": {
-      "count": 11
     }
   },
   "src/components/admin/shell/internal/drawers/light-13.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 49
-    },
-    "react/no-unescaped-entities": {
-      "count": 3
     }
   },
   "src/components/admin/shell/internal/drawers/light-14.tsx": {
@@ -322,9 +234,6 @@
   "src/components/admin/shell/internal/drawers/light-15.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 133
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/light-16.tsx": {
@@ -340,17 +249,11 @@
   "src/components/admin/shell/internal/drawers/light-18.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 92
-    },
-    "react/no-unescaped-entities": {
-      "count": 3
     }
   },
   "src/components/admin/shell/internal/drawers/light-19.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 93
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/drawers/light-20.tsx": {
@@ -374,9 +277,6 @@
   "src/components/admin/shell/internal/drawers/light-23.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 82
-    },
-    "react/no-unescaped-entities": {
-      "count": 6
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": {
@@ -388,9 +288,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 123
-    },
-    "react/no-unescaped-entities": {
-      "count": 3
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-internal.tsx": {
@@ -412,14 +309,8 @@
     "react-hooks/static-components": {
       "count": 3
     },
-    "react/display-name": {
-      "count": 9
-    },
     "react/no-children-prop": {
       "count": 2
-    },
-    "react/no-unescaped-entities": {
-      "count": 14
     }
   },
   "src/components/admin/shell/internal/field-catalog.ts": {
@@ -459,9 +350,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 46
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/live-category-fields-history.tsx": {
@@ -489,23 +377,6 @@
     },
     "react-hooks/static-components": {
       "count": 12
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
-    }
-  },
-  "src/components/admin/shell/internal/messages.tsx": {
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 4
-    },
-    "ratchet/no-new-inline-style": {
-      "count": 1012
-    },
-    "react/no-unescaped-entities": {
-      "count": 22
     }
   },
   "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx": {
@@ -582,17 +453,11 @@
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 44
-    },
-    "react/no-unescaped-entities": {
-      "count": 3
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 54
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-14.tsx": {
@@ -601,9 +466,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 59
-    },
-    "react/no-unescaped-entities": {
-      "count": 4
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-15.tsx": {
@@ -619,17 +481,11 @@
   "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 53
-    },
-    "react/no-unescaped-entities": {
-      "count": 5
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-3.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 52
-    },
-    "react/no-unescaped-entities": {
-      "count": 3
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-4.tsx": {
@@ -640,9 +496,6 @@
   "src/components/admin/shell/internal/messages/shared/machinery-5.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 83
-    },
-    "react/no-unescaped-entities": {
-      "count": 4
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-6.tsx": {
@@ -671,9 +524,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 53
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/messages/talent-2.tsx": {
@@ -809,9 +659,6 @@
   "src/components/admin/shell/internal/page-modules/WorkPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 37
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspacePageView.tsx": {
@@ -823,9 +670,6 @@
     },
     "react-hooks/static-components": {
       "count": 58
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
@@ -834,9 +678,6 @@
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "ratchet/no-new-inline-style": {
       "count": 24
     }
@@ -844,38 +685,6 @@
   "src/components/admin/shell/internal/page-modules/pages-shared.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 22
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
-    }
-  },
-  "src/components/admin/shell/internal/pages.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-inline-style": {
-      "count": 854
-    },
-    "react-hooks/immutability": {
-      "count": 1
-    },
-    "react-hooks/purity": {
-      "count": 4
-    },
-    "react-hooks/refs": {
-      "count": 2
-    },
-    "react-hooks/rules-of-hooks": {
-      "count": 1
-    },
-    "react-hooks/static-components": {
-      "count": 61
-    },
-    "react/no-unescaped-entities": {
-      "count": 4
     }
   },
   "src/components/admin/shell/internal/palette.tsx": {
@@ -889,9 +698,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 59
-    },
-    "react/no-unescaped-entities": {
-      "count": 10
     }
   },
   "src/components/admin/shell/internal/pitch-compose.tsx": {
@@ -911,9 +717,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 179
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/primitives.tsx": {
@@ -951,17 +754,11 @@
   "src/components/admin/shell/internal/skill-freshness-banner.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 21
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/skill-hints-banner.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 14
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/skill-overrides-panel.tsx": {
@@ -970,9 +767,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 31
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/skill-proficiency.tsx": {
@@ -1017,9 +811,6 @@
     }
   },
   "src/components/admin/shell/internal/talent-drawers.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "max-lines": {
       "count": 1
     },
@@ -1028,20 +819,11 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 497
-    },
-    "react/no-unescaped-entities": {
-      "count": 32
     }
   },
   "src/components/admin/shell/internal/talent.tsx": {
-    "max-lines": {
-      "count": 1
-    },
     "ratchet/no-new-inline-style": {
       "count": 9
-    },
-    "react/no-unescaped-entities": {
-      "count": 10
     }
   },
   "src/components/admin/shell/internal/talent/pages/ActivityPage.tsx": {
@@ -1067,9 +849,6 @@
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 23
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent/pages/PublicPageEditor.tsx": {
@@ -1080,17 +859,11 @@
   "src/components/admin/shell/internal/talent/pages/ReachPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 11
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent/pages/SettingsPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 10
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
@@ -1101,9 +874,6 @@
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 37
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles2.tsx": {
@@ -1129,9 +899,6 @@
   "src/components/admin/shell/internal/talent/pages/messages/ThreadSidebar.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 44
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/talent/shared/calendar-1.tsx": {
@@ -1152,9 +919,6 @@
   "src/components/admin/shell/internal/talent/shared/calendar-4.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 25
-    },
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent/shared/client-threads-1.tsx": {
@@ -1195,9 +959,6 @@
   "src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 43
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-sections-3.tsx": {
@@ -1235,11 +996,6 @@
       "count": 11
     }
   },
-  "src/components/admin/shell/internal/use-taxonomy.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/components/admin/shell/internal/wave2.tsx": {
     "max-lines": {
       "count": 1
@@ -1254,11 +1010,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 285
-    }
-  },
-  "src/components/chat-cards/PayNowSheet.tsx": {
-    "react/no-unescaped-entities": {
-      "count": 1
     }
   },
   "src/components/details-tab/DetailsTab.tsx": {
@@ -1406,9 +1157,6 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
-    },
-    "react/no-unescaped-entities": {
-      "count": 4
     }
   },
   "src/components/marketing/get-started-form.tsx": {
@@ -1429,9 +1177,6 @@
   "src/components/talent/media-gallery-drawer.tsx": {
     "max-lines": {
       "count": 1
-    },
-    "react/no-unescaped-entities": {
-      "count": 2
     }
   },
   "src/lib/access/capabilities.ts": {
