@@ -145,15 +145,15 @@ export function BrandTab({ config, patch, tenantId }: Props) {
       >
         {(
           [
-            ["socialInstagram", "Instagram", "https://instagram.com/yourhandle"],
-            ["socialTiktok", "TikTok", "https://tiktok.com/@yourhandle"],
-            ["socialFacebook", "Facebook", "https://facebook.com/yourpage"],
-            ["socialYoutube", "YouTube", "https://youtube.com/@yourchannel"],
-            ["socialLinkedin", "LinkedIn", "https://linkedin.com/company/…"],
-            ["socialX", "X (Twitter)", "https://x.com/yourhandle"],
-            ["whatsapp", "WhatsApp", "+52 998 000 0000 or wa.me link"],
-            ["contactPhone", "Phone", "+52 998 000 0000"],
-            ["contactEmail", "Email", "hello@youragency.com"],
+            ["socialInstagram", "Instagram", "e.g. https://instagram.com/impronta"],
+            ["socialTiktok", "TikTok", "e.g. https://tiktok.com/@impronta"],
+            ["socialFacebook", "Facebook", "e.g. https://facebook.com/impronta"],
+            ["socialYoutube", "YouTube", "e.g. https://youtube.com/@impronta"],
+            ["socialLinkedin", "LinkedIn", "e.g. https://linkedin.com/company/impronta"],
+            ["socialX", "X (Twitter)", "e.g. https://x.com/impronta"],
+            ["whatsapp", "WhatsApp", "e.g. https://wa.me/5219840000000"],
+            ["contactPhone", "Phone", "e.g. +52 984 000 0000"],
+            ["contactEmail", "Email", "e.g. hello@improntamodels.com"],
           ] as Array<[keyof typeof config.identity, string, string]>
         ).map(([key, label, placeholder]) => (
           <div className={KIT.field} key={key as string}>
