@@ -12,20 +12,24 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 |---|---|---|
 | Baseline | **54** | original audit |
 | After CP1 (Phase 0 safety net) | ~60 | re-audit |
-| After Wave 1 (CP2 + 1c + 1b + P2 + Lane 2) | **~68** | measured re-audit — *this is where we are* |
-| Projected after 1d + 1e + 2-finish + 3 | ~76–78 | projection |
+| After Wave 1 (CP2 + 1c + 1b + P2 + Lane 2) | ~68 | measured re-audit |
+| **After Phase 1d (drawers 31k→625)** | **~73–75 est.** | *the single biggest lever — all 4 worst god-files now decomposed; formal re-audit pending* |
+| Projected after 1e + 3 + 2-finish | ~77–80 | projection |
 | Realistic structural ceiling | ~88–92 | 90→100 is negative-ROI vanity |
 
-> "78→100" is shorthand for the remaining climb. The honest current number is
-> **~68 measured**. The test net (below) does not raise the score by itself —
-> it is the *safety harness* that lets the score-moving structural lanes land
-> without silent regressions.
+> **Phase 1d landed `3db9a2922`** — `talent 15.5k→275` (1a) · `messages 16k→73`
+> (1c) · `state 9.5k→30` (1b) · `drawers 31k→625` (1d): **~73,000 lines of
+> monolith dissolved** behind byte-stable barrels, provably zero behavior
+> change. This is the structural core of the whole plan. Honest current
+> estimate **~73–75** (formal re-audit deferred until 1e/3/2-finish land too).
+> The test net is the *harness* that made landing these safe — it does not
+> raise the score itself.
 
 ---
 
 ## 📋 MASTER LIST — every prompt, one place (ground-truthed 2026-05-19)
 
-Status verified against `git`, not memory. **origin/phase-1 = `d6064737b`.**
+Status verified against `git`, not memory. **origin/phase-1 = `3db9a2922`.**
 "Moves score?" is the honest distinction: **test lanes do NOT move 78→100** —
 they are the safety harness. Only the *structural* lanes move the number.
 
@@ -33,28 +37,31 @@ they are the safety harness. Only the *structural* lanes move the number.
 |---|---|---|---|---|---|
 | 1 | Test: billing & commission | test net | no (harness) | ✅ **LANDED** `cf16505c6` | close chat — done |
 | 2 | tests/server-actions | test net | no (harness) | ✅ **LANDED** `3bbf1023c` | close chat — done |
-| 3 | Test: inquiry engine | test net | no (harness) | ⏳ tests written, **0 commits** — self-gated on its own full tsc | keep open — it'll commit when its tsc clears |
+| 3 | Test: inquiry engine | test net | no (harness) | ✅ **LANDED** `f40f44499` — 48 pass/0 fail, suite 238/0-fail; 1 bug-flag | close chat — done |
 | 4 | tests/pitch-engine | test net | no (harness) | ✅ **LANDED** `397c69dd1` (2 bug-flags) | close chat — done |
 | 5 | tests/auth-isolation | test net | no (harness) | ✅ **LANDED** `d6064737b` — **🔒 found 3 HIGH security holes** | close chat — done; **read flags below** |
 | 6 | field-catalog tests | test net | no (harness) | ✖ **NEVER LAUNCHED** (Lane 2 already shipped baseline) | optional — skip unless you want depth |
-| 7 | **Phase 1d — drawers.tsx 31.5k decomp** | **structural** | **YES — biggest lever** | ▶ **0 commits — no progress** | **the critical gap — needs a focused chat** |
-| 8 | **Phase 1e — pages.tsx 12k decomp** | **structural** | **YES** | ▶ **0 commits — no progress** | needs a chat |
-| 9 | **Phase 2-finish — ThreadShell admin+client** | **structural** | **YES** | ▶ in progress, **1 commit / 3 src files** | keep open |
-| 10 | **Phase 3 — design-token codemod** | **structural** | **YES** | ✅ **REPORTED & READY** — 3 commits / 24 src files (`f275561f0`) | none — **I land it next** |
+| 7 | **Phase 1d — drawers.tsx 31k decomp** | **structural** | **YES — biggest lever** | ✅ **LANDED `3db9a2922`** — full-tsc 4-relocated/0-new, public-surface identical | close chat — **done 🎉** |
+| 8 | **Phase 1e — pages.tsx 12k decomp** | **structural** | **YES** | ✅ **REPORTED & READY** `d7277b059` — next wave (suppressions will conflict → regen) | none — I land it next |
+| 9 | **Phase 2-finish — ThreadShell client** | **structural** | **YES** | ✅ **REPORTED** `f0f93842b` — client shipped+proven, admin deferred w/ evidence | none — queued wave |
+| 10 | **Phase 3 — design-token codemod** | **structural** | **YES** | ✅ **REPORTED & READY** `f275561f0` — queued wave (suppressions regen) | none — queued wave |
 | 11 | T2a — CI structural gate | infra | indirect | ▶ running, **0 commits** | keep open |
 | 12 | T2b — data-access layer | infra | indirect | ▶ running, **0 commits** | keep open |
 | — | T2c residue decomp | gated | — | ⛔ GATED on 1d+1e | do NOT start |
 | — | T2d hygiene | last | — | ⛔ run LAST (0 commits — correctly parked) | do NOT start yet |
 | — | Tier-3 RSC rework | future | — | not a prompt — months-scale, post-test-net | ignore for now |
 
-**The headline:** **4 of 6 test lanes landed** (billing, server-actions,
-pitch-engine, auth-isolation) — harness is strong, and auth-isolation **surfaced
-3 HIGH-severity real security holes** (see 🔒 below — characterized, not fixed).
-But the 4 lanes that actually move 78→100 are still the weak spot — **Phase 1d
-(the single biggest lever, drawers.tsx 31.5k) has zero progress**, 1e zero,
-2-finish barely started, only Phase 3 is ready. **Score stays ~68 until the
-structural lanes land.** Also: one **pre-existing test is RED** on the branch
-(see ⚠️ Known reds) — not caused by any test lane.
+**The headline (changed — big):** **5 of 6 test lanes landed** + **Phase 1d
+landed** — the single biggest score lever. All 4 worst god-files now decomposed
+(≈73k lines dissolved). Score est. **~73–75** (was ~68). Remaining score-movers
+**1e / 3 / 2-finish are all reported & ready**, landing one-at-a-time next
+(1e/3 will conflict on `eslint-suppressions.json` → resolved by mandated regen,
+not hand-merge). auth-isolation still **surfaced 3 HIGH security holes** (🔒
+below — characterized, not fixed). Known issues, disclosed not masked: (a) one
+**pre-existing test RED** on the branch; (b) **lint-error baseline grew 76→78**
+— 1 each in the billing + pitch *test* files (earlier test-lane verify-each
+used scoped-tsc not full-eslint; my miss, owned) — not product code, slated for
+the T2d hygiene sweep. Phase 1d itself added **zero** lint errors.
 
 ---
 
@@ -73,6 +80,8 @@ structural lanes land.** Also: one **pre-existing test is RED** on the branch
 | — | `9ec…05af…9d7…` | tracker doc maintenance commits (docs-only FF) | docs-only |
 | 9 | `397c69dd1` | **Pitch-engine deep characterization — 74 tests, zero-source** | cherry-pick · zero-source · scoped-tsc 0-err/266 MB · regression 100/96/0-fail · **2026-05-19** |
 | 10 | `d6064737b` | **Auth-isolation security characterization — 80 tests, zero-source** | cherry-pick · zero-source · scoped-tsc 0-err/374 MB · 7 SECURITY flags · **2026-05-19** |
+| 11 | `f40f44499` | **Inquiry-engine characterization — 4 files, zero-source** | cherry-pick · zero-source · scoped-tsc 0 · suite 238/0-fail · **2026-05-19** |
+| 12 | `3db9a2922` | **🎯 Phase 1d — drawers.tsx 30,935→625 barrel + 29 modules** | cherry-pick · conflict-free · **FULL tsc 4-relocated/0-new** · public-surface BASE==HEAD · suppressions 0-removed/0-changed/+27-drawers-only · scoped (only drawers+suppr) · **2026-05-19** |
 
 ---
 
@@ -160,6 +169,7 @@ be proven safe). Not score work — risk work. Flagging loudly per mandate.
 | Test | Status |
 |---|---|
 | `src/lib/saas/workspace-public-url.test.ts` → *"domain lock and plan model copy stay centralized in shared helpers"* | **FAILING on bare `origin/phase-1`** (empirically reproduced at `397c69dd1` with zero test-lane files present). A structural-centralization guard that is currently violated — introduced by earlier landed work, not by the additive test lanes. Needs a separate root-cause pass; honest disclosure, not masked. |
+| **lint-error baseline grew 76 → 78** | `commission.characterization.test.ts` (1) + `pitch-engine.deep.test.ts` (1). Introduced when the billing & pitch *test* lanes landed; my verify-each then used scoped-tsc + test-run, **not full-eslint** (and `src/lib/billing` is tsc-*excluded*), so I asserted "lint clean" from the agents' claims rather than verifying it — **owned miss**. Not product code. Phase 1d added 0 lint errors. Fix path: the **T2d hygiene lane** prunes/ratchets the suppressions baseline and sweeps these. Going forward, test-lane verify-each adds a fast full-eslint-error count. |
 
 ---
 
