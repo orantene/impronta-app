@@ -33,7 +33,7 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       <DateBlock day={day} month={month} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",

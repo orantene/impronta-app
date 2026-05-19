@@ -182,7 +182,7 @@ function MessagesOverlaySheet({
           <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0, color: COLORS.ink }}>
             Messages
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onOpenFullPage}

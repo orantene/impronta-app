@@ -411,7 +411,7 @@ export function CalendarWeekView({
                       fontFamily: FONTS.body,
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="flex-1 min-w-0">
                       <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
                         {e.client} · {e.brief}
                       </div>
@@ -518,7 +518,7 @@ export function CalendarDayView({
                     textAlign: "left",
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
                       {e.client}
                     </div>

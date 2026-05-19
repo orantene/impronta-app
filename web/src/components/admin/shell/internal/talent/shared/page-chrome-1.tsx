@@ -33,7 +33,7 @@ export function PageHeader({
       }
     `}</style>
     <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {eyebrow && (
           <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>

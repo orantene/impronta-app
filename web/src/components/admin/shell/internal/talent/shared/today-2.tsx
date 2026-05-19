@@ -75,7 +75,7 @@ export function SectionHeader({
           <Icon name={icon} size={16} stroke={1.7} color={t.fg} />
         </span>
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             fontFamily: FONTS.body,
@@ -326,7 +326,7 @@ export function TalentTodayHero({
           marginBottom: 12,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div
             style={{
               fontFamily: FONTS.body,

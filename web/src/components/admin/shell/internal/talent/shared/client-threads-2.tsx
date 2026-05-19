@@ -83,7 +83,7 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
         >
           <Icon name="sparkle" size={13} stroke={1.7} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.royalDeep }}>
             AI suggestion for {item.client}
           </div>
@@ -480,7 +480,7 @@ export function InboxRow({
         />
         <ClientTrustBadge level={item.clientTrust} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",

@@ -263,7 +263,7 @@ export function ProTierValueCard({
         ))}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="flex items-center gap-2.5">
         <PrimaryButton onClick={onCompare}>See full comparison</PrimaryButton>
         <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
           Cancel anytime. Your URL stays the same.
@@ -333,7 +333,7 @@ export function ReachHealthScore({
       >
         {score}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted }}>
           Reach health
         </div>
@@ -478,7 +478,7 @@ export function DistributionCard({
         >
           {lane.icon}
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div
             style={{
               display: "flex",

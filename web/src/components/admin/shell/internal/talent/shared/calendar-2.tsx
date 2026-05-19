@@ -342,7 +342,7 @@ export function CalendarEventRow({
       <DateBlock day={event.startDay ?? "—"} month="May" />
 
       {/* Title + status */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -511,7 +511,7 @@ export function ReachStat({
           ? COLORS.indigo
           : COLORS.inkDim;
   return (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="flex-1 min-w-0">
       <div
         style={{
           fontFamily: FONTS.body,

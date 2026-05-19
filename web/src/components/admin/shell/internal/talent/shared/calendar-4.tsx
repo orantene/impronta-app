@@ -49,7 +49,7 @@ export function ChannelRow({
       }}
       data-channel-row
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -264,7 +264,7 @@ export function AvailableChannelRow({
         background: "rgba(11,11,13,0.015)",
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",

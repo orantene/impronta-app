@@ -273,7 +273,7 @@ function ConversationReplyRow({
         hashSeed={conv.client}
         initials={clientInitialsLocal(conv.client)}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -424,7 +424,7 @@ function RequestRow({
       ) : (
         <KindChip label={km.label} tone={km.tone} />
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -555,7 +555,7 @@ export function ConversationCalendarRow({
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       <DateBlock day={day} month={month} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",

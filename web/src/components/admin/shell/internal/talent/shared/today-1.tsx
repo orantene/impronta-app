@@ -77,7 +77,7 @@ export function ProfileCompletenessBanner({
       >
         <Icon name="user" size={13} stroke={1.7} />
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             fontSize: 12.5,
@@ -145,7 +145,7 @@ function TodaysPlanBanner({
         fontFamily: FONTS.body,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <div className="flex items-center gap-2 mb-2">
         <span
           style={{
             fontSize: 10.5,
@@ -161,7 +161,7 @@ function TodaysPlanBanner({
           {bookings.length === 1 ? "1 confirmed shoot" : `${bookings.length} confirmed shoots`}
         </span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {bookings.map((b) => (
           <button
             key={b.id}
@@ -196,7 +196,7 @@ function TodaysPlanBanner({
             >
               {b.call}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
                 {b.client} · {b.brief}
               </div>
@@ -287,7 +287,7 @@ export function FirstSessionChecklist({
         fontFamily: FONTS.body,
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+      <div className="flex items-baseline justify-between gap-3 mb-3">
         <div>
           <div
             style={{
@@ -336,7 +336,7 @@ export function FirstSessionChecklist({
           <Icon name="x" size={11} />
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {steps.map((step, idx) => (
           <button
             key={idx}
@@ -377,7 +377,7 @@ export function FirstSessionChecklist({
             >
               {step.done ? <Icon name="check" size={11} color="#fff" /> : idx + 1}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div
                 style={{
                   fontSize: 13,
@@ -450,7 +450,7 @@ export function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] 
         hashSeed={earning.client}
         initials={clientInitialsLocal(earning.client)}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",

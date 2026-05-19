@@ -156,7 +156,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               fontSize: 18, flexShrink: 0,
             }}>{s.emoji}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{
                 display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
                 marginBottom: 2,

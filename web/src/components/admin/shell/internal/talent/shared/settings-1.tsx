@@ -93,7 +93,7 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
       onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="flex items-center justify-between">
         <div>
           <div style={{
             fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5,
@@ -110,7 +110,7 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
         </div>
         <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18 }}>›</span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {rows.map((r) => (
           <div key={r.label} style={{
             display: "flex", alignItems: "center", gap: 10,

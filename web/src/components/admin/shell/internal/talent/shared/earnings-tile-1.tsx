@@ -78,7 +78,7 @@ export function EarningsTile({
     }}>
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
@@ -191,7 +191,7 @@ export function EarningsTile({
               <path d="M7 4v3l2 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{
               fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
               textTransform: "uppercase", color: COLORS.accentDeep,
@@ -220,7 +220,7 @@ export function EarningsTile({
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={onSeeAll}

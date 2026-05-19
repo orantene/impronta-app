@@ -35,7 +35,7 @@ export function PersonalPageBand() {
           fontFamily: FONTS.body,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div
             style={{
               fontFamily: FONTS.display,
@@ -462,7 +462,7 @@ function SkillRow({ skill }: { skill: TalentSkill }) {
       >
         {catGlyph[skill.category]}
       </span>
-      <span style={{ flex: 1 }}>{skill.label}</span>
+      <span className="flex-1">{skill.label}</span>
       {skill.level && <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{skill.level}</span>}
     </div>
   );
