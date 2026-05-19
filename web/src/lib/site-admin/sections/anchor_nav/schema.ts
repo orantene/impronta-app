@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { linkRefOrLegacy } from "../../links/link-ref";
 
 const linkSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /** 6C — structured LinkRef; legacy string auto-coerced (anchors,
+   *  tenant pages, and auth routes all resolve correctly). */
+  href: linkRefOrLegacy,
 });
 
 export const anchorNavSchemaV1 = z.object({
