@@ -1,6 +1,6 @@
 import { presentationDataAttrs } from "../shared/presentation";
 import { Container, SectionHead, Cta } from "../shared/section-primitives";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
 import { fetchTenantRosterCities } from "./fetch";
@@ -34,7 +34,11 @@ export async function LocationDiscoveryComponent({
     presentation,
   } = props;
 
-  const pfx = (h: string) => prefixPublicHref(h, publicPathPrefix);
+  // 6C — single-source link resolution (handles LinkRef object or
+  // legacy string; auth routes stay root, tenant pages prefix-aware).
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const resolve = (h: typeof ctaHref | string) =>
+    resolveLinkLike(h ?? "/directory", linkCtx).href;
 
   let locs: Loc[] = [];
   if (source === "roster_cities") {
@@ -49,7 +53,7 @@ export async function LocationDiscoveryComponent({
       key: d.locationId,
       label: d.label,
       region: d.region,
-      href: pfx("/directory"),
+      href: resolve("/directory"),
       count: d.count,
     }));
   } else {
@@ -58,7 +62,7 @@ export async function LocationDiscoveryComponent({
       key: `${it.label}-${i}`,
       label: it.label,
       region: it.region,
-      href: it.href ? pfx(it.href) : pfx("/directory"),
+      href: resolve(it.href),
       count: it.count,
     }));
   }
@@ -77,7 +81,7 @@ export async function LocationDiscoveryComponent({
             intro={subheadline}
           />
           {ctaLabel && ctaHref ? (
-            <Cta href={pfx(ctaHref)} variant="text" size="sm">
+            <Cta href={resolve(ctaHref)} variant="text" size="sm">
               {ctaLabel}
             </Cta>
           ) : null}
