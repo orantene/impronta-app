@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * Phase B — site_header section.
@@ -31,7 +32,8 @@ import { sectionPresentationSchema } from "../shared/presentation";
 
 const linkSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /** 6C — structured LinkRef; legacy string auto-coerced. */
+  href: linkRefOrLegacy,
   external: z.boolean().optional(),
 });
 
@@ -85,8 +87,9 @@ export const siteHeaderSchemaV1 = z.object({
     tagline: z.string().max(120).optional(),
     logoUrl: z.string().url().max(2048).optional(),
     logoAlt: z.string().max(160).optional(),
-    /** href for the brand mark (default: site root `/`). */
-    href: z.string().max(500).default("/"),
+    /** href for the brand mark (default: site root `/`, applied in the
+     *  Component). 6C — structured LinkRef; legacy string auto-coerced. */
+    href: optionalLinkRefOrLegacy,
   }),
   /**
    * Which brand elements render. `image-and-text` (default) preserves
