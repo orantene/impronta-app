@@ -2163,10 +2163,10 @@ function FieldGroupBlock({
               fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
               background: f.tier === "universal" ? COLORS.surfaceAlt
                 : f.tier === "global" ? COLORS.indigoSoft
-                : "rgba(184,135,49,0.16)",
+                : COLORS.accentSoft,
               color: f.tier === "universal" ? COLORS.inkMuted
                 : f.tier === "global" ? COLORS.indigoDeep
-                : "#7A5A1F",
+                : COLORS.accent,
               textTransform: "uppercase", letterSpacing: 0.4,
             }}>{f.tier}</span>
             <span style={{
@@ -2295,6 +2295,9 @@ function LiveCategoryFieldsPanel({
                 </div>
                 <div style={{ fontSize: 10.5 }}>
                   Groups auto-loaded from primary + secondary parent categories. Universal + global fields apply to everyone.
+                </div>
+                <div style={{ fontSize: 10.5, marginTop: 4, opacity: 0.85 }}>
+                  This is the resolved truth: it already reflects this workspace&apos;s Field Catalog &amp; Field Privacy settings — fields you turned off are excluded, renamed fields show your workspace name, and an <strong>ADMIN</strong> tag means it&apos;s admin-only and never public.
                 </div>
               </div>
 
