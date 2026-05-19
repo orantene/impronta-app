@@ -29,6 +29,7 @@ import { HeroContentInspector } from "./hero-content";
 import { CategoryGridContentInspector } from "./category-grid-content";
 import { CtaBannerContentInspector } from "./cta-banner-content";
 import { FeaturedTalentContentInspector } from "./featured-talent-content";
+import { TalentTypeGridContentInspector } from "./talent-type-grid-content";
 import { TestimonialsTrioContentInspector } from "./testimonials-trio-content";
 import { GalleryStripContentInspector } from "./gallery-strip-content";
 import { TrustStripContentInspector } from "./trust-strip-content";
@@ -55,6 +56,7 @@ const CURATED: Record<string, ComponentType<CuratedInspectorProps>> = {
   category_grid: CategoryGridContentInspector,
   cta_banner: CtaBannerContentInspector,
   featured_talent: FeaturedTalentContentInspector,
+  talent_type_grid: TalentTypeGridContentInspector,
   testimonials_trio: TestimonialsTrioContentInspector,
   gallery_strip: GalleryStripContentInspector,
   trust_strip: TrustStripContentInspector,
