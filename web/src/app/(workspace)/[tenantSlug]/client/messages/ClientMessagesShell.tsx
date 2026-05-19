@@ -26,6 +26,8 @@ import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
+import { ThreadShell } from "@/components/shared/ThreadShell";
+import { clientInquiryMatchesFilter, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
 import {
@@ -257,18 +259,16 @@ export function ClientMessagesShell({
     return () => { cancelled = true; };
   }, [activeId, initialActiveId]);
 
-  const filtered = inquiries.filter((i) => {
-    if (filter === "needs-me" && i.next_action_by !== "client") return false;
-    if (filter === "active" && !["submitted", "coordination", "offer_pending", "offer_sent"].includes(i.status)) return false;
-    if (filter === "booked" && i.status !== "booked" && i.status !== "approved") return false;
-    if (filter === "past" && !["cancelled", "archived"].includes(i.status)) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const haystack = [i.company, i.event_location, i.status, i.id].filter(Boolean).join(" ").toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
-  });
+  // Filter predicate lifted VERBATIM into the client role adapter
+  // (client-thread-adapter.ts) — pure + oracle-pinned, behaviour
+  // byte-for-byte unchanged (remediation plan §3/§4, Phase 2).
+  const filtered = inquiries.filter((i) => clientInquiryMatchesFilter(i, filter, search));
+
+  // O(1) lookup for the bespoke renderRow slot (ids ⊆ filtered ⊆ inquiries).
+  const rowById = useMemo(
+    () => new Map(inquiries.map((i) => [i.id, i])),
+    [inquiries],
+  );
 
   const active = inquiries.find((i) => i.id === activeId) ?? null;
   const unreadTotal = inquiries.reduce((s, i) => s + (i.unreadCount || 0), 0);
@@ -321,36 +321,26 @@ export function ClientMessagesShell({
         </button>
       </div>
 
-      {/* ─── Two-pane shell ─── */}
-      <div
-        data-tulala-messages-shell
-        data-mobile-pane={mobilePane}
-        style={{
-          display: "grid",
-          ["--tulala-shell-cols" as never]: "340px 1fr",
-          gridTemplateColumns: "var(--tulala-shell-cols)",
-          background: "#fff",
-          border: `1px solid ${C.borderSoft}`,
-          borderRadius: 14,
-          overflow: "hidden",
-          height: "min(calc(100vh - 56px - 52px - 200px), 720px)",
-          minHeight: 520,
-          minWidth: 0,
-          maxWidth: "100%",
-          fontFamily: FONT,
+      {/* ─── Two-pane shell — composed by the shared <ThreadShell>
+          primitive (remediation plan §3/§4, Phase 2 strangler step 2).
+          Every bespoke client pixel (list header, InquiryRow,
+          ThreadPaneWithTabs, the grid + mobile CSS) is injected through
+          ThreadShell's optional slots; the shell owns ONLY the list
+          iteration + region composition that was duplicated verbatim
+          across the client/admin/talent consoles. The rendered DOM is
+          byte-identical to the prior inline two-pane block — the slot
+          markup below is the same JSX, relocated under the shell. ─── */}
+      <ThreadShell
+        role="client"
+        inquiries={toClientThreadItems(filtered)}
+        activeId={activeId}
+        actions={{
+          onSelectInquiry: (id) => {
+            setActiveId(id);
+            setMobilePane("thread");
+          },
         }}
-      >
-        <style dangerouslySetInnerHTML={{ __html:
-          "@media (max-width: 720px){"
-          + "[data-tulala-messages-shell]{grid-template-columns:1fr!important;}"
-          + "[data-tulala-messages-shell][data-mobile-pane='list'] [data-pane='thread']{display:none!important;}"
-          + "[data-tulala-messages-shell][data-mobile-pane='thread'] [data-pane='list']{display:none!important;}"
-          + "}"
-        }} />
-
-        {/* List pane */}
-        <div data-pane="list" style={{ display: "flex", flexDirection: "column", borderRight: `1px solid ${C.borderSoft}`, minWidth: 0, background: "#fff" }}>
-          {/* List header */}
+        listHeaderSlot={
           <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.borderSoft}`, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
@@ -409,30 +399,15 @@ export function ClientMessagesShell({
               })}
             </div>
           </div>
-
-          {/* List rows */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {filtered.length === 0 ? (
-              <EmptyList onCreate={() => setDrawerOpen(true)} />
-            ) : (
-              filtered.map((inq) => (
-                <InquiryRow
-                  key={inq.id}
-                  inq={inq}
-                  active={inq.id === activeId}
-                  onClick={() => {
-                    setActiveId(inq.id);
-                    setMobilePane("thread");
-                  }}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Thread pane */}
-        <div data-pane="thread" style={{ display: "flex", flexDirection: "column", minHeight: 0, background: C.surfaceAlt, overflow: "hidden" }}>
-          {active ? (
+        }
+        emptyListSlot={<EmptyList onCreate={() => setDrawerOpen(true)} />}
+        renderRow={(item, ctx) => {
+          const inq = rowById.get(item.id);
+          if (!inq) return null;
+          return <InquiryRow inq={inq} active={ctx.active} onClick={ctx.select} />;
+        }}
+        details={
+          active ? (
             <ThreadPaneWithTabs
               inq={active}
               messages={messages}
@@ -449,9 +424,51 @@ export function ClientMessagesShell({
             />
           ) : (
             <EmptyDetail onCreate={() => setDrawerOpen(true)} />
-          )}
-        </div>
-      </div>
+          )
+        }
+        scaffold={(regions) => (
+          <div
+            data-tulala-messages-shell
+            data-mobile-pane={mobilePane}
+            style={{
+              display: "grid",
+              ["--tulala-shell-cols" as never]: "340px 1fr",
+              gridTemplateColumns: "var(--tulala-shell-cols)",
+              background: "#fff",
+              border: `1px solid ${C.borderSoft}`,
+              borderRadius: 14,
+              overflow: "hidden",
+              height: "min(calc(100vh - 56px - 52px - 200px), 720px)",
+              minHeight: 520,
+              minWidth: 0,
+              maxWidth: "100%",
+              fontFamily: FONT,
+            }}
+          >
+            <style dangerouslySetInnerHTML={{ __html:
+              "@media (max-width: 720px){"
+              + "[data-tulala-messages-shell]{grid-template-columns:1fr!important;}"
+              + "[data-tulala-messages-shell][data-mobile-pane='list'] [data-pane='thread']{display:none!important;}"
+              + "[data-tulala-messages-shell][data-mobile-pane='thread'] [data-pane='list']{display:none!important;}"
+              + "}"
+            }} />
+
+            {/* List pane */}
+            <div data-pane="list" style={{ display: "flex", flexDirection: "column", borderRight: `1px solid ${C.borderSoft}`, minWidth: 0, background: "#fff" }}>
+              {regions.listHeader}
+              {/* List rows */}
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                {regions.list}
+              </div>
+            </div>
+
+            {/* Thread pane */}
+            <div data-pane="thread" style={{ display: "flex", flexDirection: "column", minHeight: 0, background: C.surfaceAlt, overflow: "hidden" }}>
+              {regions.thread}
+            </div>
+          </div>
+        )}
+      />
 
       {drawerOpen && (
         <InquiryDrawer
