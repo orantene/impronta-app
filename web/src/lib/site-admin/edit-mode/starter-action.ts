@@ -400,9 +400,17 @@ const RECIPES: Record<string, Recipe> = {
         propsOverride: {
           // v11 band rhythm — plain canvas band with a top hairline so
           // it reads as a distinct band against the surface neighbours.
-          presentation: { background: "canvas", dividerTop: "thin-line" },
+          presentation: {
+            background: "canvas",
+            dividerTop: "thin-line",
+            paddingTop: "editorial",
+            paddingBottom: "editorial",
+            containerWidth: "wide",
+            align: "center",
+          },
+          eyebrow: "Selected",
           headline: "Featured Talent",
-          copy: "Selected profiles available for events, productions, campaigns, and private experiences.",
+          copy: "",
           // Manual selection (verified-supported by fetch.ts
           // `manual_pick`): deterministic, premium control while the
           // roster matures — avoids accidentally surfacing draft/hidden/
@@ -418,14 +426,25 @@ const RECIPES: Record<string, Recipe> = {
             "TAL-00033",
             "TAL-00034",
           ],
-          limit: 12,
-          columnsDesktop: 3,
+          limit: 4,
+          columnsDesktop: 4,
           variant: "grid",
+          layoutPreset: "v11-showcase",
+          headerAlign: "center",
+          cardChrome: "v11-noir",
+          imageTreatment: "cinematic",
+          showBookmarkIcon: true,
+          actionStyle: "outline-duo",
           cardVariant: "editorial",
           showName: true,
           showPrimaryType: true,
+          showSecondaryType: true,
           showCity: true,
-          requestCta: { label: "Add to inquiry", href: "/contact" },
+          showLanguages: true,
+          showAvailability: true,
+          showBadge: false,
+          requestCta: { label: "Request", href: "/contact" },
+          footerCta: { label: "Explore Talent", href: "/directory" },
           emptyStateText:
             "Featured profiles appear here as talent are added to the roster.",
         },

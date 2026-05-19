@@ -63,6 +63,10 @@ export interface FeaturedTalentCardDisplay {
   /** Reserved — DTO has no parent-category yet; falls back to primary type. */
   parentCategoryDisplay?: boolean;
   cardVariant?: "editorial" | "compact" | "minimal" | "profile";
+  showBookmarkIcon?: boolean;
+  cardChrome?: "standard" | "v11-noir";
+  imageTreatment?: "natural" | "cinematic";
+  actionStyle?: "primary-duo" | "outline-duo";
 }
 
 export function FeaturedTalentCard({
@@ -96,6 +100,9 @@ export function FeaturedTalentCard({
     display?.showAvailability !== false && !!card.availabilityLabel;
   const showBadge = display?.showBadge !== false && card.isFeatured;
   const variant = display?.cardVariant ?? "editorial";
+  const cardChrome = display?.cardChrome ?? "standard";
+  const imageTreatment = display?.imageTreatment ?? "natural";
+  const actionStyle = display?.actionStyle ?? "primary-duo";
 
   const wrapClass =
     "talent-card site-featured-talent__card group/card relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:shadow-xl";
@@ -135,8 +142,21 @@ export function FeaturedTalentCard({
 
       <div
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"
+        data-card-scrim
         aria-hidden
       />
+
+      {display?.showBookmarkIcon ? (
+        <span
+          className="site-featured-talent__bookmark"
+          data-card-bookmark
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+        </span>
+      ) : null}
 
       {showBadge ? (
         <div
@@ -161,7 +181,10 @@ export function FeaturedTalentCard({
       ) : null}
 
       {showName || showPrimary || showCity || hasMetaLine ? (
-        <div className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-4 sm:px-5 sm:pb-5">
+        <div
+          className="absolute inset-x-0 bottom-0 z-[1] px-4 pb-4 sm:px-5 sm:pb-5"
+          data-card-copy
+        >
           {showName ? (
             <h3
               className="text-lg font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-xl"
@@ -211,6 +234,8 @@ export function FeaturedTalentCard({
         className={wrapClass}
         aria-label={card.displayName}
         data-card-variant={variant}
+        data-card-chrome={cardChrome}
+        data-card-image-treatment={imageTreatment}
       >
         {media}
       </Link>
@@ -222,7 +247,13 @@ export function FeaturedTalentCard({
   // action row gets premium rhythm via `data-card-actions` + the shared
   // `site-prim-cta` button family (token-driven, reusable per tenant).
   return (
-    <article className={wrapClass} data-card-variant={variant}>
+    <article
+      className={wrapClass}
+      data-card-variant={variant}
+      data-card-chrome={cardChrome}
+      data-card-image-treatment={imageTreatment}
+      data-card-action-style={actionStyle}
+    >
       <Link
         href={href}
         className="block"

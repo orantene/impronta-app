@@ -39,6 +39,7 @@ import {
   resolveTalentByCodesAction,
   type TalentSearchHit,
 } from "@/lib/site-admin/edit-mode/talent-search";
+import { v11FeaturedTalentPreset } from "@/lib/site-admin/sections/featured_talent/presets";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 type SourceMode =
@@ -48,6 +49,11 @@ type SourceMode =
   | "auto_by_destination"
   | "auto_recent";
 type Variant = "grid" | "carousel";
+type LayoutPreset = "standard" | "v11-showcase";
+type HeaderAlign = "split" | "left" | "center";
+type CardChrome = "standard" | "v11-noir";
+type ImageTreatment = "natural" | "cinematic";
+type ActionStyle = "primary-duo" | "outline-duo";
 
 interface Props {
   draftProps: Record<string, unknown>;
@@ -117,6 +123,23 @@ export function FeaturedTalentContentInspector({
   const limit = (draftProps.limit as number | undefined) ?? 6;
   const columnsDesktop = (draftProps.columnsDesktop as number | undefined) ?? 3;
   const variant = (draftProps.variant as Variant | undefined) ?? "grid";
+  const layoutPreset =
+    (draftProps.layoutPreset as LayoutPreset | undefined) ?? "standard";
+  const headerAlign =
+    (draftProps.headerAlign as HeaderAlign | undefined) ??
+    (layoutPreset === "v11-showcase" ? "center" : "split");
+  const cardChrome =
+    (draftProps.cardChrome as CardChrome | undefined) ??
+    (layoutPreset === "v11-showcase" ? "v11-noir" : "standard");
+  const imageTreatment =
+    (draftProps.imageTreatment as ImageTreatment | undefined) ??
+    (layoutPreset === "v11-showcase" ? "cinematic" : "natural");
+  const actionStyle =
+    (draftProps.actionStyle as ActionStyle | undefined) ??
+    (layoutPreset === "v11-showcase" ? "outline-duo" : "primary-duo");
+  const showBookmarkIcon =
+    (draftProps.showBookmarkIcon as boolean | undefined) ?? false;
+  const requestCta = (draftProps.requestCta as CtaShape | undefined) ?? null;
   const footerCta = (draftProps.footerCta as CtaShape | undefined) ?? null;
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -170,6 +193,17 @@ export function FeaturedTalentContentInspector({
     onChange(cleanObject({ ...draftProps, ...patch }));
   }
 
+  function applyV11Preset() {
+    onChange({
+      ...draftProps,
+      ...v11FeaturedTalentPreset,
+      presentation: { ...v11FeaturedTalentPreset.presentation },
+    });
+  }
+
+  const fieldOn = (key: string) =>
+    (draftProps[key] as boolean | undefined) !== false;
+
   function switchMode(next: SourceMode) {
     if (next === sourceMode) return;
     // Stash outgoing mode's data.
@@ -213,6 +247,21 @@ export function FeaturedTalentContentInspector({
           Editing selected canvas node: {focusLabel}
         </div>
       ) : null}
+      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">V11 featured talent preset</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+              Resets this section to the prototype: centered header, four-card
+              noir grid, cinematic images, bookmark glyphs, outline buttons,
+              and the Explore Talent footer link.
+            </p>
+          </div>
+          <button type="button" className={KIT.primaryButton} onClick={applyV11Preset}>
+            Apply full preset
+          </button>
+        </div>
+      </div>
       <InspectorGroup title="Header" storageKey="featured_talent:header">
         <div className={KIT.field} data-featured-talent-node-role="subheadline">
           <label className={KIT.label}>Eyebrow</label>
@@ -301,6 +350,141 @@ export function FeaturedTalentContentInspector({
             <SteadyStateNote text="The most recently approved roster talent appear here. Updates as your roster grows." />
           ) : null}
         </div>
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Prototype layout"
+        info="Controls the visual system around the live talent cards."
+        storageKey="featured_talent:prototype"
+      >
+        <VisualChipGroup<LayoutPreset>
+          value={layoutPreset}
+          onChange={(v) => update({ layoutPreset: v })}
+          options={[
+            {
+              value: "v11-showcase",
+              label: "V11 showcase",
+              info: "Centered title, four-card noir grid, footer arrow.",
+              preview: <ShowcasePreview />,
+            },
+            {
+              value: "standard",
+              label: "Standard",
+              info: "Uses the tenant directory-card family and normal header.",
+              preview: <GridPreview />,
+            },
+          ]}
+          columns={2}
+        />
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className={KIT.field}>
+            <label className={KIT.label}>Header alignment</label>
+            <VisualChipGroup<HeaderAlign>
+              value={headerAlign}
+              onChange={(v) => update({ headerAlign: v })}
+              options={[
+                { value: "split", label: "Split", preview: null },
+                { value: "left", label: "Left", preview: null },
+                { value: "center", label: "Center", preview: null },
+              ]}
+              columns={3}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Card chrome</label>
+            <VisualChipGroup<CardChrome>
+              value={cardChrome}
+              onChange={(v) => update({ cardChrome: v })}
+              options={[
+                { value: "v11-noir", label: "V11 noir", preview: null },
+                { value: "standard", label: "Theme", preview: null },
+              ]}
+              columns={2}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Image treatment</label>
+            <VisualChipGroup<ImageTreatment>
+              value={imageTreatment}
+              onChange={(v) => update({ imageTreatment: v })}
+              options={[
+                { value: "cinematic", label: "Cinematic", preview: null },
+                { value: "natural", label: "Natural", preview: null },
+              ]}
+              columns={2}
+            />
+          </div>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Action style</label>
+            <VisualChipGroup<ActionStyle>
+              value={actionStyle}
+              onChange={(v) => update({ actionStyle: v })}
+              options={[
+                { value: "outline-duo", label: "Outline duo", preview: null },
+                { value: "primary-duo", label: "Primary", preview: null },
+              ]}
+              columns={2}
+            />
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <ToggleRow
+            label="Bookmark glyph"
+            checked={showBookmarkIcon}
+            onChange={(checked) => update({ showBookmarkIcon: checked })}
+          />
+          <ToggleRow
+            label="Featured badge"
+            checked={fieldOn("showBadge")}
+            onChange={(checked) => update({ showBadge: checked })}
+          />
+        </div>
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Card content"
+        info="Choose which real public profile fields are visible on each card."
+        collapsible
+        storageKey="featured_talent:card-content"
+        defaultOpen={layoutPreset === "v11-showcase"}
+      >
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {[
+            ["showName", "Name"],
+            ["showPrimaryType", "Primary role"],
+            ["showSecondaryType", "Secondary role"],
+            ["showCity", "City"],
+            ["showLanguages", "Languages"],
+            ["showAvailability", "Availability"],
+          ].map(([key, label]) => (
+            <ToggleRow
+              key={key}
+              label={label}
+              checked={fieldOn(key)}
+              onChange={(checked) => update({ [key]: checked })}
+            />
+          ))}
+        </div>
+        <p className={KIT.hint}>
+          Availability only appears when a real public availability label
+          exists; this section does not invent availability claims.
+        </p>
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Card actions"
+        info="Optional per-card Request/Add to inquiry action."
+        collapsible
+        storageKey="featured_talent:card-actions"
+        defaultOpen={Boolean(requestCta) || layoutPreset === "v11-showcase"}
+      >
+        <CtaDuoEditor
+          primary={requestCta}
+          secondary={null}
+          onChangePrimary={(next) => update({ requestCta: next ?? undefined })}
+          onChangeSecondary={() => {}}
+          secondaryAddLabel="(not used on this section)"
+        />
       </InspectorGroup>
 
       <InspectorGroup
@@ -566,7 +750,43 @@ function SteadyStateNote({ text }: { text: string }) {
   );
 }
 
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-[12px] font-medium text-zinc-700">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
 // ── mode previews ─────────────────────────────────────────────────────────
+
+function ShowcasePreview() {
+  return (
+    <svg viewBox="0 0 68 36" className="h-[36px] w-[68px]" aria-hidden>
+      <rect x="8" y="3" width="52" height="4" rx="1" className="fill-amber-500" />
+      {[0, 1, 2, 3].map((col) => (
+        <g key={col} transform={`translate(${4 + col * 16} 11)`}>
+          <rect width="13" height="20" rx="1.5" className="fill-zinc-900" />
+          <rect x="2" y="14" width="9" height="1.5" rx=".5" className="fill-zinc-100" />
+          <rect x="2" y="17" width="6" height="1" rx=".5" className="fill-amber-500" />
+        </g>
+      ))}
+    </svg>
+  );
+}
 
 function ModePreview({ value }: { value: SourceMode }) {
   const common = "w-[68px] h-[36px]";

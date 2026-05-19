@@ -43,6 +43,18 @@ export const featuredTalentSchemaV1 = z.object({
   /** Grid columns on desktop. */
   columnsDesktop: z.number().int().min(2).max(4).default(3),
   variant: z.enum(["grid", "carousel"]).default("grid"),
+  /** High-level section layout preset. Undefined keeps legacy behaviour. */
+  layoutPreset: z.enum(["standard", "v11-showcase"]).optional(),
+  /** Header alignment shortcut for builders; nodePresentation can still fine-tune. */
+  headerAlign: z.enum(["split", "left", "center"]).optional(),
+  /** Card chrome preset. Undefined keeps tenant/directory-card-family default. */
+  cardChrome: z.enum(["standard", "v11-noir"]).optional(),
+  /** Image grading treatment for this section's cards. */
+  imageTreatment: z.enum(["natural", "cinematic"]).optional(),
+  /** Show a non-mutating bookmark glyph for the prototype card silhouette. */
+  showBookmarkIcon: z.boolean().optional(),
+  /** Card action treatment when requestCta is enabled. */
+  actionStyle: z.enum(["primary-duo", "outline-duo"]).optional(),
   /**
    * P1-2 — reusable talent_collection controls. All optional; when unset
    * the renderer keeps the prior default appearance (fields shown), so
