@@ -7,7 +7,7 @@ import {
   ChipList,
   StatLine,
 } from "../shared/section-primitives";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { HeroSearchV1 } from "./schema";
 import { fetchTenantTalentCount } from "./fetch";
@@ -34,7 +34,15 @@ export async function HeroSearchComponent({
     presentation,
   } = props;
 
-  const pfx = (h: string) => prefixPublicHref(h, publicPathPrefix);
+  // 6C — single-source link resolution (LinkRef object or legacy
+  // string; auth routes stay root, tenant pages prefix-aware).
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const primaryLink = primaryCta
+    ? resolveLinkLike(primaryCta.href, linkCtx)
+    : null;
+  const secondaryLink = secondaryCta
+    ? resolveLinkLike(secondaryCta.href, linkCtx)
+    : null;
 
   // Chips: manual is the safe shipped path; roster-derived sources are a
   // documented follow-on (fall back to manual list meanwhile).
@@ -42,12 +50,12 @@ export async function HeroSearchComponent({
     chipsSource === "manual"
       ? (chips ?? []).map((c) => ({
           label: c.label,
-          href: c.href ? pfx(c.href) : undefined,
+          href: c.href ? resolveLinkLike(c.href, linkCtx).href : undefined,
           dot: true,
         }))
       : (chips ?? []).map((c) => ({
           label: c.label,
-          href: c.href ? pfx(c.href) : undefined,
+          href: c.href ? resolveLinkLike(c.href, linkCtx).href : undefined,
           dot: true,
         }));
 
@@ -96,7 +104,10 @@ export async function HeroSearchComponent({
             <div className="site-hero-search__searchwrap">
               <SearchInput
                 mode={search?.mode ?? "directory-query"}
-                action={pfx(search?.actionHref ?? "/directory")}
+                action={
+                  resolveLinkLike(search?.actionHref ?? "/directory", linkCtx)
+                    .href
+                }
                 placeholder={
                   search?.placeholder ?? "Search talent by role, location or fit…"
                 }
@@ -109,14 +120,20 @@ export async function HeroSearchComponent({
 
           {primaryCta || secondaryCta ? (
             <div className="site-hero-search__ctas">
-              {primaryCta ? (
-                <Cta href={pfx(primaryCta.href)} variant="primary" size="lg">
+              {primaryCta && primaryLink ? (
+                <Cta
+                  href={primaryLink.href}
+                  newTab={primaryLink.openInNew}
+                  variant="primary"
+                  size="lg"
+                >
                   {primaryCta.label}
                 </Cta>
               ) : null}
-              {secondaryCta ? (
+              {secondaryCta && secondaryLink ? (
                 <Cta
-                  href={pfx(secondaryCta.href)}
+                  href={secondaryLink.href}
+                  newTab={secondaryLink.openInNew}
                   variant="text"
                   size="lg"
                 >
