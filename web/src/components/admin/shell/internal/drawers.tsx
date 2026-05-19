@@ -11,6 +11,9 @@ import {
   getFieldPrivacyCatalog,
   setWorkspaceFieldVisibility,
   resetWorkspaceFieldVisibility,
+  getWorkspaceFieldCatalog,
+  setWorkspaceFieldCatalog,
+  setWorkspaceFieldGroup,
 } from "@/lib/server-actions/admin-workspace-field-settings";
 import {
   commitTalentProfileShellAdmin,
@@ -19923,334 +19926,408 @@ function SettingToggleRow({
 }
 
 function FieldCatalogDrawer() {
-  const { state, closeDrawer, toast, customFields, addCustomField, removeCustomField } = useAdminShell();
-  const isAgency = state.plan === "agency" || state.plan === "network";
+  type CatField = {
+    field_definition_id: string; field_key: string; label: string;
+    field_group_id: string | null; enabled: boolean;
+    required_override: boolean | null; custom_label: string | null;
+  };
+  type CatGroup = {
+    id: string; name: string; sort_order: number;
+    enabled: boolean; custom_label: string | null;
+  };
 
-  const coreFields: { name: string; section: string; kind: CustomFieldKind }[] = [
-    { name: "Stage / professional name", section: "Identity",   kind: "Text" },
-    { name: "Pronunciation",             section: "Identity",   kind: "Text" },
-    { name: "Tagline",                   section: "Identity",   kind: "Text" },
-    { name: "Primary Talent Type",       section: "Services",   kind: "Select" },
-    { name: "Secondary Talent Types",    section: "Services",   kind: "Multi-select" },
-    { name: "Specialties",               section: "Services",   kind: "Multi-select" },
-    { name: "Home base",                 section: "Location",   kind: "Text" },
-    { name: "Service areas",             section: "Location",   kind: "Multi-select" },
-    { name: "Travel radius",             section: "Location",   kind: "Number" },
-    { name: "Photo gallery",             section: "Media",      kind: "Multi-select" },
-    { name: "Bio (per locale)",          section: "About",      kind: "Text" },
-    { name: "Languages + level",         section: "Languages",  kind: "Multi-select" },
-    { name: "Skills",                    section: "Refinement", kind: "Multi-select" },
-    { name: "Contexts",                  section: "Refinement", kind: "Multi-select" },
-  ];
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
+    ?? FIELD_PRIVACY_PLAN_RULES.free;
+  const canCustomize = rules.canFlipPublicInternal; // studio+: enable/disable + relabel
+  const canRequire = rules.canSetRequired;          // agency+: required toggle
 
-  // customFields / addCustomField / removeCustomField come from proto
-  // context (destructured at the top of this drawer) — Profile Shell
-  // reads the same list so adds here surface in profile editing.
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<Partial<CustomField>>({
-    kind: "Text", appliesTo: "Talent", required: false,
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<CatGroup[]>([]);
+  const [fields, setFields] = useState<CatField[]>([]);
+  const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    const res = await getWorkspaceFieldCatalog();
+    if (!res.ok) { setError(res.error); setLoading(false); return; }
+    setGroups(res.groups as CatGroup[]);
+    setFields(res.fields as CatField[]);
+    setRenaming(null);
+    setLoading(false);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const mark = (id: string, on: boolean) =>
+    setSaving((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
+
+  // ── field ops ──────────────────────────────────────────────────────
+  const toggleField = async (f: CatField) => {
+    if (!canCustomize) { toast("Upgrade to Studio to customize the field catalog"); return; }
+    const next = !f.enabled;
+    const snap = fields;
+    setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, enabled: next } : x));
+    mark(f.field_definition_id, true);
+    const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, enabled: next });
+    mark(f.field_definition_id, false);
+    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
+    toast(next ? "Field captured for this workspace" : "Field hidden from this workspace");
+  };
+
+  const toggleRequired = async (f: CatField) => {
+    if (!canRequire) { toast("Upgrade to Agency to set required fields"); return; }
+    if (!f.enabled) { toast("Enable the field before making it required"); return; }
+    const next = !(f.required_override ?? false);
+    const snap = fields;
+    setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, required_override: next } : x));
+    mark(f.field_definition_id, true);
+    const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, required: next });
+    mark(f.field_definition_id, false);
+    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
+    toast(next ? "Marked required to publish" : "No longer required");
+  };
+
+  const commitFieldLabel = async (f: CatField) => {
+    if (!canCustomize) { toast("Upgrade to Studio to rename fields"); setRenaming(null); return; }
+    const v = renameVal.trim();
+    const nextLabel = v && v !== f.label ? v : null;
+    if ((f.custom_label ?? null) === nextLabel) { setRenaming(null); return; }
+    const snap = fields;
+    setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, custom_label: nextLabel } : x));
+    setRenaming(null);
+    mark(f.field_definition_id, true);
+    const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, custom_label: nextLabel });
+    mark(f.field_definition_id, false);
+    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't rename the field"); return; }
+    toast(nextLabel ? "Renamed for your workspace" : "Reset to the network name");
+  };
+
+  // ── group ops ──────────────────────────────────────────────────────
+  const toggleGroup = async (g: CatGroup) => {
+    if (!canCustomize) { toast("Upgrade to Studio to customize the field catalog"); return; }
+    const next = !g.enabled;
+    const snap = groups;
+    setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, enabled: next } : x));
+    mark(g.id, true);
+    const res = await setWorkspaceFieldGroup({ field_group_id: g.id, is_enabled: next });
+    mark(g.id, false);
+    if (!res.ok) { setGroups(snap); toast(res.error || "Couldn't save the section"); return; }
+    toast(next ? "Section enabled" : "Section hidden from this workspace");
+  };
+
+  const commitGroupLabel = async (g: CatGroup) => {
+    if (!canCustomize) { toast("Upgrade to Studio to rename sections"); setRenaming(null); return; }
+    const v = renameVal.trim();
+    const nextLabel = v && v !== g.name ? v : null;
+    if ((g.custom_label ?? null) === nextLabel) { setRenaming(null); return; }
+    const snap = groups;
+    setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, custom_label: nextLabel } : x));
+    setRenaming(null);
+    mark(g.id, true);
+    const res = await setWorkspaceFieldGroup({ field_group_id: g.id, custom_label: nextLabel });
+    mark(g.id, false);
+    if (!res.ok) { setGroups(snap); toast(res.error || "Couldn't rename the section"); return; }
+    toast(nextLabel ? "Section renamed for your workspace" : "Reset to the network name");
+  };
+
+  const startRename = (key: string, current: string) => {
+    setRenameVal(current); setRenaming(key);
+  };
+
+  // ── bucket assembly (group order by sort_order, ungrouped last) ─────
+  const order: { key: string; group: CatGroup | null; items: CatField[] }[] = [];
+  const byKey = new Map<string, { key: string; group: CatGroup | null; items: CatField[] }>();
+  for (const f of fields) {
+    const key = f.field_group_id ?? "__general__";
+    let b = byKey.get(key);
+    if (!b) {
+      const group = f.field_group_id ? (groups.find((g) => g.id === f.field_group_id) ?? null) : null;
+      b = { key, group, items: [] }; byKey.set(key, b); order.push(b);
+    }
+    b.items.push(f);
+  }
+  order.sort((a, b) => {
+    const ai = a.key === "__general__" ? 1e9 : (a.group?.sort_order ?? 0);
+    const bi = b.key === "__general__" ? 1e9 : (b.group?.sort_order ?? 0);
+    return ai - bi;
   });
 
-  const startAdd = () => {
-    setDraft({ kind: "Text", appliesTo: "Talent", required: false });
-    setAdding(true);
-  };
-  const saveAdd = () => {
-    if (!draft.name?.trim() || !draft.kind || !draft.appliesTo) {
-      toast("Add a name + pick a type");
-      return;
-    }
-    addCustomField({
-      name: draft.name!.trim(),
-      kind: draft.kind as CustomFieldKind,
-      appliesTo: draft.appliesTo as CustomFieldAppliesTo,
-      required: !!draft.required,
-      helper: draft.helper?.trim() || undefined,
-    });
-    setAdding(false);
-    toast(`Added ${draft.name} — appears next time you edit a ${draft.appliesTo}`);
-  };
-  const removeField = (id: string) => {
-    const f = customFields.find((x) => x.id === id);
-    removeCustomField(id);
-    if (f) toast(`Removed ${f.name}`);
-  };
-
-  const coreBySection: Record<string, typeof coreFields> = {};
-  for (const f of coreFields) (coreBySection[f.section] ??= []).push(f);
+  const enabledCount = fields.filter((f) => f.enabled).length;
+  const offCount = fields.length - enabledCount;
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Field catalog"
-      description="What the profile captures, and where to add agency-specific extras."
-      width={640}
+      description="Every field this workspace captures on talent profiles. Toggle what you collect, rename for your team, and mark what's required."
+      width={680}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          {isAgency && !adding && (
-            <PrimaryButton onClick={startAdd}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Icon name="plus" size={12} stroke={2} />
-                Add custom field
-              </span>
-            </PrimaryButton>
-          )}
+          <SecondaryButton onClick={() => openDrawer("field-privacy")}>Field privacy</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
         </>
       }
     >
-      {/* Built-in core fields */}
-      <Section title="Built-in profile fields">
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
-          Captured automatically by the profile shell. You see these on every talent. No setup.
-        </div>
-        <div style={{ background: "#fff", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }}>
-          {Object.entries(coreBySection).map(([section, items], i) => (
-            <div key={section} style={{ borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}` }}>
-              <div style={{
-                padding: "8px 12px", fontFamily: FONTS.body,
-                fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6,
-                textTransform: "uppercase", color: COLORS.inkMuted,
-                background: "rgba(11,11,13,0.02)",
-              }}>{section}</div>
-              {items.map((f) => (
-                <div key={f.name} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "8px 12px",
-                  fontFamily: FONTS.body, fontSize: 12.5,
-                }}>
-                  <span style={{ fontWeight: 500, color: COLORS.ink, flex: 1 }}>{f.name}</span>
-                  <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{f.kind}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </Section>
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+        background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12, overflow: "hidden", marginBottom: 16, fontFamily: FONTS.body,
+      }}>
+        <FieldPrivacyCount label="Captured" count={enabledCount}
+          icon="✓" tone={COLORS.successDeep} bg={COLORS.successSoft} />
+        <FieldPrivacyCount label="Sections" count={groups.length}
+          icon="▦" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
+        <FieldPrivacyCount label="Off" count={offCount}
+          icon="–" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
+      </div>
 
-      {/* Type-specific fields */}
-      <Section title="Type-specific fields">
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
-          These appear in the profile's "Profile details" section automatically when the talent's primary or secondary type matches. Maintained by Tulala so the same field means the same thing across the network.
+      {!canCustomize && (
+        <div style={{
+          padding: "12px 14px", borderRadius: 10,
+          background: "rgba(91,107,160,0.10)", border: "1px solid rgba(91,107,160,0.18)",
+          fontFamily: FONTS.body, fontSize: 12.5, color: "#3B4A75",
+          marginBottom: 16, lineHeight: 1.5,
+        }}>
+          <strong>The network catalog is read-only on Free.</strong> Upgrade to Studio to choose which fields your workspace captures and rename them for your team. Agency tier adds required-field control.
+          <button type="button" onClick={() => openDrawer("plan-billing")} style={{
+            marginLeft: 8, padding: "4px 10px", borderRadius: 999,
+            background: "#3B4A75", color: "#fff", border: "none",
+            fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+          }}>Compare plans</button>
         </div>
-        <div style={{ background: "#fff", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }}>
-          {TAXONOMY.filter((p) => (TAXONOMY_FIELDS[p.id] ?? []).length > 0).map((parent, i) => {
-            const fields = TAXONOMY_FIELDS[parent.id] ?? [];
+      )}
+
+      {loading && (
+        <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+          Loading the field catalog…
+        </div>
+      )}
+      {error && !loading && (
+        <div style={{
+          padding: "12px 14px", borderRadius: 10, background: COLORS.amberSoft,
+          border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+        }}>
+          {error}{" "}
+          <button type="button" onClick={() => void load()} style={{
+            marginLeft: 6, textDecoration: "underline", background: "none",
+            border: "none", cursor: "pointer", color: COLORS.ink, fontFamily: FONTS.body,
+          }}>Retry</button>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {order.map((bucket) => {
+            const g = bucket.group;
+            const groupKey = g ? `g:${g.id}` : "g:__general__";
+            const groupName = g ? (g.custom_label ?? g.name) : "General";
+            const groupOff = g ? !g.enabled : false;
+            const groupBusy = g ? saving.has(g.id) : false;
             return (
-              <div key={parent.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}` }}>
+              <div key={bucket.key}>
                 <div style={{
-                  padding: "8px 12px", display: "flex", alignItems: "center", gap: 8,
-                  background: "rgba(11,11,13,0.02)",
+                  display: "flex", alignItems: "center", gap: 8,
+                  marginBottom: 6, paddingLeft: 4,
                 }}>
-                  <span style={{ fontSize: 14 }}>{parent.emoji}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
-                    {parent.label}
-                  </span>
-                  <span style={{ fontSize: 10.5, color: COLORS.inkDim, marginLeft: "auto" }}>
-                    {fields.length} field{fields.length === 1 ? "" : "s"}
-                  </span>
+                  {renaming === groupKey && g ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                      <TextInput
+                        autoFocus
+                        value={renameVal}
+                        placeholder={g.name}
+                        onChange={(e) => setRenameVal(e.target.value)}
+                      />
+                      <button type="button" onClick={() => void commitGroupLabel(g)} style={{
+                        padding: "5px 11px", borderRadius: 999, border: "none",
+                        background: COLORS.fill, color: "#fff",
+                        fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      }}>Save</button>
+                      <button type="button" onClick={() => setRenaming(null)} style={{
+                        padding: "5px 9px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                        background: "transparent", color: COLORS.inkMuted,
+                        fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      }}>Cancel</button>
+                    </div>
+                  ) : (
+                    <>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
+                        color: groupOff ? COLORS.inkDim : COLORS.inkMuted,
+                        textTransform: "uppercase",
+                        textDecoration: groupOff ? "line-through" : "none",
+                      }}>{groupName}</span>
+                      {g && g.custom_label && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+                          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                          letterSpacing: 0.4, textTransform: "uppercase",
+                        }}>renamed</span>
+                      )}
+                      {g && canCustomize && (
+                        <>
+                          <button type="button" onClick={() => startRename(groupKey, g.custom_label ?? g.name)} style={{
+                            background: "none", border: "none", cursor: "pointer",
+                            color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
+                            textDecoration: "underline", padding: 0,
+                          }}>rename</button>
+                          <button type="button" disabled={groupBusy} onClick={() => void toggleGroup(g)} style={{
+                            marginLeft: "auto", padding: "3px 10px", borderRadius: 999,
+                            border: `1px solid ${groupOff ? COLORS.border : COLORS.successDeep}`,
+                            background: groupOff ? "transparent" : COLORS.successSoft,
+                            color: groupOff ? COLORS.inkMuted : COLORS.successDeep,
+                            fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+                            cursor: groupBusy ? "wait" : "pointer", opacity: groupBusy ? 0.6 : 1,
+                          }}>{groupOff ? "Section off" : "Section on"}</button>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "8px 12px" }}>
-                  {fields.map((f) => (
-                    <span key={f.id} style={{
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                      padding: "4px 9px", borderRadius: 999,
-                      background: "rgba(11,11,13,0.05)",
-                      fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, color: COLORS.ink,
-                    }}>
-                      {f.label}
-                      {!f.optional && <span style={{ fontSize: 9, color: COLORS.amberDeep, marginLeft: 1 }}>★</span>}
-                    </span>
-                  ))}
+                <div style={{
+                  background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 12, overflow: "hidden",
+                  opacity: groupOff ? 0.55 : 1,
+                }}>
+                  {bucket.items.map((f, i) => {
+                    const fieldKey = `f:${f.field_definition_id}`;
+                    const fieldName = f.custom_label ?? f.label;
+                    const required = f.required_override ?? false;
+                    const busy = saving.has(f.field_definition_id);
+                    return (
+                      <div key={f.field_definition_id} style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "10px 14px",
+                        borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                        fontFamily: FONTS.body,
+                        opacity: f.enabled ? 1 : 0.6,
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {renaming === fieldKey ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <TextInput
+                                autoFocus
+                                value={renameVal}
+                                placeholder={f.label}
+                                onChange={(e) => setRenameVal(e.target.value)}
+                              />
+                              <button type="button" onClick={() => void commitFieldLabel(f)} style={{
+                                padding: "5px 11px", borderRadius: 999, border: "none",
+                                background: COLORS.fill, color: "#fff",
+                                fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                              }}>Save</button>
+                              <button type="button" onClick={() => setRenaming(null)} style={{
+                                padding: "5px 9px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                                background: "transparent", color: COLORS.inkMuted,
+                                fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                              }}>Cancel</button>
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{fieldName}</span>
+                                {f.custom_label && (
+                                  <span style={{
+                                    fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+                                    background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                                    letterSpacing: 0.4, textTransform: "uppercase",
+                                  }}>renamed</span>
+                                )}
+                                {required && (
+                                  <span style={{
+                                    fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+                                    background: COLORS.amberSoft, color: COLORS.amberDeep,
+                                    letterSpacing: 0.4, textTransform: "uppercase",
+                                  }}>required</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+                                {f.field_key}
+                                {canCustomize && (
+                                  <button type="button" onClick={() => startRename(fieldKey, f.custom_label ?? f.label)} style={{
+                                    marginLeft: 8, background: "none", border: "none", cursor: "pointer",
+                                    color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
+                                    textDecoration: "underline", padding: 0,
+                                  }}>rename</button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {renaming !== fieldKey && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button
+                              type="button"
+                              disabled={busy || !canRequire || !f.enabled}
+                              onClick={() => void toggleRequired(f)}
+                              title={!canRequire ? "Agency tier sets required fields" : !f.enabled ? "Enable the field first" : required ? "Required to publish" : "Optional"}
+                              style={{
+                                padding: "4px 10px", borderRadius: 999,
+                                border: `1px solid ${required ? COLORS.amberDeep : COLORS.border}`,
+                                background: required ? COLORS.amberSoft : "transparent",
+                                color: required ? COLORS.amberDeep : COLORS.inkDim,
+                                fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+                                cursor: (busy || !canRequire || !f.enabled) ? "not-allowed" : "pointer",
+                                opacity: (!canRequire || !f.enabled) ? 0.45 : 1,
+                              }}
+                            >Required</button>
+                            <button
+                              type="button"
+                              disabled={busy || !canCustomize}
+                              onClick={() => void toggleField(f)}
+                              title={!canCustomize ? "Studio tier customizes the catalog" : f.enabled ? "Captured — tap to stop collecting" : "Off — tap to start collecting"}
+                              style={{
+                                padding: "5px 12px", borderRadius: 999,
+                                border: `1px solid ${f.enabled ? COLORS.successDeep : COLORS.border}`,
+                                background: f.enabled ? COLORS.successSoft : "transparent",
+                                color: f.enabled ? COLORS.successDeep : COLORS.inkMuted,
+                                fontFamily: FONTS.body, fontSize: 11, fontWeight: 600,
+                                cursor: (busy || !canCustomize) ? "not-allowed" : "pointer",
+                                opacity: !canCustomize ? 0.5 : (busy ? 0.6 : 1),
+                              }}
+                            >{f.enabled ? "On" : "Off"}</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
-        </div>
-        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
-          ★ = required for that Talent Type to publish. Network-wide schema; not editable.
-        </div>
-      </Section>
+          {fields.length === 0 && (
+            <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+              No catalog fields for this workspace yet.
+            </div>
+          )}
 
-      {/* Custom workspace fields */}
-      <Section title="Custom workspace fields">
-        {!isAgency ? (
+          {/* Custom workspace fields — honest "not yet" state. No fake add flow. */}
           <div style={{
-            padding: 14, borderRadius: 10,
-            background: "rgba(184,135,49,0.10)",
-            border: "1px solid rgba(184,135,49,0.20)",
+            padding: 14, borderRadius: 12,
+            background: COLORS.surface, border: `1px dashed ${COLORS.borderSoft}`,
             fontFamily: FONTS.body,
           }}>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              padding: "2px 8px", borderRadius: 999,
-              background: "#fff", color: "#7A5A1F",
-              fontSize: 10, fontWeight: 700, marginBottom: 8,
-              textTransform: "uppercase", letterSpacing: 0.5,
-            }}>
-              <span aria-hidden style={{ fontSize: 10 }}>🔒</span> Agency
-            </div>
-            <div style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 600, marginBottom: 4 }}>
-              Custom fields are an Agency-tier feature
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                Workspace-specific custom fields
+              </span>
+              <span style={{
+                fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 999,
+                background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                letterSpacing: 0.4, textTransform: "uppercase",
+              }}>coming soon</span>
             </div>
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-              Add fields specific to how your agency books — contract terms, insurance numbers, internal niches, regional flags. Each becomes a column in CSV exports + a row in talent profiles.
+              {rules.canCreateCustom
+                ? "Defining brand-new fields (beyond the network catalog) is included in your plan and is being built into the Catalog Studio. For now you can fully customize which network fields you capture, rename them, and set what's required above."
+                : "Brand-new custom fields are an Agency-tier capability and are being built into the Catalog Studio. Every workspace can already customize the network catalog above — enable, rename, and require the fields you actually use."}
             </div>
           </div>
-        ) : (
-          <>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
-              Add agency-specific fields. They render in the profile shell's "Profile details" section, alongside the type-specific fields. Visible to your team only.
-            </div>
-            {customFields.length === 0 && !adding && (
-              <div style={{
-                padding: "20px 14px", textAlign: "center",
-                background: COLORS.surface, borderRadius: 10,
-                border: `1px dashed ${COLORS.borderSoft}`,
-                fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
-              }}>
-                No custom fields yet. Tap <strong>Add custom field</strong> below to start.
-              </div>
-            )}
-
-            {customFields.length > 0 && (
-              <div style={{
-                background: "#fff", borderRadius: 12,
-                border: `1px solid ${COLORS.borderSoft}`,
-                overflow: "hidden", marginBottom: adding ? 12 : 0,
-              }}>
-                {customFields.map((f, i) => (
-                  <div key={f.id} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "10px 12px",
-                    borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
-                    fontFamily: FONTS.body,
-                  }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                        {f.name}
-                        {f.required && (
-                          <span style={{
-                            marginLeft: 6, fontSize: 9, fontWeight: 700,
-                            color: COLORS.amberDeep, padding: "1px 6px",
-                            borderRadius: 999, background: COLORS.amberSoft,
-                          }}>REQUIRED</span>
-                        )}
-                      </div>
-                      {f.helper && (
-                        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{f.helper}</div>
-                      )}
-                      <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 3 }}>
-                        {f.kind} · on {f.appliesTo}
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => removeField(f.id)} aria-label="Remove" style={{
-                      background: "transparent", border: "none", cursor: "pointer",
-                      color: COLORS.inkMuted, fontSize: 16, lineHeight: 1,
-                      padding: 4, fontWeight: 600,
-                    }}>×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {adding && (
-              <div style={{
-                background: "#fff", borderRadius: 12,
-                border: `1.5px solid ${COLORS.accent}`,
-                padding: 14, fontFamily: FONTS.body,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 10 }}>
-                  New custom field
-                </div>
-                <FieldRow label="Field name">
-                  <TextInput
-                    placeholder="e.g. Insurance number · Contract date · Niche"
-                    value={draft.name ?? ""}
-                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  />
-                </FieldRow>
-                <FieldRow label="Helper text" optional hint="Shown next to the field while editing.">
-                  <TextInput
-                    placeholder="What format / what values"
-                    value={draft.helper ?? ""}
-                    onChange={(e) => setDraft({ ...draft, helper: e.target.value })}
-                  />
-                </FieldRow>
-                <FieldRow label="Field type">
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                    {(["Text", "Number", "Select", "Multi-select", "Date", "Toggle"] as CustomFieldKind[]).map((k) => {
-                      const active = draft.kind === k;
-                      return (
-                        <button key={k} type="button" onClick={() => setDraft({ ...draft, kind: k })} style={{
-                          padding: "6px 11px", borderRadius: 999,
-                          border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                          background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                          color: active ? COLORS.accentDeep : COLORS.ink,
-                          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
-                        }}>{k}</button>
-                      );
-                    })}
-                  </div>
-                </FieldRow>
-                <FieldRow label="Applies to">
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                    {(["Talent", "Client", "Booking", "Inquiry"] as CustomFieldAppliesTo[]).map((a) => {
-                      const active = draft.appliesTo === a;
-                      return (
-                        <button key={a} type="button" onClick={() => setDraft({ ...draft, appliesTo: a })} style={{
-                          padding: "6px 11px", borderRadius: 999,
-                          border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                          background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                          color: active ? COLORS.accentDeep : COLORS.ink,
-                          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
-                        }}>{a}</button>
-                      );
-                    })}
-                  </div>
-                </FieldRow>
-                <FieldRow label="Required" optional>
-                  <button type="button" onClick={() => setDraft({ ...draft, required: !draft.required })}
-                    aria-pressed={!!draft.required}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 8,
-                      padding: 0, background: "transparent", border: "none", cursor: "pointer",
-                      fontFamily: FONTS.body,
-                    }}>
-                    <span style={{
-                      width: 36, height: 22, borderRadius: 999,
-                      background: draft.required ? COLORS.accent : "rgba(11,11,13,0.12)",
-                      position: "relative", flexShrink: 0,
-                    }}>
-                      <span style={{
-                        position: "absolute", top: 2, left: draft.required ? 16 : 2,
-                        width: 18, height: 18, borderRadius: "50%",
-                        background: "#fff", transition: "left 0.15s",
-                      }} />
-                    </span>
-                    <span style={{ fontSize: 12.5, color: COLORS.ink }}>
-                      {draft.required ? "Required to publish" : "Optional"}
-                    </span>
-                  </button>
-                </FieldRow>
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
-                  <button type="button" onClick={() => setAdding(false)} style={{
-                    padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
-                    background: "transparent", color: COLORS.ink,
-                    fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-                  }}>Cancel</button>
-                  <button type="button" onClick={saveAdd} style={{
-                    padding: "8px 14px", borderRadius: 999, border: "none",
-                    background: COLORS.fill, color: "#fff",
-                    fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-                  }}>Add field</button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </Section>
+        </div>
+      )}
     </DrawerShell>
   );
 }
