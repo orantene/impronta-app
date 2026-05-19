@@ -7,6 +7,7 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1 } from "./schema";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
+import { EditorialSplitActions } from "./EditorialSplitActions";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import {
   resolveShellSocialContact,
@@ -14,6 +15,72 @@ import {
   type ShellContactLink,
 } from "@/lib/site-admin/server/shell-social-contact";
 import type { Locale } from "@/i18n/config";
+import { headers } from "next/headers";
+import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import { publicLocaleHref } from "@/i18n/client-directory-href";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getSavedTalentIds } from "@/lib/public-discovery";
+import { resolveAccountHref } from "@/lib/auth-flow";
+
+/**
+ * Phase 6B — the prototype `editorial-split` header has a bespoke right
+ * zone (EN·ES + Saved + Inquiry + ☰ drawer) that the shared auth widgets
+ * can't express. Resolve the SAME real destinations <HeaderAuthArea> uses
+ * (no invented data) and hand them to the dedicated client surface.
+ * Every other variant keeps <HeaderAuthArea> verbatim → zero regression.
+ */
+async function renderRightZone(
+  variant: string | undefined,
+  locale: Locale,
+  primaryCta: { label: string; href: string; external?: boolean } | null,
+  navItems: { label: string; href: string; external?: boolean }[],
+  showAccount: boolean,
+  showLanguage: boolean,
+  showDiscovery: boolean,
+) {
+  if (variant !== "editorial-split") {
+    return showAccount || showLanguage || showDiscovery ? (
+      <HeaderAuthArea
+        locale={locale}
+        showAccountMenu={showAccount}
+        showLanguageToggle={showLanguage}
+        showDiscoveryTools={showDiscovery}
+      />
+    ) : null;
+  }
+  const h = await headers();
+  const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+  const actor = await getCachedActorSession();
+  const account = resolveAccountHref(Boolean(actor.user), actor.profile);
+  const savedIds = await getSavedTalentIds();
+  const isEs = locale === "es";
+  return (
+    <EditorialSplitActions
+      localeHrefs={{
+        en: withLocalePath(pathnameWithoutLocale, "en"),
+        es: withLocalePath(pathnameWithoutLocale, "es"),
+      }}
+      activeLocale={locale}
+      navItems={navItems}
+      primaryCta={primaryCta}
+      directoryHref={publicLocaleHref(pathnameWithoutLocale, "/directory", locale)}
+      accountHref={account.href}
+      accountLabel={account.label}
+      savedCount={savedIds.length}
+      copy={{
+        menu: isEs ? "Menú" : "Menu",
+        close: isEs ? "Cerrar" : "Close",
+        saved: isEs ? "Guardados" : "Saved",
+        inquiry: isEs ? "Tu solicitud" : "Your inquiry",
+        startInquiry: isEs ? "Iniciar solicitud" : "Start an inquiry",
+        exploreTalent: isEs ? "Explorar talento" : "Explore talent",
+        language: isEs ? "Idioma" : "Language",
+      }}
+    />
+  );
+}
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -393,7 +460,6 @@ export async function SiteHeaderComponent({
   const showAccount = authArea?.showAccountMenu ?? true;
   const showLanguage = authArea?.showLanguageToggle ?? true;
   const showDiscovery = authArea?.showDiscoveryTools ?? true;
-  const hasAuthArea = showAccount || showLanguage || showDiscovery;
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const headlineNode = nodePresentation?.headline;
   const primaryCtaNode = nodePresentation?.primaryCta;
@@ -543,14 +609,15 @@ export async function SiteHeaderComponent({
               {primaryCta.label}
             </a>
           ) : null}
-          {hasAuthArea ? (
-            <HeaderAuthArea
-              locale={locale as Locale}
-              showAccountMenu={showAccount}
-              showLanguageToggle={showLanguage}
-              showDiscoveryTools={showDiscovery}
-            />
-          ) : null}
+          {await renderRightZone(
+            variant,
+            locale as Locale,
+            primaryCta ?? null,
+            navItems,
+            showAccount,
+            showLanguage,
+            showDiscovery,
+          )}
         </div>
       </div>
     </header>
