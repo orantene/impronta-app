@@ -2227,6 +2227,7 @@ test("site header renderer applies brand/cta nodePresentation and child node ids
 test("site footer renderer applies brand/tagline nodePresentation and child node ids", () => {
   const props: SiteFooterV1 = {
     brand: { label: "Impronta", tagline: "Built for global operators" },
+    brandDisplay: "image-and-text",
     columns: [],
     social: [],
     legal: { links: [] },

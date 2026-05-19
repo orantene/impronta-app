@@ -55,6 +55,16 @@ export const siteFooterSchemaV1 = z.object({
     logoAlt: z.string().max(160).optional(),
     tagline: z.string().max(240).optional(),
   }),
+  /**
+   * Which brand elements render — mirrors `site_header.brandDisplay`.
+   * `image-and-text` (default) preserves legacy behaviour. `image` =
+   * logo asset only (use when the logo already bakes the wordmark —
+   * avoids a duplicate stacked wordmark, e.g. Impronta's footer).
+   * `text` = wordmark + tagline only. Reusable, tenant-agnostic.
+   */
+  brandDisplay: z
+    .enum(["image", "text", "image-and-text"])
+    .default("image-and-text"),
   /** Up to 5 columns of links. */
   columns: z.array(columnSchema).max(5).default([]),
   /** Social links. Empty array hides the social row. */

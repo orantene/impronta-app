@@ -153,11 +153,17 @@ export async function SiteFooterComponent({
   tenantId,
   builderNodeBindings,
 }: SectionComponentProps<SiteFooterV1>) {
-  const { brand, columns, social, legal, variant, tone, nodePresentation, presentation } = props;
+  const { brand, brandDisplay, columns, social, legal, variant, tone, nodePresentation, presentation } = props;
   const brandLogoUrl = await resolveShellBrandLogoUrl({
     tenantId,
     brandLogoUrl: brand.logoUrl,
   });
+  // Mirror site_header.brandDisplay — lets a tenant whose logo asset
+  // already bakes the wordmark render logo-only (no duplicate stacked
+  // wordmark). Default `image-and-text` = unchanged for every tenant.
+  const bd = brandDisplay ?? "image-and-text";
+  const showFooterImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
+  const showFooterText = bd === "text" || bd === "image-and-text";
   const hasColumns = columns.length > 0;
   const hasSocial = social.length > 0;
   const hasLegal = Boolean(legal.copyright?.trim()) || legal.links.length > 0;
@@ -192,9 +198,9 @@ export async function SiteFooterComponent({
     >
       {responsiveCss ? <style dangerouslySetInnerHTML={{ __html: responsiveCss }} /> : null}
       <div className="site-footer__inner">
-        {(brand.label || brandLogoUrl || brand.tagline) ? (
+        {(showFooterImage || (showFooterText && (brand.label || brand.tagline))) ? (
           <div className="site-footer__brand">
-            {brandLogoUrl ? (
+            {showFooterImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 className="site-footer__brand-mark"
@@ -204,7 +210,7 @@ export async function SiteFooterComponent({
                 decoding="async"
               />
             ) : null}
-            {brand.label ? (
+            {showFooterText && brand.label ? (
               <span
                 className="site-footer__brand-label"
                 data-builder-node-id={nodeIdsByRole?.headline}
@@ -213,7 +219,7 @@ export async function SiteFooterComponent({
                 {brand.label}
               </span>
             ) : null}
-            {brand.tagline ? (
+            {showFooterText && brand.tagline ? (
               <p
                 className="site-footer__tagline"
                 data-builder-node-id={nodeIdsByRole?.copy}

@@ -17,6 +17,7 @@ export function SiteFooterEditor({
 }: SectionEditorProps<SiteFooterV1>) {
   const value: SiteFooterV1 = {
     brand: initial.brand ?? {},
+    brandDisplay: initial.brandDisplay ?? "image-and-text",
     columns: initial.columns ?? [],
     social: initial.social ?? [],
     legal: initial.legal ?? { links: [] },
