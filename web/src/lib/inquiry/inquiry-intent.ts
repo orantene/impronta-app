@@ -333,18 +333,22 @@ export function intentToSubmitInquiryInput(
   const interpreted_query = buildInterpretedQuery(intent);
   const raw_ai_query = intent.brief?.summary?.trim() || null;
 
-  // initiator_role derived from source. Plan §7 mapping:
-  //   admin_created → admin
-  //   pitch          → admin (agency acted on behalf of recipient)
-  //   *              → client (or guest if no user)
+  // initiator_role = direction of initiation. Plan §7 mapping:
+  //   admin_created / pitch → admin (agency acted on behalf of recipient)
+  //   everything else       → client
+  //
+  // Intentionally "client" for unauthenticated guests too — this is NOT a bug.
+  // Guest-vs-authenticated is a separate axis carried by actorUserId /
+  // guest_session_id (surfaced as is_guest in analytics + engine events).
+  // The DB CHECK on inquiries.initiator_role forbids 'guest', and this matches
+  // migration 20260514022934's documented backfill ("ELSE → initiator_role=
+  // 'client'; conservative; matches legacy guest path"). Do not change to "guest".
   const initiator_role: SubmitInquiryInput["initiator_role"] =
     intent.source === "admin_created"
       ? "admin"
       : intent.source === "pitch"
         ? "admin"
-        : ctx.actor_user_id
-          ? "client"
-          : "client"; // Engine treats null actor as guest internally.
+        : "client";
 
   // talent_profile_ids — the canonical list comes from intent.talent.
   // For shortlist sources the IDs typically come pre-resolved from the

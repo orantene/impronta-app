@@ -386,21 +386,25 @@ export function FieldEditor({
     setError(null);
   }, [initialValue]);
 
-  const lastSavedRef = useRef<unknown>(initialValue);
-  const isUnchanged = JSON.stringify(draft) === JSON.stringify(lastSavedRef.current);
+  // State, not a ref: the saved baseline is read during render (isUnchanged
+  // → "· unsaved" hint), and reading ref.current in render violates React's
+  // rules ("Cannot access refs during render"). Updated only on a successful
+  // commit, so the "only changes on save" behavior is unchanged.
+  const [lastSaved, setLastSaved] = useState<unknown>(initialValue);
+  const isUnchanged = JSON.stringify(draft) === JSON.stringify(lastSaved);
 
   const commit = async (next: unknown) => {
-    if (JSON.stringify(next) === JSON.stringify(lastSavedRef.current)) return;
+    if (JSON.stringify(next) === JSON.stringify(lastSaved)) return;
     setStatus("saving");
     setError(null);
     const res = await onSave(next);
     if (res.ok) {
-      lastSavedRef.current = next;
+      setLastSaved(next);
       setStatus("saved");
       setTimeout(() => setStatus(s => (s === "saved" ? "idle" : s)), 1500);
     } else {
       // P0: keep the user's draft so they can correct it. Don't reset to
-      // lastSavedRef. Surface the error prominently below the input —
+      // lastSaved. Surface the error prominently below the input —
       // small status pill alone is too easy to miss.
       setStatus("error");
       setError(res.error ?? "Save failed.");

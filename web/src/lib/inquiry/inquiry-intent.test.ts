@@ -417,9 +417,19 @@ describe("intentToSubmitInquiryInput", () => {
     assert.equal(out.initiator_role, "admin");
   });
 
-  it("PINNED: non-admin/non-pitch source yields initiator_role 'client' for BOTH an actor AND a guest", () => {
-    // This is the current contract — the safety net must catch a refactor
-    // that changes it. See the it.skip below documenting the suspected bug.
+  it("CONTRACT: non-admin/non-pitch source → initiator_role 'client' for BOTH an authenticated actor AND an unauthenticated guest (intentional, not a bug)", () => {
+    // initiator_role is the *direction of initiation* axis, NOT a guest
+    // marker. A null actor (unauthenticated guest) is deliberately "client":
+    //   • the DB CHECK on inquiries.initiator_role forbids 'guest' — the
+    //     INSERT would fail at runtime;
+    //   • guest-vs-authenticated travels on a separate axis (actorUserId /
+    //     guest_session_id → is_guest in analytics + engine events);
+    //   • this matches migration 20260514022934's documented backfill
+    //     ("ELSE → 'client'; conservative; matches legacy guest path").
+    // Previously flagged as a suspected latent bug (Lane E it.skip,
+    // "looks wrong"); confirmed INTENTIONAL 2026-05-19 and the dead no-op
+    // ternary collapsed. This active test locks the contract so it is not
+    // re-"fixed" to "guest" a fourth time.
     const withActor = intentToSubmitInquiryInput(
       { source: "direct_client_dashboard", requester: {} },
       { tenant_id: "t", actor_user_id: "u1" },
@@ -430,20 +440,6 @@ describe("intentToSubmitInquiryInput", () => {
     );
     assert.equal(withActor.initiator_role, "client");
     assert.equal(guest.initiator_role, "client");
-  });
-
-  it.skip("CHARACTERIZATION: looks wrong — reported, not fixed: guest (null actor) initiator_role should arguably be 'guest', not 'client'", () => {
-    // inquiry-intent.ts:340-347 — the ternary is
-    //   ctx.actor_user_id ? "client" : "client"
-    // i.e. a dead no-op branch. The adjacent comment ("Engine treats null
-    // actor as guest internally") suggests the false-branch was intended to
-    // be a guest marker. Pinned current behavior is asserted above; this
-    // skipped test documents the suspected latent bug for the refactor owner.
-    const guest = intentToSubmitInquiryInput(
-      { source: "direct_client_dashboard", requester: {} },
-      { tenant_id: "t", actor_user_id: null },
-    );
-    assert.equal(guest.initiator_role, "guest");
   });
 
   describe("formatEventLocation (reached via the adapter)", () => {
