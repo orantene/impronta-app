@@ -7,6 +7,7 @@
  * section's schema changes shape, update the default here alongside.
  */
 import type { SectionTypeKey } from "../registry";
+import { v11TalentTypeGridPreset } from "../talent_type_grid/presets";
 
 export interface LibraryDefault {
   /** Admin-visible instance name; shown in /sections list + composer dropdowns. */
@@ -70,85 +71,9 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
   },
   talent_type_grid: {
     name: "Talent by discipline — new",
-    props: {
-      eyebrow: "The roster",
-      headline: "Talent, by discipline",
-      subheadline: "",
-      mode: "manual",
-      // DEFAULT seed content only — never hardcoded in the renderer.
-      // Operators replace these or switch to dynamic tenant-roster mode.
-      items: [
-        {
-          label: "Models",
-          description: "Editorial, runway & commercial",
-          icon: "◑",
-          featured: true,
-          imageUrl:
-            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1200&h=1500",
-        },
-        {
-          label: "Hosts & Promo",
-          description: "Brand ambassadors & activations",
-          icon: "✦",
-          imageUrl:
-            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1200&h=760",
-        },
-        {
-          label: "Chefs & Culinary",
-          description: "Private chefs & catering",
-          icon: "✷",
-          imageUrl:
-            "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=72&w=1200&h=760",
-        },
-        {
-          label: "Performers",
-          description: "Dancers, acts & entertainers",
-          icon: "♪",
-          imageUrl:
-            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1200&h=760",
-        },
-        {
-          label: "Wellness & Beauty",
-          description: "Hair, makeup & wellness",
-          icon: "❀",
-          imageUrl:
-            "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&q=72&w=1200&h=760",
-        },
-        {
-          label: "Music & DJs",
-          description: "DJs, bands & live music",
-          icon: "♫",
-          imageUrl:
-            "https://images.unsplash.com/photo-1499364615650-ec38552f4f34?auto=format&fit=crop&q=72&w=1200&h=760",
-        },
-        {
-          label: "Photo, Video & Creative",
-          description: "Photographers & creatives",
-          icon: "◉",
-          imageUrl:
-            "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=72&w=1200&h=760",
-        },
-      ],
-      maxItems: 7,
-      showCta: true,
-      ctaLabel: "Explore",
-      showImages: true,
-      showDescriptions: true,
-      showCardIcons: true,
-      showRailControls: true,
-      seeAllLabel: "See all",
-      seeAllHref: "/directory",
-      desktopLayout: "featured-pod-rail",
-      mobileLayout: "horizontal-scroll",
-      cardRatio: "16/9",
-      textPosition: "overlay-bottom",
-      imageOverlayStrength: "strong",
-      presentation: {
-        background: "espresso",
-        paddingTop: "editorial",
-        paddingBottom: "editorial",
-      },
-    },
+    // DEFAULT seed content only — never hardcoded in the renderer.
+    // Operators replace these or switch to dynamic tenant-roster mode.
+    props: v11TalentTypeGridPreset,
   },
   hero_search: {
     name: "Hero search — new",

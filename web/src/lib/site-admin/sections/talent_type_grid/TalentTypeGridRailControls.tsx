@@ -60,7 +60,16 @@ export function TalentTypeGridRailControls({ targetId }: Props) {
         aria-disabled={atStart ? "true" : undefined}
         disabled={atStart}
       >
-        <span aria-hidden="true">‹</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M15 18l-6-6 6-6"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+        </svg>
       </button>
       <button
         type="button"
@@ -72,7 +81,16 @@ export function TalentTypeGridRailControls({ targetId }: Props) {
         aria-disabled={atEnd ? "true" : undefined}
         disabled={atEnd}
       >
-        <span aria-hidden="true">›</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M9 6l6 6-6 6"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+          />
+        </svg>
       </button>
     </>
   );
