@@ -6,6 +6,7 @@ import {
 } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteFooterV1 } from "./schema";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
@@ -151,9 +152,14 @@ export async function SiteFooterComponent({
   props,
   sectionId,
   tenantId,
+  publicPathPrefix = "",
   builderNodeBindings,
 }: SectionComponentProps<SiteFooterV1>) {
   const { brand, brandDisplay, columns, social, legal, variant, tone, nodePresentation, presentation } = props;
+  // 6C — single-source link resolution (LinkRef object or legacy
+  // string). Deep-prefixer leaves LinkRef.value alone; prefixPublicHref
+  // is idempotent, so legacy + structured both resolve correctly.
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
   const brandLogoUrl = await resolveShellBrandLogoUrl({
     tenantId,
     brandLogoUrl: brand.logoUrl,
@@ -236,18 +242,22 @@ export async function SiteFooterComponent({
               <div key={i} className="site-footer__column">
                 <h3 className="site-footer__column-heading">{col.heading}</h3>
                 <ul className="site-footer__column-list">
-                  {col.links.map((link, j) => (
-                    <li key={j} className="site-footer__column-item">
-                      <a
-                        className="site-footer__column-link"
-                        href={link.href}
-                        target={link.external ? "_blank" : undefined}
-                        rel={link.external ? "noopener noreferrer" : undefined}
-                      >
-                        {link.label}
-                      </a>
-                    </li>
-                  ))}
+                  {col.links.map((link, j) => {
+                    const L = resolveLinkLike(link.href, linkCtx);
+                    const newTab = link.external || L.openInNew;
+                    return (
+                      <li key={j} className="site-footer__column-item">
+                        <a
+                          className="site-footer__column-link"
+                          href={L.href}
+                          target={newTab ? "_blank" : undefined}
+                          rel={newTab ? "noopener noreferrer" : undefined}
+                        >
+                          {link.label}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
@@ -278,13 +288,22 @@ export async function SiteFooterComponent({
             ) : null}
             {legal.links.length > 0 ? (
               <ul className="site-footer__legal-list">
-                {legal.links.map((link, i) => (
-                  <li key={i} className="site-footer__legal-item">
-                    <a className="site-footer__legal-link" href={link.href}>
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
+                {legal.links.map((link, i) => {
+                  const L = resolveLinkLike(link.href, linkCtx);
+                  const newTab = link.external || L.openInNew;
+                  return (
+                    <li key={i} className="site-footer__legal-item">
+                      <a
+                        className="site-footer__legal-link"
+                        href={L.href}
+                        target={newTab ? "_blank" : undefined}
+                        rel={newTab ? "noopener noreferrer" : undefined}
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
           </div>

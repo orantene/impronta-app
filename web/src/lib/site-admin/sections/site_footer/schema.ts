@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { linkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * Phase B.1 — site_footer section.
@@ -20,7 +21,8 @@ import { sectionPresentationSchema } from "../shared/presentation";
 
 const linkSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /** 6C — structured LinkRef; legacy string auto-coerced. */
+  href: linkRefOrLegacy,
   external: z.boolean().optional(),
 });
 
