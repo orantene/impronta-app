@@ -4,9 +4,10 @@ import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
-import { LinkPicker } from "../shared/LinkPicker";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { AltTextField } from "../shared/AltTextField";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { coerceLegacyHref } from "../../links/link-ref";
 import type { CtaBannerV1 } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -102,21 +103,21 @@ export function CtaBannerEditor({
                 primaryCta: e.target.value
                   ? {
                       label: e.target.value,
-                      href: value.primaryCta?.href ?? "/contact",
+                      href:
+                        value.primaryCta?.href ?? coerceLegacyHref("/contact"),
                     }
                   : undefined,
               })
             }
           />
-          <LinkPicker
-            value={value.primaryCta?.href ?? ""}
+          <LinkKindPicker
+            value={value.primaryCta?.href}
+            tenantId={tenantId}
             onChange={(next) =>
               patch({
                 primaryCta: value.primaryCta
                   ? { ...value.primaryCta, href: next }
-                  : next
-                    ? { label: "CTA", href: next }
-                    : undefined,
+                  : { label: "CTA", href: next },
               })
             }
           />
@@ -132,19 +133,20 @@ export function CtaBannerEditor({
                 secondaryCta: e.target.value
                   ? {
                       label: e.target.value,
-                      href: value.secondaryCta?.href ?? "/",
+                      href: value.secondaryCta?.href ?? coerceLegacyHref("/"),
                     }
                   : undefined,
               })
             }
           />
-          <LinkPicker
-            value={value.secondaryCta?.href ?? ""}
+          <LinkKindPicker
+            value={value.secondaryCta?.href}
+            tenantId={tenantId}
             onChange={(next) =>
               patch({
                 secondaryCta: value.secondaryCta
                   ? { ...value.secondaryCta, href: next }
-                  : undefined,
+                  : { label: "CTA", href: next },
               })
             }
           />

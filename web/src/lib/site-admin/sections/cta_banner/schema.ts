@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { pgUuidSchema } from "../../validators";
+import { linkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * CTA banner — the emotional conversion block that usually lives right
@@ -14,7 +15,13 @@ import { pgUuidSchema } from "../../validators";
 
 const ctaSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /**
+   * 6C — structured LinkRef. `linkRefOrLegacy` accepts BOTH a LinkRef
+   * object (new editor writes) AND a legacy href string (existing
+   * snapshots/recipes), coercing the string so nothing breaks. The
+   * Component resolves it via `resolveLinkLike`.
+   */
+  href: linkRefOrLegacy,
 });
 
 export const ctaBannerSchemaV1 = z.object({
