@@ -4520,6 +4520,59 @@ html[data-theme="dark"] [data-tone="light"] {
   background: color-mix(in srgb, var(--token-color-accent, var(--token-color-ink)) 12%, transparent) !important;
   border-color: var(--token-color-accent, var(--token-color-ink)) !important;
 }
+/* Right-side utilities → the prototype's tight `.acct` row of `.ai-ic`
+ * icon buttons + `.loc` language toggle. The auth widgets are shared
+ * components reused app-wide, so we restyle them in-place via scoped
+ * CSS only (no component changes, no risk to other surfaces). */
+.site-header[data-variant="editorial-split"] .site-header__auth {
+  gap: 0.3rem !important;
+  align-items: center;
+}
+/* icon buttons/links (contain an svg) → square, muted, hover gold-soft */
+.site-header[data-variant="editorial-split"] .site-header__auth button:has(svg),
+.site-header[data-variant="editorial-split"] .site-header__auth a:has(svg),
+.site-header[data-variant="editorial-split"] .site-header__auth [role="button"]:has(svg) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0 !important;
+  border-radius: 3px !important;
+  background: none !important;
+  border: 1px solid transparent !important;
+  color: var(--token-color-muted, color-mix(in srgb, var(--token-color-ink) 60%, transparent)) !important;
+  box-shadow: none !important;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.site-header[data-variant="editorial-split"] .site-header__auth button:has(svg):hover,
+.site-header[data-variant="editorial-split"] .site-header__auth a:has(svg):hover,
+.site-header[data-variant="editorial-split"] .site-header__auth [role="button"]:has(svg):hover {
+  color: var(--token-color-accent, var(--token-color-ink)) !important;
+  background: color-mix(in srgb, var(--token-color-accent, var(--token-color-ink)) 8%, transparent) !important;
+  border-color: color-mix(in srgb, var(--token-color-accent, var(--token-color-ink)) 28%, transparent) !important;
+}
+.site-header[data-variant="editorial-split"] .site-header__auth svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.6;
+}
+/* language toggle (text buttons, no svg) → tight `.loc` register */
+.site-header[data-variant="editorial-split"] .site-header__auth button:not(:has(svg)) {
+  background: none !important;
+  border: 0 !important;
+  padding: 0.3rem 0.35rem !important;
+  font-size: 0.66rem !important;
+  letter-spacing: 0.14em !important;
+  color: var(--token-color-muted, color-mix(in srgb, var(--token-color-ink) 55%, transparent)) !important;
+  text-transform: uppercase;
+}
+.site-header[data-variant="editorial-split"] .site-header__auth button:not(:has(svg)):hover,
+.site-header[data-variant="editorial-split"] .site-header__auth button:not(:has(svg))[aria-pressed="true"],
+.site-header[data-variant="editorial-split"] .site-header__auth button:not(:has(svg)).is-active {
+  color: var(--token-color-accent, var(--token-color-ink)) !important;
+}
 /* Flat social/contact cluster — matches the prototype's `.si`: no pill,
  * just muted glyphs that warm to the accent on hover. Overrides the
  * default round bordered button used by other variants. */
