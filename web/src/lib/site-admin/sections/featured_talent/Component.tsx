@@ -5,7 +5,7 @@ import type { SectionComponentProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 import { fetchFeaturedTalentForSection } from "./fetch";
 import { FeaturedTalentCard } from "./FeaturedTalentCard";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { CSSProperties } from "react";
 
 import "./featured-talent.css";
@@ -327,6 +327,9 @@ export async function FeaturedTalentComponent({
   const ctaAlign = nodePresentation.footerCta?.align;
   const footerCtaInHeader = footerCta && !isV11Showcase;
   const footerCtaBelow = footerCta && isV11Showcase;
+  // 6C — single-source link resolution (LinkRef object or legacy
+  // string; auth routes stay root, tenant pages prefix-aware).
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
   const rosterAddHref = publicPathPrefix
     ? `${publicPathPrefix}/admin/roster/new`
     : "/admin/roster/new";
@@ -614,7 +617,7 @@ export async function FeaturedTalentComponent({
             </div>
             {footerCtaInHeader ? (
               <a
-                href={prefixPublicHref(footerCta.href ?? "/", publicPathPrefix ?? "")}
+                href={resolveLinkLike(footerCta.href, linkCtx).href}
                 className="site-btn site-btn--outline site-btn--sm site-featured-talent__cta"
                 data-builder-node-id={nodeIdsByRole?.footerCta}
                 style={{
@@ -701,7 +704,10 @@ export async function FeaturedTalentComponent({
                 display={cardDisplay}
                 requestCta={
                   requestCta
-                    ? { label: requestCta.label, href: requestCta.href }
+                    ? {
+                        label: requestCta.label,
+                        href: resolveLinkLike(requestCta.href, linkCtx).href,
+                      }
                     : null
                 }
               />
@@ -726,7 +732,7 @@ export async function FeaturedTalentComponent({
         {footerCtaBelow ? (
           <div className="site-featured-talent__footer">
             <a
-              href={prefixPublicHref(footerCta.href ?? "/", publicPathPrefix ?? "")}
+              href={resolveLinkLike(footerCta.href, linkCtx).href}
               className="site-btn site-btn--outline site-btn--sm site-featured-talent__cta"
               data-builder-node-id={nodeIdsByRole?.footerCta}
               style={{

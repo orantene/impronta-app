@@ -3,7 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
-import { LinkPicker } from "../shared/LinkPicker";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { coerceLegacyHref } from "../../links/link-ref";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
   searchTenantTalent,
@@ -354,7 +355,7 @@ export function FeaturedTalentEditor({
                 footerCta: e.target.value
                   ? {
                       label: e.target.value,
-                      href: value.footerCta?.href ?? "/directory",
+                      href: value.footerCta?.href ?? coerceLegacyHref("/directory"),
                     }
                   : undefined,
               })
@@ -363,15 +364,13 @@ export function FeaturedTalentEditor({
         </label>
         <div className={FIELD}>
           <span className={LABEL}>Footer CTA href</span>
-          <LinkPicker
-            value={value.footerCta?.href ?? ""}
+          <LinkKindPicker
+            value={value.footerCta?.href}
             onChange={(next) =>
               patch({
                 footerCta: value.footerCta
                   ? { ...value.footerCta, href: next }
-                  : next
-                    ? { label: "Explore the collective", href: next }
-                    : undefined,
+                  : { label: "Explore the collective", href: next },
               })
             }
           />
@@ -464,7 +463,7 @@ export function FeaturedTalentEditor({
                 requestCta: e.target.value
                   ? {
                       label: e.target.value,
-                      href: value.requestCta?.href ?? "/inquiry/new",
+                      href: value.requestCta?.href ?? coerceLegacyHref("/inquiry/new"),
                     }
                   : undefined,
               })
@@ -473,15 +472,13 @@ export function FeaturedTalentEditor({
         </label>
         <div className={FIELD}>
           <span className={LABEL}>Request CTA href</span>
-          <LinkPicker
-            value={value.requestCta?.href ?? ""}
+          <LinkKindPicker
+            value={value.requestCta?.href}
             onChange={(next) =>
               patch({
                 requestCta: value.requestCta
                   ? { ...value.requestCta, href: next }
-                  : next
-                    ? { label: "Request", href: next }
-                    : undefined,
+                  : { label: "Request", href: next },
               })
             }
           />
