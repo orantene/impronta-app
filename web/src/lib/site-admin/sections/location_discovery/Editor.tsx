@@ -1,7 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
-import { LinkPicker } from "../shared/LinkPicker";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
 import type { SectionEditorProps } from "../types";
 import type { LocationDiscoveryV1, LocationDiscoveryItem } from "./schema";
 
@@ -24,7 +24,7 @@ export function LocationDiscoveryEditor({
     showCount: initial.showCount,
     showMap: initial.showMap,
     ctaLabel: initial.ctaLabel ?? "",
-    ctaHref: initial.ctaHref ?? "",
+    ctaHref: initial.ctaHref,
     layout: initial.layout ?? "grid",
     emptyStateText: initial.emptyStateText ?? "",
     presentation: initial.presentation,
@@ -169,11 +169,9 @@ export function LocationDiscoveryEditor({
                 value={it.region ?? ""}
                 onChange={(e) => setItem(i, { region: e.target.value })}
               />
-              <input
-                className={INPUT}
-                placeholder="Link href (optional → defaults to /directory)"
-                value={it.href ?? ""}
-                onChange={(e) => setItem(i, { href: e.target.value })}
+              <LinkKindPicker
+                value={it.href}
+                onChange={(next) => setItem(i, { href: next })}
               />
               <input
                 className={INPUT}
@@ -226,8 +224,8 @@ export function LocationDiscoveryEditor({
         </label>
         <div className={FIELD}>
           <span className={LABEL}>Section CTA href</span>
-          <LinkPicker
-            value={value.ctaHref ?? ""}
+          <LinkKindPicker
+            value={value.ctaHref}
             onChange={(next) => patch({ ctaHref: next })}
           />
         </div>

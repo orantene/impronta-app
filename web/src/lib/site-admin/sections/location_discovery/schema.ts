@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { optionalLinkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * location_discovery — "Local faces, international reach" block.
@@ -23,7 +24,8 @@ import { sectionPresentationSchema } from "../shared/presentation";
 const locationItemSchema = z.object({
   label: z.string().min(1).max(80),
   region: z.string().max(80).optional(),
-  href: z.string().max(500).optional(),
+  /** 6C — structured LinkRef; legacy string auto-coerced. */
+  href: optionalLinkRefOrLegacy,
   /** Manual count override (manual mode). */
   count: z.number().int().min(0).max(100000).optional(),
 });
@@ -44,8 +46,8 @@ export const locationDiscoverySchemaV1 = z.object({
   showMap: z.boolean().optional(),
 
   ctaLabel: z.string().max(40).optional(),
-  /** Section-level CTA href (e.g. browse all). */
-  ctaHref: z.string().max(500).optional(),
+  /** Section-level CTA link (e.g. browse all). 6C — structured LinkRef. */
+  ctaHref: optionalLinkRefOrLegacy,
 
   layout: z.enum(["grid", "list", "compact"]).default("grid"),
   emptyStateText: z.string().max(240).optional(),
