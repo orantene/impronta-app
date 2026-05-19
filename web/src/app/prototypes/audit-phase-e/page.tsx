@@ -435,7 +435,7 @@ roster.items.forEach((talent) => {
             headline: "Tell us what you're building.",
             copy: "We'll come back the same day with a casting note, a fee range, and a date that works.",
             reassurance: "We answer within 24 hours, calendar-aware.",
-            primaryCta: { href: "/contact", label: "Start a request" },
+            primaryCta: { href: { kind: "tenant-page", value: "/contact" }, label: "Start a request" },
             overlayOpacity: 45,
             variant: "centered-overlay",
             imageSide: "right",

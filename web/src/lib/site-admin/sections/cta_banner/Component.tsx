@@ -3,6 +3,7 @@ import { buildNodePresentationResponsiveCss } from "../shared/node-presentation"
 import { renderInlineRich } from "../shared/rich-text";
 import { Cta } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { CtaBannerV1 } from "./schema";
 import type { CSSProperties } from "react";
 
@@ -250,6 +251,8 @@ function justifyDeclFromAlign(align?: "left" | "center" | "right"): string[] {
 export function CtaBannerComponent({
   props,
   sectionId,
+  tenantId,
+  publicPathPrefix,
   builderNodeBindings,
 }: SectionComponentProps<CtaBannerV1>) {
   const {
@@ -268,6 +271,17 @@ export function CtaBannerComponent({
     insetCard,
     presentation,
   } = props;
+
+  // 6C — resolve CTA LinkRefs through the single source of truth.
+  // robust whether props arrive as a LinkRef object (new editor writes)
+  // or a raw legacy string (existing snapshots): resolveLinkLike coerces.
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const primaryLink = primaryCta
+    ? resolveLinkLike(primaryCta.href, linkCtx)
+    : null;
+  const secondaryLink = secondaryCta
+    ? resolveLinkLike(secondaryCta.href, linkCtx)
+    : null;
 
   const overlayPct = Math.max(0, Math.min(100, overlayOpacity ?? 45));
   const hasBackground =
@@ -590,7 +604,8 @@ export function CtaBannerComponent({
             >
               {primaryCta ? (
                 <Cta
-                  href={primaryCta.href}
+                  href={primaryLink?.href ?? "#"}
+                  newTab={primaryLink?.openInNew}
                   variant="primary"
                   builderNodeId={nodeIdsByRole?.primaryCta}
                   style={{
@@ -661,7 +676,8 @@ export function CtaBannerComponent({
               ) : null}
               {secondaryCta ? (
                 <Cta
-                  href={secondaryCta.href}
+                  href={secondaryLink?.href ?? "#"}
+                  newTab={secondaryLink?.openInNew}
                   variant="secondary"
                   builderNodeId={nodeIdsByRole?.secondaryCta}
                   style={{

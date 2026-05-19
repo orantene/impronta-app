@@ -173,8 +173,8 @@ test("cta banner renderer applies nodePresentation styles to copy and CTAs", () 
     eyebrow: "Ready when you are",
     headline: "Ready to lock your date?",
     copy: "Share your scope and get a curated lineup within minutes.",
-    primaryCta: { label: "Request availability", href: "/inquiry" },
-    secondaryCta: { label: "See pricing", href: "/pricing" },
+    primaryCta: { label: "Request availability", href: { kind: "tenant-page", value: "/inquiry" } },
+    secondaryCta: { label: "See pricing", href: { kind: "tenant-page", value: "/pricing" } },
     nodePresentation: {
       subheadline: {
         align: "left",
@@ -1874,7 +1874,7 @@ test("hero renderer emits responsive css for nodePresentation breakpoints", () =
 test("cta banner renderer emits responsive css for CTA spacing overrides", () => {
   const props: CtaBannerV1 = {
     headline: "CTA spacing responsive",
-    primaryCta: { label: "Book now", href: "/book" },
+    primaryCta: { label: "Book now", href: { kind: "tenant-page", value: "/book" } },
     nodePresentation: {
       primaryCta: {
         breakpoints: {
