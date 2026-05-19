@@ -154,7 +154,13 @@ export function coerceLegacyHref(hrefRaw: string | null | undefined): LinkRef {
  */
 export const linkRefOrLegacy = z
   .union([linkRefSchema, z.string()])
-  .transform((v): LinkRef => (typeof v === "string" ? coerceLegacyHref(v) : v));
+  .transform((v): LinkRef => (typeof v === "string" ? coerceLegacyHref(v) : v))
+  // 6C — `@linkref` marker so the auto-bound `ZodSchemaForm` inspector
+  // (zod-introspect) renders a structured `LinkKindPicker` for this
+  // field instead of the legacy string `LinkPicker`. Inert for
+  // hand-written editors + parsing; metadata only. Mirrors the existing
+  // `@rich` describe-marker convention.
+  .describe("@linkref");
 
 /** Same, but optional (for optional CTA fields). */
 export const optionalLinkRefOrLegacy = linkRefOrLegacy.optional();
