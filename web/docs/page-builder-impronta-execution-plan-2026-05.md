@@ -2762,3 +2762,58 @@ governance; integration/that agent must resolve it. All 6C-owned files
 are tsc-clean.
 
 *End 6C status 2 — 2026-05-19.*
+
+---
+
+## ✅✅ 6C COMPLETE — 2026-05-19 (shared-kit phase shipped)
+
+**Phase 6C is fully done.** Every link-bearing section AND every editor
+surface (hand-written · ZodSchemaForm auto-bound · bespoke kit
+inspector) now uses the structured `LinkRef` model + single-source
+`resolveLinkRef`. The global Finding-B fix is verified live across body
+sections + shell.
+
+Shared-kit phase commits (all local-only — no push/Vercel):
+
+| Part | What | Commit |
+|------|------|--------|
+| A | `ZodSchemaForm` `@linkref`→`kind:"link_ref"`→`LinkKindPicker` (precise; plain z.string() href untouched) | `c8f7d3b3e` |
+| C | `site_footer` schema+Component (columns/legal) | `b9e3638a4` |
+| D | `site_header` schema+Component (nav/primaryCta/brand; renderRightZone+EditorialSplitActions keep string interface via boundary-resolve) | `9bc554fed` |
+| E | `anchor_nav` schema+Component | `8addd5519` |
+| B | `CtaDuoEditor` (kit) → `LinkKindPicker`; `CtaShape.href: LinkRef\|string` | `e24f20a79` |
+
+Key architecture notes (so it isn't re-derived):
+- `PublishedShell.tsx:258` **already passes** `publicPathPrefix` to shell
+  Comps — no shared-infra plumbing was needed. The deep-prefixer
+  (`prefixPublicHrefsDeep`) only rewrites string `href`-keyed values;
+  `LinkRef.value` is under a `value` key → untouched. `prefixPublicHref`
+  is idempotent. So legacy-string AND structured LinkRef both resolve
+  correctly through the unchanged pipeline.
+- `socialLinks.href` / `contactLinks.value` (shell) deliberately stay
+  strings — external / `tel:` / `mailto:`, `EXTERNAL_OR_SPECIAL_HREF`
+  guard, zero Finding-B relevance. `ZodSchemaForm` renders them with the
+  legacy string `LinkPicker` (the `hint:"href"` branch) while migrated
+  fields get `LinkKindPicker` — precise, no collateral.
+- Bespoke inspectors (featured-talent/hero/talent-type-grid -content)
+  are loosely typed `Record<string,unknown>` + casts → CtaShape widening
+  caused zero tsc fallout.
+
+Final certification gate (authoritative — dev stopped + `.next`
+cleared): **tsc 0 whole-tree** · **eslint 0 errors** · resolve-link-ref
+**17/17** · node-presentation **94/96** (the 2 = the documented
+pre-existing #43/#44 async-`renderToStaticMarkup` harness limitation;
+their fixtures are now LinkRef-shaped + tsc-valid — NOT 6C regressions).
+DOM-verified on `/impronta`: body sections + header + footer all resolve
+tenant paths prefixed, `/login`+`/register` ROOT, zero `/impronta/<auth>`.
+
+Pre-existing/baseline (NOT 6C): builder-capabilities #11/#14/#15 fail
+with `Cannot find module 'server-only'` (tsx --test harness/env) —
+verified identical with all 6C work stashed. The earlier
+`onboard-directory-page.ts` locale error has cleared from the tree.
+
+**Nothing pushed or deployed** (per standing instruction). Branch is
+local-ahead of `origin/phase-1`; integration (rebase + re-verify) is a
+pre-push step, owner-gated.
+
+*End — 6C COMPLETE 2026-05-19.*
