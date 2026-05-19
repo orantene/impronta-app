@@ -90,8 +90,8 @@ test("hero renderer applies nodePresentation styles to headline/subheadline/ctas
   const props: HeroV1 = {
     headline: "Editorial teams for destination weddings",
     subheadline: "Book fast with scoped availability and direct confirmation",
-    primaryCta: { label: "Start booking", href: "/book" },
-    secondaryCta: { label: "Explore roster", href: "/directory" },
+    primaryCta: { label: "Start booking", href: { kind: "tenant-page", value: "/book" } },
+    secondaryCta: { label: "Explore roster", href: { kind: "tenant-page", value: "/directory" } },
     nodePresentation: {
       headline: {
         align: "left",

@@ -7,6 +7,8 @@ import { MediaPicker } from "../shared/MediaPicker";
 import { AltTextField } from "../shared/AltTextField";
 import { BlueprintPicker } from "../shared/BlueprintPicker";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { coerceLegacyHref } from "../../links/link-ref";
 import type { HeroSlide, HeroV1 } from "./schema";
 
 type OverlayFlavor = NonNullable<HeroV1["overlay"]>;
@@ -125,7 +127,7 @@ export function HeroEditor({
     } else {
       chips[index] = {
         label: next.label.trim(),
-        href: next.href?.trim() || undefined,
+        href: next.href || undefined,
       };
     }
     commit({ ...state, categoryChips: chips.length > 0 ? chips : undefined });
@@ -254,7 +256,10 @@ export function HeroEditor({
                   ...state,
                   categoryChips: [
                     ...(state.categoryChips ?? []),
-                    { label: "New category", href: "/directory" },
+                    {
+                      label: "New category",
+                      href: coerceLegacyHref("/directory"),
+                    },
                   ],
                 })
               }
@@ -280,14 +285,10 @@ export function HeroEditor({
                       patchCategoryChip(index, { label: e.target.value })
                     }
                   />
-                  <input
-                    className={INPUT}
-                    value={chip.href ?? ""}
-                    maxLength={500}
-                    aria-label={`Category chip ${index + 1} path`}
-                    placeholder="/directory"
-                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      patchCategoryChip(index, { href: e.target.value })
+                  <LinkKindPicker
+                    value={chip.href}
+                    onChange={(next) =>
+                      patchCategoryChip(index, { href: next })
                     }
                   />
                   <button
