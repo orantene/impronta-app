@@ -284,33 +284,97 @@ test(
 );
 
 test(
-  "getTenantPortalScopeBySlug resolves a tenant via the SERVICE-ROLE client (RLS bypass) with NO caller-relationship proof",
-  {
-    skip:
-      "SECURITY FLAG: getTenantPortalScopeBySlug uses createServiceRoleClient() " +
-      "(bypasses RLS) and returns tenant scope for ANY non-cancelled/archived " +
-      "agency slug, with no proof the caller has a client/talent relationship to " +
-      "that tenant. This is documented as intentional ('portal routes prove " +
-      "access later via agency_client_relationships / agency_talent_roster'), but " +
-      "it is a latent cross-tenant-read primitive: every caller MUST enforce the " +
-      "downstream relationship check, and nothing in this module structurally " +
-      "guarantees they do. Flagged so the contract is explicit and any new caller " +
-      "is forced to re-read it.",
-  },
+  "getTenantPortalScopeBySlug proves a caller-relationship (host context OR membership/talent/client row) inside the helper [HARDENED 2026-05-19]",
   () => {
     const fn = SCOPE_SRC.slice(
       SCOPE_SRC.indexOf("export const getTenantPortalScopeBySlug"),
       SCOPE_SRC.indexOf("export async function resolveTenantFromHost"),
     );
     assert.ok(fn.length > 0, "getTenantPortalScopeBySlug located");
-    // Current behaviour: service-role lookup, only an agency-status gate, no
-    // caller-relationship proof inside this helper.
-    assert.match(fn, /createServiceRoleClient\(\)/, "uses the RLS-bypassing service-role client");
+    // Service-role lookup + agency-status gate retained (resolution still
+    // bypasses RLS — the new check is layered on top, not a replacement).
+    assert.match(fn, /createServiceRoleClient\(\)/, "still uses service-role for the slug→tenant lookup");
     assert.match(fn, /status === "cancelled" \|\| .*status === "archived"/);
-    assert.doesNotMatch(
+    // HARDENING: the helper now calls the relationship-proof helper before
+    // returning the scope, and emits a structured security log + null on
+    // rejection. (The relationship-proof helper itself queries
+    // agency_memberships / agency_client_relationships / agency_talent_roster
+    // — pinned by the dedicated invariants below.)
+    assert.match(
       fn,
-      /agency_client_relationships|agency_talent_roster|agency_memberships/,
-      "no caller-relationship proof inside this helper — it is delegated to callers",
+      /callerHasRelationshipToTenant\(admin, data\.id\)/,
+      "relationship proof is invoked inside the helper, not delegated to callers",
+    );
+    assert.match(
+      fn,
+      /security\.portal_scope_unrelated_caller/,
+      "rejected callers must emit a structured security audit line",
+    );
+    assert.match(
+      fn,
+      /if \(!related\) \{[\s\S]*?return null;\s*\}/,
+      "no-relationship branch returns null (no scope leak)",
     );
   },
 );
+
+test("INVARIANT callerHasRelationshipToTenant: accepts matching public host context (agency/hub) without an authed user", () => {
+  // The host-context check is the only allow path for anonymous callers; if
+  // middleware bound this same tenantId via verified agency_domains, the host
+  // is itself the relationship proof.
+  const helper = SCOPE_SRC.slice(
+    SCOPE_SRC.indexOf("async function callerHasRelationshipToTenant"),
+    SCOPE_SRC.length,
+  );
+  assert.ok(helper.length > 0, "callerHasRelationshipToTenant located");
+  assert.match(helper, /getPublicHostContext\(\)/, "reads the verified host context");
+  assert.match(
+    helper,
+    /hostContext\.kind === "agency" \|\| hostContext\.kind === "hub"/,
+    "only the tenant-bound kinds count as proof",
+  );
+  assert.match(
+    helper,
+    /hostContext\.tenantId === tenantId/,
+    "host must match the resolved tenantId — not a different tenant",
+  );
+});
+
+test("INVARIANT callerHasRelationshipToTenant: signed-in path checks all three relationship tables, scoped by tenantId AND actor", () => {
+  const helper = SCOPE_SRC.slice(
+    SCOPE_SRC.indexOf("async function callerHasRelationshipToTenant"),
+    SCOPE_SRC.length,
+  );
+  assert.match(helper, /getCachedActorSession\(\)/, "resolves the actor via the cached session");
+  assert.match(helper, /if \(!userId\) return false;/, "anonymous + no host match → deny");
+  // Each relationship table: queried with BOTH tenant_id AND user-key filters.
+  // (Pinning the AND keeps a future refactor from accidentally widening the
+  // existence check across tenants.)
+  for (const table of [
+    "agency_memberships",
+    "client_profiles",
+    "agency_client_relationships",
+    "talent_profiles",
+    "agency_talent_roster",
+  ]) {
+    assert.ok(
+      helper.includes(`"${table}"`),
+      `relationship helper must query ${table}`,
+    );
+  }
+  assert.match(
+    helper,
+    /\.from\("agency_memberships"\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?\.eq\("user_id", userId\)/,
+    "agency_memberships scoped by tenant_id AND user_id",
+  );
+  assert.match(
+    helper,
+    /\.from\("agency_client_relationships"\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?client_profile_id/,
+    "agency_client_relationships scoped by tenant_id AND client_profile_id",
+  );
+  assert.match(
+    helper,
+    /\.from\("agency_talent_roster"\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?talent_profile_id/,
+    "agency_talent_roster scoped by tenant_id AND talent_profile_id",
+  );
+});

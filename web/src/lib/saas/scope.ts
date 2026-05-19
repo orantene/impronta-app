@@ -169,8 +169,21 @@ export type TenantPortalScope = {
  *
  * Staff/admin routes must keep using getTenantScopeBySlug(), which proves an
  * agency_memberships row. Client and talent portal routes prove access later
- * through agency_client_relationships or agency_talent_roster, so they only
- * need a trusted slug -> tenant lookup here.
+ * through agency_client_relationships or agency_talent_roster — but this
+ * helper ALSO performs a defence-in-depth caller-relationship proof inside
+ * itself (SECURITY S1, 2026-05-19): after the slug resolves, we require ONE of
+ *   (a) the public host context already bound this same tenant (the actor is
+ *       browsing on this brand's own verified domain — host == proof);
+ *   (b) a signed-in actor with an `agency_memberships` row in this tenant
+ *       (staff);
+ *   (c) a signed-in actor with a `talent_profiles` → `agency_talent_roster`
+ *       row in this tenant (talent);
+ *   (d) a signed-in actor with a `client_profiles` →
+ *       `agency_client_relationships` row in this tenant (client).
+ * Anything else returns null + emits a structured `security.*` log line.
+ * Callers SHOULD keep their existing per-role checks
+ * (loadClientSelfProfile / loadTalentSelfProfile / etc.) — this is
+ * defence-in-depth, not a replacement.
  */
 export const getTenantPortalScopeBySlug = cache(
   async (slug: string): Promise<TenantPortalScope | null> => {
@@ -197,6 +210,15 @@ export const getTenantPortalScopeBySlug = cache(
         return null;
       }
 
+      const related = await callerHasRelationshipToTenant(admin, data.id);
+      if (!related) {
+        void improntaLog("security.portal_scope_unrelated_caller", {
+          attempted_slug: normalized,
+          attempted_tenant_id: data.id,
+        });
+        return null;
+      }
+
       return {
         tenantId: data.id,
         slug: data.slug,
@@ -209,6 +231,92 @@ export const getTenantPortalScopeBySlug = cache(
     }
   },
 );
+
+/**
+ * Internal helper for {@link getTenantPortalScopeBySlug}. Returns true iff the
+ * current request has a proven relationship to `tenantId` via one of:
+ *   - matching public host context (anonymous browsing on this brand's host);
+ *   - `agency_memberships` row (staff);
+ *   - `agency_talent_roster` row via `talent_profiles` (talent);
+ *   - `agency_client_relationships` row via `client_profiles` (client).
+ *
+ * Uses the service-role client to bypass RLS for the existence checks (the
+ * relationship rows themselves are the authorisation oracle — RLS on the
+ * member tables would otherwise hide a valid relationship from itself).
+ */
+async function callerHasRelationshipToTenant(
+  admin: SupabaseClient,
+  tenantId: string,
+): Promise<boolean> {
+  // (a) Public host context — middleware proved the host against the
+  // `agency_domains` verified table; if it bound this same tenant, the host
+  // itself is the relationship proof and we don't need an authed user.
+  try {
+    const hostContext = await getPublicHostContext();
+    if (
+      (hostContext.kind === "agency" || hostContext.kind === "hub") &&
+      hostContext.tenantId === tenantId
+    ) {
+      return true;
+    }
+  } catch {
+    // headers() can throw outside a request scope (build, tests).
+  }
+
+  // (b–d) Signed-in actor — try cheapest membership check first, then the
+  // role-specific relationship tables. Each check is a single indexed lookup.
+  let userId: string | null = null;
+  try {
+    const session = await getCachedActorSession();
+    userId = session.user?.id ?? null;
+  } catch {
+    userId = null;
+  }
+  if (!userId) return false;
+
+  const { data: membership } = await admin
+    .from("agency_memberships")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  if (membership) return true;
+
+  const { data: clientProfile } = await admin
+    .from("client_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (clientProfile && (clientProfile as { id: string }).id) {
+    const { data: clientRel } = await admin
+      .from("agency_client_relationships")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("client_profile_id", (clientProfile as { id: string }).id)
+      .limit(1)
+      .maybeSingle();
+    if (clientRel) return true;
+  }
+
+  const { data: talentProfile } = await admin
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (talentProfile && (talentProfile as { id: string }).id) {
+    const { data: talentRoster } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", (talentProfile as { id: string }).id)
+      .limit(1)
+      .maybeSingle();
+    if (talentRoster) return true;
+  }
+
+  return false;
+}
 
 /**
  * Phase 4 stub — resolves a tenant from a hostname. Used by storefront
