@@ -3826,8 +3826,8 @@ a.site-prim-chip:hover { border-color: var(--token-color-primary, #1a1a1a); colo
 }
 .site-tt-grid[data-tt-desktop="featured-pod-rail"] .site-prim-container--wide,
 .site-tt-grid[data-tt-desktop="horizontal-rail"] .site-prim-container--wide {
-  width: min(1760px, 100%);
-  padding-inline: clamp(24px, 4vw, 78px);
+  width: 100%;
+  padding-inline: clamp(24px, 3.25vw, 68px);
 }
 .site-tt-grid__head {
   display: flex;
@@ -3893,7 +3893,7 @@ a.site-prim-chip:hover { border-color: var(--token-color-primary, #1a1a1a); colo
 .site-tt-grid[data-tt-desktop="featured-pod-rail"] .site-tt-grid__grid {
   grid-auto-flow: column;
   grid-template-rows: repeat(3, 1fr);
-  grid-auto-columns: clamp(18rem, 27vw, 36rem);
+  grid-auto-columns: minmax(16rem, calc((100% - 2rem) / 3));
   gap: 1rem;
   height: clamp(37rem, 58vh, 43rem);
   padding-bottom: 2px;
