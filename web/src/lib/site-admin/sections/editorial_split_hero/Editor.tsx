@@ -1,7 +1,8 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
-import { LinkPicker } from "../shared/LinkPicker";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { coerceLegacyHref } from "../../links/link-ref";
 import type { SectionEditorProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
 
@@ -50,7 +51,7 @@ export function EditorialSplitHeroEditor({
               [key]: e.target.value
                 ? {
                     label: e.target.value,
-                    href: value[key]?.href ?? "/directory",
+                    href: value[key]?.href ?? coerceLegacyHref("/directory"),
                   }
                 : undefined,
             } as Partial<EditorialSplitHeroV1>)
@@ -58,16 +59,14 @@ export function EditorialSplitHeroEditor({
         />
       </label>
       <div className={FIELD}>
-        <span className={LABEL}>{label} href</span>
-        <LinkPicker
-          value={value[key]?.href ?? ""}
+        <span className={LABEL}>{label} link</span>
+        <LinkKindPicker
+          value={value[key]?.href}
           onChange={(next) =>
             patch({
               [key]: value[key]
                 ? { ...value[key]!, href: next }
-                : next
-                  ? { label, href: next }
-                  : undefined,
+                : { label, href: next },
             } as Partial<EditorialSplitHeroV1>)
           }
         />

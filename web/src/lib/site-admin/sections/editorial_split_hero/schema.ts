@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { linkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * editorial_split_hero — two-column editorial hero ("Discover premium
@@ -17,7 +18,8 @@ import { sectionPresentationSchema } from "../shared/presentation";
 
 const ctaSchema = z.object({
   label: z.string().min(1).max(60),
-  href: z.string().min(1).max(500),
+  /** 6C — structured LinkRef; legacy string href auto-coerced. */
+  href: linkRefOrLegacy,
 });
 
 export const editorialSplitHeroSchemaV1 = z.object({
