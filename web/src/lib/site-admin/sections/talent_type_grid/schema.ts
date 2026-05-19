@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { optionalLinkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * talent_type_grid — "Talent, by discipline" block.
@@ -28,8 +29,9 @@ const cardItemSchema = z.object({
   imageAlt: z.string().max(200).optional(),
   /** Optional taxonomy_term id → builds the directory filter link. */
   taxonomyTermId: z.string().max(64).optional(),
-  /** Explicit link override (else derived from taxonomyTermId). */
-  href: z.string().max(500).optional(),
+  /** Explicit link override (else derived from taxonomyTermId).
+   *  6C — structured LinkRef; legacy string auto-coerced. */
+  href: optionalLinkRefOrLegacy,
   /** Makes this card the large featured pod in rail/pod layouts. */
   featured: z.boolean().optional(),
 });
@@ -52,7 +54,7 @@ export const talentTypeGridSchemaV1 = z.object({
   showCta: z.boolean().optional(),
   ctaLabel: z.string().max(40).optional(),
   seeAllLabel: z.string().max(40).optional(),
-  seeAllHref: z.string().max(500).optional(),
+  seeAllHref: optionalLinkRefOrLegacy,
 
   desktopLayout: z
     .enum([

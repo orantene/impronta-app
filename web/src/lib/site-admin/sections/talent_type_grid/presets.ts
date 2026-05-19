@@ -75,7 +75,7 @@ export const v11TalentTypeGridPreset = {
   showCardIcons: true,
   showRailControls: true,
   seeAllLabel: "See all",
-  seeAllHref: "/directory",
+  seeAllHref: { kind: "tenant-page", value: "/directory" },
   desktopLayout: "featured-pod-rail",
   mobileLayout: "horizontal-scroll",
   cardRatio: "16/9",

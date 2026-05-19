@@ -1,7 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
-import { LinkPicker } from "../shared/LinkPicker";
+import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import type { SectionEditorProps } from "../types";
 import { v11TalentTypeGridItems, v11TalentTypeGridPreset } from "./presets";
@@ -51,7 +51,7 @@ export function TalentTypeGridEditor({
     showCta: initial.showCta,
     ctaLabel: initial.ctaLabel ?? "",
     seeAllLabel: initial.seeAllLabel ?? "",
-    seeAllHref: initial.seeAllHref ?? "",
+    seeAllHref: initial.seeAllHref,
     desktopLayout: initial.desktopLayout ?? "equal-grid",
     mobileLayout: initial.mobileLayout ?? "stacked",
     cardRatio: initial.cardRatio ?? "3/4",
@@ -320,9 +320,9 @@ export function TalentTypeGridEditor({
               </label>
               <div className={FIELD}>
                 <span className={LABEL}>Card link</span>
-                <LinkPicker
-                  value={it.href ?? ""}
-                  onChange={(next) => setItem(i, { href: next || undefined })}
+                <LinkKindPicker
+                  value={it.href}
+                  onChange={(next) => setItem(i, { href: next })}
                 />
               </div>
               <label className="flex items-center gap-2 text-xs md:col-span-2">
@@ -539,8 +539,8 @@ export function TalentTypeGridEditor({
         </label>
         <div className={FIELD}>
           <span className={LABEL}>“See all” href</span>
-          <LinkPicker
-            value={value.seeAllHref ?? ""}
+          <LinkKindPicker
+            value={value.seeAllHref}
             onChange={(next) => patch({ seeAllHref: next })}
           />
         </div>

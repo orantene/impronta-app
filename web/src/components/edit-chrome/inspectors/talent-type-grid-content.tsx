@@ -15,6 +15,8 @@ import {
   MediaPickerButton,
   VisualChipGroup,
 } from "./kit";
+import { LinkKindPicker } from "@/lib/site-admin/sections/shared/LinkKindPicker";
+import type { LinkRef } from "@/lib/site-admin/links/link-ref";
 import {
   v11TalentTypeGridItems,
   v11TalentTypeGridPreset,
@@ -461,19 +463,15 @@ export function TalentTypeGridContentInspector({
                         }
                       />
                     </label>
-                    <label className={KIT.field}>
+                    <div className={KIT.field}>
                       <span className={KIT.label}>Card link</span>
-                      <input
-                        className={KIT.input}
-                        placeholder="/directory"
-                        value={item.href ?? ""}
-                        onChange={(event) =>
-                          patchItem(index, {
-                            href: event.target.value || undefined,
-                          })
+                      <LinkKindPicker
+                        value={item.href}
+                        onChange={(next) =>
+                          patchItem(index, { href: next })
                         }
                       />
-                    </label>
+                    </div>
                   </div>
                   <label className={KIT.field}>
                     <span className={KIT.label}>Image alt text</span>
@@ -512,14 +510,13 @@ export function TalentTypeGridContentInspector({
               onChange={(event) => update({ seeAllLabel: event.target.value })}
             />
           </label>
-          <label className={KIT.field}>
+          <div className={KIT.field}>
             <span className={KIT.label}>See all href</span>
-            <input
-              className={KIT.input}
-              value={asString(draftProps.seeAllHref)}
-              onChange={(event) => update({ seeAllHref: event.target.value })}
+            <LinkKindPicker
+              value={draftProps.seeAllHref as LinkRef | string | undefined}
+              onChange={(next) => update({ seeAllHref: next })}
             />
-          </label>
+          </div>
         </div>
       </InspectorGroup>
 
