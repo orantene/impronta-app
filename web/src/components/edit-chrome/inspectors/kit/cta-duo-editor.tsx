@@ -14,10 +14,13 @@
 import { useState } from "react";
 
 import { KIT } from "./tokens";
+import { LinkKindPicker } from "@/lib/site-admin/sections/shared/LinkKindPicker";
+import type { LinkRef } from "@/lib/site-admin/links/link-ref";
 
 export interface CtaShape {
   label: string;
-  href: string;
+  /** 6C — structured LinkRef or legacy string (schema coerces either). */
+  href: LinkRef | string;
 }
 
 interface CtaDuoEditorProps {
@@ -107,14 +110,12 @@ export function CtaDuoEditor({
           onChange={(e) => patchPrimary({ label: e.target.value })}
         />
         {advancedPrimary ? (
-          <input
-            type="text"
-            className={`${KIT.input} mt-1.5 text-[12px]`}
-            placeholder="/path or https://…"
-            value={primary?.href ?? ""}
-            maxLength={500}
-            onChange={(e) => patchPrimary({ href: e.target.value })}
-          />
+          <div className="mt-1.5">
+            <LinkKindPicker
+              value={primary?.href}
+              onChange={(next) => patchPrimary({ href: next })}
+            />
+          </div>
         ) : null}
       </div>
 
@@ -157,14 +158,12 @@ export function CtaDuoEditor({
             onChange={(e) => patchSecondary({ label: e.target.value })}
           />
           {advancedSecondary ? (
-            <input
-              type="text"
-              className={`${KIT.input} mt-1.5 text-[12px]`}
-              placeholder="/path or https://…"
-              value={secondary?.href ?? ""}
-              maxLength={500}
-              onChange={(e) => patchSecondary({ href: e.target.value })}
-            />
+            <div className="mt-1.5">
+              <LinkKindPicker
+                value={secondary?.href}
+                onChange={(next) => patchSecondary({ href: next })}
+              />
+            </div>
           ) : null}
         </div>
       ) : (
