@@ -132,3 +132,41 @@ resume serially: redo Phase 4 (Agency Fields transparency layer) and
 Phase 2 finish (`WorkspaceFieldSettingsDrawer` → real) cleanly, path-scoped,
 gated. Phase 5 (convergence, data movement, db-gated) and Phase 6+ remain
 explicitly gated on a separate scoped plan + approval.
+
+## ⚠ OPEN INCIDENT — phase-1 does not compile (PAUSED 2026-05-19, resume after SaaS plan)
+
+User decision: **wait for the SaaS improvement plan (concurrent other-agent
+work) to finish, then return to this.** Do NOT act on it in the interim
+(no fix, no checkpoint of other-agent work, no revert, no push).
+
+**State (verified):**
+- **Phase 2 LANDED** on `phase-1` = commit `588d96487` (clean cherry-pick
+  of `f1d9327df`; real `WorkspaceFieldSettingsDrawer`; itself tsc-clean).
+- **`phase-1` HEAD fails `tsc` — 4 errors**, ALL in
+  `drawers.tsx` (2228, 2323, 2445, 2446): `Property 'has_value' /
+  'tenant_override' does not exist on type 'ResolvedField'`.
+- **Root cause:** Wave-1 Agent-B's entangled Phase-4 *panel* code
+  (`TruthChip`, transparency chips referencing `f.has_value` /
+  `f.tenant_override`) was swept into a phase-1 commit by another agent's
+  broad `git add drawers.tsx`; the matching *resolver* change
+  (`ResolvedField` + optional `tenant_override?`/`has_value?` in
+  `getFieldsForTalent`, admin-taxonomy.ts) was NEVER committed — it's the
+  still-dirty `admin-taxonomy.ts` in main's working tree. NOT caused by
+  Phase 2.
+
+**Exact resume fix (already exists clean):** branch `engine-phase4-finish`
+commit `36ea80397` contains precisely the minimal additive resolver fix:
+add optional `tenant_override?: boolean` + `has_value?: boolean` to
+`ResolvedField`; in `getFieldsForTalent` set `tenant_override: !!o`
+(from the override map already built — no extra query) and `has_value`
+from one existence-only `talent_profile_field_values` select. Applying
+just that resolver delta to `admin-taxonomy.ts` makes phase-1 compile
+again (satisfies the swept-in panel code). Blocker: `admin-taxonomy.ts`
+is dirty with other-agent work → needs their commit / authorized
+checkpoint / hand-off.
+
+**Preserved branches (do not delete):** `engine-phase2-finish`
+(`f1d9327df`, landed), `engine-phase4-finish` (`36ea80397`, clean Phase-4
+incl. the resolver fix + a fuller panel impl), `engine-phase4-finish-v2`
+(`588d96487`, bare checkout, disposable). Worktrees in `/tmp/tulala-*`
+(node_modules symlinked, ready for resume).
