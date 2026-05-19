@@ -60,7 +60,6 @@ import {
   TRANSITION,
   MY_AGENCIES,
   MY_TALENT_PROFILE,
-  POLAROID_SET,
   SELECTIVE_CONTACT_POLICY,
   TALENT_BOOKINGS,
   TALENT_CHANNELS,
@@ -2078,10 +2077,45 @@ function ToggleRow({
   );
 }
 
+// ─── Profile-section panels: honest "not connected" state ────────
+// These standalone drawers were prototype scaffolds rendering
+// MY_TALENT_PROFILE fixtures with no real persistence. The real,
+// DB-backed editor for every one of these domains is
+// TalentProfileShellDrawer ("talent-profile-shell" / "talent-profile-edit").
+// Phase 0A neutralises the mock bodies so a talent is never shown
+// fabricated data as their own; live entry points were repointed to
+// the real editor. See docs/phase-0a-deferred-drawers-2026-05-19.md.
+function ProfileSectionNotConnected({ section }: { section: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        padding: 16,
+        background: COLORS.surfaceAlt,
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Icon name="info" size={14} color={COLORS.inkMuted} />
+        <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+          Not connected to your profile yet
+        </span>
+      </div>
+      <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}>
+        This {section} panel is not linked to your live profile yet. Nothing shown here is your
+        real data, and saving is disabled so nothing incorrect is stored. Manage your real{" "}
+        {section} from your profile editor (Edit profile).
+      </p>
+    </div>
+  );
+}
+
 // ─── Section editor (used for sub-sections of profile) ───────────
 
 export function TalentProfileSectionDrawer() {
-  // TODO Phase 3+: generic section save requires section-specific field mapping. Save is disabled.
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-profile-section";
   const label = (state.drawer.payload?.label as string) ?? "Section";
@@ -2091,20 +2125,11 @@ export function TalentProfileSectionDrawer() {
       open={open}
       onClose={closeDrawer}
       title={`Edit · ${label}`}
-      description="Update this section. Changes propagate to all your rosters automatically."
+      description="This section is not connected to your live profile yet."
       width={520}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton disabled>Save</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <FieldRow label="Notes" hint="Field-specific UI lands in production. Prototype shows a textarea.">
-          <TextArea rows={6} defaultValue="Edit this section's content here." />
-        </FieldRow>
-      </div>
+      <ProfileSectionNotConnected section="profile section" />
     </DrawerShell>
   );
 }
@@ -2639,65 +2664,18 @@ function AvailabilityToggleRow({
 // ─── Portfolio manager ───────────────────────────────────────────
 
 export function TalentPortfolioDrawer() {
-  // TODO Phase 3+: portfolio sort requires real media IDs from bridge data. Save is disabled.
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-portfolio";
-  const shots = ["🌸", "🌊", "🍃", "🌷", "🌹", "🪷", "🌾", "🌺", "🌿", "🌳", "🍂", "🌲"];
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Portfolio"
-      description="12 / 15 shots. Your agencies favour fresh work — try to keep at least 3 from this year."
+      description="This portfolio panel is not connected to your live media yet."
       width={620}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton disabled>Save order</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 8,
-        }}
-      >
-        {shots.map((s, i) => (
-          <div
-            key={i}
-            style={{
-              aspectRatio: "3 / 4",
-              background: COLORS.surfaceAlt,
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 28,
-              border: `1px solid ${COLORS.borderSoft}`,
-            }}
-          >
-            {s}
-          </div>
-        ))}
-        <div
-          style={{
-            aspectRatio: "3 / 4",
-            background: "rgba(11,11,13,0.02)",
-            borderRadius: 8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: `1px dashed rgba(11,11,13,0.18)`,
-            color: COLORS.inkMuted,
-            fontFamily: FONTS.body,
-            fontSize: 12,
-          }}
-        >
-          + Add
-        </div>
-      </div>
+      <ProfileSectionNotConnected section="portfolio" />
     </DrawerShell>
   );
 }
@@ -4686,7 +4664,6 @@ export function TalentPhotoEditDrawer() {
 // ─── Polaroids ───────────────────────────────────────────────────
 
 export function TalentPolaroidsDrawer() {
-  // TODO Phase 3+: polaroid upload flow requires Phase 1 media infra. Save is disabled.
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-polaroids";
 
@@ -4695,74 +4672,11 @@ export function TalentPolaroidsDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Polaroid set"
-      description="Industry standard: 5 angles, no styling, daylight. Clients use polaroids to verify what you actually look like in person."
+      description="This polaroid panel is not connected to your live media yet."
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton disabled>Save set</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div
-        style={{
-          padding: "12px 14px",
-          background: COLORS.surfaceAlt,
-          border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 10,
-          marginBottom: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
-        <Icon name="info" size={14} color={COLORS.accentDeep} />
-        <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
-          Refresh every 3 months · before / after major haircuts · weight changes ≥ 4 kg.
-        </span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-        {POLAROID_SET.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              border: `1px solid ${p.updatedAgo === "missing" ? COLORS.red : COLORS.borderSoft}`,
-              borderRadius: 10,
-              overflow: "hidden",
-              background: "#fff",
-            }}
-          >
-            <div
-              style={{
-                aspectRatio: "3 / 4",
-                background: COLORS.surfaceAlt,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 36,
-                color: p.thumb === "—" ? COLORS.inkDim : "inherit",
-              }}
-            >
-              {p.thumb}
-            </div>
-            <div style={{ padding: "8px 10px" }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
-                {p.angle}
-              </div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 11,
-                  color: p.updatedAgo === "missing" ? COLORS.red : COLORS.inkMuted,
-                  marginTop: 2,
-                }}
-              >
-                {p.updatedAgo === "missing" ? "Missing — upload now" : `Updated ${p.updatedAgo} ago`}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <ProfileSectionNotConnected section="polaroids" />
     </DrawerShell>
   );
 }
@@ -4868,71 +4782,19 @@ export function TalentCreditsDrawer() {
 // ─── Skills ─────────────────────────────────────────────────────
 
 export function TalentSkillsDrawer() {
-  // TODO Phase 3+: wire save to self-mode skill actions (taxonomy system, complex). Save is disabled for now.
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-skills";
-  const skills = MY_TALENT_PROFILE.skills;
-
-  const grouped: Record<string, typeof skills> = {};
-  for (const s of skills) {
-    grouped[s.category] = grouped[s.category] || [];
-    grouped[s.category].push(s);
-  }
-
-  const categoryLabels: Record<string, string> = {
-    movement: "Movement",
-    voice: "Voice",
-    instrument: "Instruments",
-    sport: "Sports",
-    performance: "Performance",
-    other: "Other",
-  };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Skills"
-      description="Movement, voice, sports, instruments — anything a client might cast for. Honesty matters more than completeness."
+      description="This skills panel is not connected to your live profile yet."
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {Object.keys(grouped).map((cat) => (
-          <div key={cat}>
-            <CapsLabel>{categoryLabels[cat] ?? cat}</CapsLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-              {grouped[cat].map((s, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    background: "#fff",
-                    border: `1px solid ${COLORS.borderSoft}`,
-                    borderRadius: 8,
-                  }}
-                >
-                  <span style={{ flex: 1, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
-                    {s.label}
-                  </span>
-                  {s.level && (
-                    <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
-                      {s.level}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <ProfileSectionNotConnected section="skills" />
     </DrawerShell>
   );
 }
@@ -5480,107 +5342,19 @@ export function TalentShowreelDrawer() {
 // ─── Measurements ───────────────────────────────────────────────
 
 export function TalentMeasurementsDrawer() {
-  // TODO Phase 3+: measurements use the field-catalog/field-values system (saveTalentScalarFieldValues).
-  // Save is disabled until the drawer is converted to use field IDs + FormData pattern.
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-measurements";
-  const m = MY_TALENT_PROFILE.measurements;
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Measurements"
-      description="Your full comp card. Re-measure every 6 months — accurate stats prevent fitting reshoots."
+      description="This measurements panel is not connected to your live profile yet."
       width={580}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton disabled>Save measurements</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div
-          style={{
-            padding: "12px 14px",
-            background: COLORS.surfaceAlt,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <Icon name="info" size={14} color={COLORS.accentDeep} />
-          <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
-            Sensitive data. Public visibility is controlled in Privacy settings.
-          </span>
-        </div>
-        <Divider label="Body" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <FieldRow label="Height (Imperial)">
-            <TextInput defaultValue={m.heightImperial} />
-          </FieldRow>
-          <FieldRow label="Height (Metric)">
-            <TextInput defaultValue={m.heightMetric} />
-          </FieldRow>
-          <FieldRow label="Bust">
-            <TextInput defaultValue={m.bust} />
-          </FieldRow>
-          <FieldRow label="Waist">
-            <TextInput defaultValue={m.waist} />
-          </FieldRow>
-          <FieldRow label="Hips">
-            <TextInput defaultValue={m.hips} />
-          </FieldRow>
-          <FieldRow label="Inseam" optional>
-            <TextInput defaultValue={m.inseam ?? ""} />
-          </FieldRow>
-          <FieldRow label="Dress">
-            <TextInput defaultValue={m.dress} />
-          </FieldRow>
-          <FieldRow label="Suit" optional>
-            <TextInput defaultValue={m.suit ?? ""} />
-          </FieldRow>
-        </div>
-        <Divider label="Shoes" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          <FieldRow label="EU">
-            <TextInput defaultValue={m.shoeEU} />
-          </FieldRow>
-          <FieldRow label="US">
-            <TextInput defaultValue={m.shoeUS} />
-          </FieldRow>
-          <FieldRow label="UK">
-            <TextInput defaultValue={m.shoeUK} />
-          </FieldRow>
-        </div>
-        <Divider label="Features" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <FieldRow label="Hair colour">
-            <TextInput defaultValue={m.hairColor} />
-          </FieldRow>
-          <FieldRow label="Hair length">
-            <TextInput defaultValue={m.hairLength} />
-          </FieldRow>
-          <FieldRow label="Eye colour">
-            <TextInput defaultValue={m.eyeColor} />
-          </FieldRow>
-          <FieldRow label="Skin tone">
-            <TextInput defaultValue={m.skinTone} />
-          </FieldRow>
-        </div>
-        <FieldRow label="Tattoos" hint={m.hasTattoos ? "Visible · note location and coverability." : "None."}>
-          <TextInput defaultValue={m.tattoosNote ?? ""} />
-        </FieldRow>
-        <FieldRow label="Piercings" hint={m.hasPiercings ? "Visible piercings only." : "None."}>
-          <TextInput defaultValue={m.piercingsNote ?? ""} />
-        </FieldRow>
-        <FieldRow label="Scars / marks" optional>
-          <TextInput defaultValue={m.scarsNote ?? ""} />
-        </FieldRow>
-      </div>
+      <ProfileSectionNotConnected section="measurements" />
     </DrawerShell>
   );
 }
@@ -5588,81 +5362,19 @@ export function TalentMeasurementsDrawer() {
 // ─── Documents ──────────────────────────────────────────────────
 
 export function TalentDocumentsDrawer() {
-  // TODO Phase 3+: document upload requires secure file-upload infra. Save is disabled.
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-documents";
-  const docs = MY_TALENT_PROFILE.documents;
-
-  const stateMeta: Record<string, { color: string; label: string }> = {
-    uploaded: { color: COLORS.green, label: "Uploaded" },
-    missing: { color: COLORS.red, label: "Missing" },
-    expired: { color: COLORS.amber, label: "Expired" },
-  };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Documents"
-      description="ID, tax forms, certifications. Stored encrypted. Visible only to your agency's admin team."
+      description="This documents panel is not connected to your live profile yet."
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {docs.map((d) => {
-          const meta = stateMeta[d.state];
-          return (
-            <div
-              key={d.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 10,
-              }}
-            >
-              <Icon name="external" size={14} color={COLORS.inkMuted} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
-                  {d.label}
-                </div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {meta.label}
-                  {d.expiresOn && d.state === "uploaded" && <> · expires {d.expiresOn}</>}
-                </div>
-              </div>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: meta.color,
-                  flexShrink: 0,
-                }}
-              />
-              <button
-                disabled
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  color: COLORS.inkMuted,
-                  padding: "5px 10px",
-                  borderRadius: 6,
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  cursor: "default",
-                  opacity: 0.5,
-                }}
-              >
-                {d.state === "uploaded" ? "Replace" : "Upload"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+      <ProfileSectionNotConnected section="documents" />
     </DrawerShell>
   );
 }

@@ -556,7 +556,7 @@ function BottomActionFab() {
         { id: "edit-profile",   label: "Edit profile",     sub: "Update photos, bio, rates",         icon: "user",     canDo: true,
           run: () => openDrawer("talent-profile-edit") },
         { id: "polaroids",      label: "Add polaroids",    sub: "Front · side · back · smile",       icon: "plus",     canDo: true,
-          run: () => openDrawer("talent-polaroids") },
+          run: () => openDrawer("talent-profile-edit", { mode: "edit-self", section: "polaroids" }) },
       ];
       const nav: Item[] = (Object.keys(TALENT_PAGE_META) as Array<keyof typeof TALENT_PAGE_META>).map((p) => ({
         id: `nav-talent-${p}`,

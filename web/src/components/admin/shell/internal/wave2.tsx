@@ -3777,7 +3777,7 @@ export function TalentOnboardingArc() {
           id: "photos",
           label: "Upload 5+ photos",
           description: "Variety beats polish — headshot, full-length, motion, and a recent unedited iPhone photo.",
-          onOpen: () => openDrawer("talent-portfolio"),
+          onOpen: () => openDrawer("talent-profile-edit", { mode: "edit-self", section: "media" }),
         },
         {
           id: "availability",
@@ -4679,7 +4679,7 @@ const TALENT_FIRST_RUN_STEPS = [
     emoji: "📸",
     title: "Upload polaroids",
     body:  "Your polaroids are the first thing an agency checks. Upload at least 4 fresh, natural shots.",
-    cta:   "talent-polaroids" as const,
+    cta:   "talent-profile-edit" as const,
     ctaLabel: "Upload polaroids",
   },
   {
