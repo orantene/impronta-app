@@ -34,6 +34,7 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | 5 | `0f12c7ba2` | Phase 2 ThreadShell primitive + talent-inbox adoption | FF |
 | 6 | `d9b13b62c` | Lane 2 engine characterization (inquiry/coord/lifecycle/pitch) | FF |
 | 7 | `cf16505c6` | **Billing characterization — 87 tests, zero-source** | FF · zero-source · tsc-verified · **2026-05-19** |
+| 8 | `3bbf1023c` | **Server-actions characterization — 112 tests, zero-source** | cherry-pick (base advanced) · zero-source · scoped-tsc 0-err/245 MB · **2026-05-19** |
 
 ---
 
@@ -61,7 +62,7 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | inquiry-engine | `impronta-tests-inq` | ⏳ tests written (4 files, 51 cases: 48 pass / 3 skip incl. 1 bug-flag) · **zero-source** · suite 238 = 232 pass/0 fail/6 skip, zero regressions · **NOT committed** — hard-gated on clean tsc; tsc OOM-deferred by concurrent-lane contention, verdict pending |
 | pitch-engine | `impronta-tests-pitch` | running — *Lane 2 already shipped baseline; this is depth* |
 | auth-isolation | `impronta-tests-auth` | running |
-| server-actions | `impronta-tests-sa` | running |
+| server-actions | `impronta-tests-sa` | ✅ **DONE + LANDED `3bbf1023c`** — 112 tests, 110 pass / 0 fail / 2 skip (skips = `server-only` alias unresolvable under `tsx --test` = testability boundary, **not bugs**). Pinned (not fixed) several documented quirks: no consistent guard/validation ordering across the layer (validate-first vs auth-first vs db-first — all proven zero-DB on fail path), `MEMBERSHIP_TIER_VALUES` leads `""`, `*EditorHref` write-path skips UUID-validation. Not bug-flags — characterization of existing behavior. |
 | field-catalog | *(no worktree observed)* | unconfirmed — may not be launched |
 
 ---
