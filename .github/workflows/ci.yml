@@ -1,0 +1,183 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# T2a — CI structural quality gate
+#
+# Enforces, on every PR to `phase-1` and every push to `phase-1`, the ratchets
+# the remediation plan relies on. Without this workflow the ratchets are
+# honor-system and erode the moment discipline lapses (see
+# `web/docs/improvement-plan-2026-05-19-weak-dimensions.md` §Prerequisites and
+# `web/docs/remediation-tracker-2026-05-19.md` row 11).
+#
+# Four gates, all run regardless of prior failures so a single CI run surfaces
+# every break at once:
+#
+#   1. tsc — count `error TS####:` lines; fail if HEAD > BASE.
+#   2. lint — `npm run lint` (which uses `--suppressions-location`); exit-0
+#      means no new errors slipped past the baseline. No `--max-warnings 0`;
+#      the 449 grandfathered warnings are ratchet-managed separately.
+#   3. suppressions ratchet — sum of `count` fields in
+#      `eslint-suppressions.json`; must be ≤ BASE. PRs may pay debt down (count
+#      drops) but must NOT pay debt up (a new error absorbed via
+#      `npm run lint:refresh-baseline` grows the count → fail).
+#   4. tests — the curated test suite that `npm run ci` already invokes,
+#      enumerated here so each suite's failure points at the right file. The
+#      `prebuild` check-migrations-applied step is intentionally NOT invoked
+#      (it needs network access to remote Supabase).
+#
+# Tripwire numbers below are captured from `origin/phase-1` at the tip this
+# workflow was authored against (`c4f833937`, "docs(plan): improvement plan
+# for 4 weakest dimensions"). When `phase-1`'s baseline legitimately drops
+# (e.g. Phase 1d cuts tsc errors to 2, or a hygiene sweep cuts suppressions),
+# lower the BASE here in the same PR that proves the drop on green CI.
+# Never raise BASE — that defeats the ratchet.
+#
+# Out of scope for T2a (explicitly): touching eslint config or suppressions
+# to "make CI green"; adding a fix workflow that auto-pushes; enabling
+# Vercel deploys (`vercel-post-deploy-alias.yml` handles deploy-side aliasing
+# on its own trigger).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI — structural quality gate
+
+on:
+  pull_request:
+    branches: [phase-1]
+  push:
+    branches: [phase-1]
+
+# Cancel superseded runs on the same ref so a second push to a PR doesn't
+# stack up; production-branch (`phase-1`) pushes still cancel each other but
+# that's intentional — only the latest commit needs to be green.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Structural quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # ── BASE TRIPWIRES (origin/phase-1 @ c4f833937) ────────────────────
+      # Bumping any of these requires a PR that demonstrably reduces the
+      # underlying count first; never raise to silence a regression.
+      TSC_BASE: 4               # drawers.tsx relocated errors; see Phase 1d landing report (3db9a2922)
+      SUPPRESSIONS_BASE: 14699  # sum of eslint-suppressions.json `count` fields
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          # package.json `engines.node` = ">=22.0.0 <25.0.0".
+          # `.nvmrc` says 20.20.2 but that's stale (predates the Next 15 /
+          # React 19 bump); package.json is the source of truth.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # ── Gate 1: TypeScript error-count ratchet ───────────────────────
+      - name: tsc — error count ≤ BASE
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          tsc_output=$(npx tsc --noEmit 2>&1)
+          tsc_exit=$?
+          set -e
+          # Match the primary error line; TS sometimes prints multi-line
+          # "related info" but only the primary line has `error TS####:`.
+          error_count=$(printf '%s\n' "$tsc_output" | grep -cE 'error TS[0-9]+:' || true)
+          echo "tsc exit=$tsc_exit  errors=$error_count  BASE=$TSC_BASE"
+          # Print last 80 lines so CI shows what failed without dumping the
+          # whole compilation log on success.
+          printf '%s\n' "$tsc_output" | tail -80
+          echo "::notice title=tsc ratchet::HEAD=$error_count  BASE=$TSC_BASE"
+          if [ "$error_count" -gt "$TSC_BASE" ]; then
+            echo "::error title=tsc regression::HEAD has $error_count tsc error(s); BASE is $TSC_BASE. This PR introduces new type errors. Fix them, or — if you genuinely reduced BASE — lower TSC_BASE in .github/workflows/ci.yml in the same PR."
+            exit 1
+          fi
+
+      # ── Gate 2: ESLint baseline (--suppressions-location ratchet) ────
+      # `npm run lint` already passes `--suppressions-location
+      # eslint-suppressions.json`, which silently absorbs grandfathered
+      # errors and reports only NEW ones. Exit-0 means clean against the
+      # baseline. We do NOT pass `--max-warnings 0` — 449 warnings are
+      # tracked separately via the suppressions ratchet.
+      - name: lint — no new errors past the baseline
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      # ── Gate 3: Suppressions JSON monotone-decreasing ────────────────
+      # The actual T2a win: a PR can pay lint debt down (count drops) but
+      # MUST NOT pay debt up. `npm run lint:refresh-baseline` regenerates
+      # the JSON to absorb any new errors — without this gate, that script
+      # silently grows the baseline and the ratchet is defeated.
+      - name: suppressions — eslint-suppressions.json total ≤ BASE
+        if: ${{ !cancelled() }}
+        run: |
+          count=$(node -e "
+            const x = require('./eslint-suppressions.json');
+            let n = 0;
+            for (const f of Object.keys(x)) {
+              for (const r of Object.keys(x[f])) {
+                n += (x[f][r].count || 0);
+              }
+            }
+            console.log(n);
+          ")
+          echo "eslint-suppressions.json total=$count  BASE=$SUPPRESSIONS_BASE"
+          echo "::notice title=suppressions ratchet::HEAD=$count  BASE=$SUPPRESSIONS_BASE"
+          if [ "$count" -gt "$SUPPRESSIONS_BASE" ]; then
+            echo "::error title=suppressions regression::eslint-suppressions.json grew from $SUPPRESSIONS_BASE → $count. This PR adds new lint debt via the suppressions baseline (typically via npm run lint:refresh-baseline absorbing a new error). Fix the underlying lint error so it doesn't need suppressing, or contest the BASE via the remediation tracker."
+            exit 1
+          fi
+
+      # ── Gate 4: Tests ────────────────────────────────────────────────
+      # The same suites the canonical `npm run ci` script invokes, minus
+      # `check:migrations-applied` (network) and `build` (out of T2a scope
+      # — Vercel handles deploy-side build). Each script runs separately
+      # so a failure surfaces the exact suite.
+      - name: tests — phase1-i18n
+        if: ${{ !cancelled() }}
+        run: npm run test:phase1-i18n
+
+      - name: tests — locale-precedence
+        if: ${{ !cancelled() }}
+        run: npm run test:locale-precedence
+
+      - name: tests — inquiry-workspace
+        if: ${{ !cancelled() }}
+        run: npm run test:inquiry-workspace
+
+      - name: tests — ai-guardrails
+        if: ${{ !cancelled() }}
+        run: npm run test:ai-guardrails
+
+      - name: tests — tenant-isolation
+        if: ${{ !cancelled() }}
+        run: npm run test:tenant-isolation
+
+      - name: tests — builder-capabilities
+        if: ${{ !cancelled() }}
+        run: npm run test:builder-capabilities
+
+      - name: tests — builder-node-bindings
+        if: ${{ !cancelled() }}
+        run: npm run test:builder-node-bindings
+
+      - name: tests — node-presentation
+        if: ${{ !cancelled() }}
+        run: npm run test:node-presentation
+
+      - name: tests — publish-preflight
+        if: ${{ !cancelled() }}
+        run: npm run test:publish-preflight
