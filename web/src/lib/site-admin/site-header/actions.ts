@@ -21,6 +21,7 @@
  */
 
 import { revalidateTag } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
@@ -46,6 +47,9 @@ import {
   brandingFormSchema,
   identityFormSchema,
 } from "@/lib/site-admin";
+import { saveSectionDraftAction } from "@/lib/site-admin/edit-mode/section-actions";
+import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
+import type { Locale } from "@/i18n/config";
 import type {
   SiteHeaderConfig,
   SiteHeaderNavItemInput,
@@ -55,6 +59,203 @@ import type {
 type ActionResult<T> =
   | ({ ok: true } & T)
   | { ok: false; error: string; code?: string; currentVersion?: number };
+
+// ── site_header SECTION-PROPS bridge ────────────────────────────────────
+//
+// The inspector edits identity / branding / nav. The snapshot header's
+// VARIANT + DENSITY live in the `site_header` section's `props_jsonb`
+// (what the renderer actually reads). These two actions are the bridge:
+// resolve the tenant's site_header section, then load / save its props
+// through the EXISTING canonical section save (`saveSectionDraftAction`
+// — Zod + CAS + audit + revision) and re-bake the shell snapshot via the
+// EXISTING `republishSiteShellSnapshot`. No second save path invented.
+
+interface HeaderSectionFacts {
+  sectionId: string;
+  sectionTypeKey: string;
+  schemaVersion: number;
+  name: string;
+  version: number;
+  locale: string;
+  props: Record<string, unknown>;
+}
+
+async function resolveHeaderSection(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<HeaderSectionFacts | null> {
+  const { data: shell } = await supabase
+    .from("cms_pages")
+    .select("id, locale")
+    .eq("tenant_id", tenantId)
+    .eq("system_template_key", "site_shell")
+    .neq("status", "archived")
+    .maybeSingle<{ id: string; locale: string | null }>();
+  if (!shell) return null;
+
+  let { data: ptr } = await supabase
+    .from("cms_page_sections")
+    .select("section_id")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", shell.id)
+    .eq("slot_key", "header")
+    .eq("is_draft", true)
+    .maybeSingle<{ section_id: string }>();
+  if (!ptr) {
+    ({ data: ptr } = await supabase
+      .from("cms_page_sections")
+      .select("section_id")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", shell.id)
+      .eq("slot_key", "header")
+      .eq("is_draft", false)
+      .maybeSingle<{ section_id: string }>());
+  }
+  if (!ptr) return null;
+
+  const { data: sec } = await supabase
+    .from("cms_sections")
+    .select("id, section_type_key, schema_version, name, version, props_jsonb")
+    .eq("tenant_id", tenantId)
+    .eq("id", ptr.section_id)
+    .maybeSingle<{
+      id: string;
+      section_type_key: string;
+      schema_version: number;
+      name: string;
+      version: number;
+      props_jsonb: Record<string, unknown> | null;
+    }>();
+  if (!sec) return null;
+
+  return {
+    sectionId: sec.id,
+    sectionTypeKey: sec.section_type_key,
+    schemaVersion: sec.schema_version,
+    name: sec.name,
+    version: sec.version,
+    locale: shell.locale ?? "en",
+    props: sec.props_jsonb ?? {},
+  };
+}
+
+export interface HeaderSectionDensity {
+  logoScale?: string | null;
+  navDensity?: string | null;
+  verticalPadding?: string | null;
+  mobileMenuStyle?: string | null;
+}
+
+/** Load the snapshot header's section-level props (variant + density). */
+export async function loadHeaderSectionAction(): Promise<
+  ActionResult<{
+    section: {
+      sectionId: string;
+      version: number;
+      variant: string;
+      density: HeaderSectionDensity | null;
+    };
+  }>
+> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No tenant in scope." };
+
+  const f = await resolveHeaderSection(auth.supabase, scope.tenantId);
+  if (!f) {
+    return { ok: false, error: "Site header section not found.", code: "NOT_FOUND" };
+  }
+  const p = f.props as { variant?: unknown; density?: unknown };
+  return {
+    ok: true,
+    section: {
+      sectionId: f.sectionId,
+      version: f.version,
+      variant: typeof p.variant === "string" ? p.variant : "standard",
+      density:
+        p.density && typeof p.density === "object"
+          ? (p.density as HeaderSectionDensity)
+          : null,
+    },
+  };
+}
+
+/** Patch ONLY variant/density on the site_header section, through the
+ * canonical section save, then re-bake the shell snapshot so the
+ * rendered header reflects it immediately. */
+export async function saveHeaderSectionAction(input: {
+  expectedVersion: number;
+  variant?: string;
+  density?: HeaderSectionDensity | null;
+}): Promise<ActionResult<{ version: number }>> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No tenant in scope." };
+
+  const f = await resolveHeaderSection(auth.supabase, scope.tenantId);
+  if (!f) {
+    return { ok: false, error: "Site header section not found.", code: "NOT_FOUND" };
+  }
+
+  const cur = f.props as Record<string, unknown>;
+  const nextProps: Record<string, unknown> = { ...cur };
+  if (input.variant !== undefined) nextProps.variant = input.variant;
+  if (input.density !== undefined) {
+    if (input.density === null) {
+      delete nextProps.density;
+    } else {
+      const d: Record<string, unknown> = {
+        ...((cur.density as Record<string, unknown> | undefined) ?? {}),
+      };
+      (
+        ["logoScale", "navDensity", "verticalPadding", "mobileMenuStyle"] as const
+      ).forEach((k) => {
+        const v = input.density?.[k];
+        if (v !== undefined) {
+          if (v === null || v === "") delete d[k];
+          else d[k] = v;
+        }
+      });
+      if (Object.keys(d).length === 0) delete nextProps.density;
+      else nextProps.density = d;
+    }
+  }
+
+  const res = await saveSectionDraftAction({
+    id: f.sectionId,
+    sectionTypeKey: f.sectionTypeKey,
+    schemaVersion: f.schemaVersion,
+    name: f.name,
+    props: nextProps,
+    expectedVersion: input.expectedVersion,
+  });
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: res.error,
+      code: res.code,
+      currentVersion: res.currentVersion,
+    };
+  }
+
+  // Re-bake the published shell snapshot so the storefront/edit canvas
+  // reflects the new variant/density (the renderer reads the snapshot,
+  // not the draft section row).
+  const rep = await republishSiteShellSnapshot(auth.supabase, {
+    tenantId: scope.tenantId,
+    locale: f.locale as Locale,
+    actorProfileId: null,
+  });
+  if (!rep.ok) {
+    return { ok: false, error: rep.error };
+  }
+  revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
+  revalidateTag(tagFor(scope.tenantId, "storefront"), "default");
+
+  return { ok: true, version: res.version };
+}
 
 // ── Read ───────────────────────────────────────────────────────────────
 
@@ -114,9 +315,32 @@ export async function loadHeaderConfigAction(): Promise<
     };
   }
 
+  // Phase 6B — also resolve the site_header SECTION props (variant +
+  // density) so the Layout tab can edit what the renderer actually reads.
+  const headerSection = await resolveHeaderSection(auth.supabase, scope.tenantId);
+  const sectionProps = (headerSection?.props ?? {}) as {
+    variant?: unknown;
+    density?: unknown;
+  };
+  const sectionCfg: SiteHeaderConfig["section"] = headerSection
+    ? {
+        sectionId: headerSection.sectionId,
+        version: headerSection.version,
+        variant:
+          typeof sectionProps.variant === "string"
+            ? sectionProps.variant
+            : "standard",
+        density:
+          sectionProps.density && typeof sectionProps.density === "object"
+            ? (sectionProps.density as HeaderSectionDensity)
+            : null,
+      }
+    : null;
+
   return {
     ok: true,
     config: {
+      section: sectionCfg,
       identity: {
         publicName: identity?.public_name ?? "",
         tagline: identity?.tagline ?? null,

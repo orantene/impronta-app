@@ -43,7 +43,9 @@ import {
   saveHeaderBrandingAction,
   saveHeaderIdentityAction,
   saveHeaderNavigationAction,
+  saveHeaderSectionAction,
   saveHeaderTokenAction,
+  type HeaderSectionDensity,
 } from "@/lib/site-admin/site-header/actions";
 import type {
   SiteHeaderConfig,
@@ -113,6 +115,20 @@ export interface SiteHeaderPatch {
   patchToken: (key: string, value: string) => void;
   /** Replace the entire header nav list (one locale). Server diffs; triggers refresh. */
   patchNavigation: (items: SiteHeaderNavItemInput[]) => void;
+  /**
+   * Phase 6B — patch the site_header SECTION props the renderer reads
+   * (variant + density). Goes through saveHeaderSectionAction (canonical
+   * section save + shell re-bake); renderer-driven → triggers refresh.
+   */
+  patchSection: (input: {
+    variant?: string;
+    density?: {
+      logoScale?: string | null;
+      navDensity?: string | null;
+      verticalPadding?: string | null;
+      mobileMenuStyle?: string | null;
+    } | null;
+  }) => void;
 }
 
 export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
@@ -182,7 +198,12 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   // flight, then drains. This prevents overlapping saves from racing
   // CAS and keeps the status indicator honest.
 
-  type PendingKind = "identity" | "branding" | "token" | "navigation";
+  type PendingKind =
+    | "identity"
+    | "branding"
+    | "token"
+    | "navigation"
+    | "section";
   type Pending = {
     kind: PendingKind;
     /** Payload accumulated for the next save (merged on every patch call). */
@@ -351,6 +372,24 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
                 : prev,
             );
             triggerRefresh = true;
+          } else if (kind === "section") {
+            const res = await saveHeaderSectionAction({
+              expectedVersion: entry.expectedVersion,
+              ...(entry.payload as {
+                variant?: string;
+                density?: HeaderSectionDensity | null;
+              }),
+            });
+            if (!res.ok) throw new Error(res.error);
+            setConfig((prev) =>
+              prev && prev.section
+                ? {
+                    ...prev,
+                    section: { ...prev.section, version: res.version },
+                  }
+                : prev,
+            );
+            triggerRefresh = true;
           }
           queueRef.current.delete(kind);
         } catch (e) {
@@ -399,6 +438,20 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         kind: "identity",
         payload: { ...(existing?.payload ?? {}), ...payload },
         expectedVersion: existing?.expectedVersion ?? config.identity.version,
+      });
+      scheduleFlush();
+    },
+    [config, scheduleFlush],
+  );
+  const enqueueSection = useCallback(
+    (payload: Record<string, unknown>) => {
+      if (!config || !config.section) return;
+      const existing = queueRef.current.get("section");
+      queueRef.current.set("section", {
+        kind: "section",
+        payload: { ...(existing?.payload ?? {}), ...payload },
+        expectedVersion:
+          existing?.expectedVersion ?? config.section.version,
       });
       scheduleFlush();
     },
@@ -542,6 +595,36 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
           : prev,
       );
       enqueueNavigation(items);
+    },
+    patchSection: (input) => {
+      captureUndo();
+      // Optimistic local update so the Layout controls feel instant;
+      // the canonical save + shell re-bake happen on flush.
+      setConfig((prev) =>
+        prev && prev.section
+          ? {
+              ...prev,
+              section: {
+                ...prev.section,
+                ...(input.variant !== undefined
+                  ? { variant: input.variant }
+                  : {}),
+                ...(input.density !== undefined
+                  ? {
+                      density:
+                        input.density === null
+                          ? null
+                          : {
+                              ...(prev.section.density ?? {}),
+                              ...input.density,
+                            },
+                    }
+                  : {}),
+              },
+            }
+          : prev,
+      );
+      enqueueSection(input as Record<string, unknown>);
     },
   };
 

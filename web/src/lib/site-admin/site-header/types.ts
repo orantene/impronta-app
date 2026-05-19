@@ -61,6 +61,23 @@ export interface SiteHeaderConfig {
       version: number;
     }>;
   };
+  /**
+   * Phase 6B — the `site_header` SECTION props the snapshot renderer
+   * actually reads (variant + density). Distinct from identity/branding;
+   * carries its own `version` for CAS via `saveHeaderSectionAction`.
+   * Absent only if the tenant has no shell header section.
+   */
+  section: {
+    sectionId: string;
+    version: number;
+    variant: string;
+    density: {
+      logoScale?: string | null;
+      navDensity?: string | null;
+      verticalPadding?: string | null;
+      mobileMenuStyle?: string | null;
+    } | null;
+  } | null;
 }
 
 /** Item shape the inspector sends back to the bulk save action. */

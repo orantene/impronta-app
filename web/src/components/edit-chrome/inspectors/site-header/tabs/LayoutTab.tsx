@@ -225,6 +225,111 @@ export function LayoutTab({ config, patch }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ── 0. Header style + density — the REAL site_header section
+             props the snapshot renderer reads (Phase 6B bridge). ── */}
+      {config.section ? (
+        <>
+          <InspectorGroup
+            title="Header style"
+            info="The premium header layout the live site renders. 'Editorial split' is the agency look: social/contact left · centered brand · utilities right · nav row beneath."
+          >
+            <div className={KIT.field}>
+              <label className={KIT.label}>Layout</label>
+              <select
+                className={KIT.input}
+                value={config.section.variant}
+                onChange={(e) =>
+                  patch.patchSection({ variant: e.target.value })
+                }
+              >
+                <option value="standard">Standard — brand left, nav right</option>
+                <option value="minimal">Minimal — centered, compact</option>
+                <option value="split">Split — three columns</option>
+                <option value="editorial">Editorial — centered premium serif</option>
+                <option value="editorial-split">
+                  Editorial split — premium agency (recommended)
+                </option>
+              </select>
+            </div>
+          </InspectorGroup>
+
+          <InspectorGroup
+            title="Density"
+            info="Fine-tune header proportions. 'Default' keeps the chosen style's tuned sizing."
+          >
+            <div className={KIT.field}>
+              <label className={KIT.label}>Logo size</label>
+              <select
+                className={KIT.input}
+                value={config.section.density?.logoScale ?? ""}
+                onChange={(e) =>
+                  patch.patchSection({
+                    density: { logoScale: e.target.value || null },
+                  })
+                }
+              >
+                <option value="">Default</option>
+                <option value="sm">Small</option>
+                <option value="md">Medium</option>
+                <option value="lg">Large</option>
+                <option value="xl">Extra large</option>
+              </select>
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Navigation spacing</label>
+              <select
+                className={KIT.input}
+                value={config.section.density?.navDensity ?? ""}
+                onChange={(e) =>
+                  patch.patchSection({
+                    density: { navDensity: e.target.value || null },
+                  })
+                }
+              >
+                <option value="">Default</option>
+                <option value="compact">Compact</option>
+                <option value="comfortable">Comfortable</option>
+                <option value="spacious">Spacious</option>
+              </select>
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Vertical padding</label>
+              <select
+                className={KIT.input}
+                value={config.section.density?.verticalPadding ?? ""}
+                onChange={(e) =>
+                  patch.patchSection({
+                    density: { verticalPadding: e.target.value || null },
+                  })
+                }
+              >
+                <option value="">Default</option>
+                <option value="tight">Tight</option>
+                <option value="standard">Standard</option>
+                <option value="roomy">Roomy</option>
+              </select>
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Mobile menu</label>
+              <select
+                className={KIT.input}
+                value={config.section.density?.mobileMenuStyle ?? ""}
+                onChange={(e) =>
+                  patch.patchSection({
+                    density: { mobileMenuStyle: e.target.value || null },
+                  })
+                }
+              >
+                <option value="">Default</option>
+                <option value="wrap">Wrap (scroll rail)</option>
+                <option value="compact">Compact (hide nav)</option>
+                <option value="drawer">Drawer (reserved)</option>
+              </select>
+            </div>
+          </InspectorGroup>
+        </>
+      ) : null}
+
       {/* ── 1. Composition ─────────────────────────────────────── */}
       <InspectorGroup
         title="Nav alignment"
