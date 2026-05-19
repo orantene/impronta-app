@@ -4906,6 +4906,7 @@ export function FieldRow({
   visibility,
   onVisibilityChange,
   catalogId,
+  hideLabel,
 }: {
   label: string;
   children: ReactNode;
@@ -4929,6 +4930,11 @@ export function FieldRow({
    *  `customHelper` replaces the hint. Pass the catalog field id (e.g.
    *  "identity.legalName") and the row resolves overrides at render. */
   catalogId?: string;
+  /** When true the row's own label is suppressed — used when an outer
+   *  collapsible card already shows the field name in its header, so the
+   *  label isn't duplicated. Right cluster (visibility chips) + hint
+   *  still render. Defaults to false → unchanged for every caller. */
+  hideLabel?: boolean;
 }) {
   // Phase E — workspace override merge. When `catalogId` is provided,
   // resolve the merged catalog entry for the demo tenant and let
@@ -4952,6 +4958,7 @@ export function FieldRow({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
+        {!hideLabel && (
         <label
           style={{
             fontFamily: FONTS.body,
@@ -4975,6 +4982,7 @@ export function FieldRow({
             </span>
           )}
         </label>
+        )}
         {/* Right cluster, inline across from the label: small visibility
             chips (+ recommended nudge). "Optional" removed — required is
             the only marker now (the red * on the label). Label row
@@ -8386,38 +8394,47 @@ export function TalentRosterSkeleton({ rows = 8 }: { rows?: number }) {
   );
 }
 
-/** Skeleton for a booking / inquiry detail drawer */
+/** Loading skeleton for the talent profile editor drawer — mirrors the
+ *  real layout (section header + a grid of click-to-open field cards on
+ *  the faint cool ground) so loading previews the actual content instead
+ *  of a generic message-thread shape. Sole consumer is the talent
+ *  editor's hydration overlay. */
 export function DrawerDetailSkeleton() {
+  const cards: { full: boolean }[] = [
+    { full: true }, { full: false }, { full: false },
+    { full: false }, { full: false }, { full: true },
+    { full: false }, { full: false },
+  ];
   return (
-    <div data-tulala-skeleton="drawer-detail" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Title area */}
-      <div>
-        <Skeleton height={9} width={60} style={{ marginBottom: 8 }} />
-        <Skeleton height={18} width="70%" style={{ marginBottom: 6 }} />
-        <Skeleton height={13} width="45%" />
+    <div data-tulala-skeleton="talent-editor" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Section header — bold title + muted sub (matches the real
+          ProfileAccordionSection header). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "2px 2px 0" }}>
+        <Skeleton height={15} width={150} radius={5} />
+        <Skeleton height={11} width={230} radius={5} />
       </div>
-      <Skeleton height={1} width="100%" />
-      {/* Meta grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {[80, 100, 120, 90, 110, 75].map((w, i) => (
-          <div key={i}>
-            <Skeleton height={9} width={w * 0.7} style={{ marginBottom: 5 }} />
-            <Skeleton height={13} width={w} />
+      {/* Field-card grid on the faint cool ground — same border / radius /
+          lift / 2-up auto layout as the live cards, so the skeleton is a
+          true preview, not a placeholder of a different thing. */}
+      <div style={{
+        background: "rgba(11,11,13,0.028)", borderRadius: 14, padding: 14,
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px",
+      }}>
+        {cards.map((c, i) => (
+          <div key={i} style={{
+            gridColumn: c.full ? "1 / -1" : "auto",
+            background: "#fff",
+            border: "1px solid rgba(24,24,27,0.10)",
+            borderRadius: 9,
+            boxShadow: "0 1px 2px rgba(11,11,13,0.05)",
+            padding: "12px 14px",
+            display: "flex", flexDirection: "column", gap: 8,
+          }}>
+            <Skeleton height={12} width={i % 2 === 0 ? 120 : 90} radius={4} />
+            <Skeleton height={10} width={i % 3 === 0 ? "68%" : "44%"} radius={4} />
           </div>
         ))}
       </div>
-      <Skeleton height={1} width="100%" />
-      {/* Message threads */}
-      {[0, 1, 2].map((i) => (
-        <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <Skeleton width={28} height={28} radius={14} />
-          <div style={{ flex: 1 }}>
-            <Skeleton height={11} width="40%" style={{ marginBottom: 5 }} />
-            <Skeleton height={13} width="90%" style={{ marginBottom: 4 }} />
-            <Skeleton height={13} width="65%" />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

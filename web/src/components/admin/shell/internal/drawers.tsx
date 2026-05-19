@@ -69,6 +69,13 @@ import {
   type CategoryDetail,
   type CategoryFieldEntry,
 } from "@/lib/server-actions/admin-taxonomy";
+import {
+  effectiveFieldVisibility,
+  canViewerSee,
+  platformBaseVisibility,
+  type FieldVisibility as EngineFieldVisibility,
+  type ViewerRole,
+} from "@/lib/field-engine/effective-visibility";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./use-taxonomy";
 import { prefetchSkillsData, SkillSlotPanel } from "./skill-slot-panel";
@@ -126,7 +133,6 @@ import {
   PRONOUNS_OPTIONS,
   GENDER_OPTIONS,
   PROFICIENCY_META,
-  BIO_TONES,
   PHOTO_TAG_META,
   TALENT_INVITES,
   deriveAge,
@@ -1060,10 +1066,11 @@ function Section({
       {framed ? (
         <div
           style={{
-            // Match New Inquiry nested sub-panel: rounded-xl,
-            // border-border/45, bg-background/70, p-3 — no heavy shadow.
+            // Match New Inquiry nested sub-panel: rounded-xl, soft COOL
+            // hairline (was a warm rgba(35,29,16,*) that contradicted the
+            // New Inquiry it claims to match), bg-background/70, no shadow.
             background: "rgba(255,255,255,0.7)",
-            border: "1px solid rgba(35,29,16,0.08)",
+            border: `1px solid ${COLORS.borderSoft}`,
             borderRadius: 12,
             padding: 12,
           }}
@@ -2101,15 +2108,97 @@ type ResolvedGroupForUI = {
   field_count: number;
 };
 
-/** Renders one resolved group: title + field rows with requirement badges. */
+// ── Phase 4 truth-preview helpers (pure, read-only) ──────────────────
+//
+// The resolver (getFieldsForTalent) has ALREADY folded this tenant's
+// workspace_profile_field_settings into `default_visibility` +
+// `is_admin_only` before we ever see a ResolvedField. So here we must
+// NOT re-apply a tenant override (that would double-restrict). We feed
+// the *resolved* channels straight to the shared engine with NO tenant
+// arg — it just canonicalises channels → public|admin|hidden and
+// re-asserts the platform admin/sensitive floor. This guarantees the
+// "view as public" indicator matches exactly what P3 renders publicly.
+function resolvedToVisInput(f: ResolvedField) {
+  return {
+    default_visibility: f.default_visibility,
+    admin_only: f.is_admin_only,
+    // is_sensitive / show_in_public aren't carried on ResolvedField; the
+    // resolver already reflected them into default_visibility/is_admin_only.
+  };
+}
+
+const VIEW_AS_OPTIONS: { key: ViewerRole; label: string; labelEs: string }[] = [
+  { key: "public", label: "Public client", labelEs: "Cliente público" },
+  { key: "agency_admin", label: "Admin", labelEs: "Admin" },
+  { key: "talent", label: "Talent", labelEs: "Talento" },
+];
+
+function visMeta(v: EngineFieldVisibility): { label: string; bg: string; fg: string } {
+  if (v === "public") return { label: "Public", bg: COLORS.successSoft, fg: COLORS.successDeep };
+  if (v === "admin") return { label: "Admin-only", bg: COLORS.amberSoft, fg: COLORS.amberDeep };
+  return { label: "Hidden", bg: COLORS.fillSoft, fg: COLORS.fillDeep };
+}
+
+/** "Why does this field appear" — tier + how it was brought in. */
+function sourceLabel(f: ResolvedField): string {
+  const tier =
+    f.tier === "universal" ? "Universal"
+    : f.tier === "global" ? "Global"
+    : "Type-specific";
+  const b = f.brought_in_by;
+  if (b.kind === "tier") return tier;
+  if (b.kind === "group") {
+    return `${tier} · via ${f.field_group_label ?? b.group_slug} group`;
+  }
+  return `${tier} · via talent-type recommendation`;
+}
+
+/** A small inline chip. */
+function TruthChip({
+  text,
+  bg,
+  fg,
+  title,
+  strong,
+}: {
+  text: string;
+  bg: string;
+  fg: string;
+  title?: string;
+  strong?: boolean;
+}) {
+  return (
+    <span
+      title={title}
+      style={{
+        fontSize: 9.5,
+        fontWeight: strong ? 700 : 600,
+        padding: "1px 6px",
+        borderRadius: 4,
+        background: bg,
+        color: fg,
+        letterSpacing: 0.3,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+/** Renders one resolved group: title + field rows with the full
+ *  read-only truth preview (source · effective visibility for the
+ *  selected view-as role · required + origin · override · value). */
 function FieldGroupBlock({
   title,
   subtitle,
   fields,
+  viewerRole,
 }: {
   title: string;
   subtitle: string;
   fields: ResolvedField[];
+  viewerRole: ViewerRole;
 }) {
   return (
     <div>
@@ -2121,68 +2210,162 @@ function FieldGroupBlock({
         fontSize: 10.5, color: COLORS.inkMuted, marginBottom: 6,
       }}>{subtitle}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {fields.map((f) => (
-          <div key={f.field_definition_id} style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "6px 10px", borderRadius: 6,
-            background: COLORS.surfaceAlt,
-            border: `1px solid ${COLORS.borderSoft}`,
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 12.5, color: COLORS.ink }}>
-              {f.label}
-              {f.required_before_publish && (
-                <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700, fontSize: 10 }}
-                  title="Required before publish">*</span>
-              )}
-              {f.required_at_registration && (
-                <span style={{
-                  marginLeft: 6, fontSize: 9, fontWeight: 700,
-                  padding: "1px 5px", borderRadius: 3,
-                  background: COLORS.red, color: "#fff",
-                  letterSpacing: 0.4,
-                }}>REG</span>
-              )}
-              {f.required_before_verification && (
-                <span style={{
-                  marginLeft: 6, fontSize: 9, fontWeight: 700,
-                  padding: "1px 5px", borderRadius: 3,
-                  background: COLORS.indigoDeep, color: "#fff",
-                  letterSpacing: 0.4,
-                }}>VERIFY</span>
-              )}
-              {f.is_admin_only && (
-                <span style={{
-                  marginLeft: 6, fontSize: 9, fontWeight: 700,
-                  padding: "1px 5px", borderRadius: 3,
-                  background: COLORS.inkMuted, color: "#fff",
-                  letterSpacing: 0.4,
-                }}>ADMIN</span>
-              )}
-              </span>
-              {f.helper && (
+        {fields.map((f) => {
+          // Canonical visibility (tenant override already baked into the
+          // resolved channels — see resolvedToVisInput note).
+          const eff = effectiveFieldVisibility(resolvedToVisInput(f));
+          const viewerSees = canViewerSee(eff, viewerRole);
+          const platformVis = platformBaseVisibility(resolvedToVisInput(f));
+          const vm = visMeta(eff);
+          // Required origin — best-effort, conservative. We can only
+          // assert a *platform* origin when a recommendation flag set it;
+          // a workspace `required_override` shows as a tenant override
+          // chip. We never invent an "agency required" label otherwise.
+          const platformRequired =
+            f.required_before_publish ||
+            f.required_at_registration ||
+            f.required_before_verification;
+          const hasValue = f.has_value === true;
+          return (
+            <div key={f.field_definition_id} style={{
+              display: "flex", alignItems: "flex-start", gap: 8,
+              padding: "7px 10px", borderRadius: 6,
+              background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.borderSoft}`,
+              opacity: viewerSees ? 1 : 0.62,
+            }}>
+              {/* Value present/missing rail */}
+              <span
+                title={
+                  hasValue
+                    ? "A value is stored for this talent"
+                    : "No value stored yet"
+                }
+                style={{
+                  marginTop: 4,
+                  width: 7, height: 7, borderRadius: 999,
+                  flexShrink: 0,
+                  background: hasValue ? COLORS.success : COLORS.borderStrong,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, color: COLORS.ink }}>
+                {f.label}
+                {f.required_before_publish && (
+                  <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700, fontSize: 10 }}
+                    title="Required before publish">*</span>
+                )}
+                {f.required_at_registration && (
+                  <span style={{
+                    marginLeft: 6, fontSize: 9, fontWeight: 700,
+                    padding: "1px 5px", borderRadius: 3,
+                    background: COLORS.red, color: "#fff",
+                    letterSpacing: 0.4,
+                  }}>REG</span>
+                )}
+                {f.required_before_verification && (
+                  <span style={{
+                    marginLeft: 6, fontSize: 9, fontWeight: 700,
+                    padding: "1px 5px", borderRadius: 3,
+                    background: COLORS.indigoDeep, color: "#fff",
+                    letterSpacing: 0.4,
+                  }}>VERIFY</span>
+                )}
+                {f.is_admin_only && (
+                  <span style={{
+                    marginLeft: 6, fontSize: 9, fontWeight: 700,
+                    padding: "1px 5px", borderRadius: 3,
+                    background: COLORS.inkMuted, color: "#fff",
+                    letterSpacing: 0.4,
+                  }}>ADMIN</span>
+                )}
+                </span>
+                {f.helper && (
+                  <div style={{
+                    fontSize: 10.5, color: COLORS.inkMuted,
+                    marginTop: 2, lineHeight: 1.35,
+                  }}>{f.helper}</div>
+                )}
+                {/* Truth-preview chip row */}
                 <div style={{
-                  fontSize: 10.5, color: COLORS.inkMuted,
-                  marginTop: 2, lineHeight: 1.35,
-                }}>{f.helper}</div>
-              )}
+                  display: "flex", flexWrap: "wrap", gap: 5,
+                  marginTop: 5, alignItems: "center",
+                }}>
+                  <TruthChip
+                    text={sourceLabel(f)}
+                    bg={COLORS.indigoSoft}
+                    fg={COLORS.indigoDeep}
+                    title="Why this field appears for this talent"
+                  />
+                  <TruthChip
+                    text={
+                      viewerSees
+                        ? `${VIEW_AS_OPTIONS.find((o) => o.key === viewerRole)?.label ?? "Viewer"} sees · ${vm.label}`
+                        : `Hidden from ${VIEW_AS_OPTIONS.find((o) => o.key === viewerRole)?.label ?? "viewer"} · ${vm.label}`
+                    }
+                    bg={viewerSees ? vm.bg : COLORS.fillSoft}
+                    fg={viewerSees ? vm.fg : COLORS.fillDeep}
+                    title={`Effective visibility: ${vm.label}. ${viewerSees ? "This audience can see it." : "This audience cannot see it."}`}
+                    strong
+                  />
+                  {f.is_required && (
+                    <TruthChip
+                      text={platformRequired ? "Required · platform" : "Required"}
+                      bg={COLORS.coralSoft}
+                      fg={COLORS.coralDeep}
+                      title={
+                        platformRequired
+                          ? "Required by the platform catalog (recommendation flag)"
+                          : "Required (origin not explicitly attributed; may be a workspace setting)"
+                      }
+                    />
+                  )}
+                  {f.tenant_override === true ? (
+                    <TruthChip
+                      text="Workspace override"
+                      bg={COLORS.royalSoft}
+                      fg={COLORS.royalDeep}
+                      title="This workspace changed this field from the platform default (visibility / label / required / helper / order). Edit in the Details editor."
+                    />
+                  ) : (
+                    <TruthChip
+                      text="Platform default"
+                      bg={COLORS.surfaceAlt}
+                      fg={COLORS.inkMuted}
+                      title={`Inherits the platform catalog (platform visibility: ${visMeta(platformVis).label}). No workspace override.`}
+                    />
+                  )}
+                  <TruthChip
+                    text={hasValue ? "Value present" : "No value yet"}
+                    bg={hasValue ? COLORS.successSoft : COLORS.surfaceAlt}
+                    fg={hasValue ? COLORS.successDeep : COLORS.inkMuted}
+                    title={
+                      hasValue
+                        ? "A value is stored for this talent. The value itself is editable in the Details editor."
+                        : "No value stored for this talent yet."
+                    }
+                  />
+                </div>
+              </div>
+              <span style={{
+                fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+                background: f.tier === "universal" ? COLORS.surfaceAlt
+                  : f.tier === "global" ? COLORS.indigoSoft
+                  : COLORS.accentSoft,
+                color: f.tier === "universal" ? COLORS.inkMuted
+                  : f.tier === "global" ? COLORS.indigoDeep
+                  : COLORS.accent,
+                textTransform: "uppercase", letterSpacing: 0.4,
+                flexShrink: 0,
+              }}>{f.tier}</span>
+              <span style={{
+                fontSize: 10.5, color: COLORS.inkMuted,
+                fontFamily: "ui-monospace, monospace",
+                flexShrink: 0,
+              }}>{f.kind}</span>
             </div>
-            <span style={{
-              fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
-              background: f.tier === "universal" ? COLORS.surfaceAlt
-                : f.tier === "global" ? COLORS.indigoSoft
-                : COLORS.accentSoft,
-              color: f.tier === "universal" ? COLORS.inkMuted
-                : f.tier === "global" ? COLORS.indigoDeep
-                : COLORS.accent,
-              textTransform: "uppercase", letterSpacing: 0.4,
-            }}>{f.tier}</span>
-            <span style={{
-              fontSize: 10.5, color: COLORS.inkMuted,
-              fontFamily: "ui-monospace, monospace",
-            }}>{f.kind}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -2202,6 +2385,10 @@ function LiveCategoryFieldsPanel({
   const [groups, setGroups] = useState<ResolvedGroupForUI[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Phase 4 — "view as" role. Pure client-side recompute: changing this
+  // re-derives every row's effective-visibility chip from the SAME
+  // already-loaded ResolvedField[] (no refetch).
+  const [viewAs, setViewAs] = useState<ViewerRole>("public");
 
   useEffect(() => {
     if (!open || fields !== null || loading) return;
@@ -2242,6 +2429,29 @@ function LiveCategoryFieldsPanel({
     const required = fields.filter((f) => f.required_before_publish).length;
     return { required, total: fields.length };
   }, [fields]);
+
+  // Phase 4 — per-view-as summary. Pure recompute from already-loaded
+  // fields; flipping `viewAs` changes ONLY this + the per-row chips, never
+  // refetches. "visible" uses the SAME engine the public page uses, so
+  // "view as: public client" mirrors exactly what /t/[code] would render.
+  const viewSummary = useMemo(() => {
+    if (!fields) return { visible: 0, hidden: 0, withValue: 0, overrides: 0 };
+    let visible = 0;
+    let withValue = 0;
+    let overrides = 0;
+    for (const f of fields) {
+      const eff = effectiveFieldVisibility(resolvedToVisInput(f));
+      if (canViewerSee(eff, viewAs)) visible += 1;
+      if (f.has_value === true) withValue += 1;
+      if (f.tenant_override === true) overrides += 1;
+    }
+    return {
+      visible,
+      hidden: fields.length - visible,
+      withValue,
+      overrides,
+    };
+  }, [fields, viewAs]);
 
   return (
     <div style={{
@@ -2309,6 +2519,56 @@ function LiveCategoryFieldsPanel({
                 </div>
               </div>
 
+              {/* Phase 4 — "View as" role selector + live per-view summary.
+                  Read-only: recomputes from loaded data, never refetches,
+                  never edits. Editing stays in the Details editor. */}
+              <div style={{
+                display: "flex", flexWrap: "wrap", alignItems: "center",
+                gap: 10, padding: "9px 12px", borderRadius: 8,
+                background: COLORS.surfaceAlt,
+                border: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: COLORS.ink,
+                  letterSpacing: 0.2,
+                }}>
+                  {copy.isSpanish ? "Ver como" : "View as"}
+                </span>
+                <div style={{ display: "inline-flex", gap: 4 }} role="group"
+                  aria-label={copy.isSpanish ? "Ver como rol" : "View as role"}>
+                  {VIEW_AS_OPTIONS.map((o) => {
+                    const active = viewAs === o.key;
+                    return (
+                      <button
+                        key={o.key}
+                        type="button"
+                        onClick={() => setViewAs(o.key)}
+                        aria-pressed={active}
+                        style={{
+                          fontSize: 11, fontWeight: 600,
+                          padding: "4px 10px", borderRadius: 999,
+                          cursor: "pointer",
+                          background: active ? COLORS.fill : "#fff",
+                          color: active ? "#fff" : COLORS.inkMuted,
+                          border: `1px solid ${active ? COLORS.fill : COLORS.border}`,
+                          fontFamily: FONTS.body,
+                          transition: TRANSITION.sm,
+                        }}
+                      >
+                        {copy.isSpanish ? o.labelEs : o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <span style={{
+                  fontSize: 10.5, color: COLORS.inkMuted, marginLeft: "auto",
+                }}>
+                  {copy.isSpanish
+                    ? `${viewSummary.visible} visible${viewSummary.visible === 1 ? "" : "s"} · ${viewSummary.hidden} oculto${viewSummary.hidden === 1 ? "" : "s"} · ${viewSummary.withValue} con valor · ${viewSummary.overrides} override${viewSummary.overrides === 1 ? "" : "s"}`
+                    : `${viewSummary.visible} visible · ${viewSummary.hidden} hidden · ${viewSummary.withValue} with a value · ${viewSummary.overrides} workspace override${viewSummary.overrides === 1 ? "" : "s"}`}
+                </span>
+              </div>
+
               {/* Render groups in display_order */}
               {groups
                 .slice()
@@ -2322,6 +2582,7 @@ function LiveCategoryFieldsPanel({
                       title={g.group_label_en}
                       subtitle={`${list.length} field${list.length === 1 ? "" : "s"} · ${g.weight} weight`}
                       fields={list}
+                      viewerRole={viewAs}
                     />
                   );
                 })}
@@ -2332,6 +2593,7 @@ function LiveCategoryFieldsPanel({
                   title="Universal & global"
                   subtitle={`${(grouped.get("_universal") ?? []).length} field${(grouped.get("_universal") ?? []).length === 1 ? "" : "s"} · always shown`}
                   fields={grouped.get("_universal") ?? []}
+                  viewerRole={viewAs}
                 />
               )}
 
@@ -2341,6 +2603,7 @@ function LiveCategoryFieldsPanel({
                   title="Type-specific"
                   subtitle={`${(grouped.get("_other") ?? []).length} field${(grouped.get("_other") ?? []).length === 1 ? "" : "s"} · brought in by talent type`}
                   fields={grouped.get("_other") ?? []}
+                  viewerRole={viewAs}
                 />
               )}
             </div>
@@ -4052,10 +4315,12 @@ function RequiredPill({ field, primaryType }: { field: RegField; primaryType?: s
 // extend (flex, paddingLeft for icons, error border, etc.).
 const SHARED_FIELD_INPUT_STYLE: React.CSSProperties = {
   width: "100%", boxSizing: "border-box",
-  padding: "8px 10px", borderRadius: 8,
+  padding: "8px 11px", borderRadius: 7,
   border: `1px solid ${COLORS.border}`,
   fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
-  background: "#fff", outline: "none",
+  // Faint fill (not pure white) — 1:1 with New Inquiry ComposerInput so
+  // fields read as soft, grouped inputs rather than flat boxes on a card.
+  background: "rgba(11,11,13,0.025)", outline: "none",
 };
 
 function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange, primaryType }: {
@@ -6496,7 +6761,7 @@ function TalentProfileShellDrawer() {
              still render, but inline above the form so they participate
              in the same scroll. */
           [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: row; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; position: relative; min-width: 0; background: #F2EDE2; box-sizing: border-box; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; position: relative; min-width: 0; background: ${COLORS.surface}; box-sizing: border-box; }
           [data-tulala-pshell] [data-pshell-form-banners] {
             display: flex; flex-direction: column; gap: 10px;
             padding: 14px 18px 0;
@@ -7352,25 +7617,6 @@ function TalentProfileShellDrawer() {
                   </div>
                 </div>
               )}
-              {adminVisible && (
-                <div style={{
-                  marginTop: 10, paddingTop: 10,
-                  borderTop: `1px solid ${COLORS.borderSoft}`,
-                  display: "flex", flexDirection: "column", gap: 6,
-                }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
-                    textTransform: "uppercase", color: COLORS.inkDim,
-                    fontFamily: FONTS.body,
-                  }}>
-                    {copy.t("Admin: lock from talent editing")}
-                  </span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <FieldLockToggle path="identity.stageName" fieldLabel="Stage name" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
-                    <FieldLockToggle path="identity.legalName" fieldLabel="Legal name" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
-                  </div>
-                </div>
-              )}
             </ProfileAccordionSection>
 
             {/* AGENCY FIELDS — the live DB-resolved field catalog for
@@ -7764,17 +8010,11 @@ function TalentProfileShellDrawer() {
             {/* ABOUT — locale-aware bios + tone + personality */}
             <ProfileAccordionSection
               id="about" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="About"
-              sub="2–3 sentences per language. Tone optional."
+              sub="2–3 sentences per language."
               complete={sectionComplete.about} started={sectionStarted.about}
               open={activeSection === "about"}
               onToggle={() => setActiveSection(activeSection === "about" ? "" : "about")}
             >
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
-                  Tone
-                </div>
-                <BioToneSelector value={state.bioTone} onChange={(t) => patch({ bioTone: t })} />
-              </div>
               <BiosEditor
                 bios={state.bios}
                 activeLocale={state.bioActiveLocale}
@@ -11564,6 +11804,92 @@ function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
   );
 }
 
+// Click-to-open field card for the bespoke Identity section — visually
+// 1:1 with the engine's Details CollapsibleField (cool border + lift
+// shadow + surfaceAlt hover + chevron). Wraps an existing
+// `<FieldRow hideLabel>` so visibility chips / hints / locks keep
+// working; the card header owns the label + collapsed value summary.
+function CollapsibleIdentityField({
+  label, summary, filled, children, defaultOpen,
+}: {
+  label: string;
+  summary: React.ReactNode;
+  filled: boolean;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = React.useState(!!defaultOpen);
+  const [hover, setHover] = React.useState(false);
+  const restBg = "#fff";
+  return (
+    <div
+      style={{
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 9,
+        background: restBg,
+        fontFamily: FONTS.body,
+        minWidth: 0,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.05)",
+      }}
+      onKeyDown={open ? (e) => { if (e.key === "Escape") setOpen(false); } : undefined}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
+        style={{
+          width: "100%", display: "flex", flexDirection: "row",
+          alignItems: "center", gap: 10,
+          padding: "10px 12px", cursor: "pointer", textAlign: "left",
+          fontFamily: FONTS.body, border: "none",
+          background: open || hover ? COLORS.surfaceAlt : restBg,
+          borderRadius: 9,
+          borderBottomLeftRadius: open ? 0 : 9,
+          borderBottomRightRadius: open ? 0 : 9,
+          borderBottom: open ? `1px solid ${COLORS.borderSoft}` : "none",
+          transition: "background 120ms ease",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{
+            fontSize: 12, fontWeight: 600, color: COLORS.ink,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {label}
+          </span>
+          {!open && (
+            <span style={{
+              fontSize: 12, fontWeight: filled ? 500 : 700,
+              color: filled ? COLORS.inkMuted : COLORS.accent,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              letterSpacing: 0.1,
+            }}>
+              {filled ? summary : <>+ {summary}</>}
+            </span>
+          )}
+        </div>
+        <div style={{
+          flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+          color: open || hover ? COLORS.accent : COLORS.inkDim,
+          transition: "color 120ms ease",
+        }}>
+          {!open && hover && (
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }}>Edit</span>
+          )}
+          <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 600 }}>
+            {open ? "⌄" : "›"}
+          </span>
+        </div>
+      </button>
+      {open && <div style={{ padding: "10px 12px 12px" }}>{children}</div>}
+    </div>
+  );
+}
+
 function ProfileAccordionSection({ id, title, sub, complete, started, open, onToggle, accent, children, primaryType }: {
   id: string;
   title: string;
@@ -11598,24 +11924,23 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
   if (!open) return null;
   return (
     <section id={`pshell-${id}`} style={{
-      // Crisp WHITE card on the warm #F2EDE2 page with a clearly visible
-      // hairline border + rounded-2xl — the actual New Inquiry effect
-      // (the low-contrast token-literal version was imperceptible).
+      // White card on the COLORS.surface page — matched 1:1 to the New
+      // Inquiry ComposerSection (soft hairline + radius 10).
       background: "#FFFFFF",
-      border: "1px solid rgba(35,29,16,0.16)",
-      borderRadius: 16,
+      border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: 10,
       minHeight: "100%",
       boxSizing: "border-box",
     }}>
-      {/* Compact section title row — slim heading + sub-text. Matches
-          New Inquiry: text-sm/500 title, text-xs muted description. */}
+      {/* Compact section title row. Matches New Inquiry ComposerSection:
+          13.5/700 ink title, 11.5 muted description. */}
       <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "16px 16px 6px", textAlign: "left",
         fontFamily: FONTS.body,
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 500, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.05 }}>{title}</div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.05 }}>{title}</div>
           {sub && <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>{sub}</div>}
         </div>
       </div>
@@ -12671,7 +12996,6 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           appearance: "none",
           paddingRight: 32,
           cursor: "pointer",
-          background: "#fff",
         }}
       >
         <option value="">{placeholder ?? copy.t("Select…")}</option>
@@ -12740,61 +13064,44 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </div>
 
       {/* ── Legal name (optional, collapsible) ───────────────────── */}
-      {(() => {
-        const showLegal = !!(identity.legalName || (identity as { _showLegal?: boolean })._showLegal);
-        return showLegal ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* Custom label row — inline KYC pill instead of "Optional"
-                badge. flexWrap + rowGap so the label, ADMIN-ONLY pill and
-                compact visibility chip never collide / overflow on narrow
-                widths (audit #2). */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
-              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, color: COLORS.ink }}>
-                {copy.t("Legal name")}
-              </span>
-              <span style={{
-                fontSize: 9.5, fontWeight: 600, letterSpacing: 0.4,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted, background: "rgba(11,11,13,0.06)",
-                border: `1px solid rgba(11,11,13,0.1)`,
-                borderRadius: 5, padding: "1px 6px",
-              }}>
-                {copy.t("Admin only")}
-              </span>
-              <div style={{ marginLeft: "auto" }}>
-                <ChannelVisibilityStrip
-                  value={identity.visibility?.legalName ?? ["private"]}
-                  onChange={(next) => onChange({
-                    ...identity,
-                    visibility: { ...(identity.visibility ?? {}), legalName: next },
-                  })}
-                />
-              </div>
+      <CollapsibleIdentityField
+        label={copy.t("Legal name")}
+        filled={!!(identity.legalName && identity.legalName.trim())}
+        summary={(identity.legalName && identity.legalName.trim()) || copy.t("Add legal name")}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {/* ADMIN-ONLY pill + compact visibility chip. flexWrap + rowGap
+              so they never collide / overflow on narrow widths. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
+            <span style={{
+              fontSize: 9.5, fontWeight: 600, letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted, background: "rgba(11,11,13,0.06)",
+              border: `1px solid rgba(11,11,13,0.1)`,
+              borderRadius: 5, padding: "1px 6px",
+            }}>
+              {copy.t("Admin only")}
+            </span>
+            <div style={{ marginLeft: "auto" }}>
+              <ChannelVisibilityStrip
+                value={identity.visibility?.legalName ?? ["private"]}
+                onChange={(next) => onChange({
+                  ...identity,
+                  visibility: { ...(identity.visibility ?? {}), legalName: next },
+                })}
+              />
             </div>
-            <input
-              placeholder={`${identity.firstName ?? "Sofia"} ${identity.lastName ?? "García"}`.trim()}
-              value={identity.legalName}
-              onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
-              disabled={isFieldLocked("identity.legalName")}
-              style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") ? 0.55 : 1 }}
-            />
-            {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onChange({ ...identity, legalName: " " })}
-            style={{
-              background: "none", border: `1px dashed ${inputStyle.borderColor ?? "rgba(24,24,27,0.14)"}`,
-              borderRadius: 10, padding: "9px 14px",
-              fontFamily: inputStyle.fontFamily, fontSize: 13, color: "rgba(11,11,13,0.45)",
-              cursor: "pointer", textAlign: "left", width: "100%",
-            }}
-          >
-            {copy.t("+ Add legal name")} <span style={{ fontSize: 11, opacity: 0.7 }}>{copy.t("(admin-only)")}</span>
-          </button>
-        );
-      })()}
+          <input
+            placeholder={`${identity.firstName ?? "Sofia"} ${identity.lastName ?? "García"}`.trim()}
+            value={identity.legalName ?? ""}
+            onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
+            disabled={isFieldLocked("identity.legalName")}
+            style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") ? 0.55 : 1 }}
+          />
+          {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
+        </div>
+      </CollapsibleIdentityField>
 
       {/* ── Demographics ────────────────────────────────────────────── */}
       <IdentitySubLabel>{copy.t("Demographics")}</IdentitySubLabel>
@@ -12860,7 +13167,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           type="date"
           value={identity.dob ?? ""}
           onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
-          style={{ ...inputStyle, background: "#fff" }}
+          style={inputStyle}
         />
       </FieldRow>
 
@@ -12881,33 +13188,47 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       {/* ── Origin & residence ──────────────────────────────────────── */}
       <IdentitySubLabel>{copy.t("Origin & residence")}</IdentitySubLabel>
 
-      <FieldRow
+      <CollapsibleIdentityField
         label={copy.t("Nationality")}
-        catalogId="identity.nationality"
-        optional
-        hint={copy.t("Citizenship country.")}
-        visibility={["agency"]}
+        filled={!!identity.nationality}
+        summary={identity.nationality || copy.t("Add nationality")}
       >
-        <CountryAutocompleteInput
-          value={identity.nationality ?? ""}
-          placeholder={copy.t("Search country…")}
-          onChange={(nameEn) => onChange({ ...identity, nationality: nameEn })}
-        />
-      </FieldRow>
+        <FieldRow
+          hideLabel
+          label={copy.t("Nationality")}
+          catalogId="identity.nationality"
+          optional
+          hint={copy.t("Citizenship country.")}
+          visibility={["agency"]}
+        >
+          <CountryAutocompleteInput
+            value={identity.nationality ?? ""}
+            placeholder={copy.t("Search country…")}
+            onChange={(nameEn) => onChange({ ...identity, nationality: nameEn })}
+          />
+        </FieldRow>
+      </CollapsibleIdentityField>
 
-      <FieldRow
+      <CollapsibleIdentityField
         label={copy.t("Country of residence")}
-        catalogId="identity.homeCountry"
-        optional
-        hint={copy.t("Tax + payout routing.")}
-        visibility={["agency"]}
+        filled={!!identity.homeCountry}
+        summary={identity.homeCountry || copy.t("Add country of residence")}
       >
-        <CountryAutocompleteInput
-          value={identity.homeCountry ?? ""}
-          placeholder={copy.t("Search country…")}
-          onChange={(nameEn) => onChange({ ...identity, homeCountry: nameEn })}
-        />
-      </FieldRow>
+        <FieldRow
+          hideLabel
+          label={copy.t("Country of residence")}
+          catalogId="identity.homeCountry"
+          optional
+          hint={copy.t("Tax + payout routing.")}
+          visibility={["agency"]}
+        >
+          <CountryAutocompleteInput
+            value={identity.homeCountry ?? ""}
+            placeholder={copy.t("Search country…")}
+            onChange={(nameEn) => onChange({ ...identity, homeCountry: nameEn })}
+          />
+        </FieldRow>
+      </CollapsibleIdentityField>
 
       <div data-pshell-identity-full style={{
         padding: "8px 12px",
@@ -12929,7 +13250,12 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       <IdentitySubLabel>{copy.t("Contact")}</IdentitySubLabel>
 
       {/* Email */}
-      <FieldRow label={copy.t("Email")} optional hint={copy.t("Direct contact. Never shown publicly.")} visibility={["agency"]}>
+      <CollapsibleIdentityField
+        label={copy.t("Email")}
+        filled={!!identity.contactEmail}
+        summary={identity.contactEmail || copy.t("Add email")}
+      >
+      <FieldRow hideLabel label={copy.t("Email")} optional hint={copy.t("Direct contact. Never shown publicly.")} visibility={["agency"]}>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
           <span style={{
             position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
@@ -12946,9 +13272,17 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           />
         </div>
       </FieldRow>
+      </CollapsibleIdentityField>
 
       {/* Phone */}
-      <FieldRow label={copy.t("Phone")} optional visibility={["agency"]}>
+      <CollapsibleIdentityField
+        label={copy.t("Phone")}
+        filled={!!identity.contactPhone}
+        summary={identity.contactPhone
+          ? `${identity.contactPhonePrefix ?? "+1"} ${identity.contactPhone}`
+          : copy.t("Add phone")}
+      >
+      <FieldRow hideLabel label={copy.t("Phone")} optional visibility={["agency"]}>
         <div style={{
           display: "flex", borderRadius: 10,
           border: `1px solid ${COLORS.border}`,
@@ -12983,9 +13317,17 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           />
         </div>
       </FieldRow>
+      </CollapsibleIdentityField>
 
       {/* WhatsApp */}
-      <FieldRow label="WhatsApp" optional hint={copy.t("For direct client coordination.")} visibility={["agency"]}>
+      <CollapsibleIdentityField
+        label="WhatsApp"
+        filled={!!identity.whatsapp}
+        summary={identity.whatsapp
+          ? `${identity.whatsappPrefix ?? identity.contactPhonePrefix ?? "+1"} ${identity.whatsapp}`
+          : copy.t("Add WhatsApp")}
+      >
+      <FieldRow hideLabel label="WhatsApp" optional hint={copy.t("For direct client coordination.")} visibility={["agency"]}>
         <div style={{
           display: "flex", borderRadius: 10,
           border: "1px solid rgba(37,211,102,0.35)",
@@ -13028,9 +13370,15 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           />
         </div>
       </FieldRow>
+      </CollapsibleIdentityField>
 
       {/* Business line / second contact */}
-      <FieldRow label={copy.t("Business line")} optional hint={copy.t("Secondary email, agency handle, or manager contact.")} visibility={["agency"]}>
+      <CollapsibleIdentityField
+        label={copy.t("Business line")}
+        filled={!!identity.businessLine}
+        summary={identity.businessLine || copy.t("Add business line")}
+      >
+      <FieldRow hideLabel label={copy.t("Business line")} optional hint={copy.t("Secondary email, agency handle, or manager contact.")} visibility={["agency"]}>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
           <span style={{
             position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
@@ -13045,6 +13393,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           />
         </div>
       </FieldRow>
+      </CollapsibleIdentityField>
 
       {/* ── Service commitment ──────────────────────────────────────── */}
       <IdentitySubLabel>{copy.t("Service commitment")}</IdentitySubLabel>
@@ -13296,32 +13645,6 @@ function SkillsProEditor({ entries, onChange }: {
 }
 
 // ── Bio tone selector ────────────────────────────────────────────────
-function BioToneSelector({ value, onChange }: {
-  value: BioTone;
-  onChange: (t: BioTone) => void;
-}) {
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, fontFamily: FONTS.body }}>
-      {BIO_TONES.map(t => {
-        const active = value === t.id;
-        return (
-          <button key={t.id} type="button" onClick={() => onChange(t.id)} style={{
-            padding: "5px 11px", borderRadius: 999,
-            border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-            background: active ? "rgba(15,79,62,0.08)" : "#fff",
-            color: active ? COLORS.accentDeep : COLORS.ink,
-            fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-            display: "inline-flex", alignItems: "center", gap: 4,
-          }}>
-            <span aria-hidden style={{ fontSize: 12 }}>{t.emoji}</span>
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Personality (love / avoid) ───────────────────────────────────────
 type PersonalityEditorProps = {
   value: Personality;

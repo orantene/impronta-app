@@ -186,18 +186,19 @@ function namespaceLabel(ns: string): string {
     : ns;
 }
 
-// Palette aligned to the New Inquiry theme tokens so the Details editor
-// greys match it exactly: warm border family rgba(35,29,16,*) (= the
-// real --border) and the --muted #F2EDE2 surface, instead of the old
-// cool rgba(24,24,27,*) / #F4F2EB. Single source → consistent greys.
+// Palette mirrors the real app COLORS tokens (state.tsx) so the Details
+// editor's greys match the New Inquiry / rest of the shell exactly:
+// COOL border family rgba(24,24,27,*) and the neutral #F2F2EE alt
+// surface. (A prior warm rgba(35,29,16,*) / #F2EDE2 palette here read
+// as an ugly beige cast on row hover — that is the bug this fixes.)
 const T = {
   ink: "#0B0B0D",
   inkMuted: "#5A5A60",
-  inkDim: "rgba(35,29,16,0.40)",
+  inkDim: "rgba(11,11,13,0.38)",
   surface: "#FFFFFF",
-  surfaceAlt: "#F2EDE2",
-  border: "rgba(35,29,16,0.14)",
-  borderSoft: "rgba(35,29,16,0.08)",
+  surfaceAlt: "#F2F2EE",
+  border: "rgba(24,24,27,0.10)",
+  borderSoft: "rgba(24,24,27,0.06)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.10)",
   red: "#C82828",
@@ -606,10 +607,12 @@ function FieldRow({
 
   const inputStyle: React.CSSProperties = {
     width: "100%", boxSizing: "border-box",
-    padding: "9px 11px", borderRadius: 10,
+    padding: "8px 11px", borderRadius: 7,
     border: `1px solid ${status === "error" ? T.red : T.border}`,
     fontFamily: F, fontSize: 13, color: T.ink,
-    background: "#fff", outline: "none",
+    // Faint fill — 1:1 with New Inquiry ComposerInput so Specialty
+    // fields match the bespoke sections as one surface.
+    background: "rgba(11,11,13,0.025)", outline: "none",
     boxShadow: status === "error" ? `0 0 0 2px rgba(200,40,40,0.10)` : "none",
   };
 
@@ -1296,6 +1299,13 @@ function DetailsFieldGroup({
           gridTemplateColumns: wide ? "1fr 1fr" : "1fr",
           gap: "8px 12px",
           alignItems: "start",
+          // Faint cool ground so the white, bordered+lifted field cards
+          // read as cards floating on a surface — the New Inquiry
+          // relationship, recreated here because the section wrapper
+          // itself is white (white-on-white otherwise).
+          background: "rgba(11,11,13,0.028)",
+          borderRadius: 14,
+          padding: 14,
           paddingBottom: 72,
         }}
       >
@@ -1361,8 +1371,16 @@ function CollapsibleField({
   return (
     <div
       style={{
-        border: `1px solid ${requiredMissing ? "rgba(200,40,40,0.32)" : T.borderSoft}`,
+        // Field cards sit on the white section card, so a 0.06 hairline
+        // was invisible (white-on-white). A present cool border + a
+        // hairline lift shadow give each card a real edge — the New
+        // Inquiry "card on surface" read, recreated where the ground
+        // can't change.
+        border: `1px solid ${requiredMissing ? "rgba(200,40,40,0.32)" : T.border}`,
         borderRadius: 9, background: restBg, fontFamily: F, minWidth: 0,
+        boxShadow: requiredMissing
+          ? "0 0 0 1px rgba(200,40,40,0.08)"
+          : "0 1px 2px rgba(11,11,13,0.05)",
       }}
       onKeyDown={open ? (e) => { if (e.key === "Escape") onToggle(); } : undefined}
     >
@@ -1417,7 +1435,7 @@ function CollapsibleField({
               )}
               <span style={{
                 flex: 1, minWidth: 0,
-                fontSize: 10.5, fontWeight: summary.empty ? 700 : 500,
+                fontSize: 12, fontWeight: summary.empty ? 700 : 500,
                 color: summary.empty
                   ? (requiredMissing ? T.red : T.accent)
                   : T.inkMuted,
@@ -1934,8 +1952,9 @@ export function LiveCategoryFieldsEditor({
           talents skip the selector entirely (no 1-item noise). */}
       {tabs.length > 1 && (
         <div style={{ padding: "2px 0 12px", borderBottom: `1px solid ${T.borderSoft}` }}>
-          {/* Eyebrow + tinted panel so this reads as CATEGORY NAVIGATION,
-              clearly distinct from the white field cards below it. */}
+          {/* Eyebrow + a wrapping pill row (New Inquiry "What do you
+              need" language) — no tinted tray; selected pill carries the
+              forest accent. */}
           <div style={{
             fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7,
             textTransform: "uppercase", color: T.inkMuted,
@@ -1947,8 +1966,7 @@ export function LiveCategoryFieldsEditor({
             role="tablist"
             aria-label="Field groups"
             style={{
-              display: "flex", flexDirection: "column", gap: 3,
-              background: T.surfaceAlt, borderRadius: 10, padding: 5,
+              display: "flex", flexWrap: "wrap", gap: 6,
             }}
           >
             {tabs.map((t) => {
@@ -1969,21 +1987,19 @@ export function LiveCategoryFieldsEditor({
                   onFocus={() => setHoverTab(t.key)}
                   onBlur={() => setHoverTab((h) => (h === t.key ? null : h))}
                   style={{
-                    display: "flex", alignItems: "center",
-                    justifyContent: "space-between", gap: 8,
-                    width: "100%", textAlign: "left", cursor: "pointer",
-                    fontFamily: F, padding: "8px 10px", borderRadius: 7,
-                    border: "none",
-                    borderLeft: `3px solid ${on ? T.accent : "transparent"}`,
+                    display: "inline-flex", alignItems: "center",
+                    gap: 7, cursor: "pointer",
+                    fontFamily: F, padding: "6px 12px", borderRadius: 999,
+                    border: `1px solid ${on ? T.accent : (hoverTab === t.key ? T.border : T.borderSoft)}`,
                     background: on
-                      ? "#fff"
+                      ? T.accentSoft
                       : hoverTab === t.key
-                        ? "rgba(255,255,255,0.65)"
-                        : "transparent",
-                    boxShadow: on ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
-                    color: on ? T.ink : T.inkMuted,
+                        ? "#fff"
+                        : "#fff",
+                    boxShadow: on ? "none" : "0 1px 2px rgba(11,11,13,0.04)",
+                    color: on ? T.accent : T.inkMuted,
                     fontSize: 12.5, fontWeight: on ? 700 : 600,
-                    transition: "background 120ms ease",
+                    transition: "background 120ms ease, border-color 120ms ease",
                   }}
                 >
                   <span style={{
