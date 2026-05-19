@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { pgUuidSchema } from "../../validators";
+import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
 
 /**
  * One hero slide. When `slides` has a single entry the hero renders as a
@@ -40,7 +41,8 @@ export const heroSchemaV1 = z.object({
     .array(
       z.object({
         label: z.string().min(1).max(40),
-        href: z.string().min(1).max(500).optional(),
+        /** 6C — structured LinkRef; legacy string auto-coerced. */
+        href: optionalLinkRefOrLegacy,
       }),
     )
     .max(12)
@@ -48,13 +50,15 @@ export const heroSchemaV1 = z.object({
   primaryCta: z
     .object({
       label: z.string().min(1).max(60),
-      href: z.string().min(1).max(500),
+      /** 6C — structured LinkRef; legacy string auto-coerced. */
+      href: linkRefOrLegacy,
     })
     .optional(),
   secondaryCta: z
     .object({
       label: z.string().min(1).max(60),
-      href: z.string().min(1).max(500),
+      /** 6C — structured LinkRef; legacy string auto-coerced. */
+      href: linkRefOrLegacy,
     })
     .optional(),
   backgroundMediaAssetId: pgUuidSchema().optional(),

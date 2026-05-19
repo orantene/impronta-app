@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 import type { SectionComponentProps } from "../types";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -251,6 +251,7 @@ function justifyDeclFromAlign(align?: "left" | "center" | "right"): string[] {
 export function HeroComponent({
   props,
   sectionId,
+  tenantId,
   publicPathPrefix = "",
   builderNodeBindings,
 }: SectionComponentProps<HeroV1>) {
@@ -268,6 +269,16 @@ export function HeroComponent({
     autoplayMs,
     presentation,
   } = props;
+
+  // 6C — single-source link resolution (LinkRef object or legacy
+  // string; auth routes stay root, tenant pages prefix-aware).
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const primaryLink = primaryCta
+    ? resolveLinkLike(primaryCta.href, linkCtx)
+    : null;
+  const secondaryLink = secondaryCta
+    ? resolveLinkLike(secondaryCta.href, linkCtx)
+    : null;
 
   const effectiveOverlay = overlay ?? (slides?.length || backgroundMediaAssetId ? "gradient-scrim" : "aurora");
   const effectiveMood = mood ?? "editorial";
@@ -486,7 +497,10 @@ export function HeroComponent({
           {search ? (
             <form
               className="site-hero__search"
-              action={prefixPublicHref(search.actionHref ?? "/directory", publicPathPrefix)}
+              action={
+                resolveLinkLike(search.actionHref ?? "/directory", linkCtx)
+                  .href
+              }
               method="get"
             >
               <label className="sr-only" htmlFor={`site-hero-search-${sectionId ?? "default"}`}>
@@ -510,7 +524,7 @@ export function HeroComponent({
                 <a
                   key={`${chip.label}-${index}`}
                   className="site-hero__chip"
-                  href={prefixPublicHref(chip.href ?? "/directory", publicPathPrefix)}
+                  href={resolveLinkLike(chip.href ?? "/directory", linkCtx).href}
                 >
                   {chip.label}
                 </a>
@@ -519,10 +533,14 @@ export function HeroComponent({
           ) : null}
           {(primaryCta || secondaryCta) && (
             <div className="site-hero__ctas" style={{ justifyContent: ctaJustify }}>
-              {primaryCta ? (
+              {primaryCta && primaryLink ? (
                 <a
                   className="site-hero__cta site-hero__cta--primary"
-                  href={primaryCta.href}
+                  href={primaryLink.href}
+                  target={primaryLink.openInNew ? "_blank" : undefined}
+                  rel={
+                    primaryLink.openInNew ? "noopener noreferrer" : undefined
+                  }
                   data-builder-node-id={nodeIdsByRole?.primaryCta}
                   style={{
                     ...ctaSize(nodePresentation.primaryCta?.size),
@@ -582,10 +600,14 @@ export function HeroComponent({
                   {primaryCta.label}
                 </a>
               ) : null}
-              {secondaryCta ? (
+              {secondaryCta && secondaryLink ? (
                 <a
                   className="site-hero__cta site-hero__cta--secondary"
-                  href={secondaryCta.href}
+                  href={secondaryLink.href}
+                  target={secondaryLink.openInNew ? "_blank" : undefined}
+                  rel={
+                    secondaryLink.openInNew ? "noopener noreferrer" : undefined
+                  }
                   data-builder-node-id={nodeIdsByRole?.secondaryCta}
                   style={{
                     ...ctaSize(nodePresentation.secondaryCta?.size),

@@ -260,8 +260,8 @@ export default function AuditPhaseEPage() {
           props={{
             headline: "We exist to make the frame matter.",
             subheadline: "An agency for editorial, commercial, and live talent — working where the light is right.",
-            primaryCta: { href: "#", label: "Start a project" },
-            secondaryCta: { href: "#", label: "See the roster" },
+            primaryCta: { href: { kind: "anchor", value: "#" }, label: "Start a project" },
+            secondaryCta: { href: { kind: "anchor", value: "#" }, label: "See the roster" },
             overlay: "aurora",
             mood: "editorial",
             presentation: {},
