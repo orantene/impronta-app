@@ -355,7 +355,23 @@ export async function resolveTenantFromHost(
       return null;
     }
     if (!data) return null;
-    return { tenantId: data.tenant_id, hostname: data.hostname };
+    // SECURITY S1 (2026-05-19) — explicit fail-closed on a malformed
+    // agency_domains row. Previously a corrupt/partial row with
+    // tenant_id null / '' / whitespace would have been returned verbatim
+    // and could downstream produce a `.eq('tenant_id', null)` (unscoped)
+    // query. The DB NOT-NULL constraint is the primary defence; this
+    // guard is the second, app-layer line so the resolver is never the
+    // weakest link. Reject anything that isn't a non-empty trimmed string.
+    const rawTenantId = data.tenant_id;
+    const tenantId =
+      typeof rawTenantId === "string" ? rawTenantId.trim() : "";
+    if (!tenantId) {
+      void improntaLog("security.resolve_host_invalid_tenant_id", {
+        hostname: normalized,
+      });
+      return null;
+    }
+    return { tenantId, hostname: data.hostname };
   } catch (error) {
     logServerError("saas/scope.resolveTenantFromHost", error);
     return null;

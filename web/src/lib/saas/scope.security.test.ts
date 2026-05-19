@@ -153,31 +153,40 @@ test("resolveTenantFromHost: a synchronous driver throw is caught → null, NO s
 });
 
 test(
-  "resolveTenantFromHost: a malformed agency_domains row with empty tenant_id is passed through verbatim",
-  {
-    skip:
-      "SECURITY FLAG: resolveTenantFromHost does not validate data.tenant_id is a non-empty " +
-      "string. A corrupt/partial agency_domains row (tenant_id null/'') yields " +
-      "{ tenantId: null }, which downstream becomes `.eq('tenant_id', null)` — an " +
-      "unscoped query. Low likelihood (DB constraint should forbid it) but the " +
-      "resolver is the last line of defence and should fail closed: reject the row " +
-      "and return null when tenant_id is not a non-empty string.",
-  },
+  "resolveTenantFromHost: a malformed agency_domains row with empty tenant_id is REJECTED (fail-closed) [HARDENED 2026-05-19]",
   async () => {
-    // Characterizes the CURRENT (weak) behaviour: the empty tenant_id leaks
-    // through instead of being rejected.
-    const { supabase } = mockSupabase({
-      data: { tenant_id: "", hostname: "brand.mx", status: "active" },
-      error: null,
-    });
-    const res = await resolveTenantFromHost(supabase, "brand.mx");
-    assert.deepEqual(
-      res,
-      { tenantId: "", hostname: "brand.mx" },
-      "current behaviour: empty tenant_id is NOT rejected",
-    );
+    // HARDENING: empty / null / whitespace-only tenant_id is now rejected at
+    // the resolver before becoming `.eq('tenant_id', '')` downstream.
+    for (const bad of ["", "   ", null, undefined]) {
+      const { supabase } = mockSupabase({
+        data: { tenant_id: bad, hostname: "brand.mx", status: "active" },
+        error: null,
+      });
+      const res = await resolveTenantFromHost(supabase, "brand.mx");
+      assert.equal(
+        res,
+        null,
+        `tenant_id=${JSON.stringify(bad)} must be rejected (returned null)`,
+      );
+    }
   },
 );
+
+test("resolveTenantFromHost: whitespace-wrapped tenant_id is trimmed before being returned (no junk leak)", async () => {
+  // A well-formed UUID with stray whitespace shouldn't reach downstream
+  // query builders untrimmed — they'd then construct a junk equality filter
+  // and silently return zero rows for legitimate tenants.
+  const { supabase } = mockSupabase({
+    data: {
+      tenant_id: "  tenant-REAL  ",
+      hostname: "brand.mx",
+      status: "active",
+    },
+    error: null,
+  });
+  const res = await resolveTenantFromHost(supabase, "brand.mx");
+  assert.deepEqual(res, { tenantId: "tenant-REAL", hostname: "brand.mx" });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Source-level isolation invariants — for getTenantScope / getPublicTenantScope
