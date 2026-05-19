@@ -298,6 +298,9 @@ type FieldCatalogField = {
   /** tenant override: null = inherit platform, true/false = forced. */
   required_override: boolean | null;
   custom_label: string | null;
+  /** tenant per-field helper/guidance text. null = inherit the platform
+   *  definition's `helper`. */
+  custom_helper: string | null;
 };
 type FieldCatalogGroupRow = {
   id: string;
@@ -312,6 +315,7 @@ const catalogFieldSchema = z.object({
   enabled: z.boolean().nullable().optional(),
   required: z.boolean().nullable().optional(),
   custom_label: z.string().max(120).nullable().optional(),
+  helper: z.string().max(240).nullable().optional(),
 });
 const catalogGroupSchema = z.object({
   field_group_id: z.string().uuid(),
@@ -339,7 +343,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
       .eq("is_active", true),
     supabase
       .from("workspace_profile_field_settings")
-      .select("field_definition_id, enabled_override, required_override, custom_label")
+      .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper")
       .eq("tenant_id", tenantId),
     supabase
       .from("workspace_field_group_settings")
@@ -369,7 +373,10 @@ export async function getWorkspaceFieldCatalog(): Promise<
       field_group_id: string | null;
     };
     const o = fOv.get(def.id) as
-      | { enabled_override: boolean | null; required_override: boolean | null; custom_label: string | null }
+      | {
+          enabled_override: boolean | null; required_override: boolean | null;
+          custom_label: string | null; custom_helper: string | null;
+        }
       | undefined;
     return {
       field_definition_id: def.id,
@@ -379,6 +386,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
       enabled: o?.enabled_override !== false,
       required_override: o?.required_override ?? null,
       custom_label: o?.custom_label ?? null,
+      custom_helper: o?.custom_helper ?? null,
     };
   });
 
@@ -411,7 +419,7 @@ export async function setWorkspaceFieldCatalog(
 ): Promise<OkResult> {
   const parsed = catalogFieldSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
-  const { field_definition_id, enabled, required, custom_label } = parsed.data;
+  const { field_definition_id, enabled, required, custom_label, helper } = parsed.data;
 
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -427,6 +435,9 @@ export async function setWorkspaceFieldCatalog(
   if (required !== undefined) row.required_override = required;
   if (custom_label !== undefined) {
     row.custom_label = custom_label && custom_label.trim() ? custom_label.trim() : null;
+  }
+  if (helper !== undefined) {
+    row.custom_helper = helper && helper.trim() ? helper.trim() : null;
   }
 
   const { error } = await supabase
