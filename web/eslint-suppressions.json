@@ -4,17 +4,71 @@
       "count": 2
     }
   },
+  "src/app/(marketing)/get-started/page.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/(marketing)/integrations/page.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/_data-bridge/discover.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/EditorSections.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "react-hooks/preserve-manual-memoization": {
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/[tenantSlug]/admin/work/[id]/page.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "react-hooks/purity": {
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/client/discover/DiscoverShell.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/client/inquiries/new/new-inquiry-form.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "react/no-unescaped-entities": {
       "count": 2
     }
@@ -34,8 +88,23 @@
       "count": 1
     }
   },
+  "src/app/prototypes/drawer-preview/page.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/share/pitch/[token]/_pitch-landing.tsx": {
     "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/app/t/[profileCode]/page.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/app/t/[profileCode]/talent-profile-inquire-button.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
       "count": 1
     }
   },
@@ -45,16 +114,60 @@
     }
   },
   "src/components/admin/shell/admin-shell-client.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 57
+    },
     "react-hooks/refs": {
       "count": 1
+    }
+  },
+  "src/components/admin/shell/admin-shell.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/client.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 388
+    }
+  },
+  "src/components/admin/shell/internal/context-add-search.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 18
+    }
+  },
+  "src/components/admin/shell/internal/context-slot-panel.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 14
     }
   },
   "src/components/admin/shell/internal/drawers.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
     },
+    "max-lines": {
+      "count": 1
+    },
     "prefer-const": {
       "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 4
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 2914
     },
     "react-hooks/purity": {
       "count": 8
@@ -78,7 +191,65 @@
       "count": 70
     }
   },
+  "src/components/admin/shell/internal/field-catalog.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/guided-tour.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    }
+  },
+  "src/components/admin/shell/internal/help.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 23
+    }
+  },
+  "src/components/admin/shell/internal/language-add-search.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    }
+  },
+  "src/components/admin/shell/internal/language-slot-panel.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 11
+    }
+  },
+  "src/components/admin/shell/internal/live-category-fields-editor.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 87
+    }
+  },
+  "src/components/admin/shell/internal/live-category-fields-history.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 26
+    }
+  },
+  "src/components/admin/shell/internal/location-slot-panel.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 25
+    }
+  },
   "src/components/admin/shell/internal/media-page.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 4
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 246
+    },
     "react-hooks/preserve-manual-memoization": {
       "count": 1
     },
@@ -90,13 +261,43 @@
     }
   },
   "src/components/admin/shell/internal/messages.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 4
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 1012
+    },
     "react/no-unescaped-entities": {
+      "count": 24
+    }
+  },
+  "src/components/admin/shell/internal/metrics-ribbon.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 4
+    }
+  },
+  "src/components/admin/shell/internal/modern-features.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 21
+    }
+  },
+  "src/components/admin/shell/internal/notifications-hub.tsx": {
+    "ratchet/no-new-inline-style": {
       "count": 24
     }
   },
   "src/components/admin/shell/internal/pages.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
+    },
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 854
     },
     "react-hooks/immutability": {
       "count": 1
@@ -117,50 +318,158 @@
       "count": 4
     }
   },
+  "src/components/admin/shell/internal/palette.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    }
+  },
   "src/components/admin/shell/internal/phase7-drawers.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 2
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 59
+    },
     "react/no-unescaped-entities": {
       "count": 10
     }
   },
   "src/components/admin/shell/internal/pitch-compose.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 81
+    },
     "react-hooks/purity": {
       "count": 1
     }
   },
   "src/components/admin/shell/internal/platform.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 179
+    },
     "react/no-unescaped-entities": {
       "count": 1
     }
   },
   "src/components/admin/shell/internal/primitives.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 2
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 403
+    },
     "react-hooks/refs": {
       "count": 1
     }
   },
+  "src/components/admin/shell/internal/skill-add-search.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 43
+    }
+  },
+  "src/components/admin/shell/internal/skill-aspirations.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 23
+    }
+  },
+  "src/components/admin/shell/internal/skill-discovery-panel.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 32
+    }
+  },
   "src/components/admin/shell/internal/skill-freshness-banner.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 21
+    },
     "react/no-unescaped-entities": {
       "count": 2
     }
   },
   "src/components/admin/shell/internal/skill-hints-banner.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    },
     "react/no-unescaped-entities": {
       "count": 1
     }
   },
   "src/components/admin/shell/internal/skill-overrides-panel.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 31
+    },
     "react/no-unescaped-entities": {
       "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/skill-proficiency.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 9
+    }
+  },
+  "src/components/admin/shell/internal/skill-row.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 19
+    }
+  },
+  "src/components/admin/shell/internal/skill-slot-panel.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 10
+    }
+  },
+  "src/components/admin/shell/internal/skill-verify-dialog.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 22
+    }
+  },
+  "src/components/admin/shell/internal/state.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 2
     }
   },
   "src/components/admin/shell/internal/talent-drawers.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     },
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 523
+    },
     "react/no-unescaped-entities": {
       "count": 32
     }
   },
   "src/components/admin/shell/internal/talent.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 956
+    },
     "react/no-unescaped-entities": {
       "count": 10
     }
@@ -170,19 +479,611 @@
       "count": 1
     }
   },
+  "src/components/admin/shell/internal/wave2.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 372
+    }
+  },
+  "src/components/admin/shell/internal/workspace.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 285
+    }
+  },
   "src/components/chat-cards/PayNowSheet.tsx": {
     "react/no-unescaped-entities": {
       "count": 1
     }
   },
+  "src/components/details-tab/DetailsTab.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/directory/directory-filters-sidebar.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/directory/portfolio-gallery-lightbox.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/WorkspaceTemplateGallery.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/assets-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/command-palette.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/comments-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/composition-library.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/edit-context.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/edit-shell.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/empty-canvas-starter.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/inspector-dock.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 2
+    }
+  },
+  "src/components/edit-chrome/inspectors/builder-node-content.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/inspectors/layout-panel.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/inspectors/responsive-panel.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/inspectors/style-panel.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/navigator-panel.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/page-settings-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/publish-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/rich-editor/CanvasEditOverlay.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/selection-layer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 5
+    }
+  },
+  "src/components/edit-chrome/theme-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/edit-chrome/topbar.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/inquiry-cart/InquiryAttachmentsUploader.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/inquiry-cart/InquiryCartForm.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 2
+    }
+  },
   "src/components/inquiry/InquiryDrawer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
     "react/no-unescaped-entities": {
       "count": 4
     }
   },
+  "src/components/marketing/get-started-form.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    }
+  },
+  "src/components/media/photo-lightbox.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 2
+    }
+  },
+  "src/components/reservation-thread/adapters/ClientThreadAdapter.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/talent/media-gallery-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "react/no-unescaped-entities": {
       "count": 2
+    }
+  },
+  "src/lib/access/capabilities.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/bookings/transactions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/dashboard/admin-dashboard-data.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/directory/fetch-directory-page.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/directory/field-driven-filters.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/inquiry/inquiry-engine-offers.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/pitch/pitch-engine.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/saas/custom-domain-actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/admin-agency-logo-upload.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
+    }
+  },
+  "src/lib/server-actions/admin-billing.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/admin-bookings.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 46
+    }
+  },
+  "src/lib/server-actions/admin-call-sheet.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
+  "src/lib/server-actions/admin-clients.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
+  "src/lib/server-actions/admin-cms-revisions.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
+    }
+  },
+  "src/lib/server-actions/admin-inquiries.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 45
+    }
+  },
+  "src/lib/server-actions/admin-inquiry-roster.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/admin-plan-downgrade.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
+    }
+  },
+  "src/lib/server-actions/admin-site-pages.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
+    }
+  },
+  "src/lib/server-actions/admin-stripe-connect.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/admin-suggested-talent.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
+  "src/lib/server-actions/admin-talent-contexts.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 11
+    }
+  },
+  "src/lib/server-actions/admin-talent-extras.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 25
+    }
+  },
+  "src/lib/server-actions/admin-talent-field-values.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 10
+    }
+  },
+  "src/lib/server-actions/admin-talent-identity.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
+  "src/lib/server-actions/admin-talent-languages.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
+  "src/lib/server-actions/admin-talent-metrics.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/admin-talent-profile-sections.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 28
+    }
+  },
+  "src/lib/server-actions/admin-talent-roster.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
+    }
+  },
+  "src/lib/server-actions/admin-talent-service-areas.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/admin-talent-skills.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 50
+    }
+  },
+  "src/lib/server-actions/admin-talent-translations.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/admin-talent.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 21
+    }
+  },
+  "src/lib/server-actions/admin-taxonomy.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 29
+    }
+  },
+  "src/lib/server-actions/admin-translation-quick-edit.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
+  "src/lib/server-actions/admin-translations-tax-loc.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
+    }
+  },
+  "src/lib/server-actions/admin-user-workspaces.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
+  "src/lib/server-actions/admin-workspace-field-settings.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 13
+    }
+  },
+  "src/lib/server-actions/admin-workspace-settings.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 13
+    }
+  },
+  "src/lib/server-actions/alternate-domain.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
+    }
+  },
+  "src/lib/server-actions/bank-link.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/cancel-subscription.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 7
+    }
+  },
+  "src/lib/server-actions/client-guest-merge.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/client-inquiry-attachments.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
+    }
+  },
+  "src/lib/server-actions/client-pipeline.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/coord-request-actions.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
+    }
+  },
+  "src/lib/server-actions/details-tab-data.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
+    }
+  },
+  "src/lib/server-actions/inquiry-message-edit.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
+  "src/lib/server-actions/message-reactions.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
+  "src/lib/server-actions/message-stars.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
+    }
+  },
+  "src/lib/server-actions/payment-methods.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
+  "src/lib/server-actions/profile-change-requests.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
+    }
+  },
+  "src/lib/server-actions/roster-import.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 9
+    }
+  },
+  "src/lib/server-actions/search-talent.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
+  "src/lib/server-actions/talent-field-values-catalog.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 16
+    }
+  },
+  "src/lib/server-actions/talent-field-values.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 4
+    }
+  },
+  "src/lib/server-actions/talent-pipeline.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 14
+    }
+  },
+  "src/lib/server-actions/talent-self-profile-sections.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 25
+    }
+  },
+  "src/lib/server-actions/talent-self-provision.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/talent-self.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
+  "src/lib/server-actions/talent-takeover.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/talent-workspace-provision.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
+    }
+  },
+  "src/lib/server-actions/team-management.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 16
+    }
+  },
+  "src/lib/server-actions/user-prefs.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 7
+    }
+  },
+  "src/lib/site-admin/builder-node/builder-node.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/builder-node/operations.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/builder-node/operations.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/builder-node/render.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/builder-node/snapshot-slot-bridge.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/edit-mode/composition-actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/edit-mode/starter-action.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/sections/node-presentation-render.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/sections/node-presentation.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/sections/registry.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/sections/shared/section-template-starters.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/server/homepage.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/server/pages.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/server/sections.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/site-header/actions.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/tokens/registry.ts": {
+    "max-lines": {
+      "count": 1
     }
   }
 }

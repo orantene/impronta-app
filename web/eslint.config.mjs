@@ -2,6 +2,157 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+// ─── Phase 0 — Lint ratchet (remediation-plan-2026-05-19 §4) ──────────
+//
+// Local plugin holding the four ratchet rules. They are intentionally
+// *count-based*: every offending site is one report, so ESLint 9's
+// native bulk-suppressions (`--suppressions-location eslint-suppressions
+// .json`, the pattern already in `npm run lint`) grandfathers the exact
+// current debt and only NEW occurrences (count above the recorded
+// baseline / a file not in the baseline) surface. Re-baseline after a
+// real reduction with `--prune-suppressions`. This file + eslint-
+// suppressions.json are single-owner per the plan §5 — do not hand-edit
+// the suppressions JSON; regenerate it with `eslint --suppress-rule`.
+const ratchetPlugin = {
+  meta: { name: "ratchet", version: "0.0.0" },
+  rules: {
+    // (Rule 1 — file-size budget — is core `max-lines` @ 800 = error;
+    // no custom rule needed. The plan also asks for a *warn* on edits to
+    // files already > 1500 LOC. That is deliberately NOT a separate rule:
+    // ESLint 9 native bulk-suppressions — the mandated existing pattern
+    // (`--suppressions-location`) — suppress severity:error only, NOT
+    // warnings, so a warn rule could not be grandfathered and would add
+    // ~35 permanent warnings (breaks the before==after invariant). A
+    // parallel hand-kept size baseline would violate plan §5 (eslint-
+    // suppressions.json is single-source, regenerate-only). Any file
+    // > 1500 LOC is already > 800 LOC, so the hard cap already blocks
+    // every new god-file; Phase 1 decomposition + `--prune-suppressions`
+    // re-baselines the grandfathered set as the god-files shrink.)
+
+    // Rule 2 — freeze NEW inline style={{…}} under components/admin/shell.
+    // The ~8.8k existing are grandfathered; Phase 3's token codemod owns
+    // paying that tail down. One report per attribute → native count
+    // baseline ratchets per file.
+    "no-new-inline-style": {
+      meta: {
+        type: "problem",
+        schema: [],
+        messages: {
+          inline:
+            "New inline style={{…}} is frozen under components/admin/shell (Phase 3 design-token codemod owns the existing tail). Use a CSS class / a var(--token-*) from token-presets.css instead.",
+        },
+      },
+      create(context) {
+        return {
+          JSXAttribute(node) {
+            if (
+              node.name &&
+              node.name.name === "style" &&
+              node.value &&
+              node.value.type === "JSXExpressionContainer" &&
+              node.value.expression &&
+              node.value.expression.type === "ObjectExpression"
+            ) {
+              context.report({ node, messageId: "inline" });
+            }
+          },
+        };
+      },
+    },
+
+    // Rule 3 — freeze NEW react-hooks/exhaustive-deps eslint-disable
+    // suppressions. Existing ones are tracked (grandfathered); no new
+    // ones. Fix the dependency array instead of silencing it.
+    "no-new-hook-deps-disable": {
+      meta: {
+        type: "problem",
+        schema: [],
+        messages: {
+          frozen:
+            "New eslint-disable for react-hooks/exhaustive-deps is frozen. Fix the dependency array (or extract a stable callback / useEvent) instead of suppressing the rule.",
+        },
+      },
+      create(context) {
+        const sc = context.sourceCode || context.getSourceCode();
+        return {
+          Program() {
+            for (const c of sc.getAllComments()) {
+              const t = c.value;
+              if (
+                /eslint-disable(-next-line|-line)?\b/.test(t) &&
+                /react-hooks\/exhaustive-deps/.test(t)
+              ) {
+                context.report({ loc: c.loc, messageId: "frozen" });
+              }
+            }
+          },
+        };
+      },
+    },
+
+    // Rule 4 — tenant-scope guard (lint half; the tenantScopedQuery
+    // helper is owned by the lib/supabase workstream). Flags raw
+    // `.from("<table>")` string-literal calls in server actions. The
+    // ~540 existing call sites are grandfathered; new ones must route
+    // through tenantScopedQuery so the tenant filter can't be forgotten.
+    // JS built-ins (Array/Buffer/Object.from …) are excluded.
+    "no-untenanted-from": {
+      meta: {
+        type: "problem",
+        schema: [],
+        messages: {
+          raw: 'Raw .from("{{table}}") in a server action bypasses the tenant filter. Route through tenantScopedQuery(...) so tenant scoping can\'t be forgotten. Legacy call sites are grandfathered in eslint-suppressions.json; new ones must use the helper.',
+        },
+      },
+      create(context) {
+        const BUILTIN =
+          /^(Array|Buffer|Object|String|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|Float32Array|Float64Array|BigInt64Array|BigUint64Array|Map|Set)$/;
+        return {
+          CallExpression(node) {
+            const cal = node.callee;
+            if (
+              !cal ||
+              cal.type !== "MemberExpression" ||
+              cal.computed ||
+              !cal.property ||
+              cal.property.name !== "from"
+            ) {
+              return;
+            }
+            if (
+              cal.object &&
+              cal.object.type === "Identifier" &&
+              BUILTIN.test(cal.object.name)
+            ) {
+              return;
+            }
+            const a = node.arguments[0];
+            let table = null;
+            if (a) {
+              if (a.type === "Literal" && typeof a.value === "string") {
+                table = a.value;
+              } else if (
+                a.type === "TemplateLiteral" &&
+                a.expressions.length === 0 &&
+                a.quasis.length === 1
+              ) {
+                table = a.quasis[0].value.cooked;
+              }
+            }
+            if (table != null) {
+              context.report({
+                node,
+                messageId: "raw",
+                data: { table },
+              });
+            }
+          },
+        };
+      },
+    },
+  },
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -157,6 +308,56 @@ const eslintConfig = defineConfig([
             "Do not build cache tags inline with template strings. Use tagFor(...) from '@/lib/site-admin/cache-tags'.",
         },
       ],
+    },
+  },
+  // ─── Phase 0 ratchet — rule wiring (single-owner, plan §4/§5) ──────
+  //
+  // Custom rule ids (never collide with the existing no-restricted-*
+  // blocks, so no flat-config "last-write-wins" override risk). All
+  // current debt is grandfathered in eslint-suppressions.json via
+  // ESLint's native bulk-suppressions; regenerate after rule/scope
+  // changes with, from web/:
+  //   node -r ./scripts/eslint-node-polyfill.cjs \
+  //     ./node_modules/eslint/bin/eslint.js . \
+  //     --suppressions-location eslint-suppressions.json \
+  //     --suppress-rule max-lines \
+  //     --suppress-rule ratchet/no-new-inline-style \
+  //     --suppress-rule ratchet/no-new-hook-deps-disable \
+  //     --suppress-rule ratchet/no-untenanted-from
+  {
+    files: ["src/**/*.{ts,tsx,js,jsx,mjs}"],
+    rules: {
+      // Rule 1 — file-size budget: NEW files > 800 LOC error. All ~87
+      // current files > 800 are grandfathered (count 1 each) in
+      // eslint-suppressions.json.
+      "max-lines": [
+        "error",
+        { max: 800, skipBlankLines: false, skipComments: false },
+      ],
+    },
+  },
+  {
+    files: ["src/components/admin/shell/**/*.{ts,tsx}"],
+    plugins: { ratchet: ratchetPlugin },
+    rules: {
+      // Rule 2 — no NEW inline style={{…}} in the admin shell.
+      "ratchet/no-new-inline-style": "error",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { ratchet: ratchetPlugin },
+    rules: {
+      // Rule 3 — no NEW react-hooks/exhaustive-deps eslint-disable.
+      "ratchet/no-new-hook-deps-disable": "error",
+    },
+  },
+  {
+    files: ["src/lib/server-actions/**/*.{ts,tsx}"],
+    plugins: { ratchet: ratchetPlugin },
+    rules: {
+      // Rule 4 — tenant-scope guard (lint half).
+      "ratchet/no-untenanted-from": "error",
     },
   },
   // Override default ignores of eslint-config-next.
