@@ -100,7 +100,11 @@ function loadShellSocialContact(tenantId: string): Promise<ShellSocialContact> {
     ["site-admin:shell-social-contact", tenantId],
     {
       revalidate: SHELL_SOCIAL_TTL_SECONDS,
-      tags: [tagFor(tenantId, "branding")],
+      // Social/contact lives in agency_business_identity, which the
+      // canonical identity save (saveIdentity) busts via the "identity"
+      // + "storefront" tags — NOT "branding". Tag accordingly so an
+      // operator's drawer edit reflects in the header immediately.
+      tags: [tagFor(tenantId, "identity"), tagFor(tenantId, "storefront")],
     },
   )();
 }
