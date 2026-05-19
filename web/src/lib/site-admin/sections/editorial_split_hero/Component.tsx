@@ -1,11 +1,12 @@
 import { presentationDataAttrs } from "../shared/presentation";
 import { Container, Cta, MediaFrame } from "../shared/section-primitives";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
 
 export function EditorialSplitHeroComponent({
   props,
+  tenantId,
   publicPathPrefix = "",
 }: SectionComponentProps<EditorialSplitHeroV1>) {
   const {
@@ -30,7 +31,15 @@ export function EditorialSplitHeroComponent({
     presentation,
   } = props;
 
-  const pfx = (h: string) => prefixPublicHref(h, publicPathPrefix);
+  // 6C — resolve CTA LinkRefs through the single source of truth
+  // (robust whether props arrive as a LinkRef object or legacy string).
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const primaryLink = primaryCta
+    ? resolveLinkLike(primaryCta.href, linkCtx)
+    : null;
+  const secondaryLink = secondaryCta
+    ? resolveLinkLike(secondaryCta.href, linkCtx)
+    : null;
   // Only static media renders today; selected/dynamic are documented
   // follow-ons (would couple to the cache-trimmed featured DTO).
   const resolvedMedia = mediaMode === "static" ? (mediaUrl ?? null) : null;
@@ -63,7 +72,8 @@ export function EditorialSplitHeroComponent({
               <div className="site-esh__ctas">
                 {primaryCta ? (
                   <Cta
-                    href={pfx(primaryCta.href)}
+                    href={primaryLink?.href ?? "#"}
+                    newTab={primaryLink?.openInNew}
                     variant="primary"
                     size="lg"
                   >
@@ -72,7 +82,8 @@ export function EditorialSplitHeroComponent({
                 ) : null}
                 {secondaryCta ? (
                   <Cta
-                    href={pfx(secondaryCta.href)}
+                    href={secondaryLink?.href ?? "#"}
+                    newTab={secondaryLink?.openInNew}
                     variant="text"
                     size="lg"
                   >
