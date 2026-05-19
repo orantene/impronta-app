@@ -614,12 +614,22 @@
       "count": 22
     }
   },
-  "src/components/admin/shell/internal/state.tsx": {
+  "src/components/admin/shell/internal/state/context.tsx": {
     "max-lines": {
       "count": 1
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/state/fixtures.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/state/types.ts": {
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent-drawers.tsx": {
