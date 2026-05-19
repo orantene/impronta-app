@@ -2702,3 +2702,63 @@ Acceptance unchanged (plan §12). Resolver/model/tests are correct — build
 ON them; no second link system.
 
 *End 6C status 2026-05-19.*
+
+---
+
+## ✅ 6C STATUS UPDATE 2 — 2026-05-19 (rollouts #6–#7 + gate fix)
+
+**Two more per-section rollouts shipped (local-only, gated + verified):**
+
+| # | Section | Commit |
+|---|---------|--------|
+| 6 | featured_talent (requestCta + footerCta; presets→LinkRef literals; requestCta resolved at the FeaturedTalentCard boundary, card's prefixPublicHref now an idempotent no-op) | `c72371795` |
+| 7 | hero (categoryChips + primaryCta + secondaryCta; `search.actionHref` stays string; hand-written Editor chip input→LinkKindPicker, `patchCategoryChip` no longer `.trim()`s href; fixtures→LinkRef literals) | `6b38beaca` |
+
+Per-section LinkRef rollouts complete: **#1 cta_banner · #2
+editorial_split_hero · #3 location_discovery · #4 talent_type_grid ·
+#5 hero_search · #6 featured_talent · #7 hero** — every hand-written /
+non-shared-kit-Editor section migrated, each gated + verified, all
+local-commit-only (no push/Vercel).
+
+### ⚠ GATE-RELIABILITY FIX (do this or tsc lies)
+
+`npx tsc --noEmit` (and `npm run typecheck`) is **poisoned by the
+running dev server**: Next regenerates a transient corrupt
+`.next/dev/types/routes.d.ts` (TS1005 / unterminated template) that
+makes tsc's diagnostics for real source files unreliable — it masked a
+live `prefixPublicHref is not defined` ReferenceError in featured_talent
+(caught only by the DOM check). **Authoritative gate =** stop the :3000
+dev server + `rm -rf web/.next` + THEN `npx tsc --noEmit`. Filtering
+`.next/` lines out of poisoned output is NOT sufficient. Always
+clean-gate before trusting tsc; always DOM/render-verify too.
+
+### Shared-kit follow-on now spans BOTH primitives
+
+The gated structured-editor follow-on is **two shared primitives**, not
+one:
+- `ZodSchemaForm` (drives site_header / site_footer / anchor_nav
+  auto-bound editors)
+- `CtaDuoEditor` + its `CtaShape` in `edit-chrome/inspectors/kit`
+  (drives the bespoke featured_talent + hero + talent_type_grid Content
+  inspectors)
+
+For #6/#7 the bespoke inspectors stay on the coerced-legacy-string path
+(loosely typed `Record<string,unknown>` → no tsc fallout;
+backward-compatible; Finding-B-safe via the global guard). Teaching
+`CtaDuoEditor`/`ZodSchemaForm` to emit/round-trip `LinkRef` is the
+one remaining shared-kit phase — sequence it (with the shell + anchor_nav
+schema migrations) after the concurrent directory-section agent's
+in-flight `registry.ts` / `default-content.ts` / `registry-editors.ts`
+settle.
+
+### ⚠ Pre-existing tree breakage (NOT 6C)
+
+Whole-tree `tsc` currently also reports
+`src/lib/site-admin/server/onboard-directory-page.ts(175): Type 'string'
+is not assignable to '"en"|"es"'`. That file is **UNTRACKED** — the
+concurrent directory-section agent's in-flight work, a locale typing
+issue unrelated to LinkRef. Out of 6C scope and not stageable per branch
+governance; integration/that agent must resolve it. All 6C-owned files
+are tsc-clean.
+
+*End 6C status 2 — 2026-05-19.*
