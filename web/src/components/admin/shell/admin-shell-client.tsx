@@ -369,6 +369,13 @@ export function TalentShellClient({
 
 function AdminShellRoot() {
   const defaultShow = useDevControlBar();
+  // Audit item #6 (hardened): the prototype control bar + its floating
+  // toggle are gated to standalone demo/prototype mode (no real bridged
+  // tenant) OR an explicit `?dev=1` engineer opt-in. Real LIVE tenants
+  // never get the always-visible toggle. `bridgeTenantIdentity` is the
+  // canonical real-vs-demo signal (null = standalone demo).
+  const { bridgeTenantIdentity } = useAdminShell();
+  const devControlsPermitted = !bridgeTenantIdentity || defaultShow;
   const [showDevBar, setShowDevBar] = useState(defaultShow);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -407,42 +414,45 @@ function AdminShellRoot() {
 
   return (
     <>
-      <AdminShellContent showDevBar={showDevBar} />
+      <AdminShellContent showDevBar={showDevBar && devControlsPermitted} />
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      {/* Floating toggle — always visible so users can reveal/hide the
-          dev control bar without touching the URL. */}
-      <button
-        type="button"
-        title={showDevBar ? "Hide dev controls" : "Show dev controls"}
-        onClick={() => setShowDevBar((v) => !v)}
-        style={{
-          position: "fixed",
-          bottom: 18,
-          left: 18,
-          zIndex: 9999,
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: showDevBar ? "#1a1a1f" : "rgba(11,11,13,0.85)",
-          border: "1.5px solid rgba(255,255,255,0.14)",
-          color: "#fff",
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backdropFilter: "blur(8px)",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.28)",
-          transition: "background .15s, transform .1s",
-          fontFamily: "system-ui, sans-serif",
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: -0.3,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-      >
-        ⚙
-      </button>
+      {/* Dev control toggle — rendered ONLY in standalone demo/prototype
+          mode or with an explicit ?dev=1 opt-in (devControlsPermitted).
+          Never shown to real LIVE-tenant users. */}
+      {devControlsPermitted && (
+        <button
+          type="button"
+          title={showDevBar ? "Hide dev controls" : "Show dev controls"}
+          onClick={() => setShowDevBar((v) => !v)}
+          style={{
+            position: "fixed",
+            bottom: 18,
+            left: 18,
+            zIndex: 9999,
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: showDevBar ? "#1a1a1f" : "rgba(11,11,13,0.85)",
+            border: "1.5px solid rgba(255,255,255,0.14)",
+            color: "#fff",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.28)",
+            transition: "background .15s, transform .1s",
+            fontFamily: "system-ui, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: -0.3,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          ⚙
+        </button>
+      )}
     </>
   );
 }

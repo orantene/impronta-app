@@ -196,7 +196,17 @@ export function ControlBar() {
     setClientPage,
     setClientProfile,
     setPlatformPage,
+    bridgeTenantIdentity,
   } = useAdminShell();
+
+  // Audit item #6 (hardened): real LIVE tenants never see the prototype
+  // bar. Gated to standalone demo mode (no real bridged tenant) or an
+  // explicit ?dev=1 engineer opt-in. `bridgeTenantIdentity` is the
+  // canonical real-vs-demo signal (null = standalone demo). This is
+  // defense-in-depth alongside the floating-toggle gate so a stale
+  // `tulala_dev_controls=1` localStorage can't resurrect it for a real
+  // signed-in user.
+  const [devPermitted, setDevPermitted] = useState(!bridgeTenantIdentity);
 
   // Dev controls are only useful while building/demoing the prototype.
   // Hide them in non-dev environments unless the URL opts in via ?dev=1.
@@ -211,12 +221,13 @@ export function ControlBar() {
       setDevVisible(false);
     } else if (params.get("dev") === "1") {
       setDevVisible(true);
+      setDevPermitted(true);
       try { window.localStorage.setItem("tulala_dev_controls", "1"); } catch {}
     } else if (stored === "0") {
       setDevVisible(false);
     }
   }, []);
-  if (!devVisible) return null;
+  if (!devPermitted || !devVisible) return null;
 
   return (
     <header
