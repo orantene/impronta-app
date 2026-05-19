@@ -2128,7 +2128,8 @@ function FieldGroupBlock({
             background: COLORS.surfaceAlt,
             border: `1px solid ${COLORS.borderSoft}`,
           }}>
-            <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 12.5, color: COLORS.ink }}>
               {f.label}
               {f.required_before_publish && (
                 <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700, fontSize: 10 }}
@@ -2158,7 +2159,14 @@ function FieldGroupBlock({
                   letterSpacing: 0.4,
                 }}>ADMIN</span>
               )}
-            </span>
+              </span>
+              {f.helper && (
+                <div style={{
+                  fontSize: 10.5, color: COLORS.inkMuted,
+                  marginTop: 2, lineHeight: 1.35,
+                }}>{f.helper}</div>
+              )}
+            </div>
             <span style={{
               fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
               background: f.tier === "universal" ? COLORS.surfaceAlt
@@ -19933,6 +19941,7 @@ function FieldCatalogDrawer() {
     field_definition_id: string; field_key: string; label: string;
     field_group_id: string | null; enabled: boolean;
     required_override: boolean | null; custom_label: string | null;
+    custom_helper: string | null;
   };
   type CatGroup = {
     id: string; name: string; sort_order: number;
@@ -19952,6 +19961,7 @@ function FieldCatalogDrawer() {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
+  const [renameHelperVal, setRenameHelperVal] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -19994,18 +20004,31 @@ function FieldCatalogDrawer() {
   };
 
   const commitFieldLabel = async (f: CatField) => {
-    if (!canCustomize) { toast("Upgrade to Studio to rename fields"); setRenaming(null); return; }
+    if (!canCustomize) { toast("Upgrade to Studio to edit fields"); setRenaming(null); return; }
     const v = renameVal.trim();
     const nextLabel = v && v !== f.label ? v : null;
-    if ((f.custom_label ?? null) === nextLabel) { setRenaming(null); return; }
+    const h = renameHelperVal.trim();
+    const nextHelper = h ? h : null;
+    const labelChanged = (f.custom_label ?? null) !== nextLabel;
+    const helperChanged = (f.custom_helper ?? null) !== nextHelper;
+    if (!labelChanged && !helperChanged) { setRenaming(null); return; }
     const snap = fields;
-    setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, custom_label: nextLabel } : x));
+    setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id
+      ? { ...x, custom_label: nextLabel, custom_helper: nextHelper } : x));
     setRenaming(null);
     mark(f.field_definition_id, true);
-    const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, custom_label: nextLabel });
+    const res = await setWorkspaceFieldCatalog({
+      field_definition_id: f.field_definition_id,
+      ...(labelChanged ? { custom_label: nextLabel } : {}),
+      ...(helperChanged ? { helper: nextHelper } : {}),
+    });
     mark(f.field_definition_id, false);
-    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't rename the field"); return; }
-    toast(nextLabel ? "Renamed for your workspace" : "Reset to the network name");
+    if (!res.ok) { setFields(snap); toast(res.error || "Couldn't save the field"); return; }
+    toast(
+      helperChanged && !labelChanged
+        ? (nextHelper ? "Guidance text saved" : "Guidance text cleared")
+        : (nextLabel ? "Saved for your workspace" : "Reset to the network name"),
+    );
   };
 
   // ── group ops ──────────────────────────────────────────────────────
@@ -20210,23 +20233,40 @@ function FieldCatalogDrawer() {
                       }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           {renaming === fieldKey ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <TextInput
-                                autoFocus
-                                value={renameVal}
-                                placeholder={f.label}
-                                onChange={(e) => setRenameVal(e.target.value)}
-                              />
-                              <button type="button" onClick={() => void commitFieldLabel(f)} style={{
-                                padding: "5px 11px", borderRadius: 999, border: "none",
-                                background: COLORS.fill, color: "#fff",
-                                fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                              }}>Save</button>
-                              <button type="button" onClick={() => setRenaming(null)} style={{
-                                padding: "5px 9px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
-                                background: "transparent", color: COLORS.inkMuted,
-                                fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                              }}>Cancel</button>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <div>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                  Label
+                                </div>
+                                <TextInput
+                                  autoFocus
+                                  value={renameVal}
+                                  placeholder={f.label}
+                                  onChange={(e) => setRenameVal(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                  Guidance text <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— shown to whoever fills this field</span>
+                                </div>
+                                <TextInput
+                                  value={renameHelperVal}
+                                  placeholder="e.g. Use the agency-approved spelling"
+                                  onChange={(e) => setRenameHelperVal(e.target.value)}
+                                />
+                              </div>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button type="button" onClick={() => void commitFieldLabel(f)} style={{
+                                  padding: "5px 11px", borderRadius: 999, border: "none",
+                                  background: COLORS.fill, color: "#fff",
+                                  fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                                }}>Save</button>
+                                <button type="button" onClick={() => setRenaming(null)} style={{
+                                  padding: "5px 9px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                                  background: "transparent", color: COLORS.inkMuted,
+                                  fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                                }}>Cancel</button>
+                              </div>
                             </div>
                           ) : (
                             <>
@@ -20250,13 +20290,27 @@ function FieldCatalogDrawer() {
                               <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
                                 {f.field_key}
                                 {canCustomize && (
-                                  <button type="button" onClick={() => startRename(fieldKey, f.custom_label ?? f.label)} style={{
-                                    marginLeft: 8, background: "none", border: "none", cursor: "pointer",
-                                    color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
-                                    textDecoration: "underline", padding: 0,
-                                  }}>rename</button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRenameVal(f.custom_label ?? f.label);
+                                      setRenameHelperVal(f.custom_helper ?? "");
+                                      setRenaming(fieldKey);
+                                    }}
+                                    style={{
+                                      marginLeft: 8, background: "none", border: "none", cursor: "pointer",
+                                      color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
+                                      textDecoration: "underline", padding: 0,
+                                    }}
+                                  >edit</button>
                                 )}
                               </div>
+                              {f.custom_helper && (
+                                <div style={{
+                                  fontSize: 10.5, color: COLORS.indigoDeep, marginTop: 3,
+                                  lineHeight: 1.35, fontStyle: "italic",
+                                }}>“{f.custom_helper}”</div>
+                              )}
                             </>
                           )}
                         </div>

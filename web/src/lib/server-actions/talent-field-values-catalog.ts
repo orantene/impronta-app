@@ -249,7 +249,7 @@ export async function getFieldsForTalentAsTalent(input: {
   const { data: defs } = await supabase
     .from("profile_field_definitions")
     .select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, helper",
     )
     .is("deprecated_at", null);
 
@@ -296,6 +296,7 @@ export async function getFieldsForTalentAsTalent(input: {
       field_key: d.field_key,
       label: d.label,
       label_es: (d as { label_es?: string | null }).label_es ?? null,
+      helper: (d as { helper?: string | null }).helper ?? null,
       tier: d.tier as "universal" | "global" | "type-specific",
       section: d.section,
       subsection: d.subsection,
