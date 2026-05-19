@@ -2602,3 +2602,103 @@ The `LinkRef` model + resolver + tests already exist and are correct.
 remaining work is the pipeline reconciliation + per-section wiring above.
 
 *End of 6C urgent handoff.*
+
+---
+
+## ✅ 6C STATUS UPDATE — 2026-05-19 (supersedes the "NEXT SLICE" above)
+
+The "NEXT SLICE" plan above is **done and superseded**. Actual state:
+
+**Foundation + GLOBAL Finding-B fix — SHIPPED & verified live**
+- `8e3f5cb8d` — `prefixPublicHref` skips auth paths via `isPlatformAuthPath`
+  (single source of truth in `links/link-ref.ts`). Because
+  `prefixPublicHrefsDeep` calls `prefixPublicHref` at the leaf, this fixes
+  Finding B **globally — every section AND the shell** — with no
+  per-section work. Verified on `/impronta`: `/register`,`/login` stay
+  ROOT; tenant paths still prefix.
+- `2cf124a93` — `LinkKindPicker` structured-LinkRef editor primitive.
+- Model/resolver/tests (`links/link-ref.ts`, `links/resolve-link-ref.ts`)
+  green: resolve-link-ref 17/17.
+
+**Per-section LinkRef rollouts — each gated + DOM-verified on `/impronta`,
+committed LOCAL-ONLY (no push/Vercel, per standing instruction):**
+
+| # | Section | Commit |
+|---|---------|--------|
+| 1 (pilot) | cta_banner | `d8edec488` |
+| 2 | editorial_split_hero | `f7cfc55c3` |
+| 3 | location_discovery | `bdae95e6b` |
+| 4 | talent_type_grid (+ bespoke edit-chrome inspector + preset literal) | `cd105f857` |
+| 5 | hero_search (CTAs + chips; `search.actionHref` stays string form-action) | `adfb44b15` |
+
+Repeatable pattern: schema href → `linkRefOrLegacy` /
+`optionalLinkRefOrLegacy`; Component drop `prefixPublicHref`/`pfx`, add
+`const linkCtx={pathPrefix:publicPathPrefix??"",tenantId}`, resolve via
+`resolveLinkLike`, render `href`/`newTab`; hand-written Editor
+`LinkPicker`→`LinkKindPicker`, string defaults → `coerceLegacyHref(...)`;
+fix inferred-output-type fallout (presets/fixtures/inspectors → explicit
+LinkRef literals); gate (tsc 0 · eslint 0 · node-presentation 94/96
+[#43/#44 = pre-existing async-harness, not regressions] · resolve-link-ref
+17/17); `rm -rf web/.next` clean-restart :3000; DOM-verify; scoped commit.
+
+### Shell (site_header / site_footer) — #6: route-safety DONE; structured-editor upgrade is a GATED FOLLOW-ON. **Do NOT naive-migrate.**
+
+Finding B is **already fully fixed for the shell** (global leaf guard).
+Verified live on `/impronta`:
+- header brand → `/impronta`; nav → `/impronta/{directory,about,contact}`;
+  `/register` → ROOT
+- footer columns → `/impronta/{directory,contact,about}`;
+  `/register`,`/login` → ROOT
+- zero `/impronta/<auth>` anywhere
+
+The remaining shell delta is the structured-LinkRef **editor** model only.
+It is **not** a clean rollout-#1–#5-style change because:
+- Both shell Editors are driven by the **shared generic `ZodSchemaForm`**
+  (`sections/shared/ZodSchemaForm.tsx`), not a per-field `LinkPicker`. It
+  renders `hint:"href"` string fields via legacy `LinkPicker` (~line 116).
+  A `linkRefOrLegacy` (transformed union) is not a primitive `z.string()`;
+  `ZodSchemaForm`'s kind detection (`text/url/.../object`) would fail to
+  render an editable control → **breaks nav/column/legal link editing
+  across the shell** (forbidden feature regression).
+- Correct fix = teach **`ZodSchemaForm`** to detect a LinkRef-union field
+  and render `LinkKindPicker` (round-tripping a `LinkRef`). `ZodSchemaForm`
+  is shared by many auto-bound editors → its own broad, carefully-tested
+  phase. (Alt: rewrite both shell Editors to hand-written LinkKindPicker
+  forms — a large rewrite of two complex editors.)
+
+Proven-safe architecture for the eventual wiring (analysis done — recorded
+so it is not re-derived):
+- `prefixPublicHrefsDeep` only rewrites string values under keys
+  `href|ctahref|rsvpurl|brandhref`; a `LinkRef`'s payload is under key
+  `value` → **untouched** (no double-prefix). `prefixPublicHref` is
+  **idempotent** (already-prefixed guard). So legacy-string AND
+  LinkRef-object both resolve correctly through the existing pipeline once
+  Components call `resolveLinkLike`.
+- `PublishedShell.tsx:188` has `publicPathPrefix` but does NOT pass it to
+  shell Components (deep-prefixer consumes it). `SectionComponentProps`
+  already has optional `publicPathPrefix`. Wiring: add
+  `publicPathPrefix={publicPathPrefix}` to the shell `<Comp/>`; Components
+  destructure it + `resolveLinkLike(linkCtx)`.
+- Scope when unblocked: migrate ONLY internal-routable `linkSchema.href`
+  (navItems / footer columns / legal links / `brand.href` / primaryCta).
+  Leave `socialLinkSchema.href` + `contactLinkSchema.value` as strings
+  (external / `tel:` / `mailto:`; `EXTERNAL_OR_SPECIAL_HREF` guard; zero
+  Finding-B relevance; migrating = churn w/ sitewide risk, no benefit).
+- File surface: `ZodSchemaForm.tsx` (LinkRef support — prerequisite) ·
+  `site_header/{schema,Component,Editor}.tsx` ·
+  `site_header/EditorialSplitActions.tsx` (keep string interface — resolve
+  at Component boundary) · `site_footer/{schema,Component,Editor}.tsx` ·
+  `PublishedShell.tsx` (+1 line) · fixtures
+  `sections/node-presentation.test.ts` + `node-presentation-render.test.ts`
+  (#43/#44 shell). `default-content.ts` is `Record<string,unknown>`
+  (loose) → NO fallout. `registry.ts` only wires generics → no fallout
+  (gate confirms).
+- COORDINATION: another agent is mid-flight uncommitted in `registry.ts`,
+  `registry-editors.ts`, `shared/default-content.ts`. The shell phase
+  shares the section-registry neighborhood — sequence it when that settles
+  to avoid shared-branch collision.
+
+Acceptance unchanged (plan §12). Resolver/model/tests are correct — build
+ON them; no second link system.
+
+*End 6C status 2026-05-19.*
