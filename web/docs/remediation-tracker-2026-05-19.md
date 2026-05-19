@@ -23,6 +23,37 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 
 ---
 
+## 📋 MASTER LIST — every prompt, one place (ground-truthed 2026-05-19)
+
+Status verified against `git`, not memory. **origin/phase-1 = `9d7cdcf3b`.**
+"Moves score?" is the honest distinction: **test lanes do NOT move 78→100** —
+they are the safety harness. Only the *structural* lanes move the number.
+
+| # | Prompt / lane | Type | Moves score? | Status | Your action |
+|---|---|---|---|---|---|
+| 1 | Test: billing & commission | test net | no (harness) | ✅ **LANDED** `cf16505c6` | close chat — done |
+| 2 | tests/server-actions | test net | no (harness) | ✅ **LANDED** `3bbf1023c` | close chat — done |
+| 3 | Test: inquiry engine | test net | no (harness) | ⏳ tests written, **0 commits** — self-gated on its own full tsc | keep open — it'll commit when its tsc clears |
+| 4 | tests/pitch-engine | test net | no (harness) | ▶ running, **0 commits** | keep open |
+| 5 | tests/auth-isolation | test net | no (harness) | ▶ running, **0 commits** | keep open |
+| 6 | field-catalog tests | test net | no (harness) | ✖ **NEVER LAUNCHED** (Lane 2 already shipped baseline) | optional — skip unless you want depth |
+| 7 | **Phase 1d — drawers.tsx 31.5k decomp** | **structural** | **YES — biggest lever** | ▶ **0 commits — no progress** | **the critical gap — needs a focused chat** |
+| 8 | **Phase 1e — pages.tsx 12k decomp** | **structural** | **YES** | ▶ **0 commits — no progress** | needs a chat |
+| 9 | **Phase 2-finish — ThreadShell admin+client** | **structural** | **YES** | ▶ in progress, **1 commit / 3 src files** | keep open |
+| 10 | **Phase 3 — design-token codemod** | **structural** | **YES** | ✅ **REPORTED & READY** — 3 commits / 24 src files (`f275561f0`) | none — **I land it next** |
+| 11 | T2a — CI structural gate | infra | indirect | ▶ running, **0 commits** | keep open |
+| 12 | T2b — data-access layer | infra | indirect | ▶ running, **0 commits** | keep open |
+| — | T2c residue decomp | gated | — | ⛔ GATED on 1d+1e | do NOT start |
+| — | T2d hygiene | last | — | ⛔ run LAST (0 commits — correctly parked) | do NOT start yet |
+| — | Tier-3 RSC rework | future | — | not a prompt — months-scale, post-test-net | ignore for now |
+
+**The headline:** 2 test lanes landed (harness solid). But the 4 lanes that
+actually move 78→100 are the weak spot — **Phase 1d (the single biggest lever,
+drawers.tsx 31.5k) has zero progress**, 1e zero, 2-finish barely started, only
+Phase 3 is ready. The score stays ~68 until these land.
+
+---
+
 ## ✅ Landed on origin/phase-1 — verified clean fast-forwards
 
 | # | Commit | Lane | Proof |
@@ -44,8 +75,8 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 |---|---|---|---|
 | Phase 1d | `drawers.tsx` ~31.5k decomp — **biggest remaining god-file** | `impronta-drawers-decomp` | running · no commits yet |
 | Phase 1e | `pages.tsx` ~12k decomp | `impronta-pages-decomp` | running · no commits yet |
-| Phase 2-finish | ThreadShell into admin + client surfaces | `impronta-ts-adopt` | running · no commits yet |
-| Phase 3 | design-token codemod (~8.7k inline styles) | `impronta-tokens` | **commits present (`f275561f0`) — not yet reported** |
+| Phase 2-finish | ThreadShell into admin + client surfaces | `impronta-ts-adopt` | in progress · **1 commit / 3 src files** |
+| Phase 3 | design-token codemod (~8.7k inline styles) | `impronta-tokens` | ✅ **REPORTED & READY** — 3 commits / 24 src files (`f275561f0`); next to land (source-touching) |
 
 ## 🧱 Infra / quality lanes — in flight
 
@@ -60,10 +91,10 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 |---|---|---|
 | billing | `impronta-tests-billing` | ✅ **DONE + LANDED `cf16505c6`** — 85 pass / 2 skip-flags / 0 fail |
 | inquiry-engine | `impronta-tests-inq` | ⏳ tests written (4 files, 51 cases: 48 pass / 3 skip incl. 1 bug-flag) · **zero-source** · suite 238 = 232 pass/0 fail/6 skip, zero regressions · **NOT committed** — hard-gated on clean tsc; tsc OOM-deferred by concurrent-lane contention, verdict pending |
-| pitch-engine | `impronta-tests-pitch` | running — *Lane 2 already shipped baseline; this is depth* |
-| auth-isolation | `impronta-tests-auth` | running |
+| pitch-engine | `impronta-tests-pitch` | running · **0 commits** — *Lane 2 already shipped baseline; this is depth* |
+| auth-isolation | `impronta-tests-auth` | running · **0 commits** |
 | server-actions | `impronta-tests-sa` | ✅ **DONE + LANDED `3bbf1023c`** — 112 tests, 110 pass / 0 fail / 2 skip (skips = `server-only` alias unresolvable under `tsx --test` = testability boundary, **not bugs**). Pinned (not fixed) several documented quirks: no consistent guard/validation ordering across the layer (validate-first vs auth-first vs db-first — all proven zero-DB on fail path), `MEMBERSHIP_TIER_VALUES` leads `""`, `*EditorHref` write-path skips UUID-validation. Not bug-flags — characterization of existing behavior. |
-| field-catalog | *(no worktree observed)* | unconfirmed — may not be launched |
+| field-catalog | *(no branch — never launched)* | ✖ **NEVER LAUNCHED** — Lane 2 already shipped baseline engine coverage; optional depth only |
 
 ---
 
