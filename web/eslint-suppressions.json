@@ -188,7 +188,7 @@
       "count": 2
     },
     "react/no-unescaped-entities": {
-      "count": 70
+      "count": 62
     }
   },
   "src/components/admin/shell/internal/field-catalog.ts": {
@@ -227,7 +227,10 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 87
+      "count": 46
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/live-category-fields-history.tsx": {
@@ -271,7 +274,7 @@
       "count": 1012
     },
     "react/no-unescaped-entities": {
-      "count": 24
+      "count": 22
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {
@@ -457,7 +460,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 523
+      "count": 497
     },
     "react/no-unescaped-entities": {
       "count": 32
@@ -468,10 +471,201 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 956
+      "count": 9
     },
     "react/no-unescaped-entities": {
       "count": 10
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/ActivityPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 48
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/AgenciesPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 22
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/CalendarPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 34
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/InboxPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 6
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 25
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/PublicPageEditor.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 49
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/ReachPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/SettingsPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 12
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 15
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 37
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/messages/Bubbles2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 71
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/messages/Composer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 21
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/messages/MessagesPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 29
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/messages/ThreadParts.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 30
+    }
+  },
+  "src/components/admin/shell/internal/talent/pages/messages/ThreadSidebar.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 44
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/calendar-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 44
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/calendar-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 32
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/calendar-3.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 38
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/calendar-4.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 27
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/client-threads-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 23
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/client-threads-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 40
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/conversation-adapter-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 19
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/earnings-tile-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 20
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 7
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/profile-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 18
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/profile-sections-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 38
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 45
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/profile-sections-3.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 12
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/settings-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 10
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/today-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 38
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/today-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 25
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/today-3.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 36
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/today-4.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 8
+    }
+  },
+  "src/components/admin/shell/internal/talent/shared/week-rhythm-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 11
     }
   },
   "src/components/admin/shell/internal/use-taxonomy.ts": {
@@ -998,7 +1192,7 @@
   },
   "src/lib/server-actions/team-management.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 16
+      "count": 11
     }
   },
   "src/lib/server-actions/user-prefs.ts": {
