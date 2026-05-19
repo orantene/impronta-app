@@ -2,6 +2,7 @@
 
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
@@ -72,10 +73,12 @@ export async function inviteTeamMember(
       .ilike("email", trimmed)
       .maybeSingle();
     if (existingProfile) {
-      const { data: existingMembership } = await admin
-        .from("agency_memberships")
+      const { data: existingMembership } = await tenantScopedQuery(
+        admin,
+        "agency_memberships",
+        tenantId,
+      )
         .select("status, role")
-        .eq("tenant_id", tenantId)
         .eq("profile_id", (existingProfile as { id: string }).id)
         .in("status", ["active", "invited", "pending_acceptance"])
         .maybeSingle();
@@ -89,10 +92,8 @@ export async function inviteTeamMember(
     }
 
     // Revoke any previous pending invite to this email for this tenant.
-    await admin
-      .from("team_invite_tokens")
+    await tenantScopedQuery(admin, "team_invite_tokens", tenantId)
       .update({ revoked_at: new Date().toISOString() })
-      .eq("tenant_id", tenantId)
       .ilike("invited_email", trimmed)
       .is("redeemed_at", null)
       .is("revoked_at", null);
@@ -229,10 +230,12 @@ export async function promoteRosterTalentToAdmin(
       return { ok: true, data: { membershipId: (existing as { id: string }).id } };
     }
 
-    const { data: newMembership, error: insertErr } = await admin
-      .from("agency_memberships")
+    const { data: newMembership, error: insertErr } = await tenantScopedQuery(
+      admin,
+      "agency_memberships",
+      tenantId,
+    )
       .insert({
-        tenant_id: tenantId,
         profile_id: userId,
         role,
         status: "active",
@@ -265,10 +268,12 @@ export async function setDefaultCoordinator(
     const { tenantId, user, supabase } = auth;
 
     // Owner-only — workspace settings live with the owner.
-    const { data: myMembership } = await supabase
-      .from("agency_memberships")
+    const { data: myMembership } = await tenantScopedQuery(
+      supabase,
+      "agency_memberships",
+      tenantId,
+    )
       .select("role")
-      .eq("tenant_id", tenantId)
       .eq("profile_id", user.id)
       .eq("status", "active")
       .maybeSingle();
@@ -334,10 +339,12 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
       return { ok: false, error: "You can't remove the workspace owner.", reason: "forbidden" };
     }
 
-    const { error: updateErr } = await admin
-      .from("agency_memberships")
+    const { error: updateErr } = await tenantScopedQuery(
+      admin,
+      "agency_memberships",
+      tenantId,
+    )
       .update({ status: "removed", removed_at: new Date().toISOString(), removed_by: user.id })
-      .eq("tenant_id", tenantId)
       .eq("profile_id", profileId);
 
     if (updateErr) {
