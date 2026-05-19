@@ -114,7 +114,10 @@ function renderWithDateGroups<T>(
   const nodes = realRenderWithDateGroups(
     items,
     getAgeHrs,
-    (item: T) => ({ __row: true, item } as RowNode<T>),
+    // Type-only cast: this sentinel deliberately substitutes a descriptor for
+    // the real renderRow ReactNode (the adapter maps it back below). Cast to
+    // the real param type so it type-checks; runtime value is unchanged.
+    (((item: T) => ({ __row: true, item } as RowNode<T>)) as unknown as Parameters<typeof realRenderWithDateGroups>[2]),
   ) as unknown as Array<
     RowNode<T> | { key: string; props: Record<string, unknown> }
   >;
