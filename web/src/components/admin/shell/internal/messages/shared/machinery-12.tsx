@@ -174,7 +174,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>Submit your rate</div>
             <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-              The coordinator is waiting on your number. You'll see the agency
+              The coordinator is waiting on your number. You&apos;ll see the agency
               fee + platform fee deducted before take-home — quote what you
               actually need to walk out with, plus a small margin for usage.
             </div>
@@ -453,7 +453,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
             </svg>
           </span>
-          You only see your own offer. Other talents' rates and the agency's commercial breakdown are private.
+          You only see your own offer. Other talents&apos; rates and the agency&apos;s commercial breakdown are private.
         </div>
       )}
 

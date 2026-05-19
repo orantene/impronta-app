@@ -1620,7 +1620,7 @@ export type BiosEditorProps = {
   primaryLabel?: string;
 };
 
-export const BiosEditor = React.memo(({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel }: BiosEditorProps) => {
+export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel }: BiosEditorProps) {
   const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
   const ensureLocale = (l: LocaleCode) => {
     if (bios.some(b => b.locale === l)) return;
@@ -1737,7 +1737,7 @@ export type RatesEditorProps = {
   onChange: (r: ProfileRate[]) => void;
 };
 
-export const RatesEditor = React.memo(({ rates, selectedTypeIds, onChange }: RatesEditorProps) => {
+export const RatesEditor = React.memo(function RatesEditor({ rates, selectedTypeIds, onChange }: RatesEditorProps) {
   if (selectedTypeIds.length === 0) {
     return (
       <div style={{
@@ -2018,7 +2018,7 @@ export function InviteClaimBanner({ stageName, onResend, onTakeOver }: {
           Waiting on {stageName || "talent"} to claim this profile
         </div>
         <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
-          Invite sent 3 days ago. They'll review, edit, and approve before publish.
+          Invite sent 3 days ago. They&apos;ll review, edit, and approve before publish.
         </div>
       </div>
       <button type="button" onClick={onResend} style={{
@@ -2678,7 +2678,7 @@ export function ProfileOwnershipPanel({
               fontSize: 11.5, color: COLORS.indigoDeep, marginBottom: 12,
               lineHeight: 1.5,
             }}>
-              <strong>What happens next:</strong> {talentName} gets an email · clicks "Claim my profile" · creates a password · can edit any field you've enabled below. Your existing data stays — they just become the owner.
+              <strong>What happens next:</strong> {talentName} gets an email · clicks &quot;Claim my profile&quot; · creates a password · can edit any field you&apos;ve enabled below. Your existing data stays — they just become the owner.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" onClick={() => setShowInviteForm(false)} style={{
@@ -2733,7 +2733,7 @@ export function ProfileOwnershipPanel({
           }}>↗ Simulate talent accepting (demo)</button>
         </div>
         <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.5 }}>
-          You can keep editing while the invite is pending. Talent's first edit will overwrite drafts in the fields they have permission for.
+          You can keep editing while the invite is pending. Talent&apos;s first edit will overwrite drafts in the fields they have permission for.
         </div>
       </div>
     );
@@ -2819,7 +2819,7 @@ export function ProfileOwnershipPanel({
         }}>↶ Revoke ownership</button>
       </div>
       <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.5 }}>
-        Revoking returns the profile to agency-managed. Talent's account stays, but they lose edit access on this profile.
+        Revoking returns the profile to agency-managed. Talent&apos;s account stays, but they lose edit access on this profile.
       </div>
     </div>
   );
@@ -3161,7 +3161,7 @@ export type PolaroidsEditorProps = {
   talentProfileId?: string;
 };
 
-export const PolaroidsEditor = React.memo(({ polaroids, onChange, talentProfileId }: PolaroidsEditorProps) => {
+export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, onChange, talentProfileId }: PolaroidsEditorProps) {
   const { toast } = useAdminShell();
   const fileRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const polaroidsRef = useRef(polaroids);
@@ -3240,7 +3240,7 @@ export type CreditsEditorProps = {
   onChange: (c: CreditsEntry[]) => void;
 };
 
-export const CreditsEditor = React.memo(({ credits, onChange }: CreditsEditorProps) => {
+export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChange }: CreditsEditorProps) {
   const add = () => onChange([...credits, { id: `cr-${Date.now()}`, year: "", brand: "", type: "Editorial" }]);
   const update = (id: string, patch: Partial<typeof credits[number]>) =>
     onChange(credits.map(c => c.id === id ? { ...c, ...patch } : c));
@@ -3322,7 +3322,7 @@ export type LimitsEditorProps = {
   onChange: (l: LimitsEntry[]) => void;
 };
 
-export const LimitsEditor = React.memo(({ limits, onChange }: LimitsEditorProps) => {
+export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange }: LimitsEditorProps) {
   const QUICK_LIMITS = [
     "No nudity", "No fur", "Lingerie · case-by-case", "No tobacco / vape",
     "No alcohol", "No religious imagery", "Vegan only",
@@ -3352,7 +3352,7 @@ export const LimitsEditor = React.memo(({ limits, onChange }: LimitsEditorProps)
             border: `1px solid ${COLORS.borderSoft}`,
             background: "#fff", fontSize: 11, color: COLORS.ink, outline: "none",
           }}>
-            <option value="hard">Hard · won't do</option>
+            <option value="hard">Hard · won&apos;t do</option>
             <option value="soft">Soft · case-by-case</option>
           </select>
           <button type="button" onClick={() => remove(l.id)} aria-label="Remove" style={{
@@ -3397,7 +3397,7 @@ export type FilesEditorProps = {
   talentProfileId?: string;
 };
 
-export const FilesEditor = React.memo(({ files, onChange, talentProfileId }: FilesEditorProps) => {
+export const FilesEditor = React.memo(function FilesEditor({ files, onChange, talentProfileId }: FilesEditorProps) {
   const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef(files);
@@ -3542,7 +3542,7 @@ export const FilesEditor = React.memo(({ files, onChange, talentProfileId }: Fil
         }}
       />
       <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4 }}>
-        🔒 Files are admin-visible by default. Talent sees but doesn't edit unless an admin shares.
+        🔒 Files are admin-visible by default. Talent sees but doesn&apos;t edit unless an admin shares.
       </div>
     </div>
   );
@@ -3895,7 +3895,7 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
         aria-label="Dismiss"
       >×</button>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
-        Welcome — let's start with 3 things
+        Welcome — let&apos;s start with 3 things
       </div>
       <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
         Each takes about 30 seconds. You can polish the rest later.
@@ -5240,7 +5240,7 @@ export function SkillsProEditor({ entries, onChange }: {
         borderTop: `1px solid ${COLORS.borderSoft}`, paddingTop: 10,
       }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
-          Catalog · tap to start at "Great at" then cycle to lower tiers
+          Catalog · tap to start at &quot;Great at&quot; then cycle to lower tiers
         </div>
         <CatalogChips
           items={SKILL_CATALOG.filter(s => !entries.some(e => e.skillId === s.id))}
@@ -5260,7 +5260,7 @@ export type PersonalityEditorProps = {
   onChange: (p: Personality) => void;
 };
 
-export const PersonalityEditor = React.memo(({ value, onChange }: PersonalityEditorProps) => {
+export const PersonalityEditor = React.memo(function PersonalityEditor({ value, onChange }: PersonalityEditorProps) {
   // Stable callbacks so the memoized ChipsInput children only re-render
   // when their `values` actually change.
   const valueRef = useRef(value);
@@ -5298,7 +5298,7 @@ export type HelloReelEditorProps = {
   talentProfileId?: string;
 };
 
-export const HelloReelEditor = React.memo(({ reel, onChange, talentProfileId }: HelloReelEditorProps) => {
+export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onChange, talentProfileId }: HelloReelEditorProps) {
   const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -5747,7 +5747,7 @@ export type PastClientsEditorProps = {
   onChange: (c: PastClient[]) => void;
 };
 
-export const PastClientsEditor = React.memo(({ clients, onChange }: PastClientsEditorProps) => {
+export const PastClientsEditor = React.memo(function PastClientsEditor({ clients, onChange }: PastClientsEditorProps) {
   const add = () => onChange([...clients, { id: `pc-${Date.now()}`, name: "", testimonial: "", testimonialBy: "" }]);
   const update = (id: string, p: Partial<PastClient>) =>
     onChange(clients.map(x => x.id === id ? { ...x, ...p } : x));
@@ -5821,7 +5821,7 @@ export function NextTierCoach({ tier, verifications }: {
         background: "rgba(184,135,49,0.10)",
         border: "1px solid rgba(184,135,49,0.25)",
         fontSize: 12, color: "#7A5A1F", fontFamily: FONTS.body, lineHeight: 1.5,
-      }}>★ You've reached the top tier. Keep delivering on bookings to stay there.</div>
+      }}>★ You&apos;ve reached the top tier. Keep delivering on bookings to stay there.</div>
     );
   }
   let nextSteps: string[] = [];
@@ -6822,7 +6822,7 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
           background: COLORS.amberSoft, color: COLORS.amberDeep,
           fontSize: 12, lineHeight: 1.5,
         }}>
-          Couldn't parse this. The first row should be column headers (firstName, lastName, email, …).
+          Couldn&apos;t parse this. The first row should be column headers (firstName, lastName, email, …).
         </div>
       )}
     </div>
@@ -6867,7 +6867,7 @@ export function PasteContactModal({ onClose, onApply }: {
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Paste a contact</h3>
         <p style={{ margin: "6px 0 12px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
           vCard · Instagram handle (@user) · linkedin.com/in/slug · or just paste a name + email + phone.
-          We'll extract what we can.
+          We&apos;ll extract what we can.
         </p>
         <textarea autoFocus value={text} onChange={e => setText(e.target.value)}
           placeholder="Sofia Lupo&#10;sofia@example.com&#10;+34 612 345 678&#10;@sofia.lupo"

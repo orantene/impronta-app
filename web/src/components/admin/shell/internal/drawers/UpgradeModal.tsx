@@ -144,7 +144,7 @@ export function UpgradeModal() {
 
       <div style={{ padding: "18px 24px", overflowY: "auto" }}>
         <div style={{ marginBottom: 8 }}>
-          <CapsLabel>What you'll unlock</CapsLabel>
+          <CapsLabel>What you&apos;ll unlock</CapsLabel>
         </div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
           {unlocks.map((u) => (

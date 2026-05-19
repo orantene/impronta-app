@@ -171,7 +171,7 @@ export function TalentIdVerifyDrawer() {
       <VmFieldLabel>Document type</VmFieldLabel>
       <select value={docType} onChange={(e) => setDocType(e.target.value as "passport" | "drivers_license" | "national_id")} style={{ ...vmTextInputStyle(), cursor: "pointer" }}>
         <option value="passport">Passport</option>
-        <option value="drivers_license">Driver's license</option>
+        <option value="drivers_license">Driver&apos;s license</option>
         <option value="national_id">National ID card</option>
       </select>
 
@@ -322,7 +322,7 @@ export function TalentDomainVerifyDrawer() {
             <div><strong>TTL:</strong> 3600</div>
           </div>
           <div style={vmSmallHelpStyle()}>DNS can take 5–30 minutes to propagate. Once added, click below.</div>
-          <PrimaryButton onClick={runCheck}>I've added the record · check now</PrimaryButton>
+          <PrimaryButton onClick={runCheck}>I&apos;ve added the record · check now</PrimaryButton>
         </>
       )}
       {stage === "checking" && (
@@ -386,7 +386,7 @@ export function TalentPaymentVerifyDrawer() {
       {stage === "intro" && (
         <>
           <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.6, marginBottom: 14 }}>
-            We'll attempt a €1 hold on your connected payout method, then immediately refund it. Nothing actually moves.
+            We&apos;ll attempt a €1 hold on your connected payout method, then immediately refund it. Nothing actually moves.
           </div>
           <PrimaryButton onClick={run}>Run check</PrimaryButton>
         </>

@@ -408,7 +408,7 @@ export function NotificationPrefsDrawer() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Batch similar notifications</div>
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
-              Collapse "3 new messages from Casa Pero" instead of sending each separately.
+              Collapse &quot;3 new messages from Casa Pero&quot; instead of sending each separately.
             </div>
           </div>
           <Toggle on={batchingEnabled} onChange={setBatchingEnabled} />
@@ -455,7 +455,7 @@ export function NotificationPrefsDrawer() {
         }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>Lock-screen previews</div>
           <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10 }}>
-            What appears on your device's lock screen for push notifications.
+            What appears on your device&apos;s lock screen for push notifications.
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {([

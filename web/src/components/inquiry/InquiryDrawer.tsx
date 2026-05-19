@@ -257,7 +257,7 @@ export function InquiryDrawer({
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
               {step === "compose"
-                ? <>Tell <strong>{agencyName}</strong> what you need. We'll match talent + draft an offer.</>
+                ? <>Tell <strong>{agencyName}</strong> what you need. We&apos;ll match talent + draft an offer.</>
                 : <>One last check before <strong>{agencyName}</strong> picks this up.</>
               }
             </p>
@@ -332,7 +332,7 @@ export function InquiryDrawer({
               ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
               : submitState.kind === "error"
                 ? <span style={{ color: C.amber }}>{submitState.message}</span>
-                : <>By sending, you'll start a coordinator-led conversation with {agencyName}.</>
+                : <>By sending, you&apos;ll start a coordinator-led conversation with {agencyName}.</>
             }
           </div>
           <div style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
@@ -477,7 +477,7 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
     <div style={trustCardStyle(C.amberSoft, C.amber)}>
       <div style={{ fontWeight: 700 }}>New client</div>
       <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
-        Contact info required so the agency can follow up. You'll get a magic-link to track this inquiry after submit.
+        Contact info required so the agency can follow up. You&apos;ll get a magic-link to track this inquiry after submit.
       </div>
     </div>
   );
@@ -829,7 +829,7 @@ function BudgetSection({
 
       {pref === "agency_recommends" && talentCount > 0 && (
         <div style={hintBoxStyle}>
-          With {talentCount} talent selected, the agency will price based on schedule, location, usage, and logistics. You'll see the offer here before any commitment.
+          With {talentCount} talent selected, the agency will price based on schedule, location, usage, and logistics. You&apos;ll see the offer here before any commitment.
         </div>
       )}
     </Section>

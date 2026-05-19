@@ -1178,7 +1178,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
           border: `1px solid ${COLORS.amber}`, fontSize: 12, color: COLORS.ink,
           marginBottom: 14, fontFamily: FONTS.body,
         }}>
-          Couldn't load live taxonomy: {error}
+          Couldn&apos;t load live taxonomy: {error}
         </div>
       )}
 
@@ -1757,7 +1757,7 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
           color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 3,
         }}>Privacy · what {agencyName} will use</div>
         <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-          Tulala always captures your full profile. {agencyName} chooses what's public and what stays internal. Here's what they've configured.
+          Tulala always captures your full profile. {agencyName} chooses what&apos;s public and what stays internal. Here&apos;s what they&apos;ve configured.
         </div>
       </div>
       <div data-cc-cols style={{
@@ -1770,7 +1770,7 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
             marginBottom: 8,
           }}>
             <span style={{ fontSize: 12 }}>🌐</span>
-            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>On {agencyName}'s site</span>
+            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>On {agencyName}&apos;s site</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {publicLabels.length === 0 && (
@@ -1809,7 +1809,7 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         background: COLORS.surface,
         fontSize: 10.5, color: COLORS.inkDim, lineHeight: 1.5,
       }}>
-        ✦ = custom field defined by {agencyName}. You can revoke this agency's access any time from your Talent settings.
+        ✦ = custom field defined by {agencyName}. You can revoke this agency&apos;s access any time from your Talent settings.
       </div>
     </div>
   );
@@ -1833,7 +1833,7 @@ export type ChipsInputProps = {
   onChange: (v: string[]) => void;
 };
 
-export const ChipsInput = React.memo(({ label, placeholder, values, onChange }: ChipsInputProps) => {
+export const ChipsInput = React.memo(function ChipsInput({ label, placeholder, values, onChange }: ChipsInputProps) {
   const [draft, setDraft] = useState("");
   // Component-boundary normalization: never trust the caller to pass a
   // real array. A model profile (e.g. Sofía) hydrates `personality` from
@@ -2281,7 +2281,7 @@ export type CoverPhotoEditorProps = {
   onMediaAssetIdChange?: (id: string | null) => void;
 };
 
-export const CoverPhotoEditor = React.memo(({ url, onChange, talentProfileId, mediaAssetId, onMediaAssetIdChange }: CoverPhotoEditorProps) => {
+export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onChange, talentProfileId, mediaAssetId, onMediaAssetIdChange }: CoverPhotoEditorProps) {
   const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const handleFile = async (f: File) => {
@@ -2573,7 +2573,7 @@ export type LanguagesEditorProps = {
   onChange: (v: ProfileLanguage[]) => void;
 };
 
-export const LanguagesEditor = React.memo(({ value, onChange }: LanguagesEditorProps) => {
+export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onChange }: LanguagesEditorProps) {
   const [draftLang, setDraftLang] = useState("");
   const [draftLevel, setDraftLevel] = useState<LanguageLevel>("fluent");
   const add = () => {
@@ -2702,7 +2702,7 @@ export type PhotoGalleryProProps = {
   albumId?: string;
 };
 
-export const PhotoGalleryPro = React.memo(({ items, onChange, talentProfileId, albumId }: PhotoGalleryProProps) => {
+export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onChange, talentProfileId, albumId }: PhotoGalleryProProps) {
   const { toast } = useAdminShell();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -4225,7 +4225,7 @@ export function InstagramVerificationInstructions({
           color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
         }}>Verify your Instagram</div>
         <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
-          Send a DM from your Instagram account to <strong>@tulala.digital</strong> with the code we'll generate. Tulala admins manually confirm the DM matches before approving.
+          Send a DM from your Instagram account to <strong>@tulala.digital</strong> with the code we&apos;ll generate. Tulala admins manually confirm the DM matches before approving.
         </div>
 
         {/* Step 1: handle */}
@@ -4408,7 +4408,7 @@ export function MethodDisabledNotice() {
       background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
       textAlign: "center", color: COLORS.inkMuted, fontSize: 13, lineHeight: 1.55,
     }}>
-      This verification method isn't enabled on Tulala right now.<br />Check back later — platform admins decide which methods are available.
+      This verification method isn&apos;t enabled on Tulala right now.<br />Check back later — platform admins decide which methods are available.
     </div>
   );
 }

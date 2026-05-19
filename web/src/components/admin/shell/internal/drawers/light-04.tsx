@@ -132,7 +132,7 @@ export function TalentApprovalsDrawer() {
             <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>All caught up</div>
             <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-              New self-registrations will land here. You'll get a notification too.
+              New self-registrations will land here. You&apos;ll get a notification too.
             </div>
           </div>
         ) : (

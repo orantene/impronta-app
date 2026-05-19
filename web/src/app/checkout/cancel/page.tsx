@@ -20,7 +20,7 @@ export default function CheckoutCancelPage() {
       }}>!</div>
       <h1 style={{ fontSize: 22, margin: 0, fontWeight: 600 }}>Payment cancelled</h1>
       <p style={{ fontSize: 14, color: "rgba(11,11,13,0.6)", maxWidth: 480, margin: 0 }}>
-        No charge was made. You can try paying again from your project page when you're ready.
+        No charge was made. You can try paying again from your project page when you&apos;re ready.
       </p>
       <Link href="/" style={{
         marginTop: 8, padding: "9px 16px", borderRadius: 999,

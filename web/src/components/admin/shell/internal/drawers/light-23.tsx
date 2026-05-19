@@ -151,7 +151,7 @@ export function FeatureControlsDrawer() {
         <div style={{ flex: 1, paddingLeft: 20, overflowY: "auto", minHeight: 0 }}>
           {search && (
             <div style={{ marginBottom: 12 }}>
-              <CapsLabel>Search results for "{search}"</CapsLabel>
+              <CapsLabel>Search results for &quot;{search}&quot;</CapsLabel>
             </div>
           )}
           {!search && (
@@ -232,7 +232,7 @@ export function FeatureControlsDrawer() {
 
           {visibleFeatures.length === 0 && (
             <div style={{ padding: "40px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>
-              No features match "{search}"
+              No features match &quot;{search}&quot;
             </div>
           )}
         </div>
@@ -399,7 +399,7 @@ export function CircleManageDrawer() {
                 </div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>{m.lastCollab}</div>
                 {m.note && (
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontStyle: "italic" }}>"{m.note}"</div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontStyle: "italic" }}>&quot;{m.note}&quot;</div>
                 )}
                 <div style={{ display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" }}>
                   {m.tags.map(t => (

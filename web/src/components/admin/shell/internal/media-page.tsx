@@ -2445,7 +2445,7 @@ export function WorkspaceMediaPage() {
             )}
             {(drivePanelStatus.kind === "idle" || drivePanelStatus.kind === "error") && (
               <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
-                Works with any file or folder shared as "Anyone with the link"
+                Works with any file or folder shared as &quot;Anyone with the link&quot;
               </div>
             )}
           </div>

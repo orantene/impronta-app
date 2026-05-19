@@ -223,7 +223,7 @@ export function MyProfilePage() {
                 Profile {p.completeness}% complete
               </div>
               <div style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
-                {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left · tap to see what's missing
+                {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left · tap to see what&apos;s missing
               </div>
             </div>
 

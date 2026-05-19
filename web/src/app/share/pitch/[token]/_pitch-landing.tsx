@@ -264,7 +264,7 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
                   Like the lineup?
                 </p>
                 <h3 className="mt-2 text-[22px] font-semibold tracking-tight sm:text-[26px]">
-                  Let's start a conversation.
+                  Let&apos;s start a conversation.
                 </h3>
                 <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[#0B0B0D]/55">
                   Reply with a few details about your project and {agencyName}{" "}

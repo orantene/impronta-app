@@ -188,7 +188,7 @@ export function SubmitRateSheet({
             </div>
             {budget.note && (
               <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4, fontStyle: "italic" }}>
-                "{budget.note}"
+                &quot;{budget.note}&quot;
               </div>
             )}
           </div>
@@ -250,7 +250,7 @@ export function SubmitRateSheet({
           </div>
           {budget && unitType !== budget.unitType && (
             <div style={{ fontSize: 11, color: COLORS.amber, marginTop: 6 }}>
-              ⚠ Different unit than the client's cap ({UNIT_TYPE_LABEL[budget.unitType]}). The coordinator will need to convert before sending.
+              ⚠ Different unit than the client&apos;s cap ({UNIT_TYPE_LABEL[budget.unitType]}). The coordinator will need to convert before sending.
             </div>
           )}
         </div>
@@ -325,7 +325,7 @@ export function SubmitRateSheet({
             </div>
             {overBudget && budget && (
               <div style={{ fontSize: 10.5, color: COLORS.amber, marginTop: 4, fontWeight: 600 }}>
-                ⚠ Over the client's cap by {fmtMoney(amount - budget.amount, currency)} — they may counter
+                ⚠ Over the client&apos;s cap by {fmtMoney(amount - budget.amount, currency)} — they may counter
               </div>
             )}
           </div>

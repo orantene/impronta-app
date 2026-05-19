@@ -71,7 +71,7 @@ export function OfferTab({
             No offer yet
           </div>
           <p style={{ marginTop: 6, fontSize: 13, color: C.inkMuted, lineHeight: 1.5 }}>
-            Your coordinator is confirming talent. You'll receive an offer here once the lineup is ready.
+            Your coordinator is confirming talent. You&apos;ll receive an offer here once the lineup is ready.
           </p>
         </div>
       </div>
@@ -178,7 +178,7 @@ function LineItemsTable({
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-        What's included
+        What&apos;s included
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: FONT }}>
         <tbody>

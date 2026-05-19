@@ -222,7 +222,7 @@ export function ChannelRow({
           lineHeight: 1.5,
         }}
       >
-        <strong style={{ fontWeight: 600 }}>Heads up:</strong> {channel.name} isn't Tulala-verified. Inquiries may include unvetted clients. Adjust your contact policy if needed.
+        <strong style={{ fontWeight: 600 }}>Heads up:</strong> {channel.name} isn&apos;t Tulala-verified. Inquiries may include unvetted clients. Adjust your contact policy if needed.
       </div>
     )}
     {paused && (

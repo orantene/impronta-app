@@ -102,7 +102,7 @@ export function SettingsPage() {
               marginTop: 1,
             }}
           >
-            Toggle channels, manage which hubs and studios you're listed on, set exposure presets — all over there.
+            Toggle channels, manage which hubs and studios you&apos;re listed on, set exposure presets — all over there.
           </div>
         </div>
         <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep }}>

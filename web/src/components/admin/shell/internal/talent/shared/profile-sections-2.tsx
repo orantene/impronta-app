@@ -579,7 +579,7 @@ function ReviewSnippet({ review }: { review: TalentReview }) {
           fontStyle: "italic",
         }}
       >
-        "{review.body.length > 110 ? review.body.slice(0, 108) + "…" : review.body}"
+        &quot;{review.body.length > 110 ? review.body.slice(0, 108) + "…" : review.body}&quot;
       </div>
     </div>
   );

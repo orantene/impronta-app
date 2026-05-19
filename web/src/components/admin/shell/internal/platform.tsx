@@ -1895,7 +1895,7 @@ export function PlatformHubSubmissionDrawer() {
       <Divider label="Decision" />
       <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
         Feature on the Tulala hub for 30 days. Featured talent appear at the top of search.
-        Decline if profile incomplete or media doesn't meet quality bar.
+        Decline if profile incomplete or media doesn&apos;t meet quality bar.
       </p>
     </DrawerShell>
   );

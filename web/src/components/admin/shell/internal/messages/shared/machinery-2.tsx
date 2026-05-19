@@ -278,7 +278,7 @@ export function TalentBookingTab({
                 fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
                 fontStyle: "italic",
               }}>
-                "{pinned.coordinatorNote}"
+                &quot;{pinned.coordinatorNote}&quot;
               </div>
             </div>
           </div>
@@ -319,7 +319,7 @@ export function TalentBookingTab({
           </div>
           {histRow.notes && (
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 6, fontStyle: "italic", lineHeight: 1.4 }}>
-              "{histRow.notes}"
+              &quot;{histRow.notes}&quot;
             </div>
           )}
           <div style={{
@@ -398,7 +398,7 @@ export function TalentBookingTab({
             </div>
           ) : (
             <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-              Coordinator hasn't shared transport yet.
+              Coordinator hasn&apos;t shared transport yet.
             </div>
           )}
         </div>

@@ -427,7 +427,7 @@ function QuickCreateMenu() {
     };
   }, [open]);
 
-  const items: { id: string; label: string; sub: string; drawer: any; shortcut: string; canDo: boolean }[] = [
+  const items: { id: string; label: string; sub: string; drawer: string | null; shortcut: string; canDo: boolean }[] = [
     {
       id: "new-inquiry",
       label: "New inquiry",

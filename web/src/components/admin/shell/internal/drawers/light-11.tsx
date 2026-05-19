@@ -426,7 +426,7 @@ export function TrustVerificationQueueDrawer() {
                     background: COLORS.amberSoft, color: COLORS.amberDeep,
                     fontSize: 12,
                   }}>
-                    Waiting for talent to send the DM and tap "I sent it."
+                    Waiting for talent to send the DM and tap &quot;I sent it.&quot;
                   </div>
                 )}
               </>
@@ -451,7 +451,7 @@ export function TrustVerificationQueueDrawer() {
             <div style={{
               fontFamily: FONTS.display, fontSize: 18, fontWeight: 600,
               color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
-            }}>Reject {rejectReasonModal.talent}'s verification?</div>
+            }}>Reject {rejectReasonModal.talent}&apos;s verification?</div>
             <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
               Talent will see this reason. Be specific so they can fix it and resubmit.
             </div>
@@ -600,7 +600,7 @@ export function DisputedClaimsDrawer() {
                   background: "rgba(200,40,40,0.06)", border: `1px solid rgba(200,40,40,0.20)`,
                   fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, marginBottom: 14,
                 }}>
-                  <strong style={{ color: COLORS.red }}>Talent's report.</strong> They followed the invite link, saw a profile listed under {cur.email ?? "this address"}, and flagged it as not theirs.
+                  <strong style={{ color: COLORS.red }}>Talent&apos;s report.</strong> They followed the invite link, saw a profile listed under {cur.email ?? "this address"}, and flagged it as not theirs.
                 </div>
 
                 <div style={{

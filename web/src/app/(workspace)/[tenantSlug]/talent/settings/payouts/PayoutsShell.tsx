@@ -102,7 +102,7 @@ export function PayoutsShell({
           background: C.greenSoft, color: C.green,
           borderRadius: 10, fontSize: 12.5,
         }}>
-          ✓ Stripe onboarding complete — you're ready for payouts.
+          ✓ Stripe onboarding complete — you&apos;re ready for payouts.
         </div>
       )}
       {justReturned && status !== "enabled" && (
@@ -120,7 +120,7 @@ export function PayoutsShell({
           background: C.surfaceAlt, color: C.inkMuted,
           borderRadius: 10, fontSize: 12.5,
         }}>
-          Onboarding link expired — we'll mint a fresh one.
+          Onboarding link expired — we&apos;ll mint a fresh one.
         </div>
       )}
       {loadError && (
@@ -211,7 +211,7 @@ export function PayoutsShell({
         color: C.inkMuted,
       }}>
         <strong style={{ color: C.ink }}>How payouts work:</strong> when a
-        client pays for a booking you're on, your share is transferred
+        client pays for a booking you&apos;re on, your share is transferred
         automatically to your Stripe account. Stripe pays out to your
         bank on its standard schedule (typically 2 business days).
       </div>

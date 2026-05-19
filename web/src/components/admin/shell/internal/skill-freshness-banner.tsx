@@ -212,7 +212,7 @@ function FreshnessCard({
               color: "#C82828",
             }}
           >
-            Couldn't remove — try again.
+            Couldn&apos;t remove — try again.
           </div>
         )}
       </div>
@@ -352,7 +352,7 @@ function ExpiryCard({
               color: "#C82828",
             }}
           >
-            Couldn't submit — try again.
+            Couldn&apos;t submit — try again.
           </div>
         )}
         {status === "done" && (

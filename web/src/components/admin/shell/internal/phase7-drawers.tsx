@@ -186,7 +186,7 @@ export function PermissionConsentDrawer({
             {agencyName} wants to add you to their roster
           </div>
           <div style={{ fontSize: 13, color: T.inkMuted, lineHeight: 1.5 }}>
-            They'd like access to the data below to represent you to their clients.
+            They&apos;d like access to the data below to represent you to their clients.
             You can approve all, approve a subset, or deny entirely.
           </div>
           {request.request_message && (
@@ -195,7 +195,7 @@ export function PermissionConsentDrawer({
               background: T.indigoSoft, fontSize: 12.5, color: T.indigoDeep,
               fontStyle: "italic", lineHeight: 1.5,
             }}>
-              "{request.request_message}"
+              &quot;{request.request_message}&quot;
             </div>
           )}
         </div>
@@ -323,7 +323,7 @@ export function AgencyMediaCurationPanel({
         <div style={{ fontWeight: 600, marginBottom: 4 }}>Agency photo layer for {talentName}</div>
         <div>
           Photos here appear ONLY on your agency-branded site, in addition to (or replacing)
-          the talent's master photos. Talent-owned photos remain unchanged on Tulala.
+          the talent&apos;s master photos. Talent-owned photos remain unchanged on Tulala.
         </div>
       </div>
 
@@ -341,7 +341,7 @@ export function AgencyMediaCurationPanel({
           border: `1px dashed ${T.border}`,
           fontSize: 12, color: T.inkMuted, textAlign: "center",
         }}>
-          No agency photos yet. Click "+ Add agency photo" to upload your first.
+          No agency photos yet. Click &quot;+ Add agency photo&quot; to upload your first.
         </div>
       )}
 
@@ -387,7 +387,7 @@ export function AgencyMediaCurationPanel({
       <div style={{ marginTop: 12, fontSize: 11, color: T.inkMuted, fontStyle: "italic" }}>
         Upload + drag-reorder UI ships next slice. For now, this panel reads
         and removes; uploads happen via the existing media manager with
-        ownership_kind='agency'.
+        ownership_kind=&apos;agency&apos;.
       </div>
     </div>
   );
@@ -618,10 +618,10 @@ export function RequestPermissionButton({
       fontFamily: F_BODY,
     }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 8 }}>
-        Request access to {talentName}'s data
+        Request access to {talentName}&apos;s data
       </div>
       <div style={{ fontSize: 11.5, color: T.inkMuted, marginBottom: 10, lineHeight: 1.4 }}>
-        Pick the data you need to represent this talent. They'll review and
+        Pick the data you need to represent this talent. They&apos;ll review and
         approve / deny per scope. They can revoke any time.
       </div>
 

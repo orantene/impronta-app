@@ -331,7 +331,7 @@ function ReachPage() {
               <p style={{ margin: "0 0 10px" }}>
                 <strong>Maximum</strong> exposure adds unverified marketplace channels
                 (BookEm.app, etc.). You may get inquiries from Basic-tier clients you
-                wouldn't otherwise see.
+                wouldn&apos;t otherwise see.
               </p>
               <p style={{ margin: 0, color: COLORS.inkMuted }}>
                 You can still toggle individual channels off below, or slide back to

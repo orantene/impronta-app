@@ -45,7 +45,7 @@ export function TenantSummaryDrawer() {
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
   const teamCount = effectiveTeamMembers.length > 0 ? effectiveTeamMembers.length : getTeam(state.plan).length;
 
-  const jumpItems: { label: string; icon: any; drawer: DrawerId }[] = [
+  const jumpItems: { label: string; icon: string; drawer: DrawerId }[] = [
     { label: "Plan & billing", icon: "credit", drawer: "plan-billing" },
     { label: "Recent invoices", icon: "mail", drawer: "plan-billing" },
     { label: "Team & permissions", icon: "team", drawer: "team" },
@@ -408,7 +408,7 @@ export function ThemeFoundationsDrawer() {
           ].map((t) => (
             <button
               key={t.id}
-              onClick={() => setTheme(t.id as any)}
+              onClick={() => setTheme(t.id as typeof theme)}
               style={{
                 background: "#fff",
                 border: `1.5px solid ${theme === t.id ? COLORS.accent : COLORS.borderSoft}`,
@@ -512,7 +512,7 @@ export function ThemeFoundationsDrawer() {
           ].map((d) => (
             <button
               key={d.id}
-              onClick={() => setDensity(d.id as any)}
+              onClick={() => setDensity(d.id as typeof density)}
               style={{
                 background: "#fff",
                 border: `1.5px solid ${density === d.id ? COLORS.accent : COLORS.borderSoft}`,

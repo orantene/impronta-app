@@ -173,7 +173,7 @@ export function TalentJobShellHeader({
                 <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
                   <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
                 </svg>
-                <span data-tulala-coord-pill-text>You're coord</span>
+                <span data-tulala-coord-pill-text>You&apos;re coord</span>
               </span>
             )}
           </div>
@@ -442,7 +442,7 @@ export function ShellHeader({
                 <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
                   <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
                 </svg>
-                You're coord
+                You&apos;re coord
               </span>
             )}
           </div>

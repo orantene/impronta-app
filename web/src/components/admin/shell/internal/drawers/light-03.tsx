@@ -291,7 +291,7 @@ export function TalentRegistrationDrawer() {
                 fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
                 color: COLORS.ink, letterSpacing: -0.3,
               }}>
-                You're in
+                You&apos;re in
               </h2>
               <ol style={{
                 listStyle: "none", padding: 0, margin: "16px 0 0",
@@ -371,7 +371,7 @@ export function TalentRegistrationDrawer() {
                 background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
                 fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
               }}>
-                You're registering with <strong>{effectiveTenant.name}</strong>. They'll review your profile before publishing.
+                You&apos;re registering with <strong>{effectiveTenant.name}</strong>. They&apos;ll review your profile before publishing.
               </div>
             </div>
           )}
@@ -383,7 +383,7 @@ export function TalentRegistrationDrawer() {
                   padding: 14, borderRadius: 10, background: COLORS.surface,
                   border: `1px solid ${COLORS.borderSoft}`, fontSize: 12.5, color: COLORS.inkMuted,
                 }}>
-                  This agency hasn't enabled any talent categories yet.
+                  This agency hasn&apos;t enabled any talent categories yet.
                 </div>
               ) : visibleParents.map(p => {
                 const active = parents.has(p.id);
@@ -628,7 +628,7 @@ export function TalentRegistrationDrawer() {
                 padding: "12px 14px", borderRadius: 10, background: COLORS.successSoft,
                 color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5,
               }}>
-                Tap <strong>Submit for review</strong> to agree to the above and join {effectiveTenant.name}. You'll get an email when they approve you — usually within 1 business day.
+                Tap <strong>Submit for review</strong> to agree to the above and join {effectiveTenant.name}. You&apos;ll get an email when they approve you — usually within 1 business day.
               </div>
             </div>
           )}

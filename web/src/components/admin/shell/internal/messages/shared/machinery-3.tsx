@@ -253,13 +253,13 @@ export function ClientProjectViewTab({
                 textTransform: "uppercase", color: COLORS.indigoDeep,
                 marginBottom: 2,
               }}>
-                {coord.name.split(" ")[0]}'s note for you
+                {coord.name.split(" ")[0]}&apos;s note for you
               </div>
               <div style={{
                 fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
                 fontStyle: "italic",
               }}>
-                "{conv.pinned.coordinatorNote}"
+                &quot;{conv.pinned.coordinatorNote}&quot;
               </div>
             </div>
           </div>

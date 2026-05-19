@@ -282,13 +282,13 @@ export function AdminBookingTab({
                 textTransform: "uppercase", color: COLORS.indigoDeep,
                 marginBottom: 2,
               }}>
-                {coord.name.split(" ")[0]}'s read
+                {coord.name.split(" ")[0]}&apos;s read
               </div>
               <div style={{
                 fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
                 fontStyle: "italic",
               }}>
-                "{conv.pinned.coordinatorNote}"
+                &quot;{conv.pinned.coordinatorNote}&quot;
               </div>
             </div>
           </div>
@@ -554,7 +554,7 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
           </div>
         ) : (
           <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-            Coordinator hasn't shared transport details yet.
+            Coordinator hasn&apos;t shared transport details yet.
           </div>
         )}
       </DetailSection>

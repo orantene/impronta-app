@@ -80,7 +80,11 @@ const PARENT_DISPLAY_HINT: Record<string, { emoji: string; helper: string }> = {
   security:         { emoji: "🛡", helper: "Bodyguards, event security, door staff." },
 };
 
-function rowToTerm(row: any): LiveTaxonomyTerm {
+function rowToTerm(row: {
+  id: string; slug: string; name_en: string; plural_name?: string | null;
+  icon?: string | null; term_type: string; parent_id: string | null;
+  level: number; sort_order: number; is_public_filter: boolean; is_active: boolean;
+}): LiveTaxonomyTerm {
   return {
     id: row.id,
     slug: row.slug,

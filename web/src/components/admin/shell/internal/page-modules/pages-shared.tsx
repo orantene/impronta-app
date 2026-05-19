@@ -329,7 +329,7 @@ export function TodaysFocusCard({
             marginBottom: 3,
           }}
         >
-          Today's focus
+          Today&apos;s focus
         </div>
         <h2
           style={{

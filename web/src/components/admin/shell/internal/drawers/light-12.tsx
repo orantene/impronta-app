@@ -129,7 +129,7 @@ export function TalentTrustDetailDrawer() {
             {trust.account?.emailVerified ? "Account email verified" : "Account email not verified"}
           </div>
           <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
-            Email is account security only — it doesn't appear as a public verification badge.
+            Email is account security only — it doesn&apos;t appear as a public verification badge.
           </div>
         </div>
 
@@ -231,7 +231,7 @@ export function TalentTrustDetailDrawer() {
               </div>
               {tulalaRequest.publicMessage && (
                 <div style={{ fontSize: 11.5, color: COLORS.ink, marginTop: 6, lineHeight: 1.5 }}>
-                  <strong>Tulala's note:</strong> {tulalaRequest.publicMessage}
+                  <strong>Tulala&apos;s note:</strong> {tulalaRequest.publicMessage}
                 </div>
               )}
             </div>
@@ -293,7 +293,7 @@ export function TalentTrustDetailDrawer() {
         {/* Contact gate — talent decides who can DM them. Default open. */}
         <Section title="Who can contact you" framed>
           <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
-            Restrict inquiries based on the client's trust level. Tulala blocks the Send-inquiry button for clients who don't meet your gate.
+            Restrict inquiries based on the client&apos;s trust level. Tulala blocks the Send-inquiry button for clients who don&apos;t meet your gate.
           </div>
           {(["open", "verified_only", "trusted_only"] as const).map(g => {
             const cur = getTalentContactGate(TALENT_ID);
@@ -387,7 +387,7 @@ export function TalentClaimInviteDrawer() {
       footer={
         step === "review" ? (
           <>
-            <SecondaryButton onClick={() => setStep("dispute")}>This isn't me</SecondaryButton>
+            <SecondaryButton onClick={() => setStep("dispute")}>This isn&apos;t me</SecondaryButton>
             <PrimaryButton onClick={() => setStep("claim")}>Claim this profile →</PrimaryButton>
           </>
         ) : step === "claim" ? (
@@ -424,7 +424,7 @@ export function TalentClaimInviteDrawer() {
               </div>
             </div>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6 }}>
-              What's already on your profile
+              What&apos;s already on your profile
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {["3 photos", "Lisbon", "5'8\"", "EN · PT", "Trade-show staff"].map((c) => (
@@ -443,7 +443,7 @@ export function TalentClaimInviteDrawer() {
             </div>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: COLORS.ink, lineHeight: 1.6 }}>
               <li>Send inquiries on your behalf</li>
-              <li>Edit your profile fields you don't lock</li>
+              <li>Edit your profile fields you don&apos;t lock</li>
               <li>Add Agency Confirmed badge to your profile</li>
               <li>Pause/unpause your visibility</li>
             </ul>
@@ -464,7 +464,7 @@ export function TalentClaimInviteDrawer() {
             background: COLORS.indigoSoft, border: "1px solid rgba(91,107,160,0.18)",
             fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5, marginBottom: 14,
           }}>
-            We'll email you a one-tap sign-in link. Once you click it, the profile is yours — {agencyName} keeps editing access until you change it.
+            We&apos;ll email you a one-tap sign-in link. Once you click it, the profile is yours — {agencyName} keeps editing access until you change it.
           </div>
           <label style={{
             display: "flex", alignItems: "flex-start", gap: 8,
@@ -472,7 +472,7 @@ export function TalentClaimInviteDrawer() {
           }}>
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
             <span>
-              I confirm I am {profileName} and I've reviewed what {agencyName} will manage on my behalf.
+              I confirm I am {profileName} and I&apos;ve reviewed what {agencyName} will manage on my behalf.
             </span>
           </label>
         </>
@@ -500,7 +500,7 @@ export function TalentClaimInviteDrawer() {
             background: "rgba(200,40,40,0.08)",
             fontSize: 11.5, color: COLORS.red, lineHeight: 1.5,
           }}>
-            Reporting takes the profile offline immediately and notifies Tulala admins. We'll resolve within 1 business day.
+            Reporting takes the profile offline immediately and notifies Tulala admins. We&apos;ll resolve within 1 business day.
           </div>
         </>
       )}
@@ -744,7 +744,7 @@ export function PlatformVerificationMethodsDrawer() {
               Disable {confirmDisable.label}?
             </div>
             <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
-              <strong style={{ color: COLORS.ink }}>{confirmDisable.activeCount} active badge{confirmDisable.activeCount === 1 ? "" : "s"}</strong> will stay valid until expiry, but they'll be hidden from public profiles right away. New requests of this type will be blocked.
+              <strong style={{ color: COLORS.ink }}>{confirmDisable.activeCount} active badge{confirmDisable.activeCount === 1 ? "" : "s"}</strong> will stay valid until expiry, but they&apos;ll be hidden from public profiles right away. New requests of this type will be blocked.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" onClick={() => setConfirmDisable(null)} style={{

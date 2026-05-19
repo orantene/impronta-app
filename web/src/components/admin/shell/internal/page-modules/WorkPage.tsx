@@ -589,7 +589,7 @@ export function FreeValuePanel() {
         }}
       >
         <span style={{ fontSize: 12, color: COLORS.inkMuted, flex: 1 }}>
-          Caps are soft. We'll nudge before you run out — never block mid-conversation.
+          Caps are soft. We&apos;ll nudge before you run out — never block mid-conversation.
         </span>
         <SecondaryButton onClick={() => setPage("talent")}>Open roster</SecondaryButton>
         <PrimaryButton onClick={() => setPage("work")}>See pipeline</PrimaryButton>

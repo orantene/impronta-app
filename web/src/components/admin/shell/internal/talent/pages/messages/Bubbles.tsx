@@ -568,7 +568,7 @@ export function VoiceNoteBubble({ msg, fromYou, bg, fg, border }: {
         </div>
         {msg.transcript && (
           <div style={{ fontSize: 10.5, opacity: 0.75, marginTop: 1, lineHeight: 1.4 }}>
-            "{msg.transcript}"
+            &quot;{msg.transcript}&quot;
           </div>
         )}
       </div>

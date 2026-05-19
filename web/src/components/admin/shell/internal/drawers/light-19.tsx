@@ -660,7 +660,7 @@ export function MigrationAssistantDrawer() {
               </div>
             </div>
             <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-              Migration runs in the background. You can close this drawer — we'll notify you when it's done. Existing data is not affected.
+              Migration runs in the background. You can close this drawer — we&apos;ll notify you when it&apos;s done. Existing data is not affected.
             </div>
           </>
         ) : (

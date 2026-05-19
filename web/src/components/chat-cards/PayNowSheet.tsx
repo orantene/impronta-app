@@ -89,7 +89,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose }: Props) {
           fontSize: 12.5, lineHeight: 1.5,
           color: "rgba(11,11,13,0.55)",
         }}>
-          You'll be redirected to Stripe to complete payment securely.
+          You&apos;ll be redirected to Stripe to complete payment securely.
           Your card details never touch this app.
         </p>
 

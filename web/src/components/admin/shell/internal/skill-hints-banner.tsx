@@ -175,7 +175,7 @@ function HintCard({
               color: T.errorRed,
             }}
           >
-            Couldn't save — try again.
+            Couldn&apos;t save — try again.
           </div>
         )}
       </div>

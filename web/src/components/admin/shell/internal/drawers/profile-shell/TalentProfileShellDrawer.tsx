@@ -2673,7 +2673,7 @@ export function TalentProfileShellDrawer() {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
                   Seasonal windows
-                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· "I'm here X months a year"</span>
+                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· &quot;I&apos;m here X months a year&quot;</span>
                 </div>
                 <SeasonalEditor windows={state.seasonalWindows} onChange={(w) => patch({ seasonalWindows: w })} />
               </div>

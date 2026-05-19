@@ -374,7 +374,7 @@ export function ThreadInfoSidebar({
       {conv.pinned.coordinatorNote && (
         <InfoSection icon="info" label="From your coordinator (private)">
           <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55, fontStyle: "italic" }}>
-            "{conv.pinned.coordinatorNote}"
+            &quot;{conv.pinned.coordinatorNote}&quot;
           </div>
         </InfoSection>
       )}

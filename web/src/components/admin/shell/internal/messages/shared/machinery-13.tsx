@@ -553,7 +553,7 @@ export function LineupRowCard({
             </button>
           )}
           {row.status === "approved" && (
-            <span style={{ fontSize: 11.5, color: COLORS.successDeep }}>✓ You're booked at this rate.</span>
+            <span style={{ fontSize: 11.5, color: COLORS.successDeep }}>✓ You&apos;re booked at this rate.</span>
           )}
         </div>
       )}

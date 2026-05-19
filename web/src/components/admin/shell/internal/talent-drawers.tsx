@@ -361,7 +361,7 @@ export function TalentOfferDetailDrawer() {
         <KvRow label="Agency" value={r.agency} />
         <Divider label="Brief" />
         <p style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
-          The agency briefed this as: "<em>{r.brief}</em>". Tap accept to confirm — your agency
+          The agency briefed this as: &quot;<em>{r.brief}</em>&quot;. Tap accept to confirm — your agency
           will turn this into a confirmed booking with full call sheet and contract once the
           client locks in. You can also hold open if you want more time.
         </p>
@@ -879,7 +879,7 @@ export function TalentClosedBookingDrawer() {
                   fontStyle: "italic",
                 }}
               >
-                "{detail.review.body}"
+                &quot;{detail.review.body}&quot;
               </div>
             </div>
           </section>
@@ -1264,7 +1264,7 @@ export function TalentHubDetailDrawer() {
           >
             <li>{channel.name} can list your profile + forward inquiries</li>
             <li>Inquiries land in your Tulala inbox alongside agency-routed ones</li>
-            <li>Your contact-policy filters still apply — Basic-tier clients are blocked if you've blocked them</li>
+            <li>Your contact-policy filters still apply — Basic-tier clients are blocked if you&apos;ve blocked them</li>
             {feePct > 0 && (
               <li>
                 When a booking comes through {channel.name}, they take {feePct}% of the fee at payout
@@ -1287,7 +1287,7 @@ export function TalentHubDetailDrawer() {
             }}
           >
             <strong style={{ fontWeight: 600 }}>Heads up:</strong>{" "}
-            {channel.name} isn't yet Tulala-verified. Inquiries may include
+            {channel.name} isn&apos;t yet Tulala-verified. Inquiries may include
             unvetted clients. You can leave with one click if quality drops.
           </div>
         )}
@@ -1735,7 +1735,7 @@ function LogWorkForm({
                         I brought them
                       </div>
                       <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
-                        Marks you as the de-facto coordinator. Surfaces a "You brought {teamMates.split(",")[0]?.trim()}" tag in your booking history.
+                        Marks you as the de-facto coordinator. Surfaces a &quot;You brought {teamMates.split(",")[0]?.trim()}&quot; tag in your booking history.
                       </div>
                     </div>
                   </button>
@@ -2463,7 +2463,7 @@ export function TalentBlockDatesDrawer() {
               marginBottom: 10,
             }}
           >
-            Track work you did off-platform, or block dates when you can't work.
+            Track work you did off-platform, or block dates when you can&apos;t work.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <AvailabilityAddAction
@@ -2752,7 +2752,7 @@ export function TalentAgencyRelationshipDrawer() {
         footer={<SecondaryButton onClick={closeDrawer}>Got it</SecondaryButton>}
       >
         <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6, marginBottom: 14 }}>
-          Share this link with any agency you'd like to work with. When they add you to their roster, you'll get an invite in your inbox.
+          Share this link with any agency you&apos;d like to work with. When they add you to their roster, you&apos;ll get an invite in your inbox.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div
@@ -3018,7 +3018,7 @@ export function TalentLeaveAgencyDrawer() {
       )}
       <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
         Active bookings stay confirmed and get paid out. New pitches stop immediately. Past
-        earnings remain in your activity log. Your agency can't see your inbox or calendar
+        earnings remain in your activity log. Your agency can&apos;t see your inbox or calendar
         once the 14 days are up.
       </div>
     </DrawerShell>
@@ -3183,8 +3183,8 @@ export function TalentContactPreferencesDrawer() {
         >
           Higher-trust clients have completed verification or funded their
           account on Tulala. You decide which tiers can reach you. Lower-trust
-          tiers always have your agency's roster page available — they just
-          can't drop straight into your inbox.
+          tiers always have your agency&apos;s roster page available — they just
+          can&apos;t drop straight into your inbox.
         </div>
       </div>
 
@@ -3266,9 +3266,9 @@ export function TalentContactPreferencesDrawer() {
             lineHeight: 1.55,
           }}
         >
-          Blocked tiers can still see your roster page. They'll be invited to
+          Blocked tiers can still see your roster page. They&apos;ll be invited to
           verify or fund their account before they can send you a direct
-          inquiry. Your agency's coordinator inbox is unaffected.
+          inquiry. Your agency&apos;s coordinator inbox is unaffected.
         </div>
       )}
     </DrawerShell>
@@ -3831,8 +3831,8 @@ export function TalentTaxDocsDrawer() {
         }}
       >
         <strong style={{ fontWeight: 600 }}>About off-platform & in-kind:</strong>{" "}
-        Off-platform earnings you log via "Log work" appear in your year-end summary
-        as self-declared income. In-kind / gift work shows separately and isn't
+        Off-platform earnings you log via &quot;Log work&quot; appear in your year-end summary
+        as self-declared income. In-kind / gift work shows separately and isn&apos;t
         included in the cash total — useful for your records, not reported to tax
         authorities. Talk to a local advisor for your jurisdiction.
       </div>
@@ -4184,7 +4184,7 @@ export function TalentVoiceReplyDrawer() {
               <CapsLabel>Transcript · {Math.max(seconds, 8)}s</CapsLabel>
             </div>
             <p style={{ margin: 0, fontSize: 13, color: COLORS.ink, lineHeight: 1.55 }}>
-              "Hi Mango — yes, available May 14, day rate is twelve hundred euros. Sending quote now."
+              &quot;Hi Mango — yes, available May 14, day rate is twelve hundred euros. Sending quote now.&quot;
             </p>
             <div style={{ marginTop: 12, fontSize: 11.5, color: COLORS.inkMuted }}>
               Edit transcript before sending if you want — the audio still goes through as-is.
@@ -4291,7 +4291,7 @@ export function TalentMultiAgencyPickerDrawer() {
         }}
       >
         <strong style={{ fontWeight: 600 }}>Cross-agency commission:</strong>{" "}
-        Each agency keeps its contracted rate. Switching workspace doesn't move money — it's only about who sees what inbox.
+        Each agency keeps its contracted rate. Switching workspace doesn&apos;t move money — it&apos;s only about who sees what inbox.
       </div>
     </DrawerShell>
   );
@@ -4432,7 +4432,7 @@ export function TalentChatArchiveDrawer() {
             lineHeight: 1.5,
           }}
         >
-          The PDF is generated server-side and signed with a timestamp hash — useful as evidence if there's a dispute.
+          The PDF is generated server-side and signed with a timestamp hash — useful as evidence if there&apos;s a dispute.
         </div>
       </div>
     </DrawerShell>
@@ -5251,7 +5251,7 @@ export function TalentReviewsDrawer() {
               </span>
             </div>
             <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.55 }}>
-              "{r.body}"
+              &quot;{r.body}&quot;
             </p>
             <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
               — {r.reviewerName} · {r.reviewerRole} · {r.brand}
@@ -5438,7 +5438,7 @@ export function TalentEmergencyContactDrawer() {
         </FieldRow>
         <Divider label="When this is shown" />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.7 }}>
-          <li>The day of a confirmed booking, on that booking's call sheet only</li>
+          <li>The day of a confirmed booking, on that booking&apos;s call sheet only</li>
           <li>To the producer named on the contract — no one else</li>
           <li>Auto-revoked 24h after the wrap time</li>
         </ul>
@@ -5949,7 +5949,7 @@ export function TalentTierCompareDrawer() {
 
       {/* Feature matrix */}
       <div style={{ marginTop: 18 }}>
-        <CapsLabel>What's included</CapsLabel>
+        <CapsLabel>What&apos;s included</CapsLabel>
         <div
           style={{
             marginTop: 8,
@@ -6018,7 +6018,7 @@ export function TalentTierCompareDrawer() {
         }}
       >
         Personal page tiers are independent of agency / hub presence. You stay on every roster
-        you're on now. The tier only affects your direct Tulala destination page.
+        you&apos;re on now. The tier only affects your direct Tulala destination page.
       </div>
 
       {/* Phase 1.5: Pro & Portfolio not yet available for launch — waitlist card replaces trial CTA */}
@@ -6394,7 +6394,7 @@ export function TalentPressDrawer() {
             </div>
             {c.quote && (
               <p style={{ margin: "6px 0 0", fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55, fontStyle: "italic" }}>
-                "{c.quote}"
+                &quot;{c.quote}&quot;
               </p>
             )}
             <div style={{ marginTop: 6, fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted }}>
@@ -6575,7 +6575,7 @@ export function TalentCustomDomainDrawer() {
         </button>
       </div>
       <p style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
-        Tulala issues + auto-renews a Let's Encrypt SSL certificate once your DNS is pointing
+        Tulala issues + auto-renews a Let&apos;s Encrypt SSL certificate once your DNS is pointing
         correctly. No manual cert config needed.
       </p>
     </DrawerShell>
@@ -6645,7 +6645,7 @@ export function TalentCareerAnalyticsDrawer() {
               <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginBottom: 2 }}>
                 {tile.value}
               </div>
-              <div style={{ fontSize: 11, color: (tile as any).subColor ?? COLORS.inkMuted }}>
+              <div style={{ fontSize: 11, color: (tile as { label: string; value: string | number; sub: string; subColor?: string }).subColor ?? COLORS.inkMuted }}>
                 {tile.sub}
               </div>
             </div>

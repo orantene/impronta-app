@@ -623,7 +623,7 @@ function SkillOverridesPanelInner({
           color: "#C82828",
         }}
       >
-        Couldn't load skills: {loadError}
+        Couldn&apos;t load skills: {loadError}
       </div>
     );
   }

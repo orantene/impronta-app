@@ -498,7 +498,7 @@ export function WorkspacePageView() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field privacy</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  What's public on your site, what admins see, what's hidden
+                  What&apos;s public on your site, what admins see, what&apos;s hidden
                 </div>
               </div>
               <Affordance label="Configure" />

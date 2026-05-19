@@ -1096,7 +1096,7 @@ export function LiveCategoryFieldsEditor({
         padding: 12, borderRadius: 8, background: "rgba(200,40,40,0.08)",
         border: `1px solid ${T.red}`, color: T.red, fontFamily: F, fontSize: 12,
       }}>
-        Couldn't load category fields: {error}
+        Couldn&apos;t load category fields: {error}
       </div>
     );
   }
