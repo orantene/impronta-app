@@ -58,7 +58,7 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | Lane | Worktree | State |
 |---|---|---|
 | billing | `impronta-tests-billing` | ✅ **DONE + LANDED `cf16505c6`** — 85 pass / 2 skip-flags / 0 fail |
-| inquiry-engine | `impronta-tests-inq` | running — *Lane 2 already shipped baseline; this is depth* |
+| inquiry-engine | `impronta-tests-inq` | ⏳ tests written (4 files, 51 cases: 48 pass / 3 skip incl. 1 bug-flag) · **zero-source** · suite 238 = 232 pass/0 fail/6 skip, zero regressions · **NOT committed** — hard-gated on clean tsc; tsc OOM-deferred by concurrent-lane contention, verdict pending |
 | pitch-engine | `impronta-tests-pitch` | running — *Lane 2 already shipped baseline; this is depth* |
 | auth-isolation | `impronta-tests-auth` | running |
 | server-actions | `impronta-tests-sa` | running |
@@ -86,10 +86,25 @@ behavior left exactly as-is until you decide.
 |---|---|
 | billing | NaN `platform_take` override bypasses the range guard (`typeof NaN==="number"`) → surfaces as a misleading `lanes_do_not_sum` instead of `platform_take_out_of_range` (points operators at line-item pricing, not the bad override) |
 | billing | `formatCommissionSnapshot` rounds money to whole units (`maximumFractionDigits:0`) → `$50.01` renders `"$50"`; the four displayed lanes won't visibly reconcile to gross |
+| inquiry-engine | `describeCrossTenantContext` returns the dangling string `"Routed to "` when `isCrossTenant:true` + empty parties (pinned via `it.skip`; not yet committed pending gate) |
 
 Engine/Lane-2 characterization flags are tracked in the plan doc §test-gap.
 
 ---
+
+## ⚙️ Operational reality — why the test lanes report slowly + serially
+
+Every test lane hard-gates on a clean `tsc --noEmit` (binding §5.5). `tsc` on
+this codebase is ~2–4 GB RAM. With 4–5 lanes racing it simultaneously the
+machine memory-thrashes and the OOM killer SIGTERMs runs (exit 144) — observed
+2026-05-19 (sa + pitch + auth + p3-rebase all `tsc` at once, ~11M pageouts).
+
+**This is not breakage.** Test lanes are zero-source and parallel-safe — they
+cannot collide or regress anything. The *only* cost is wall-clock: lanes
+effectively serialize on the tsc gate and retry. They are self-healing; they
+report one at a time as each wins the memory lottery for its tsc run.
+Implication for the operator: expect staggered, not simultaneous, completion;
+do not launch *more* tsc-gating lanes while several are mid-gate; nothing to fix.
 
 ## Integrator protocol (how lanes land — unchanged)
 
