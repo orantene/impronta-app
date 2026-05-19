@@ -10,7 +10,8 @@ import {
   Cta,
   MediaFrame,
 } from "../shared/section-primitives";
-import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
+import type { LinkRef } from "@/lib/site-admin/links/link-ref";
 import type { SectionComponentProps } from "../types";
 import type { TalentTypeGridV1 } from "./schema";
 import { fetchTenantTalentCategories } from "./fetch";
@@ -203,13 +204,13 @@ export async function TalentTypeGridComponent({
     presentation,
   } = props;
 
-  const dirHref = (termId?: string, override?: string): string => {
-    const raw = override
-      ? override
-      : termId
-        ? `/directory?tax=${encodeURIComponent(termId)}`
-        : "/directory";
-    return prefixPublicHref(raw, publicPathPrefix);
+  const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
+  const dirHref = (termId?: string, override?: LinkRef | string): string => {
+    if (override) return resolveLinkLike(override, linkCtx).href;
+    const raw = termId
+      ? `/directory?tax=${encodeURIComponent(termId)}`
+      : "/directory";
+    return resolveLinkLike(raw, linkCtx).href;
   };
 
   let cards: Card[] = [];
@@ -296,7 +297,7 @@ export async function TalentTypeGridComponent({
           />
           {seeAllLabel && seeAllHref ? (
             <Cta
-              href={prefixPublicHref(seeAllHref, publicPathPrefix)}
+              href={resolveLinkLike(seeAllHref, linkCtx).href}
               variant="text"
               size="sm"
               iconRight={
