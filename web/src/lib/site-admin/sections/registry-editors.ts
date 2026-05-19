@@ -47,6 +47,9 @@ import { ProcessStepsEditor } from "./process_steps/Editor";
 import { featuredTalentMeta } from "./featured_talent/meta";
 import { FeaturedTalentEditor } from "./featured_talent/Editor";
 
+import { directoryMeta } from "./directory/meta";
+import { DirectoryEditor } from "./directory/Editor";
+
 import { galleryStripMeta } from "./gallery_strip/meta";
 import { GalleryStripEditor } from "./gallery_strip/Editor";
 
@@ -215,6 +218,13 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: featuredTalentMeta,
     currentVersion: 1,
     Editor: FeaturedTalentEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  directory: {
+    meta: directoryMeta,
+    currentVersion: 1,
+    Editor: DirectoryEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },

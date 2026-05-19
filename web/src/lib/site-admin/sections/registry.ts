@@ -146,6 +146,15 @@ import {
 import { FeaturedTalentComponent } from "./featured_talent/Component";
 import { FeaturedTalentEditor } from "./featured_talent/Editor";
 
+import { directoryMeta } from "./directory/meta";
+import { directoryMigrations } from "./directory/migrations";
+import {
+  directorySchemasByVersion,
+  type DirectoryV1,
+} from "./directory/schema";
+import { DirectoryComponent } from "./directory/Component";
+import { DirectoryEditor } from "./directory/Editor";
+
 // ── M9 archetype expansion ───────────────────────────────────────────────
 import { marqueeMeta } from "./marquee/meta";
 import { marqueeMigrations } from "./marquee/migrations";
@@ -540,6 +549,15 @@ export const featuredTalentSection: SectionRegistryEntry<FeaturedTalentV1> = {
   Editor: FeaturedTalentEditor,
 };
 
+export const directorySection: SectionRegistryEntry<DirectoryV1> = {
+  meta: directoryMeta,
+  currentVersion: 1,
+  schemasByVersion: directorySchemasByVersion,
+  migrations: directoryMigrations,
+  Component: DirectoryComponent,
+  Editor: DirectoryEditor,
+};
+
 export const marqueeSection: SectionRegistryEntry<MarqueeV1> = {
   meta: marqueeMeta,
   currentVersion: 1,
@@ -785,6 +803,7 @@ export const SECTION_REGISTRY = {
   press_strip: pressStripSection,
   gallery_strip: galleryStripSection,
   featured_talent: featuredTalentSection,
+  directory: directorySection,
   // ── M9 archetype expansion ───────────────────────────────────────────
   marquee: marqueeSection,
   stats: statsSection,
