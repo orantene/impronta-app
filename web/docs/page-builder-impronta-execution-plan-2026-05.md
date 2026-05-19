@@ -2507,14 +2507,48 @@ still correctly prefixed; no regression. Tests 17/17, tsc 0, eslint 0.
 6C work below is now a NORMAL-priority enhancement, no longer an
 urgent live-bug fix.
 
-## What is NOT done yet (remaining 6C — normal priority)
+## STATUS UPDATE 2026-05-19 (b) — LinkKindPicker + cta_banner pilot SHIPPED
 
-The structured-LinkRef *migration* is not done: no section
-schema/Component/Editor persists/reads `LinkRef` yet (they still store
-flat strings; the resolver + coercion exist but only the auth-prefix
-guard is wired). Full benefit (operator picks link KIND in editor;
-tenant-directory/talent-profile/app-dashboard/inquiry-start resolve
-structurally) needs the per-section migration.
+- `2cf124a93` **LinkKindPicker** editor primitive — emits structured
+  `LinkRef` (13 kinds, grouped; coerceLegacyHref adoption of legacy
+  strings). Self-contained.
+- `d8edec488` **cta_banner wired end-to-end** (the proven repeatable
+  pattern): schema `href`→`linkRefOrLegacy`; Component →
+  `resolveLinkLike(href,{pathPrefix,tenantId})`→`<Cta href newTab>`;
+  Editor `LinkPicker`→`LinkKindPicker`; type fallout fixed (3
+  node-presentation fixtures + 1 prototype). Verified live on
+  path-based `/impronta` (DOM): Talent CTA→ROOT `/register`/`/login`,
+  Client CTA→`/impronta/contact`, zero wrongly-prefixed, no regression.
+  Gates tsc 0 / eslint 0 / link 17/17 / node-presentation 42/44
+  (the 2 = pre-existing site_header/footer async-harness, unchanged).
+
+### THE REPEATABLE PATTERN (apply to each remaining section)
+1. `schema.ts`: import `linkRefOrLegacy` from `../../links/link-ref`;
+   change the href field(s) `z.string()…` → `linkRefOrLegacy` (or
+   `optionalLinkRefOrLegacy`).
+2. `Component.tsx`: `import { resolveLinkLike } from
+   "@/lib/site-admin/links/resolve-link-ref"`; destructure
+   `tenantId, publicPathPrefix`; `const L = resolveLinkLike(href,
+   {pathPrefix: publicPathPrefix ?? "", tenantId})`; render
+   `href={L.href}` + `newTab/target` from `L.openInNew`.
+3. `Editor.tsx`: `LinkPicker`→`LinkKindPicker`; string defaults →
+   `coerceLegacyHref("/…")`.
+4. Fix inferred-type fallout (Editor defaults + any `*V1` fixtures in
+   `node-presentation-render.test.ts` / prototype pages → explicit
+   `{kind:"tenant-page",value:"/…"}`).
+5. Gate (tsc 0 / eslint / tests) + clean `.next` restart + DOM-verify
+   the section's links on `/impronta` + scoped commit. (Stale `.next`
+   shows a false auth-prefix regression — always clean-restart before
+   judging the live render.)
+
+### REMAINING sections to migrate (mechanical, de-risked)
+`site_header` (navItems, primaryCta) · `site_footer` (columns.links,
+social) · `anchor_nav` (links) · `editorial_split_hero` (CTAs) ·
+`location_discovery` (ctaHref/items.href) · `hero_search` /
+`hero` / `talent_type_grid` / `values_trio` / any other `*Cta`/`href`
+fields. The auth-prefix guard already protects ALL of them from the
+live Finding-B 404; this migration adds the structured editor + the
+richer kinds. NORMAL priority.
 
 ## ⚠ The blocker the wiring slice MUST solve (verified pipeline finding)
 
