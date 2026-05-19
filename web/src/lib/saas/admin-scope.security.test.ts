@@ -282,25 +282,52 @@ test("assertRowBelongsToTenant: always filters by BOTH id AND tenant_id (defence
 });
 
 test(
-  "assertRowBelongsToTenant: a whitespace-only rowId/tenantId does NOT short-circuit (falsy check is `!value`, not trimmed)",
-  {
-    skip:
-      "SECURITY FLAG (low severity / fails-closed): the guard short-circuits " +
-      "only on empty-string/falsy id (`if (!rowId || !tenantId)`). A " +
-      "whitespace-only \"  \" id is truthy, so the helper still issues a DB " +
-      "query with a junk filter. It returns false (no row matches \"  \"), so " +
-      "this is not an isolation breach today — but the input is not normalised " +
-      "and a future caller that .trim()s elsewhere could diverge. Hardened: " +
-      "treat blank-after-trim as empty and short-circuit.",
-  },
+  "assertRowBelongsToTenant: a whitespace-only rowId/tenantId short-circuits before any DB call [HARDENED 2026-05-19]",
   async () => {
-    // CURRENT behaviour: whitespace id is NOT short-circuited → DB is queried.
-    const { supabase, calls } = mockSingle({ data: null });
-    const ok = await assertRowBelongsToTenant(supabase, "inquiries", "   ", "tenant-1");
-    assert.equal(ok, false, "fails closed (junk filter matches no row)");
-    assert.equal(calls.length, 1, "current behaviour: it DID hit the DB on whitespace input");
+    // HARDENING: both arguments are .trim()'d at function entry and the
+    // short-circuit runs on the trimmed value. Whitespace-only input never
+    // reaches the DB now (no junk-filter query, no perceived "false" oracle).
+    for (const [rowId, tenantId] of [
+      ["   ", "tenant-1"],
+      ["row-1", "   "],
+      ["\t\n", "\n\t"],
+      ["", "tenant-1"],
+      ["row-1", ""],
+    ] as const) {
+      const { supabase, calls } = mockSingle({ data: { id: "would-match" } });
+      const ok = await assertRowBelongsToTenant(supabase, "inquiries", rowId, tenantId);
+      assert.equal(
+        ok,
+        false,
+        `inputs (${JSON.stringify(rowId)}, ${JSON.stringify(tenantId)}) must short-circuit to false`,
+      );
+      assert.equal(
+        calls.length,
+        0,
+        `inputs (${JSON.stringify(rowId)}, ${JSON.stringify(tenantId)}) must not hit the DB`,
+      );
+    }
   },
 );
+
+test("assertRowBelongsToTenant: whitespace-wrapped real ids are trimmed before being used as DB filters", async () => {
+  // A legitimate caller that accidentally passes "  row-abc  " should still
+  // resolve the real row — but the trimmed value is what hits the DB so the
+  // `.eq()` filter doesn't carry stray whitespace into the query string.
+  const { supabase, calls } = mockSingle({ data: { id: "row-abc" } });
+  const ok = await assertRowBelongsToTenant(
+    supabase,
+    "inquiries",
+    "  row-abc  ",
+    "  tenant-T1  ",
+  );
+  assert.equal(ok, true);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].eqs, [
+    ["id", "row-abc"],
+    ["tenant_id", "tenant-T1"],
+  ]);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Source-level guard invariants — requireStaffTenantAction / requireTalentSelfAction

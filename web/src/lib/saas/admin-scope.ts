@@ -170,12 +170,21 @@ export async function assertRowBelongsToTenant(
   rowId: string,
   tenantId: string,
 ): Promise<boolean> {
-  if (!rowId || !tenantId) return false;
+  // SECURITY S1 (2026-05-19) — normalise both identifiers at the function
+  // boundary and short-circuit on blank-after-trim. The previous guard
+  // (`!rowId || !tenantId`) only rejected empty / falsy strings; a whitespace-
+  // only id was truthy and issued a DB query with a junk equality filter.
+  // That fails-closed today (no row matches "  "), but the input is
+  // unnormalised and a future caller that .trim()s elsewhere could diverge.
+  // Normalising here keeps the contract consistent and avoids the DB call.
+  const trimmedRowId = typeof rowId === "string" ? rowId.trim() : "";
+  const trimmedTenantId = typeof tenantId === "string" ? tenantId.trim() : "";
+  if (!trimmedRowId || !trimmedTenantId) return false;
   const { data } = await supabase
     .from(tableName)
     .select("id")
-    .eq("id", rowId)
-    .eq("tenant_id", tenantId)
+    .eq("id", trimmedRowId)
+    .eq("tenant_id", trimmedTenantId)
     .maybeSingle();
   return !!data;
 }
