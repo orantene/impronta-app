@@ -3896,13 +3896,13 @@ a.site-prim-chip:hover { border-color: var(--token-color-primary, #1a1a1a); colo
   grid-auto-columns: minmax(16rem, calc((100% - 2rem) / 3));
   gap: 1rem;
   height: clamp(37rem, 58vh, 43rem);
-  padding-bottom: 2px;
+  padding-block: 6px 4px;
 }
 .site-tt-grid[data-tt-desktop="horizontal-rail"] .site-tt-grid__grid {
   grid-auto-flow: column;
   grid-auto-columns: clamp(18rem, 32vw, 34rem);
   gap: 1rem;
-  padding-bottom: 2px;
+  padding-block: 6px 4px;
 }
 .site-tt-card {
   position: relative;
