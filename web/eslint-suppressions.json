@@ -277,6 +277,179 @@
       "count": 22
     }
   },
+  "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 23
+    }
+  },
+  "src/components/admin/shell/internal/messages/ClientProjectShell.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 36
+    }
+  },
+  "src/components/admin/shell/internal/messages/TalentJobShell.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 39
+    }
+  },
+  "src/components/admin/shell/internal/messages/admin-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 28
+    }
+  },
+  "src/components/admin/shell/internal/messages/admin-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 20
+    }
+  },
+  "src/components/admin/shell/internal/messages/admin-3.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 5
+    }
+  },
+  "src/components/admin/shell/internal/messages/admin-4.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 17
+    }
+  },
+  "src/components/admin/shell/internal/messages/client-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 37
+    }
+  },
+  "src/components/admin/shell/internal/messages/messages-shared.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/inbox-identity-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 41
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/inbox-identity-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/inbox-layout-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 10
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-11.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 57
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 44
+    },
+    "react/no-unescaped-entities": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 54
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-14.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 59
+    },
+    "react/no-unescaped-entities": {
+      "count": 4
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-15.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 36
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-16.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 47
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 53
+    },
+    "react/no-unescaped-entities": {
+      "count": 5
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-3.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 52
+    },
+    "react/no-unescaped-entities": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-4.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 31
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-5.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 83
+    },
+    "react/no-unescaped-entities": {
+      "count": 4
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-6.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 34
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-7.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 68
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-8.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 51
+    }
+  },
+  "src/components/admin/shell/internal/messages/shared/machinery-9.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 15
+    }
+  },
+  "src/components/admin/shell/internal/messages/talent-1.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 53
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/messages/talent-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 15
+    }
+  },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 4
