@@ -205,6 +205,7 @@ const BACKGROUND_MODES: Array<{
 ];
 
 export function LayoutTab({ config, patch }: Props) {
+  const usesSnapshotHeader = config.section != null;
   const variant =
     config.branding.themeJson["shell.header-variant"] ?? "classic-solid";
   const navAlign =
@@ -341,80 +342,84 @@ export function LayoutTab({ config, patch }: Props) {
                   })
                 }
               >
-                <option value="">Default</option>
-                <option value="wrap">Wrap (scroll rail)</option>
-                <option value="compact">Compact (hide nav)</option>
-                <option value="drawer">Drawer (reserved)</option>
+                <option value="">Default - compact on phones</option>
+                <option value="wrap">Show mobile nav rail</option>
+                <option value="compact">Hide mobile nav</option>
+                <option value="drawer">Drawer trigger only</option>
               </select>
             </div>
           </InspectorGroup>
         </>
       ) : null}
 
-      {/* ── 1. Composition ─────────────────────────────────────── */}
-      <InspectorGroup
-        title="Nav alignment"
-        info="Where the inline links sit on desktop. Mobile keeps them inside the hamburger menu regardless."
-      >
-        <ChipGrid
-          options={NAV_ALIGN_OPTIONS}
-          value={navAlign}
-          onChange={(v) => patch.patchToken("shell.header-nav-alignment", v)}
-          columns={2}
-        />
-      </InspectorGroup>
+      {!usesSnapshotHeader ? (
+        <>
+          {/* ── 1. Composition ─────────────────────────────────────── */}
+          <InspectorGroup
+            title="Nav alignment"
+            info="Where the inline links sit on desktop. Mobile keeps them inside the hamburger menu regardless."
+          >
+            <ChipGrid
+              options={NAV_ALIGN_OPTIONS}
+              value={navAlign}
+              onChange={(v) => patch.patchToken("shell.header-nav-alignment", v)}
+              columns={2}
+            />
+          </InspectorGroup>
 
-      <InspectorGroup
-        title="CTA placement"
-        info="Renders the brand's primary call-to-action button. Picks up its label and link from Brand → Primary CTA."
-      >
-        <ChipGrid
-          options={CTA_PLACEMENT_OPTIONS}
-          value={ctaPlacement}
-          onChange={(v) => patch.patchToken("shell.header-cta-placement", v)}
-          columns={2}
-        />
-        <CtaIdentityHint config={config} />
-      </InspectorGroup>
+          <InspectorGroup
+            title="CTA placement"
+            info="Renders the brand's primary call-to-action button. Picks up its label and link from Brand → Primary CTA."
+          >
+            <ChipGrid
+              options={CTA_PLACEMENT_OPTIONS}
+              value={ctaPlacement}
+              onChange={(v) => patch.patchToken("shell.header-cta-placement", v)}
+              columns={2}
+            />
+            <CtaIdentityHint config={config} />
+          </InspectorGroup>
 
-      <InspectorGroup
-        title="Header style"
-        info="Overall visual treatment of the bar. Try one — colors below let you customize from there."
-      >
-        <ChipGrid
-          options={HEADER_VARIANT_OPTIONS}
-          value={variant}
-          onChange={(v) => patch.patchToken("shell.header-variant", v)}
-          columns={2}
-        />
-      </InspectorGroup>
+          <InspectorGroup
+            title="Header style"
+            info="Overall visual treatment of the bar. Try one — colors below let you customize from there."
+          >
+            <ChipGrid
+              options={HEADER_VARIANT_OPTIONS}
+              value={variant}
+              onChange={(v) => patch.patchToken("shell.header-variant", v)}
+              columns={2}
+            />
+          </InspectorGroup>
 
-      {/* ── 2. Surface ─────────────────────────────────────────── */}
-      <InspectorGroup
-        title="Header surface"
-        info="Override the bar's bg / text / hairline with any CSS color (hex, rgba, hsla, oklch). Empty = follow the page background mode below."
-      >
-        <ColorRow
-          label="Background"
-          hint="The header bar's surface color. Wins against the variant + page mode."
-          value={headerBg}
-          onChange={(v) => patch.patchToken("shell.header-bg", v)}
-        />
-        <div className="h-2" />
-        <ColorRow
-          label="Text"
-          hint="Brand label, nav links, utility icons."
-          value={headerText}
-          onChange={(v) => patch.patchToken("shell.header-text", v)}
-        />
-        <div className="h-2" />
-        <ColorRow
-          label="Hairline"
-          hint="Bottom border tone. Subtle line, or transparent for clean float."
-          value={headerBorder}
-          onChange={(v) => patch.patchToken("shell.header-border", v)}
-        />
-      </InspectorGroup>
+          {/* ── 2. Surface ─────────────────────────────────────────── */}
+          <InspectorGroup
+            title="Header surface"
+            info="Override the bar's bg / text / hairline with any CSS color (hex, rgba, hsla, oklch). Empty = follow the page background mode below."
+          >
+            <ColorRow
+              label="Background"
+              hint="The header bar's surface color. Wins against the variant + page mode."
+              value={headerBg}
+              onChange={(v) => patch.patchToken("shell.header-bg", v)}
+            />
+            <div className="h-2" />
+            <ColorRow
+              label="Text"
+              hint="Brand label, nav links, utility icons."
+              value={headerText}
+              onChange={(v) => patch.patchToken("shell.header-text", v)}
+            />
+            <div className="h-2" />
+            <ColorRow
+              label="Hairline"
+              hint="Bottom border tone. Subtle line, or transparent for clean float."
+              value={headerBorder}
+              onChange={(v) => patch.patchToken("shell.header-border", v)}
+            />
+          </InspectorGroup>
+        </>
+      ) : null}
 
       <InspectorGroup
         title="Page background"
@@ -452,60 +457,64 @@ export function LayoutTab({ config, patch }: Props) {
         </div>
       </InspectorGroup>
 
-      {/* ── 3. Mobile ──────────────────────────────────────────── */}
-      <InspectorGroup
-        title="Mobile menu"
-        info="How the navigation reveals on mobile when a visitor taps the hamburger."
-        collapsible
-        storageKey="site-header:mobile"
-      >
-        <ChipGrid
-          options={MOBILE_NAV_OPTIONS}
-          value={mobileNav}
-          onChange={(v) => patch.patchToken("shell.mobile-nav-variant", v)}
-          columns={3}
-        />
-        <div className="h-3" />
-        <span className={KIT.label}>CTA on mobile</span>
-        <div className="h-1.5" />
-        <ChipGrid
-          options={MOBILE_CTA_OPTIONS}
-          value={mobileCta}
-          onChange={(v) =>
-            patch.patchToken("shell.header-mobile-cta-placement", v)
-          }
-          columns={2}
-        />
-      </InspectorGroup>
+      {!usesSnapshotHeader ? (
+        <>
+          {/* ── 3. Mobile ──────────────────────────────────────────── */}
+          <InspectorGroup
+            title="Mobile menu"
+            info="How the navigation reveals on mobile when a visitor taps the hamburger."
+            collapsible
+            storageKey="site-header:mobile"
+          >
+            <ChipGrid
+              options={MOBILE_NAV_OPTIONS}
+              value={mobileNav}
+              onChange={(v) => patch.patchToken("shell.mobile-nav-variant", v)}
+              columns={3}
+            />
+            <div className="h-3" />
+            <span className={KIT.label}>CTA on mobile</span>
+            <div className="h-1.5" />
+            <ChipGrid
+              options={MOBILE_CTA_OPTIONS}
+              value={mobileCta}
+              onChange={(v) =>
+                patch.patchToken("shell.header-mobile-cta-placement", v)
+              }
+              columns={2}
+            />
+          </InspectorGroup>
 
-      {/* ── 4. Behavior ────────────────────────────────────────── */}
-      <InspectorGroup
-        title="Behavior"
-        info="Scroll + interaction. Sticky pins the bar; transparent-on-hero pairs with full-bleed heroes."
-        collapsible
-        storageKey="site-header:behavior"
-      >
-        <ToggleRow
-          label="Pin header to viewport"
-          hint="On keeps the bar accessible while reading."
-          checked={sticky === "on"}
-          onChange={(v) =>
-            patch.patchToken("shell.header-sticky", v ? "on" : "off")
-          }
-        />
-        <div className="h-2" />
-        <ToggleRow
-          label="Transparent on hero, solid on scroll"
-          hint="Pairs with full-bleed hero images."
-          checked={transparent === "on"}
-          onChange={(v) =>
-            patch.patchToken(
-              "shell.header-transparent-on-hero",
-              v ? "on" : "off",
-            )
-          }
-        />
-      </InspectorGroup>
+          {/* ── 4. Behavior ────────────────────────────────────────── */}
+          <InspectorGroup
+            title="Behavior"
+            info="Scroll + interaction. Sticky pins the bar; transparent-on-hero pairs with full-bleed heroes."
+            collapsible
+            storageKey="site-header:behavior"
+          >
+            <ToggleRow
+              label="Pin header to viewport"
+              hint="On keeps the bar accessible while reading."
+              checked={sticky === "on"}
+              onChange={(v) =>
+                patch.patchToken("shell.header-sticky", v ? "on" : "off")
+              }
+            />
+            <div className="h-2" />
+            <ToggleRow
+              label="Transparent on hero, solid on scroll"
+              hint="Pairs with full-bleed hero images."
+              checked={transparent === "on"}
+              onChange={(v) =>
+                patch.patchToken(
+                  "shell.header-transparent-on-hero",
+                  v ? "on" : "off",
+                )
+              }
+            />
+          </InspectorGroup>
+        </>
+      ) : null}
     </div>
   );
 }

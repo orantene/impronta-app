@@ -19,11 +19,17 @@ import { sectionPresentationSchema } from "../shared/presentation";
 const cardItemSchema = z.object({
   label: z.string().min(1).max(80),
   description: z.string().max(200).optional(),
+  /** Optional short glyph rendered in premium card icon wells. */
+  icon: z.string().max(8).optional(),
   imageUrl: z.string().url().max(2048).optional(),
+  /** CSS object-position for the card image, e.g. "50% 35%". */
+  imagePosition: z.string().max(40).optional(),
   /** Optional taxonomy_term id → builds the directory filter link. */
   taxonomyTermId: z.string().max(64).optional(),
   /** Explicit link override (else derived from taxonomyTermId). */
   href: z.string().max(500).optional(),
+  /** Makes this card the large featured pod in rail/pod layouts. */
+  featured: z.boolean().optional(),
 });
 
 export const talentTypeGridSchemaV1 = z.object({
@@ -47,13 +53,23 @@ export const talentTypeGridSchemaV1 = z.object({
   seeAllHref: z.string().max(500).optional(),
 
   desktopLayout: z
-    .enum(["editorial-asymmetric", "equal-grid", "compact-grid"])
+    .enum([
+      "featured-pod-rail",
+      "horizontal-rail",
+      "editorial-asymmetric",
+      "equal-grid",
+      "compact-grid",
+    ])
     .default("equal-grid"),
   mobileLayout: z
     .enum(["stacked", "horizontal-scroll", "compact-grid"])
     .default("stacked"),
   cardRatio: z.enum(["1/1", "3/4", "4/3", "16/9"]).default("3/4"),
   textPosition: z.enum(["overlay-bottom", "below"]).default("overlay-bottom"),
+  showImages: z.boolean().optional(),
+  showDescriptions: z.boolean().optional(),
+  showCardIcons: z.boolean().optional(),
+  showRailControls: z.boolean().optional(),
   overlayOpacity: z.number().min(0).max(1).optional(),
   imageOverlayStrength: z
     .enum(["none", "soft", "medium", "strong"])

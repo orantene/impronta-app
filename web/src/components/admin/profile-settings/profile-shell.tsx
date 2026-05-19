@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   ArrowUpRight,
   Hash,
@@ -199,12 +200,12 @@ export function ProfileShell({
             {groups.length} groups · {totalFields} fields · {totalRequired} required
           </span>
           <div aria-hidden className="hidden h-px min-w-[40px] flex-1 bg-border/50 sm:block" />
-          <a
+          <Link
             href="/admin/fields#add-group"
             className="rounded-full border border-[rgba(24,24,27,0.18)] bg-white px-3 py-1 text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40"
           >
             + New group
-          </a>
+          </Link>
         </div>
         {groups.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border/60 bg-muted/[0.18] p-6 text-center text-sm text-muted-foreground">
@@ -267,12 +268,12 @@ export function ProfileShell({
             {syncedKindCount} synced from Locations)
           </span>
           <div aria-hidden className="hidden h-px min-w-[40px] flex-1 bg-border/50 sm:block" />
-          <a
+          <Link
             href="/admin/taxonomy"
             className="rounded-full border border-[rgba(24,24,27,0.18)] bg-white px-3 py-1 text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40"
           >
             + New list
-          </a>
+          </Link>
         </div>
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {TAXONOMY_ORDER.map((kind) => {
