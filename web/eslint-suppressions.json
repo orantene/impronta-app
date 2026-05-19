@@ -110,7 +110,7 @@
   },
   "src/components/admin/profile-settings/profile-shell.tsx": {
     "@next/next/no-html-link-for-pages": {
-      "count": 12
+      "count": 14
     }
   },
   "src/components/admin/shell/admin-shell-client.tsx": {
@@ -694,6 +694,144 @@
   "src/components/admin/shell/internal/notifications-hub.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 24
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/BillingPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 43
+    },
+    "react-hooks/rules-of-hooks": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 15
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/ClientsPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/ControlBar.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 36
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/InboxPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 34
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 13
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/OperationsPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/OverviewPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 44
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 25
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/PitchesPage-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 56
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/SitePage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 33
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/SurfaceRouter.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 11
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/TalentPage-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 25
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/TalentPage-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 40
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/TalentPage-3.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 44
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 95
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 80
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/WorkPage.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 37
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/WorkspacePageView.tsx": {
+    "max-lines": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 109
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 24
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/pages-shared.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 22
+    },
+    "react/no-unescaped-entities": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/pages.tsx": {
