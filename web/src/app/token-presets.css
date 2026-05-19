@@ -537,6 +537,14 @@ html[data-token-typography-scale-preset="editorial"] {
 [data-section-padding-bottom="standard"] { padding-bottom: 64px !important; }
 [data-section-padding-bottom="airy"]     { padding-bottom: 112px !important; }
 [data-section-padding-bottom="editorial"]{ padding-bottom: clamp(72px, 9vw, 132px) !important; }
+/* The site_header is sticky CHROME, not a content section — it must NOT
+ * inherit the generic section vertical padding (the snapshot pipeline
+ * stamps data-section-padding="standard" → 64px top/bottom, which towers
+ * the bar far past the v11 prototype's tight 1.05rem/.15rem). Higher
+ * specificity (.class[attr] = 0,2,0 > [attr] = 0,1,0) + !important wins;
+ * the real spacing then comes from .site-header__inner per variant. */
+.site-header[data-section-padding-top]    { padding-top: 0 !important; }
+.site-header[data-section-padding-bottom] { padding-bottom: 0 !important; }
 
 /* Container width override (applies to common inner wrappers). */
 [data-section-container="narrow"]      > * > *[class*="__inner"],
@@ -4891,21 +4899,24 @@ html[data-theme="dark"] [data-tone="light"] {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Drawer — prototype `.drawer .pn` */
-.site-header[data-variant="editorial-split"] .site-header__drawer {
+/* Drawer — prototype body-level `.drawer .pn`. Portaled to <body> by
+ * <EditorialSplitActions> so it escapes the header's backdrop-filter
+ * containing block (a fixed child of the bar would otherwise be trapped
+ * in the short strip). Therefore these selectors are NOT scoped under
+ * .site-header — the node lives at <body>. Still v11-exact + token-gold. */
+.site-header__drawer {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 1000;
   visibility: hidden;
   opacity: 0;
   transition: opacity 0.25s ease, visibility 0.25s ease;
 }
-.site-header[data-variant="editorial-split"]
-  .site-header__drawer[data-open="true"] {
+.site-header__drawer[data-open="true"] {
   visibility: visible;
   opacity: 1;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-scrim {
+.site-header__drawer-scrim {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -4915,7 +4926,7 @@ html[data-theme="dark"] [data-tone="light"] {
   background: rgba(0, 0, 0, 0.78);
   cursor: pointer;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-panel {
+.site-header__drawer-panel {
   position: absolute;
   inset: 0 0 0 auto;
   width: min(86vw, 340px);
@@ -4928,12 +4939,10 @@ html[data-theme="dark"] [data-tone="light"] {
   transition: transform 0.3s ease;
   overflow-y: auto;
 }
-.site-header[data-variant="editorial-split"]
-  .site-header__drawer[data-open="true"]
-  .site-header__drawer-panel {
+.site-header__drawer[data-open="true"] .site-header__drawer-panel {
   transform: none;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-x {
+.site-header__drawer-x {
   align-self: flex-end;
   width: 40px;
   height: 40px;
@@ -4944,15 +4953,15 @@ html[data-theme="dark"] [data-tone="light"] {
   line-height: 1;
   cursor: pointer;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-x:hover {
+.site-header__drawer-x:hover {
   color: var(--token-color-accent, #c9a227);
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-nav {
+.site-header__drawer-nav {
   display: flex;
   flex-direction: column;
   margin-top: 0.5rem;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-nav a {
+.site-header__drawer-nav a {
   font-family: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   text-transform: uppercase;
   letter-spacing: 0.2em;
@@ -4963,16 +4972,16 @@ html[data-theme="dark"] [data-tone="light"] {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   transition: color 0.16s ease;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-nav a:hover {
+.site-header__drawer-nav a:hover {
   color: var(--token-color-accent, #c9a227);
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-actions {
+.site-header__drawer-actions {
   margin-top: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-btn {
+.site-header__drawer-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4989,7 +4998,7 @@ html[data-theme="dark"] [data-tone="light"] {
   text-decoration: none;
   transition: 0.2s;
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-btn--gold {
+.site-header__drawer-btn--gold {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--token-color-accent, #c9a227) 70%, #fff),
@@ -4998,23 +5007,21 @@ html[data-theme="dark"] [data-tone="light"] {
   color: #0a0a0a;
   box-shadow: 0 6px 22px -10px color-mix(in srgb, var(--token-color-accent, #c9a227) 50%, transparent);
 }
-.site-header[data-variant="editorial-split"]
-  .site-header__drawer-btn--gold:hover {
+.site-header__drawer-btn--gold:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-btn--line {
+.site-header__drawer-btn--line {
   border-color: rgba(255, 255, 255, 0.13);
   color: var(--token-color-ink, #f6f5f2);
   background: rgba(255, 255, 255, 0.02);
 }
-.site-header[data-variant="editorial-split"]
-  .site-header__drawer-btn--line:hover {
+.site-header__drawer-btn--line:hover {
   border-color: var(--token-color-accent, #c9a227);
   color: var(--token-color-accent, #c9a227);
   background: color-mix(in srgb, var(--token-color-accent, #c9a227) 8%, transparent);
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-links {
+.site-header__drawer-links {
   margin-top: 1.3rem;
   display: flex;
   flex-wrap: wrap;
@@ -5022,13 +5029,12 @@ html[data-theme="dark"] [data-tone="light"] {
   font-size: 0.82rem;
   color: var(--token-color-muted, #bdbab1);
 }
-.site-header[data-variant="editorial-split"] .site-header__drawer-links a {
+.site-header__drawer-links a {
   color: inherit;
   text-decoration: none;
   transition: color 0.16s ease;
 }
-.site-header[data-variant="editorial-split"]
-  .site-header__drawer-links a:hover {
+.site-header__drawer-links a:hover {
   color: var(--token-color-accent, #c9a227);
 }
 

@@ -508,57 +508,76 @@ export async function SiteHeaderComponent({
       <div className="site-header__inner">
         {hasCluster ? (
           <div className="site-header__cluster" data-cluster-zone="lead">
-            {/* Single tidy row (prototype): every social + WhatsApp +
-                email is icon-only; ONLY the phone shows its formatted
-                number. Never dumps a raw URL as text. */}
-            {social.map((s, i) => (
-              <a
-                key={`s${i}`}
-                className="site-header__social"
-                href={s.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={s.label ?? s.platform}
-                title={s.label ?? s.platform}
-              >
-                <ClusterIcon name={s.platform} />
-              </a>
-            ))}
-            {contacts.map((c, i) => {
-              const isPhone = c.type === "phone";
+            {/* Prototype cluster ORDER: WhatsApp (messaging) → social
+                platforms → email → phone LAST (the only one with a
+                visible label). Icon-only otherwise; never dumps a raw
+                URL as text. Order matches v11 regardless of which
+                channels a tenant actually configured. */}
+            {(() => {
+              const renderContact = (
+                c: (typeof contacts)[number],
+                key: string,
+              ) => {
+                const isPhone = c.type === "phone";
+                return (
+                  <a
+                    key={key}
+                    className="site-header__contact"
+                    data-contact-type={c.type}
+                    href={contactHref(c.type, c.value)}
+                    aria-label={
+                      c.label ??
+                      (c.type === "whatsapp"
+                        ? "WhatsApp"
+                        : c.type === "email"
+                          ? "Email"
+                          : "Phone")
+                    }
+                    title={
+                      c.label ??
+                      (isPhone
+                        ? c.value
+                        : c.type === "whatsapp"
+                          ? "WhatsApp"
+                          : "Email")
+                    }
+                    {...(c.type === "whatsapp"
+                      ? { target: "_blank", rel: "noopener noreferrer" }
+                      : {})}
+                  >
+                    <ClusterIcon name={c.type} />
+                    {isPhone ? (
+                      <span className="site-header__contact-label">
+                        {(c.label ?? c.value).replace(/^tel:/i, "")}
+                      </span>
+                    ) : null}
+                  </a>
+                );
+              };
+              const wa = contacts.filter((c) => c.type === "whatsapp");
+              const email = contacts.filter((c) => c.type === "email");
+              const phone = contacts.filter((c) => c.type === "phone");
               return (
-                <a
-                  key={`c${i}`}
-                  className="site-header__contact"
-                  data-contact-type={c.type}
-                  href={contactHref(c.type, c.value)}
-                  aria-label={
-                    c.label ??
-                    (c.type === "whatsapp"
-                      ? "WhatsApp"
-                      : c.type === "email"
-                        ? "Email"
-                        : "Phone")
-                  }
-                  title={
-                    c.label ??
-                    (isPhone ? c.value : c.type === "whatsapp" ? "WhatsApp" : "Email")
-                  }
-                  {...(c.type === "whatsapp"
-                    ? { target: "_blank", rel: "noopener noreferrer" }
-                    : {})}
-                >
-                  <ClusterIcon name={c.type} />
-                  {/* Only the phone surfaces text (its number) — never a
-                      wa.me / mailto URL. */}
-                  {isPhone ? (
-                    <span className="site-header__contact-label">
-                      {(c.label ?? c.value).replace(/^tel:/i, "")}
-                    </span>
-                  ) : null}
-                </a>
+                <>
+                  {wa.map((c, i) => renderContact(c, `wa${i}`))}
+                  {social.map((s, i) => (
+                    <a
+                      key={`s${i}`}
+                      className="site-header__social"
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={s.label ?? s.platform}
+                      title={s.label ?? s.platform}
+                    >
+                      <ClusterIcon name={s.platform} />
+                    </a>
+                  ))}
+                  {email.map((c, i) => renderContact(c, `em${i}`))}
+                  {phone.map((c, i) => renderContact(c, `ph${i}`))}
+                </>
               );
-            })}
+            })()}
           </div>
         ) : null}
         <a className="site-header__brand" href={brandHref}>

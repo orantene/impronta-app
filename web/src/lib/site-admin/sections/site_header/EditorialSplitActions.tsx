@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -72,8 +73,18 @@ export function EditorialSplitActions({
   copy,
 }: EditorialSplitActionsProps) {
   const [open, setOpen] = useState(false);
+  // Portal-mount gate: the drawer must render at <body> level, NOT inside
+  // <header> — the header's backdrop-filter creates a containing block
+  // that would trap a position:fixed child inside the short bar (this is
+  // why the menu didn't fill the screen like the prototype). Portal only
+  // after mount so SSR/first paint stay consistent.
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on route change (prototype's `data-x` links navigate away).
   useEffect(() => {
@@ -98,7 +109,81 @@ export function EditorialSplitActions({
   const inquiryHref = primaryCta?.href ?? directoryHref;
   const isEs = activeLocale === "es";
 
+  const drawer = (
+    <div
+      className="site-header__drawer"
+      data-open={open ? "true" : "false"}
+      role="dialog"
+      aria-modal="true"
+      aria-label={copy.menu}
+      aria-hidden={open ? undefined : "true"}
+    >
+      <button
+        type="button"
+        className="site-header__drawer-scrim"
+        aria-label={copy.close}
+        tabIndex={open ? 0 : -1}
+        onClick={close}
+      />
+      <div className="site-header__drawer-panel">
+        <button
+          type="button"
+          className="site-header__drawer-x"
+          aria-label={copy.close}
+          tabIndex={open ? 0 : -1}
+          onClick={close}
+        >
+          ×
+        </button>
+        {navItems.length > 0 ? (
+          <nav className="site-header__drawer-nav" aria-label={copy.menu}>
+            {navItems.map((item, i) => (
+              <Link
+                key={`${item.href}:${i}`}
+                href={item.href}
+                target={item.external ? "_blank" : undefined}
+                rel={item.external ? "noopener noreferrer" : undefined}
+                tabIndex={open ? 0 : -1}
+                onClick={close}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
+        <div className="site-header__drawer-actions">
+          {primaryCta ? (
+            <Link
+              href={primaryCta.href}
+              target={primaryCta.external ? "_blank" : undefined}
+              rel={primaryCta.external ? "noopener noreferrer" : undefined}
+              className="site-header__drawer-btn site-header__drawer-btn--gold"
+              tabIndex={open ? 0 : -1}
+              onClick={close}
+            >
+              {primaryCta.label || copy.startInquiry}
+            </Link>
+          ) : null}
+          <Link
+            href={directoryHref}
+            className="site-header__drawer-btn site-header__drawer-btn--line"
+            tabIndex={open ? 0 : -1}
+            onClick={close}
+          >
+            {copy.exploreTalent}
+          </Link>
+        </div>
+        <div className="site-header__drawer-links">
+          <Link href={accountHref} tabIndex={open ? 0 : -1} onClick={close}>
+            {accountLabel}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
+    <>
     <div className="site-header__es-acct">
       {/* EN · ES — real canonical locale switch (server-computed hrefs) */}
       <span
@@ -171,82 +256,8 @@ export function EditorialSplitActions({
           <path d="M3 18h18" />
         </svg>
       </button>
-
-      {/* Slide-out drawer — prototype `.drawer .pn` structure */}
-      <div
-        className="site-header__drawer"
-        data-open={open ? "true" : "false"}
-        role="dialog"
-        aria-modal="true"
-        aria-label={copy.menu}
-        aria-hidden={open ? undefined : "true"}
-      >
-        <button
-          type="button"
-          className="site-header__drawer-scrim"
-          aria-label={copy.close}
-          tabIndex={open ? 0 : -1}
-          onClick={close}
-        />
-        <div className="site-header__drawer-panel">
-          <button
-            type="button"
-            className="site-header__drawer-x"
-            aria-label={copy.close}
-            tabIndex={open ? 0 : -1}
-            onClick={close}
-          >
-            ×
-          </button>
-          {navItems.length > 0 ? (
-            <nav className="site-header__drawer-nav" aria-label={copy.menu}>
-              {navItems.map((item, i) => (
-                <Link
-                  key={`${item.href}:${i}`}
-                  href={item.href}
-                  target={item.external ? "_blank" : undefined}
-                  rel={item.external ? "noopener noreferrer" : undefined}
-                  tabIndex={open ? 0 : -1}
-                  onClick={close}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          ) : null}
-          <div className="site-header__drawer-actions">
-            {primaryCta ? (
-              <Link
-                href={primaryCta.href}
-                target={primaryCta.external ? "_blank" : undefined}
-                rel={primaryCta.external ? "noopener noreferrer" : undefined}
-                className="site-header__drawer-btn site-header__drawer-btn--gold"
-                tabIndex={open ? 0 : -1}
-                onClick={close}
-              >
-                {primaryCta.label || copy.startInquiry}
-              </Link>
-            ) : null}
-            <Link
-              href={directoryHref}
-              className="site-header__drawer-btn site-header__drawer-btn--line"
-              tabIndex={open ? 0 : -1}
-              onClick={close}
-            >
-              {copy.exploreTalent}
-            </Link>
-          </div>
-          <div className="site-header__drawer-links">
-            <Link
-              href={accountHref}
-              tabIndex={open ? 0 : -1}
-              onClick={close}
-            >
-              {accountLabel}
-            </Link>
-          </div>
-        </div>
-      </div>
     </div>
+    {mounted ? createPortal(drawer, document.body) : null}
+    </>
   );
 }
