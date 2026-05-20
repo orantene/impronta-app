@@ -130,31 +130,130 @@ const OLD_TO_NEW_KEY: Record<string, string> = Object.fromEntries(
 // canonical mirror never blocks the legacy write the caller already trusts.
 // When the OLD tables are dropped (Phase 5 cutover), the call sites should
 // be flipped to write canonical-first and this whole bridge can be deleted.
+//
+// PERFORMANCE — batching context (§11.2 active gap, fixed):
+//   - The single-call path does 2 DB round-trips for lookups (def id +
+//     tenant id) before the upsert. A shell save touching all 17 bridged
+//     keys without batching = 51 round-trips (3 per key).
+//   - Callers that handle a batch of edits (the shell sync loop) should
+//     hoist the lookups via `prefetchMirrorCanonicalContext` and pass the
+//     returned context to each `mirrorWriteToCanonical` call. That drops
+//     the 17-key save to 2 + 17×1 = 19 round-trips. Backwards compatible:
+//     when `context` is omitted, the helper falls back to the original
+//     per-call lookup path.
 // ---------------------------------------------------------------------------
+
+/** Hoisted lookup result returned by `prefetchMirrorCanonicalContext`. The
+ *  single-call helper builds an equivalent context inline when context is
+ *  omitted — the two paths are byte-identical from the resulting upsert's
+ *  point of view. */
+export type MirrorCanonicalContext = {
+  /** Pre-resolved `profile_field_definitions.id` per canonical (new) field
+   *  key. Keys for which no def was found are absent from the map; the
+   *  helper no-ops those entries (same as the single-call path). */
+  defIdByNewKey: Map<string, string>;
+  /** Pre-resolved tenant_id for this talent — first active roster row by
+   *  `created_at asc`. Null for freelance/orphan talent (no active roster);
+   *  the upsert proceeds with tenant_id = NULL (canonical column is
+   *  nullable). */
+  tenantId: string | null;
+};
+
+/** Prefetch the def-id lookup + tenant resolution that
+ *  `mirrorWriteToCanonical` needs. Call ONCE before a batch loop, pass the
+ *  returned context to every mirror call. Errors are logged + swallowed
+ *  (same fire-and-forget contract as the helper itself); if the prefetch
+ *  fails the returned context is empty and the per-call path will still
+ *  attempt the lookups (degrades gracefully, not faster but not broken).
+ *  `legacyKeys` is the list of LEGACY keys the caller is about to edit —
+ *  unbridged keys are skipped from the def lookup. */
+export async function prefetchMirrorCanonicalContext(
+  supabase: MirrorSupabase,
+  talentProfileId: string,
+  legacyKeys: readonly string[],
+): Promise<MirrorCanonicalContext> {
+  const empty: MirrorCanonicalContext = {
+    defIdByNewKey: new Map(),
+    tenantId: null,
+  };
+  try {
+    // Translate the legacy keys the caller cares about to canonical keys
+    // (filtering unbridged ones out).
+    const newKeys = legacyKeys
+      .map((k) => OLD_TO_NEW_KEY[k])
+      .filter((k): k is string => typeof k === "string");
+    if (newKeys.length === 0) {
+      // No bridged keys in this batch — still resolve tenant since the
+      // caller may pass single calls into this context later.
+    }
+
+    const [defsR, rosterR] = await Promise.all([
+      newKeys.length > 0
+        ? supabase
+            .from("profile_field_definitions")
+            .select("id, field_key")
+            .in("field_key", newKeys)
+        : Promise.resolve({ data: [] as Array<{ id: string; field_key: string }>, error: null }),
+      supabase
+        .from("agency_talent_roster")
+        .select("tenant_id, created_at")
+        .eq("talent_profile_id", talentProfileId)
+        .eq("status", "active")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const defIdByNewKey = new Map<string, string>();
+    for (const row of (defsR.data ?? []) as Array<{ id: string; field_key: string }>) {
+      if (row?.id && row?.field_key) defIdByNewKey.set(row.field_key, row.id);
+    }
+    const tenantId = ((rosterR as { data?: { tenant_id?: string | null } | null })?.data?.tenant_id ?? null) as
+      | string
+      | null;
+    return { defIdByNewKey, tenantId };
+  } catch (err) {
+    void improntaLog("legacy_mirror.prefetch_failed", {
+      talentProfileId,
+      error_message: err instanceof Error ? err.message : String(err),
+    });
+    return empty;
+  }
+}
+
 export async function mirrorWriteToCanonical(
   supabase: MirrorSupabase,
   legacyKey: string,
   talentProfileId: string,
   value: unknown, // text | number | boolean | null
+  context?: MirrorCanonicalContext,
 ): Promise<void> {
   const newKey = OLD_TO_NEW_KEY[legacyKey];
   if (!newKey) return; // not in the 17-key bridge — no-op
 
   try {
-    const { data: newDef, error: defErr } = await supabase
-      .from("profile_field_definitions")
-      .select("id")
-      .eq("field_key", newKey)
-      .maybeSingle();
-    if (defErr) {
-      void improntaLog("legacy_mirror.def_lookup_failed", {
-        newKey,
-        error_message: defErr.message ?? String(defErr),
-      });
-      return;
+    // Def id resolution — from context if provided, otherwise inline lookup
+    // (preserves the original single-call behavior).
+    let fieldDefinitionId: string | null = null;
+    if (context) {
+      fieldDefinitionId = context.defIdByNewKey.get(newKey) ?? null;
+      if (!fieldDefinitionId) return; // not in catalog — no-op (same as inline path's `if (!newDef) return`)
+    } else {
+      const { data: newDef, error: defErr } = await supabase
+        .from("profile_field_definitions")
+        .select("id")
+        .eq("field_key", newKey)
+        .maybeSingle();
+      if (defErr) {
+        void improntaLog("legacy_mirror.def_lookup_failed", {
+          newKey,
+          error_message: defErr.message ?? String(defErr),
+        });
+        return;
+      }
+      if (!newDef) return;
+      fieldDefinitionId = newDef.id as string;
     }
-    if (!newDef) return;
-    const fieldDefinitionId = newDef.id as string;
 
     if (value === null || value === undefined) {
       const { error: delErr } = await supabase
@@ -171,19 +270,23 @@ export async function mirrorWriteToCanonical(
       return;
     }
 
-    // Resolve tenant_id the same way P5-β's backfill migration does
-    // (first active roster row, deterministic by created_at ASC).
-    // tenant_id is nullable on talent_profile_field_values — freelance /
-    // orphan talent (no active roster) writes with tenant_id = NULL.
-    const { data: rosterRow } = await supabase
-      .from("agency_talent_roster")
-      .select("tenant_id, created_at")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "active")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    const tenantId = (rosterRow?.tenant_id ?? null) as string | null;
+    // Tenant id resolution — from context if provided, otherwise inline.
+    // Same behavior either way: first active roster row by created_at asc,
+    // null for freelance/orphan talent.
+    let tenantId: string | null;
+    if (context) {
+      tenantId = context.tenantId;
+    } else {
+      const { data: rosterRow } = await supabase
+        .from("agency_talent_roster")
+        .select("tenant_id, created_at")
+        .eq("talent_profile_id", talentProfileId)
+        .eq("status", "active")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      tenantId = (rosterRow?.tenant_id ?? null) as string | null;
+    }
 
     const { error: upErr } = await supabase
       .from("talent_profile_field_values")

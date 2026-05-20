@@ -6,7 +6,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
-import { mirrorWriteToCanonical } from "@/lib/fields/legacy-mirror";
+import {
+  mirrorWriteToCanonical,
+  prefetchMirrorCanonicalContext,
+} from "@/lib/fields/legacy-mirror";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
@@ -88,6 +91,16 @@ export async function syncProfileShellDynFieldValues(
     ((defs ?? []) as FieldDefDynRow[]).map((d) => [d.key, d] as const),
   );
 
+  // P5-γ + §11.2 batching — hoist the canonical-mirror lookups (def id per
+  // bridged key + tenant id from active roster) once for the whole batch.
+  // Per-call inside the loop becomes a Map lookup + the upsert/delete RPC,
+  // dropping a 17-key save from 51 round-trips (17×3) to 19 (2 + 17×1).
+  const mirrorContext = await prefetchMirrorCanonicalContext(
+    supabase,
+    talent_profile_id,
+    entries.map((e) => e.key),
+  );
+
   let touchedAiDoc = false;
 
   for (const { key, raw } of entries) {
@@ -141,7 +154,7 @@ export async function syncProfileShellDynFieldValues(
       // P5-γ legacy→canonical bridge — keep talent_profile_field_values in
       // sync for the 17 bridged keys. No-op for unbridged keys. Errors are
       // logged inside the helper and never block the legacy delete above.
-      await mirrorWriteToCanonical(supabase, def.key, talent_profile_id, null);
+      await mirrorWriteToCanonical(supabase, def.key, talent_profile_id, null, mirrorContext);
       continue;
     }
 
@@ -179,7 +192,7 @@ export async function syncProfileShellDynFieldValues(
       patch.value_boolean ??
       patch.value_date ??
       null;
-    await mirrorWriteToCanonical(supabase, def.key, talent_profile_id, canonicalValue);
+    await mirrorWriteToCanonical(supabase, def.key, talent_profile_id, canonicalValue, mirrorContext);
   }
 
   if (touchedAiDoc) {
