@@ -187,6 +187,7 @@
     "embedded-postgres": "^17.9.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "libphonenumber-js": "^1.11.20",
     "pg": "^8.20.0",
     "sharp": "^0.34.5",
