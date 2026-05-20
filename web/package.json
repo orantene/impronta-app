@@ -15,7 +15,7 @@
     "check:migrations-applied": "node scripts/check-migrations-applied.mjs",
     "start": "next start",
     "lint": "node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --suppressions-location eslint-suppressions.json",
-    "lint:refresh-baseline": "node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --suppress-all --suppressions-location eslint-suppressions.json",
+    "lint:refresh-baseline": "node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --prune-suppressions --suppressions-location eslint-suppressions.json && node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --suppress-all --suppressions-location eslint-suppressions.json",
     "new:section": "node scripts/new-section.mjs",
     "export:tokens": "node scripts/export-prototype-tokens.mjs",
     "typecheck": "tsc --noEmit",
