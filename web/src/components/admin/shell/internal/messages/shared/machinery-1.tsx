@@ -1,5 +1,3 @@
-"use client";
-
 import { ReservationThread } from "@/components/reservation-thread";
 import { RICH_INQUIRIES, toInquiry, type InquiryRecord, type RichInquiry, type InquiryTalentInvite } from "../../state";
 import { type Conversation, type Participant } from "../../talent";
