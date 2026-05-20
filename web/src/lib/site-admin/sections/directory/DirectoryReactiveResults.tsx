@@ -26,6 +26,7 @@ import { DirectoryFiltersSidebar } from "@/components/directory/directory-filter
 import { DirectoryMobileFilters } from "@/components/directory/directory-mobile-filters";
 import { DirectoryQueryProvider } from "@/components/directory/query-provider";
 
+import { AIInterpretChip } from "./AIInterpretChip";
 import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
 import type { DirectoryV1 } from "./schema";
 
@@ -258,6 +259,13 @@ function DirectoryReactiveResultsInner({
     amin: record.amin,
     amax: record.amax,
   });
+  // B6 — surface the AI interpretation back to the visitor when present.
+  const aiSummary = (() => {
+    const raw = record.ai_sum;
+    if (typeof raw === "string") return raw.trim().slice(0, 400);
+    if (Array.isArray(raw) && typeof raw[0] === "string") return raw[0].trim().slice(0, 400);
+    return "";
+  })();
   const view = parseDirectoryView(record);
   const fieldFacets: DirectoryFieldFacetSelection[] = parseDirectoryFieldFacets(
     record.ff,
@@ -287,6 +295,7 @@ function DirectoryReactiveResultsInner({
           {scopeLimitedHint}
         </p>
       ) : null}
+      {aiSummary ? <AIInterpretChip summary={aiSummary} /> : null}
       <div className="mt-6 flex gap-8">
         {showSidebar && sidebarBlocks.length > 0 ? (
           <aside className="hidden w-56 shrink-0 md:block">
