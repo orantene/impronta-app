@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * PayoutNudgeCard — small CTA card surfaced in the talent Offer tab
  * (and elsewhere) when the talent's Stripe Connect Express account
