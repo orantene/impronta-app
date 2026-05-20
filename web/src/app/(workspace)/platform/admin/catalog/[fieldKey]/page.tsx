@@ -149,8 +149,15 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
       : w.plan === "studio"
         ? HQ.amber
         : HQ.inkMuted;
+  // Seed/dummy tenants often lack display_name + slug + status. The loader
+  // falls back to tenant_id for name+slug and "unknown" for status. Detect
+  // that fallback and render gracefully instead of leaking raw UUIDs.
+  const isUnnamed = w.name === w.tenant_id;
+  const hasRealSlug = w.slug !== w.tenant_id;
+  const hasRealStatus = w.status !== "unknown" && w.status !== "active";
   return (
-    <div
+    <Link
+      href={`/platform/admin/tenants/${w.tenant_id}/catalog`}
       style={{
         display: "flex",
         alignItems: "center",
@@ -159,11 +166,33 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
         borderTop: isFirst ? "none" : `1px solid ${HQ.borderSoft}`,
         fontSize: 12.5,
         opacity: w.status === "active" ? 1 : 0.7,
+        textDecoration: "none",
+        color: "inherit",
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontWeight: 600, color: HQ.ink }}>{w.name}</span>
+          <span
+            style={{
+              fontWeight: 600,
+              color: isUnnamed ? HQ.inkDim : HQ.ink,
+              fontStyle: isUnnamed ? "italic" : "normal",
+            }}
+          >
+            {isUnnamed ? "Unnamed workspace" : w.name}
+          </span>
+          {isUnnamed && (
+            <span
+              style={{
+                fontSize: 10,
+                color: HQ.inkDim,
+                fontFamily: "ui-monospace, monospace",
+              }}
+              title={w.tenant_id}
+            >
+              {`${w.tenant_id.slice(0, 4)}…${w.tenant_id.slice(-4)}`}
+            </span>
+          )}
           <span
             style={{
               fontSize: 9.5,
@@ -196,7 +225,7 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
               no override
             </span>
           )}
-          {w.status !== "active" && (
+          {hasRealStatus && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>
               {w.status.toUpperCase()}
             </span>
@@ -220,18 +249,20 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
         </div>
         <div style={{ fontSize: 9.5, color: HQ.inkDim, marginTop: 1 }}>talents</div>
       </div>
-      <span
-        style={{
-          fontSize: 10.5,
-          color: HQ.inkDim,
-          fontFamily: "ui-monospace, monospace",
-          minWidth: 80,
-          textAlign: "right",
-        }}
-      >
-        {w.slug}
-      </span>
-    </div>
+      {hasRealSlug && (
+        <span
+          style={{
+            fontSize: 10.5,
+            color: HQ.inkDim,
+            fontFamily: "ui-monospace, monospace",
+            minWidth: 80,
+            textAlign: "right",
+          }}
+        >
+          {w.slug}
+        </span>
+      )}
+    </Link>
   );
 }
 

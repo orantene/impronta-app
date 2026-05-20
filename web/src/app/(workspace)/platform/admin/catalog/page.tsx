@@ -427,13 +427,15 @@ export default async function PlatformCatalogMapPage({
               href={urlFor(params, { risk: riskFilter ? undefined : "yes" })}
               active={riskFilter}
             />
-            <FilterChip
-              label={`Workspace override (${s.fieldsWithOverrides})`}
-              href={urlFor(params, {
-                override: overrideFilter ? undefined : "yes",
-              })}
-              active={overrideFilter}
-            />
+            {(s.fieldsWithOverrides > 0 || overrideFilter) && (
+              <FilterChip
+                label={`Workspace override (${s.fieldsWithOverrides})`}
+                href={urlFor(params, {
+                  override: overrideFilter ? undefined : "yes",
+                })}
+                active={overrideFilter}
+              />
+            )}
           </div>
           <div
             style={{
