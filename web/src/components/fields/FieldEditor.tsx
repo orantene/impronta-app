@@ -713,17 +713,27 @@ export function FieldEditor({
         </div>
       </div>
       {control}
-      {/* Error wins over hint when both are present, so users see the
-          actionable message first. Pre-edit hints + post-edit errors
-          never overlap. */}
+      {/* Error wins over everything. Below the control: helper (field
+          description from platform/tenant) then the constraint hint.
+          Both are suppressed while an error is visible so the actionable
+          message isn't buried. */}
       {status === "error" && error ? (
         <div role="alert" style={{
           fontSize: 11.5, color: T.red, fontFamily: F, fontWeight: 500,
           background: "rgba(200,40,40,0.06)", borderLeft: `3px solid ${T.red}`,
           padding: "6px 10px", borderRadius: 4,
         }}>{error}</div>
-      ) : hint ? (
-        <div style={{ fontSize: 10.5, color: T.inkMuted, fontFamily: F }}>{hint}</div>
+      ) : (field.helper || hint) ? (
+        <>
+          {field.helper && (
+            <div style={{
+              fontSize: 11, color: T.inkMuted, fontFamily: F, lineHeight: 1.35,
+            }}>{field.helper}</div>
+          )}
+          {hint && (
+            <div style={{ fontSize: 10.5, color: T.inkDim, fontFamily: F }}>{hint}</div>
+          )}
+        </>
       ) : null}
     </div>
   );
