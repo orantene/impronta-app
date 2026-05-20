@@ -6,7 +6,7 @@ import { loadHybridSwitcherProps } from "@/lib/server-actions/hybrid-identity-se
 import type { HybridSwitcherProps } from "@/lib/server-actions/hybrid-identity-self";
 import { useDashboardText } from "../dashboard-i18n";
 import { FloatingFab, Icon, Popover, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FONTS, NOTIFICATIONS, PAGE_META, PENDING_TALENT, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
+import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, NOTIFICATIONS, PAGE_META, PENDING_TALENT, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
 import { ControlBar } from "./ControlBar";
 
 
@@ -423,7 +423,7 @@ function QuickCreateMenu() {
     };
   }, [open]);
 
-  const items: { id: string; label: string; sub: string; drawer: string | null; shortcut: string; canDo: boolean }[] = [
+  const items: { id: string; label: string; sub: string; drawer: DrawerId | null; shortcut: string; canDo: boolean }[] = [
     {
       id: "new-inquiry",
       label: "New inquiry",
@@ -542,7 +542,9 @@ function QuickCreateMenu() {
               role="menuitem"
               disabled={!it.canDo}
               onClick={() => {
-                openDrawer(it.drawer, it.id === "new-client" ? { id: "new" } : undefined);
+                if (it.drawer) {
+                  openDrawer(it.drawer, it.id === "new-client" ? { id: "new" } : undefined);
+                }
                 setOpen(false);
               }}
               style={{
