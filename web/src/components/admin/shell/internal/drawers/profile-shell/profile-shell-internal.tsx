@@ -4372,6 +4372,43 @@ export function IdentitySubLabel({ children }: { children: React.ReactNode }) {
 }
 
 
+// Hoisted from inside IdentityEditor (Q4). Closures over inputStyle and
+// copy.t lifted to props; parent passes them per call site.
+function SelectPicker({
+  options, value, placeholder, onPick, inputStyle, translate = (s) => s,
+}: {
+  options: { id: string; label: string }[];
+  value: string | null | undefined;
+  placeholder?: string;
+  onPick: (id: string | null) => void;
+  inputStyle: React.CSSProperties;
+  translate?: (s: string) => string;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value ?? ""}
+        onChange={(e) => onPick(e.target.value === "" ? null : e.target.value)}
+        style={{
+          ...inputStyle,
+          appearance: "none",
+          paddingRight: 32,
+          cursor: "pointer",
+        }}
+      >
+        <option value="">{placeholder ?? translate("Select…")}</option>
+        {options.map(opt => (
+          <option key={opt.id} value={opt.id}>{translate(opt.label)}</option>
+        ))}
+      </select>
+      <span aria-hidden style={{
+        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+        pointerEvents: "none", fontSize: 10, color: COLORS.inkMuted,
+      }}>▾</span>
+    </div>
+  );
+}
+
 export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons }: {
   identity: ProfileIdentity;
   onChange: (next: ProfileIdentity) => void;
@@ -4385,39 +4422,6 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
   const inputStyle: React.CSSProperties = { ...SHARED_FIELD_INPUT_STYLE };
-  // Single-pick dropdown — used for Pronouns / Gender / Reply time / Age
-  // display. Native <select> styled to match the rest of the form so the
-  // editor reads as one calm surface instead of a wall of choice chips.
-  const SelectPicker = ({
-    options, value, placeholder, onPick,
-  }: {
-    options: { id: string; label: string }[];
-    value: string | null | undefined;
-    placeholder?: string;
-    onPick: (id: string | null) => void;
-  }) => (
-    <div className="relative">
-      <select
-        value={value ?? ""}
-        onChange={(e) => onPick(e.target.value === "" ? null : e.target.value)}
-        style={{
-          ...inputStyle,
-          appearance: "none",
-          paddingRight: 32,
-          cursor: "pointer",
-        }}
-      >
-        <option value="">{placeholder ?? copy.t("Select…")}</option>
-        {options.map(opt => (
-          <option key={opt.id} value={opt.id}>{copy.t(opt.label)}</option>
-        ))}
-      </select>
-      <span aria-hidden style={{
-        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-        pointerEvents: "none", fontSize: 10, color: COLORS.inkMuted,
-      }}>▾</span>
-    </div>
-  );
   return (
     <div data-pshell-identity-grid style={{
       display: "grid",
@@ -4519,6 +4523,8 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
         })}
       >
         <SelectPicker
+          inputStyle={inputStyle}
+          translate={copy.t}
           options={PRONOUNS_OPTIONS}
           value={identity.pronouns}
           placeholder={copy.t("Select pronouns")}
@@ -4548,6 +4554,8 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
         })}
       >
         <SelectPicker
+          inputStyle={inputStyle}
+          translate={copy.t}
           options={GENDER_OPTIONS}
           value={identity.gender}
           placeholder={copy.t("Select gender")}
@@ -4577,6 +4585,8 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
       {age != null && (
         <FieldRow label={copy.t("Show age as")} optional>
           <SelectPicker
+          inputStyle={inputStyle}
+          translate={copy.t}
             options={[
               { id: "exact",  label: `${copy.t("Exact")} (${age})` },
               { id: "range",  label: ageRange ? `${copy.t("Range")} (${ageRange})` : copy.t("Range") },
