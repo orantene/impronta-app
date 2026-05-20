@@ -82,6 +82,13 @@ export function effectiveFieldVisibility(
   let eff = base;
 
   // Tenant override — may only RESTRICT further (never raise to public).
+  // Conflict resolution: most-restrictive-wins across the three override
+  // columns. If a tenant sets admin_only_override:true alongside
+  // show_in_public_override:true the `true` is silently ignored — the
+  // admin floor wins. Same for is_sensitive at the platform layer.
+  // `default_visibility_override` is read as an array — both `null` and
+  // `undefined` are treated as "no override" (the Array.isArray guard
+  // handles both equally).
   if (tenant) {
     let tenantDesired: FieldVisibility | null = null;
     if (tenant.admin_only_override === true) tenantDesired = "admin";
@@ -98,6 +105,11 @@ export function effectiveFieldVisibility(
       tenantDesired === null &&
       tenant.show_in_public_override === true
     ) {
+      // Captured for completeness (and to make intent explicit), but the
+      // moreRestrictive(base, "public") below collapses to `base` —
+      // tenants can never raise visibility above the platform default.
+      // Not dead code: keeps the branch parallel to the others and
+      // documents the "this is a no-op by design" path.
       tenantDesired = "public";
     }
     if (tenantDesired !== null) {
@@ -109,6 +121,10 @@ export function effectiveFieldVisibility(
   }
 
   // Per-value (talent) override — narrow only.
+  // An empty `valueOverride` array and `null` are both no-ops, but they
+  // arrive via different code paths: `[]` is an explicit "I have no
+  // preference, keep tenant/platform" persisted by the editor, while
+  // `null` is the absence of a row. Both should fall through unchanged.
   if (Array.isArray(valueOverride) && valueOverride.length >= 0) {
     if (valueOverride.length > 0) {
       eff = moreRestrictive(eff, channelsToVisibility(valueOverride));
