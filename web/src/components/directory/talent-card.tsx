@@ -304,15 +304,17 @@ export function TalentCard({
           data-card-ribbon
         >
           {card.trustTier ? <TrustTierBadge tier={card.trustTier} /> : null}
-          {/* Ownership badge present whenever the §10-rich projection is
-           * attached (agencyName set OR explicit independent). When the DTO
-           * has none of the §10 fields populated, omit (legacy behavior). */}
-          {card.trustTier !== undefined ? (
-            <OwnershipBadge
-              agencyName={card.agencyName ?? null}
-              isExclusive={card.isExclusive === true}
-            />
-          ) : null}
+          {/* Ownership badge ALWAYS renders so every card carries the §10
+           * marker (G4 fix: closes the 7-cards/6-markers discrepancy — a
+           * card constructed via a DTO path that leaves trustTier undefined
+           * would otherwise silently drop its ownership marker). Honest
+           * fallback: null agencyName + isExclusive=false → "Independent",
+           * which is the same fallback we use when the matview row is
+           * present but agency is null. Never fabricates an agency. */}
+          <OwnershipBadge
+            agencyName={card.agencyName ?? null}
+            isExclusive={card.isExclusive === true}
+          />
           {card.isFeatured ? (
             <span className="pointer-events-none rounded-full border border-white/30 bg-black/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--impronta-foreground)] backdrop-blur-sm sm:text-[9px]">
               {c.featuredLabel}
@@ -381,10 +383,13 @@ export function TalentCard({
               </>
             ) : null}
           </p>
-          {/* §10-rich availability line (Lane 5 / AV-2). Renders only when
-           * the §10 projection is attached so legacy callers stay unchanged.
-           * Uses the ratified fallback for unknown — never fabricates "now". */}
-          {card.trustTier !== undefined ? (() => {
+          {/* §10-rich availability line (Lane 5 / AV-2). G4 fix: ALWAYS
+           * render so every card carries the data-card-availability marker
+           * (closes the 7-cards/6-markers discrepancy where a DTO with
+           * trustTier===undefined silently dropped the marker). Uses the
+           * ratified "Availability unknown — ask to confirm" fallback
+           * when no signal exists — never fabricates "available now". */}
+          {(() => {
             const a = formatRichAvailability(card);
             return (
               <span
@@ -402,7 +407,7 @@ export function TalentCard({
                 {a.label}
               </span>
             );
-          })() : null}
+          })()}
         </div>
       </Link>
 
