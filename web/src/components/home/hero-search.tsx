@@ -328,11 +328,11 @@ export function HeroSearch({
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl">
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[var(--impronta-gold-dim)]" />
+        <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[var(--impronta-muted)]" />
         <input
           ref={inputRef}
           type="text"
-          className="h-14 w-full rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors focus:border-[var(--impronta-gold)] focus:ring-1 focus:ring-[var(--impronta-gold)]/30 sm:h-16 sm:pr-28 sm:text-lg"
+          className="h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors focus:border-[var(--impronta-foreground)] focus:ring-1 focus:ring-[var(--impronta-foreground)]/30 sm:h-16 sm:pr-28 sm:text-lg"
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           disabled={interpreting}
@@ -357,7 +357,7 @@ export function HeroSearch({
           >
             {typed}
             <motion.span
-              className="inline-block w-[2px] bg-[var(--impronta-gold)] align-middle"
+              className="inline-block w-[2px] bg-[var(--impronta-foreground)] align-middle"
               style={{ height: "1.1em" }}
               animate={{ opacity: [1, 0] }}
               transition={{ repeat: Infinity, duration: 0.7 }}

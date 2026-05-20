@@ -260,7 +260,7 @@ export function TalentCard({
         // Legacy Tailwind classes stay as the DEFAULT look; family rules
         // override specific properties per variant without touching this
         // component. Data-card-* attributes below act as stable hooks.
-        "talent-card group/card flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/95 to-black shadow-sm transition-shadow duration-200 hover:shadow-lg hover:shadow-[var(--impronta-gold)]/8",
+        "talent-card group/card flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/95 to-black shadow-sm transition-shadow duration-200 hover:shadow-lg hover:shadow-white/8",
         className,
       )}
     >
@@ -314,7 +314,7 @@ export function TalentCard({
             />
           ) : null}
           {card.isFeatured ? (
-            <span className="pointer-events-none rounded-full border border-[var(--impronta-gold)]/30 bg-black/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--impronta-gold)] backdrop-blur-sm sm:text-[9px]">
+            <span className="pointer-events-none rounded-full border border-white/30 bg-black/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--impronta-foreground)] backdrop-blur-sm sm:text-[9px]">
               {c.featuredLabel}
             </span>
           ) : null}
@@ -331,7 +331,7 @@ export function TalentCard({
             type="button"
             size="icon"
             variant="secondary"
-            className="size-8 rounded-full border border-white/10 bg-black/50 text-[var(--impronta-gold)] backdrop-blur-sm hover:bg-black/70"
+            className="size-8 rounded-full border border-white/10 bg-black/50 text-[var(--impronta-foreground)] backdrop-blur-sm hover:bg-black/70"
             aria-pressed={saved}
             aria-label={saved ? c.removeSaveAria : c.saveAria}
             onClick={(e) => {
@@ -376,7 +376,7 @@ export function TalentCard({
             {card.primaryTalentTypeLabel}
             {card.locationLabel ? (
               <>
-                <span className="mx-1 text-[var(--impronta-gold)]/60">·</span>
+                <span className="mx-1 text-white/60">·</span>
                 {card.locationLabel}
               </>
             ) : null}
@@ -417,7 +417,7 @@ export function TalentCard({
             {fitLabels.map((f) => (
               <li
                 key={f.slug}
-                className="max-w-full truncate rounded-md border border-[var(--impronta-gold-border)] bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--impronta-gold)] sm:text-[10px]"
+                className="max-w-full truncate rounded-md border border-white/15 bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--impronta-foreground)] sm:text-[10px]"
                 title={f.label}
                 data-card-chip
               >
@@ -487,7 +487,7 @@ export function TalentCard({
             <button
               type="button"
               onClick={() => setDetailsOpen((prev) => !prev)}
-              className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)] transition-colors hover:text-[var(--impronta-gold)]"
+              className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)] transition-colors hover:text-[var(--impronta-foreground)]"
             >
               <span>{detailsOpen ? c.quickPreview : c.quickPreview}</span>
               {detailsOpen ? (
@@ -536,7 +536,7 @@ export function TalentCard({
         <div className="flex gap-2">
           <Button
             asChild
-            className="h-9 flex-1 rounded-lg bg-[var(--impronta-gold)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-black)] hover:bg-[var(--impronta-gold-bright)] sm:text-xs"
+            className="h-9 flex-1 rounded-lg bg-[var(--impronta-foreground)] text-[10px] font-semibold uppercase tracking-[0.12em] text-background hover:bg-[var(--impronta-foreground)]/90 sm:text-xs"
           >
             <Link href={profileHref}>{c.viewPortfolio}</Link>
           </Button>
@@ -551,7 +551,7 @@ export function TalentCard({
             variant="outline"
             inquiry={ui.inquiry}
             label={c.inquire}
-            className="h-9 shrink-0 rounded-lg border-[var(--impronta-gold-border)] px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold)] hover:border-[var(--impronta-gold)]/50 hover:bg-[var(--impronta-gold)]/10 hover:text-[var(--impronta-gold-bright)] sm:px-3 sm:text-xs"
+            className="h-9 shrink-0 rounded-lg border-white/15 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-foreground)] hover:border-white/40 hover:bg-white/10 hover:text-[var(--impronta-foreground)] sm:px-3 sm:text-xs"
           />
         </div>
 
