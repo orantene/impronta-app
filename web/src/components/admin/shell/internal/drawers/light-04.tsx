@@ -306,7 +306,7 @@ export function BrandingDrawer() {
         setLoadingSettings(false);
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: load branding settings once; server action has no deps that should trigger a re-fetch
   }, []);
 
   const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {

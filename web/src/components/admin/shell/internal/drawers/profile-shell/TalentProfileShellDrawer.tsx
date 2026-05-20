@@ -675,7 +675,7 @@ export function TalentProfileShellDrawer() {
       // this ref (nulling it here is exactly what let StrictMode double
       // fire). The in-flight entry self-evicts on settle.
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only retrigger on the listed identity/mode signals; omitted helpers are stable server-action refs
   }, [drawerOpen, mode, payload.talentId, isSelf, hydrationNonce]);
 
   // Keep albumsPro photo lists in sync with galleryAssets. Without this,
@@ -703,7 +703,7 @@ export function TalentProfileShellDrawer() {
           : a
     );
     patch({ albumsPro: updatedAlbums }, { silent: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- stateRef.current reads fresh state at call time; patch is a stable callback; only galleryAssets changes should trigger this sync
   }, [galleryAssets]);
 
   // Prefetch skills data as soon as the drawer opens so the Services tab loads
@@ -1263,7 +1263,7 @@ export function TalentProfileShellDrawer() {
       }
     }
     if (Object.keys(updates).length > 0) patch(updates);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fires only on primaryType change; other state reads are the correct snapshot at that moment; adding them would fire on every keystroke
   }, [state.primaryType]);
 
   // Computed trust tier
