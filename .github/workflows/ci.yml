@@ -72,8 +72,8 @@ jobs:
       # and WorkspaceTopbar.tsx:549 items.drawer); both fixed surgically by typing
       # the array element shapes to AdminShellIconName / DrawerId | null. Count
       # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
-      TSC_BASE: 4              # restored from 6 after fixing light-01 + WorkspaceTopbar Q1-narrowing collateral.
-      SUPPRESSIONS_BASE: 7867  # was 7892 post-Y3; LOWERED after Q5 react-hooks per-rule surgery (14 surgical commits) — ALL react-hooks/* suppressions cleared to 0 (purity 14→0, refs 7→0, rules-of-hooks 3→0, preserve-manual-memoization 2→0, immutability 1→0; plus Plugin-bump's exposed 51 cleaned via prune since they were stale phantoms not real source). Two cherry-pick conflicts resolved manually (light-22 Y3↔Q5 reference, BillingPage Y3↔Q5 BillingActivityRow extraction).
+      TSC_BASE: 0              # was 4 (the PM2 profile-shell-internal ResolvedField baseline); LOWERED to 0 after integration's field-engine refactor moved ResolvedField + added has_value? + tenant_override? optional fields, AND profile-shell-internal.tsx decomp (Phase 1f) shipped clean. Codebase is now tsc-zero.
+      SUPPRESSIONS_BASE: 7865  # was 7867 post-Q5; LOWERED -2 after integration regen + Phase 1f decomp (572 entries redistributed across 12 new profile-shell-modules but net 7865 because some inline-style entries on the decomposed code were cleaned in the move).
     steps:
       - name: Checkout
         uses: actions/checkout@v4
