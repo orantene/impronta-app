@@ -348,6 +348,19 @@ function AttachmentChip({
   );
 }
 
+// Q5: humanize an ISO/string future expiry to "Expires in N days". Hoisted
+// to module scope so Date.now() doesn't fire react-hooks/purity from a
+// render-body IIFE inside PostSendView.
+function formatExpiry(expiresAt: string | null | undefined): string | null {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const days = Math.round(ms / (1000 * 60 * 60 * 24));
+  if (days < 1) return "Expires today";
+  if (days === 1) return "Expires in 1 day";
+  return `Expires in ${days} days`;
+}
+
 // ─── Post-send view ───────────────────────────────────────────────────────────
 
 function PostSendView({
@@ -393,15 +406,9 @@ function PostSendView({
   })();
 
   // Expiry chip — humanize "expires in N days" if a future timestamp is given.
-  const expiryLabel = (() => {
-    if (!expiresAt) return null;
-    const ms = new Date(expiresAt).getTime() - Date.now();
-    if (!Number.isFinite(ms) || ms <= 0) return null;
-    const days = Math.round(ms / (1000 * 60 * 60 * 24));
-    if (days < 1) return "Expires today";
-    if (days === 1) return "Expires in 1 day";
-    return `Expires in ${days} days`;
-  })();
+  // Q5: builder hoisted to module scope (see formatExpiry below) so the
+  // Date.now() call isn't inside the render-time IIFE.
+  const expiryLabel = formatExpiry(expiresAt);
 
   const visibleAvatars = talents.slice(0, 4);
   const overflow = Math.max(0, talents.length - visibleAvatars.length);
