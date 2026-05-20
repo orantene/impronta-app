@@ -158,7 +158,7 @@ export function CanvasEditOverlay({
       document.removeEventListener("mousedown", onMouseDown, true);
       document.removeEventListener("keydown", onKey, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- commit/cancel use refs (committedRef, valueRef, overlayRef) so they don't need to be deps; variant controls Enter-key behaviour and must re-register
   }, [variant]);
 
   return createPortal(
