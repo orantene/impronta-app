@@ -1,5 +1,3 @@
-"use client";
-
 import type { InspectorContext } from "@/lib/admin/admin-inspector/types";
 
 function hasSpecificInspector(ctx: InspectorContext) {
