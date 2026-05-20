@@ -51,6 +51,14 @@ export type DiscoverTalentListItem = {
   nextAvailableDate: string | null;
   availableDaysInNext30: number | null;
   availabilityDots14d: string | null;
+  /**
+   * A2 — derived trust ladder tier from the talent_discover_index matview.
+   * One of: 'basic' | 'verified' | 'silver' | 'gold'. Null only if the
+   * matview row is missing the column (shouldn't happen post-migration
+   * 20260520000921_directory_trust_tier.sql). Phase B #3 of the directory
+   * plan surfaces this as the real Basic/Verified/Silver/Gold badge.
+   */
+  trustTier: string | null;
 };
 
 export type DiscoverFacets = {
@@ -134,7 +142,8 @@ export async function loadDiscoverTalents(
        home_country_text, home_city_text, residence_city_id,
        agency_tenant_id, agency_name, is_exclusive,
        category_label, category_slug,
-       next_available_date, available_days_in_next_30, availability_dots_14d`,
+       next_available_date, available_days_in_next_30, availability_dots_14d,
+       trust_tier`,
       { count: "exact" },
     )
     .order("display_name", { ascending: true, nullsFirst: false })
@@ -168,6 +177,7 @@ export async function loadDiscoverTalents(
     next_available_date: string | null;
     available_days_in_next_30: number | null;
     availability_dots_14d: string | null;
+    trust_tier: string | null;
   };
 
   const rows = (data ?? []) as unknown as IndexRow[];
@@ -251,6 +261,7 @@ export async function loadDiscoverTalents(
       nextAvailableDate: row.next_available_date,
       availableDaysInNext30: row.available_days_in_next_30,
       availabilityDots14d: row.availability_dots_14d,
+      trustTier: row.trust_tier,
     };
   });
 
