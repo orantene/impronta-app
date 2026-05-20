@@ -1,5 +1,3 @@
-"use client";
-
 import { Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
