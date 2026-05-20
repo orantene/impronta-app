@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Phase 1 premium-restraint pass:
  *   - GroupDescription was always-on microcopy under every group title.
