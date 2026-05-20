@@ -1,5 +1,3 @@
-"use client";
-
 // Phase 3.12 / Roster — talent workflow status pipeline.
 //
 // Visual state machine showing the talent's lifecycle:
