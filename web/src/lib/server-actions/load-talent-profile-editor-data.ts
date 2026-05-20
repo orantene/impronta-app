@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * P3 — consolidated editor loader (ADDITIVE).
@@ -50,9 +51,9 @@ export async function loadTalentProfileEditorData(input: {
   const { talentProfileId, isSelf } = input;
   // TEMP QA instrumentation (P3 debug) — remove once verified.
   const t0 = Date.now();
-  console.info(
-    `[editor-loader] start talent=${talentProfileId} isSelf=${isSelf}`,
-  );
+  void improntaLog("load_talent_profile_editor_data.info", {
+    message: `[editor-loader] start talent=${talentProfileId} isSelf=${isSelf}`,
+  });
   const out = await Promise.all([
     getTalentProfileEditorData({ talent_profile_id: talentProfileId }),
     isSelf
@@ -63,10 +64,10 @@ export async function loadTalentProfileEditorData(input: {
           talent_profile_id: talentProfileId,
         }),
   ]);
-  console.info(
-    `[editor-loader] done talent=${talentProfileId} duration=${
+  void improntaLog("load_talent_profile_editor_data.info", {
+    message: `[editor-loader] done talent=${talentProfileId} duration=${
       Date.now() - t0
     }ms editorOk=${out[0]?.ok ?? false} dynOk=${out[1]?.ok ?? false}`,
-  );
+  });
   return out;
 }

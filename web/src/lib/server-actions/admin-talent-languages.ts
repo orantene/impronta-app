@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // admin-talent-languages.ts
 //
@@ -138,9 +139,9 @@ export async function setTalentLanguages(input: {
     });
   }
   const rows = [...byCode.values()];
-  console.info(
-    `${LOG} start talent=${input.talent_profile_id} tenant=${tenantId} desired=${rows.length}`,
-  );
+  void improntaLog("admin_talent_languages.info", {
+    message: `${LOG} start talent=${input.talent_profile_id} tenant=${tenantId} desired=${rows.length}`,
+  });
 
   const { error: rpcErr } = await supabase.rpc("replace_talent_languages", {
     p_talent_profile_id: input.talent_profile_id,
@@ -149,7 +150,9 @@ export async function setTalentLanguages(input: {
   });
   if (rpcErr) {
     logServerError("setTalentLanguages.replace", rpcErr);
-    console.warn(`${LOG} FAIL replace code=${rpcErr.code}`);
+    void improntaLog("admin_talent_languages.warn", {
+      message: `${LOG} FAIL replace code=${rpcErr.code}`,
+    });
     return {
       ok: false,
       error: "Couldn't save languages. No changes were applied.",
@@ -162,16 +165,18 @@ export async function setTalentLanguages(input: {
     talent_profile_id: input.talent_profile_id,
   });
   if (!final.ok) {
-    console.warn(`${LOG} FAIL final-fetch (writes applied)`);
+    void improntaLog("admin_talent_languages.warn", {
+      message: `${LOG} FAIL final-fetch (writes applied)`,
+    });
     return {
       ok: false,
       error:
         "Languages were saved, but the list couldn't be reloaded — reopen the profile to confirm.",
     };
   }
-  console.info(
-    `${LOG} done talent=${input.talent_profile_id} final=${final.languages.length} ms=${Date.now() - t0}`,
-  );
+  void improntaLog("admin_talent_languages.info", {
+    message: `${LOG} done talent=${input.talent_profile_id} final=${final.languages.length} ms=${Date.now() - t0}`,
+  });
   return { ok: true, languages: final.languages };
 }
 

@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // admin-talent-skills.ts — Multi-skill talent management.
@@ -346,10 +347,10 @@ export async function setTalentProfileSkills(
   const desiredByTerm = new Map<string, "primary" | "secondary">();
   for (const s of parsed.data.skills) desiredByTerm.set(s.taxonomy_term_id, s.role);
   const desiredIds = [...desiredByTerm.keys()];
-  console.info(
-    `${LOG} start talent=${tpid} tenant=${tenantId} desired=${desiredIds.length} ` +
+  void improntaLog("admin_talent_skills.info", {
+    message: `${LOG} start talent=${tpid} tenant=${tenantId} desired=${desiredIds.length} ` +
       `(primary=${[...desiredByTerm.values()].filter((r) => r === "primary").length})`,
-  );
+  });
   if (desiredIds.length > MAX_TOTAL_SKILLS) {
     return {
       ok: false,
@@ -365,7 +366,9 @@ export async function setTalentProfileSkills(
     .eq("talent_profile_id", tpid)
     .maybeSingle();
   if (!rosterRow) {
-    console.warn(`${LOG} FAIL roster-miss talent=${tpid}`);
+    void improntaLog("admin_talent_skills.warn", {
+      message: `${LOG} FAIL roster-miss talent=${tpid}`,
+    });
     return {
       ok: false,
       error: "Couldn't save: this profile isn't on your roster.",
@@ -394,14 +397,18 @@ export async function setTalentProfileSkills(
       }
     }
     if (invalid.length > 0) {
-      console.warn(`${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`);
+      void improntaLog("admin_talent_skills.warn", {
+        message: `${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`,
+      });
       return {
         ok: false,
         error:
           "Some selected skills are invalid for this profile (not a real skill, inactive, or a generic placeholder).",
       };
     }
-    console.info(`${LOG} validated terms=${desiredIds.length}`);
+    void improntaLog("admin_talent_skills.info", {
+      message: `${LOG} validated terms=${desiredIds.length}`,
+    });
   }
 
   // Current skill rows (capture full data for a compensating restore).
@@ -447,9 +454,9 @@ export async function setTalentProfileSkills(
     for (const id of desiredPrimaryIds) {
       if (id !== keepPrimary) desiredByTerm.set(id, "secondary");
     }
-    console.info(
-      `${LOG} coerced extra-primary→secondary count=${desiredPrimaryIds.length - 1} keep=${keepPrimary}`,
-    );
+    void improntaLog("admin_talent_skills.info", {
+      message: `${LOG} coerced extra-primary→secondary count=${desiredPrimaryIds.length - 1} keep=${keepPrimary}`,
+    });
   }
 
   const toDelete = current.filter((r) => !desiredByTerm.has(r.taxonomy_term_id));
@@ -459,11 +466,11 @@ export async function setTalentProfileSkills(
     .filter(
       (x) => x.row && x.row.relationship_type !== relOf(x.role),
     );
-  console.info(
-    `${LOG} diff talent=${tpid} current=${current.length} ` +
+  void improntaLog("admin_talent_skills.info", {
+    message: `${LOG} diff talent=${tpid} current=${current.length} ` +
       `toInsert=${toInsert.length} toDelete=${toDelete.length} ` +
       `toUpdate=${toUpdate.length} kept=${desiredIds.length - toInsert.length}`,
-  );
+  });
 
   if (toDelete.length === 0 && toInsert.length === 0 && toUpdate.length === 0) {
     // No-op — return the current resolved list, no writes/revalidate.
@@ -486,13 +493,15 @@ export async function setTalentProfileSkills(
       .in("relationship_type", SKILL_RELS as unknown as string[]);
     if (delErr) {
       logServerError("setTalentProfileSkills.delete", delErr);
-      console.warn(`${LOG} FAIL delete talent=${tpid} code=${delErr.code}`);
+      void improntaLog("admin_talent_skills.warn", {
+        message: `${LOG} FAIL delete talent=${tpid} code=${delErr.code}`,
+      });
       return {
         ok: false,
         error: "Couldn't update skills (remove step). No changes were saved.",
       };
     }
-    console.info(`${LOG} deleted=${toDelete.length}`);
+    void improntaLog("admin_talent_skills.info", { message: `${LOG} deleted=${toDelete.length}` });
   }
 
   // Best-effort compensating restore if a later write fails.
@@ -575,12 +584,12 @@ export async function setTalentProfileSkills(
     if (insErr) {
       await restoreDeleted();
       logServerError("setTalentProfileSkills.insert", insErr);
-      console.warn(
-        `${LOG} FAIL insert talent=${tpid} code=${insErr.code} restored=${toDelete.length}`,
-      );
+      void improntaLog("admin_talent_skills.warn", {
+        message: `${LOG} FAIL insert talent=${tpid} code=${insErr.code} restored=${toDelete.length}`,
+      });
       return { ok: false, error: friendlyDbError(insErr) };
     }
-    console.info(`${LOG} inserted=${rows.length}`);
+    void improntaLog("admin_talent_skills.info", { message: `${LOG} inserted=${rows.length}` });
   }
 
   // 3. Role changes for kept terms (preserve proficiency/years/order).
@@ -594,11 +603,15 @@ export async function setTalentProfileSkills(
     if (updErr) {
       await restoreDeleted();
       logServerError("setTalentProfileSkills.update", updErr);
-      console.warn(`${LOG} FAIL role-update talent=${tpid} code=${updErr.code}`);
+      void improntaLog("admin_talent_skills.warn", {
+        message: `${LOG} FAIL role-update talent=${tpid} code=${updErr.code}`,
+      });
       return { ok: false, error: friendlyDbError(updErr) };
     }
   }
-  if (toUpdate.length > 0) console.info(`${LOG} role-updated=${toUpdate.length}`);
+  if (toUpdate.length > 0) void improntaLog("admin_talent_skills.info", {
+    message: `${LOG} role-updated=${toUpdate.length}`,
+  });
 
   revalidatePath("/[tenantSlug]/admin/roster", "layout");
 
@@ -612,16 +625,18 @@ export async function setTalentProfileSkills(
     .order("display_order", { ascending: true });
   if (finalErr) {
     logServerError("setTalentProfileSkills.resolved", finalErr);
-    console.warn(`${LOG} FAIL final-fetch talent=${tpid} (writes applied)`);
+    void improntaLog("admin_talent_skills.warn", {
+      message: `${LOG} FAIL final-fetch talent=${tpid} (writes applied)`,
+    });
     // Writes succeeded; only the re-read failed.
     return {
       ok: false,
       error: "Skills were saved, but the list couldn't be reloaded — reopen the profile to confirm.",
     };
   }
-  console.info(
-    `${LOG} done talent=${tpid} final=${(finalData ?? []).length} ms=${Date.now() - t0}`,
-  );
+  void improntaLog("admin_talent_skills.info", {
+    message: `${LOG} done talent=${tpid} final=${(finalData ?? []).length} ms=${Date.now() - t0}`,
+  });
   return { ok: true, skills: (finalData ?? []) as ResolvedSkill[] };
 }
 

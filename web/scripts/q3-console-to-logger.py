@@ -82,8 +82,8 @@ def derive_event(filepath: str) -> str:
     if not parts:
         return "unknown"
 
-    # Strip outermost container dir (lib / components / app)
-    if parts[0] in _STRIP_OUTER:
+    # Strip all leading container dirs (src / lib / components / app — may stack)
+    while parts and parts[0] in _STRIP_OUTER:
         parts = parts[1:]
 
     # Drop generic filename (page.tsx, route.ts, …) — use parent dirs instead
@@ -230,12 +230,23 @@ def find_bare_error_var(args: list) -> Optional[str]:
 # ─────────────────────────────────────────────────────
 
 def sanitize_field(field_str: str) -> str:
-    """Wrap bare error-like identifiers in String(…) to stay primitive."""
-    # Shorthand: bare error var  "err" → "error: String(err)"
-    if ERROR_VAR_RE.match(field_str.strip()) and "." not in field_str:
-        return "error: String(" + field_str.strip() + ")"
-    # key: val — wrap val if it's a bare error var
-    kv = field_str.split(":", 1)
+    """
+    Normalise object fields for ImprontaLogFields (no unknown values).
+    - Bare error var shorthand: "err" → "error: String(err)"
+    - Property access shorthand: "error.message" → "error: error.message"
+    - key: bareErrVar → "key: String(errVar)"
+    """
+    s = field_str.strip()
+    # Shorthand bare error var
+    if ERROR_VAR_RE.match(s) and "." not in s:
+        return "error: String(" + s + ")"
+    # Shorthand property access (e.g. "error.message" in { error.message } — INVALID JS)
+    # Convert to explicit: "error.message" → "error: error.message"
+    if re.match(r"^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)+$", s):
+        obj = s.split(".", 1)[0]
+        return obj + ": " + s
+    # key: val — wrap val if bare error var
+    kv = s.split(":", 1)
     if len(kv) == 2:
         key, val = kv[0].strip(), kv[1].strip()
         if ERROR_VAR_RE.match(val) and "." not in val:
@@ -255,7 +266,12 @@ def build_improntolog_fields(first: str, rest: list) -> list:
             for f in extract_object_fields(arg):
                 if f:
                     fields.append(sanitize_field(f))
-        elif re.match(r"^[a-zA-Z_$][\w$.]*$", arg):
+        elif re.match(r"^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)+$", arg):
+            # Property access (e.g. error.message, pgErr.code) → "obj: obj.prop"
+            obj = arg.split(".", 1)[0]
+            fields.append(obj + ": " + arg)
+        elif re.match(r"^[a-zA-Z_$][\w$]*$", arg):
+            # Bare identifier
             fields.append(sanitize_field(arg))
         else:
             fields.append("detail: " + arg)

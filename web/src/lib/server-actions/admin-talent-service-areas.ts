@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // admin-talent-service-areas.ts
 //
@@ -99,11 +100,11 @@ export async function saveTalentServiceAreas(
     (id) => id && id !== homeId,
   );
   const allIds = [...new Set([...(homeId ? [homeId] : []), ...travelIds])];
-  console.info(
-    `${LOG} start talent=${tpid} tenant=${tenantId} ` +
+  void improntaLog("admin_talent_service_areas.info", {
+    message: `${LOG} start talent=${tpid} tenant=${tenantId} ` +
       `home_base=${homeId ?? "null"} travel_to=[${travelIds.join(",")}] ` +
       `radius=${input.travel_radius_km ?? "null"} fee=${input.travel_fee_required} remote=${input.remote_only}`,
-  );
+  });
 
   // Validate every id is a real, active curated location.
   if (allIds.length > 0) {
@@ -121,13 +122,17 @@ export async function saveTalentServiceAreas(
       return !l || l.active === false;
     });
     if (invalid.length > 0) {
-      console.warn(`${LOG} FAIL invalid-locations talent=${tpid} n=${invalid.length}`);
+      void improntaLog("admin_talent_service_areas.warn", {
+        message: `${LOG} FAIL invalid-locations talent=${tpid} n=${invalid.length}`,
+      });
       return {
         ok: false,
         error: "Some selected locations are invalid or inactive.",
       };
     }
-    console.info(`${LOG} validated locations ok=${allIds.length}`);
+    void improntaLog("admin_talent_service_areas.info", {
+      message: `${LOG} validated locations ok=${allIds.length}`,
+    });
   }
 
   // Build the canonical desired set. travel_radius_km / travel_fee_required
@@ -159,10 +164,14 @@ export async function saveTalentServiceAreas(
     rows,
   });
   if (!res.ok) {
-    console.warn(`${LOG} FAIL setAll talent=${tpid}: ${res.error}`);
+    void improntaLog("admin_talent_service_areas.warn", {
+      message: `${LOG} FAIL setAll talent=${tpid}: ${res.error}`,
+    });
     return { ok: false, error: res.error };
   }
-  console.info(`${LOG} setAll-ok talent=${tpid} rows=${res.rows.length}`);
+  void improntaLog("admin_talent_service_areas.info", {
+    message: `${LOG} setAll-ok talent=${tpid} rows=${res.rows.length}`,
+  });
 
   // Mirror the denormalized talent_profiles scalars so the legacy/display
   // columns stay consistent with the canonical rows. Setting location_id
@@ -190,10 +199,10 @@ export async function saveTalentServiceAreas(
   }
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
-  console.info(
-    `${LOG} done talent=${tpid} final=${res.rows.length} ` +
+  void improntaLog("admin_talent_service_areas.info", {
+    message: `${LOG} done talent=${tpid} final=${res.rows.length} ` +
       `[${res.rows.map((r) => `${r.service_kind}:${r.city}`).join(",")}] ` +
       `ms=${Date.now() - t0}`,
-  );
+  });
   return { ok: true, rows: res.rows, remote_only: input.remote_only };
 }

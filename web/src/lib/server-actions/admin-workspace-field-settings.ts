@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // admin-workspace-field-settings.ts
 //
@@ -100,10 +101,10 @@ export async function getFieldPrivacyCatalog(): Promise<
   ]);
 
   if (defsR.error || groupsR.error || ovR.error) {
-    console.error(
-      "[field-privacy-catalog] load failed:",
-      defsR.error?.message || groupsR.error?.message || ovR.error?.message,
-    );
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[field-privacy-catalog] load failed:",
+      detail: defsR.error?.message || groupsR.error?.message || ovR.error?.message,
+    });
     return { ok: false, error: "Couldn't load the field catalog." };
   }
 
@@ -189,7 +190,10 @@ export async function getWorkspaceFieldSettings(): Promise<
     .eq("tenant_id", tenantId);
 
   if (error) {
-    console.error("[workspace-field-settings] get failed:", error.message);
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[workspace-field-settings] get failed:",
+      error: error.message,
+    });
     return { ok: false, error: "Couldn't load field settings." };
   }
   return { ok: true, rows: (data ?? []) as WorkspaceFieldSettingRow[] };
@@ -249,7 +253,10 @@ export async function setWorkspaceFieldVisibility(
     );
 
   if (error) {
-    console.error("[workspace-field-settings] set failed:", error.message);
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[workspace-field-settings] set failed:",
+      error: error.message,
+    });
     return { ok: false, error: "Couldn't save the field setting." };
   }
   bustFieldCatalog(tenantId);
@@ -274,7 +281,10 @@ export async function resetWorkspaceFieldVisibility(
     .eq("field_definition_id", parsed.data.field_definition_id);
 
   if (error) {
-    console.error("[workspace-field-settings] reset failed:", error.message);
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[workspace-field-settings] reset failed:",
+      error: error.message,
+    });
     return { ok: false, error: "Couldn't reset the field setting." };
   }
   bustFieldCatalog(tenantId);
@@ -352,11 +362,11 @@ export async function getWorkspaceFieldCatalog(): Promise<
   ]);
 
   if (defsR.error || groupsR.error || fOvR.error || gOvR.error) {
-    console.error(
-      "[field-catalog] load failed:",
-      defsR.error?.message || groupsR.error?.message ||
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[field-catalog] load failed:",
+      detail: defsR.error?.message || groupsR.error?.message ||
         fOvR.error?.message || gOvR.error?.message,
-    );
+    });
     return { ok: false, error: "Couldn't load the field catalog." };
   }
 
@@ -444,7 +454,10 @@ export async function setWorkspaceFieldCatalog(
     .from("workspace_profile_field_settings")
     .upsert(row, { onConflict: "tenant_id,field_definition_id" });
   if (error) {
-    console.error("[field-catalog] set field failed:", error.message);
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[field-catalog] set field failed:",
+      error: error.message,
+    });
     return { ok: false, error: "Couldn't save the field." };
   }
   bustFieldCatalog(tenantId);
@@ -477,7 +490,10 @@ export async function setWorkspaceFieldGroup(
     .from("workspace_field_group_settings")
     .upsert(row, { onConflict: "tenant_id,field_group_id" });
   if (error) {
-    console.error("[field-catalog] set group failed:", error.message);
+    void improntaLog("admin_workspace_field_settings.error", {
+      message: "[field-catalog] set group failed:",
+      error: error.message,
+    });
     return { ok: false, error: "Couldn't save the group." };
   }
   bustFieldCatalog(tenantId);

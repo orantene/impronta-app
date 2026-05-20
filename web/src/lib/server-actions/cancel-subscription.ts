@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 
@@ -161,7 +162,10 @@ export async function cancelSubscription(
         });
         await sendEmail({ to: ownerEmail, subject, html });
       } catch (err) {
-        console.warn("[cancel-subscription] email send failed", err);
+        void improntaLog("cancel_subscription.warn", {
+          message: "[cancel-subscription] email send failed",
+          error: String(err),
+        });
       }
     })();
 

@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // admin-talent-profile-sections.ts
 //
@@ -640,7 +641,11 @@ export async function commitTalentProfileShellAdmin(
   lap("revalidatePath.roster+adminLayout");
   if (devProfileSaveTiming) {
     const totalMs = Math.round(performance.now() - tStart);
-    console.info("[commitTalentProfileShellAdmin] timing ms", { ...laps, totalMs });
+    void improntaLog("admin_talent_profile_sections.info", {
+      message: "[commitTalentProfileShellAdmin] timing ms",
+      ...laps,
+      totalMs,
+    });
   }
   return { ok: true };
 }
@@ -884,7 +889,10 @@ export async function sendTalentClaimInvite(input: {
         });
         await sendEmail({ to: targetEmail, subject, html });
       } catch (err) {
-        console.warn("[sendTalentClaimInvite] email send failed", err);
+        void improntaLog("admin_talent_profile_sections.warn", {
+          message: "[sendTalentClaimInvite] email send failed",
+          error: String(err),
+        });
       }
     })();
   }

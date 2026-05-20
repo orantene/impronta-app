@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // admin-taxonomy.ts — Settings → Roster taxonomy management actions
@@ -128,12 +129,14 @@ async function loadTenantFieldCatalogUncached(
   // 6 static queries actually ran; its ABSENCE after a `[field-catalog]
   // request` line means the 120s cache served it. Remove once verified.
   const t0 = Date.now();
-  console.info(`[field-catalog] MISS (querying db) tenant=${tenantId}`);
+  void improntaLog("admin_taxonomy.info", {
+    message: `[field-catalog] MISS (querying db) tenant=${tenantId}`,
+  });
   const svc = createServiceRoleClient();
   if (!svc) {
-    console.warn(
-      `[field-catalog] no service client — FALLBACK to inline queries tenant=${tenantId}`,
-    );
+    void improntaLog("admin_taxonomy.warn", {
+      message: `[field-catalog] no service client — FALLBACK to inline queries tenant=${tenantId}`,
+    });
     return null; // unconfigured → caller falls back to inline queries
   }
   void t0;
@@ -161,11 +164,11 @@ async function loadTenantFieldCatalogUncached(
     // Hard catalog tables failed → signal fallback (don't cache a bad set).
     return null;
   }
-  console.info(
-    `[field-catalog] MISS resolved tenant=${tenantId} duration=${
+  void improntaLog("admin_taxonomy.info", {
+    message: `[field-catalog] MISS resolved tenant=${tenantId} duration=${
       Date.now() - t0
     }ms defs=${defsR.data?.length ?? 0} recs=${recsR.data?.length ?? 0}`,
-  );
+  });
   return {
     defs: (defsR.data ?? []) as FieldDefRow[],
     groupRows: (groupsR.data ?? []) as TenantFieldCatalog["groupRows"],
@@ -185,7 +188,7 @@ function getCachedTenantFieldCatalog(
   // TEMP QA instrumentation (P3 debug): a `request` with NO following
   // `MISS` line = cache HIT (unstable_cache served it). Remove once
   // verified.
-  console.info(`[field-catalog] request tenant=${tenantId}`);
+  void improntaLog("admin_taxonomy.info", { message: `[field-catalog] request tenant=${tenantId}` });
   return unstable_cache(
     () => loadTenantFieldCatalogUncached(tenantId),
     ["tenant-field-catalog", "v1", tenantId],

@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // admin-talent-contexts.ts — Contexts / Best-Fit management.
@@ -249,9 +250,9 @@ export async function setTalentProfileContexts(
   const desiredIds = [...new Set(parsed.data.context_term_ids)];
   const LOG = "[setContexts]";
   const t0 = Date.now();
-  console.info(
-    `${LOG} start talent=${tpid} tenant=${tenantId} desired=${desiredIds.length}`,
-  );
+  void improntaLog("admin_talent_contexts.info", {
+    message: `${LOG} start talent=${tpid} tenant=${tenantId} desired=${desiredIds.length}`,
+  });
 
   // Roster check (once).
   const { data: rosterRow } = await supabase
@@ -261,7 +262,9 @@ export async function setTalentProfileContexts(
     .eq("talent_profile_id", tpid)
     .maybeSingle();
   if (!rosterRow) {
-    console.warn(`${LOG} FAIL roster-miss talent=${tpid}`);
+    void improntaLog("admin_talent_contexts.warn", {
+      message: `${LOG} FAIL roster-miss talent=${tpid}`,
+    });
     return {
       ok: false,
       error: "Couldn't save: this profile isn't on your roster.",
@@ -295,16 +298,18 @@ export async function setTalentProfileContexts(
       }
     }
     if (invalid.length > 0) {
-      console.warn(
-        `${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`,
-      );
+      void improntaLog("admin_talent_contexts.warn", {
+        message: `${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`,
+      });
       return {
         ok: false,
         error:
           "Some selected contexts are invalid (not a real context, inactive, or a placeholder).",
       };
     }
-    console.info(`${LOG} validated terms=${desiredIds.length}`);
+    void improntaLog("admin_talent_contexts.info", {
+      message: `${LOG} validated terms=${desiredIds.length}`,
+    });
   }
 
   // Current context rows.
@@ -326,10 +331,10 @@ export async function setTalentProfileContexts(
   const desiredSet = new Set(desiredIds);
   const toDelete = [...currentIds].filter((id) => !desiredSet.has(id));
   const toInsert = desiredIds.filter((id) => !currentIds.has(id));
-  console.info(
-    `${LOG} diff talent=${tpid} current=${currentIds.size} ` +
+  void improntaLog("admin_talent_contexts.info", {
+    message: `${LOG} diff talent=${tpid} current=${currentIds.size} ` +
       `toInsert=${toInsert.length} toDelete=${toDelete.length}`,
-  );
+  });
 
   const friendlyDbError = (
     err: { code?: string; message?: string } | null,
@@ -350,13 +355,15 @@ export async function setTalentProfileContexts(
       .in("taxonomy_term_id", toDelete);
     if (delErr) {
       logServerError("setTalentProfileContexts.delete", delErr);
-      console.warn(`${LOG} FAIL delete talent=${tpid} code=${delErr.code}`);
+      void improntaLog("admin_talent_contexts.warn", {
+        message: `${LOG} FAIL delete talent=${tpid} code=${delErr.code}`,
+      });
       return {
         ok: false,
         error: "Couldn't update contexts (remove step). No changes were saved.",
       };
     }
-    console.info(`${LOG} deleted=${toDelete.length}`);
+    void improntaLog("admin_talent_contexts.info", { message: `${LOG} deleted=${toDelete.length}` });
   }
 
   if (toInsert.length > 0) {
@@ -378,12 +385,14 @@ export async function setTalentProfileContexts(
       );
     if (insErr) {
       logServerError("setTalentProfileContexts.insert", insErr);
-      console.warn(
-        `${LOG} FAIL insert talent=${tpid} code=${insErr.code}`,
-      );
+      void improntaLog("admin_talent_contexts.warn", {
+        message: `${LOG} FAIL insert talent=${tpid} code=${insErr.code}`,
+      });
       return { ok: false, error: friendlyDbError(insErr) };
     }
-    console.info(`${LOG} inserted=${toInsert.length}`);
+    void improntaLog("admin_talent_contexts.info", {
+      message: `${LOG} inserted=${toInsert.length}`,
+    });
   }
 
   if (toDelete.length > 0 || toInsert.length > 0) {
@@ -393,17 +402,19 @@ export async function setTalentProfileContexts(
   // Return the final resolved list (same shape as getResolvedContexts).
   const finalRes = await getResolvedContexts({ talent_profile_id: tpid });
   if (!finalRes.ok) {
-    console.warn(`${LOG} FAIL final-fetch talent=${tpid} (writes applied)`);
+    void improntaLog("admin_talent_contexts.warn", {
+      message: `${LOG} FAIL final-fetch talent=${tpid} (writes applied)`,
+    });
     return {
       ok: false,
       error:
         "Contexts were saved, but the list couldn't be reloaded — reopen the profile to confirm.",
     };
   }
-  console.info(
-    `${LOG} done talent=${tpid} final=${finalRes.contexts.length} ms=${
+  void improntaLog("admin_talent_contexts.info", {
+    message: `${LOG} done talent=${tpid} final=${finalRes.contexts.length} ms=${
       Date.now() - t0
     }`,
-  );
+  });
   return { ok: true, contexts: finalRes.contexts };
 }

@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -145,7 +146,10 @@ export async function inviteTeamMember(
         await sendEmail({ to: trimmed, subject, html });
       } catch (err) {
         // Never let email failure break the action — the admin still has the URL.
-        console.warn("[team-management.inviteTeamMember] email send failed", err);
+        void improntaLog("team_management.warn", {
+          message: "[team-management.inviteTeamMember] email send failed",
+          error: String(err),
+        });
       }
     })();
 
