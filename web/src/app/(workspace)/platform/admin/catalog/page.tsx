@@ -145,7 +145,13 @@ function FieldRow({
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontWeight: 600 }}>{f.label}</span>
+          <Link
+            href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}`}
+            style={{ fontWeight: 600, color: "inherit", textDecoration: "none" }}
+            title="Open field detail"
+          >
+            {f.label}
+          </Link>
           {f.deprecated && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>DEPRECATED</span>
           )}
