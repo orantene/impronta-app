@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -23,6 +24,14 @@ export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string; 
 
 export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
+/**
+ * Legacy/no-JS fallback. Pipes the whole upload through a Vercel
+ * Function (sharp resize → bucket write). The signed-upload pipeline
+ * at the bottom of this file (`actionCreateSignedUploadUrl` /
+ * `actionRegisterUploadedAsset`) is the preferred path for browsers
+ * with canvas APIs — UIs should fall back here when compression
+ * throws, the signed PUT fails, or no JS is available.
+ */
 export async function actionUploadAndAssignMedia(
   formData: FormData,
   talentProfileId: string,
@@ -602,6 +611,13 @@ export type StagingUploadResult = ActionResult<{
   meta: StagedMediaMeta;
 }>;
 
+/**
+ * Legacy/no-JS fallback for staging uploads. Pipes the whole file
+ * through a Vercel Function. The signed-upload pipeline at the bottom
+ * of this file (`actionCreateStagingSignedUploadUrl` /
+ * `actionRegisterStagedAsset`) is the preferred path; UIs should
+ * fall back here when client-side compression isn't available.
+ */
 export async function actionUploadToStagingStorage(
   formData: FormData,
 ): Promise<StagingUploadResult> {
@@ -1453,4 +1469,416 @@ export async function actionImportFromGoogleDrive(
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { assets: results } };
+}
+
+// ─── Direct-to-Supabase signed-upload pipeline (no Function in the data path) ─
+//
+// The legacy `actionUploadAndAssignMedia` / `actionUploadToStagingStorage`
+// pipe raw bytes through a Vercel Function (sharp resize → bucket write).
+// For typical mobile uploads that wastes the user's upload bandwidth and
+// holds a Function open for the wire transfer.
+//
+// The signed-upload pipeline below replaces that for browser-initiated
+// uploads where JavaScript is available:
+//
+//   1. UI calls compressImage() (web/src/lib/client/image-compress.ts)
+//      to produce a ~150 KB JPEG/PNG in the browser.
+//   2. UI calls actionCreateSignedUploadUrl(...) → tiny RPC, returns a
+//      one-shot signed URL pointing into the media-public bucket.
+//   3. UI fetch(uploadUrl, { method: "PUT", body: blob }) — direct to
+//      *.supabase.co, no Function in the data path.
+//   4. UI calls actionRegisterUploadedAsset({...}) → server downloads
+//      the just-uploaded object, re-runs sharp as defense-in-depth
+//      (overwriting if the client lied about pre-compressing), then
+//      inserts the media_assets row.
+//
+// The legacy actions stay in place — UIs fall back to them when canvas
+// APIs are missing, compression throws, or the signed PUT fails.
+//
+// Storage path layout matches the legacy actions byte-for-byte so the
+// rest of the system (Smart CDN warmers, the backfill script, the
+// public URL pattern) doesn't have to know which pipeline produced a
+// given asset.
+
+type SignedUploadGrant = {
+  /** PUT this URL with the file bytes; Supabase will accept the body. */
+  uploadUrl: string;
+  /** Storage path inside the media-public bucket. Pass back to the
+   *  register action so the server can audit / re-resize. */
+  storagePath: string;
+  /** Echo of the bucket id, here for symmetry with the register call. */
+  bucketId: "media-public";
+};
+
+/** When the client-side compressed bytes are this much larger than what
+ *  sharp can produce, we overwrite — i.e. caller lied / had a bad
+ *  encoder. 0.8 = "client must beat server by ≤20% to be trusted". */
+const SERVER_RESIZE_GUARD_RATIO = 0.8;
+
+/**
+ * Bucket-level signed-upload guard. Verifies caller has staff access to
+ * the tenant and the talent is on the roster, then mints a one-shot URL
+ * pointing at a UUID storage path. Stays scoped to the media-public
+ * bucket; signed URLs from this helper cannot reach media-originals.
+ *
+ * The browser PUTs directly to the returned `uploadUrl`. No Function
+ * sees the bytes. Call `actionRegisterUploadedAsset` after the PUT
+ * succeeds to insert the DB row + run the defense-in-depth resize.
+ *
+ * `ext` should match what compressImage() returned (`"jpg"` for photos,
+ * `"png"` for alpha). Defaults to "jpg" — matches the dominant case.
+ */
+export async function actionCreateSignedUploadUrl(
+  variantKind: UploadVariant,
+  talentProfileId: string,
+  ext: "jpg" | "png" = "jpg",
+): Promise<ActionResult<SignedUploadGrant>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const safeExt = (ext === "png" ? "png" : "jpg") as "jpg" | "png";
+  const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${safeExt}`;
+
+  const { data, error } = await admin.storage
+    .from("media-public")
+    .createSignedUploadUrl(storagePath);
+
+  if (error || !data) {
+    logServerError("media.actions.signedUrl.create", error);
+    return { ok: false, error: "Could not start upload. Try again." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      uploadUrl: data.signedUrl,
+      storagePath: data.path ?? storagePath,
+      bucketId: "media-public",
+    },
+  };
+}
+
+/**
+ * Staging variant — no talent yet. Browser uploads to `${tenantId}/staging/`
+ * and the admin assigns talent in step 2 (existing
+ * `actionBulkAssignStagedMedia`). Path layout matches
+ * `actionUploadToStagingStorage` so the existing cleanup + assign paths
+ * still find these objects.
+ */
+export async function actionCreateStagingSignedUploadUrl(
+  ext: "jpg" | "png" = "jpg",
+): Promise<ActionResult<SignedUploadGrant>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const safeExt = (ext === "png" ? "png" : "jpg") as "jpg" | "png";
+  const storagePath = `${tenantId}/staging/${randomUUID()}.${safeExt}`;
+
+  const { data, error } = await admin.storage
+    .from("media-public")
+    .createSignedUploadUrl(storagePath);
+
+  if (error || !data) {
+    logServerError("media.actions.signedUrl.createStaging", error);
+    return { ok: false, error: "Could not start upload. Try again." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      uploadUrl: data.signedUrl,
+      storagePath: data.path ?? storagePath,
+      bucketId: "media-public",
+    },
+  };
+}
+
+// ── Defense-in-depth resize on register ─────────────────────────────────────
+
+/**
+ * Re-resize what's already in storage. Only overwrites when sharp can
+ * produce something materially smaller than what the client put there —
+ * SERVER_RESIZE_GUARD_RATIO controls "materially". This is the safety
+ * net against a hostile / buggy client that uploads originals to a
+ * signed URL claiming they pre-compressed.
+ *
+ * Returns the final dimensions + byte count to insert into media_assets.
+ * If the stored object is already optimal (or sharp can't read it), we
+ * fall back to a metadata-only sniff so the row still has best-effort
+ * width/height.
+ */
+async function reverifyStoredObject(
+  admin: SupabaseClient,
+  storagePath: string,
+  variantKind: string,
+): Promise<{
+  width: number | null;
+  height: number | null;
+  byteSize: number;
+  mimeType: string;
+  ext: string;
+} | null> {
+  // Download what the browser just PUT.
+  const { data: blob, error: dlErr } = await admin.storage
+    .from("media-public")
+    .download(storagePath);
+  if (dlErr || !blob) {
+    logServerError("media.actions.reverify.download", dlErr);
+    return null;
+  }
+  const buf = Buffer.from(await blob.arrayBuffer());
+  const storedSize = buf.byteLength;
+  const storedType = blob.type || "image/jpeg";
+
+  // SVG / GIF / non-images bypass — they're not in the resize policy.
+  if (!shouldResize(storedType)) {
+    return {
+      width: null,
+      height: null,
+      byteSize: storedSize,
+      mimeType: storedType,
+      ext: storedType.split("/")[1]?.replace("jpeg", "jpg") ?? "bin",
+    };
+  }
+
+  let resized;
+  try {
+    resized = await resizeUploadForStorage(buf, variantKind);
+  } catch (e) {
+    logServerError("media.actions.reverify.sharp", e);
+    return null;
+  }
+
+  // Overwrite policy: only if sharp's output is meaningfully smaller
+  // than what the client uploaded. A trusted compressed client beats
+  // the server (good) — leave it alone. A liar gets corrected.
+  if (resized.byteSize < storedSize * SERVER_RESIZE_GUARD_RATIO) {
+    const { error: upErr } = await admin.storage
+      .from("media-public")
+      .upload(storagePath, resized.buffer, {
+        contentType: resized.mimeType,
+        upsert: true,
+      });
+    if (upErr) {
+      logServerError("media.actions.reverify.overwrite", upErr);
+      // Non-fatal — the original bytes are still in storage; the row
+      // we're about to insert will just reflect the un-rewritten ones.
+      return {
+        width: resized.width, // sharp's dims are still right for displayed pixels
+        height: resized.height,
+        byteSize: storedSize,
+        mimeType: storedType,
+        ext: storedType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg",
+      };
+    }
+    return {
+      width: resized.width,
+      height: resized.height,
+      byteSize: resized.byteSize,
+      mimeType: resized.mimeType,
+      ext: resized.ext,
+    };
+  }
+
+  // Client did its job — record sharp-derived dims (cheap, accurate)
+  // alongside the client-uploaded byte count.
+  return {
+    width: resized.width,
+    height: resized.height,
+    byteSize: storedSize,
+    mimeType: storedType,
+    ext: storedType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg",
+  };
+}
+
+// ── Register actions ───────────────────────────────────────────────────────
+
+export type RegisterUploadedAssetInput = {
+  storagePath: string;
+  variantKind: UploadVariant;
+  talentProfileId: string;
+  /** Forwarded to media_assets.metadata. Mirrors the legacy
+   *  actionUploadAndAssignMedia parameter. */
+  metadata?: Record<string, unknown>;
+  /** Set for crop derivatives so the lightbox's "Revert to original"
+   *  has a parent to navigate back to. */
+  sourceMediaAssetId?: string | null;
+  /** Original filename from the user's picker — preserved for audit. */
+  originalFilename?: string | null;
+};
+
+/**
+ * Twin of `actionUploadAndAssignMedia` for the signed-upload flow. The
+ * caller has already PUT the bytes via a signed URL; we verify, resize
+ * if needed, then insert the media_assets row (including singleton
+ * retirement for card/hero).
+ *
+ * On any failure between download + insert, we leave the storage object
+ * alone — caller can retry register without re-uploading.
+ */
+export async function actionRegisterUploadedAsset(
+  input: RegisterUploadedAssetInput,
+): Promise<RegisterMediaResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { storagePath, variantKind, talentProfileId } = input;
+  const sourceMediaAssetId = input.sourceMediaAssetId ?? null;
+
+  // Path-shape guard: callers must register their OWN storage path —
+  // bucket prefix is { talentProfileId }/{ variantKind }/{ uuid }.{ ext }.
+  // This blocks a hijack where the caller PUTs to talent A then registers
+  // under talent B.
+  if (!storagePath.startsWith(`${talentProfileId}/${variantKind}/`)) {
+    return { ok: false, error: "Upload path doesn't match this talent." };
+  }
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const verified = await reverifyStoredObject(admin, storagePath, variantKind);
+  if (!verified) {
+    // Storage download / sharp both failed — bail so we don't insert a
+    // half-broken row. The orphaned object will be cleaned up by the
+    // periodic Storage sweep (or the caller can retry).
+    return { ok: false, error: "Could not verify upload. Try again." };
+  }
+
+  const isSingleton = variantKind === "card" || variantKind === "hero";
+
+  const { data: maxRow } = await admin
+    .from("media_assets")
+    .select("sort_order")
+    .eq("owner_talent_profile_id", talentProfileId)
+    .eq("variant_kind", variantKind)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
+
+  const { data: inserted, error: insErr } = await admin
+    .from("media_assets")
+    .insert({
+      tenant_id: tenantId,
+      owner_talent_profile_id: talentProfileId,
+      bucket_id: "media-public",
+      storage_path: storagePath,
+      variant_kind: variantKind,
+      approval_state: "approved",
+      sort_order: nextOrder,
+      width: verified.width,
+      height: verified.height,
+      file_size_bytes: verified.byteSize,
+      mime_type: verified.mimeType,
+      original_filename: input.originalFilename ?? null,
+      metadata: input.metadata ?? {},
+      source_media_asset_id: sourceMediaAssetId,
+    })
+    .select("id")
+    .single();
+
+  if (insErr || !inserted) {
+    logServerError("media.actions.registerUploaded.insert", insErr);
+    // Don't auto-remove the storage object — caller may want to retry,
+    // and an orphan is cheaper than losing the file.
+    return { ok: false, error: "Could not save. Try again." };
+  }
+
+  if (isSingleton) {
+    const now = new Date().toISOString();
+    await admin
+      .from("media_assets")
+      .update({ deleted_at: now, updated_at: now })
+      .eq("owner_talent_profile_id", talentProfileId)
+      .eq("variant_kind", variantKind)
+      .eq("tenant_id", tenantId)
+      .neq("id", (inserted as { id: string }).id)
+      .is("deleted_at", null);
+  }
+
+  const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
+
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return {
+    ok: true,
+    data: {
+      id: (inserted as { id: string }).id,
+      publicUrl: urlData.publicUrl,
+      sourceMediaAssetId,
+      sortOrder: nextOrder,
+    },
+  };
+}
+
+/**
+ * Twin of `actionUploadToStagingStorage` for the signed-upload flow.
+ * No DB row yet — staging is a parking lot until the admin picks a
+ * talent. We verify + maybe-overwrite, then return the meta the UI
+ * needs to show a thumbnail and later hand to actionBulkAssignStagedMedia.
+ */
+export async function actionRegisterStagedAsset(
+  storagePath: string,
+  originalFilename: string | null = null,
+): Promise<StagingUploadResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Path-shape guard: caller can only register a path inside its own
+  // tenant staging prefix. Prevents cross-tenant hijacks.
+  if (!storagePath.startsWith(`${tenantId}/staging/`)) {
+    return { ok: false, error: "Upload path doesn't match this workspace." };
+  }
+
+  const verified = await reverifyStoredObject(admin, storagePath, "gallery");
+  if (!verified) {
+    return { ok: false, error: "Could not verify upload. Try again." };
+  }
+
+  const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
+  return {
+    ok: true,
+    data: {
+      storagePath,
+      publicUrl: urlData.publicUrl,
+      meta: {
+        width: verified.width,
+        height: verified.height,
+        fileSizeBytes: verified.byteSize,
+        mimeType: verified.mimeType,
+        originalFilename: originalFilename ?? "upload",
+      },
+    },
+  };
 }

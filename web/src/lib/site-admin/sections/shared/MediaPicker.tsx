@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ImageIcon, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { uploadCmsMedia } from "@/lib/client/signed-upload";
 
 interface MediaItem {
   id: string;
@@ -113,18 +114,30 @@ export function MediaPicker({
     setUploading(true);
     setUploadError(null);
     try {
-      const form = new FormData();
-      form.set("tenantId", tenantId);
-      form.set("file", file);
-      const res = await fetch("/api/admin/media/upload", {
-        method: "POST",
-        body: form,
-      });
-      const body = await res.json();
-      if (!res.ok || !body.ok) {
-        throw new Error(body.error ?? `HTTP ${res.status}`);
+      // Signed-upload path first: browser compresses → PUTs direct to
+      // Supabase → register endpoint inserts the row. Falls back to
+      // the legacy /api/admin/media/upload route on any failure so the
+      // upload still completes when canvas APIs aren't available.
+      let item: MediaItem;
+      const fast = await uploadCmsMedia({ file, tenantId, kind: "image" });
+      if (fast.ok) {
+        item = fast.item as MediaItem;
+      } else if (!fast.fallbackToLegacy) {
+        throw new Error(fast.error);
+      } else {
+        const form = new FormData();
+        form.set("tenantId", tenantId);
+        form.set("file", file);
+        const res = await fetch("/api/admin/media/upload", {
+          method: "POST",
+          body: form,
+        });
+        const body = await res.json();
+        if (!res.ok || !body.ok) {
+          throw new Error(body.error ?? `HTTP ${res.status}`);
+        }
+        item = body.item as MediaItem;
       }
-      const item = body.item as MediaItem;
       // Prepend immediately so the uploaded tile is first + highlighted.
       setItems((prev) => [item, ...(prev ?? [])]);
       if (multi) {

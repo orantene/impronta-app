@@ -80,6 +80,7 @@ import {
   type AssetUsage,
 } from "@/lib/site-admin/edit-mode/assets-actions";
 import type { MediaLibraryItem } from "@/lib/site-admin/server/media-library";
+import { uploadCmsMedia } from "@/lib/client/signed-upload";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
@@ -343,13 +344,18 @@ export function AssetsDrawer(): ReactElement | null {
       setUploading(true);
       setUploadError(null);
       const uploadKind = tab === "videos" ? "video" : tab === "documents" ? "document" : "image";
-      // QA 2026-05-13 — client-side size + MIME validation. Server
-      // also validates, but a pre-check saves a round-trip and gives
-      // the operator an instant error. The `accept` attribute on the
-      // hidden file input only filters the OS dialog; drag-and-drop
-      // or programmatic uploads bypass it.
+      // Client-side size + MIME validation. Server also validates, but
+      // a pre-check saves a round-trip and gives the operator an
+      // instant error. The `accept` attribute on the hidden file input
+      // only filters the OS dialog; drag-and-drop or programmatic
+      // uploads bypass it.
+      //
+      // Image cap bumped from 10 MB → 30 MB: the upload now compresses
+      // in-browser before going over the wire (see lib/client/
+      // signed-upload.ts), so the raw input can be a full-res phone
+      // dump and we still PUT ~150 KB.
       const MAX_BYTES_BY_KIND: Record<string, number> = {
-        image: 10 * 1024 * 1024,
+        image: 30 * 1024 * 1024,
         video: 100 * 1024 * 1024,
         document: 25 * 1024 * 1024,
       };
@@ -377,29 +383,41 @@ export function AssetsDrawer(): ReactElement | null {
         return;
       }
       try {
-        const form = new FormData();
-        form.set("tenantId", tenantId);
-        form.set("file", file);
-        // Tab discriminator drives MIME whitelist + bucket subdirectory
-        // + media_assets.purpose on the server side (Phase 8 — videos +
-        // documents now share the upload route).
-        form.set("kind", uploadKind);
-        const res = await fetch("/api/admin/media/upload", {
-          method: "POST",
-          body: form,
-        });
-        const body = await res.json();
-        if (!res.ok || !body.ok) {
-          throw new Error(body.error ?? `HTTP ${res.status}`);
-        }
-        // The upload route returns `item` shaped close enough to
-        // MediaLibraryItem; normalize defensively so optimistic prepend
-        // never falls through with NaN cells.
-        const raw = body.item as Partial<MediaLibraryItem> & {
+        // Signed-upload pipeline first (compress in browser → PUT direct
+        // to Supabase → register endpoint inserts the row). Legacy
+        // /api/admin/media/upload stays as fallback for browsers /
+        // files the new path can't handle. See lib/client/signed-upload.ts.
+        let raw: Partial<MediaLibraryItem> & {
           id?: string;
           publicUrl?: string;
           storagePath?: string;
         };
+        const fast = await uploadCmsMedia({ file, tenantId, kind: uploadKind });
+        if (fast.ok) {
+          raw = fast.item as typeof raw;
+        } else if (!fast.fallbackToLegacy) {
+          throw new Error(fast.error);
+        } else {
+          const form = new FormData();
+          form.set("tenantId", tenantId);
+          form.set("file", file);
+          // Tab discriminator drives MIME whitelist + bucket subdirectory
+          // + media_assets.purpose on the server side (Phase 8 — videos +
+          // documents now share the upload route).
+          form.set("kind", uploadKind);
+          const res = await fetch("/api/admin/media/upload", {
+            method: "POST",
+            body: form,
+          });
+          const body = await res.json();
+          if (!res.ok || !body.ok) {
+            throw new Error(body.error ?? `HTTP ${res.status}`);
+          }
+          // The upload route returns `item` shaped close enough to
+          // MediaLibraryItem; normalize defensively so optimistic prepend
+          // never falls through with NaN cells.
+          raw = body.item as typeof raw;
+        }
         if (!raw.id || !raw.publicUrl || !raw.storagePath) return;
         const item: MediaLibraryItem = {
           id: raw.id,

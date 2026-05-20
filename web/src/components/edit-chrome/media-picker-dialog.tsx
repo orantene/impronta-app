@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CHROME, CHROME_SHADOWS, CHROME_RADII, DrawerHead } from "./kit";
+import { uploadCmsMedia } from "@/lib/client/signed-upload";
 
 interface MediaItem {
   id: string;
@@ -80,18 +81,29 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
     setUploading(true);
     setUploadError(null);
     try {
-      const form = new FormData();
-      form.set("tenantId", tenantId);
-      form.set("file", file);
-      const res = await fetch("/api/admin/media/upload", {
-        method: "POST",
-        body: form,
-      });
-      const body = await res.json();
-      if (!res.ok || !body.ok) {
-        throw new Error(body.error ?? `HTTP ${res.status}`);
+      // Signed-upload pipeline first (browser compress → direct PUT
+      // to Supabase → register), legacy /api/admin/media/upload as
+      // fallback. See lib/client/signed-upload.ts.
+      let item: MediaItem;
+      const fast = await uploadCmsMedia({ file, tenantId, kind: "image" });
+      if (fast.ok) {
+        item = fast.item as MediaItem;
+      } else if (!fast.fallbackToLegacy) {
+        throw new Error(fast.error);
+      } else {
+        const form = new FormData();
+        form.set("tenantId", tenantId);
+        form.set("file", file);
+        const res = await fetch("/api/admin/media/upload", {
+          method: "POST",
+          body: form,
+        });
+        const body = await res.json();
+        if (!res.ok || !body.ok) {
+          throw new Error(body.error ?? `HTTP ${res.status}`);
+        }
+        item = body.item as MediaItem;
       }
-      const item = body.item as MediaItem;
       setItems((prev) => [item, ...(prev ?? [])]);
       onPick(item.publicUrl);
     } catch (e) {

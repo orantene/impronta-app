@@ -28,6 +28,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
 import { PhotoLightbox } from "@/components/media/photo-lightbox";
+import { uploadStagingMedia } from "@/lib/client/signed-upload";
 import {
   actionCreateMediaFolder,
   actionRenameMediaFolder,
@@ -67,7 +68,13 @@ type StagingItem = {
   id: string;
   file: File;
   blobUrl: string;
-  status: "queued" | "uploading" | "ready" | "error";
+  /** Lifecycle:
+   *    queued → compressing → uploading → ready
+   *  Compress + signed PUT happen in the browser, register hits the
+   *  server. The "compressing" phase is skipped silently for files
+   *  that can't be canvas-resized (animated GIF, SVG) — they fall
+   *  through to the legacy upload action automatically. */
+  status: "queued" | "compressing" | "uploading" | "ready" | "error";
   storagePath?: string;
   publicUrl?: string;
   meta?: StagedMediaMeta;
@@ -1012,7 +1019,7 @@ function UploadModal({
   onReassign: () => void;
   onAssignTalentChange: (id: string) => void;
 }) {
-  const inFlight = stagingItems.filter((it) => it.status === "uploading" || it.status === "queued").length;
+  const inFlight = stagingItems.filter((it) => it.status === "uploading" || it.status === "queued" || it.status === "compressing").length;
   const ready = stagingItems.filter((it) => it.status === "ready").length;
   const errors = stagingItems.filter((it) => it.status === "error").length;
 
@@ -1107,9 +1114,12 @@ function UploadModal({
                     <div style={{ position: "relative", aspectRatio: "1" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.blobUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      {item.status === "uploading" && (
-                        <div style={{ position: "absolute", inset: 0, background: "rgba(11,11,13,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {(item.status === "uploading" || item.status === "compressing") && (
+                        <div style={{ position: "absolute", inset: 0, background: "rgba(11,11,13,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                           <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#fff", borderRadius: "50%" }} />
+                          {item.status === "compressing" && (
+                            <div style={{ fontFamily: FONTS.body, fontSize: 9, fontWeight: 600, color: "#fff", letterSpacing: 0.4 }}>OPT</div>
+                          )}
                         </div>
                       )}
                       {item.status === "error" && (
@@ -1780,23 +1790,99 @@ export function WorkspaceMediaPage() {
     const CONCURRENCY = 4;
     let active = 0;
     const queue = [...items];
+
+    // Worker for one file. Tries the signed-upload pipeline first
+    // (compress → PUT direct to Supabase → register). Falls back to
+    // the legacy FormData action if the new path can't run (no canvas
+    // API, signed PUT throws, etc.) — keeps the upload going on
+    // browsers / files where compression isn't available.
+    const runOne = async (item: StagingItem): Promise<void> => {
+      setStagingItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, status: "compressing" } : it)),
+      );
+      const result = await uploadStagingMedia({
+        file: item.file,
+        onProgress: (p) => {
+          if (p.phase === "uploading") {
+            setStagingItems((prev) =>
+              prev.map((it) => (it.id === item.id ? { ...it, status: "uploading" } : it)),
+            );
+          }
+        },
+      });
+
+      if (result.ok) {
+        setStagingItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id
+              ? {
+                  ...it,
+                  status: "ready",
+                  storagePath: result.storagePath,
+                  publicUrl: result.publicUrl,
+                  meta: result.meta,
+                }
+              : it,
+          ),
+        );
+        return;
+      }
+
+      if (!result.fallbackToLegacy) {
+        // Auth / config failures — surface verbatim.
+        setStagingItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id ? { ...it, status: "error", errorMsg: result.error } : it,
+          ),
+        );
+        return;
+      }
+
+      // Legacy fallback — server-side sharp picks up the slack for
+      // files the browser can't (or won't) compress.
+      setStagingItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, status: "uploading" } : it)),
+      );
+      const fd = new FormData();
+      fd.append("file", item.file);
+      try {
+        const legacy = await actionUploadToStagingStorage(fd);
+        setStagingItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id
+              ? legacy.ok
+                ? {
+                    ...it,
+                    status: "ready",
+                    storagePath: legacy.data.storagePath,
+                    publicUrl: legacy.data.publicUrl,
+                    meta: legacy.data.meta,
+                  }
+                : { ...it, status: "error", errorMsg: legacy.error }
+              : it,
+          ),
+        );
+      } catch {
+        setStagingItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id ? { ...it, status: "error", errorMsg: "Upload failed" } : it,
+          ),
+        );
+      }
+    };
+
     await new Promise<void>((resolve) => {
       const tryNext = () => {
-        if (queue.length === 0 && active === 0) { resolve(); return; }
+        if (queue.length === 0 && active === 0) {
+          resolve();
+          return;
+        }
         while (active < CONCURRENCY && queue.length > 0) {
           const item = queue.shift()!;
           active++;
-          setStagingItems((prev) => prev.map((it) => it.id === item.id ? { ...it, status: "uploading" } : it));
-          const fd = new FormData();
-          fd.append("file", item.file);
-          actionUploadToStagingStorage(fd).then((res) => {
-            setStagingItems((prev) => prev.map((it) => it.id === item.id
-              ? res.ok ? { ...it, status: "ready", storagePath: res.data.storagePath, publicUrl: res.data.publicUrl, meta: res.data.meta } : { ...it, status: "error", errorMsg: res.error }
-              : it));
-            active--; tryNext();
-          }).catch(() => {
-            setStagingItems((prev) => prev.map((it) => it.id === item.id ? { ...it, status: "error", errorMsg: "Upload failed" } : it));
-            active--; tryNext();
+          runOne(item).finally(() => {
+            active--;
+            tryNext();
           });
         }
       };

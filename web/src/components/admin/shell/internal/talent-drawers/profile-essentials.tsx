@@ -18,6 +18,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import {
   updateSelfCredits,
   updateSelfLimits,
@@ -150,12 +151,40 @@ export function TalentPhotoEditDrawer() {
         return { ok: true, assets: res.data.assets };
       }}
       onUploadFile={async (file, variantKind, sourceMediaAssetId) => {
-        const fd = new FormData();
-        fd.append("file", file);
         const allowed = ["gallery", "card", "hero", "lightbox"] as const;
         const kind = allowed.includes(variantKind as typeof allowed[number])
           ? (variantKind as typeof allowed[number])
           : "gallery";
+
+        // Try the signed-upload pipeline first (compress in browser →
+        // PUT direct to Supabase → register). Falls through to the
+        // legacy server-resize action on any failure so the upload
+        // still completes for files / browsers the new path can't
+        // handle (animated GIF, SVG, no canvas, signed PUT 5xx).
+        const fast = await uploadTalentMedia({
+          file,
+          variantKind: kind,
+          talentProfileId: talentId,
+          sourceMediaAssetId: sourceMediaAssetId ?? null,
+        });
+        if (fast.ok) {
+          return {
+            ok: true,
+            asset: {
+              id: fast.id,
+              url: fast.publicUrl,
+              variantKind: kind,
+              sortOrder: fast.sortOrder,
+              sourceMediaAssetId: fast.sourceMediaAssetId,
+            },
+          };
+        }
+        if (!fast.fallbackToLegacy) {
+          return { ok: false, error: fast.error };
+        }
+
+        const fd = new FormData();
+        fd.append("file", file);
         const res = await actionUploadAndAssignMedia(fd, talentId, kind, {}, sourceMediaAssetId ?? null);
         if (!res.ok) return { ok: false, error: res.error };
         return {
