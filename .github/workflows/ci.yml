@@ -73,7 +73,7 @@ jobs:
       # the array element shapes to AdminShellIconName / DrawerId | null. Count
       # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
       TSC_BASE: 4              # restored from 6 after fixing light-01 + WorkspaceTopbar Q1-narrowing collateral.
-      SUPPRESSIONS_BASE: 8458  # was 8481 post-Wave-2-partial; lowered after Q4 Phase B-D landed (11 hoists across 5 files: media-page 6, drawer-shared 1, profile-shell-internal 1, WebsitePage-2 1, plus Phase-A already-landed 2 in WorkspacePageView). -22 react-hooks/static-components + -1 max-lines (WorkspacePageView shrink). 27 remaining react-hooks suppressions are REAL (purity/refs/rules-of-hooks/preserve-manual-memoization/immutability) deferred to Q5 lane per web/docs/q4-deferred.md.
+      SUPPRESSIONS_BASE: 8509  # was 8458 post-Q4; RAISED (rare!) after eslint-plugin-react-hooks 7.0.1 → 7.1.1 bump exposed +51 NET previously-hidden violations across 4 react-hooks rules (refs +32, preserve-manual-memoization +12, purity +3, immutability +4; static-components +0 — Q4's prediction was off). NOT a regression-silencing raise; this is honest debt exposure. The same source code is now measured by a stricter plugin version. Hotspots: marketing/get-started-form.tsx (refs +12), edit-chrome/edit-context.tsx (memoization +10 + refs +4 + immutability +2), TalentProfileShellDrawer.tsx (refs +8 + memoization +1), edit-chrome/selection-layer.tsx (refs +3). Q5 scope expanded to absorb these.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
