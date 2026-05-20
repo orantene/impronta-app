@@ -1163,24 +1163,31 @@ function UploadModal({
 // ─── Analytics View ───────────────────────────────────────────────────────────
 
 function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: MediaFolder[] }) {
-  const byTalent = useMemo(() => {
-    const map = new Map<string, { count: number; pending: number; bytes: number }>();
+  // Q5: previously two separate useMemo calls (byTalent + byKind) with the
+  // same `[photos]` dep, plus an unmemoized `totalBytes` reduce. React
+  // Compiler bailed on preserving the second useMemo
+  // (preserve-manual-memoization at L1180). Folded all three into one
+  // useMemo with the same single dep — Compiler can preserve a single
+  // computed object cleanly, and `totalBytes` is now memoized too.
+  const { byTalent, byKind, totalBytes } = useMemo(() => {
+    const talentMap = new Map<string, { count: number; pending: number; bytes: number }>();
+    const kindMap = new Map<string, number>();
+    let total = 0;
     for (const p of photos) {
-      const cur = map.get(p.talentName) ?? { count: 0, pending: 0, bytes: 0 };
-      map.set(p.talentName, {
+      const cur = talentMap.get(p.talentName) ?? { count: 0, pending: 0, bytes: 0 };
+      talentMap.set(p.talentName, {
         count: cur.count + 1,
         pending: cur.pending + (p.approvalState === "pending" ? 1 : 0),
         bytes: cur.bytes + (p.fileSizeBytes ?? 0),
       });
+      kindMap.set(p.variantKind, (kindMap.get(p.variantKind) ?? 0) + 1);
+      total += p.fileSizeBytes ?? 0;
     }
-    return Array.from(map.entries()).sort((a, b) => b[1].count - a[1].count);
-  }, [photos]);
-
-  const totalBytes = photos.reduce((s, p) => s + (p.fileSizeBytes ?? 0), 0);
-  const byKind = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of photos) map.set(p.variantKind, (map.get(p.variantKind) ?? 0) + 1);
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    return {
+      byTalent: Array.from(talentMap.entries()).sort((a, b) => b[1].count - a[1].count),
+      byKind: Array.from(kindMap.entries()).sort((a, b) => b[1] - a[1]),
+      totalBytes: total,
+    };
   }, [photos]);
 
   return (
