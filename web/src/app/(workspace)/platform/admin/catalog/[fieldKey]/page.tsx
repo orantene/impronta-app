@@ -292,22 +292,39 @@ export default async function PlatformCatalogFieldDetailPage({
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       {breadcrumb}
 
-      <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, marginBottom: 4 }}>
-        {f.label}
-        {f.deprecated && (
-          <span
-            style={{
-              marginLeft: 10,
-              fontSize: 11,
-              fontWeight: 700,
-              color: HQ.red,
-              verticalAlign: "middle",
-            }}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 4 }}>
+        <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>
+          {f.label}
+          {f.deprecated && (
+            <span
+              style={{
+                marginLeft: 10,
+                fontSize: 11,
+                fontWeight: 700,
+                color: HQ.red,
+                verticalAlign: "middle",
+              }}
+            >
+              DEPRECATED
+            </span>
+          )}
+        </h1>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link
+            href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}/export?format=csv`}
+            style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
           >
-            DEPRECATED
-          </span>
-        )}
-      </h1>
+            Export CSV ↓
+          </Link>
+          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
+          <Link
+            href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}/export?format=json`}
+            style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
+          >
+            Export JSON ↓
+          </Link>
+        </div>
+      </div>
       <div
         style={{
           fontSize: 12,

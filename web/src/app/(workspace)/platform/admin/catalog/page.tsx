@@ -344,9 +344,26 @@ export default async function PlatformCatalogMapPage({
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
-      <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, marginBottom: 4 }}>
-        Catalog Map
-      </h1>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 4 }}>
+        <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, margin: 0 }}>
+          Catalog Map
+        </h1>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link
+            href="/platform/admin/catalog/export?format=csv"
+            style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
+          >
+            Export CSV ↓
+          </Link>
+          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
+          <Link
+            href="/platform/admin/catalog/export?format=json"
+            style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
+          >
+            Export JSON ↓
+          </Link>
+        </div>
+      </div>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 18 }}>
         Read-only inspection of the talent field engine — every platform
         field, its group, tier, default visibility (via the shared engine),
