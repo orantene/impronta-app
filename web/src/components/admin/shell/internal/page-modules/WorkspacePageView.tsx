@@ -11,6 +11,42 @@ import { AutoAckSettingsRow, LockedPill, SETTINGS_SECTIONS } from "./BillingPage
 import { PageHeader } from "./pages-shared";
 
 
+/** Settings list row — white card with flex-row layout + hover lift.
+ *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
+ *  Non-interactive rows (inner button only): omit `onClick`.
+ *
+ *  Hoisted to module scope (Q4) — has no closure over WorkspacePageView state. */
+function SettingsRow({
+  children,
+  onClick,
+  opacity,
+  borderColor,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  opacity?: number;
+  borderColor?: string;
+}) {
+  return (
+    <Card
+      interactive={!!onClick}
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "14px 16px",
+        marginBottom: 8,
+        fontFamily: FONTS.body,
+        ...(opacity !== undefined && { opacity }),
+        ...(borderColor ? { borderColor } : {}),
+      }}
+    >
+      {children}
+    </Card>
+  );
+}
+
 export function WorkspacePageView() {
   const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
   const pendingTrustCount = verificationRequests.filter(r =>
@@ -58,39 +94,6 @@ export function WorkspacePageView() {
     return () => clearTimeout(t);
   }, []);
 
-  /** Settings list row — white card with flex-row layout + hover lift.
-   *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
-   *  Non-interactive rows (inner button only): omit `onClick`. */
-  function SettingsRow({
-    children,
-    onClick,
-    opacity,
-    borderColor,
-  }: {
-    children: ReactNode;
-    onClick?: () => void;
-    opacity?: number;
-    borderColor?: string;
-  }) {
-    return (
-      <Card
-        interactive={!!onClick}
-        onClick={onClick}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 16px",
-          marginBottom: 8,
-          fontFamily: FONTS.body,
-          ...(opacity !== undefined && { opacity }),
-          ...(borderColor ? { borderColor } : {}),
-        }}
-      >
-        {children}
-      </Card>
-    );
-  }
   // ── Accordion item shell ────────────────────────────────────────
   // Click the row to expand/collapse. Smooth chevron rotation + soft
   // border highlight when open. `supportLink` is wired to a data-attr

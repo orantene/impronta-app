@@ -669,7 +669,7 @@
       "count": 109
     },
     "react-hooks/static-components": {
-      "count": 58
+      "count": 17
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
