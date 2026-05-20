@@ -11,6 +11,18 @@ import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { sendTalentInvitedNotification } from "@/lib/email/inquiry-notifications";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import type { Database } from "@/lib/supabase/database.types";
+
+// T2b Phase C batch 1 — narrow inquiry_participants row type, sourced from
+// the canonical generated schema (Phase A). The tenantScopedQuery helper's
+// `as SelectBuilder` cast strips Postgrest's select-string inference, so
+// callers receive `unknown[]`; pinning the row shape locally re-establishes
+// type-safety at the call site without changing the helper API.
+type InquiryParticipantRosterRow = Pick<
+  Database["public"]["Tables"]["inquiry_participants"]["Row"],
+  "id" | "sort_order"
+>;
 
 function mapRosterEngineFailure(res: EngineErr): ActionResult {
   if (res.forbidden) {
@@ -109,13 +121,20 @@ export async function rosterMoveParticipant(formData: FormData): Promise<ActionR
     return { ok: false, code: "validation_error", message: "Invalid roster move request." };
   }
 
-  const { data: rows } = await supabase
-    .from("inquiry_participants")
+  // T2b Phase C batch 1 — was `supabase.from("inquiry_participants")` with a
+  // manual `.eq("tenant_id", tenantId)`. The helper now enforces that filter
+  // unconditionally (and on every write path on this table), so the manual
+  // `.eq("tenant_id", …)` is dropped to keep the chain idempotent.
+  const { data: rawRows } = await tenantScopedQuery(
+    supabase,
+    "inquiry_participants",
+    tenantId,
+  )
     .select("id, sort_order")
     .eq("inquiry_id", inquiryId)
-    .eq("tenant_id", tenantId)
     .eq("role", "talent")
     .order("sort_order", { ascending: true });
+  const rows = rawRows as InquiryParticipantRosterRow[] | null;
 
   if (!rows?.length) {
     return { ok: false, code: "precondition_failed", message: "No talent roster to reorder." };
