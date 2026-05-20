@@ -169,6 +169,56 @@ export async function updateRosterTalentProfile(
   const d = raw.data;
   const { admin, tenantId, userId, rosterRowId } = ctx;
 
+  // ── Phase 5-ε: canonical-first height write ────────────────────────────────
+  // `talent_profiles.height_cm` is a denormalized column; the canonical store
+  // is `talent_profile_field_values` keyed by `physical.height_cm`. Seed
+  // canonical BEFORE the denorm write below so the two never drift. Errors
+  // here are logged but non-fatal — they must not block the form save.
+  if (d.height_cm !== undefined) {
+    try {
+      const { data: defRow, error: defErr } = await admin
+        .from("profile_field_definitions")
+        .select("id")
+        .eq("field_key", "physical.height_cm")
+        .maybeSingle();
+      if (defErr) {
+        logServerError("roster/[id].updateRosterTalentProfile/canonicalHeightDefLookup", defErr);
+      } else if (defRow) {
+        const definitionId = (defRow as { id: string }).id;
+        const heightVal = d.height_cm;
+        if (heightVal === null) {
+          const { error: delErr } = await admin
+            .from("talent_profile_field_values")
+            .delete()
+            .eq("talent_profile_id", talentId)
+            .eq("field_definition_id", definitionId);
+          if (delErr) {
+            logServerError("roster/[id].updateRosterTalentProfile/canonicalHeightDelete", delErr);
+          }
+        } else {
+          const { error: upsertErr } = await admin
+            .from("talent_profile_field_values")
+            .upsert(
+              {
+                tenant_id: tenantId,
+                talent_profile_id: talentId,
+                field_definition_id: definitionId,
+                value: heightVal,
+                workflow_state: "live",
+                last_edited_role: "platform",
+              },
+              { onConflict: "talent_profile_id,field_definition_id" },
+            );
+          if (upsertErr) {
+            logServerError("roster/[id].updateRosterTalentProfile/canonicalHeightUpsert", upsertErr);
+          }
+        }
+      }
+    } catch (err) {
+      logServerError("roster/[id].updateRosterTalentProfile/canonicalHeightCatch", err);
+    }
+  }
+
   // ── Load before state for workflow audit ───────────────────────────────────
   const { data: before, error: beforeErr } = await admin
     .from("talent_profiles")

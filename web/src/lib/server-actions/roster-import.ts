@@ -185,6 +185,9 @@ export async function processRosterImportRow(
 
   const email = row.email.trim().toLowerCase();
 
+  const incomingHeightCm =
+    typeof row.height_cm === "number" ? row.height_cm : null;
+
   // Look up existing talent_profile by invitation_email + an active
   // roster row on this tenant — idempotency anchor.
   const { data: existing } = await admin
@@ -230,6 +233,56 @@ export async function processRosterImportRow(
       return { ok: false, error: createErr?.message ?? "Couldn't create profile." };
     }
     talentProfileId = (created as { id: string }).id;
+  }
+
+  // ── Phase 5-ε: canonical-first height seed ─────────────────────────────────
+  // `talent_profiles.height_cm` (written above) is the denormalized column.
+  // Canonical store is `talent_profile_field_values` keyed by
+  // `physical.height_cm`. Seed/clear canonical now so the two never drift.
+  // The new-insert branch needs the profile id to exist first, so we seed
+  // here rather than as a pre-write step; semantically canonical is still
+  // authoritative. Per-row errors are logged + swallowed: a single bad
+  // canonical seed must not abort the import of the whole batch.
+  try {
+    const { data: defRow, error: defErr } = await admin
+      .from("profile_field_definitions")
+      .select("id")
+      .eq("field_key", "physical.height_cm")
+      .maybeSingle();
+    if (defErr) {
+      logServerError("roster-import.canonicalHeightDefLookup", defErr);
+    } else if (defRow) {
+      const definitionId = (defRow as { id: string }).id;
+      if (incomingHeightCm === null) {
+        const { error: delErr } = await admin
+          .from("talent_profile_field_values")
+          .delete()
+          .eq("talent_profile_id", talentProfileId)
+          .eq("field_definition_id", definitionId);
+        if (delErr) {
+          logServerError("roster-import.canonicalHeightDelete", delErr);
+        }
+      } else {
+        const { error: upsertErr } = await admin
+          .from("talent_profile_field_values")
+          .upsert(
+            {
+              tenant_id: tenantId,
+              talent_profile_id: talentProfileId,
+              field_definition_id: definitionId,
+              value: incomingHeightCm,
+              workflow_state: "live",
+              last_edited_role: "platform",
+            },
+            { onConflict: "talent_profile_id,field_definition_id" },
+          );
+        if (upsertErr) {
+          logServerError("roster-import.canonicalHeightUpsert", upsertErr);
+        }
+      }
+    }
+  } catch (err) {
+    logServerError("roster-import.canonicalHeightCatch", err);
   }
 
   // Auto-exclusivity (project_agency_exclusivity_model.md): bulk import
