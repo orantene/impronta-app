@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
+  type AdminShellIconName,
   COLORS,
   DrawerId,
   DrawerShell,
@@ -45,7 +46,7 @@ export function TenantSummaryDrawer() {
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
   const teamCount = effectiveTeamMembers.length > 0 ? effectiveTeamMembers.length : getTeam(state.plan).length;
 
-  const jumpItems: { label: string; icon: string; drawer: DrawerId }[] = [
+  const jumpItems: { label: string; icon: AdminShellIconName; drawer: DrawerId }[] = [
     { label: "Plan & billing", icon: "credit", drawer: "plan-billing" },
     { label: "Recent invoices", icon: "mail", drawer: "plan-billing" },
     { label: "Team & permissions", icon: "team", drawer: "team" },
