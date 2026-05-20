@@ -191,7 +191,7 @@ function FreshnessCard({
       }}
     >
       {/* Left: message */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <span
           style={{
             fontFamily: F,
@@ -328,7 +328,7 @@ function ExpiryCard({
       }}
     >
       {/* Left: message */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <span
           style={{
             fontFamily: F,
@@ -464,7 +464,7 @@ export default function SkillFreshnessBanner({
   if (visible.length === 0) return null;
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="mb-3">
       {/* Section header */}
       <div
         style={{
@@ -502,7 +502,7 @@ export default function SkillFreshnessBanner({
       </div>
 
       {/* Prompt cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {visible.map((prompt) => {
           const key = `${prompt.kind}:${prompt.skill.skill_term_id}`;
           if (prompt.kind === "freshness") {

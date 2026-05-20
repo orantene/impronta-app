@@ -490,7 +490,7 @@ export function SkillSlotPanel({
             marginBottom: 14,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div className="flex flex-col gap-0.5">
             <div style={{ fontWeight: 600, color: T.indigoDeep }}>
               {copy.skillsUsed(totalSkills, MAX_TOTAL_SKILLS)}
             </div>

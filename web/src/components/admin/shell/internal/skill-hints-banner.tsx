@@ -151,7 +151,7 @@ function HintCard({
       }}
     >
       {/* Left: hint text */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <span
           style={{
             fontFamily: F,
@@ -305,7 +305,7 @@ export default function SkillHintsBanner({
   if (visible.length === 0) return null;
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="mb-3">
       {/* Section header */}
       <div
         style={{
@@ -343,7 +343,7 @@ export default function SkillHintsBanner({
       </div>
 
       {/* Hint cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {visible.map((hint) => (
           <HintCard
             key={hint.skill.skill_term_id}

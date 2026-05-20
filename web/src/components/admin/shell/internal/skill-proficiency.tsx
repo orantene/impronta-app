@@ -202,7 +202,7 @@ export function ProficiencyLabel({
       {showHighWithoutVerification && (
         <span style={{ fontSize: 9, opacity: 0.7 }}>{copy.t("(unverified)")}</span>
       )}
-      {isVerified && <span style={{ fontWeight: 700 }}>✓</span>}
+      {isVerified && <span className="font-bold">✓</span>}
     </span>
   );
 }

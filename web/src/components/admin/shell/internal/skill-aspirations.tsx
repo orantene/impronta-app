@@ -442,7 +442,7 @@ function AddAspirationPicker({
           </>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={onClose}

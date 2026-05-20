@@ -243,7 +243,7 @@ export function AddSkillSearch({
             gap: 12,
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             {/* Back link — only when inside a category */}
             {selectedParentId && !fixedParentId && (
               <button
@@ -427,7 +427,7 @@ export function AddSkillSearch({
                       {isSelected ? "✓" : alreadyAdded ? "✓" : ""}
                     </span>
 
-                    <div style={{ flex: 1 }}>
+                    <div className="flex-1">
                       <div style={{ fontSize: 13, fontWeight: 600, color: alreadyAdded ? T.inkMuted : T.ink }}>
                         {copy.term(t.name_en, t.name_es)}
                       </div>

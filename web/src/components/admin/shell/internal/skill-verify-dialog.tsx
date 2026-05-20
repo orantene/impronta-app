@@ -111,7 +111,7 @@ export function VerifyConfirmDialog({
         )}
 
         {canChooseScope && (
-          <div style={{ marginBottom: 14 }}>
+          <div className="mb-3.5">
             <label
               style={{
                 display: "block",
@@ -123,7 +123,7 @@ export function VerifyConfirmDialog({
             >
               {copy.t("Verification scope")}
             </label>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="flex gap-1.5">
               <button
                 type="button"
                 onClick={() => setScope("agency")}

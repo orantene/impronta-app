@@ -392,7 +392,7 @@ function SkillOverrideRow({
       </div>
 
       {/* Display-order override */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         <span
           style={{
             fontFamily: F,
@@ -432,7 +432,7 @@ function SkillOverrideRow({
       </div>
 
       {/* Custom label */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <span
           style={{
             fontFamily: F,
@@ -474,7 +474,7 @@ function SkillOverrideRow({
       </div>
 
       {/* Notes */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <span
           style={{
             fontFamily: F,
@@ -649,7 +649,7 @@ function SkillOverridesPanelInner({
 
   // ── Full panel ───────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="flex flex-col gap-2">
       {/* Summary line */}
       <div
         style={{

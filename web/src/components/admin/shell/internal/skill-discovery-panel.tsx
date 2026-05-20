@@ -192,11 +192,11 @@ export function SkillDiscoveryPanel({
           </div>
 
           {/* Parent picker */}
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-2.5">
             <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted, marginBottom: 4 }}>
               {t("admin.roster.skillDiscovery.category")}
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <div className="flex flex-wrap gap-1">
               {parents.map((p) => (
                 <button
                   key={p.id}
@@ -226,7 +226,7 @@ export function SkillDiscoveryPanel({
 
           {/* Skill picker (only when a parent is selected) */}
           {selectedParentSlug && skillTypes.length > 0 && (
-            <div style={{ marginBottom: 10 }}>
+            <div className="mb-2.5">
               <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted, marginBottom: 4 }}>
                 {t("admin.roster.skillDiscovery.specificSkill")}
               </div>
@@ -254,11 +254,11 @@ export function SkillDiscoveryPanel({
           )}
 
           {/* Min proficiency */}
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-2.5">
             <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted, marginBottom: 4 }}>
               {t("admin.roster.skillDiscovery.minProficiency")}
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <div className="flex flex-wrap gap-1">
               <button
                 type="button"
                 onClick={() => setMinProficiency("")}
@@ -391,7 +391,7 @@ export function SkillDiscoveryPanel({
           )}
 
           {results.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="flex flex-col gap-1">
               {results.map((r) => (
                 <button
                   key={r.talent_profile_id}
@@ -434,7 +434,7 @@ export function SkillDiscoveryPanel({
                       .join("")
                       .toUpperCase()}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
                       {r.display_name}
                     </div>

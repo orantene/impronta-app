@@ -81,7 +81,7 @@ export function SkillCategoryCard({
         }}
       >
         <span style={{ fontSize: 14 }}>{roleEmoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div
             style={{
               fontSize: 11,
@@ -192,7 +192,7 @@ export function SkillRow({
         background: isFeatured ? T.goldSoft : "transparent",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={isFeatured ? undefined : onSetFeatured}
