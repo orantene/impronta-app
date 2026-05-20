@@ -163,7 +163,7 @@ export function InquiryDrawer({
       if (draftId) fd.set("draftId", draftId);
       startAutosave(() => { saveAction(fd); });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveAction is a stable useActionState dispatch; startAutosave is a stable useTransition dispatch; intentRef/lastSavedJSONRef are refs
   }, [autosaveEnabled, tenantSlug, draftId]);
 
   // Periodic autosave + on-blur + on visibility change.
