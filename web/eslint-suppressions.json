@@ -263,18 +263,68 @@
       "count": 113
     }
   },
-  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-internal.tsx": {
-    "max-lines": {
-      "count": 1
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-drawer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 35
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-coach.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 47
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-data-editors.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 41
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-editors-core.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 62
     },
+    "react/no-children-prop": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-extras-editors.tsx": {
     "prefer-const": {
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 568
+      "count": 84
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-identity-editor.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 41
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-identity-fields.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 31
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-modals.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 89
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-photos.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 31
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/talent-type-picker.tsx": {
+    "max-lines": {
+      "count": 1
     },
-    "react/no-children-prop": {
-      "count": 2
+    "ratchet/no-new-inline-style": {
+      "count": 75
+    }
+  },
+  "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/truth-preview.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 32
     }
   },
   "src/components/admin/shell/internal/field-catalog.ts": {

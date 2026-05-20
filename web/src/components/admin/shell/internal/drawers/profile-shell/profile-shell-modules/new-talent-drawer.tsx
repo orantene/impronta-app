@@ -1,0 +1,789 @@
+// Phase-1f decomp — NewTalentDrawer.  The QuickAdd drawer admins reach
+// via Roster → "+ Add talent".  Stays a single component because
+// every section refers back to the same form state machine + transition.
+// Composes the catalog pickers + bulk panel from ./talent-type-picker.
+"use client";
+import React, { useState, useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
+import {
+  COLORS,
+  DrawerShell,
+  FONTS,
+  FieldRow,
+  LiveTaxonomyParent,
+  PROTO_TENANT_ID,
+  PrimaryButton,
+  ProfileDraft,
+  SecondaryButton,
+  Section,
+  TAXONOMY,
+  TaxonomyParentId,
+  WORKSPACE_TAXONOMY_DEFAULT,
+  actionUploadAndAssignMedia,
+  addTalentToRoster,
+  bulkAddTalentToRoster,
+  clearProfileDraft,
+  patchProfileDraft,
+  resolvedFieldsForMode,
+  useAdminShell,
+  useLiveTaxonomy,
+  useQueuedRouterRefresh,
+} from "../../drawer-shared";
+import {
+  CsvBulkAddPanel,
+  ManagementMethodPicker,
+  PasteContactModal,
+  PrimaryTalentTypeGrid,
+  qaInputStyle,
+} from "./talent-type-picker";
+
+export function NewTalentDrawer() {
+  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useAdminShell();
+  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
+  const [isPending, startTransition] = useTransition();
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  // Hold the actual File so we can upload it as a `card` variant after
+  // addTalentToRoster returns the new talentProfileId. The blob URL above
+  // is only for preview.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("+34");
+  const [primaryType, setPrimaryType] = useState<string | null>(null);
+  // A6 — multi-role parity. Wizard + edit drawer collect secondary
+  // types; admin add couldn't, forcing a 2-step process (add + open
+  // shell + add secondaries). Now NewTalentDrawer carries secondaries
+  // through the seed handoff so the talent's roster card + dashboard
+  // immediately reflect "Model + Host" on first save.
+  const [secondaryTypes, setSecondaryTypes] = useState<string[]>([]);
+  const [homeBase, setHomeBase] = useState("");
+  // Default to "agency" so the most-used path (admin fills full profile)
+  // is the visible default — the field-list preview spells out exactly
+  // what the admin will get on the next screen.
+  const [method, setMethod] = useState<"agency" | "invited" | "draft">("agency");
+  const [showMore, setShowMore] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  // #12 — Tab between single-talent quick-add and CSV bulk import.
+  const [addMode, setAddMode] = useState<"single" | "csv">("single");
+
+  // Live taxonomy (PR-A) — picker source.
+  const live = useLiveTaxonomy();
+  const planRank = (p: "free" | "studio" | "agency" | "network") =>
+    ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
+  const currentRank = planRank(state.plan as "free" | "studio" | "agency" | "network");
+  const allowedParentIds = new Set(
+    WORKSPACE_TAXONOMY_DEFAULT
+      .filter(s => s.isEnabled && s.showInRegistration)
+      .map(s => s.parentId as string)
+  );
+  const filterByWorkspace = (lp: LiveTaxonomyParent) =>
+    allowedParentIds.has(lp.raw.slug) || lp.display.id === lp.raw.slug;
+  const visibleParentsLP = live.visibleParents.filter(filterByWorkspace).filter(lp => planRank(lp.display.minPlan) <= currentRank);
+  const restParentsLP = live.restParents.filter(filterByWorkspace).filter(lp => planRank(lp.display.minPlan) <= currentRank);
+  const allowedParents = (showMore ? [...visibleParentsLP, ...restParentsLP] : visibleParentsLP).map(lp => lp.display);
+
+  const computedDisplayName = displayName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const minimumValid = firstName.trim().length > 0 && lastName.trim().length > 0 && !!primaryType && homeBase.trim().length > 0;
+  const inviteValid = minimumValid && emailValid;
+
+  // #4 — Sync QuickAdd state into the shared draft store (debounced).
+  // Shell reads from this on mount so first/last/email/phone/photo flow
+  // through without lossy seed-data prop-drilling.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      patchProfileDraft("default", {
+        firstName, lastName, displayName,
+        email, phone, phoneCountry,
+        primaryType, homeBase, method,
+        photoUrl, photoCount: photoUrl ? 1 : 0,
+      } as Partial<ProfileDraft>, "quick-add");
+    }, 350);
+    return () => clearTimeout(t);
+  }, [firstName, lastName, displayName, email, phone, phoneCountry, primaryType, homeBase, method, photoUrl]);
+
+  const seedForShell = () => ({
+    stageName: computedDisplayName,
+    primaryType: primaryType ?? undefined,
+    secondaryTypes,
+    homeBase,
+    method,
+    contact: email,
+  });
+
+  // ── CTA handlers — use real server action in production, mock in prototype ──
+  const runAdd = (managementMethod: "agency" | "invited" | "draft", afterOk: (id?: string) => void) => {
+    if (!tenantSlug) {
+      // Prototype / preview mode — local mock only
+      toast(managementMethod === "invited" ? `Invite sent to ${email}` : `${computedDisplayName || "Talent"} saved`);
+      clearProfileDraft("default");
+      closeDrawer();
+      return;
+    }
+    startTransition(async () => {
+      const result = await addTalentToRoster({
+        tenantSlug: tenantSlug!,
+        firstName,
+        lastName,
+        displayName,
+        email,
+        phone: phoneCountry && phone ? `${phoneCountry} ${phone}` : phone,
+        homeBase,
+        primaryTypeSlugorId: primaryType ?? undefined,
+        secondaryTypeSlugorIds: secondaryTypes,
+        managementMethod,
+      });
+      if (!result.ok) {
+        toast(result.error, { tone: "error" });
+        return;
+      }
+
+      // Upload the optional avatar file as the talent's `card` variant
+      // (the public roster card photo). Best-effort — surface a toast on
+      // failure but don't block the add flow.
+      if (result.talentProfileId && photoFile) {
+        try {
+          const fd = new FormData();
+          fd.append("file", photoFile);
+          const upRes = await actionUploadAndAssignMedia(fd, result.talentProfileId, "card");
+          if (!upRes.ok) toast(`Photo upload failed: ${upRes.error}`, { tone: "error" });
+        } catch (err) {
+          logServerError("newtalentdrawer_photo_upload", err);
+          toast("Photo upload failed — talent created without photo", { tone: "error" });
+        }
+      }
+
+      if (result.warnings?.length) {
+        result.warnings.forEach(w => toast(w, { tone: "error" }));
+      }
+      clearProfileDraft("default");
+      queueRouterRefresh();
+      afterOk(result.talentProfileId);
+    });
+  };
+
+  const sendInvite = () => {
+    if (!inviteValid) return;
+    runAdd("invited", () => {
+      toast(`Invite sent to ${email}`);
+      closeDrawer();
+    });
+  };
+  const continueEditing = () => {
+    if (!minimumValid) return;
+    if (!tenantSlug) {
+      // Prototype mode — open profile shell directly without persisting
+      closeDrawer();
+      openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
+      return;
+    }
+    runAdd("agency", (talentProfileId) => {
+      closeDrawer();
+      if (talentProfileId) {
+        // Navigate to the real edit page for this newly-created talent
+        router.push(`/${tenantSlug}/admin/roster/${talentProfileId}`);
+      } else {
+        openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
+      }
+    });
+  };
+  const saveDraft = () => {
+    if (!minimumValid) return;
+    runAdd("draft", () => {
+      toast(`${computedDisplayName || "Talent"} saved as draft`);
+      closeDrawer();
+    });
+  };
+
+  // Primary CTA copy is intentionally explicit so admins know what
+  // happens next. Invited → email goes out and talent finishes their
+  // own profile. Agency-managed → drawer hands off to the full Profile
+  // Shell where admin completes everything. Draft → quietly saves.
+  const primaryAction = method === "invited"
+    ? { label: isPending ? "Sending…" : "Send claim invite", run: sendInvite, enabled: inviteValid && !isPending }
+    : method === "draft"
+    ? { label: isPending ? "Saving…" : "Save as draft", run: saveDraft, enabled: minimumValid && !isPending }
+    : { label: isPending ? "Creating…" : "Create + open full profile", run: continueEditing, enabled: minimumValid && !isPending };
+
+  // #11 — Paste a vCard / Instagram handle / LinkedIn URL / plain text
+  // contact. Parser detects shape and autofills first name + last name +
+  // email + phone. Saves admins ~30 seconds per add when they're working
+  // from a contact card or social page.
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const applyPaste = (raw: string) => {
+    const text = raw.trim();
+    if (!text) return;
+    let firstParsed = "", lastParsed = "", emailParsed = "", phoneParsed = "";
+    // 1. vCard
+    if (/BEGIN:VCARD/i.test(text)) {
+      const fnLine = /(?:^|\n)FN[:;].*?:(.+)/i.exec(text);
+      if (fnLine) {
+        const parts = fnLine[1].trim().split(/\s+/);
+        firstParsed = parts[0] ?? "";
+        lastParsed = parts.slice(1).join(" ");
+      }
+      const emailLine = /(?:^|\n)EMAIL[:;].*?:([^\s\n]+)/i.exec(text);
+      if (emailLine) emailParsed = emailLine[1];
+      const telLine = /(?:^|\n)TEL[:;].*?:([+\d\s()-]+)/i.exec(text);
+      if (telLine) phoneParsed = telLine[1].trim();
+    } else if (/@[\w.]+|instagram\.com|linkedin\.com/i.test(text)) {
+      // 2. IG handle / LinkedIn URL — extract handle as a hint, no email.
+      const igMatch = /(?:instagram\.com\/|^@)([\w.]+)/i.exec(text);
+      if (igMatch) {
+        const handle = igMatch[1];
+        // Best-effort: capitalize handle as a name guess
+        firstParsed = handle.split(".")[0].replace(/^\w/, c => c.toUpperCase());
+      }
+      const liMatch = /linkedin\.com\/in\/([\w-]+)/i.exec(text);
+      if (liMatch) {
+        const slug = liMatch[1];
+        const parts = slug.split("-");
+        firstParsed = (parts[0] ?? "").replace(/^\w/, c => c.toUpperCase());
+        lastParsed = parts.slice(1).map(p => p.replace(/^\w/, c => c.toUpperCase())).join(" ");
+      }
+    } else {
+      // 3. Plain text — pull email + phone + first non-email-or-phone line as name
+      const emailHit = /[\w.+-]+@[\w-]+\.[\w.-]+/.exec(text);
+      if (emailHit) emailParsed = emailHit[0];
+      const phoneHit = /(\+?\d[\d\s().-]{7,})/.exec(text);
+      if (phoneHit) phoneParsed = phoneHit[1].trim();
+      const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      const nameLine = lines.find(l => l !== emailParsed && !l.includes(phoneParsed) && !/[@+]/.test(l));
+      if (nameLine) {
+        const parts = nameLine.split(/\s+/);
+        firstParsed = parts[0] ?? "";
+        lastParsed = parts.slice(1).join(" ");
+      }
+    }
+    if (firstParsed) setFirstName(firstParsed);
+    if (lastParsed) setLastName(lastParsed);
+    if (emailParsed) setEmail(emailParsed);
+    if (phoneParsed) setPhone(phoneParsed.replace(/^\+\d+\s?/, ""));
+    setPasteOpen(false);
+    const filled: string[] = [];
+    if (firstParsed || lastParsed) filled.push("name");
+    if (emailParsed) filled.push("email");
+    if (phoneParsed) filled.push("phone");
+    toast(filled.length ? `Pasted: ${filled.join(", ")}` : "No fields recognized");
+  };
+  const handlePasteFromClipboard = async () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        applyPaste(text);
+      } catch {
+        setPasteOpen(true);
+      }
+    } else {
+      setPasteOpen(true);
+    }
+  };
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Add talent"
+      description="Just the essentials here. Everything else — bio, photos, location, type-specific fields, languages, rates — lives in the full profile, opened next."
+      width={620}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          {method !== "invited" && method !== "agency" && (
+            <SecondaryButton onClick={continueEditing}>Continue editing</SecondaryButton>
+          )}
+          <span
+            title={!primaryAction.enabled && !isPending ? "Pick a primary type and home base to continue" : undefined}
+            style={{ display: "inline-flex" }}
+          >
+            <PrimaryButton
+              onClick={primaryAction.run}
+              disabled={!primaryAction.enabled}
+            >
+              {primaryAction.label}
+            </PrimaryButton>
+          </span>
+        </>
+      }
+    >
+      {/* #12 — Tab strip: Single talent / Bulk via CSV. Single tab keeps
+          the existing form; CSV tab shows a paste/upload area + preview
+          table + bulk-create CTA. */}
+      <div style={{
+        display: "inline-flex", padding: 3, borderRadius: 999,
+        background: "rgba(11,11,13,0.04)", marginBottom: 14,
+        fontFamily: FONTS.body,
+      }}>
+        {([
+          { id: "single" as const, label: "Single talent" },
+          { id: "csv" as const,    label: "Bulk via CSV" },
+        ]).map(t => {
+          const active = addMode === t.id;
+          return (
+            <button key={t.id} type="button" onClick={() => setAddMode(t.id)} style={{
+              padding: "6px 14px", borderRadius: 999, border: "none",
+              background: active ? "#fff" : "transparent",
+              color: active ? COLORS.ink : COLORS.inkMuted,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+            }}>{t.label}</button>
+          );
+        })}
+      </div>
+
+      {addMode === "csv" && (
+        <CsvBulkAddPanel
+          allowedParents={allowedParents}
+          onComplete={async (rows, defaultType) => {
+            // Map CSV "type" column → taxonomy slug. Falls back to defaultType.
+            const allTypes = allowedParents.flatMap(p => p.children);
+            const matchType = (label: string): string | undefined => {
+              if (!label) return undefined;
+              const norm = label.toLowerCase().replace(/[\s_-]+/g, "-");
+              return allTypes.find(c =>
+                c.id === norm
+                || c.label.toLowerCase().replace(/[\s_-]+/g, "-") === norm
+                || c.label.toLowerCase().includes(label.toLowerCase())
+              )?.id;
+            };
+
+            // Live mode — fire the real bulk action that writes each row to
+            // talent_profiles + agency_talent_roster. Per-row errors don't
+            // abort the batch; the toast surfaces created vs failed counts.
+            if (tenantSlug) {
+              const liveRows = rows.map(r => ({
+                firstName: r.firstName,
+                lastName: r.lastName,
+                email: r.email,
+                homeBase: r.city,
+                primaryTypeSlugorId: matchType(r.type) ?? defaultType ?? undefined,
+              }));
+              startTransition(async () => {
+                const res = await bulkAddTalentToRoster(tenantSlug, liveRows);
+                if (!res.ok) {
+                  toast(res.error, { tone: "error" });
+                  return;
+                }
+                if (res.failed > 0) {
+                  void improntaLog("admin_profile_shell_internal.warn", {
+                    message: "[bulk-add talent] failures:",
+                    res: JSON.stringify(res.errors),
+                  });
+                  toast(`Created ${res.created} of ${res.created + res.failed}. ${res.failed} failed — see console.`, { tone: res.created > 0 ? undefined : "error" });
+                } else {
+                  toast(`Created ${res.created} talent profile${res.created === 1 ? "" : "s"}`);
+                }
+                if (res.created > 0) {
+                  queueRouterRefresh();
+                  closeDrawer();
+                }
+              });
+              return;
+            }
+
+            // Mock mode (no tenant) — fall back to the prototype's local
+            // pending-talent queue so the prototype demo path still works.
+            const enriched = rows.map(r => ({
+              firstName: r.firstName,
+              lastName: r.lastName,
+              email: r.email,
+              primaryType: matchType(r.type) ?? defaultType ?? undefined,
+              city: r.city,
+            }));
+            const created = bulkAddTalent(enriched);
+            if (created > 0) {
+              toast(`Created ${created} draft${created === 1 ? "" : "s"} · review in Approvals`);
+              closeDrawer();
+              openDrawer("talent-approvals");
+            } else {
+              toast("No valid rows — each row needs first name + email");
+            }
+          }}
+        />
+      )}
+
+      {addMode === "single" && (
+        <>
+      {/* Power-user shortcut bar */}
+      <div style={{
+        display: "flex", gap: 6, alignItems: "center", marginBottom: 14,
+        flexWrap: "wrap", fontFamily: FONTS.body,
+      }}>
+        <button type="button" onClick={handlePasteFromClipboard} title="Paste vCard / IG handle / LinkedIn URL / plain text" style={{
+          padding: "6px 12px", borderRadius: 999,
+          border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
+          fontSize: 12, fontWeight: 600, cursor: "pointer",
+        }}>📋 Paste contact</button>
+        <span className="text-admin-ink-dim text-admin-11">
+          vCard · @handle · linkedin.com/in/… · plain text
+        </span>
+      </div>
+
+      {/* Hero — photo + name + display + pronunciation */}
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: 14, borderRadius: 14, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 16 }} className="bg-admin-surface">
+        <button type="button" onClick={() => fileRef.current?.click()} aria-label="Upload photo" style={{
+          width: 88, height: 88, flexShrink: 0,
+          borderRadius: 14,
+          background: photoUrl
+            ? `url(${photoUrl}) center/cover, ${COLORS.surfaceAlt}`
+            : COLORS.surfaceAlt,
+          border: photoUrl ? "none" : `1.5px dashed ${COLORS.borderSoft}`,
+          cursor: "pointer", color: COLORS.inkMuted,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+          fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+          position: "relative", overflow: "hidden",
+        }}>
+          {!photoUrl && (<>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
+            <span>Photo</span>
+          </>)}
+          {photoUrl && (
+            <span style={{
+              position: "absolute", bottom: 4, right: 4,
+              padding: "2px 6px", borderRadius: 999,
+              background: "rgba(11,11,13,0.65)", color: "#fff",
+              fontSize: 9, fontWeight: 600,
+            }}>Replace</span>
+          )}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" capture="user" style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) {
+              setPhotoUrl(URL.createObjectURL(f));
+              setPhotoFile(f);
+            }
+            e.target.value = "";
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex gap-1.5">
+            <input type="text" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+              style={qaInputStyle()}
+            />
+            <input type="text" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)}
+              style={qaInputStyle()}
+            />
+          </div>
+          <input type="text"
+            placeholder={firstName || lastName ? `Display name · defaults to ${computedDisplayName}` : "Display name (optional)"}
+            value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+            style={qaInputStyle()}
+          />
+        </div>
+      </div>
+
+      {/* Contact */}
+      <Section title="Contact" framed>
+        <FieldRow label="Email"
+          hint={method === "invited" ? "Required — they'll receive a claim link." : "Optional — used for booking comms."}
+        >
+          <div className="relative">
+            <input type="email" placeholder="talent@example.com"
+              value={email} onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "10px 90px 10px 12px", borderRadius: 10,
+                border: `1px solid ${email && !emailValid ? COLORS.amberDeep : COLORS.border}`,
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                background: "#fff",
+              }}
+            />
+            {email && (
+              <span style={{
+                position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                fontSize: 10.5, fontWeight: 600,
+                color: emailValid ? COLORS.successDeep : COLORS.amberDeep,
+              }}>{emailValid ? "✓ valid" : "check format"}</span>
+            )}
+          </div>
+        </FieldRow>
+        <FieldRow label="Phone" optional hint="Used for SMS verification + day-of booking comms.">
+          <div className="flex gap-1.5">
+            <select value={phoneCountry} onChange={(e) => setPhoneCountry(e.target.value)} style={{
+              padding: "10px 10px", borderRadius: 10,
+              border: `1px solid ${COLORS.border}`, background: "#fff",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+              flexShrink: 0,
+            }}>
+              <option value="+34">🇪🇸 +34</option>
+              <option value="+52">🇲🇽 +52</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+39">🇮🇹 +39</option>
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+351">🇵🇹 +351</option>
+            </select>
+            <input type="tel" placeholder="612 345 678"
+              value={phone} onChange={(e) => setPhone(e.target.value)}
+              style={qaInputStyle()}
+            />
+          </div>
+        </FieldRow>
+      </Section>
+
+      {/* Talent Type */}
+      <Section title="Primary Talent Type" framed>
+        {/* Sticky confirmation — shows immediately after picking so the
+            operator knows the selection registered without needing to scroll */}
+        {primaryType && (() => {
+          const match = allowedParents.flatMap(p => p.children.map(c => ({ parent: p, child: c }))).find(x => x.child.id === primaryType);
+          return match ? (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
+              <span className="text-admin-green text-admin-11">✓</span>
+              <span>{match.child.label}</span>
+              <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">under {match.parent.label}</span>
+              <button type="button" onClick={() => setPrimaryType(null)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: COLORS.inkMuted, fontSize: 13, padding: 0, lineHeight: 1,
+              }} title="Clear selection">×</button>
+            </div>
+          ) : null;
+        })()}
+        <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
+          What clients book this person as. Add secondary roles below — this matches what registration collects.
+        </div>
+        <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={(id) => setPrimaryType(id)} />
+        {restParentsLP.length > 0 && (
+          <button type="button" onClick={() => setShowMore(s => !s)} style={{
+            marginTop: 10, padding: "6px 12px", borderRadius: 999,
+            background: "transparent", border: `1px dashed ${COLORS.border}`,
+            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>
+            {showMore ? `– Hide ${restParentsLP.length} more` : `+ More… (${restParentsLP.length})`}
+          </button>
+        )}
+        <div style={{ marginTop: 6, fontSize: 10.5 }} className="text-admin-ink-dim">
+          {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible · {restParentsLP.length} more
+        </div>
+      </Section>
+
+      {/* A6 — Secondary talent types. Multi-role parity with the
+          wizard. Renders only after a primary is picked so the
+          options stay focused. The hint links the user back to the
+          parent grid for rare combinations. */}
+      {primaryType && (() => {
+        // Build candidate parents EXCLUDING the parent of the primary
+        // — secondary should add NEW capabilities, not duplicate.
+        const primaryParent = TAXONOMY.find(p => p.children.some(c => c.id === primaryType))?.id;
+        const candidates = TAXONOMY
+          .filter(p => p.id !== primaryParent)
+          .filter(p => allowedParentIds.has(p.id))
+          .filter(p => planRank((WORKSPACE_TAXONOMY_DEFAULT.find(s => s.parentId === p.id)?.parentId
+            ? "free" : "free") as "free" | "studio" | "agency" | "network") <= currentRank);
+        return (
+          <Section title="Secondary talent types" framed>
+            <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
+              Optional. Pick categories this talent ALSO works in — e.g. a model who also hosts, or a host who also drives. Multi-role profiles surface in more searches.
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {candidates.map(p => {
+                const active = secondaryTypes.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSecondaryTypes(prev =>
+                      active ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                    )}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "6px 12px", borderRadius: 999,
+                      border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                      background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                      color: active ? COLORS.accentDeep : COLORS.ink,
+                      fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span aria-hidden className="text-admin-13">{p.emoji}</span>
+                    <span>+ {p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {secondaryTypes.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 10.5 }} className="text-admin-ink-dim">
+                {secondaryTypes.length} secondary {secondaryTypes.length === 1 ? "role" : "roles"} selected.
+              </div>
+            )}
+          </Section>
+        );
+      })()}
+
+      {/* A4 + A5 — Catalog-driven peek at what the talent will need
+          to fill (or what admin should fill on their behalf) once
+          they reach the full profile shell. Sourced from
+          resolvedFieldsForMode("registration", primaryType) so
+          workspace required-overrides are honored. Shows the top
+          required + recommendedFor fields per selected role.
+          Pure preview — admin doesn't fill them here, just sees
+          what's coming. */}
+      {primaryType && (() => {
+        const allRoles = primaryType ? [primaryType, ...secondaryTypes] : secondaryTypes;
+        // Map child id → parent id (catalog applicability is keyed by parent).
+        const parentIds = allRoles
+          .map(id => TAXONOMY.find(p => p.children.some(c => c.id === id))?.id)
+          .filter((x): x is TaxonomyParentId => !!x);
+        if (parentIds.length === 0) return null;
+        const fields = resolvedFieldsForMode("registration", PROTO_TENANT_ID, parentIds)
+          .filter(f => f.tier === "type-specific" && f.id.includes("."))
+          .filter(f => parentIds.some(p => f.appliesTo?.includes(p)));
+        if (fields.length === 0) return null;
+        // Required first, then recommended.
+        const required = fields.filter(f => parentIds.some(p => f.requiredFor?.includes(p)) || f.optional === false);
+        const recommended = fields.filter(f =>
+          !required.includes(f)
+          && parentIds.some(p => f.recommendedFor?.includes(p))
+        );
+        return (
+          <Section title="What's collected next" framed>
+            <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
+              After save, the full profile shell asks for these fields. Catalog-driven — workspace overrides apply.
+            </div>
+            {required.length > 0 && (
+              <div className="mb-2.5">
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+                  color: COLORS.accentDeep ?? COLORS.accent, marginBottom: 4,
+                }}>
+                  Required ({required.length})
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {required.slice(0, 12).map(f => (
+                    <span key={f.id} style={{
+                      padding: "2px 8px", borderRadius: 999,
+                      background: "rgba(15,79,62,0.08)",
+                      color: COLORS.accentDeep ?? COLORS.accent,
+                      fontSize: 11, fontWeight: 600,
+                      fontFamily: FONTS.body,
+                    }}>{f.label}</span>
+                  ))}
+                  {required.length > 12 && (
+                    <span style={{ fontSize: 10.5, alignSelf: "center" }} className="text-admin-ink-muted">
+                      +{required.length - 12} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {recommended.length > 0 && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">
+                  Recommended ({recommended.length})
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {recommended.slice(0, 8).map(f => (
+                    <span key={f.id} style={{
+                      padding: "2px 8px", borderRadius: 999,
+                      background: "rgba(11,11,13,0.04)",
+                      color: COLORS.inkMuted,
+                      fontSize: 11, fontWeight: 500,
+                      fontFamily: FONTS.body,
+                    }}>{f.label}</span>
+                  ))}
+                  {recommended.length > 8 && (
+                    <span style={{ fontSize: 10.5, alignSelf: "center" }} className="text-admin-ink-dim">
+                      +{recommended.length - 8} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </Section>
+        );
+      })()}
+
+      {/* Home base */}
+      <Section title="Home base" framed>
+        <FieldRow label="Where is this talent based?" hint="Service areas + travel radius are set in the full profile.">
+          <input type="text" placeholder="e.g. Playa del Carmen"
+            value={homeBase} onChange={(e) => setHomeBase(e.target.value)}
+            style={qaInputStyle()}
+          />
+        </FieldRow>
+      </Section>
+
+      {/* Management */}
+      <Section title="Management method">
+        <ManagementMethodPicker value={method} onChange={setMethod} />
+      </Section>
+
+      {/* Power-user: registration link */}
+      <Section title="Or send the registration link" framed>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          fontFamily: FONTS.body,
+        }}>
+          <div className="flex-1 min-w-0">
+            <div className="text-admin-ink text-admin-12h font-semibold">
+              Mobile-first self-registration
+            </div>
+            <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
+              The talent fills out their own profile. Goes to your approval queue.
+            </div>
+          </div>
+          <button type="button" onClick={() => openDrawer("talent-registration")} style={{
+            padding: "9px 14px", borderRadius: 999,
+            background: COLORS.fill, color: "#fff", border: "none",
+            fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+          }}>Preview</button>
+        </div>
+        <div className="mt-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              const url = `https://tulala.digital/${effectiveTenant.slug}/join`;
+              void navigator.clipboard
+                .writeText(url)
+                .then(() => toast("Registration link copied"))
+                .catch(() => toast("Couldn't copy — copy manually"));
+            }}
+            style={{
+              width: "100%", padding: "10px 14px", borderRadius: 10,
+              background: "transparent", color: COLORS.ink,
+              border: `1px dashed ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            tulala.digital/{effectiveTenant.slug}/join · copy link
+          </button>
+        </div>
+      </Section>
+        </>
+      )}
+
+      {/* Inline hint when required fields aren't filled yet */}
+      {addMode === "single" && !minimumValid && (firstName.trim() || lastName.trim()) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "rgba(11,11,13,0.04)", fontFamily: FONTS.body, fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
+          <span className="shrink-0">ℹ</span>
+          <span>
+            {!primaryType && !homeBase.trim()
+              ? "Pick a primary type and home base to continue"
+              : !primaryType
+                ? "Pick a primary type to continue"
+                : "Enter a home base to continue"}
+          </span>
+        </div>
+      )}
+
+      {/* #11 — Paste-anywhere fallback when clipboard.readText is denied */}
+      {pasteOpen && (
+        <PasteContactModal
+          onClose={() => setPasteOpen(false)}
+          onApply={applyPaste}
+        />
+      )}
+    </DrawerShell>
+  );
+}
