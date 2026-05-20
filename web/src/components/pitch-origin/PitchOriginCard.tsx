@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * PitchOriginCard — context block surfaced inside the Chat tab + Event
  * tab when an inquiry was created from a Pitch.
