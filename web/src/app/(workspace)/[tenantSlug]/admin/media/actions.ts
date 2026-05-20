@@ -620,7 +620,7 @@ export async function actionUploadToStagingStorage(
   }
   // 8 MB cap (down from 25 MB) — sharp re-encodes server-side now, so
   // raw uploads don't need to be huge. See media-resize.ts.
-  if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File must be under 8 MB." };
+  if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File must be under 5 MB." };
 
   const inputBytes = await file.arrayBuffer();
   const meta = await extractImageMetadata(file, inputBytes);

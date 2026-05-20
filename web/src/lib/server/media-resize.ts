@@ -126,7 +126,17 @@ export async function resizeUploadForStorage(
  * also cap input bytes at 8 MB via the caller. This is a defense-in-
  * depth check on top.
  */
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 MB
+/**
+ * 5 MB — matches Twitter / LinkedIn / Reddit's image cap. Comfortably
+ * fits typical modern phone JPEGs (iPhone 15 ~2–4 MB, recent Android
+ * 3–5 MB) while rejecting DSLR full-resolution dumps.
+ *
+ * NOTE: once the client-side resize pipeline ships (browser shrinks
+ * to ~1800px before upload, like Instagram / Cloudinary do), this
+ * server-side cap becomes a defense-in-depth check that real users
+ * never hit. Keep it 5 MB then too.
+ */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
 
 /**
  * Centralized "is this safe to compress?" — videos / SVG / animated GIF
