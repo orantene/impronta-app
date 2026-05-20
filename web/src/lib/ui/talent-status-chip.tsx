@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties } from "react";
 import { STATUS_TONES, type StatusTone } from "./status-tones";
 
