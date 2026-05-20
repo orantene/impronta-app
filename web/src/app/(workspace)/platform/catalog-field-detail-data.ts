@@ -12,11 +12,13 @@
  * Degrades to an empty/null shape on failure.
  */
 
+import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   platformBaseVisibility,
   type FieldVisibility,
 } from "@/lib/field-engine/effective-visibility";
+import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 
 export type FieldDetailField = {
   id: string;
@@ -125,7 +127,22 @@ type AgencyRow = {
   status: string | null;
 };
 
+// Cached wrapper around the inner loader. Tagged with `field-catalog` so
+// every existing write path (workspace field settings, taxonomy mutators)
+// already busts this on edit. 60s revalidate is a defense-in-depth floor
+// against any future write path that forgets to call `bustFieldCatalog`.
+// Per-fieldKey key part keeps every field independently cacheable.
 export async function loadPlatformCatalogFieldDetail(
+  fieldKey: string,
+): Promise<PlatformCatalogFieldDetail> {
+  return unstable_cache(
+    () => loadPlatformCatalogFieldDetailUncached(fieldKey),
+    ["platform:catalog-field-detail", "v1", fieldKey],
+    { tags: [CACHE_TAG_FIELD_CATALOG], revalidate: 60 },
+  )();
+}
+
+async function loadPlatformCatalogFieldDetailUncached(
   fieldKey: string,
 ): Promise<PlatformCatalogFieldDetail> {
   const sb = createServiceRoleClient();

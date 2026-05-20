@@ -732,20 +732,62 @@ Uses a service-role client (bypasses tenant RLS — the route is platform-admin-
 
 ## 11. Known Debt
 
-For full details and status of each item see [`talent-engine-status-2026-05-18.md`](talent-engine-status-2026-05-18.md) and the execution plan.
+Current as of 2026-05-20. For full status see [`talent-engine-status-2026-05-18.md`](talent-engine-status-2026-05-18.md).
 
-**Active blocker:**
+### 11.1 RESOLVED this session (2026-05-19 / 2026-05-20)
 
-- **`phase-1` fails `tsc` (4 errors in `drawers.tsx`)** — `Property 'has_value'/'tenant_override' does not exist on type 'ResolvedField'`. Root cause: Phase 4 panel code was swept into `phase-1` by a broad `git add drawers.tsx`; the matching resolver change (adding optional `has_value?`/`tenant_override?` to `ResolvedField` + `getFieldsForTalent`) is in branch `engine-phase4-finish` commit `36ea80397` but not yet landed. Fix is the `admin-taxonomy.ts` resolver delta from that commit. Blocked on other-agent uncommitted work in `admin-taxonomy.ts`.
+The catalog map sweep + Phase 5 convergence pass landed a lot of prior debt items:
 
-**Structural / design debt:**
+| Item | How it was resolved | Commit |
+|---|---|---|
+| Phase 4 panel TSC errors (`has_value`/`tenant_override` missing) | Vendored the convergent resolver fix from the in-flight working tree | `4ec90ee3a` |
+| `getFieldsForTalent` O(n²) sort | Pre-built `slug → display_order` Map, byte-identical output | `e702f84ec` |
+| `"field-catalog"` cache tag duplication | New `field-engine/cache-tags.ts` module — single source of truth | `18387444d` |
+| `profile_field_recommendations` RLS too broad | Tightened to `is_platform_admin()` (applied to remote DB) | `20a5b654b` |
+| `profile_field_definitions` RLS too broad (same pattern) | Same tightening applied (also live on remote) | `3e939fcf3` |
+| Talent-side resolver divergence (~130 lines) | Phase 5-δ collapsed to single shared `resolveTalentFields` core | `02aff0739` |
+| `ResolvedField` Turbopack runtime regression | Split `import type` from value imports; direct `export type … from …` | `73ee9d9d6` |
+| `agencies.entity_type` queried (column doesn't exist — actual column is `kind`) | Three platform-admin loaders fixed; per-tenant catalog mirror now renders for the first time | `538da492a` |
+| Phase-5 split-brain (`field_values` → `talent_profile_field_values` for 17 bridged keys) | Backfill migration shipped + dual-write + height consolidation + resolver collapse | `c6f8c30ea` + γ/δ/ε |
+| Cache-bust on workspace field/group settings writes | All 4 mutators bust both `field-catalog` and `field-catalog:${tenantId}` tags | (P-11 audit confirmed) |
+| Audit log foundation (`engine_audit_log` table + 4+4 mutator hooks) | Phase 7a shipped (migration applied to remote; 4 workspace-settings + 4 taxonomy actions wired) | `602db2d7e`, `7317f8d45` |
+| Visibility primitive test coverage | 63 unit cases shipped, all passing | `1d1321de3` |
 
-- **Field key naming inconsistency** (§6): dotted `section.concept` vs flat keys coexist. Normalising to all-dotted is Phase 8, blocked on the 6-sidebar-keys product decision.
-- **Split-brain bridge** (§8): `legacy-mirror.ts` must stay maintained until Phase 5 Convergence ships. Any new canonical field read by Discover may need a bridge entry.
-- **6 sidebar keys not yet canonical**: `fit_labels`, `industries`, `event_types`, `tags` have no `profile_field_definitions` equivalents. The legacy `public-profile-field-visibility.ts` gate is still active for these four. Awaiting product decision (Options A–D documented in the status doc).
-- **`resolvePublicFields` not extracted**: public-profile field resolver is inline in the page server component; extraction deferred (behaviour-neutral refactor on a live public path).
-- **`profile_field_recommendations` RLS write policy too broad**: current policy allows write to any `is_agency_staff()`, not just platform staff. Catalog is supposed to be Tulala-curated only; a workspace admin with direct DB access could insert recommendation rows.
-- **Final sort in `getFieldsForTalent` is O(n²)**: the sort comparator at line 1288 re-scans `groupMetaById.entries()` for every field comparison to look up display order by slug. Should be a pre-built `slug → display_order` lookup Map.
-- **Cache tag constant is duplicated**: `"field-catalog"` appears independently in `admin-taxonomy.ts` and `admin-workspace-field-settings.ts`. Should be extracted to a shared non-`"use server"` constants module.
-- **Custom fields (Phase 8)**: tenants cannot yet add their own fields beyond taxonomy overrides and label customisation. Schema design for tenant-owned fields not started.
-- **Phase 9B editable Studio**: platform admin cannot edit catalog definitions without a migration. Full change-set / preview / rollback workflow is gated on Phases 0–7 completion.
+### 11.2 Active gaps (worth doing before Phase 8/9B build)
+
+| Gap | Why it matters | Estimated effort |
+|---|---|---|
+| **Resolver test coverage** — `resolve-talent-fields.ts` is 826 lines with **0 unit tests**. P5-δ extraction depended on byte-identical behaviour to admin-side; future refactors have no regression net | High leverage. Pin behaviour against the catalog map's worked examples. | ~4-6h (good Sonnet-high task) |
+| **`mirrorWriteToCanonical` round-trip overhead** | Each call fires 1 def lookup + 1 roster lookup. A shell save touching all 17 bridged keys = 34 round-trips. Batch the def lookup outside the loop (17→1), memoize roster once per call (17→1). | ~1h (well-bounded refactor) |
+| **`last_edited_role` attribution wrong for talent self-edits** | Helper always writes `'platform'`; talent shell saves should write `'talent'`. Audit log + history-rail attribution misreport. Fix needs an `editorRole?` parameter on the helper. | ~30min |
+| **Inline canonical-seed duplicated in 2 files** | P5-ε's worktree predated P5-γ's helper landing, so `roster-import.ts:240` + `roster/[id]/actions.ts:170` inlined the seed logic instead of calling `mirrorWriteToCanonical`. Replace with helper once it accepts `tenantIdOverride?` (the inline blocks pass tenant from context, which the helper can't currently do). | ~1h (paired with the helper signature change) |
+| **Platform-admin catalog loaders not cached** | `catalog-map-data.ts`, `catalog-field-detail-data.ts`, `tenant-catalog-data.ts` re-query on every render. Low traffic now (super-admin-only) but adds up once Phase 9B's catalog studio drives more reads. Add `unstable_cache` with `field-catalog` tag (already busted on writes). | ~1h |
+
+### 11.3 Structural / design debt (still open)
+
+- **Field key naming inconsistency** (§6): dotted `section.concept` vs flat keys still coexist. Normalising to all-dotted is Phase 8 scope; blocked on the 6-sidebar-keys product decision.
+- **Split-brain bridge** (§8): `legacy-mirror.ts` stays alive until Phase 6 readers cut over to canonical. Backfill (β) + dual-write (γ + ε) + resolver-collapse (δ) all shipped; what's left is the Phase 6 reader cutover (P5-ζ shadow + P5-η retire mirror).
+- **6 sidebar keys not yet canonical**: `fit_labels`, `industries`, `event_types`, `tags` have no `profile_field_definitions` equivalents. Legacy `public-profile-field-visibility.ts` gate still active. Awaiting product decision (Options A–D documented in the status doc).
+- **`resolvePublicFields` not extracted**: public-profile field resolver is inline in the page server component. Defer to Phase 6 cleanup.
+- **Custom fields (Phase 8)**: design doc shipped (`phase-8-custom-fields-design-2026-05-19.md`) — recommended schema is a separate `agency_field_definitions` table; 3 OQs gate the build (approval gate granularity, scope mechanism, downgrade behavior).
+- **Phase 9B editable Studio**: design doc shipped (`phase-9b-editable-studio-design.md`) — two-table change-set + PL/pgSQL atomic publish; 3 OQs gate the build (audit-log extension shape, high-risk publish gate, `create_field` rollback semantics).
+
+### 11.4 Audit log coverage map
+
+What's audited today via `engine_audit_log` (Phase 7a):
+
+- `workspace_profile_field_settings`: `setWorkspaceFieldVisibility`, `resetWorkspaceFieldVisibility`, `setWorkspaceFieldCatalog`, `setWorkspaceFieldGroup` ✅
+- `agency_taxonomy_settings` + `agency_taxonomy_terms`: `setTaxonomyEnabled`, `setTaxonomyFlags`, `addCustomSubType`, `removeCustomSubType` ✅
+
+What's intentionally OUT of scope for `engine_audit_log` (handled elsewhere):
+
+- Per-talent VALUE writes (`talent_profile_field_values`) → `talent_profile_field_value_history` trigger. Two separate audit streams — by design, since values churn far more than catalog config and have different retention needs.
+- Phase 5-γ shell editor writes (legacy + canonical mirror) — value-write path, history table covers it.
+- Phase 5-ε height_cm writes (admin roster + bulk import) — same.
+
+### 11.5 Operational + scaling notes
+
+- **Resolver telemetry is in-process only**: counters reset on every cold start. Fine for single-process ops debug; needs a real metrics sink (DataDog/StatsD) once we have multiple replicas. Diagnostic route at `/platform/admin/operations/engine`.
+- **`engine_audit_log` index strategy**: indexed on `(tenant_id, created_at desc)` for the History rail + `(subject_kind, subject_id, created_at desc)` for per-subject drill-down. Append-only. Will grow; archival strategy is a future concern (partition by month?).
+- **Phase 5-β backfill migration**: `c6f8c30ea` (306 rows) is committed to git but **not yet applied to remote Supabase** — blocked on Supabase CLI auth refresh. Once applied, re-run the P5-α parity audit SQL to confirm `would_backfill = 0` for all 17 keys.
+- **Talent profile field value store size**: scales linearly with (talents × fields-with-values). At current Impronta scale (24 talents × ~22 fields with values = 528 rows) this is trivial. At 1000 talents per tenant × 50 fields = 50k rows per tenant — still well within Postgres comfort zone; the `(talent_profile_id, field_definition_id)` unique index keeps point reads O(log n).

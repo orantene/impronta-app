@@ -10,11 +10,13 @@
  * empty shape on failure so the page never hard-fails.
  */
 
+import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   platformBaseVisibility,
   type FieldVisibility,
 } from "@/lib/field-engine/effective-visibility";
+import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 
 export type CatalogField = {
   id: string;
@@ -124,7 +126,18 @@ function countBy(
   return m;
 }
 
+// Cached wrapper. Same `field-catalog` tag as the resolver and the per-field
+// detail loader — every existing write path that busts the resolver also
+// busts this. 60s revalidate is the defense-in-depth floor.
 export async function loadPlatformCatalogMap(): Promise<PlatformCatalogMap> {
+  return unstable_cache(
+    () => loadPlatformCatalogMapUncached(),
+    ["platform:catalog-map", "v1"],
+    { tags: [CACHE_TAG_FIELD_CATALOG], revalidate: 60 },
+  )();
+}
+
+async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
   const sb = createServiceRoleClient();
   if (!sb) return EMPTY;
 

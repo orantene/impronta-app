@@ -8,12 +8,17 @@
  * by the platform layout). Degrades to an empty shape on failure.
  */
 
+import { unstable_cache } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   platformBaseVisibility,
   effectiveFieldVisibility,
   type FieldVisibility,
 } from "@/lib/field-engine/effective-visibility";
+import {
+  CACHE_TAG_FIELD_CATALOG,
+  fieldCatalogTagForTenant,
+} from "@/lib/field-engine/cache-tags";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,7 +143,25 @@ type GroupRow = {
 
 // ─── Main loader ──────────────────────────────────────────────────────────────
 
+// Cached wrapper. Tagged with `field-catalog` (busted on every catalog
+// write) AND `field-catalog:${tenantId}` (busted on per-tenant override
+// writes — the tenant-specific tag also fires for the same writes today
+// but stays as a future-proof handle for tenant-scoped busts). 60s
+// revalidate is the defense-in-depth floor; tag-bust is the primary path.
 export async function loadTenantCatalogPosture(
+  tenantId: string,
+): Promise<TenantCatalogPosture> {
+  return unstable_cache(
+    () => loadTenantCatalogPostureUncached(tenantId),
+    ["platform:tenant-catalog-posture", "v1", tenantId],
+    {
+      tags: [CACHE_TAG_FIELD_CATALOG, fieldCatalogTagForTenant(tenantId)],
+      revalidate: 60,
+    },
+  )();
+}
+
+async function loadTenantCatalogPostureUncached(
   tenantId: string,
 ): Promise<TenantCatalogPosture> {
   const sb = createServiceRoleClient();
