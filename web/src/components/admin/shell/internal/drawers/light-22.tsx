@@ -116,7 +116,13 @@ export function IncidentReportDrawer() {
   const [severity, setSeverity] = React.useState<"low" | "medium" | "high">("medium");
   const [description, setDescription] = React.useState("");
   const [anonymous, setAnonymous] = React.useState(false);
-  const [submitted, setSubmitted] = React.useState(false);
+  // Q5: track the submitted reference number directly in state. Previously
+  // `submitted` was a boolean and the reference INC-NNNNNN was computed
+  // from Date.now() in render — which tripped react-hooks/purity and also
+  // changed on every parent re-render. Generating once at submit time is
+  // both rule-clean and the correct semantic.
+  const [submittedRef, setSubmittedRef] = React.useState<string | null>(null);
+  const submitted = submittedRef !== null;
 
   const incidentTypes = [
     { key: "safety", label: "On-set safety", icon: "⚠" },
@@ -128,7 +134,10 @@ export function IncidentReportDrawer() {
   const footer = (
     <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-      <SecondaryButton onClick={() => { setSubmitted(true); toast("Incident report submitted"); }}>Submit report</SecondaryButton>
+      <SecondaryButton onClick={() => {
+        setSubmittedRef("INC-" + Date.now().toString().slice(-6));
+        toast("Incident report submitted");
+      }}>Submit report</SecondaryButton>
     </div>
   );
 
@@ -143,7 +152,7 @@ export function IncidentReportDrawer() {
           </div>
           <div style={{ border: `1px solid ${COLORS.border}`, padding: "8px 14px" }} className="bg-admin-surface rounded-admin-sm">
             <div className="text-admin-ink-muted text-admin-11">Reference</div>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }} className="text-admin-ink">INC-{Date.now().toString().slice(-6)}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }} className="text-admin-ink">{submittedRef}</div>
           </div>
         </div>
       </DrawerShell>
