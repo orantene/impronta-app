@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Kbd — physical-keycap style tag for keyboard shortcut display.
  *
