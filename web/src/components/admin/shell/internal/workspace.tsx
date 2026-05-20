@@ -97,7 +97,7 @@ export function InquiryWorkspaceDrawer() {
       title={`${inquiry.clientName} · ${inquiry.brief}`}
       description={`${inquiry.id} · with ${inquiry.agencyName}${inquiry.date ? ` · ${inquiry.date}` : ""} · ${describeSource(inquiry.source).short}`}
       toolbar={
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span className="inline-flex items-center gap-1.5">
           {pov !== "client" ? (
             <ClientTrustChip level={inquiry.clientTrust} compact />
           ) : null}
@@ -197,7 +197,7 @@ function MinorProtectionBanner({ talents, compact = false }: {
       }}
     >
       <span aria-hidden style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🛡️</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{
           display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4,
           fontSize: 12.5, fontWeight: 700, color: COLORS.coralDeep,
@@ -213,7 +213,7 @@ function MinorProtectionBanner({ talents, compact = false }: {
             const p = t.minorProtections;
             return (
               <div key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <strong style={{ fontWeight: 700 }}>{t.name}</strong>
+                <strong className="font-bold">{t.name}</strong>
                 {age != null && <span>· age {age}</span>}
                 {p && (
                   <>
@@ -945,7 +945,7 @@ function SystemEventGroup({ messages }: { messages: ThreadMessage[] }) {
         onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
         onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
       >
-        <span style={{ fontWeight: 500 }}>
+        <span className="font-medium">
           {messages.length} system updates
         </span>
         <span aria-hidden style={{ fontSize: 10, transform: open ? "rotate(180deg)" : undefined, transition: `transform ${TRANSITION.sm}` }}>
@@ -1047,7 +1047,7 @@ function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismis
       }}
     >
       <span style={{ fontSize: 14, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>⚠️</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "#7A2026", lineHeight: 1.4 }}>
           {message.requiresActionLabel ?? message.body}
         </div>
@@ -1612,7 +1612,7 @@ function MessagingPanel({
               marginBottom: 8,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div className="flex items-center gap-1.5">
               <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
               <span
                 style={{
@@ -2341,7 +2341,7 @@ function WorkspaceFilesPanel({
 
       {/* ── File list ── */}
       {filtered.length === 0 ? (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="flex-1 flex items-center justify-center">
           <EmptyState
             icon="plus"
             title={`No ${filter === "all" ? "" : filter + " "}files shared yet`}
@@ -2350,7 +2350,7 @@ function WorkspaceFilesPanel({
           />
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div className="flex flex-col">
           {filtered.map((file) => {
             const vGroup = file.versionGroup
               ? versionGroups.get(file.versionGroup)!
@@ -2392,8 +2392,8 @@ function WorkspaceFilesPanel({
                   </span>
 
                   {/* File meta */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
                       <div
                         style={{
                           fontFamily: FONTS.body,
@@ -2506,8 +2506,8 @@ function WorkspaceFilesPanel({
                     }}
                   >
                     <span style={{ fontSize: 16, flexShrink: 0 }}>{FILE_ICON[oldFile.kind] ?? "📎"}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
                         <span style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, color: COLORS.inkMuted }}>
                           {oldFile.name}
                         </span>
@@ -2585,7 +2585,7 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
       {/* Content */}
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 16px" }}>
         {tab === "details" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {pov === "admin" && <ViewingNowBadge inquiry={inquiry} />}
             <SummaryPanel inquiry={inquiry} />
             {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
@@ -2637,7 +2637,7 @@ function ViewingNowBadge({ inquiry }: { inquiry: RichInquiry }) {
         }}
       />
       <Avatar initials={inquiry.coordinator.initials} size={18} tone="ink" />
-      <span style={{ fontWeight: 500 }}>{inquiry.coordinator.name}</span>
+      <span className="font-medium">{inquiry.coordinator.name}</span>
       <span style={{ color: COLORS.green, fontWeight: 400 }}>viewing now</span>
     </div>
   );
@@ -2715,9 +2715,9 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
   return (
     <RailCard title="Coordinator">
       {inquiry.coordinator ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex items-center gap-2.5">
           <Avatar initials={inquiry.coordinator.initials} size={32} tone="ink" />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
               {inquiry.coordinator.name}
             </div>
@@ -2888,7 +2888,7 @@ function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
                 ) : (
                   <span style={{ fontSize: 14, flexShrink: 0 }}>{t.thumb}</span>
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div
                     style={{
                       fontSize: 12,
@@ -2910,7 +2910,7 @@ function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      <span style={{ color: COLORS.inkDim }}>{t.lastSaidTs} — </span>
+                      <span className="text-admin-ink-dim">{t.lastSaidTs} — </span>
                       &ldquo;{t.lastSaidSnippet}&rdquo;
                     </div>
                   )}
@@ -3021,7 +3021,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {offer.lineItems.map((li, i) => {
           return (
             <div
@@ -3246,8 +3246,8 @@ function DualTimeBadge({
     >
       <Icon name="map-pin" size={10} color="rgba(79,70,229,0.7)" stroke={1.8} />
       <span style={{ fontWeight: 600, color: "rgba(79,70,229,0.85)" }}>{localLabel}</span>
-      <span style={{ color: COLORS.inkDim }}>·</span>
-      <span style={{ color: COLORS.inkMuted }}>{remoteLabel}</span>
+      <span className="text-admin-ink-dim">·</span>
+      <span className="text-admin-ink-muted">{remoteLabel}</span>
       <span
         style={{
           fontSize: 9.5,
@@ -3348,14 +3348,14 @@ function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
         </button>
       }
     >
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <PaymentStatusChip status={summary.status} />
       </div>
       <KvCompact label="Total" value={summary.total} />
       <KvCompact label="Fee" value={`${summary.platformFee} on ${summary.pricedOnPlan}`} />
       <KvCompact label="Net" value={summary.netPayout} />
       <Divider />
-      <div style={{ marginTop: 10 }}>
+      <div className="mt-2.5">
         <CapsLabel>Receiver</CapsLabel>
         {receiver && receiverMeta ? (
           <div
@@ -3367,7 +3367,7 @@ function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
             }}
           >
             <Avatar initials={receiver.initials} size={28} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
                 {receiver.displayName}
               </div>
@@ -3391,7 +3391,7 @@ function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
           </div>
         )}
         {canPick && (
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <SecondaryButton
               size="sm"
               onClick={() => openDrawer("payout-receiver-picker", { inquiryId: inquiry.id })}
@@ -3459,7 +3459,7 @@ function ActivityPanel({ inquiry }: { inquiry: RichInquiry }) {
 
   return (
     <RailCard title="Activity">
-      <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="flex flex-col">
         {events.slice(0, 5).map((e, i) => (
           <div key={i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
             <ActivityFeedItem
@@ -3689,7 +3689,7 @@ export function ShortcutHelpOverlay({
               }}>
                 {group.title}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div className="flex flex-col gap-1">
                 {group.shortcuts.map((sc, i) => (
                   <div key={i} style={{
                     display:     "flex",

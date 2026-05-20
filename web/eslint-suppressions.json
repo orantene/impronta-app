@@ -1009,7 +1009,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 285
+      "count": 258
     }
   },
   "src/components/details-tab/DetailsTab.tsx": {
