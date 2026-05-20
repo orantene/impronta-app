@@ -32,9 +32,6 @@
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/EditorSections.tsx": {
     "max-lines": {
       "count": 1
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
     }
   },
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx": {
@@ -44,9 +41,6 @@
   },
   "src/app/(workspace)/[tenantSlug]/admin/work/[id]/page.tsx": {
     "max-lines": {
-      "count": 1
-    },
-    "react-hooks/purity": {
       "count": 1
     }
   },
@@ -96,9 +90,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 51
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "src/components/admin/shell/admin-shell.tsx": {
@@ -141,12 +132,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 360
-    },
-    "react-hooks/purity": {
-      "count": 1
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
@@ -162,9 +147,6 @@
   "src/components/admin/shell/internal/drawers/light-03.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 56
-    },
-    "react-hooks/rules-of-hooks": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/drawers/light-04.tsx": {
@@ -178,9 +160,6 @@
   "src/components/admin/shell/internal/drawers/light-05.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 31
-    },
-    "react-hooks/purity": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/light-06.tsx": {
@@ -266,9 +245,6 @@
   "src/components/admin/shell/internal/drawers/light-22.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 78
-    },
-    "react-hooks/purity": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/light-23.tsx": {
@@ -296,12 +272,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 568
-    },
-    "react-hooks/purity": {
-      "count": 5
-    },
-    "react-hooks/refs": {
-      "count": 2
     },
     "react/no-children-prop": {
       "count": 2
@@ -365,9 +335,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 223
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx": {
@@ -539,10 +506,7 @@
   },
   "src/components/admin/shell/internal/page-modules/BillingPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 31
-    },
-    "react-hooks/rules-of-hooks": {
-      "count": 1
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
@@ -568,17 +532,11 @@
   "src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 14
-    },
-    "react-hooks/immutability": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/page-modules/InboxPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 29
-    },
-    "react-hooks/refs": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx": {
@@ -594,9 +552,6 @@
   "src/components/admin/shell/internal/page-modules/OverviewPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 33
-    },
-    "react-hooks/purity": {
-      "count": 4
     }
   },
   "src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx": {
@@ -691,9 +646,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 67
-    },
-    "react-hooks/purity": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/platform.tsx": {
@@ -713,9 +665,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 360
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/skill-add-search.tsx": {

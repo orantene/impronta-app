@@ -73,7 +73,7 @@ jobs:
       # the array element shapes to AdminShellIconName / DrawerId | null. Count
       # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
       TSC_BASE: 4              # restored from 6 after fixing light-01 + WorkspaceTopbar Q1-narrowing collateral.
-      SUPPRESSIONS_BASE: 7892  # was 8509 post-Plugin-bump; LOWERED after Y3 dynamic-styles lane (4 commits + integrator regen) — 534 fontSize codemod conversions + ~20 progress-bar CSS-var-channel conversions + 4 chevron-rotation eliminations + keyframe re-injection fix. Net -617 across mainly ratchet/no-new-inline-style (7750 → 7189) + per-rule cleanup.
+      SUPPRESSIONS_BASE: 7867  # was 7892 post-Y3; LOWERED after Q5 react-hooks per-rule surgery (14 surgical commits) — ALL react-hooks/* suppressions cleared to 0 (purity 14→0, refs 7→0, rules-of-hooks 3→0, preserve-manual-memoization 2→0, immutability 1→0; plus Plugin-bump's exposed 51 cleaned via prune since they were stale phantoms not real source). Two cherry-pick conflicts resolved manually (light-22 Y3↔Q5 reference, BillingPage Y3↔Q5 BillingActivityRow extraction).
     steps:
       - name: Checkout
         uses: actions/checkout@v4
