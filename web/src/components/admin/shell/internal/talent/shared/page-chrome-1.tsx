@@ -1,5 +1,3 @@
-"use client";
-
 import { type ReactNode } from "react";
 import { CapsLabel } from "../../primitives";
 import { COLORS, FONTS } from "../../state";
