@@ -724,7 +724,6 @@ export function InquiryCartForm(props: InquiryCartFormProps) {
       source_page: sourcePage,
     });
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (!submittedRef.current) {
         trackProductEvent(PRODUCT_ANALYTICS_EVENTS.inquiry_abandoned, {
           surface,
@@ -733,8 +732,7 @@ export function InquiryCartForm(props: InquiryCartFormProps) {
         });
       }
     };
-    // Mount-only — surface/sourcePage are stable for the lifetime of this render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: surface/sourcePage/tenantId are stable for the lifetime of this form instance; trackProductEvent is a stable module fn
   }, []);
 
   const sharedProps = {
