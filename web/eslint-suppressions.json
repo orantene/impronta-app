@@ -1001,7 +1001,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 372
+      "count": 306
     }
   },
   "src/components/admin/shell/internal/workspace.tsx": {

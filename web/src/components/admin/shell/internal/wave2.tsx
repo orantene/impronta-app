@@ -148,12 +148,12 @@ export function InboxSnippetsDrawer() {
               onChange={(e) => setDraftBody(e.target.value)}
             />
           </FieldRow>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div className="flex justify-end">
             <PrimaryButton onClick={addSnippet}>Add preview snippet</PrimaryButton>
           </div>
         </section>
 
-        <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <section className="flex flex-col gap-2">
           <div
             style={{
               fontFamily: FONTS.body,
@@ -191,7 +191,7 @@ export function InboxSnippetsDrawer() {
               >
                 /
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
                   {s.title}
                 </div>
@@ -421,7 +421,7 @@ export function NotificationsPrefsDrawer() {
           }}
         >
           <span style={{ fontSize: 22 }}>🌙</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: dndNow ? "#92400E" : COLORS.ink }}>
               Do not disturb
             </div>
@@ -501,8 +501,8 @@ export function NotificationsPrefsDrawer() {
             gap: 12,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex items-center gap-2.5">
+            <div className="flex-1 min-w-0">
               <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
                 Quiet hours
               </div>
@@ -591,7 +591,7 @@ export function NotificationsPrefsDrawer() {
           <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
             Controls what appears on your phone lock screen for Tulala push notifications.
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {(
               [
                 { key: "full"      as LockScreenPrivacy, label: "Full preview",  hint: "Show sender name + message preview" },
@@ -763,7 +763,7 @@ export function DataExportDrawer() {
                 onChange={() => setInclude((s) => ({ ...s, [key]: !s[key] }))}
                 style={{ marginTop: 3 }}
               />
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
                   {label}
                 </div>
@@ -870,11 +870,11 @@ export function AuditLogDrawer() {
             }}
           >
             <Avatar initials={e.actorInitials} hashSeed={e.actor} size={28} tone="auto" />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.45 }}>
-                <strong style={{ fontWeight: 600 }}>{e.actor}</strong>
+                <strong className="font-semibold">{e.actor}</strong>
                 {" "}
-                <span style={{ color: COLORS.inkMuted }}>{e.action}</span>
+                <span className="text-admin-ink-muted">{e.action}</span>
                 {" — "}
                 <span>{e.subject}</span>
               </div>
@@ -993,7 +993,7 @@ export function TenantSwitcherDrawer() {
         </button>
       )}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         {wsLoading && (
           <div style={{ padding: "20px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
             Loading workspaces…
@@ -1087,7 +1087,7 @@ export function TenantSwitcherDrawer() {
                     }}
                   >
                     <Avatar initials={t.initials} size={36} tone="ink" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="flex-1 min-w-0">
                       <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                         <span style={{
                           fontSize: 14, fontWeight: 600,
@@ -1245,7 +1245,7 @@ export function TenantSwitcherDrawer() {
               borderRadius: 10,
               display: "flex", flexDirection: "column", gap: 8,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex items-center gap-2">
                 <Icon name="plus" size={14} stroke={1.7} color={COLORS.inkMuted} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
                   Create a new workspace
@@ -1254,7 +1254,7 @@ export function TenantSwitcherDrawer() {
               <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45, fontFamily: FONTS.body }}>
                 You&apos;ll be its Owner. Pick the tier that fits — you can upgrade later.
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className="flex flex-wrap gap-1.5">
                 {(["free", "studio", "agency", "network"] as const).map(tier => {
                   const p = TENANT_TIER_PALETTE[tier];
                   const disabled = tier === "free" && freeBlocked;
@@ -1302,7 +1302,7 @@ export function TenantSwitcherDrawer() {
                   fontSize: 10.5, color: "#7C5A14", lineHeight: 1.5,
                   fontFamily: FONTS.body,
                 }}>
-                  <strong style={{ fontWeight: 700 }}>One Free workspace per owner.</strong>{" "}
+                  <strong className="font-bold">One Free workspace per owner.</strong>{" "}
                   You already own <em>{ownedFree[0]!.name}</em>. Upgrade it to a paid tier to unlock another Free slot, or open a paid workspace right away.
                 </div>
               )}
@@ -1369,7 +1369,7 @@ export function TalentAgencySwitcherDrawer() {
         </button>
       )}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         {agencies.length === 0 && (
           <div style={{ padding: "24px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
             You&apos;re not affiliated with any agency yet.
@@ -1413,7 +1413,7 @@ export function TalentAgencySwitcherDrawer() {
                   }}
                 >
                   <Avatar initials={initials} size={36} tone="ink" />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     {/* Name + tier badge */}
                     <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                       <span style={{
@@ -1584,7 +1584,7 @@ export function WorkspaceProfileDrawer() {
       title="Workspace profile"
       description="How your workspace shows up across chats, emails, and the public roster."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex flex-col gap-3">
         {/* Identity hero — avatar + name + tier + role indicator. Mirrors
             the topbar workspace identity so users see the same atom in
             both places. */}
@@ -1593,9 +1593,9 @@ export function WorkspaceProfileDrawer() {
           background: `linear-gradient(135deg, ${tierPalette.bg} 0%, ${COLORS.surfaceAlt} 100%)`,
           border: `1px solid ${tierPalette.bg}`,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="flex items-center gap-3">
             <Avatar initials={effectiveTenant.initials} size={44} tone="ink" />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
                   {name}
@@ -1628,7 +1628,7 @@ export function WorkspaceProfileDrawer() {
         {/* Identity */}
         <section style={sectionStyle}>
           <div style={labelStyle}>Identity</div>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label className="flex flex-col gap-1">
             <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Display name</span>
             <input
               type="text"
@@ -1638,9 +1638,9 @@ export function WorkspaceProfileDrawer() {
               style={canEditIdentity ? inputStyle : inputDisabledStyle}
             />
           </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label className="flex flex-col gap-1">
             <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Slug · drives team URL</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div className="flex items-center gap-1.5">
               <input
                 type="text"
                 value={slug}
@@ -1654,7 +1654,7 @@ export function WorkspaceProfileDrawer() {
               → {previewUrl}
             </div>
           </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex flex-col gap-1">
             <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Logo</span>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
@@ -1691,7 +1691,7 @@ export function WorkspaceProfileDrawer() {
             padding: "10px 12px", borderRadius: 8,
             background: tierPalette.bg,
           }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 13, fontWeight: 700, color: tierPalette.fg, fontFamily: FONTS.body }}>
                 {tierPalette.label} plan
               </div>
@@ -1750,7 +1750,7 @@ export function WorkspaceProfileDrawer() {
               </span>
             )}
           </div>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label className="flex flex-col gap-1">
             <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Outbound signature</span>
             <input
               type="text"
@@ -2046,8 +2046,8 @@ function NotifRow({
         >
           <Icon name={notif.icon} size={11} stroke={1.8} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
             <span
               style={{
                 fontSize: 12.5,
@@ -2313,7 +2313,7 @@ export function TalentNotificationsDrawer() {
           borderBottom: `1px solid ${COLORS.borderSoft}`,
         }}
       >
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="flex gap-1">
           {(["recent", "archive"] as const).map((v) => {
             const active = view === v;
             const archiveCount = dismissed.size;
@@ -2424,7 +2424,7 @@ export function TalentNotificationsDrawer() {
                   {meta.hint}
                 </span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div className="flex flex-col gap-1">
                 {items.map((n) => (
                   <NotifRow
                     key={n.id}
@@ -2494,7 +2494,7 @@ export function TalentNotificationsDrawer() {
           textAlign: "left",
         }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <span className="inline-flex items-center gap-2">
           <Icon name="settings" size={13} stroke={1.7} color={COLORS.inkMuted} />
           <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
             Notification settings
@@ -2539,8 +2539,8 @@ export function TalentNotificationsDrawer() {
             }}
           >
             <span>Event</span>
-            <span style={{ textAlign: "center" }}>Email</span>
-            <span style={{ textAlign: "center" }}>Push</span>
+            <span className="text-center">Email</span>
+            <span className="text-center">Push</span>
           </div>
           {NOTIF_ROWS.map((row) => (
             <div
@@ -2562,10 +2562,10 @@ export function TalentNotificationsDrawer() {
                   {row.description}
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "center" }}>
+              <div className="flex justify-center">
                 <Toggle on={prefs[row.id]!.email} onChange={() => togglePref(row.id, "email")} />
               </div>
-              <div style={{ display: "flex", justifyContent: "center" }}>
+              <div className="flex justify-center">
                 <Toggle on={prefs[row.id]!.push} onChange={() => togglePref(row.id, "push")} />
               </div>
             </div>
@@ -2594,7 +2594,7 @@ export function TalentShareCardDrawer() {
       title={`Share ${talentName}`}
       description="Copy a standalone client-friendly link with photos, rate hint, and a tracked-link inquiry CTA."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         {/* Card preview */}
         <div
           style={{
@@ -2660,7 +2660,7 @@ export function TalentShareCardDrawer() {
 
         {/* URL + send */}
         <FieldRow label="Share link">
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <TextInput value={url} readOnly />
             <SecondaryButton
               onClick={() => {
@@ -2805,7 +2805,7 @@ export function TalentFunnelCard({
         marginBottom: 12,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
           Inquiries you&apos;re in
         </div>
@@ -2910,7 +2910,7 @@ function ConversationFunnelRow({
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <div style={{ position: "relative", flexShrink: 0 }}>
+      <div className="relative shrink-0">
         <Avatar
           size={36}
           tone="auto"
@@ -2919,7 +2919,7 @@ function ConversationFunnelRow({
         />
         <ClientTrustBadge level={conv.clientTrust} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -2975,8 +2975,8 @@ function ConversationFunnelRow({
           </span>
           {peers > 0 && (
             <>
-              <span style={{ color: COLORS.inkDim }}>·</span>
-              <span style={{ color: COLORS.inkMuted }}>
+              <span className="text-admin-ink-dim">·</span>
+              <span className="text-admin-ink-muted">
                 You + {peers} {peers === 1 ? "other" : "others"}
               </span>
             </>
@@ -3105,7 +3105,7 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
           without consuming row height. Hover/click reveals tooltip
           ("Silver client — Funded account above the standard threshold...").
           Hidden entirely for `basic` tier (default = no badge). */}
-      <div style={{ position: "relative", flexShrink: 0 }}>
+      <div className="relative shrink-0">
         <Avatar
           size={36}
           tone="auto"
@@ -3114,7 +3114,7 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
         />
         <ClientTrustBadge level={inquiry.clientTrust} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -3171,8 +3171,8 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
             />
             {status.copy}
           </span>
-          <span style={{ color: COLORS.inkDim }}>·</span>
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-dim">·</span>
+          <span className="text-admin-ink-muted">
             You + {peers} invited · {acceptedPeers} accepted
           </span>
         </div>
@@ -3239,7 +3239,7 @@ export function InquiryTemplatesPicker({
               textAlign: "left",
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div
                 style={{
                   fontSize: 13,
@@ -3308,7 +3308,7 @@ export function DoubleBookingWarning({
       >
         !
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.red }}>
           {talentName} is already booked
         </div>
@@ -3428,7 +3428,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
         fontFamily: FONTS.body,
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <div className="flex items-start gap-3">
         <span
           style={{
             width: 36,
@@ -3444,7 +3444,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
         >
           <Icon name="calendar" size={16} stroke={1.7} color={COLORS.accent} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
             Sync to your calendar
           </div>
@@ -3597,7 +3597,7 @@ export function OnboardingArc({
         >
           <Icon name="sparkle" size={16} stroke={1.7} color={COLORS.accent} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div
             style={{
               fontFamily: FONTS.display,
@@ -3671,7 +3671,7 @@ export function OnboardingArc({
               >
                 {done ? "✓" : idx + 1}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div
                   style={{
                     fontSize: 13,
@@ -3692,7 +3692,7 @@ export function OnboardingArc({
                   etc.). A separate "Mark done" button lets the user
                   explicitly check off a step that's done elsewhere. */}
               {!done && step.onOpen && (
-                <div style={{ display: "inline-flex", gap: 6 }}>
+                <div className="inline-flex gap-1.5">
                   <GhostButton
                     size="sm"
                     onClick={() => {
@@ -4025,7 +4025,7 @@ export function DraggableList<T extends { id: string }>({
     onReorder(next);
   };
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="flex flex-col gap-1.5">
       {items.map((item, idx) => (
         <div
           key={item.id}
@@ -4062,7 +4062,7 @@ export function DraggableList<T extends { id: string }>({
           >
             ⋮⋮
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>{renderItem(item, idx)}</div>
+          <div className="flex-1 min-w-0">{renderItem(item, idx)}</div>
           {/* Mobile/keyboard fallback — up/down arrows */}
           <button
             type="button"
@@ -4234,7 +4234,7 @@ export function MentionTypeahead({
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
           <Avatar initials={u.name.split(" ").map((p) => p[0]).join("").slice(0, 2)} hashSeed={u.name} size={22} tone="auto" />
-          <span style={{ flex: 1 }}>{u.name}</span>
+          <span className="flex-1">{u.name}</span>
           <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{u.role}</span>
         </button>
       ))}
@@ -4255,7 +4255,7 @@ export function QuickReplyButtons({
   onDecline: () => void;
 }) {
   return (
-    <div style={{ display: "inline-flex", gap: 6 }}>
+    <div className="inline-flex gap-1.5">
       <button
         type="button"
         onClick={onAccept}
@@ -4374,7 +4374,7 @@ export function WhatsNewDrawer() {
       title="What's new"
       description="Recent product updates, newest first."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         {CHANGELOG.map((item, idx) => (
           <div
             key={idx}
@@ -4401,7 +4401,7 @@ export function WhatsNewDrawer() {
             >
               {item.date}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
                 {item.title}
               </div>
@@ -4436,7 +4436,7 @@ export function HelpDrawer() {
       title="Help"
       description="Keyboard shortcuts, getting-started videos, and how to reach support."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         <section
           style={{
             background: "#fff",
@@ -4489,7 +4489,7 @@ export function HelpDrawer() {
           <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>
             Get help
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             <button
               type="button"
               disabled
@@ -4610,7 +4610,7 @@ export function WorkspaceActivationBanner() {
       </div>
 
       {/* Step list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {steps.map((step) => (
           <div
             key={step.id}
@@ -4631,7 +4631,7 @@ export function WorkspaceActivationBanner() {
             }}>
               {step.done && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 12.5, fontWeight: step.done ? 400 : 600, color: COLORS.ink, textDecoration: step.done ? "line-through" : "none" }}>
                 {step.label}
               </div>
@@ -4856,7 +4856,7 @@ export function ClientFirstRunBanner() {
         {step.body}
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={handleCta}
@@ -4942,7 +4942,7 @@ export function DemoDataBanner() {
       }}
     >
       <span style={{ fontSize: 18 }}>🧪</span>
-      <div style={{ flex: 1 }}>
+      <div className="flex-1">
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
           {enabled ? "Demo data is active" : "Evaluating Tulala?"}
         </div>
