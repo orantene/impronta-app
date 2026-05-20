@@ -136,7 +136,7 @@ export function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { ms
         }}
       >
         <span style={{ fontSize: 22 }}>📄</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 12.5, fontWeight: 500 }}>{msg.filename}</div>
           <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 1 }}>
             {msg.sizeKB} KB · PDF
@@ -204,7 +204,7 @@ export function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean })
     ? `Read by ${readBy?.[0] ?? "client"}${readBy && readBy.length > 1 ? ` +${readBy.length - 1}` : ""} · ${msg.ts}`
     : `Sent · ${msg.ts}`;
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 3, fontSize: 10.5, color: COLORS.inkMuted }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 3, fontSize: 10.5 }} className="text-admin-ink-muted">
       <span>{msg.ts}</span>
       <span
         title={readAtLabel}
@@ -250,29 +250,20 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
             {submitted ? "Rate sent to coordinator" : "What's your rate for this?"}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
           1 day, full usage (web + social, 12 months, EU). Lunch + transport included.
           {!submitted && " Your reply goes private to the coordinator first — they negotiate with the client."}
         </div>
         {submitted ? (
           <>
-            <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.green }}>€{val} / day</div>
-            <div style={{
-              marginTop: 8,
-              paddingTop: 8,
-              borderTop: `1px solid ${COLORS.borderSoft}`,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 10.5,
-              color: COLORS.inkMuted,
-            }}>
-              <span style={{ color: COLORS.green, fontFamily: "monospace" }}>✓✓</span>
+            <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-green">€{val} / day</div>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 6, fontSize: 10.5 }} className="text-admin-ink-muted">
+              <span style={{ fontFamily: "monospace" }} className="text-admin-green">✓✓</span>
               <span>Sent · Viewed by coordinator · Awaiting decision</span>
             </div>
           </>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <div
               style={{
                 display: "inline-flex",
@@ -284,7 +275,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
                 flex: 1,
               }}
             >
-              <span style={{ fontSize: 13, color: COLORS.inkMuted, marginRight: 6 }}>€</span>
+              <span style={{ fontSize: 13, marginRight: 6 }} className="text-admin-ink-muted">€</span>
               <input
                 type="text"
                 placeholder="1,800"
@@ -301,7 +292,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
                   color: COLORS.ink,
                 }}
               />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>/day</span>
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">/day</span>
             </div>
             <PrimaryButton size="sm" onClick={() => { setRateSubmitted(true); }}>
               Send
@@ -314,7 +305,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
   if (msg.kind === "action-transport") {
     return (
       <div style={{ background: "#fff", border: `1px solid ${transportChosen ? "rgba(46,125,91,0.30)" : "rgba(194,106,69,0.30)"}`, borderLeft: `3px solid ${transportChosen ? COLORS.green : COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div className="flex items-center gap-2 mb-2">
           <span style={{ fontSize: 16 }}>🚖</span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: transportChosen ? COLORS.green : COLORS.ink }}>
             {transportChosen ? `Transport confirmed · ${transportChosen}` : "Confirm your transport"}
@@ -353,7 +344,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
           {confirmState === "confirmed" ? `✓ ${msg.label} — confirmed` : confirmState === "issues" ? `⚠ ${msg.label} — issues flagged` : msg.label}
         </div>
         {confirmState === "pending" && (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <PrimaryButton size="sm" onClick={() => setConfirmState("confirmed")}>Confirm</PrimaryButton>
             <SecondaryButton size="sm" onClick={() => setConfirmState("issues")}>Has issues</SecondaryButton>
           </div>
@@ -369,11 +360,11 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     const hasConflict = msg.date.includes("18") && msg.title.toLowerCase().includes("bvlgari");
     return (
       <div style={{ background: "#fff", border: `1px solid ${hasConflict ? "rgba(176,52,52,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.indigo, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }} className="text-admin-indigo">
           📅 Calendar invite
         </div>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{msg.title}</div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{msg.date}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{msg.title}</div>
+        <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{msg.date}</div>
         {hasConflict && (
           <div style={{
             marginTop: 8,
@@ -399,9 +390,9 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
               <SecondaryButton size="sm" onClick={() => setCalState("declined")}>Decline</SecondaryButton>
             </>
           ) : calState === "added" ? (
-            <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✓ Added to your calendar</div>
+            <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">✓ Added to your calendar</div>
           ) : (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>Declined</div>
+            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">Declined</div>
           )}
         </div>
       </div>
@@ -412,10 +403,10 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
       <div style={{ background: "#fff", border: `1px solid ${msg.resolved ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 16 }}>📑</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{msg.resolved ? "Contract signed" : "Sign contract"}</span>
-          {msg.resolved && <span style={{ color: COLORS.green, fontSize: 11, fontWeight: 600 }}>✓</span>}
+          <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{msg.resolved ? "Contract signed" : "Sign contract"}</span>
+          {msg.resolved && <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-green">✓</span>}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>{msg.filename}</div>
+        <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">{msg.filename}</div>
         {!msg.resolved && (
           <div>
             <PrimaryButton
@@ -424,7 +415,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
             >
               Review & sign
             </PrimaryButton>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 5 }}>e-Signature coming soon</div>
+            <div style={{ fontSize: 11, marginTop: 5 }} className="text-admin-ink-muted">e-Signature coming soon</div>
           </div>
         )}
       </div>
@@ -435,15 +426,15 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
       <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 16 }}>📸</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
             Polaroids requested {msg.resolved ? `· ${msg.resolved} sent` : ""}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>
+        <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">
           Recent, unretouched, full-body + face. 5 minimum.
         </div>
         {msg.resolved ? (
-          <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✓ {msg.resolved} polaroids delivered</div>
+          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">✓ {msg.resolved} polaroids delivered</div>
         ) : (
           <PrimaryButton size="sm" onClick={() => openDrawer("talent-photo-edit", { focusSlot: "gallery" })}>Upload polaroids</PrimaryButton>
         )}
@@ -453,13 +444,13 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
   if (msg.kind === "payment-receipt") {
     return (
       <div style={{ background: "rgba(46,125,91,0.06)", border: `1px solid rgba(46,125,91,0.25)`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.green, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }} className="text-admin-green">
           ✓ Paid
         </div>
-        <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.display, letterSpacing: -0.2 }}>
+        <div style={{ fontSize: 18, fontWeight: 600, fontFamily: FONTS.display, letterSpacing: -0.2 }} className="text-admin-ink">
           {msg.amount}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>via {msg.method} · {msg.ts}</div>
+        <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">via {msg.method} · {msg.ts}</div>
       </div>
     );
   }
@@ -469,7 +460,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
 
 export function TypingIndicator({ name }: { name: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0 0 6px", fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0 0 6px", fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
       <span style={{ display: "inline-flex", gap: 3 }}>
         {[0, 1, 2].map((i) => (
           <span

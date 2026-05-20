@@ -42,28 +42,22 @@ export function AgenciesPage() {
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 0" }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, margin: 0 }}>
+      <div className="mb-6">
+        <h2 style={{ fontSize: 20, fontWeight: 700, fontFamily: FONTS.body, margin: 0 }} className="text-admin-ink">
           Agencies
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "4px 0 0" }}>
+        <p style={{ fontSize: 13, fontFamily: FONTS.body, margin: "4px 0 0" }} className="text-admin-ink-muted">
           Your agency relationships and representation settings.
         </p>
       </div>
 
       {/* Active agencies */}
-      <section style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 12 }}>
+      <section className="mb-6">
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 12 }} className="text-admin-ink-dim">
           Your agencies ({agencies.length})
         </div>
         {agencies.length === 0 ? (
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: RADIUS.lg,
-            }}
-          >
+          <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}` }} className="rounded-admin-lg">
             <EmptyState
               icon="team"
               title="No agencies yet"
@@ -87,30 +81,20 @@ export function AgenciesPage() {
               }}
             >
               {/* Agency avatar */}
-              <div style={{
-                width: 36, height: 36, borderRadius: RADIUS.md,
-                background: COLORS.accentSoft,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, flexShrink: 0,
-              }}>
+              <div style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }} className="rounded-admin-md bg-admin-accent-soft">
                 🏢
               </div>
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
+                <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
                   {ag.name}
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body, marginTop: 1 }}>
+                <div style={{ fontSize: 11, fontFamily: FONTS.body, marginTop: 1 }} className="text-admin-ink-muted">
                   {ag.status === "exclusive" ? "Exclusive · " : "Non-exclusive · "}
                   {ag.commissionRate * 100}% commission
                 </div>
               </div>
               {/* Status chip */}
-              <div style={{
-                fontSize:     10, fontWeight: 700,                 padding:      "2px 8px", borderRadius: RADIUS.sm,
-                background:   ag.status === "active" ? COLORS.accentSoft : COLORS.card,
-                color:        ag.status === "active" ? COLORS.accent : COLORS.inkMuted,
-                fontFamily:   FONTS.body,
-              }}>
+              <div style={{ fontSize:     10, fontWeight: 700, padding:      "2px 8px", background:   ag.status === "active" ? COLORS.accentSoft : COLORS.card, color:        ag.status === "active" ? COLORS.accent : COLORS.inkMuted, fontFamily:   FONTS.body }} className="rounded-admin-sm">
                 {ag.status}
               </div>
               <button
@@ -131,17 +115,11 @@ export function AgenciesPage() {
       </section>
 
       {/* Leave agency CTA */}
-      <section style={{
-        background: "rgba(220,38,38,0.04)",
-        border:     "1px solid rgba(220,38,38,0.12)",
-        borderRadius: RADIUS.lg,
-        padding:    "14px 16px",
-        marginBottom: 24,
-      }}>
+      <section style={{ background: "rgba(220,38,38,0.04)", border:     "1px solid rgba(220,38,38,0.12)", padding:    "14px 16px", marginBottom: 24 }} className="rounded-admin-lg">
         <div style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", fontFamily: FONTS.body, marginBottom: 4 }}>
           Leave an agency
         </div>
-        <p style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "0 0 10px" }}>
+        <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: "0 0 10px" }} className="text-admin-ink-muted">
           Ending representation is permanent and will cancel any active holds or bookings
           assigned through that agency.
         </p>
@@ -160,10 +138,10 @@ export function AgenciesPage() {
 
       {/* Share profile with agencies */}
       <section>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 12 }} className="text-admin-ink-dim">
           Work with more agencies
         </div>
-        <p style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "0 0 12px" }}>
+        <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: "0 0 12px" }} className="text-admin-ink-muted">
           On Tulala, agencies invite talent — not the other way around. Share your public profile with an agency and they can request you onto their roster.
         </p>
         <button

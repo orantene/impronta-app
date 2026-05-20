@@ -169,19 +169,9 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
         {/* Line 1 — identity. Client name (bold) · brief (muted continuation),
             with the trust chip pinned to the right. */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-              fontSize: 14,
-              color: COLORS.ink,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span style={{ fontWeight: 600 }}>{inquiry.clientName}</span>
-            <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}> · {inquiry.brief}</span>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">
+            <span className="font-semibold">{inquiry.clientName}</span>
+            <span style={{ fontWeight: 400 }} className="text-admin-ink-muted"> · {inquiry.brief}</span>
           </div>
           <ClientTrustChip level={inquiry.clientTrust} compact />
         </div>
@@ -205,58 +195,25 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
             {stage.label}
           </span>
           {inquiry.repeatBookings > 0 && (
-            <span
-              style={{
-                fontSize: 10.5,
-                color: COLORS.inkMuted,
-                background: "rgba(11,11,13,0.06)",
-                padding: "2px 8px",
-                borderRadius: 999,
-                fontWeight: 500,
-                flexShrink: 0,
-              }}
-            >
+            <span style={{ fontSize: 10.5, background: "rgba(11,11,13,0.06)", padding: "2px 8px", borderRadius: 999, fontWeight: 500, flexShrink: 0 }} className="text-admin-ink-muted">
               Repeat · {inquiry.repeatBookings}×
             </span>
           )}
           {unread > 0 && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: COLORS.amberDeep,
-                background: "rgba(82,96,109,0.12)",
-                padding: "2px 8px",
-                borderRadius: 999,
-                letterSpacing: 0.3,
-                flexShrink: 0,
-              }}
-            >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 600, background: "rgba(82,96,109,0.12)", padding: "2px 8px", borderRadius: 999, letterSpacing: 0.3, flexShrink: 0 }} className="text-admin-amber-deep">
               {unread} new
             </span>
           )}
         </div>
 
         {/* Line 3 — meta. Agency, date, fee, last activity. */}
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ fontSize: 11.5, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }} className="text-admin-ink-muted">
           <span>via {inquiry.agencyName}</span>
-          {inquiry.date && <><span style={{ color: COLORS.inkDim }}>·</span><span>{inquiry.date}</span></>}
-          {inquiry.location && <><span style={{ color: COLORS.inkDim }}>·</span><span>{inquiry.location}</span></>}
-          {myLine && <><span style={{ color: COLORS.inkDim }}>·</span><span>{myLine.fee}</span></>}
-          <span style={{ color: COLORS.inkDim }}>·</span>
-          <span style={{ color: COLORS.inkDim }}>Updated {activityLabel}</span>
+          {inquiry.date && <><span className="text-admin-ink-dim">·</span><span>{inquiry.date}</span></>}
+          {inquiry.location && <><span className="text-admin-ink-dim">·</span><span>{inquiry.location}</span></>}
+          {myLine && <><span className="text-admin-ink-dim">·</span><span>{myLine.fee}</span></>}
+          <span className="text-admin-ink-dim">·</span>
+          <span className="text-admin-ink-dim">Updated {activityLabel}</span>
         </div>
 
         {myStatusLabel && (

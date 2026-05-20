@@ -34,10 +34,10 @@ export function PublicPageEditor() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
         <div className="flex-1">
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, margin: 0 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, fontFamily: FONTS.body, margin: 0 }} className="text-admin-ink">
             Public page
           </h2>
-          <p style={{ fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "4px 0 0" }}>
+          <p style={{ fontSize: 13, fontFamily: FONTS.body, margin: "4px 0 0" }} className="text-admin-ink-muted">
             tulala.digital/t/{publicSlug}
           </p>
         </div>
@@ -74,17 +74,13 @@ export function PublicPageEditor() {
 
       {/* Tier gate banner */}
       {!isPro && (
-        <div style={{
-          background: "rgba(79,70,229,0.06)", border: "1px solid rgba(79,70,229,0.18)",
-          borderRadius: RADIUS.lg, padding: "12px 16px", marginBottom: 20,
-          display: "flex", alignItems: "center", gap: 12,
-        }}>
+        <div style={{ background: "rgba(79,70,229,0.06)", border: "1px solid rgba(79,70,229,0.18)", padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }} className="rounded-admin-lg">
           <span style={{ fontSize: 20 }}>✨</span>
           <div className="flex-1">
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
               Unlock Pro to customise your page
             </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Change layout, add a bio video, hide agency branding, and set contact controls.
             </div>
           </div>
@@ -108,8 +104,8 @@ export function PublicPageEditor() {
       {isPro && <GalleryFxCard />}
 
       {/* Layout selector */}
-      <section style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 10 }}>
+      <section className="mb-5">
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 10 }} className="text-admin-ink-dim">
           Page template
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -137,15 +133,10 @@ export function PublicPageEditor() {
                 }}
               >
                 <div style={{ fontSize: 22, marginBottom: 6 }}>{tpl.thumb}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{tpl.label}</div>
-                <div style={{ fontSize: 10, color: COLORS.inkMuted, marginTop: 2 }}>{tpl.blurb}</div>
+                <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{tpl.label}</div>
+                <div style={{ fontSize: 10, marginTop: 2 }} className="text-admin-ink-muted">{tpl.blurb}</div>
                 {locked && (
-                  <div style={{
-                    position: "absolute", top: 6, right: 6,
-                    fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
-                    padding: "2px 5px", borderRadius: 4,
-                    background: COLORS.accentSoft, color: COLORS.accent,
-                  }}>
+                  <div style={{ position: "absolute", top: 6, right: 6, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "2px 5px", borderRadius: 4 }} className="bg-admin-accent-soft text-admin-accent">
                     PRO
                   </div>
                 )}
@@ -156,40 +147,28 @@ export function PublicPageEditor() {
       </section>
 
       {/* Visibility + contact settings — coming in Phase 2 */}
-      <section style={{
-        background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.lg, padding: "14px 18px", marginBottom: 20,
-      }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.inkMuted, fontFamily: FONTS.body, marginBottom: 4 }}>
+      <section style={{ border: `1px solid ${COLORS.borderSoft}`, padding: "14px 18px", marginBottom: 20 }} className="bg-admin-surface-alt rounded-admin-lg">
+        <div style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body, marginBottom: 4 }} className="text-admin-ink-muted">
           Visibility &amp; privacy settings
         </div>
-        <p style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: 0, lineHeight: 1.5 }} className="text-admin-ink-muted">
           Roster visibility, direct contact, and earnings privacy controls are coming soon.
         </p>
       </section>
 
       {/* Custom domain — Portfolio only */}
-      <section style={{
-        background: isPort ? "#fff" : COLORS.surfaceAlt,
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.lg, padding: "16px 18px",
-        opacity: isPort ? 1 : 0.7,
-      }}>
+      <section style={{ background: isPort ? "#fff" : COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, padding: "16px 18px", opacity: isPort ? 1 : 0.7 }} className="rounded-admin-lg">
         <div className="flex items-center gap-2 mb-2">
-          <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
             Custom domain
           </span>
           {!isPort && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
-              padding: "2px 6px", borderRadius: 4,
-              background: COLORS.accentSoft, color: COLORS.accent, fontFamily: FONTS.body,
-            }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "2px 6px", borderRadius: 4, fontFamily: FONTS.body }} className="bg-admin-accent-soft text-admin-accent">
               PORTFOLIO
             </span>
           )}
         </div>
-        <p style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "0 0 10px" }}>
+        <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: "0 0 10px" }} className="text-admin-ink-muted">
           Point your own domain (e.g. yourname.com) to your Tulala public page.
         </p>
         {isPort ? (
@@ -239,7 +218,7 @@ export function PublicPageEditor() {
             gap: 12,
           }}
         >
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-ink-dim">
             Mobile preview · 390 × 844
           </div>
           <div
@@ -291,7 +270,7 @@ export function PublicPageEditor() {
               </div>
               {/* Stats / measurements */}
               <div style={{ padding: "16px 16px 8px" }}>
-                <p style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, margin: 0 }}>
+                <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: 0 }} className="text-admin-ink">
                   {profile.measurementsSummary} · {profile.bookingStats.completedBookings} bookings · {profile.bookingStats.yearsActive}y experience
                 </p>
               </div>
@@ -314,13 +293,13 @@ export function PublicPageEditor() {
                 }}>
                   Send an inquiry
                 </button>
-                <div style={{ fontSize: 10.5, color: COLORS.inkDim, textAlign: "center", marginTop: 8 }}>
+                <div style={{ fontSize: 10.5, textAlign: "center", marginTop: 8 }} className="text-admin-ink-dim">
                   Powered by Tulala
                 </div>
               </div>
             </div>
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             This is what visitors see at <strong>tulala.digital/t/{profile.name.toLowerCase().replace(/\s+/g, "-")}</strong>
           </div>
         </section>

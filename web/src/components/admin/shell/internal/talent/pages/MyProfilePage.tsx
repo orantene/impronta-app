@@ -138,7 +138,7 @@ export function MyProfilePage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1f4d8a" }}>
               Submitted to your agency · waiting for review
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
               {pendingMine.note} · usually reviewed within 1 business day.
             </div>
           </div>
@@ -219,24 +219,15 @@ export function MyProfilePage() {
             </svg>
 
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
                 Profile {p.completeness}% complete
               </div>
-              <div style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
+              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">
                 {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left · tap to see what&apos;s missing
               </div>
             </div>
 
-            <span style={{
-              flexShrink: 0,
-              width: 28, height: 28,
-              borderRadius: "50%",
-              background: COLORS.surfaceAlt,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, color: COLORS.inkMuted,
-              transform: completenessOpen ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s ease",
-            }}>
+            <span style={{ flexShrink: 0, width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 14, transform: completenessOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} className="bg-admin-surface-alt text-admin-ink-muted">
               ›
             </span>
           </button>
@@ -299,12 +290,12 @@ export function MyProfilePage() {
       <AllSectionsGrid openSection={openSection} />
 
       {/* ── Engagement strip ──────────────────────────────────────── */}
-      <div style={{ marginTop: 16 }}>
+      <div className="mt-4">
         <EngagementStrip profile={p} />
       </div>
 
       {/* ── Public profile URL ────────────────────────────────────── */}
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <SecondaryCard
           title="Public profile"
           description={p.publicUrl
@@ -314,20 +305,9 @@ export function MyProfilePage() {
           onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
         >
           {p.publicUrl && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: "10px 14px",
-                background: COLORS.surfaceAlt,
-                borderRadius: 10,
-                border: `1px solid rgba(15,79,62,0.18)`,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
+            <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 10, border: `1px solid rgba(15,79,62,0.18)`, display: "flex", alignItems: "center", gap: 10 }} className="bg-admin-surface-alt">
               <Icon name="external" size={12} color={COLORS.accentDeep} />
-              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5, color: COLORS.ink }}>{p.publicUrl}</span>
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5 }} className="text-admin-ink">{p.publicUrl}</span>
             </div>
           )}
         </SecondaryCard>

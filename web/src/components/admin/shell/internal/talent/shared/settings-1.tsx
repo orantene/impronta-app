@@ -95,14 +95,8 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
     >
       <div className="flex items-center justify-between">
         <div>
-          <div style={{
-            fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5,
-            color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 4,
-          }}>Trust & Verification</div>
-          <div style={{
-            fontFamily: FONTS.display, fontSize: 16, fontWeight: 600,
-            color: COLORS.ink, letterSpacing: -0.2,
-          }}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">Trust & Verification</div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">
             {igActive && tulalaActive ? "You're fully verified."
               : igActive || tulalaActive ? "Almost there."
               : "Get verified."}
@@ -120,7 +114,7 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
               : "rgba(11,11,13,0.03)",
           }}>
             <span style={{ fontSize: 13 }}>{r.emoji}</span>
-            <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>{r.label}</span>
+            <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{r.label}</span>
             <span style={{
               fontSize: 11, fontWeight: 600,
               color: r.tone === "good" ? COLORS.successDeep

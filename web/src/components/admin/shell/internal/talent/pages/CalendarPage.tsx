@@ -413,7 +413,7 @@ export function CalendarPage() {
               aria-label="Previous month"
               style={{ background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontFamily: FONTS.body, color: COLORS.ink }}
             >‹</button>
-            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body, minWidth: 120, textAlign: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body, minWidth: 120, textAlign: "center" }} className="text-admin-ink">
               {monthLabel}
             </span>
             <button
@@ -500,17 +500,14 @@ export function CalendarPage() {
             </button>
           ) : (
             <div>
-              <div style={{
-                fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
-                textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 10,
-              }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10 }} className="text-admin-ink-muted">
                 Mark yourself unavailable
               </div>
               <div style={{
                 display: "grid", gap: 10,
                 gridTemplateColumns: "1fr 1fr", marginBottom: 10,
               }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: COLORS.inkMuted }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
                   From
                   <input
                     type="date"
@@ -523,7 +520,7 @@ export function CalendarPage() {
                     }}
                   />
                 </label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: COLORS.inkMuted }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
                   To
                   <input
                     type="date"
@@ -537,7 +534,7 @@ export function CalendarPage() {
                   />
                 </label>
               </div>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, marginBottom: 10 }} className="text-admin-ink-muted">
                 Reason
                 <input
                   type="text"
@@ -592,10 +589,7 @@ export function CalendarPage() {
                   {blockSaving ? "Saving…" : "Save block"}
                 </button>
               </div>
-              <div style={{
-                marginTop: 10, fontSize: 11, color: COLORS.inkDim,
-                fontStyle: "italic", lineHeight: 1.45,
-              }}>
+              <div style={{ marginTop: 10, fontSize: 11, fontStyle: "italic", lineHeight: 1.45 }} className="text-admin-ink-dim">
                 Blocks are visible to your agency but private to clients. They keep your calendar accurate so coordinators don&apos;t pitch you for dates you can&apos;t take.
               </div>
             </div>
@@ -685,7 +679,7 @@ export function CalendarPage() {
       <div style={{ height: 16 }} />
 
       {/* Blocked dates — secondary section, kept compact */}
-      <section style={{ marginBottom: 24 }}>
+      <section className="mb-6">
         <CapsLabel>Blocked dates · {AVAILABILITY_BLOCKS.length}</CapsLabel>
         <div
           style={{
@@ -716,18 +710,12 @@ export function CalendarPage() {
                 fontFamily: FONTS.body,
               }}
             >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted,
-                }}
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted, }}
               />
-              <span style={{ flex: 1, fontSize: 13.5, color: COLORS.ink }}>
+              <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
                 {a.startDate} – {a.endDate}
               </span>
-              <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{a.reason}</span>
+              <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{a.reason}</span>
               <button
                 onClick={() => openDrawer("talent-availability", { id: a.id })}
                 style={{

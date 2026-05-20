@@ -41,24 +41,10 @@ export function ExposurePresetSlider({
         }}
       >
         <div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: COLORS.ink,
-              letterSpacing: -0.05,
-            }}
-          >
+          <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">
             Exposure level
           </div>
-          <div
-            style={{
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              marginTop: 2,
-              lineHeight: 1.5,
-            }}
-          >
+          <div style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
             One control, four levels. Sets sensible defaults across every channel.
             Override individual channels below.
           </div>
@@ -66,16 +52,7 @@ export function ExposurePresetSlider({
       </div>
 
       {/* Segmented control */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 6,
-          padding: 4,
-          background: COLORS.surfaceAlt,
-          borderRadius: 10,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, padding: 4, borderRadius: 10 }} className="bg-admin-surface-alt">
         {presets.map((p) => {
           const meta = EXPOSURE_PRESET_META[p];
           const active = preset === p;
@@ -131,15 +108,8 @@ export function ExposurePresetSlider({
       </div>
 
       {/* Description for current preset */}
-      <div
-        style={{
-          marginTop: 12,
-          fontSize: 12.5,
-          color: COLORS.inkMuted,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ color: COLORS.ink, fontWeight: 600 }}>
+      <div style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
+        <strong style={{ fontWeight: 600 }} className="text-admin-ink">
           {current.label}.
         </strong>{" "}
         {current.description}
@@ -224,34 +194,12 @@ export function ProTierValueCard({
         </button>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.green,
-            background: COLORS.successSoft,
-            padding: "4px 9px",
-            borderRadius: 999,
-          }}
-        >
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", padding: "4px 9px", borderRadius: 999 }} className="text-admin-green bg-admin-success-soft">
           {targetMeta.label} · {targetMeta.monthlyPrice}
         </span>
-        <span style={{ fontSize: 12, color: COLORS.inkMuted }}>vs your current {TALENT_TIER_META[currentTier].label}</span>
+        <span style={{ fontSize: 12 }} className="text-admin-ink-muted">vs your current {TALENT_TIER_META[currentTier].label}</span>
       </div>
-      <h3
-        style={{
-          fontFamily: FONTS.display,
-          fontSize: 20,
-          fontWeight: 500,
-          color: COLORS.ink,
-          margin: 0,
-          letterSpacing: -0.2,
-          lineHeight: 1.2,
-          marginBottom: 12,
-        }}
-      >
+      <h3 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
         {isBasic
           ? "Three things Pro unlocks that move inquiry rate"
           : "What Portfolio adds on top of Pro"}
@@ -265,7 +213,7 @@ export function ProTierValueCard({
 
       <div className="flex items-center gap-2.5">
         <PrimaryButton onClick={onCompare}>See full comparison</PrimaryButton>
-        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
           Cancel anytime. Your URL stays the same.
         </span>
       </div>
@@ -313,34 +261,17 @@ export function ReachHealthScore({
         fontFamily: FONTS.body,
       }}
     >
-      <div
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: "50%",
-          background: "#fff",
-          border: `3px solid ${toneColor}`,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          fontFamily: FONTS.display,
-          fontSize: 18,
-          fontWeight: 600,
-          color: COLORS.ink,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
+      <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#fff", border: `3px solid ${toneColor}`, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
         {score}
       </div>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
           Reach health
         </div>
-        <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginTop: 2 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }} className="text-admin-ink">
           {label}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+        <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
           {liveChannels} of {totalChannels} channels live · {inquiries7d} inquiries in last 7d
         </div>
       </div>
@@ -385,11 +316,11 @@ export function ProTierCompactStrip({
       onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(46,125,91,0.06)")}
     >
       <Icon name="sparkle" size={13} color={COLORS.green} stroke={1.7} />
-      <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>
+      <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
         On {TALENT_TIER_META[currentTier].label}.{" "}
-        <span style={{ color: COLORS.green, fontWeight: 600 }}>{targetMeta.label}</span> unlocks 3 modules · {targetMeta.monthlyPrice}
+        <span style={{ fontWeight: 600 }} className="text-admin-green">{targetMeta.label}</span> unlocks 3 modules · {targetMeta.monthlyPrice}
       </span>
-      <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.green }}>
+      <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-green">
         Compare →
       </span>
     </button>
@@ -479,37 +410,13 @@ export function DistributionCard({
           {lane.icon}
         </span>
         <div className="flex-1 min-w-0">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              color: COLORS.ink,
-              letterSpacing: -0.05,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">
             <span>{title}</span>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: COLORS.inkMuted,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
+            <span style={{ fontSize: 11, fontWeight: 500, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {liveCount}/{totalAvail}
             </span>
           </div>
-          <div
-            style={{
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              marginTop: 2,
-              lineHeight: 1.5,
-            }}
-          >
+          <div style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
             {description}
           </div>
         </div>

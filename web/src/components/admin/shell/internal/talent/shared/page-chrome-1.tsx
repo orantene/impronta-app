@@ -54,16 +54,7 @@ export function PageHeader({
           {title}
         </h1>
         {subtitle && (
-          <p
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              color: COLORS.inkMuted,
-              margin: "4px 0 0",
-              lineHeight: 1.5,
-              maxWidth: 640,
-            }}
-          >
+          <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.5, maxWidth: 640 }} className="text-admin-ink-muted">
             {subtitle}
           </p>
         )}

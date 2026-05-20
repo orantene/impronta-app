@@ -38,40 +38,16 @@ export function ChannelRow({
   const showTrustWarning = on && channel.kind === "external" && channel.verified === false;
   return (
     <div style={{ borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}` }}>
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "12px 14px",
-        opacity: paused ? 0.6 : !on && channel.toggleable ? 0.7 : 1,
-        transition: `opacity ${TRANSITION.micro}`,
-      }}
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", opacity: paused ? 0.6 : !on && channel.toggleable ? 0.7 : 1, transition: `opacity ${TRANSITION.micro}`, }}
       data-channel-row
     >
       <div className="flex-1 min-w-0">
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+            display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
           <span>{channel.name}</span>
           {channel.verified && (
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 700,
-                                padding: "1px 5px",
-                borderRadius: 4,
-                background: COLORS.indigoSoft,
-                color: COLORS.indigoDeep,
-              }}
-            >
+            <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 5px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
               Verified
             </span>
           )}
@@ -98,57 +74,31 @@ export function ChannelRow({
           </span>
         </div>
         {channel.url && (
-          <div
-            style={{
-              fontSize: 11.5,
-              color: COLORS.inkMuted,
-              marginTop: 1,
-              fontFamily: FONTS.body,
-            }}
-          >
+          <div style={{ fontSize: 11.5, marginTop: 1, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             {channel.url}
           </div>
         )}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginTop: 4,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            fontVariantNumeric: "tabular-nums",
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, fontSize: 11.5, fontVariantNumeric: "tabular-nums", flexWrap: "wrap" }} className="text-admin-ink-muted">
           <span>
             {channel.views7d} views · {channel.inquiries7d} inquiries · 7d
           </span>
           {channel.bookings90d > 0 && (
-            <span style={{ color: COLORS.inkDim }}>·</span>
+            <span className="text-admin-ink-dim">·</span>
           )}
           {channel.bookings90d > 0 && (
             <span>{channel.bookings90d} bookings · 90d</span>
           )}
           {channel.earnings90d > 0 && (
             <>
-              <span style={{ color: COLORS.inkDim }}>·</span>
-              <span style={{ color: COLORS.green, fontWeight: 600 }}>
+              <span className="text-admin-ink-dim">·</span>
+              <span style={{ fontWeight: 600 }} className="text-admin-green">
                 {channel.earningsCurrency ?? "€"}
                 {channel.earnings90d.toLocaleString()} · 90d
               </span>
             </>
           )}
           {channel.feeRate !== undefined && channel.feeRate > 0 && (
-            <span
-              style={{
-                fontSize: 10.5,
-                color: COLORS.inkDim,
-                padding: "1px 6px",
-                borderRadius: 4,
-                background: "rgba(11,11,13,0.04)",
-              }}
-            >
+            <span style={{ fontSize: 10.5, padding: "1px 6px", borderRadius: 4, background: "rgba(11,11,13,0.04)" }} className="text-admin-ink-dim">
               {Math.round(channel.feeRate * 100)}% fee
             </span>
           )}
@@ -196,13 +146,7 @@ export function ChannelRow({
           Manage →
         </button>
       ) : (
-        <span
-          style={{
-            fontSize: 11,
-            color: COLORS.inkDim,
-            fontFamily: FONTS.body,
-          }}
-        >
+        <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-dim">
           Contract-managed
         </span>
       )}
@@ -211,33 +155,13 @@ export function ChannelRow({
         AND not Tulala-verified. Sets expectation about lower-quality
         inquiries before they hit the inbox. */}
     {showTrustWarning && !paused && (
-      <div
-        style={{
-          padding: "8px 14px 12px 14px",
-          borderTop: `1px dashed rgba(194,106,69,0.20)`,
-          background: COLORS.coralSoft,
-          fontFamily: FONTS.body,
-          fontSize: 11,
-          color: COLORS.coralDeep,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ fontWeight: 600 }}>Heads up:</strong> {channel.name} isn&apos;t Tulala-verified. Inquiries may include unvetted clients. Adjust your contact policy if needed.
+      <div style={{ padding: "8px 14px 12px 14px", borderTop: `1px dashed rgba(194,106,69,0.20)`, fontFamily: FONTS.body, fontSize: 11, lineHeight: 1.5 }} className="bg-admin-coral-soft text-admin-coral-deep">
+        <strong className="font-semibold">Heads up:</strong> {channel.name} isn&apos;t Tulala-verified. Inquiries may include unvetted clients. Adjust your contact policy if needed.
       </div>
     )}
     {paused && (
-      <div
-        style={{
-          padding: "8px 14px 12px 14px",
-          borderTop: `1px dashed rgba(82,96,109,0.20)`,
-          background: "rgba(82,96,109,0.06)",
-          fontFamily: FONTS.body,
-          fontSize: 11,
-          color: COLORS.amber,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ fontWeight: 600 }}>Paused:</strong> still listed but not accepting new pitches. Click Resume to start accepting again.
+      <div style={{ padding: "8px 14px 12px 14px", borderTop: `1px dashed rgba(82,96,109,0.20)`, background: "rgba(82,96,109,0.06)", fontFamily: FONTS.body, fontSize: 11, lineHeight: 1.5 }} className="text-admin-amber">
+        <strong className="font-semibold">Paused:</strong> still listed but not accepting new pitches. Click Resume to start accepting again.
       </div>
     )}
     </div>
@@ -265,32 +189,14 @@ export function AvailableChannelRow({
       }}
     >
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 12.5,
-            fontWeight: 500,
-            color: COLORS.inkMuted,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink-muted">
           <span>{channel.name}</span>
           {channel.verified && (
-            <span
-              style={{
-                fontSize: 9.5,
-                fontWeight: 700,
-                                padding: "1px 5px",
-                borderRadius: 4,
-                background: COLORS.indigoSoft,
-                color: COLORS.indigoDeep,
-              }}
-            >
+            <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 5px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
               Verified
             </span>
           )}
-          <span style={{ fontSize: 11, color: COLORS.inkDim }}>
+          <span style={{ fontSize: 11 }} className="text-admin-ink-dim">
             Available · not joined
           </span>
         </div>

@@ -76,26 +76,11 @@ export function SectionHeader({
         </span>
       )}
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 14,
-            fontWeight: 600,
-            color: COLORS.ink,
-            letterSpacing: -0.05,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">
           {title}
         </div>
         {subtitle && (
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              marginTop: 2,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 12.5, marginTop: 2 }} className="text-admin-ink-muted">
             {subtitle}
           </div>
         )}
@@ -327,16 +312,7 @@ export function TalentTodayHero({
         }}
       >
         <div className="flex-1 min-w-0">
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 11.5,
-              fontWeight: 600,
-                            color: COLORS.inkMuted,
-              marginBottom: 4,
-              display: "none",
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, marginBottom: 4, display: "none" }} className="text-admin-ink-muted">
             Hi {firstName}
           </div>
           <h1
@@ -353,15 +329,7 @@ export function TalentTodayHero({
           >
             {headlineParts}
           </h1>
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              color: COLORS.inkMuted,
-              marginTop: 4,
-              lineHeight: 1.5,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
             {subline}
           </div>
 
@@ -480,7 +448,7 @@ function ReplyNowSplitButton({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ position: "relative", display: "inline-flex" }}>
+    <div className="relative inline-flex">
       <button
         type="button"
         onClick={onPrimary}
@@ -532,29 +500,8 @@ function ReplyNowSplitButton({
               zIndex: 50,
             }}
           />
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              right: 0,
-              minWidth: 220,
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              boxShadow: COLORS.shadowHover,
-              padding: 4,
-              zIndex: 60,
-              fontFamily: FONTS.body,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                                color: COLORS.inkMuted,
-                padding: "6px 10px 4px",
-              }}
-            >
+          <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: 4, zIndex: 60, fontFamily: FONTS.body }} className="shadow-admin-hover">
+            <div style={{ fontSize: 10.5, fontWeight: 600, padding: "6px 10px 4px" }} className="text-admin-ink-muted">
               Reply to
             </div>
             {pendingTargets.map((t) => (

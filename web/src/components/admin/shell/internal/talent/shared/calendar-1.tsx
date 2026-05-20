@@ -72,7 +72,7 @@ export function CalendarMonthGrid() {
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <section style={{ marginBottom: 24 }}>
+    <section className="mb-6">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <CapsLabel>May 2026</CapsLabel>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -244,16 +244,7 @@ function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim" | 
             ? COLORS.indigo
             : COLORS.inkMuted;
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        color: COLORS.inkMuted,
-      }}
-    >
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
       <span
         style={{
           width: 7,
@@ -350,12 +341,12 @@ export function CalendarWeekView({
           fontFamily: FONTS.body,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div className="flex items-center gap-3.5">
           <CapsLabel>Week of May 12 — May 18, 2026</CapsLabel>
           {/* Audit #34 — color legend so the left-border tones are scannable */}
           <CalendarColorLegend />
         </div>
-        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
           {events.filter((e) => e.startDay !== null && days.includes(e.startDay!)).length} events
         </span>
       </div>
@@ -375,16 +366,16 @@ export function CalendarWeekView({
             }}
           >
             <div style={{ width: 60, flexShrink: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 500, color: COLORS.ink, fontFamily: FONTS.display, letterSpacing: -0.2 }}>
+              <div style={{ fontSize: 18, fontWeight: 500, fontFamily: FONTS.display, letterSpacing: -0.2 }} className="text-admin-ink">
                 {d}
               </div>
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.7 }}>
+              <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.7 }} className="text-admin-ink-muted">
                 {dayName}
               </div>
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
               {dayEvents.length === 0 ? (
-                <div style={{ fontSize: 11.5, color: COLORS.inkDim, paddingTop: 4 }}>—</div>
+                <div style={{ fontSize: 11.5, paddingTop: 4 }} className="text-admin-ink-dim">—</div>
               ) : (
                 dayEvents.map((e) => (
                   <button
@@ -412,10 +403,10 @@ export function CalendarWeekView({
                     }}
                   >
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                         {e.client} · {e.brief}
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                         {e.status}
                       </div>
                     </div>
@@ -467,10 +458,10 @@ export function CalendarDayView({
         }}
       >
         <div>
-          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink, letterSpacing: -0.3 }}>
+          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3 }} className="text-admin-ink">
             Thursday, May {targetDay}
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             {dayEvents.length} events
           </div>
         </div>
@@ -487,13 +478,13 @@ export function CalendarDayView({
         >
           <div style={{ width: 90, flexShrink: 0 }}>
             <CapsLabel>{bucket}</CapsLabel>
-            <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 2 }}>
+            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-dim">
               {bucket === "morning" ? "Before 12" : bucket === "afternoon" ? "12 — 6pm" : "After 6pm"}
             </div>
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
             {bucketed[bucket].length === 0 ? (
-              <div style={{ fontSize: 11.5, color: COLORS.inkDim, paddingTop: 4 }}>Free</div>
+              <div style={{ fontSize: 11.5, paddingTop: 4 }} className="text-admin-ink-dim">Free</div>
             ) : (
               bucketed[bucket].map((e) => (
                 <button
@@ -519,15 +510,15 @@ export function CalendarDayView({
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+                    <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                       {e.client}
                     </div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                    <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                       {e.brief} · {e.status}
                     </div>
                   </div>
                   {e.amount && (
-                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.green }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">
                       {e.amount}
                     </span>
                   )}

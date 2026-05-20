@@ -62,54 +62,22 @@ export function ProfileCompletenessBanner({
         textAlign: "left",
       }}
     >
-      <span
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 7,
-          background: "rgba(91,107,160,0.18)",
-          color: COLORS.indigoDeep,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
+      <span style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(91,107,160,0.18)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="text-admin-indigo-deep">
         <Icon name="user" size={13} stroke={1.7} />
       </span>
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: COLORS.indigoDeep,
-          }}
-        >
+        <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-indigo-deep">
           {remaining > 0
             ? `${remaining}% from Verified visibility · ${percent}% complete`
             : `${percent}% complete · finish strong`}
         </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.indigoDeep,
-            opacity: 0.75,
-            marginTop: 1,
-          }}
-        >
+        <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 1 }} className="text-admin-indigo-deep">
           {missing.length > 0
             ? `${missing.slice(0, 3).join(" · ")}`
             : "A few more fields and agencies favour your profile in pitches."}
         </div>
       </div>
-      <span
-        style={{
-          fontSize: 11.5,
-          fontWeight: 600,
-          color: COLORS.indigoDeep,
-          flexShrink: 0,
-        }}
-      >
+      <span style={{ fontSize: 11.5, fontWeight: 600, flexShrink: 0 }} className="text-admin-indigo-deep">
         Finish profile →
       </span>
     </button>
@@ -146,18 +114,10 @@ function TodaysPlanBanner({
       }}
     >
       <div className="flex items-center gap-2 mb-2">
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.green,
-          }}
-        >
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-green">
           Today
         </span>
-        <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+        <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
           {bookings.length === 1 ? "1 confirmed shoot" : `${bookings.length} confirmed shoots`}
         </span>
       </div>
@@ -183,24 +143,14 @@ function TodaysPlanBanner({
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.green)}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
           >
-            <span
-              style={{
-                fontFamily: FONTS.display,
-                fontSize: 16,
-                fontWeight: 600,
-                color: COLORS.green,
-                fontVariantNumeric: "tabular-nums",
-                width: 56,
-                flexShrink: 0,
-              }}
-            >
+            <span style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, fontVariantNumeric: "tabular-nums", width: 56, flexShrink: 0 }} className="text-admin-green">
               {b.call}
             </span>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                 {b.client} · {b.brief}
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 {b.location}
               </div>
             </div>
@@ -289,28 +239,10 @@ export function FirstSessionChecklist({
     >
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <div>
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: 0.7,
-              textTransform: "uppercase",
-              color: COLORS.accent,
-              marginBottom: 3,
-            }}
-          >
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-accent">
             First session
           </div>
-          <h3
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 17,
-              fontWeight: 500,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.15,
-            }}
-          >
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 500, margin: 0, letterSpacing: -0.15 }} className="text-admin-ink">
             {doneCount === steps.length
               ? "You're set up. Inquiries land here."
               : `${doneCount} of ${steps.length} done — ${steps.length - doneCount} to go`}
@@ -378,25 +310,10 @@ export function FirstSessionChecklist({
               {step.done ? <Icon name="check" size={11} color="#fff" /> : idx + 1}
             </span>
             <div className="flex-1 min-w-0">
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: COLORS.ink,
-                  textDecoration: step.done ? "line-through" : "none",
-                  lineHeight: 1.35,
-                }}
-              >
+              <div style={{ fontSize: 13, fontWeight: 500, textDecoration: step.done ? "line-through" : "none", lineHeight: 1.35 }} className="text-admin-ink">
                 {step.label}
               </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                  marginTop: 2,
-                  lineHeight: 1.4,
-                }}
-              >
+              <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
                 {step.description}
               </div>
             </div>
@@ -451,16 +368,7 @@ export function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] 
         initials={clientInitialsLocal(earning.client)}
       />
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           <span>{earning.client}</span>
         </div>
         <div
@@ -476,23 +384,15 @@ export function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] 
             label={earning.source.kind === "manual" ? "Off-platform" : "Paid"}
             tone={earning.source.kind === "manual" ? "coral" : "success"}
           />
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-muted">
             {PAYMENT_METHOD_META[earning.paymentMethod].short} · paid {earning.payoutDate}
             {earning.paymentNote && (
-              <span style={{ color: COLORS.coral }}> · {earning.paymentNote}</span>
+              <span className="text-admin-coral"> · {earning.paymentNote}</span>
             )}
           </span>
         </div>
       </div>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: COLORS.ink,
-          fontVariantNumeric: "tabular-nums",
-          flexShrink: 0,
-        }}
-      >
+      <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }} className="text-admin-ink">
         {earning.amount}
       </span>
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
@@ -541,17 +441,10 @@ export function DateBlock({
         fontFamily: FONTS.display,
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
+      <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }} className="text-admin-ink">
         {day}
       </span>
-      <span
-        style={{
-          fontSize: 9,
-          color: COLORS.inkMuted,
-                    fontWeight: 600,
-          marginTop: 2,
-        }}
-      >
+      <span style={{ fontSize: 9, fontWeight: 600, marginTop: 2 }} className="text-admin-ink-muted">
         {month}
       </span>
     </span>

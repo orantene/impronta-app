@@ -105,18 +105,7 @@ function VideoCard({ url, caption, durationSec, isReel }: { url: string; caption
         gap: 6,
       }}
     >
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "16 / 9",
-          borderRadius: 12,
-          overflow: "hidden",
-          background: COLORS.surfaceAlt,
-          border: `1px solid ${COLORS.borderSoft}`,
-          boxShadow: "0 1px 3px rgba(11,11,13,0.06)",
-        }}
-      >
+      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 12, overflow: "hidden", border: `1px solid ${COLORS.borderSoft}`, boxShadow: "0 1px 3px rgba(11,11,13,0.06)" }} className="bg-admin-surface-alt">
         {playing && parsed && (parsed.provider === "youtube" || parsed.provider === "vimeo") ? (
           <iframe
             src={`${parsed.embedUrl}?autoplay=1`}
@@ -161,15 +150,10 @@ function VideoCard({ url, caption, durationSec, isReel }: { url: string; caption
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: "0 6px 16px rgba(11,11,13,0.3)",
             }}>
-              <span style={{ fontSize: 18, color: COLORS.ink, marginLeft: 3 }}>▶</span>
+              <span style={{ fontSize: 18, marginLeft: 3 }} className="text-admin-ink">▶</span>
             </span>
             {isReel && (
-              <span style={{
-                position: "absolute", top: 8, left: 8,
-                fontSize: 10, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: 0.4,
-                padding: "3px 8px", borderRadius: 999,
-                background: COLORS.accent, color: "#fff", textTransform: "uppercase",
-              }}>★ Showreel</span>
+              <span style={{ position: "absolute", top: 8, left: 8, fontSize: 10, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: 0.4, padding: "3px 8px", borderRadius: 999, color: "#fff", textTransform: "uppercase" }} className="bg-admin-accent">★ Showreel</span>
             )}
             {parsed && (
               <span style={{
@@ -195,14 +179,7 @@ function VideoCard({ url, caption, durationSec, isReel }: { url: string; caption
         )}
       </div>
       {caption && (
-        <div style={{
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          color: COLORS.inkMuted,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
           {caption}
         </div>
       )}

@@ -211,32 +211,15 @@ export function TalentTodayPage() {
             fontFamily: FONTS.body,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div
-              style={{
-                flexShrink: 0,
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "#fff",
-                border: `2px solid ${COLORS.accent}`,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: FONTS.display,
-                fontSize: 18,
-                fontWeight: 600,
-                color: COLORS.accentDeep,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
+          <div className="flex items-center gap-3.5">
+            <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: "50%", background: "#fff", border: `2px solid ${COLORS.accent}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-accent-deep">
               {onboardingCompleteness.percent}%
             </div>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
                 Finish setting up your profile
               </div>
-              <div style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
+              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">
                 {onboardingCompleteness.missing.length} field{onboardingCompleteness.missing.length === 1 ? "" : "s"} left before you can publish + take bookings.
               </div>
             </div>
@@ -251,7 +234,7 @@ export function TalentTodayPage() {
             </PrimaryButton>
           </div>
           {onboardingCompleteness.missing.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {onboardingCompleteness.missing.slice(0, 8).map((m) => (
                 <button
                   key={m.label}
@@ -447,13 +430,7 @@ export function TalentTodayPage() {
           type="button"
           onClick={() => openDrawer("talent-career-analytics")}
           style={{
-            flex: 1, padding: "9px 0", background: COLORS.surfaceAlt,
-            border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
-            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
-            color: COLORS.inkMuted, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-          }}
-        >
+            flex: 1, padding: "9px 0", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} className="bg-admin-surface-alt rounded-admin-md text-admin-ink-muted">
           <Icon name="sparkle" size={12} color={COLORS.inkMuted} />
           Career analytics
         </button>

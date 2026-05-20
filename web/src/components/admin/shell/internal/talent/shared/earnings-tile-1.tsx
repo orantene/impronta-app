@@ -70,21 +70,11 @@ export function EarningsTile({
   }).join(" ");
 
   return (
-    <section style={{
-      background: "#fff",
-      border:     `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.lg,
-      padding:    "16px 18px",
-    }}>
+    <section style={{ background: "#fff", border:     `1px solid ${COLORS.borderSoft}`, padding:    "16px 18px" }} className="rounded-admin-lg">
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div className="flex-1">
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
-            textTransform: "uppercase", color: COLORS.inkDim,
-            fontFamily: FONTS.body, marginBottom: 4,
-          }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 4 }} className="text-admin-ink-dim">
             Earnings
             {/* Trend bullet — green = above 6-mo avg, amber = below.
                 Tiny visual but adds a sense of momentum to the tile. */}
@@ -103,16 +93,16 @@ export function EarningsTile({
               {trendUp ? "Up" : "Down"}
             </span>
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, letterSpacing: "-0.5px" }}>
+          <div style={{ fontSize: 26, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: "-0.5px" }} className="text-admin-ink">
             {currency}{(data.total).toLocaleString()}
           </div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body, marginTop: 2 }}>
+          <div style={{ fontSize: 11, fontFamily: FONTS.body, marginTop: 2 }} className="text-admin-ink-muted">
             {data.count} payout{data.count !== 1 ? "s" : ""} · {data.label}
           </div>
         </div>
 
         {/* Cycle selector */}
-        <div style={{ display: "flex", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 2, gap: 1 }}>
+        <div style={{ display: "flex", padding: 2, gap: 1 }} className="bg-admin-surface-alt rounded-admin-md">
           {(["month", "quarter", "year"] as const).map((c) => (
             <button
               key={c}
@@ -172,13 +162,7 @@ export function EarningsTile({
           Sourced from MOCK_CONVERSATIONS (booked stage) so it always
           mirrors the messages shell. Empty state hidden. */}
       {pendingTotal > 0 && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "8px 10px", marginBottom: 10,
-          background: `linear-gradient(135deg, ${COLORS.accentSoft} 0%, ${COLORS.surfaceAlt} 100%)`,
-          border: `1px solid rgba(15,79,62,0.16)`,
-          borderRadius: RADIUS.md,
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", marginBottom: 10, background: `linear-gradient(135deg, ${COLORS.accentSoft} 0%, ${COLORS.surfaceAlt} 100%)`, border: `1px solid rgba(15,79,62,0.16)` }} className="rounded-admin-md">
           <span aria-hidden style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 26, height: 26, borderRadius: 8,
@@ -192,20 +176,12 @@ export function EarningsTile({
             </svg>
           </span>
           <div className="flex-1 min-w-0">
-            <div style={{
-              fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-              textTransform: "uppercase", color: COLORS.accentDeep,
-              fontFamily: FONTS.body,
-            }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-accent-deep">
               In flight
             </div>
-            <div style={{
-              fontSize: 13, fontWeight: 700, color: COLORS.ink,
-              fontFamily: FONTS.body, marginTop: 1,
-              fontVariantNumeric: "tabular-nums",
-            }}>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body, marginTop: 1, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
               {pendingCurrency}{Math.round(pendingTotal).toLocaleString()}
-              <span style={{ fontWeight: 500, color: COLORS.inkMuted, marginLeft: 6 }}>
+              <span style={{ fontWeight: 500, marginLeft: 6 }} className="text-admin-ink-muted">
                 · {pendingConvs.length} booked job{pendingConvs.length === 1 ? "" : "s"}
               </span>
             </div>
@@ -214,7 +190,7 @@ export function EarningsTile({
       )}
 
       {/* Recent rows */}
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         {EARNINGS_ROWS.slice(0, 3).map((e) => (
           <EarningRow key={e.id} earning={e} />
         ))}

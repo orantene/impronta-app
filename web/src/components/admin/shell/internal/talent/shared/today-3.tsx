@@ -69,14 +69,7 @@ export function HeroStat({
           : COLORS.inkDim;
   const inner = (
     <>
-      <div
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 10.5,
-          fontWeight: 600,
-                    color: COLORS.inkMuted,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
         {label}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -204,7 +197,7 @@ export function NeedsReplySection({
         actionLabel="Open inbox →"
         onAction={onSeeAll}
       />
-      <div style={{ marginTop: 4 }}>
+      <div className="mt-1">
         {conversations.map((c) => (
           <ConversationReplyRow
             key={c.id}
@@ -274,23 +267,10 @@ function ConversationReplyRow({
         initials={clientInitialsLocal(conv.client)}
       />
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {conv.client}
           <Bullet />
-          <span style={{ color: COLORS.inkMuted, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span style={{ fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
             {conv.brief}
           </span>
         </div>
@@ -304,31 +284,17 @@ function ConversationReplyRow({
           }}
         >
           <KindChip label={km.label} tone={km.tone} />
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-muted">
             {conv.date}
             {conv.date && rate && " · "}
             {rate && (
-              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{rate}</span>
+              <span style={{ fontWeight: 500 }} className="text-admin-ink">{rate}</span>
             )}
           </span>
         </div>
       </div>
       {hover && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
-            borderRadius: 7,
-            background: COLORS.coralSoft,
-            color: COLORS.coralDeep,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: -0.05,
-          }}
-        >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, letterSpacing: -0.05 }} className="bg-admin-coral-soft text-admin-coral-deep">
           Reply →
         </span>
       )}
@@ -425,21 +391,11 @@ function RequestRow({
         <KindChip label={km.label} tone={km.tone} />
       )}
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           {request.client}
           {!compact && <ClientTrustChip level={request.clientTrust} compact />}
           <Bullet />
-          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{request.brief}</span>
+          <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">{request.brief}</span>
         </div>
         <div
           style={{
@@ -451,7 +407,7 @@ function RequestRow({
           }}
         >
           {compact && <KindChip label={km.label} tone={km.tone} />}
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-muted">
             {!compact && (
               <>
                 via {request.agency}
@@ -461,7 +417,7 @@ function RequestRow({
             {request.date}
             {request.date && request.amount && " · "}
             {request.amount && (
-              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{request.amount}</span>
+              <span style={{ fontWeight: 500 }} className="text-admin-ink">{request.amount}</span>
             )}
           </span>
         </div>
@@ -471,21 +427,7 @@ function RequestRow({
           the explicit "Reply" label teaches the action. After ~5 exposures
           the user reaches for it directly instead of scanning. */}
       {compact && hover && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
-            borderRadius: 7,
-            background: COLORS.coralSoft,
-            color: COLORS.coralDeep,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: -0.05,
-          }}
-        >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, letterSpacing: -0.05 }} className="bg-admin-coral-soft text-admin-coral-deep">
           Reply →
         </span>
       )}
@@ -556,22 +498,10 @@ export function ConversationCalendarRow({
     >
       <DateBlock day={day} month={month} />
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           <span>{conv.client}</span>
-          <span style={{ color: COLORS.inkDim }}>·</span>
-          <span style={{ color: COLORS.inkMuted, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span className="text-admin-ink-dim">·</span>
+          <span style={{ fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
             {conv.brief}
           </span>
         </div>
@@ -585,21 +515,13 @@ export function ConversationCalendarRow({
           }}
         >
           <KindChip label="Booked" tone="success" />
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-muted">
             {[locShort, callTime ? `call ${callTime}` : null].filter(Boolean).join(" · ")}
           </span>
         </div>
       </div>
       {rate !== "—" && (
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: COLORS.ink,
-            fontVariantNumeric: "tabular-nums",
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }} className="text-admin-ink">
           {rate}
         </span>
       )}

@@ -161,7 +161,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
                 display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
                 marginBottom: 2,
               }}>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>{s.label}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">{s.label}</span>
                 <span style={{
                   fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
                   textTransform: "uppercase",
@@ -169,7 +169,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
                   background: meta.bg, color: meta.fg,
                 }}>{meta.label}</span>
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>{s.description}</div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">{s.description}</div>
               {s.remainder && (
                 <div style={{
                   fontSize: 11, fontWeight: 600, color: meta.fg,
@@ -253,7 +253,7 @@ export function ProfileHero() {
           letterSpacing: 8,
         }}
       >
-        {!coverSrc && <span style={{ filter: "saturate(0.8)", fontSize: 48, color: COLORS.inkMuted, fontFamily: FONTS.body }}>No cover photo</span>}
+        {!coverSrc && <span style={{ filter: "saturate(0.8)", fontSize: 48, fontFamily: FONTS.body }} className="text-admin-ink-muted">No cover photo</span>}
         <button
           onClick={() => openSection("media")}
           style={{
@@ -307,22 +307,7 @@ export function ProfileHero() {
           aria-label="Edit headshot"
         >
           {!avatarSrc && <span style={{ fontSize: 40 }}>👤</span>}
-          <span
-            style={{
-              position: "absolute",
-              bottom: 2,
-              right: 2,
-              width: 26,
-              height: 26,
-              borderRadius: "50%",
-              background: COLORS.fill,
-              color: "#fff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "2px solid #fff",
-            }}
-          >
+          <span style={{ position: "absolute", bottom: 2, right: 2, width: 26, height: 26, borderRadius: "50%", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }} className="bg-admin-fill">
             <Icon name="palette" size={11} stroke={2} color="#fff" />
           </span>
         </button>
@@ -337,45 +322,15 @@ export function ProfileHero() {
                 flexWrap: "wrap",
               }}
             >
-              <h2
-                style={{
-                  fontFamily: FONTS.display,
-                  fontSize: 26,
-                  fontWeight: 500,
-                  letterSpacing: -0.5,
-                  margin: 0,
-                  color: COLORS.ink,
-                }}
-              >
+              <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, margin: 0 }} className="text-admin-ink">
                 {p.name}
               </h2>
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12,
-                  color: COLORS.inkMuted,
-                  fontWeight: 500,
-                  padding: "2px 8px",
-                  background: "rgba(11,11,13,0.04)",
-                  borderRadius: 999,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, padding: "2px 8px", background: "rgba(11,11,13,0.04)", borderRadius: 999 }} className="text-admin-ink-muted">
                 {p.pronouns} · {p.age}
               </span>
               <TierPill tier={p.subscription.tier} onClick={() => openDrawer("talent-tier-compare")} />
             </div>
-            <div
-              style={{
-                marginTop: 6,
-                fontFamily: FONTS.body,
-                fontSize: 13.5,
-                color: COLORS.inkMuted,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ marginTop: 6, fontFamily: FONTS.body, fontSize: 13.5, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }} className="text-admin-ink-muted">
               <span>{p.measurementsSummary}</span>
               <Bullet />
               <span>{p.city}</span>
@@ -408,14 +363,7 @@ export function ProfileHero() {
                 <BadgeChip key={b.kind} badge={b} compact />
               ))}
               {p.badges.length > 4 && (
-                <span
-                  style={{
-                    fontFamily: FONTS.body,
-                    fontSize: 11,
-                    color: COLORS.inkMuted,
-                    padding: "3px 8px",
-                  }}
-                >
+                <span style={{ fontFamily: FONTS.body, fontSize: 11, padding: "3px 8px" }} className="text-admin-ink-muted">
                   +{p.badges.length - 4}
                 </span>
               )}
@@ -461,7 +409,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
         marginBottom: 10,
       }}>
         <CapsLabel>Profile performance</CapsLabel>
-        <span style={{ fontSize: 11, color: COLORS.inkDim }}>Last 7 days</span>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-dim">Last 7 days</span>
       </div>
       <div data-tulala-talent-stat-strip style={{
         background: "#fff", borderRadius: 12,
@@ -484,7 +432,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">{it.label}</span>
             </div>
             <div style={{
               fontFamily: FONTS.display, fontSize: 28, fontWeight: 700,
@@ -492,7 +440,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
               lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: -0.5,
             }}>{it.value}</div>
             {it.sub && (
-              <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 5, lineHeight: 1.3 }}>{it.sub}</div>
+              <div style={{ fontSize: 11, marginTop: 5, lineHeight: 1.3 }} className="text-admin-ink-dim">{it.sub}</div>
             )}
           </div>
         ))}

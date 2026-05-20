@@ -191,11 +191,11 @@ export function ConflictBanner({
                 lineHeight: 1.5,
               }}
             >
-              <strong style={{ fontWeight: 600 }}>
+              <strong className="font-semibold">
                 {c.a.client} {c.a.dateLabel}
               </strong>
               {" "}({kindToLabel(c.a.kind)}) overlaps with{" "}
-              <strong style={{ fontWeight: 600 }}>
+              <strong className="font-semibold">
                 {c.b.client} {c.b.dateLabel}
               </strong>
               {" "}({kindToLabel(c.b.kind)}).
@@ -343,18 +343,9 @@ export function CalendarEventRow({
 
       {/* Title + status */}
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           <span>{event.client}</span>
-          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>· {event.brief}</span>
+          <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">· {event.brief}</span>
         </div>
         <div
           style={{
@@ -367,20 +358,12 @@ export function CalendarEventRow({
         >
           <KindChip label={kindLabel} tone={kindToTone[event.kind]} />
           {conflicted && <KindChip label="Conflict" tone="coral" />}
-          <span style={{ color: COLORS.inkMuted }}>{event.status}</span>
+          <span className="text-admin-ink-muted">{event.status}</span>
         </div>
       </div>
 
       {event.amount && (
-        <span
-          style={{
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: COLORS.ink,
-            fontVariantNumeric: "tabular-nums",
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ fontSize: 12.5, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }} className="text-admin-ink">
           {event.amount}
         </span>
       )}
@@ -440,26 +423,10 @@ export function ModalConfirm({
           zIndex: 201,
         }}
       >
-        <h2
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 20,
-            fontWeight: 500,
-            letterSpacing: -0.3,
-            color: COLORS.ink,
-            margin: "0 0 10px",
-          }}
-        >
+        <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, letterSpacing: -0.3, margin: "0 0 10px" }} className="text-admin-ink">
           {title}
         </h2>
-        <div
-          style={{
-            fontSize: 13,
-            color: COLORS.ink,
-            lineHeight: 1.55,
-            marginBottom: 18,
-          }}
-        >
+        <div style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 18 }} className="text-admin-ink">
           {body}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -512,14 +479,7 @@ export function ReachStat({
           : COLORS.inkDim;
   return (
     <div className="flex-1 min-w-0">
-      <div
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 10.5,
-          fontWeight: 600,
-                    color: COLORS.inkMuted,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
         {label}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>

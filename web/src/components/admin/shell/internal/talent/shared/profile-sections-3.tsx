@@ -21,13 +21,7 @@ function BookingStatCell({ label, value, accent }: { label: string; value: strin
         fontFamily: FONTS.body,
       }}
     >
-      <div
-        style={{
-          fontSize: 10.5,
-          fontWeight: 600,
-                    color: COLORS.inkMuted,
-        }}
-      >
+      <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
         {label}
       </div>
       <div
@@ -59,8 +53,8 @@ function RateLine({ label, range }: { label: string; range: string }) {
         padding: "3px 0",
       }}
     >
-      <span style={{ flex: 1, color: COLORS.ink }}>{label}</span>
-      <span style={{ color: COLORS.inkMuted, fontSize: 12 }}>{range}</span>
+      <span style={{ flex: 1 }} className="text-admin-ink">{label}</span>
+      <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{range}</span>
     </div>
   );
 }
@@ -78,24 +72,11 @@ function LinkChip({ link }: { link: TalentLink }) {
     other: "→",
   };
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "4px 10px",
-        background: "rgba(11,11,13,0.04)",
-        borderRadius: 999,
-        fontFamily: FONTS.body,
-        fontSize: 11.5,
-        color: COLORS.ink,
-        fontWeight: 500,
-      }}
-    >
-      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{glyph[link.kind]}</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", background: "rgba(11,11,13,0.04)", borderRadius: 999, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink">
+      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{glyph[link.kind]}</span>
       {link.label}
       {link.followers && (
-        <span style={{ fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 500 }} className="text-admin-ink-muted">
           · {link.followers}
         </span>
       )}
@@ -115,23 +96,12 @@ function CompletenessBar({ value }: { value: number }) {
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            width: `${value}%`,
-            height: "100%",
-            background: value >= 100 ? COLORS.green : COLORS.fill,
-          }}
+        <div style={{ width: `${value}%`, height: "100%", background: value >= 100 ? COLORS.green : COLORS.fill, }}
         />
       </div>
       <div
         style={{
-          fontFamily: FONTS.body,
-          fontSize: 11.5,
-          color: COLORS.inkMuted,
-          marginTop: 6,
-          letterSpacing: 0.2,
-        }}
-      >
+          fontFamily: FONTS.body, fontSize: 11.5, marginTop: 6, letterSpacing: 0.2 }} className="text-admin-ink-muted">
         {value}% complete
       </div>
     </div>

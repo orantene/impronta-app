@@ -59,7 +59,7 @@ export function ThreadActivityTimeline({ conv }: { conv: Conversation }) {
   return (
     <div style={{ padding: "16px 18px" }}>
       {/* Vertical timeline line runs behind the ActivityFeedItem icon circles */}
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         {events.length > 1 && (
           <div style={{
             position: "absolute",
@@ -134,8 +134,8 @@ export function RateChangeRequest({ currentValue }: { currentValue: string }) {
         animation: "tulala-fade-in .15s ease",
       }}
     >
-      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
-        Currently <strong style={{ color: COLORS.ink }}>{currentValue || "—"}</strong>.
+      <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
+        Currently <strong className="text-admin-ink">{currentValue || "—"}</strong>.
         Your reply goes private to the coordinator first.
       </div>
       <input
@@ -234,19 +234,7 @@ export function InfoSection({
         borderBottom: `1px solid ${COLORS.borderSoft}`,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 9.5,
-          fontWeight: 700,
-          letterSpacing: 0.7,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-          marginBottom: 8,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
         <Icon name={icon} size={11} color={COLORS.inkMuted} stroke={1.7} />
         {label}
         {locked && <span aria-label="locked" style={{ marginLeft: 4 }}>🔒</span>}
@@ -345,13 +333,7 @@ export function NewMessagesDivider({ count }: { count: number }) {
     >
       <div style={{ flex: 1, height: 1, background: "rgba(194,106,69,0.30)" }} />
       <span style={{
-        fontSize: 10.5,
-        fontWeight: 700,
-                color: COLORS.coral,
-        background: "rgba(194,106,69,0.08)",
-        padding: "3px 9px",
-        borderRadius: 999,
-      }}>
+        fontSize: 10.5, fontWeight: 700, background: "rgba(194,106,69,0.08)", padding: "3px 9px", borderRadius: 999 }} className="text-admin-coral">
         New · {count}
       </span>
       <div style={{ flex: 1, height: 1, background: "rgba(194,106,69,0.30)" }} />
@@ -421,21 +403,8 @@ export function AIThreadSummary({ conv, open, onToggle }: { conv: Conversation; 
           fontWeight: 700,
           flexShrink: 0,
         }}>✨</span>
-        <span style={{
-          fontSize: 11,
-          fontWeight: 700,
-                    color: COLORS.accent,
-          flexShrink: 0,
-        }}>AI summary</span>
-        <span style={{
-          flex: 1,
-          fontSize: 12,
-          color: COLORS.inkMuted,
-          whiteSpace: open ? "normal" : "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          textAlign: "left",
-        }}>
+        <span style={{ fontSize: 11, fontWeight: 700, flexShrink: 0 }} className="text-admin-accent">AI summary</span>
+        <span style={{ flex: 1, fontSize: 12, whiteSpace: open ? "normal" : "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }} className="text-admin-ink-muted">
           {!open && summary}
         </span>
         <span aria-hidden style={{
@@ -447,14 +416,7 @@ export function AIThreadSummary({ conv, open, onToggle }: { conv: Conversation; 
         }}>▾</span>
       </button>
       {open && (
-        <div style={{
-          marginTop: 8,
-          paddingTop: 8,
-          borderTop: "1px solid rgba(15,79,62,0.10)",
-          fontSize: 13,
-          lineHeight: 1.5,
-          color: COLORS.ink,
-        }}>
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(15,79,62,0.10)", fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink">
           {summary}
         </div>
       )}
@@ -487,13 +449,7 @@ export function DaySeparator({ label }: { label: string }) {
       <span style={{ flex: 1, height: 1, background: "rgba(11,11,13,0.06)" }} />
       <span
         style={{
-          fontSize: 9.5,
-          fontWeight: 700,
-          letterSpacing: 0.7,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-        }}
-      >
+          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </span>
       <span style={{ flex: 1, height: 1, background: "rgba(11,11,13,0.06)" }} />

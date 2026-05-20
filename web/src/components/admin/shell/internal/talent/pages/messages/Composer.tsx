@@ -86,13 +86,7 @@ export function Composer({
           <style>{`@keyframes tulala-smart-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {quickQuotes.length > 0 && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                                color: COLORS.inkMuted,
-                alignSelf: "center",
-                marginRight: 2,
-              }}>Quick quote</span>
+              <span style={{ fontSize: 10, fontWeight: 700, alignSelf: "center", marginRight: 2 }} className="text-admin-ink-muted">Quick quote</span>
               {quickQuotes.map((q) => (
                 <button
                   key={q.rate}
@@ -113,20 +107,14 @@ export function Composer({
                     gap: 5,
                   }}
                 >
-                  <span style={{ fontWeight: 600 }}>{q.rate}</span>
+                  <span className="font-semibold">{q.rate}</span>
                   <span style={{ opacity: 0.7, fontSize: 10.5 }}>· {q.note}</span>
                 </button>
               ))}
             </div>
           )}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-                            color: COLORS.inkMuted,
-              alignSelf: "center",
-              marginRight: 2,
-            }}>Quick reply</span>
+            <span style={{ fontSize: 10, fontWeight: 700, alignSelf: "center", marginRight: 2 }} className="text-admin-ink-muted">Quick reply</span>
           {smartReplies.map((r) => (
             <button
               key={r}
@@ -195,21 +183,7 @@ export function Composer({
               onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.accentSoft)}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <span
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  background: COLORS.surfaceAlt,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: COLORS.ink,
-                  flexShrink: 0,
-                }}
-              >
+              <span style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }} className="bg-admin-surface-alt text-admin-ink">
                 {name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
               </span>
               {name}

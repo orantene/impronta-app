@@ -91,21 +91,14 @@ export function SettingsPage() {
           <Icon name="globe" size={13} stroke={1.7} />
         </span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.indigoDeep }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-indigo-deep">
             Distribution decisions live in Reach
           </div>
-          <div
-            style={{
-              fontSize: 11.5,
-              color: COLORS.indigoDeep,
-              opacity: 0.78,
-              marginTop: 1,
-            }}
-          >
+          <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 1 }} className="text-admin-indigo-deep">
             Toggle channels, manage which hubs and studios you&apos;re listed on, set exposure presets — all over there.
           </div>
         </div>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-indigo-deep">
           Open Reach →
         </span>
       </button>
@@ -125,12 +118,12 @@ export function SettingsPage() {
           <Icon name="team" size={14} stroke={1.7} />
         </span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.royalDeep }}>My Circle</div>
-          <div style={{ fontSize: 11.5, color: COLORS.royal, opacity: 0.78, marginTop: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-royal-deep">My Circle</div>
+          <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }} className="text-admin-royal">
             Trusted collaborators you can recommend into bookings in one tap. {MOCK_CIRCLE_PREVIEW_COUNT} people in your circle.
           </div>
         </div>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.royalDeep }}>Manage →</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-royal-deep">Manage →</span>
       </button>
 
       <Divider label="Agencies" />

@@ -36,29 +36,14 @@ export function PersonalPageBand() {
         }}
       >
         <div className="flex-1 min-w-0">
-          <div
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 16,
-              fontWeight: 500,
-              color: COLORS.indigoDeep,
-              marginBottom: 5,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, marginBottom: 5 }} className="text-admin-indigo-deep">
             Tulala Pro &amp; Portfolio — coming soon
           </div>
-          <div
-            style={{
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              lineHeight: 1.6,
-              maxWidth: 520,
-            }}
-          >
+          <div style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 520 }} className="text-admin-ink-muted">
             Richer templates, social &amp; video embeds, press band, downloadable media kit, and a custom
             domain for your own name. Join the waitlist and get early access when billing opens.
           </div>
-          <div style={{ marginTop: 4, fontSize: 11.5, color: COLORS.inkMuted }}>
+          <div style={{ marginTop: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
             Your standard roster page at{" "}
             <span style={{ fontFamily: FONTS.mono }}>{sub.personalPageUrl}</span> is already live.
           </div>
@@ -112,30 +97,18 @@ export function PersonalPageBand() {
           resolvedTier === "portfolio" ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare")
         }
       >
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 12,
-            padding: "10px 12px",
-            background: COLORS.surfaceAlt,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 10,
-          }}
-        >
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, padding: "10px 12px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10 }} className="bg-admin-surface-alt">
           <Icon name="external" size={12} color={COLORS.accentDeep} />
-          <span style={{ fontFamily: FONTS.mono, fontSize: 12, color: COLORS.ink, flex: "1 1 auto", minWidth: 0 }}>
+          <span style={{ fontFamily: FONTS.mono, fontSize: 12, flex: "1 1 auto", minWidth: 0 }} className="text-admin-ink">
             {sub.customDomain ?? sub.personalPageUrl}
           </span>
           {sub.customDomain && sub.customDomainStatus === "verified" && (
-            <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.green, fontWeight: 500 }}>
+            <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500 }} className="text-admin-green">
               ● Verified
             </span>
           )}
           {sub.renewsOn && (
-            <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
+            <span style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
               Renews {sub.renewsOn}
             </span>
           )}
@@ -143,7 +116,7 @@ export function PersonalPageBand() {
       </PrimaryCard>
 
       {/* Modules grid — template / embeds / press / media-kit / domain / sections */}
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <Grid cols="3">
           <SecondaryCard
             title="Page template"
@@ -364,7 +337,7 @@ export function BadgeChip({ badge, compact }: { badge: TalentBadge; compact?: bo
         fontWeight: 500,
       }}
     >
-      <span style={{ fontSize: compact ? 11 : 12, color: COLORS.accentDeep }}>{glyph[badge.kind]}</span>
+      <span style={{ fontSize: compact ? 11 : 12 }} className="text-admin-accent-deep">{glyph[badge.kind]}</span>
       {badge.label}
     </span>
   );
@@ -406,23 +379,10 @@ function MeasurementsTable() {
             borderRadius: 8,
           }}
         >
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 600,
-                            color: COLORS.inkMuted,
-            }}
-          >
+          <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
             {c.label}
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: COLORS.ink,
-              marginTop: 3,
-              fontWeight: 500,
-            }}
-          >
+          <div style={{ fontSize: 13, marginTop: 3, fontWeight: 500 }} className="text-admin-ink">
             {c.value}
           </div>
         </div>
@@ -442,28 +402,12 @@ function SkillRow({ skill }: { skill: TalentSkill }) {
     other: "·",
   };
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        fontFamily: FONTS.body,
-        fontSize: 12.5,
-        color: COLORS.ink,
-      }}
-    >
-      <span
-        style={{
-          width: 18,
-          textAlign: "center",
-          color: COLORS.inkDim,
-          fontSize: 13,
-        }}
-      >
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
+      <span style={{ width: 18, textAlign: "center", fontSize: 13 }} className="text-admin-ink-dim">
         {catGlyph[skill.category]}
       </span>
       <span className="flex-1">{skill.label}</span>
-      {skill.level && <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{skill.level}</span>}
+      {skill.level && <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{skill.level}</span>}
     </div>
   );
 }
@@ -480,16 +424,9 @@ function LimitRow({ limit }: { limit: TalentLimit }) {
         fontSize: 12.5,
       }}
     >
-      <span
-        style={{
-          display: "inline-block",
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: limit.enforcement === "hard" ? COLORS.red : COLORS.amber,
-        }}
+      <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: "50%", background: limit.enforcement === "hard" ? COLORS.red : COLORS.amber, }}
       />
-      <span style={{ flex: 1, color: COLORS.ink }}>{limit.label}</span>
+      <span style={{ flex: 1 }} className="text-admin-ink">{limit.label}</span>
       <span
         style={{
           fontSize: 10,
@@ -517,25 +454,16 @@ function CreditRow({ credit }: { credit: TalentCredit }) {
         borderBottom: `1px dashed ${COLORS.borderSoft}`,
       }}
     >
-      <span
-        style={{
-          fontSize: 10.5,
-          fontWeight: 700,
-          color: COLORS.inkDim,
-          letterSpacing: 0.3,
-          flexShrink: 0,
-          minWidth: 60,
-        }}
-      >
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3, flexShrink: 0, minWidth: 60 }} className="text-admin-ink-dim">
         {credit.year}
       </span>
-      <span style={{ flex: 1, color: COLORS.ink }}>
-        <strong style={{ fontWeight: 600 }}>{credit.brand}</strong>
-        <span style={{ color: COLORS.inkMuted }}> · {credit.type}</span>
-        {credit.role && <span style={{ color: COLORS.inkMuted }}> · {credit.role}</span>}
+      <span style={{ flex: 1 }} className="text-admin-ink">
+        <strong className="font-semibold">{credit.brand}</strong>
+        <span className="text-admin-ink-muted"> · {credit.type}</span>
+        {credit.role && <span className="text-admin-ink-muted"> · {credit.role}</span>}
       </span>
       {credit.pinned && (
-        <span style={{ color: COLORS.accentDeep, fontSize: 12 }}>★</span>
+        <span style={{ fontSize: 12 }} className="text-admin-accent-deep">★</span>
       )}
     </div>
   );
@@ -561,24 +489,17 @@ function ReviewSnippet({ review }: { review: TalentReview }) {
           marginBottom: 4,
         }}
       >
-        <span style={{ fontSize: 12, color: COLORS.ink, fontWeight: 600 }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">
           {review.reviewerName}
         </span>
-        <span style={{ fontSize: 11, color: COLORS.accentDeep, letterSpacing: 1 }}>
+        <span style={{ fontSize: 11, letterSpacing: 1 }} className="text-admin-accent-deep">
           {"★".repeat(review.rating)}
         </span>
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 5 }}>
+      <div style={{ fontSize: 11, marginBottom: 5 }} className="text-admin-ink-muted">
         {review.reviewerRole}
       </div>
-      <div
-        style={{
-          fontSize: 12.5,
-          color: COLORS.ink,
-          lineHeight: 1.5,
-          fontStyle: "italic",
-        }}
-      >
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
         &quot;{review.body.length > 110 ? review.body.slice(0, 108) + "…" : review.body}&quot;
       </div>
     </div>

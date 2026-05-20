@@ -92,19 +92,13 @@ export function WeekRhythmStrip() {
   };
 
   return (
-    <section style={{
-      background: "#fff",
-      border:     `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.lg,
-      padding:    "14px 18px",
-      marginBottom: 0,
-    }}>
+    <section style={{ background: "#fff", border:     `1px solid ${COLORS.borderSoft}`, padding:    "14px 18px", marginBottom: 0 }} className="rounded-admin-lg">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
             This week
           </div>
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, fontFamily: FONTS.body, marginTop: 1 }}>
+          <div style={{ fontSize: 10.5, fontFamily: FONTS.body, marginTop: 1 }} className="text-admin-ink-muted">
             {weekDays[0]!.toLocaleString("en-US", { month: "short", day: "numeric" })} – {weekDays[6]!.toLocaleString("en-US", { month: "short", day: "numeric" })}
           </div>
         </div>

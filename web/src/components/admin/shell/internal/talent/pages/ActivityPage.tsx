@@ -96,24 +96,10 @@ function EarningsGoalRing({ total }: { total: number }) {
             justifyContent: "center",
           }}
         >
-          <span
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 600,
-              color: COLORS.ink,
-              letterSpacing: -0.3,
-            }}
-          >
+          <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.3 }} className="text-admin-ink">
             {Math.round(pct * 100)}%
           </span>
-          <span
-            style={{
-              fontSize: 9.5,
-              color: COLORS.inkMuted,
-              fontWeight: 600,
-                          }}
-          >
+          <span style={{ fontSize: 9.5, fontWeight: 600 }} className="text-admin-ink-muted">
             of goal
           </span>
         </div>
@@ -121,23 +107,14 @@ function EarningsGoalRing({ total }: { total: number }) {
 
       {/* Right side — amount, goal, pace, edit */}
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-            marginBottom: 2,
-          }}
-        >
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-ink-muted">
           2026 earnings goal
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink, letterSpacing: -0.3 }}>
+          <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3 }} className="text-admin-ink">
             €{total.toLocaleString()}
           </span>
-          <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+          <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
             of €{goal.toLocaleString()}
           </span>
           <span
@@ -154,12 +131,12 @@ function EarningsGoalRing({ total }: { total: number }) {
             {paceLabel}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
           €{Math.max(0, goal - total).toLocaleString()} to go · expected by now ≈ €{Math.round(expectedByNow).toLocaleString()}
         </div>
         {editOpen ? (
           <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: COLORS.inkMuted }}>€</span>
+            <span style={{ fontSize: 12 }} className="text-admin-ink-muted">€</span>
             <input
               type="text"
               value={editValue}
@@ -267,78 +244,31 @@ function ForecastTile({ total, bookingsCount }: { total: number; bookingsCount: 
       }}
     >
       <div style={{ flex: 1, padding: "14px 18px" }}>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">
           Forecast · year-end
         </div>
-        <div
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 26,
-            fontWeight: 500,
-            color: COLORS.ink,
-            letterSpacing: -0.4,
-            marginTop: 2,
-            lineHeight: 1.1,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, marginTop: 2, lineHeight: 1.1 }} className="text-admin-ink">
           €{yearEndProjection.toLocaleString()}
         </div>
-        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
           Based on YTD pace × 12. {bookingsCount < 4 ? "Few data points yet — wide error band." : "Updates monthly."}
         </div>
       </div>
       <div style={{ width: 1, background: COLORS.borderSoft }} />
       <div style={{ flex: 1, padding: "14px 18px" }}>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">
           Next 30 days
         </div>
-        <div
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 26,
-            fontWeight: 500,
-            color: COLORS.ink,
-            letterSpacing: -0.4,
-            marginTop: 2,
-            lineHeight: 1.1,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, marginTop: 2, lineHeight: 1.1 }} className="text-admin-ink">
           €{next30.toLocaleString()}
         </div>
-        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
           Live pipeline + recent close-rate. Updated daily.
         </div>
       </div>
       <div style={{ width: 1, background: COLORS.borderSoft }} />
       <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">
           Confidence
         </div>
         <div
@@ -453,7 +383,7 @@ function ActivityPage() {
         // Drill-in to the most recent booking — the one that "tipped past" the threshold.
         const latestId = EARNINGS_ROWS[0]?.id;
         return (
-          <div style={{ marginBottom: 16 }}>
+          <div className="mb-4">
             <CelebrationBanner
               tone="forest"
               eyebrow={milestone.eyebrow}
@@ -626,18 +556,10 @@ function ActivityPage() {
                     fontFamily: FONTS.body,
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: 0.7,
-                      textTransform: "uppercase",
-                      color: COLORS.inkMuted,
-                    }}
-                  >
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">
                     {g.label}
                   </span>
-                  <span style={{ fontSize: 12, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>
+                  <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
                     €{g.total.toLocaleString()} · {g.rows.length} payout{g.rows.length === 1 ? "" : "s"}
                   </span>
                 </div>
@@ -650,7 +572,7 @@ function ActivityPage() {
 
       {/* Legacy table block — keep for the bottom secondary "Status" column,
           but compact; chevron drawer handler stays the same. */}
-      <div style={{ display: "none" }}>
+      <div className="hidden">
         {EARNINGS_ROWS.map((e) => (
           <button
             key={e.id}

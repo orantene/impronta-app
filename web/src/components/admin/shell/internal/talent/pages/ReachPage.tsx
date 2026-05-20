@@ -281,11 +281,11 @@ function ReachPage() {
           }}
         >
           <Icon name="search" size={14} stroke={1.7} color={COLORS.inkMuted} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
             Find a hub or studio to join
           </span>
         </div>
-        <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
           New partner platforms are added monthly. Tulala vets every external hub before
           surfacing it here. Inquiries through verified hubs follow the same trust + payout
           rules as agency-routed work.
@@ -333,7 +333,7 @@ function ReachPage() {
                 (BookEm.app, etc.). You may get inquiries from Basic-tier clients you
                 wouldn&apos;t otherwise see.
               </p>
-              <p style={{ margin: 0, color: COLORS.inkMuted }}>
+              <p style={{ margin: 0 }} className="text-admin-ink-muted">
                 You can still toggle individual channels off below, or slide back to
                 Wide at any time. No commitment.
               </p>

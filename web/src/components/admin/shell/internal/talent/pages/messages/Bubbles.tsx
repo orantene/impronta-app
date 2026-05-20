@@ -20,17 +20,7 @@ export function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg;
     // pill (felt heavy). Just a small caption with a refined dot.
     return (
       <div style={{ display: "flex", justifyContent: "center", margin: "12px 0 6px", fontFamily: FONTS.body }}>
-        <span
-          style={{
-            fontSize: 10.5,
-            color: COLORS.inkMuted,
-            fontStyle: "italic",
-            letterSpacing: 0.05,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
+        <span style={{ fontSize: 10.5, fontStyle: "italic", letterSpacing: 0.05, display: "inline-flex", alignItems: "center", gap: 6 }} className="text-admin-ink-muted">
           <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.inkDim }} />
           {msg.body}
           <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.inkDim }} />
@@ -84,16 +74,7 @@ export function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg;
       )}
       <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", gap: 3 }}>
         {!fromYou && isFirstOfGroup && senderLabel && (
-          <div
-            style={{
-              fontSize: 9.5,
-              fontWeight: 700,
-              letterSpacing: 0.7,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
-              paddingLeft: 4,
-            }}
-          >
+          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", paddingLeft: 4 }} className="text-admin-ink-muted">
             {senderLabel}
           </div>
         )}
@@ -129,7 +110,7 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen]);
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => { if (!disabled) onSend(); }}
@@ -185,13 +166,8 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <div style={{
-            fontSize: 10,
-            fontWeight: 700,
-                        color: COLORS.inkMuted,
-            padding: "6px 10px 4px",
-          }}>Scheduled send coming soon</div>
-          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Scheduled send coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
             Delayed send needs a queue before it can be enabled.
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
@@ -255,7 +231,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
       onTouchCancel={cancelLongPress}
       onTouchMove={cancelLongPress}
     >
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         {children}
         {hovered && !menuOpen && (
           <button
@@ -314,7 +290,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
                 }}
               >
                 <span style={{ fontSize: 12 }}>{e}</span>
-                {count > 1 && <span style={{ color: COLORS.inkMuted }}>{count}</span>}
+                {count > 1 && <span className="text-admin-ink-muted">{count}</span>}
               </button>
             );
           })}
@@ -388,12 +364,8 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
           }} />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
           <div style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: COLORS.inkMuted,
-            padding: "6px 10px 4px",
-          }}>Message actions coming soon</div>
-          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+            fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Message actions coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
             Reply threading, pin, translate, and forward need real message actions before they appear here.
           </div>
           <BubbleMenuItem icon="x" label="Close menu" onClick={close} />

@@ -180,10 +180,10 @@ function ConversationList({
       {/* Header */}
       <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
-          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0, color: COLORS.ink }}>
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0 }} className="text-admin-ink">
             Messages
           </h2>
-          <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
             {conversations.length} thread{conversations.length === 1 ? "" : "s"}
           </span>
         </div>
@@ -401,11 +401,11 @@ function ConversationListRow({
         if (!active) e.currentTarget.style.background = "transparent";
       }}
     >
-      <div style={{ position: "relative", flexShrink: 0 }}>
+      <div className="relative shrink-0">
         <Avatar size={40} tone="auto" hashSeed={conv.client} initials={conv.clientInitials} />
         <ClientTrustBadge level={conv.clientTrust} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
           <span data-tulala-conv-row-name style={{ fontSize: 13, fontWeight: conv.unreadCount > 0 ? 600 : 500, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {conv.client}
@@ -452,23 +452,7 @@ function ConversationListRow({
             </span>
           )}
           {conv.unreadCount > 0 && (
-            <span
-              style={{
-                minWidth: 16,
-                height: 16,
-                padding: "0 5px",
-                borderRadius: 999,
-                background: COLORS.accent,
-                color: "#fff",
-                fontSize: 9.5,
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontVariantNumeric: "tabular-nums",
-                flexShrink: 0,
-              }}
-            >
+            <span style={{ minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums", flexShrink: 0 }} className="bg-admin-accent">
               {conv.unreadCount}
             </span>
           )}
@@ -501,13 +485,8 @@ function ConversationListRow({
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <div style={{
-            fontSize: 10,
-            fontWeight: 700,
-                        color: COLORS.inkMuted,
-            padding: "6px 10px 4px",
-          }}>Quick actions coming soon</div>
-          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Quick actions coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
             Snooze, pin, mark read, and archive need a real inbox mutation path before they appear here.
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />

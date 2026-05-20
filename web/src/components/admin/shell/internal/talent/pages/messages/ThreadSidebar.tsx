@@ -65,9 +65,9 @@ export function ThreadHeader({
         </button>
       )}
       <Avatar size={36} tone="auto" hashSeed={conv.client} initials={conv.clientInitials} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div data-tulala-thread-header-titlerow style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14.5, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{conv.client}</span>
+          <span style={{ fontSize: 14.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }} className="text-admin-ink">{conv.client}</span>
           <span data-tulala-thread-header-trust style={{ display: "inline-flex", flexShrink: 0 }}>
             <ClientTrustChip level={conv.clientTrust} />
           </span>
@@ -93,7 +93,7 @@ export function ThreadHeader({
       {/* Right side — search + options + info toggle. Leader, location,
           schedule, transport now live in the right info sidebar (toggle
           this with the panel button on the right). */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         <button
           type="button"
           title="Search in thread"
@@ -159,7 +159,7 @@ function ThreadOptionsMenu() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         title="Thread options"
@@ -168,7 +168,7 @@ function ThreadOptionsMenu() {
         onClick={() => setOpen((v) => !v)}
         style={iconButtonSm}
       >
-        <span style={{ fontFamily: FONTS.body, fontWeight: 700, color: COLORS.inkMuted, letterSpacing: 1 }}>···</span>
+        <span style={{ fontFamily: FONTS.body, fontWeight: 700, letterSpacing: 1 }} className="text-admin-ink-muted">···</span>
       </button>
       {open && (
         <div
@@ -190,13 +190,8 @@ function ThreadOptionsMenu() {
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <div style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: COLORS.inkMuted,
-            padding: "6px 10px 4px",
-          }}>Thread actions coming soon</div>
-          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Thread actions coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
             Star, mute, pin, export, archive, and block need real thread mutations before they appear here.
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
@@ -302,10 +297,10 @@ export function ThreadInfoSidebar({
       {/* Section: Schedule */}
       {(conv.pinned.schedule || conv.pinned.callTime || conv.date) && (
         <InfoSection icon="calendar" label="Schedule">
-          <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.5 }}>
-            {conv.date && <div style={{ fontWeight: 500 }}>{conv.date}</div>}
+          <div style={{ fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink">
+            {conv.date && <div className="font-medium">{conv.date}</div>}
             {conv.pinned.schedule && (
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+              <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
                 {conv.pinned.schedule}
               </div>
             )}
@@ -316,7 +311,7 @@ export function ThreadInfoSidebar({
       {/* Section: Location */}
       {conv.location && (
         <InfoSection icon="map-pin" label="Location">
-          <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.5 }}>{conv.location}</div>
+          <div style={{ fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink">{conv.location}</div>
           <a
             href={`https://maps.google.com/?q=${encodeURIComponent(conv.location)}`}
             target="_blank"
@@ -341,7 +336,7 @@ export function ThreadInfoSidebar({
       {/* Section: Transport */}
       {conv.pinned.transport && (
         <InfoSection icon="external" label="Transport">
-          <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">
             {conv.pinned.transport}
           </div>
         </InfoSection>
@@ -354,11 +349,11 @@ export function ThreadInfoSidebar({
           label={conv.amountToYou ? "Your take-home" : conv.pinned.rate?.status === "you-quoted" ? "Your rate" : conv.pinned.rate?.status === "client-budget" ? "Client budget" : "Agreed rate"}
           locked={isLocked}
         >
-          <div style={{ fontSize: 14.5, fontWeight: 600, color: COLORS.green, fontFamily: FONTS.display, letterSpacing: -0.1 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, fontFamily: FONTS.display, letterSpacing: -0.1 }} className="text-admin-green">
             {conv.amountToYou ?? conv.pinned.rate?.value ?? "—"}
           </div>
           {isLocked && (
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
               You see your take-home only. Full offer is between the agency and the client.
             </div>
           )}
@@ -373,7 +368,7 @@ export function ThreadInfoSidebar({
       {/* Section: Coordinator note (private) */}
       {conv.pinned.coordinatorNote && (
         <InfoSection icon="info" label="From your coordinator (private)">
-          <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55, fontStyle: "italic" }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, fontStyle: "italic" }} className="text-admin-ink">
             &quot;{conv.pinned.coordinatorNote}&quot;
           </div>
         </InfoSection>
@@ -399,9 +394,9 @@ export function ThreadInfoSidebar({
           }}
         >
           <Avatar size={28} tone="ink" initials={conv.leader.initials} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{conv.leader.name}</div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{conv.leader.role}</div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{conv.leader.name}</div>
+            <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{conv.leader.role}</div>
           </div>
           <Icon name="chevron-right" size={11} color={COLORS.inkDim} />
         </button>
@@ -409,7 +404,7 @@ export function ThreadInfoSidebar({
 
       {/* Section: Files (mock counts based on stage) */}
       <InfoSection icon="external" label="Files & attachments">
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="flex flex-col gap-1">
           {[
             { name: "Mood board (4 images)", kind: "📷" },
             ...(conv.stage === "booked" ? [
@@ -476,7 +471,7 @@ export function ThreadInfoSidebar({
           >
             Drop / cancel booking
           </button>
-          <p style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }} className="text-admin-ink-muted">
             Sends a cancel request to your coordinator. They negotiate with the client.
           </p>
         </div>
@@ -501,7 +496,7 @@ export function ThreadInfoSidebar({
           >
             ✨ Resolve conflict
           </button>
-          <p style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }} className="text-admin-ink-muted">
             This thread overlaps with another booking. Open the smart resolver to pick a path.
           </p>
         </div>

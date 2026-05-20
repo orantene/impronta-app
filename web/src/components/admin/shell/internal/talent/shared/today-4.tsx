@@ -34,19 +34,10 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
     >
       <DateBlock day={day} month={month} />
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           <span>{booking.client}</span>
-          <span style={{ color: COLORS.inkDim }}>·</span>
-          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{booking.brief}</span>
+          <span className="text-admin-ink-dim">·</span>
+          <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">{booking.brief}</span>
         </div>
         <div
           style={{
@@ -58,20 +49,12 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
           }}
         >
           <KindChip label="Booked" tone="success" />
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-muted">
             {booking.location} · call {booking.call}
           </span>
         </div>
       </div>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: COLORS.ink,
-          fontVariantNumeric: "tabular-nums",
-          flexShrink: 0,
-        }}
-      >
+      <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }} className="text-admin-ink">
         {booking.amount}
       </span>
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />

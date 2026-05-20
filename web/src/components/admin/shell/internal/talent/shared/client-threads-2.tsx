@@ -40,16 +40,7 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
   ];
 
   return (
-    <div
-      style={{
-        marginBottom: 16,
-        padding: "12px 14px",
-        background: COLORS.royalSoft,
-        border: `1px solid rgba(95,75,139,0.18)`,
-        borderRadius: 12,
-        fontFamily: FONTS.body,
-      }}
-    >
+    <div style={{ marginBottom: 16, padding: "12px 14px", border: `1px solid rgba(95,75,139,0.18)`, borderRadius: 12, fontFamily: FONTS.body }} className="bg-admin-royal-soft">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
@@ -84,17 +75,10 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
           <Icon name="sparkle" size={13} stroke={1.7} />
         </span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.royalDeep }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-royal-deep">
             AI suggestion for {item.client}
           </div>
-          <div
-            style={{
-              fontSize: 11.5,
-              color: COLORS.royalDeep,
-              opacity: 0.78,
-              marginTop: 1,
-            }}
-          >
+          <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 1 }} className="text-admin-royal-deep">
             {expanded
               ? "Pick a variant, then open the thread to reply."
               : "3 reply variants ready. Click to preview."}
@@ -130,16 +114,10 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                   gap: 4,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                                        color: COLORS.royalDeep,
-                  }}
-                >
+                <div style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-royal-deep">
                   {v.label}
                 </div>
-                <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
                   {v.body}
                 </div>
               </button>
@@ -170,14 +148,7 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
               </button>
             </div>
           )}
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: 10.5,
-              color: COLORS.inkDim,
-              fontFamily: FONTS.body,
-            }}
-          >
+          <div style={{ marginTop: 4, fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
             Privacy: client name is anonymized when we generate suggestions. Toggle off in Settings → Notifications.
           </div>
         </div>
@@ -247,7 +218,7 @@ export function InboxPowerToolbar({
         <option value="fit">Best fit (AI)</option>
       </select>
       <div style={{ flex: 1 }} />
-      <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+      <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
         {totalShown} item{totalShown === 1 ? "" : "s"}
       </span>
     </div>
@@ -281,19 +252,7 @@ export function BulkActionBar({
   onClear: () => void;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 14px",
-        background: COLORS.fill,
-        color: "#fff",
-        borderRadius: 10,
-        fontFamily: FONTS.body,
-        marginTop: 12,
-      }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", color: "#fff", borderRadius: 10, fontFamily: FONTS.body, marginTop: 12 }} className="bg-admin-fill">
       <span style={{ fontSize: 13, fontWeight: 600 }}>
         {count} selected
       </span>
@@ -471,7 +430,7 @@ export function InboxRow({
           minWidth: 0,
         }}
       >
-      <div style={{ position: "relative", flexShrink: 0 }}>
+      <div className="relative shrink-0">
         <Avatar
           size={36}
           tone="auto"
@@ -481,28 +440,10 @@ export function InboxRow({
         <ClientTrustBadge level={item.clientTrust} />
       </div>
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           <span>{item.client}</span>
-          <span style={{ color: COLORS.inkDim }}>·</span>
-          <span
-            style={{
-              color: COLORS.inkMuted,
-              fontWeight: 400,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-            }}
-          >
+          <span className="text-admin-ink-dim">·</span>
+          <span style={{ fontWeight: 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }} className="text-admin-ink-muted">
             {item.brief}
           </span>
         </div>
@@ -516,7 +457,7 @@ export function InboxRow({
           }}
         >
           <KindChip label={item.kindLabel} tone={item.kindTone} />
-          <span style={{ color: COLORS.inkMuted }}>
+          <span className="text-admin-ink-muted">
             {item.microcopy}
             {item.date && ` · ${item.date}`}
             {item.amount && ` · ${item.amount}`}
@@ -524,20 +465,7 @@ export function InboxRow({
         </div>
       </div>
       {item.category === "action" && hover && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
-            borderRadius: 7,
-            background: COLORS.coralSoft,
-            color: COLORS.coralDeep,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 600,
-          }}
-        >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 7, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600 }} className="bg-admin-coral-soft text-admin-coral-deep">
           Reply →
         </span>
       )}

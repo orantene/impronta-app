@@ -179,7 +179,7 @@ function MessagesOverlaySheet({
             borderBottom: `1px solid ${COLORS.borderSoft}`,
           }}
         >
-          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0, color: COLORS.ink }}>
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0 }} className="text-admin-ink">
             Messages
           </h2>
           <div className="flex items-center gap-2">
@@ -311,7 +311,7 @@ export function ParticipantsStack({ participants }: { participants: Participant[
       >
         with
       </span>
-      <div style={{ display: "inline-flex", alignItems: "center" }}>
+      <div className="inline-flex items-center">
         {visible.map((p, i) => (
           <span
             key={`${p.initials}-${i}`}
@@ -335,27 +335,7 @@ export function ParticipantsStack({ participants }: { participants: Participant[
           </span>
         ))}
         {overflow > 0 && (
-          <span
-            style={{
-              marginLeft: -6,
-              minWidth: 20,
-              height: 20,
-              padding: "0 5px",
-              borderRadius: 999,
-              border: "1.5px solid #fff",
-              background: "rgba(11,11,13,0.10)",
-              color: COLORS.inkMuted,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 9.5,
-              fontWeight: 700,
-              fontFamily: FONTS.body,
-              fontVariantNumeric: "tabular-nums",
-              position: "relative",
-              zIndex: 0,
-            }}
-          >
+          <span style={{ marginLeft: -6, minWidth: 20, height: 20, padding: "0 5px", borderRadius: 999, border: "1.5px solid #fff", background: "rgba(11,11,13,0.10)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9.5, fontWeight: 700, fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums", position: "relative", zIndex: 0 }} className="text-admin-ink-muted">
             +{overflow}
           </span>
         )}
@@ -437,16 +417,7 @@ export function ConversationThread({
 
         {/* Read-only banner if past */}
         {isReadOnly && (
-          <div
-            style={{
-              padding: "8px 18px",
-              background: "rgba(11,11,13,0.04)",
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-              fontFamily: FONTS.body,
-              fontSize: 11.5,
-              color: COLORS.inkMuted,
-            }}
-          >
+          <div style={{ padding: "8px 18px", background: "rgba(11,11,13,0.04)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
             🔒 This thread is archived. Read-only.
           </div>
         )}
