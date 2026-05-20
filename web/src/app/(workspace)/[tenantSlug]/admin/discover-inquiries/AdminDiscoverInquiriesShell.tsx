@@ -1,5 +1,3 @@
-"use client";
-
 // Admin · Discover-inquiries view.
 //
 // Lightweight list of Discover-originated inquiries for this workspace.
