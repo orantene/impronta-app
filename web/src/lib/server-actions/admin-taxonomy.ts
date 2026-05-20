@@ -1329,19 +1329,22 @@ export async function getFieldsForTalent(input: {
   }
 
   // Sort by group display_order → display_order within group → label.
+  // Pre-build a slug → display_order lookup so the comparator is O(1) per
+  // call rather than re-scanning groupMetaById.entries() each comparison
+  // (was O(n²) over the resolved field list — §11 known debt).
+  // Behaviour is byte-identical: same lookup-by-slug, same fallback to 0
+  // when a slug is missing, same tie-breaks.
+  const groupOrderBySlug = new Map<string, number>();
+  for (const meta of groupMetaById.values()) {
+    groupOrderBySlug.set(meta.slug, meta.display_order);
+  }
   resolved.sort((a, b) => {
-    const aGroup = a.field_group_slug
-      ? groupMetaById.get(
-          [...groupMetaById.entries()].find(([_id, m]) => m.slug === a.field_group_slug)?.[0] ?? "",
-        )
-      : null;
-    const bGroup = b.field_group_slug
-      ? groupMetaById.get(
-          [...groupMetaById.entries()].find(([_id, m]) => m.slug === b.field_group_slug)?.[0] ?? "",
-        )
-      : null;
-    const aOrder = aGroup?.display_order ?? 0;
-    const bOrder = bGroup?.display_order ?? 0;
+    const aOrder = a.field_group_slug
+      ? (groupOrderBySlug.get(a.field_group_slug) ?? 0)
+      : 0;
+    const bOrder = b.field_group_slug
+      ? (groupOrderBySlug.get(b.field_group_slug) ?? 0)
+      : 0;
     if (aOrder !== bOrder) return aOrder - bOrder;
     if (a.display_order !== b.display_order)
       return a.display_order - b.display_order;
