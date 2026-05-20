@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * CategoryIconGlyph — renders the same icon enum the category_grid schema
  * accepts, as a clean SVG glyph.
