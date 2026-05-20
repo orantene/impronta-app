@@ -9,17 +9,17 @@ type Props = { tab: string; children: ReactNode; onRetry?: () => void };
 type State = { error: Error | null };
 
 export class InquiryTabErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
+  override componentDidCatch(error: Error, info: ErrorInfo) {
     logServerError("inquiry_tab_error_boundary", error);
   }
 
-  render() {
+  override render() {
     if (this.state.error) {
       return (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">

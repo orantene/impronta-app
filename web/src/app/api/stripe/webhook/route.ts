@@ -67,7 +67,7 @@ export const dynamic = "force-dynamic";
  * yield 200 so Stripe doesn't retry forever.
  */
 class TransientWebhookError extends Error {
-  constructor(message: string, public cause?: unknown) {
+  constructor(message: string, public override cause?: unknown) {
     super(message);
     this.name = "TransientWebhookError";
   }

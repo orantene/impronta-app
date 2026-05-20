@@ -18,13 +18,13 @@ type State = { hasError: boolean };
  * See plan hard rules §11.
  */
 export class AIErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  override state: State = { hasError: false };
 
   static getDerivedStateFromError(): State {
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     if (process.env.NODE_ENV === "development") {
       void improntaLog("ai_error_boundary.warn", {
         message: "[AIErrorBoundary]",
@@ -34,7 +34,7 @@ export class AIErrorBoundary extends Component<Props, State> {
     }
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (

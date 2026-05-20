@@ -134,7 +134,7 @@ class ErrorBoundary extends Component<
   static getDerivedStateFromError(err: Error) {
     return { caught: err };
   }
-  render() {
+  override render() {
     if (this.state.caught) {
       return (
         <div

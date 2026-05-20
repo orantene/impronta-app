@@ -44,11 +44,11 @@ import {
 export type SerializedAccentNode = SerializedTextNode;
 
 export class AccentNode extends TextNode {
-  static getType(): string {
+  static override getType(): string {
     return "accent";
   }
 
-  static clone(node: AccentNode): AccentNode {
+  static override clone(node: AccentNode): AccentNode {
     return new AccentNode(node.__text, node.__key);
   }
 
@@ -56,7 +56,7 @@ export class AccentNode extends TextNode {
     super(text, key);
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  override createDOM(config: EditorConfig): HTMLElement {
     // Reuse the parent class behavior for format flags (BOLD / ITALIC),
     // then layer the accent class + inline style so the live editor
     // matches `<em class="site-accent" style="font-style:italic; font-weight:300;">`
@@ -71,7 +71,7 @@ export class AccentNode extends TextNode {
     return dom;
   }
 
-  static importJSON(serializedNode: SerializedAccentNode): AccentNode {
+  static override importJSON(serializedNode: SerializedAccentNode): AccentNode {
     const node = $createAccentNode(serializedNode.text);
     node.setFormat(serializedNode.format);
     node.setDetail(serializedNode.detail);
@@ -80,7 +80,7 @@ export class AccentNode extends TextNode {
     return node;
   }
 
-  exportJSON(): SerializedAccentNode {
+  override exportJSON(): SerializedAccentNode {
     return {
       ...super.exportJSON(),
       type: "accent",
@@ -88,7 +88,7 @@ export class AccentNode extends TextNode {
     };
   }
 
-  isSimpleText(): boolean {
+  override isSimpleText(): boolean {
     // Treat accent runs as simple text for caret arithmetic but not for
     // merging — the type guard prevents Lexical from merging an accent
     // run with a plain TextNode neighbor.
