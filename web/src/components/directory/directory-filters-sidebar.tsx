@@ -65,7 +65,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, i)}
-      <span className="rounded-sm bg-[var(--impronta-gold)]/18 px-0.5 text-[var(--impronta-gold-bright)]">
+      <span className="rounded-sm bg-white/15 px-0.5 text-white">
         {text.slice(i, i + q.length)}
       </span>
       {text.slice(i + q.length)}
@@ -188,7 +188,7 @@ function DirectoryLocationSearchDropdown({
           width: menuPos.width,
           zIndex: 200,
         }}
-        className="max-h-60 overflow-auto rounded-lg border border-[var(--impronta-gold-border)]/40 bg-[var(--impronta-surface)] py-1 shadow-xl"
+        className="max-h-60 overflow-auto rounded-lg border border-white/15 bg-zinc-900/95 py-1 shadow-xl"
       >
         {filtered.length === 0 ? (
           <li className="px-3 py-2 text-xs text-[var(--impronta-muted)]">{fc.noCitiesMatch}</li>
@@ -207,8 +207,8 @@ function DirectoryLocationSearchDropdown({
                   className={cn(
                     "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
                     selected
-                      ? "bg-[rgba(212,175,55,0.12)] text-[var(--impronta-gold)]"
-                      : "text-zinc-200 hover:bg-[var(--impronta-surface)]",
+                      ? "bg-white/10 text-white"
+                      : "text-zinc-200 hover:bg-white/[0.04]",
                   )}
                 >
                   <span className="min-w-0 truncate">
@@ -218,7 +218,7 @@ function DirectoryLocationSearchDropdown({
                     <span
                       className={cn(
                         "shrink-0 tabular-nums text-xs",
-                        selected ? "text-[var(--impronta-gold)]" : "text-[var(--impronta-muted)]",
+                        selected ? "text-white" : "text-white/60",
                       )}
                     >
                       {c}
@@ -239,7 +239,7 @@ function DirectoryLocationSearchDropdown({
       </label>
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--impronta-gold-dim)]"
+          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/40"
           aria-hidden
         />
         <input
@@ -270,7 +270,7 @@ function DirectoryLocationSearchDropdown({
             }
           }}
           className={cn(
-            "w-full rounded-lg border border-[var(--impronta-gold-border)]/35 bg-[var(--impronta-surface)]/90 py-2 pl-8 text-sm text-foreground placeholder:text-[var(--impronta-muted)]/70 outline-none ring-0 transition-[border-color,box-shadow] focus:border-[var(--impronta-gold-dim)] focus:shadow-[0_0_0_1px_rgba(201,162,39,0.25)]",
+            "w-full rounded-lg border border-white/15 bg-white/[0.04] py-2 pl-8 text-sm text-foreground placeholder:text-white/40 outline-none ring-0 transition-[border-color,box-shadow] focus:border-white/30 focus:shadow-[0_0_0_1px_rgba(255,255,255,0.18)]",
             locationSelected ? "pr-9" : "pr-8",
           )}
         />
@@ -278,7 +278,7 @@ function DirectoryLocationSearchDropdown({
           <button
             type="button"
             onClick={() => clear()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--impronta-muted)] hover:text-foreground"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-white/60 hover:text-foreground"
             aria-label={fc.clearCityAria}
           >
             <X className="size-3.5" />
@@ -312,7 +312,7 @@ function SectionAccordion({
   }, [forceOpen]);
 
   return (
-    <div className="border-b border-[var(--impronta-gold-border)]/25 pb-3">
+    <div className="border-b border-white/10 pb-3">
       <button
         type="button"
         onClick={() => !forceOpen && setOpen((o) => !o)}
@@ -326,9 +326,9 @@ function SectionAccordion({
           {title}
         </span>
         {effectiveOpen ? (
-          <ChevronDown className="size-4 shrink-0 text-[var(--impronta-gold-dim)]" aria-hidden />
+          <ChevronDown className="size-4 shrink-0 text-white/40" aria-hidden />
         ) : (
-          <ChevronRight className="size-4 shrink-0 text-[var(--impronta-gold-dim)]" aria-hidden />
+          <ChevronRight className="size-4 shrink-0 text-white/40" aria-hidden />
         )}
       </button>
       <AnimatePresence initial={false}>
@@ -397,7 +397,7 @@ function ExpandableChips({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-[var(--impronta-gold-border)]/40 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--impronta-gold-dim)] transition-colors hover:border-[var(--impronta-gold-dim)] hover:text-[var(--impronta-gold)]"
+          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-white/15 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 transition-colors hover:border-white/30 hover:text-white"
         >
           {showAll ? (
             <>
@@ -461,7 +461,7 @@ function ExpandableGrid({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-[var(--impronta-gold-border)]/40 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--impronta-gold-dim)] transition-colors hover:border-[var(--impronta-gold-dim)] hover:text-[var(--impronta-gold)]"
+          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-white/15 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 transition-colors hover:border-white/30 hover:text-white"
         >
           {showAll ? (
             <>
@@ -528,7 +528,7 @@ function ExpandableRadioList({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-[var(--impronta-gold-border)]/40 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--impronta-gold-dim)] transition-colors hover:border-[var(--impronta-gold-dim)] hover:text-[var(--impronta-gold)]"
+          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-white/15 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 transition-colors hover:border-white/30 hover:text-white"
         >
           {showAll ? (
             <>
@@ -879,8 +879,8 @@ export function DirectoryFiltersSidebar({
 
   if (facetSections.length === 0) {
     return (
-      <aside className="space-y-3 rounded-lg border border-dashed border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/80 p-4 text-sm text-[var(--impronta-muted)]">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--impronta-gold-dim)]">
+      <aside className="space-y-3 rounded-lg border border-dashed border-white/15 bg-white/[0.04] p-4 text-sm text-white/70">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-white/60">
           {fc.emptyAsideTitle}
         </h2>
         <p className="text-foreground">{fc.emptyAsideBody}</p>
@@ -891,7 +891,7 @@ export function DirectoryFiltersSidebar({
         <p>
           <Link
             href="/admin/directory/filters"
-            className="font-medium text-[var(--impronta-gold)] underline underline-offset-4"
+            className="font-medium text-white underline underline-offset-4"
           >
             {fc.emptyAsideLink}
           </Link>
@@ -908,14 +908,14 @@ export function DirectoryFiltersSidebar({
       )}
     >
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--impronta-gold-dim)]">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-white/60">
           {fc.sidebarTitle}
         </h2>
         {hasFilters ? (
           <button
             type="button"
             onClick={clearAll}
-            className="text-xs text-[var(--impronta-gold)] underline-offset-4 hover:underline"
+            className="text-xs text-white underline-offset-4 hover:underline"
           >
             {fc.clearAll}
           </button>
@@ -932,7 +932,7 @@ export function DirectoryFiltersSidebar({
                 </label>
                 <div className="relative">
                   <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--impronta-gold-dim)]"
+                    className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/40"
                     aria-hidden
                   />
                   <input
@@ -942,13 +942,13 @@ export function DirectoryFiltersSidebar({
                     onChange={(e) => setFilterQuery(e.target.value)}
                     placeholder={fc.searchFiltersPlaceholder}
                     autoComplete="off"
-                    className="w-full rounded-lg border border-[var(--impronta-gold-border)]/35 bg-[var(--impronta-surface)]/90 py-2 pl-8 pr-8 text-sm text-foreground placeholder:text-[var(--impronta-muted)]/70 outline-none ring-0 transition-[border-color,box-shadow] focus:border-[var(--impronta-gold-dim)] focus:shadow-[0_0_0_1px_rgba(201,162,39,0.25)]"
+                    className="w-full rounded-lg border border-white/15 bg-white/[0.04] py-2 pl-8 pr-8 text-sm text-foreground placeholder:text-white/40 outline-none ring-0 transition-[border-color,box-shadow] focus:border-white/30 focus:shadow-[0_0_0_1px_rgba(255,255,255,0.18)]"
                   />
                   {filterQuery ? (
                     <button
                       type="button"
                       onClick={() => setFilterQuery("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--impronta-muted)] hover:text-foreground"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-white/60 hover:text-foreground"
                       aria-label={fc.clearFilterSearchAria}
                     >
                       <X className="size-3.5" />

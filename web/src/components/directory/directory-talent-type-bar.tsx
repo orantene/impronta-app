@@ -66,8 +66,8 @@ export function DirectoryTalentTypeBar({
     cn(
       "snap-start shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] shadow-none",
       on
-        ? "border border-[var(--impronta-gold)] bg-[var(--impronta-gold)] !text-black"
-        : "border border-[var(--impronta-gold-border)] bg-transparent text-[var(--impronta-muted)] hover:border-[var(--impronta-gold-dim)] hover:!text-zinc-200",
+        ? "border border-white bg-white !text-black"
+        : "border border-white/15 bg-transparent text-white/60 hover:border-white/30 hover:!text-zinc-200",
     );
 
   return (

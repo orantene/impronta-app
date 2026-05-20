@@ -7,10 +7,19 @@ import { SECTION_TEMPLATE_STARTERS } from "@/lib/site-admin/sections/shared/sect
 // surfaces here. The runtime data unanimously has `homeCore` (see
 // section-template-starters.ts), so a structural guard is sufficient.
 const HOME_CORE_SECTION_TYPES: ReadonlySet<SectionTypeKey> = new Set(
-  SECTION_TEMPLATE_STARTERS.filter(
-    (starter): starter is typeof starter & { homeCore: boolean } =>
-      "homeCore" in starter && (starter as { homeCore: boolean }).homeCore === true,
-  ).map((starter) => starter.sectionTypeKey),
+  [
+    ...SECTION_TEMPLATE_STARTERS.filter(
+      (starter): starter is typeof starter & { homeCore: boolean } =>
+        "homeCore" in starter &&
+        (starter as { homeCore: boolean }).homeCore === true,
+    ).map((starter) => starter.sectionTypeKey),
+    // Older starter recipes used these section types for the same home
+    // roles. Keep them recognized so draft/published starter selections
+    // created before the v11 components still enforce the home core.
+    "hero",
+    "category_grid",
+    "map_overlay",
+  ],
 );
 
 /**
@@ -167,8 +176,10 @@ export const STARTER_SECTION_SOURCE_BY_TYPE: Partial<
   Record<SectionTypeKey, "live-data" | "starter-content" | "navigation">
 > = {
   featured_talent: "live-data",
+  location_discovery: "live-data",
   map_overlay: "live-data",
   category_grid: "navigation",
+  talent_type_grid: "navigation",
 };
 
 export function sectionSourceLabel(typeKey: SectionTypeKey): string {

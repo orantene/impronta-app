@@ -7,10 +7,13 @@ import { ctaBannerSchemaV1 } from "../cta_banner/schema";
 import { featuredTalentSchemaV1 } from "../featured_talent/schema";
 import { gallerySchemaV1 } from "../gallery_strip/schema";
 import { heroSchemaV1 } from "../hero/schema";
+import { heroSearchSchemaV1 } from "../hero_search/schema";
 import { heroSplitSchemaV1 } from "../hero_split/schema";
+import { locationDiscoverySchemaV1 } from "../location_discovery/schema";
 import { mapOverlaySchemaV1 } from "../map_overlay/schema";
 import { getSectionMeta } from "../section-meta-registry";
 import { statsSchemaV1 } from "../stats/schema";
+import { talentTypeGridSchemaV1 } from "../talent_type_grid/schema";
 import { testimonialsTrioSchemaV1 } from "../testimonials_trio/schema";
 import { BUILDER_DATA_SOURCE_REGISTRY } from "../../builder-node/data-bindings";
 import {
@@ -33,9 +36,12 @@ const STARTER_SECTION_SCHEMAS: Record<string, ZodTypeAny> = {
   featured_talent: featuredTalentSchemaV1,
   gallery_strip: gallerySchemaV1,
   hero: heroSchemaV1,
+  hero_search: heroSearchSchemaV1,
   hero_split: heroSplitSchemaV1,
+  location_discovery: locationDiscoverySchemaV1,
   map_overlay: mapOverlaySchemaV1,
   stats: statsSchemaV1,
+  talent_type_grid: talentTypeGridSchemaV1,
   testimonials_trio: testimonialsTrioSchemaV1,
 };
 

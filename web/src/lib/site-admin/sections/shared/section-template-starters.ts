@@ -5,6 +5,7 @@ import {
   type BuilderDataSourceKey,
 } from "../../builder-node/data-bindings";
 import { v11FeaturedTalentPreset } from "../featured_talent/presets";
+import { v11TalentTypeGridPreset } from "../talent_type_grid/presets";
 
 export type SectionTemplateStarterKind = "data" | "design" | "conversion";
 export type SectionTemplateStarterSourceKind =
@@ -77,8 +78,8 @@ export const SECTION_TEMPLATE_STARTERS = [
     id: "directory-search-hero",
     label: "Directory Search Hero",
     description:
-      "A centered talent-directory opener with search-first copy and category navigation.",
-    sectionTypeKey: "hero",
+      "A search-first agency opener with inquiry CTA, market chips, and represented-talent proof.",
+    sectionTypeKey: "hero_search",
     homeCore: true,
     category: "hero",
     kind: "design",
@@ -88,8 +89,8 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataBindingKey: "tenant_directory_search",
     editModel: "section-props",
     editableCapabilities: ["content", "style", "layout", "data"],
-    componentRecipe: ["eyebrow", "headline", "search input", "category chips"],
-    editScope: "Copy, CTAs, presentation, and future search controls.",
+    componentRecipe: ["eyebrow", "headline", "search input", "market chips"],
+    editScope: "Copy, CTAs, search behavior, market chips, stats, and presentation.",
     preview: "search",
     stylePresets: [
       {
@@ -115,7 +116,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     category: "showcase",
     kind: "data",
     sourceKind: "live-data",
-    readiness: "ready-now",
+    readiness: "needs-setup",
     dataSource: "Database: featured talent profiles.",
     dataBindingKey: "featured_talent_profiles",
     editModel: "live-data",
@@ -144,18 +145,18 @@ export const SECTION_TEMPLATE_STARTERS = [
     label: "Explore by Location",
     description:
       "A map-led destination section for operating markets, location counts, and regional discovery.",
-    sectionTypeKey: "map_overlay",
+    sectionTypeKey: "location_discovery",
     homeCore: true,
     category: "embed",
     kind: "data",
     sourceKind: "live-data",
-    readiness: "needs-setup",
-    dataSource: "Data-ready: destinations and talent counts.",
+    readiness: "ready-now",
+    dataSource: "Tenant roster cities with a manual-market fallback.",
     dataBindingKey: "talent_locations",
     editModel: "live-data",
     editableCapabilities: ["content", "style", "layout", "data"],
     componentRecipe: ["heading", "location chips", "map embed", "market summary card"],
-    editScope: "Location copy, map embed, card position, and layout.",
+    editScope: "Location copy, map visibility, market status, counts, and layout.",
     preview: "map",
     stylePresets: [
       {
@@ -175,19 +176,19 @@ export const SECTION_TEMPLATE_STARTERS = [
     id: "browse-by-type-pills",
     label: "Browse By Type",
     description:
-      "A compact icon-chip section for service categories like models, hosts, creators, and photo/video.",
-    sectionTypeKey: "category_grid",
+      "A v11 roster rail for disciplines like models, hosts, performers, and creators.",
+    sectionTypeKey: "talent_type_grid",
     homeCore: true,
     category: "navigation",
     kind: "data",
     sourceKind: "navigation",
-    readiness: "needs-setup",
+    readiness: "ready-now",
     dataSource: "Navigation: tenant taxonomy links.",
     dataBindingKey: "tenant_directory_search",
     editModel: "navigation",
     editableCapabilities: ["content", "style", "layout", "navigation", "data"],
-    componentRecipe: ["heading", "taxonomy icon chips", "directory links"],
-    editScope: "Category labels, links, icons, columns, and spacing.",
+    componentRecipe: ["heading", "featured discipline pod", "scrolling card rail"],
+    editScope: "Category labels, links, images, icons, rail controls, and spacing.",
     preview: "chips",
     stylePresets: [
       {
@@ -524,25 +525,37 @@ export function sectionTemplateStarterPlanDeniedReason(
 const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterDefault> = {
   "directory-search-hero": {
     name: "Directory search hero",
-    sectionTypeKey: "hero",
+    sectionTypeKey: "hero_search",
     props: {
-      headline: "Find the right talent for your brief",
+      eyebrow: "Models & Image Agency",
+      headline: "Find the right talent",
+      highlight: "for your brief.",
       subheadline:
-        "Search the directory by role, location, or fit. Agency-managed, no direct contact.",
+        "Search models, hosts, performers, creators, and event talent across Riviera Maya, Mexico City, and Buenos Aires.",
       search: {
-        placeholder: "Promotional models for a boutique venue opening",
-        buttonLabel: "Search",
+        enabled: true,
+        mode: "directory-query",
+        placeholder: "Search talent, disciplines, or locations...",
         actionHref: "/directory",
+        submitLabel: "Search",
       },
-      categoryChips: [
-        { label: "Models", href: "/directory?tax=models" },
-        { label: "Hosts", href: "/directory?tax=hosts" },
-        { label: "Performers", href: "/directory?tax=performers" },
-        { label: "Music", href: "/directory?tax=music" },
-        { label: "Chefs", href: "/directory?tax=chefs" },
-        { label: "Wellness", href: "/directory?tax=wellness" },
-        { label: "Photo & Video", href: "/directory?tax=photo-video" },
+      primaryCta: { label: "Start an Inquiry", href: "/contact" },
+      secondaryCta: { label: "Apply as talent", href: "/register" },
+      chipsSource: "manual",
+      chips: [
+        { label: "Riviera Maya", href: "/directory" },
+        { label: "Mexico City", href: "/directory" },
+        { label: "Buenos Aires", href: "/directory" },
+        { label: "More cities coming" },
       ],
+      statSource: "manual",
+      statItems: [
+        {
+          value: "120+",
+          label: "represented talent · managed from brief to confirmation",
+        },
+      ],
+      layout: "editorial",
       presentation: {
         background: "canvas",
         paddingTop: "editorial",
@@ -561,54 +574,55 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
   },
   "explore-by-location-map": {
     name: "Explore by location",
-    sectionTypeKey: "map_overlay",
+    sectionTypeKey: "location_discovery",
     props: {
-      eyebrow: "Explore by location",
-      headline: "Where we operate",
-      mapEmbedUrl:
-        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d4850000!2d-91.795!3d23.6345!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1",
-      card: {
-        title: "Cancun, Ibiza, Playa del Carmen, Tulum",
-        body: "Surface active markets with talent counts and destination filters.",
-        address: "Primary agency operating locations",
-        hours: "Updated from tenant directory data",
-      },
-      side: "card-bottom",
-      ratio: "21/9",
+      eyebrow: "Talent network",
+      headline: "Local faces, international reach",
+      subheadline:
+        "Built for destination briefs: local coordination, vetted profiles, and expansion markets ready to activate.",
+      source: "roster_cities",
+      items: [
+        {
+          label: "Riviera Maya",
+          region: "Mexico",
+          href: "/directory",
+          featured: true,
+          status: "active",
+        },
+        {
+          label: "Mexico City",
+          region: "Mexico",
+          href: "/directory",
+          status: "active",
+        },
+        {
+          label: "Buenos Aires",
+          region: "Argentina",
+          href: "/directory",
+          status: "active",
+        },
+      ],
+      maxItems: 8,
+      showCount: true,
+      showMap: true,
+      ctaLabel: "Browse all talent",
+      ctaHref: "/directory",
+      layout: "grid",
+      emptyStateText: "Location coverage appears here as talent join the roster.",
       presentation: {
-        background: "canvas",
-        paddingTop: "airy",
-        paddingBottom: "airy",
-        containerWidth: "wide",
+        background: "muted-surface",
+        paddingTop: "editorial",
+        paddingBottom: "editorial",
+        containerWidth: "standard",
         align: "center",
       },
     },
   },
   "browse-by-type-pills": {
     name: "Browse by type",
-    sectionTypeKey: "category_grid",
+    sectionTypeKey: "talent_type_grid",
     props: {
-      eyebrow: "Browse by type",
-      headline: "Choose the right discipline",
-      copy: "Start with the role, then refine by location, look, availability, and fit.",
-      items: [
-        { label: "Models", tagline: "Fashion and commercial", iconKey: "sparkle", href: "/directory?type=models" },
-        { label: "Hosts", tagline: "Hospitality and events", iconKey: "clipboard", href: "/directory?type=hosts" },
-        { label: "Performers", tagline: "Stage and atmosphere", iconKey: "star", href: "/directory?type=performers" },
-        { label: "Music", tagline: "DJs and live acts", iconKey: "music", href: "/directory?type=music" },
-        { label: "Wellness", tagline: "Care and recovery", iconKey: "floral", href: "/directory?type=wellness" },
-        { label: "Photo & Video", tagline: "Capture teams", iconKey: "camera", href: "/directory?type=photo-video" },
-      ],
-      variant: "small-icon-list",
-      columnsDesktop: 4,
-      footerCta: { label: "Browse directory", href: "/directory" },
-      presentation: {
-        background: "canvas",
-        paddingTop: "standard",
-        paddingBottom: "standard",
-        containerWidth: "wide",
-        align: "center",
-      },
+      ...v11TalentTypeGridPreset,
     },
   },
   "editorial-photo-story": {
@@ -765,6 +779,7 @@ const STARTER_STYLE_PRESET_DEFAULTS: Partial<
 > = {
   "directory-search-hero": {
     "editorial-center": {
+      layout: "editorial",
       presentation: {
         background: "canvas",
         paddingTop: "editorial",
@@ -775,6 +790,7 @@ const STARTER_STYLE_PRESET_DEFAULTS: Partial<
     },
     "compact-brief": {
       subheadline: "Search by role, location, look, and fit. Every brief stays agency-managed.",
+      layout: "minimal",
       presentation: {
         background: "muted-surface",
         paddingTop: "standard",
@@ -810,12 +826,14 @@ const STARTER_STYLE_PRESET_DEFAULTS: Partial<
   },
   "explore-by-location-map": {
     "wide-map": {
-      ratio: "21/9",
-      side: "card-bottom",
+      showMap: true,
+      presentation: {
+        containerWidth: "wide",
+      },
     },
     "compact-card": {
-      ratio: "16/9",
-      side: "card-right",
+      showMap: false,
+      layout: "compact",
       presentation: {
         paddingTop: "standard",
         paddingBottom: "standard",
@@ -824,12 +842,14 @@ const STARTER_STYLE_PRESET_DEFAULTS: Partial<
   },
   "browse-by-type-pills": {
     "pill-cloud": {
-      variant: "small-icon-list",
-      columnsDesktop: 4,
+      desktopLayout: "compact-grid",
+      mobileLayout: "compact-grid",
+      showImages: false,
+      showCardIcons: true,
     },
     "card-grid": {
-      variant: "horizontal-scroll",
-      columnsDesktop: 3,
+      desktopLayout: "equal-grid",
+      mobileLayout: "stacked",
       presentation: {
         align: "left",
       },

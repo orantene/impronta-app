@@ -145,7 +145,7 @@ export function LocationDiscoveryEditor({
             checked={value.showMap === true}
             onChange={(e) => patch({ showMap: e.target.checked })}
           />
-          Show map (follow-on — cards render meanwhile)
+          Show market map
         </label>
       </div>
 
@@ -188,6 +188,32 @@ export function LocationDiscoveryEditor({
                   })
                 }
               />
+              <label className={FIELD}>
+                <span className={LABEL}>Market status</span>
+                <select
+                  className={INPUT}
+                  value={it.status ?? "active"}
+                  onChange={(e) =>
+                    setItem(i, {
+                      status: e.target
+                        .value as LocationDiscoveryItem["status"],
+                    })
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="coming_soon">Coming soon</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={it.featured === true}
+                  onChange={(e) =>
+                    setItem(i, { featured: e.target.checked })
+                  }
+                />
+                Featured market
+              </label>
               <button
                 type="button"
                 className="text-xs text-destructive md:col-span-2"

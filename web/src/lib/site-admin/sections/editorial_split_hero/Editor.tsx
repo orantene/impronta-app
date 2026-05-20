@@ -10,6 +10,19 @@ const FIELD = "flex flex-col gap-1.5 text-sm";
 const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 const INPUT =
   "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+type DiscoveryForm = NonNullable<EditorialSplitHeroV1["discoveryForm"]>;
+type DiscoveryOption = NonNullable<DiscoveryForm["categories"]>[number];
+type DiscoveryListKey = "categories" | "markets";
+
+const DEFAULT_DISCOVERY_FORM: DiscoveryForm = {
+  enabled: false,
+  actionHref: "/directory",
+  categoryLabel: "Talent type",
+  marketLabel: "Market",
+  submitLabel: "Explore",
+  categories: [],
+  markets: [],
+};
 
 export function EditorialSplitHeroEditor({
   initial,
@@ -22,6 +35,7 @@ export function EditorialSplitHeroEditor({
     body: initial.body ?? "",
     primaryCta: initial.primaryCta,
     secondaryCta: initial.secondaryCta,
+    discoveryForm: initial.discoveryForm ?? DEFAULT_DISCOVERY_FORM,
     mediaMode: initial.mediaMode ?? "static",
     mediaUrl: initial.mediaUrl ?? "",
     mediaAlt: initial.mediaAlt ?? "",
@@ -38,6 +52,26 @@ export function EditorialSplitHeroEditor({
   };
   const patch = (p: Partial<EditorialSplitHeroV1>) =>
     onChange({ ...value, ...p });
+  const discovery = value.discoveryForm ?? DEFAULT_DISCOVERY_FORM;
+  const patchDiscovery = (p: Partial<DiscoveryForm>) =>
+    patch({ discoveryForm: { ...discovery, ...p } });
+  const setDiscoveryOptions = (
+    key: DiscoveryListKey,
+    next: DiscoveryOption[],
+  ) => patchDiscovery({ [key]: next } as Partial<DiscoveryForm>);
+  const setDiscoveryOption = (
+    key: DiscoveryListKey,
+    index: number,
+    next: Partial<DiscoveryOption>,
+  ) => {
+    const list = discovery[key] ?? [];
+    setDiscoveryOptions(
+      key,
+      list.map((option, i) =>
+        i === index ? { ...option, ...next } : option,
+      ),
+    );
+  };
 
   const cta = (key: "primaryCta" | "secondaryCta", label: string) => (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -73,6 +107,83 @@ export function EditorialSplitHeroEditor({
       </div>
     </div>
   );
+  const discoveryOptionList = (
+    key: DiscoveryListKey,
+    label: string,
+    placeholder: string,
+  ) => {
+    const options = discovery[key] ?? [];
+
+    return (
+      <div className="flex flex-col gap-2">
+        <span className={LABEL}>{label}</span>
+        {options.map((option, index) => (
+          <div
+            key={index}
+            className="grid grid-cols-1 gap-2 rounded-md border border-border/50 p-2 md:grid-cols-[1fr_1fr_auto]"
+          >
+            <input
+              className={INPUT}
+              placeholder={placeholder}
+              value={option.label}
+              onChange={(e) =>
+                setDiscoveryOption(key, index, { label: e.target.value })
+              }
+            />
+            <input
+              className={INPUT}
+              placeholder="Query value"
+              value={option.value ?? ""}
+              onChange={(e) =>
+                setDiscoveryOption(key, index, {
+                  value: e.target.value || undefined,
+                })
+              }
+            />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={option.disabled === true}
+                onChange={(e) =>
+                  setDiscoveryOption(key, index, {
+                    disabled: e.target.checked,
+                  })
+                }
+              />
+              Disabled
+            </label>
+            <button
+              type="button"
+              className="text-xs text-destructive md:col-span-3"
+              onClick={() =>
+                setDiscoveryOptions(
+                  key,
+                  options.filter((_, i) => i !== index),
+                )
+              }
+            >
+              Remove option
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="self-start rounded-md border border-border/60 px-2 py-1 text-xs"
+          onClick={() =>
+            setDiscoveryOptions(
+              key,
+              [...options, { label: "New option" }].slice(
+                0,
+                key === "categories" ? 10 : 12,
+              ),
+            )
+          }
+        >
+          + Add option
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,6 +222,71 @@ export function EditorialSplitHeroEditor({
           onChange={(e) => patch({ body: e.target.value })}
         />
       </label>
+
+      <div className="flex flex-col gap-3 rounded-md border border-border/50 p-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={discovery.enabled === true}
+            onChange={(e) => patchDiscovery({ enabled: e.target.checked })}
+          />
+          Show discovery form
+        </label>
+        {discovery.enabled === true ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <label className={FIELD}>
+                <span className={LABEL}>Action href</span>
+                <input
+                  className={INPUT}
+                  value={discovery.actionHref ?? ""}
+                  onChange={(e) =>
+                    patchDiscovery({ actionHref: e.target.value })
+                  }
+                />
+              </label>
+              <label className={FIELD}>
+                <span className={LABEL}>Category label</span>
+                <input
+                  className={INPUT}
+                  value={discovery.categoryLabel ?? ""}
+                  onChange={(e) =>
+                    patchDiscovery({ categoryLabel: e.target.value })
+                  }
+                />
+              </label>
+              <label className={FIELD}>
+                <span className={LABEL}>Market label</span>
+                <input
+                  className={INPUT}
+                  value={discovery.marketLabel ?? ""}
+                  onChange={(e) =>
+                    patchDiscovery({ marketLabel: e.target.value })
+                  }
+                />
+              </label>
+              <label className={FIELD}>
+                <span className={LABEL}>Button label</span>
+                <input
+                  className={INPUT}
+                  value={discovery.submitLabel ?? ""}
+                  onChange={(e) =>
+                    patchDiscovery({ submitLabel: e.target.value })
+                  }
+                />
+              </label>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {discoveryOptionList(
+                "categories",
+                "Category options",
+                "Talent type",
+              )}
+              {discoveryOptionList("markets", "Market options", "Market")}
+            </div>
+          </>
+        ) : null}
+      </div>
 
       {cta("primaryCta", "Primary CTA")}
       {cta("secondaryCta", "Secondary CTA")}

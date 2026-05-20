@@ -46,6 +46,7 @@ export function EditorialSplitHeroComponent({
     body,
     primaryCta,
     secondaryCta,
+    discoveryForm,
     mediaMode,
     mediaUrl,
     mediaAlt,
@@ -72,6 +73,30 @@ export function EditorialSplitHeroComponent({
   const secondaryLink = secondaryCta
     ? resolveLinkLike(secondaryCta.href, linkCtx)
     : null;
+  const resolvedDiscoveryForm =
+    discoveryForm?.enabled === true ? discoveryForm : null;
+  const discoveryAction = resolvedDiscoveryForm
+    ? resolveLinkLike(resolvedDiscoveryForm.actionHref ?? "/directory", linkCtx)
+        .href
+    : "/directory";
+  const categoryOptions =
+    resolvedDiscoveryForm?.categories &&
+    resolvedDiscoveryForm.categories.length > 0
+      ? resolvedDiscoveryForm.categories
+      : [
+          { label: "Models", value: "models" },
+          { label: "Hosts", value: "hosts" },
+          { label: "Performers", value: "performers" },
+          { label: "Creators", value: "creators" },
+        ];
+  const marketOptions =
+    resolvedDiscoveryForm?.markets && resolvedDiscoveryForm.markets.length > 0
+      ? resolvedDiscoveryForm.markets
+      : [
+          { label: "Riviera Maya", value: "riviera-maya" },
+          { label: "Mexico City", value: "mexico-city" },
+          { label: "Buenos Aires", value: "buenos-aires" },
+        ];
   // Only static media renders today; selected/dynamic are documented
   // follow-ons (would couple to the cache-trimmed featured DTO).
   const resolvedMedia = mediaMode === "static" ? (mediaUrl ?? null) : null;
@@ -126,6 +151,46 @@ export function EditorialSplitHeroComponent({
               >
                 {renderInlineRich(body)}
               </p>
+            ) : null}
+            {resolvedDiscoveryForm ? (
+              <form className="site-esh__discovery" action={discoveryAction}>
+                <label className="site-esh__field">
+                  <span>
+                    {resolvedDiscoveryForm.categoryLabel ?? "Talent type"}
+                  </span>
+                  <select name="type" defaultValue={categoryOptions[0]?.value ?? ""}>
+                    {categoryOptions.map((option) => (
+                      <option
+                        key={`${option.label}-${option.value ?? option.label}`}
+                        value={option.value ?? option.label}
+                        disabled={option.disabled === true}
+                      >
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="site-esh__field">
+                  <span>{resolvedDiscoveryForm.marketLabel ?? "Market"}</span>
+                  <select
+                    name="market"
+                    defaultValue={marketOptions[0]?.value ?? ""}
+                  >
+                    {marketOptions.map((option) => (
+                      <option
+                        key={`${option.label}-${option.value ?? option.label}`}
+                        value={option.value ?? option.label}
+                        disabled={option.disabled === true}
+                      >
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="site-esh__submit" type="submit">
+                  {resolvedDiscoveryForm.submitLabel ?? "Explore"}
+                </button>
+              </form>
             ) : null}
             {primaryCta || secondaryCta ? (
               <div className="site-esh__ctas">

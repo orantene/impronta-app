@@ -48,7 +48,7 @@ export function DirectoryDiscoveryLoading({
       {Array.from({ length: PLACEHOLDER_COUNT }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]"
+          className="overflow-hidden rounded-lg border border-white/15 bg-white/[0.04]"
         >
           <Skeleton className="aspect-[3/4] w-full rounded-none" />
           <div className="space-y-2 p-3">
@@ -75,7 +75,7 @@ export function DirectoryDiscoveryEmptyNoApproved({
       icon={Users}
       title={title}
       description={description}
-      className="border-[var(--impronta-gold-border)] bg-black/20 py-14"
+      className="border-white/15 bg-black/20 py-14"
     >
       {children}
     </EmptyState>
@@ -96,7 +96,7 @@ export function DirectoryDiscoveryLockedSignin({
       icon={LockKeyhole}
       title={title}
       description={description}
-      className="border-[var(--impronta-gold-border)] bg-black/20 py-14"
+      className="border-white/15 bg-black/20 py-14"
     >
       {children}
     </EmptyState>

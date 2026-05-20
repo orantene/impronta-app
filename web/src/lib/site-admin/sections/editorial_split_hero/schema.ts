@@ -22,6 +22,12 @@ const ctaSchema = z.object({
   href: linkRefOrLegacy,
 });
 
+const discoveryOptionSchema = z.object({
+  label: z.string().min(1).max(80),
+  value: z.string().max(80).optional(),
+  disabled: z.boolean().optional(),
+});
+
 export const editorialSplitHeroSchemaV1 = z.object({
   eyebrow: z.string().max(60).optional(),
   headline: z.string().max(200).optional(),
@@ -30,6 +36,21 @@ export const editorialSplitHeroSchemaV1 = z.object({
 
   primaryCta: ctaSchema.optional(),
   secondaryCta: ctaSchema.optional(),
+  /**
+   * Optional native GET discovery form used by the v11 agency homepage.
+   * It submits to an existing route (usually `/directory`) without client JS.
+   */
+  discoveryForm: z
+    .object({
+      enabled: z.boolean().default(false),
+      actionHref: z.string().max(500).optional(),
+      categoryLabel: z.string().max(60).optional(),
+      marketLabel: z.string().max(60).optional(),
+      submitLabel: z.string().max(40).optional(),
+      categories: z.array(discoveryOptionSchema).max(10).optional(),
+      markets: z.array(discoveryOptionSchema).max(12).optional(),
+    })
+    .optional(),
 
   mediaMode: z.enum(["static", "selected", "dynamic"]).default("static"),
   /** Static media image URL (mediaMode = static). */

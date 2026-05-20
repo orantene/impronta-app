@@ -2,6 +2,20 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Checkpoint2 QA (3021)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-cp2-integration/web && PORT=3021 npm run dev"],
+      "port": 3021,
+      "autoPort": false
+    },
+    {
+      "name": "Checkpoint1 QA (3020)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-checkpoint1/web && PORT=3020 npm run dev"],
+      "port": 3020,
+      "autoPort": false
+    },
+    {
       "name": "Worktree Dev Server",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev -- -p 3002"],

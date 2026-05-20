@@ -43,7 +43,7 @@ export function DirectoryResultsToolbar({
     <div className="mb-4 space-y-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="text-sm tabular-nums text-[var(--impronta-muted)]">
+          <span className="text-sm tabular-nums text-white/70">
             {formatResultsCount(ui, totalCount)}
           </span>
         </div>
@@ -54,7 +54,7 @@ export function DirectoryResultsToolbar({
           )}
         >
           <div
-            className="inline-flex rounded-lg border border-[var(--impronta-gold-border)]/50 bg-[var(--impronta-surface)]/80 p-0.5"
+            className="inline-flex rounded-lg border border-white/15 bg-white/[0.04] p-0.5"
             role="group"
             aria-label={ui.toolbar.resultLayoutAria}
           >
@@ -65,8 +65,8 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "grid"
-                  ? "bg-[var(--impronta-gold)]/20 text-[var(--impronta-gold)]"
-                  : "text-[var(--impronta-muted)] hover:text-zinc-200",
+                  ? "bg-white/15 text-white"
+                  : "text-white/60 hover:text-zinc-200",
               )}
               aria-label={ui.toolbar.gridViewAria}
             >
@@ -79,8 +79,8 @@ export function DirectoryResultsToolbar({
               className={cn(
                 "rounded-md p-2 transition-colors",
                 view === "list"
-                  ? "bg-[var(--impronta-gold)]/20 text-[var(--impronta-gold)]"
-                  : "text-[var(--impronta-muted)] hover:text-zinc-200",
+                  ? "bg-white/15 text-white"
+                  : "text-white/60 hover:text-zinc-200",
               )}
               aria-label={ui.toolbar.listViewAria}
             >

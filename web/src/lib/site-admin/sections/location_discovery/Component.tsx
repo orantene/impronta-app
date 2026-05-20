@@ -3,6 +3,7 @@ import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import { Container, SectionHead, Cta } from "../shared/section-primitives";
 import { renderInlineRich } from "../shared/rich-text";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
+import type { CSSProperties } from "react";
 import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
 import { fetchTenantRosterCities } from "./fetch";
@@ -13,7 +14,18 @@ type Loc = {
   region?: string | null;
   href: string;
   count?: number;
+  featured?: boolean;
+  status?: "active" | "coming_soon";
 };
+
+const MAP_PIN_POSITIONS = [
+  { left: 31, top: 47 },
+  { left: 46, top: 36 },
+  { left: 62, top: 59 },
+  { left: 73, top: 42 },
+  { left: 21, top: 62 },
+  { left: 54, top: 70 },
+] as const;
 
 function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
   return {
@@ -42,6 +54,117 @@ function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
   }[size];
 }
 
+function pinStyle(index: number): CSSProperties {
+  const pos = MAP_PIN_POSITIONS[index % MAP_PIN_POSITIONS.length];
+  return {
+    left: `${pos.left}%`,
+    top: `${pos.top}%`,
+  };
+}
+
+function MarketMap({ locs, showCount }: { locs: Loc[]; showCount?: boolean }) {
+  const featured = locs.find((l) => l.featured) ?? locs[0];
+  const activeCount = locs.filter((l) => l.status !== "coming_soon").length;
+  const comingSoonCount = locs.length - activeCount;
+  const featuredIsComingSoon = featured.status === "coming_soon";
+
+  return (
+    <div className="site-locdisc__map-grid">
+      <div className="site-locdisc__map-card" aria-label="Operating markets map">
+        <svg
+          className="site-locdisc__map-art"
+          viewBox="0 0 900 520"
+          role="img"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M104 130 C184 82 296 94 374 144 C452 194 512 176 592 124 C680 66 775 94 824 168"
+            fill="none"
+          />
+          <path
+            d="M92 316 C178 244 280 252 366 314 C460 382 544 374 642 304 C724 244 786 260 830 320"
+            fill="none"
+          />
+          <path
+            d="M196 76 C190 174 198 262 236 344 C264 402 310 444 374 468"
+            fill="none"
+          />
+          <path
+            d="M604 72 C554 154 534 244 558 328 C582 414 646 462 736 480"
+            fill="none"
+          />
+          <circle cx="236" cy="248" r="158" />
+          <circle cx="622" cy="266" r="176" />
+        </svg>
+        <div className="site-locdisc__pins">
+          {locs.map((l, index) =>
+            l.status === "coming_soon" ? (
+              <span
+                key={l.key}
+                className="site-locdisc__pin"
+                data-status="coming-soon"
+                style={pinStyle(index)}
+              >
+                <span>{l.label}</span>
+              </span>
+            ) : (
+              <a
+                key={l.key}
+                href={l.href}
+                className="site-locdisc__pin"
+                data-status="active"
+                style={pinStyle(index)}
+              >
+                <span>{l.label}</span>
+              </a>
+            ),
+          )}
+        </div>
+      </div>
+
+      <aside className="site-locdisc__market-panel">
+        <span
+          className="site-locdisc__market-kicker"
+          data-status={featuredIsComingSoon ? "coming-soon" : "active"}
+        >
+          {featuredIsComingSoon ? "Coming soon" : "Featured market"}
+        </span>
+        <h3 className="site-locdisc__market-title">{featured.label}</h3>
+        {featured.region ? (
+          <p className="site-locdisc__market-region">{featured.region}</p>
+        ) : null}
+        <p className="site-locdisc__market-copy">
+          Agency-managed discovery for destination briefs, productions, and
+          brand experiences.
+        </p>
+        {showCount && typeof featured.count === "number" ? (
+          <span className="site-locdisc__market-count">
+            {featured.count} talent
+          </span>
+        ) : null}
+        <div className="site-locdisc__market-stats">
+          <span>
+            <b>{activeCount}</b>
+            Active markets
+          </span>
+          {comingSoonCount > 0 ? (
+            <span>
+              <b>{comingSoonCount}</b>
+              Coming soon
+            </span>
+          ) : null}
+        </div>
+        {featuredIsComingSoon ? null : (
+          <a href={featured.href} className="site-locdisc__market-link">
+            Browse market
+          </a>
+        )}
+      </aside>
+    </div>
+  );
+}
+
 export async function LocationDiscoveryComponent({
   props,
   tenantId,
@@ -57,6 +180,7 @@ export async function LocationDiscoveryComponent({
     items,
     maxItems,
     showCount,
+    showMap,
     ctaLabel,
     ctaHref,
     layout,
@@ -71,6 +195,16 @@ export async function LocationDiscoveryComponent({
   const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
   const resolve = (h: typeof ctaHref | string) =>
     resolveLinkLike(h ?? "/directory", linkCtx).href;
+  const manualLocs = () =>
+    (items ?? []).slice(0, maxItems ?? 8).map((it, i) => ({
+      key: `${it.label}-${i}`,
+      label: it.label,
+      region: it.region,
+      href: resolve(it.href),
+      count: it.count,
+      featured: it.featured,
+      status: it.status ?? "active",
+    }));
 
   let locs: Loc[] = [];
   if (source === "roster_cities") {
@@ -81,28 +215,28 @@ export async function LocationDiscoveryComponent({
     });
     // No directory location query-param is invented — link to base
     // directory; operator can switch to manual items for precise links.
-    locs = derived.map((d) => ({
-      key: d.locationId,
-      label: d.label,
-      region: d.region,
-      href: resolve("/directory"),
-      count: d.count,
-    }));
+    locs =
+      derived.length > 0
+        ? derived.map((d, i) => ({
+            key: d.locationId,
+            label: d.label,
+            region: d.region,
+            href: resolve("/directory"),
+            count: d.count,
+            featured: i === 0,
+            status: "active" as const,
+          }))
+        : manualLocs();
   } else {
     // manual (and service_areas → safe manual interim, documented).
-    locs = (items ?? []).slice(0, maxItems ?? 8).map((it, i) => ({
-      key: `${it.label}-${i}`,
-      label: it.label,
-      region: it.region,
-      href: resolve(it.href),
-      count: it.count,
-    }));
+    locs = manualLocs();
   }
 
   return (
     <section
       className="site-locdisc"
       data-ld-layout={layout ?? "grid"}
+      data-ld-map={showMap === true ? "true" : undefined}
       {...presentationDataAttrs(presentation)}
     >
       <Container width="standard">
@@ -140,6 +274,8 @@ export async function LocationDiscoveryComponent({
               ? emptyStateText
               : "No locations to show yet."}
           </p>
+        ) : showMap ? (
+          <MarketMap locs={locs} showCount={showCount} />
         ) : (
           <div className="site-locdisc__grid">
             {locs.map((l) => (

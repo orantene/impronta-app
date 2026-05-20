@@ -15,10 +15,10 @@ import { optionalLinkRefOrLegacy } from "../../links/link-ref";
  *   - service_areas : documented follow-on (manual is the safe interim).
  *
  * No tenant favorite-locations table is introduced. Counts derive
- * tenant-scoped. Map/pin embed is a documented follow-on (we render
- * token-driven location cards, no external maps dependency / no legacy
- * map-component duplication). Per-location links default to `/directory`
- * with an operator override — no directory route/param is invented.
+ * tenant-scoped. The map visual is a token-driven editorial map, not an
+ * external map dependency or duplicate legacy embed. Per-location links
+ * default to `/directory` with an operator override — no directory
+ * route/param is invented.
  */
 
 const locationItemSchema = z.object({
@@ -28,6 +28,10 @@ const locationItemSchema = z.object({
   href: optionalLinkRefOrLegacy,
   /** Manual count override (manual mode). */
   count: z.number().int().min(0).max(100000).optional(),
+  /** Highlights this market in the map-side preview card. */
+  featured: z.boolean().optional(),
+  /** Used by the map to distinguish active markets from expansion markets. */
+  status: z.enum(["active", "coming_soon"]).default("active").optional(),
 });
 
 export const locationDiscoverySchemaV1 = z.object({
@@ -42,7 +46,7 @@ export const locationDiscoverySchemaV1 = z.object({
 
   maxItems: z.number().int().min(1).max(24).default(8),
   showCount: z.boolean().optional(),
-  /** Map/pin visual — documented follow-on; off renders the card grid. */
+  /** Map/pin visual. Off renders the simpler card grid. */
   showMap: z.boolean().optional(),
 
   ctaLabel: z.string().max(40).optional(),
