@@ -1162,8 +1162,12 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   // Keep a ref to the latest `send` so the seed effect picks up current
   // FAQ context even if the user opens a different drawer between
   // Ask-AI invocations within the same panel mount.
+  // Q5: ref.current must be written in an effect (not during render) per
+  // react-hooks/refs.
   const sendRef = useRef(send);
-  sendRef.current = send;
+  useEffect(() => {
+    sendRef.current = send;
+  });
 
   useEffect(() => {
     const seed = (seedQuestion ?? "").trim();
