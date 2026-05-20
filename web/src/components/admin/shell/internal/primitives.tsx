@@ -6755,12 +6755,15 @@ export function FabHost({ children }: { children: ReactNode }) {
 /** Register a FAB slot inside a `<FabHost>`. Phone-only; no-ops on tablet+. */
 export function useFab(id: string, label: string, onClick: () => void) {
   const ctx = useContext(FabContext);
+  // Keep the latest onClick in a ref so the registered handler is always
+  // up-to-date without re-registering on every render.
+  const onClickRef = useRef(onClick);
+  useEffect(() => { onClickRef.current = onClick; });
   useEffect(() => {
     if (!ctx) return;
-    ctx.register({ id, label, onClick });
+    ctx.register({ id, label, onClick: () => onClickRef.current() });
     return () => ctx.unregister(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, label]);
+  }, [ctx, id, label]);
 }
 
 // ─── WS-2.11 Sticky drawer save bar ──────────────────────────────────
@@ -7574,7 +7577,7 @@ export function useStaleDetection(
       setStaleMeta({ stale: true, by, at: new Date() });
     }, intervalMs);
     return () => clearTimeout(tid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- NAMES is a constant array defined inline (same values every render); setStaleMeta is a stable setter
   }, [surfaceId, intervalMs]);
 
   const touch   = useCallback(() => setStaleMeta(null), []);
