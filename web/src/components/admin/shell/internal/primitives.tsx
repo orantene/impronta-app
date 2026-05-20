@@ -827,7 +827,7 @@ export function ConfirmDialog({
           {body}
         </div>
         {typeNameToConfirm && (
-          <div style={{ marginBottom: 14 }}>
+          <div className="mb-3.5">
             <label
               style={{
                 display: "block",
@@ -1541,7 +1541,7 @@ export function TrustBoostBanner({
       }}
     >
       <ClientTrustChip level={level} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             fontFamily: FONTS.body,
@@ -1974,9 +1974,9 @@ export function PrimaryCard({
             [data-tulala-primary-card-body] { padding: 14px !important; gap: 8px !important; }
           }
         `}</style>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div className="flex items-start gap-3">
           {icon && <IconChip>{icon}</IconChip>}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
               <h3
                 style={{
@@ -2008,7 +2008,7 @@ export function PrimaryCard({
             )}
           </div>
         </div>
-        {children && <div style={{ flex: 1 }}>{children}</div>}
+        {children && <div className="flex-1">{children}</div>}
         {(meta || footer || onClick) && (
           <div
             style={{
@@ -2087,7 +2087,7 @@ export function SecondaryCard({
             </p>
           )}
         </div>
-        {children && <div style={{ flex: 1 }}>{children}</div>}
+        {children && <div className="flex-1">{children}</div>}
         {(meta || onClick) && (
           <div
             style={{
@@ -2348,7 +2348,7 @@ export function ProfileClaimStatusChip({
 // glyphs (IG gradient circle, forest green checkmark).
 //
 // Usage: place inside the photo's positioned container.
-//   <div style={{ position: "relative" }}>
+//   <div className="relative">
 //     <img ... />
 //     <ProfilePhotoBadgeOverlay trust={...} size="md" />
 //   </div>
@@ -2704,7 +2704,7 @@ export function StatusCard({
           minHeight: 116,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           {icon && (
             <span
               aria-hidden
@@ -2823,7 +2823,7 @@ export function LockedCard({
   return (
     <CardFrame onClick={onClick} variant="locked" fullHeight={fullHeight}>
       <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div className="flex items-start gap-3">
           <span
             style={{
               width: 32,
@@ -2840,7 +2840,7 @@ export function LockedCard({
           >
             <Icon name="sparkle" size={13} stroke={1.7} color={COLORS.accent} />
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <h3
               style={{
                 fontFamily: FONTS.display,
@@ -3019,7 +3019,7 @@ export function StarterCard({
         >
           <Icon name="sparkle" size={16} stroke={1.8} />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <h3
             style={{
               fontFamily: FONTS.display,
@@ -3049,7 +3049,7 @@ export function StarterCard({
           )}
           {children && <div style={{ marginTop: 14 }}>{children}</div>}
           {onPrimary && primaryLabel && (
-            <div style={{ marginTop: 16 }}>
+            <div className="mt-4">
               <PrimaryButton onClick={onPrimary}>{primaryLabel}</PrimaryButton>
             </div>
           )}
@@ -3140,7 +3140,7 @@ export function CapNudge({
       >
         <Icon name={blocking ? "info" : "sparkle"} size={11} stroke={1.8} />
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             fontFamily: FONTS.body,
@@ -3385,7 +3385,7 @@ function EmptyStateTip({
     </span>
   );
   const labels = (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="flex-1 min-w-0">
       <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35 }}>{label}</div>
       {description && (
         <div
@@ -3514,7 +3514,7 @@ export function CelebrationBanner({
       >
         <Icon name="sparkle" size={17} stroke={1.7} color={accent} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {eyebrow && (
           <div
             style={{
@@ -4268,7 +4268,7 @@ export function DrawerShell({
             gap: 14,
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             {/* Mobile-only "back" link — sits ABOVE the title so it doesn't
                 eat horizontal space. Tiny arrow + muted "Back" label;
                 whole drawer is the destination, no need for a big pill. */}
@@ -4867,7 +4867,7 @@ export function ChannelVisibilityStrip({
                   width: 8, height: 8, borderRadius: "50%", marginTop: 3, flexShrink: 0,
                   background: active ? CHANNEL_DOT[c] : "rgba(11,11,13,0.16)",
                 }} />
-                <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="flex-1 min-w-0">
                   <span style={{
                     display: "block", fontSize: 12, fontWeight: 600,
                     color: active ? COLORS.ink : COLORS.inkMuted,
@@ -4957,7 +4957,7 @@ export function FieldRow({
     }
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="flex flex-col gap-1.5">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
         {!hideLabel && (
         <label
@@ -5404,7 +5404,7 @@ function ToastRow({ id, message, undo, action, tone = "default", onDismiss }: { 
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 10 }}>
         <Icon name={theme.iconName as Parameters<typeof Icon>[0]["name"]} size={14} stroke={2} />
-        <span style={{ flex: 1 }}>{message}</span>
+        <span className="flex-1">{message}</span>
         {undo && (
           <button
             type="button"
@@ -6672,7 +6672,7 @@ export function ShortcutsModal({
             </svg>
           </button>
         </div>
-        <div style={{ display: "grid", gap: 2 }}>
+        <div className="grid gap-0.5">
           {SHORTCUTS.map(({ keys, label }) => (
             <div
               key={label}
@@ -6685,7 +6685,7 @@ export function ShortcutsModal({
               }}
             >
               <span style={{ fontSize: 13, color: COLORS.ink }}>{label}</span>
-              <span style={{ display: "inline-flex", gap: 4 }}>
+              <span className="inline-flex gap-1">
                 {keys.map((k) => (
                   <kbd
                     key={k}
@@ -6863,7 +6863,7 @@ export function FloatingFab({
             }}>
               Create new
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="flex flex-col gap-1">
               {actions!.map((a) => (
                 <button
                   key={a.id}
@@ -6897,7 +6897,7 @@ export function FloatingFab({
                   >
                     {a.emoji ?? "+"}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{a.label}</div>
                     {a.sub && (
                       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.35 }}>{a.sub}</div>
@@ -7009,11 +7009,11 @@ export function ActivityFeedItem({
       >
         {iconName ? <Icon name={iconName} size={13} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "📋")}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>
-          <strong style={{ fontWeight: 600 }}>{actor}</strong>
+          <strong className="font-semibold">{actor}</strong>
           {" "}{action}{" "}
-          <strong style={{ fontWeight: 500 }}>{target}</strong>
+          <strong className="font-medium">{target}</strong>
         </div>
         <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{timestamp}</div>
       </div>
@@ -7040,7 +7040,7 @@ export function PageSkeleton({ rows = 5 }: { rows?: number }) {
           }}
         >
           <Skeleton width={36} height={36} radius={18} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <Skeleton height={13} width="60%" style={{ marginBottom: 6 }} />
             <Skeleton height={11} width="40%" />
           </div>
@@ -8347,7 +8347,7 @@ function SkRow({ label = true, action = false }: { label?: boolean; action?: boo
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${COLORS.border}` }}>
       <Skeleton width={36} height={36} radius={18} />
-      <div style={{ flex: 1 }}>
+      <div className="flex-1">
         {label && <Skeleton height={13} width="55%" style={{ marginBottom: 5 }} />}
         <Skeleton height={11} width="35%" />
       </div>
@@ -8447,7 +8447,7 @@ export function CalendarSkeleton() {
       {/* Month header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <Skeleton height={20} width={120} />
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <Skeleton height={32} width={32} radius={8} />
           <Skeleton height={32} width={32} radius={8} />
         </div>
@@ -8515,7 +8515,7 @@ export function TalentTodaySkeleton() {
         ))}
       </div>
       {/* Week strip */}
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         {Array.from({ length: 7 }).map((_, i) => (
           <Skeleton key={i} width={36} height={56} radius={8} style={{ flex: 1 }} />
         ))}
@@ -8558,7 +8558,7 @@ export function DiscoverSkeleton({ cards = 9 }: { cards?: number }) {
         {Array.from({ length: cards }).map((_, i) => (
           <div key={i} style={{ borderRadius: RADIUS.lg, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
             <Skeleton height={180} width="100%" radius={0} />
-            <div style={{ padding: "12px" }}>
+            <div className="p-3">
               <Skeleton height={14} width="65%" style={{ marginBottom: 6 }} />
               <Skeleton height={11} width="45%" style={{ marginBottom: 8 }} />
               <Skeleton height={24} width={80} radius={999} />
@@ -8632,7 +8632,7 @@ export function InlineFilePreview({
       {/* Meta row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
         <span style={{ fontSize: 20, flexShrink: 0 }}>{ATTACHMENT_ICON[attachment.kind]}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{
             fontSize: 12.5, fontWeight: 600, color: COLORS.ink,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
@@ -8805,7 +8805,7 @@ export function ActivityFeed({
               </div>
 
               {/* Content */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 700, fontSize: 12.5, color: COLORS.ink }}>{entry.actor}</span>
                   <span style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{entry.action}</span>
