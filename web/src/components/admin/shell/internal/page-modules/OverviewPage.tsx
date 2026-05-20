@@ -1,7 +1,21 @@
 "use client";
 
+import { useMemo } from "react";
 import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
 import { ACTIVATION_TASKS, COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, RICH_INQUIRIES, TRANSITION, getInquiries, getRoster, getTeam, meetsRole, pluralize, relativeTime, useAdminShell } from "../state";
+
+// Q5: demo activity feed builder hoisted to module scope so the Date.now()
+// call isn't inside a render-time / useMemo body (react-hooks/purity flags
+// it in both). Called once at mount via useMemo([]) below.
+function mkDemoActivityFeed() {
+  const now = Date.now();
+  return [
+    { actor: "Oran Tene", action: "sent an offer to", target: "Vogue Italia", timestamp: relativeTime(now - 2 * 60_000), iconName: "mail" as const },
+    { actor: "Marta Reyes", action: "accepted hold for", target: "Bvlgari campaign", timestamp: relativeTime(now - 34 * 60_000), iconName: "check" as const },
+    { actor: "Kai Lin", action: "updated profile", target: "measurements + comp card", timestamp: relativeTime(now - 65 * 60_000), iconName: "user" as const },
+    { actor: "System", action: "auto-archived expired inquiry from", target: "H&M (6 weeks old)", timestamp: relativeTime(now - 3 * 60 * 60_000), iconName: "archive" as const },
+  ];
+}
 import { DemoDataBanner, WorkspaceActivationBanner } from "../wave2";
 import { MOCK_STOREFRONT_STATS, greeting } from "./ControlBar";
 import { FreeValuePanel } from "./WorkPage";
@@ -28,6 +42,9 @@ export function OverviewPage() {
   const tenantDomain = bridgeTenantIdentity?.slug
     ? `${bridgeTenantIdentity.slug}.tulala.app`
     : effectiveTenant.domain;
+
+  // Q5: timestamps pinned to mount time (see module-level mkDemoActivityFeed).
+  const demoActivityFeed = useMemo(() => mkDemoActivityFeed(), []);
 
   if (isFree) {
     return <OverviewFree />;
@@ -420,12 +437,7 @@ export function OverviewPage() {
             padding: "0 18px",
           }}
         >
-          {[
-            { actor: "Oran Tene", action: "sent an offer to", target: "Vogue Italia", timestamp: relativeTime(Date.now() - 2 * 60_000), iconName: "mail" as const },
-            { actor: "Marta Reyes", action: "accepted hold for", target: "Bvlgari campaign", timestamp: relativeTime(Date.now() - 34 * 60_000), iconName: "check" as const },
-            { actor: "Kai Lin", action: "updated profile", target: "measurements + comp card", timestamp: relativeTime(Date.now() - 65 * 60_000), iconName: "user" as const },
-            { actor: "System", action: "auto-archived expired inquiry from", target: "H&M (6 weeks old)", timestamp: relativeTime(Date.now() - 3 * 60 * 60_000), iconName: "archive" as const },
-          ].map((ev, i, arr) => (
+          {demoActivityFeed.map((ev, i, arr) => (
             <div key={i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
               <ActivityFeedItem {...ev} />
             </div>
