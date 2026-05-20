@@ -187,3 +187,16 @@ jobs:
       - name: tests — publish-preflight
         if: ${{ !cancelled() }}
         run: npm run test:publish-preflight
+
+      # ── Component test gate (10th test step) ─────────────────────────
+      # Vitest + @testing-library/react + jsdom. Smoke tests for the
+      # top god-files (primitives, profile-shell-internal, WorkspacePageView,
+      # media-page, edit-context). A red signal means a recent refactor
+      # broke the render shape of a foundational component.
+      #
+      # See web/docs/test-infrastructure.md for stack rationale and the
+      # rule against bloating this lane with "high coverage" tests —
+      # smoke-level only; expand via a separate lane.
+      - name: tests — components (vitest smoke)
+        if: ${{ !cancelled() }}
+        run: npm run test:components
