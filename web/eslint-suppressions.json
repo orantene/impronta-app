@@ -706,15 +706,127 @@
       "count": 144
     }
   },
-  "src/components/admin/shell/internal/primitives.tsx": {
-    "max-lines": {
+  "src/components/admin/shell/internal/primitives/activity-feed.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 14
+    }
+  },
+  "src/components/admin/shell/internal/primitives/async-helpers.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/primitives/attachments.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 10
+    }
+  },
+  "src/components/admin/shell/internal/primitives/avatar.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/primitives/buttons.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/primitives/card-kind.tsx": {
+    "ratchet/no-new-inline-style": {
       "count": 1
-    },
+    }
+  },
+  "src/components/admin/shell/internal/primitives/cards.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 92
+    }
+  },
+  "src/components/admin/shell/internal/primitives/chips.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 24
+    }
+  },
+  "src/components/admin/shell/internal/primitives/confirm-dialog.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 10
+    }
+  },
+  "src/components/admin/shell/internal/primitives/conflict-dialog.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 12
+    }
+  },
+  "src/components/admin/shell/internal/primitives/drawer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 20
+    }
+  },
+  "src/components/admin/shell/internal/primitives/empty-states.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 2
+    }
+  },
+  "src/components/admin/shell/internal/primitives/fab.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 11
+    }
+  },
+  "src/components/admin/shell/internal/primitives/forms-extras.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 6
+    }
+  },
+  "src/components/admin/shell/internal/primitives/forms.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 30
+    }
+  },
+  "src/components/admin/shell/internal/primitives/guided-tour.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 19
+    }
+  },
+  "src/components/admin/shell/internal/primitives/interactions.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 16
+    }
+  },
+  "src/components/admin/shell/internal/primitives/overlays.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 24
+    }
+  },
+  "src/components/admin/shell/internal/primitives/page-skeleton.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/primitives/retry-card.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/primitives/skeletons.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 43
+    }
+  },
+  "src/components/admin/shell/internal/primitives/stale-data.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 360
+      "count": 3
+    }
+  },
+  "src/components/admin/shell/internal/primitives/toast.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 7
+    }
+  },
+  "src/components/admin/shell/internal/primitives/typography.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 5
     }
   },
   "src/components/admin/shell/internal/skill-add-search.tsx": {
