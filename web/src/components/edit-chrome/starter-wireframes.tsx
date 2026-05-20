@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Wireframe SVGs for the starter picker and composition library.
  *
