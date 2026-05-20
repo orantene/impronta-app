@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS public.engine_audit_log (
   -- here; they'll come with Phase 9B). FK is hard-CASCADE-on-delete so
   -- audit follows a tenant teardown, matching prior tenant-scoped
   -- audit/history tables (media_asset_audits, etc.).
-  tenant_id       uuid        NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  tenant_id       uuid        NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
 
   -- Actor identity. Nullable for system-attributed events (cache
   -- invalidation, scheduled jobs). actor_role is a free-text label —
