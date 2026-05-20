@@ -56,6 +56,29 @@ import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
+// ─── Engine telemetry — in-process counters (process-scoped, not durable) ────
+// These reset on every cold start / process restart. Use only for ops debug
+// in a running process — not for persistence or cross-replica aggregation.
+type ResolverMetrics = {
+  catalog_hits: number;
+  catalog_misses: number;
+  catalog_errors: number;
+  resolver_calls: number;
+};
+const _metrics: ResolverMetrics = {
+  catalog_hits: 0,
+  catalog_misses: 0,
+  catalog_errors: 0,
+  resolver_calls: 0,
+};
+
+/** Returns a snapshot of in-process resolver counters. Not durable — resets on
+ *  process restart. For ops debug only.
+ *  Must be async: this file is `"use server"`, so all exports must be async. */
+export async function getResolverMetricsSnapshot(): Promise<ResolverMetrics & { snapshot_at: string }> {
+  return { ..._metrics, snapshot_at: new Date().toISOString() };
+}
+
 // ─── P3 — tenant-static field-catalog cache ──────────────────────────────────
 // The field catalog (definitions, groups, recommendations, parent→group
 // links, workspace overlays) is IDENTICAL for every talent in a tenant
@@ -124,16 +147,15 @@ type TenantFieldCatalog = {
 async function loadTenantFieldCatalogUncached(
   tenantId: string,
 ): Promise<TenantFieldCatalog | null> {
-  // TEMP QA instrumentation (P3 debug) — this only runs on a CACHE MISS
-  // (unstable_cache skips the body on a hit). Seeing this line means the
-  // 6 static queries actually ran; its ABSENCE after a `[field-catalog]
-  // request` line means the 120s cache served it. Remove once verified.
+  // Runs only on a CACHE MISS (unstable_cache skips the body on a hit).
+  _metrics.catalog_misses++;
   const t0 = Date.now();
   void improntaLog("admin_taxonomy.info", {
     message: `[field-catalog] MISS (querying db) tenant=${tenantId}`,
   });
   const svc = createServiceRoleClient();
   if (!svc) {
+    _metrics.catalog_errors++;
     void improntaLog("admin_taxonomy.warn", {
       message: `[field-catalog] no service client — FALLBACK to inline queries tenant=${tenantId}`,
     });
@@ -182,18 +204,23 @@ async function loadTenantFieldCatalogUncached(
 /** Cached tenant-static field catalog. Shared across every talent + every
  *  concurrent editor mount in the tenant. ~120s revalidate; bust via the
  *  `field-catalog` tag when the catalog/settings change. */
-function getCachedTenantFieldCatalog(
+async function getCachedTenantFieldCatalog(
   tenantId: string,
 ): Promise<TenantFieldCatalog | null> {
-  // TEMP QA instrumentation (P3 debug): a `request` with NO following
-  // `MISS` line = cache HIT (unstable_cache served it). Remove once
-  // verified.
   void improntaLog("admin_taxonomy.info", { message: `[field-catalog] request tenant=${tenantId}` });
-  return unstable_cache(
+  // Detect hit vs miss: if the miss counter advances during the await, the
+  // inner function ran (miss); otherwise unstable_cache served from memory.
+  const missesBefore = _metrics.catalog_misses;
+  const result = await unstable_cache(
     () => loadTenantFieldCatalogUncached(tenantId),
     ["tenant-field-catalog", "v1", tenantId],
     { tags: [CACHE_TAG_FIELD_CATALOG, `${CACHE_TAG_FIELD_CATALOG}:${tenantId}`], revalidate: 120 },
   )();
+  if (_metrics.catalog_misses === missesBefore) {
+    // Inner function did not run → served from cache
+    _metrics.catalog_hits++;
+  }
+  return result;
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -864,6 +891,8 @@ export type GetFieldsForTalentEnrichedResult =
 export async function getFieldsForTalent(input: {
   talent_profile_id: string;
 }): Promise<GetFieldsForTalentEnrichedResult> {
+  const _t0 = Date.now();
+  _metrics.resolver_calls++;
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
@@ -877,6 +906,12 @@ export async function getFieldsForTalent(input: {
     .maybeSingle();
 
   if (rosterErr || !rosterRow) {
+    try {
+      console.info(
+        `[engine.resolver] tenant=${tenantId} talent=${input.talent_profile_id}` +
+          ` cache_hit=false ms=${Date.now() - _t0} fields=0 err=not_on_roster`,
+      );
+    } catch { /* telemetry must never block */ }
     return { ok: false, error: "Talent is not on this tenant's roster." };
   }
 
@@ -905,6 +940,12 @@ export async function getFieldsForTalent(input: {
 
   if (assignErr) {
     logServerError("getFieldsForTalent.assigns", assignErr);
+    try {
+      console.info(
+        `[engine.resolver] tenant=${tenantId} talent=${input.talent_profile_id}` +
+          ` cache_hit=false ms=${Date.now() - _t0} fields=0 err=assign_query`,
+      );
+    } catch { /* telemetry must never block */ }
     return { ok: false, error: CLIENT_ERROR.generic };
   }
 
@@ -956,7 +997,9 @@ export async function getFieldsForTalent(input: {
   // fall back to the original inline per-call queries if the service
   // client / cache is unavailable. Behaviour is identical either way —
   // only the *source* of the static rows changes.
+  const _missesBefore = _metrics.catalog_misses;
   const cat = await getCachedTenantFieldCatalog(tenantId).catch(() => null);
+  const _catalogHit = _metrics.catalog_misses === _missesBefore;
 
   let parentGroupRows: Array<{
     parent_category_id: string;
@@ -1057,7 +1100,7 @@ export async function getFieldsForTalent(input: {
     overrides = (fOv ?? []) as TenantFieldCatalog["fieldOverrides"];
   }
 
-  const activeGroupIds = new Set(parentGroupRows.map((g) => g.field_group_id));
+  const _activeGroupIds = new Set(parentGroupRows.map((g) => g.field_group_id)); // unused — kept for future filtering; _ suppresses lint
   const groupById = new Map((groupRows ?? []).map((g) => [g.id, g] as const));
   const groupOverrideById = new Map(
     (groupOverrides ?? []).map((o) => [o.field_group_id, o] as const),
@@ -1319,6 +1362,15 @@ export async function getFieldsForTalent(input: {
     });
   }
   resolvedGroups.sort((a, b) => a.display_order - b.display_order);
+
+  try {
+    console.info(
+      `[engine.resolver] tenant=${tenantId} talent=${input.talent_profile_id}` +
+        ` cache_hit=${_catalogHit} ms=${Date.now() - _t0} fields=${resolved.length}`,
+    );
+  } catch {
+    // telemetry must never block the resolver
+  }
 
   return { ok: true, fields: resolved, groups: resolvedGroups };
 }
