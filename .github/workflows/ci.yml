@@ -74,7 +74,7 @@ jobs:
       # BASE to 6 reflects current reality. Lower back to 4 (or to whatever the new
       # count is) once those 2 are fixed.
       TSC_BASE: 6              # was 4; raised after Q1 narrowing surfaced 2 latent errors. Followup: fix light-01.tsx:146 + WorkspaceTopbar.tsx:549 to drop back to 4.
-      SUPPRESSIONS_BASE: 9336  # was 9519 post-Q1; lowered after Y1 codemod replay (b8dc7dd2f) dropped no-new-inline-style 8730 → 8547 (-183). Q3 added no-console:error rule with 0 suppressions. Will lower further post-Y2+Q4 combined regen.
+      SUPPRESSIONS_BASE: 8481  # was 9336 post-Y1; lowered after Y2 codemod replay (-797 no-new-inline-style) + Q4 WorkspacePageView hoists (-58 react-hooks/static-components) stacked cleanly. Integrator-verified zero new pairs, zero increased counts.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
