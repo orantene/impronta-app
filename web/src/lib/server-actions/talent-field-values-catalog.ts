@@ -17,7 +17,11 @@ import { requireTalent } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { mirrorWriteToLegacy } from "@/lib/fields/legacy-mirror";
-import type { ResolvedField, ResolvedFieldGroup } from "./admin-taxonomy";
+import {
+  resolveTalentFields,
+  type ResolvedField,
+  type ResolvedFieldGroup,
+} from "@/lib/field-engine/resolve-talent-fields";
 
 const setValueSchema = z.object({
   talent_profile_id: pgUuidSchema(),
@@ -193,6 +197,23 @@ export async function getTalentFieldValuesAsTalent(input: {
   return { ok: true, values: (data ?? []) as never };
 }
 
+/**
+ * Resolve the field set for a talent editing their own profile. P5-δ
+ * (2026-05-19) collapse: previously this surface ran a divergent
+ * ~130-line resolver re-implementation that missed the Phase 4 columns
+ * (`tenant_override`, `has_value`) and several admin-side niceties
+ * (workspace overlays, weighted groups, brought-in-by attribution).
+ * The talent now reads the SAME resolver as the admin — single source
+ * of truth in `@/lib/field-engine/resolve-talent-fields`. Workspace
+ * `enabled_override === false` rows still filter out (so a tenant that
+ * disabled a field on the catalog won't surface it in the talent
+ * editor), which is the right call: if the agency hid it, the talent
+ * editing UI shouldn't pretend it's available.
+ *
+ * The talent's `tenantId` is resolved from their active roster — the
+ * same pattern the writer (`setTalentFieldValueAsTalent`) uses. Auth +
+ * ownership stay at the boundary; the resolver itself is auth-agnostic.
+ */
 export async function getFieldsForTalentAsTalent(input: {
   talent_profile_id: string;
 }): Promise<
@@ -211,136 +232,25 @@ export async function getFieldsForTalentAsTalent(input: {
     .maybeSingle();
   if (!owned) return { ok: false, error: "Not authorized." };
 
-  // Simplified resolver — admin-side carries workspace overrides + weighted
-  // groups + brought-in-by tracking; talent-self gets the same field set
-  // but without workspace customization. This is intentional: the talent
-  // doesn't need to see "this field was disabled by your agency" UX, just
-  // the fields they CAN fill.
-  const { data: assigns } = await supabase
-    .from("talent_profile_taxonomy")
-    .select("taxonomy_term_id")
-    .eq("talent_profile_id", input.talent_profile_id);
-  const termIds = (assigns ?? []).map((a) => a.taxonomy_term_id);
-
-  const allTermIds = new Set<string>(termIds);
-  if (termIds.length > 0) {
-    const { data: tParents } = await supabase
-      .from("taxonomy_terms")
-      .select("id, parent_id, term_type")
-      .in("id", termIds);
-    const grandparentIds: string[] = [];
-    for (const p of tParents ?? []) {
-      if (p.parent_id) {
-        allTermIds.add(p.parent_id);
-        if (p.term_type === "talent_type") grandparentIds.push(p.parent_id);
-      }
-    }
-    if (grandparentIds.length > 0) {
-      const { data: gp } = await supabase
-        .from("taxonomy_terms")
-        .select("id, parent_id")
-        .in("id", grandparentIds);
-      for (const g of gp ?? []) {
-        if (g.parent_id) allTermIds.add(g.parent_id);
-      }
-    }
+  // Resolve the talent's active-roster tenant — same lookup the writer
+  // uses. A talent who isn't on any active roster has no tenant context
+  // to resolve fields against; surface the same message the writer
+  // returns so the editor can degrade consistently.
+  const { data: rosterRow } = await supabase
+    .from("agency_talent_roster")
+    .select("tenant_id")
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (!rosterRow) {
+    return { ok: false, error: "Talent is not on any active roster." };
   }
 
-  const { data: defs } = await supabase
-    .from("profile_field_definitions")
-    .select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, helper",
-    )
-    .is("deprecated_at", null);
-
-  let recs: Array<{
-    field_definition_id: string;
-    relationship: string;
-    required_before_publish: boolean;
-  }> = [];
-  if (allTermIds.size > 0) {
-    const { data: recRows } = await supabase
-      .from("profile_field_recommendations")
-      .select("field_definition_id, relationship, required_before_publish")
-      .in("taxonomy_term_id", Array.from(allTermIds));
-    recs = recRows ?? [];
-  }
-  const recsByField = new Map<string, { relationship: string; required_before_publish: boolean }>();
-  for (const r of recs) {
-    recsByField.set(r.field_definition_id, {
-      relationship: r.relationship,
-      required_before_publish: r.required_before_publish,
-    });
-  }
-
-  const { data: groupRows } = await supabase
-    .from("profile_field_groups")
-    .select("id, slug, name_en, name_es, sort_order, is_active")
-    .eq("is_active", true);
-
-  const fields: ResolvedField[] = [];
-  const groupFieldCount = new Map<string, number>();
-
-  for (const d of defs ?? []) {
-    let include = false;
-    if (d.tier === "universal" || d.tier === "global") include = true;
-    else if (recsByField.has(d.id)) include = true;
-    if (!include) continue;
-
-    const r = recsByField.get(d.id);
-    const required = r?.required_before_publish ?? (d.tier === "universal" && d.is_optional === false);
-    const group = d.field_group_id ? (groupRows ?? []).find((g) => g.id === d.field_group_id) ?? null : null;
-
-    fields.push({
-      field_definition_id: d.id,
-      field_key: d.field_key,
-      label: d.label,
-      label_es: (d as { label_es?: string | null }).label_es ?? null,
-      helper: (d as { helper?: string | null }).helper ?? null,
-      tier: d.tier as "universal" | "global" | "type-specific",
-      section: d.section,
-      subsection: d.subsection,
-      kind: d.kind,
-      unit: (d as { unit?: string | null }).unit ?? null,
-      placeholder: d.placeholder,
-      options: Array.isArray(d.options) ? (d.options as string[]) : null,
-      default_visibility: Array.isArray(d.default_visibility)
-        ? (d.default_visibility as string[])
-        : [],
-      is_required: required,
-      is_recommended: r?.relationship === "recommended",
-      display_order: d.display_order ?? 100,
-      source_term_id: null,
-      field_group_slug: group?.slug ?? null,
-      field_group_label: group?.name_en ?? null,
-      required_at_registration: false,
-      required_before_publish: required,
-      required_before_verification: false,
-      is_admin_only: false,
-      requires_verification: false,
-      validation_rules: (d.validation_rules as Record<string, unknown> | null) ?? null,
-      show_when: null,
-      brought_in_by: { kind: "tier" },
-    });
-    if (group) {
-      groupFieldCount.set(group.slug, (groupFieldCount.get(group.slug) ?? 0) + 1);
-    }
-  }
-
-  const groups: ResolvedFieldGroup[] = [];
-  for (const [slug, count] of groupFieldCount.entries()) {
-    const groupRow = (groupRows ?? []).find((g) => g.slug === slug);
-    if (!groupRow) continue;
-    groups.push({
-      group_slug: groupRow.slug,
-      group_label_en: groupRow.name_en,
-      group_label_es: groupRow.name_es,
-      weight: "default",
-      display_order: groupRow.sort_order ?? 100,
-      in_registration_wizard: false,
-      field_count: count,
-    });
-  }
-
-  return { ok: true, fields, groups };
+  return resolveTalentFields({
+    supabase,
+    talentProfileId: input.talent_profile_id,
+    tenantId: rosterRow.tenant_id,
+    viewerRole: "talent",
+  });
 }
