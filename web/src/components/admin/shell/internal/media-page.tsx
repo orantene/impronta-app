@@ -151,7 +151,7 @@ function MediaSidebar({
         cursor: "pointer", textAlign: "left",
       }}>
         {dot && <DotSwatch color={dot} />}
-        <span style={{ flex: 1 }}>{label}</span>
+        <span className="flex-1">{label}</span>
         {badge != null && badge > 0 && (
           <span style={{
             background: active ? COLORS.fill : COLORS.amber,
@@ -163,10 +163,7 @@ function MediaSidebar({
   };
 
   const SectionLabel = ({ text }: { text: string }) => (
-    <div style={{
-      padding: "10px 9px 3px", fontFamily: FONTS.body, fontSize: 10,
-      fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.7,
-    }}>{text}</div>
+    <div style={{ padding: "10px 9px 3px", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }} className="text-admin-ink-muted">{text}</div>
   );
 
   return (
@@ -299,7 +296,7 @@ function FolderModal({
         boxShadow: "0 24px 64px rgba(11,11,13,0.25)", fontFamily: FONTS.body,
       }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "20px 22px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
+          <div style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
             {folder ? "Edit folder" : "New folder"}
           </div>
         </div>
@@ -312,7 +309,7 @@ function FolderModal({
           )}
 
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 5 }}>Folder name</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink">Folder name</div>
             <input
               autoFocus
               value={name}
@@ -329,7 +326,7 @@ function FolderModal({
           </div>
 
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>Color</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">Color</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
               {FOLDER_PALETTE.map((c) => (
                 <button key={c} type="button" onClick={() => setColor(c)} style={{
@@ -344,16 +341,16 @@ function FolderModal({
           {/* Share link section (edit mode only) */}
           {folder && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>Share link</div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">Share link</div>
               {shareUrl ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="flex flex-col gap-1.5">
                   <input readOnly value={shareUrl} onClick={(e) => (e.target as HTMLInputElement).select()}
                     style={{
                       width: "100%", boxSizing: "border-box", padding: "6px 10px",
                       borderRadius: 7, border: `1px solid ${COLORS.border}`,
                       fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted,
                     }} />
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className="flex gap-1.5">
                     <button type="button"
                       onClick={() => void navigator.clipboard.writeText(shareUrl)}
                       style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
@@ -692,7 +689,7 @@ function MediaLightbox({
   // Replaces the default pill + previewLabel that the shared component
   // would otherwise render.
   const adminHeaderContent = (
-    <div style={{ minWidth: 0, flex: 1 }}>
+    <div className="flex-1 min-w-0">
       <div style={{
         fontFamily: FONTS.body, fontSize: 14, fontWeight: 700, color: "#fff",
         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -825,7 +822,7 @@ function MediaLightbox({
       {folders.length > 0 && (
         <div>
           <div style={sectionLabel as CSSProperties}>Folders</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {folders.map((f) => {
               const checked = inFolder(f.id);
               return (
@@ -861,7 +858,7 @@ function MediaLightbox({
       {activityLoaded && activity.length > 0 && (
         <div>
           <div style={sectionLabel as CSSProperties}>Activity</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {activity.slice(0, 8).map((a) => (
               <div key={a.id} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.25)", marginTop: 6, flexShrink: 0 }} />
@@ -990,7 +987,7 @@ function UploadModal({
 
         {/* Header */}
         <div style={{ padding: "18px 22px 14px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: mode === "upload" ? 8 : 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: mode === "upload" ? 8 : 0 }} className="text-admin-ink">
             {mode === "upload"
               ? `Upload ${stagingItems.length} photo${stagingItems.length !== 1 ? "s" : ""}`
               : `Move ${selCount} photo${selCount !== 1 ? "s" : ""} to talent`}
@@ -998,9 +995,9 @@ function UploadModal({
           {mode === "upload" && (
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <div style={{ flex: 1, height: 3, borderRadius: 99, background: COLORS.borderSoft, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 99, background: COLORS.fill, width: `${stagingItems.length > 0 ? (ready / stagingItems.length) * 100 : 0}%`, transition: "width 300ms" }} />
+                <div style={{ height: "100%", borderRadius: 99, width: `${stagingItems.length > 0 ? (ready / stagingItems.length) * 100 : 0}%`, transition: "width 300ms" }} />
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 11.5, whiteSpace: "nowrap" }} className="bg-admin-fill text-admin-ink-muted">
                 {inFlight > 0 ? `${ready}/${stagingItems.length} uploaded…` : errors > 0 ? `${errors} failed` : `${ready} ready`}
               </div>
             </div>
@@ -1010,7 +1007,7 @@ function UploadModal({
         {/* Reassign: talent picker */}
         {mode === "reassign" && (
           <div style={{ padding: "18px 22px" }}>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12.5, marginBottom: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Photos will be re-assigned and appear under the new talent.
             </div>
             <select value={assignTalentId} onChange={(e) => onAssignTalentChange(e.target.value)}
@@ -1034,7 +1031,7 @@ function UploadModal({
                   style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: FONTS.body }}>
                   Clear
                 </button>
-                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{stagingSelected.size} →</span>
+                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{stagingSelected.size} →</span>
                 <select value={stagingBulkTalentId} onChange={(e) => onBulkTalentChange(e.target.value)} style={{ ...fsel }}>
                   {assignTalents.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
@@ -1071,7 +1068,7 @@ function UploadModal({
                         </div>
                       )}
                       {item.status === "ready" && sel && (
-                        <div style={{ position: "absolute", top: 4, right: 4, width: 16, height: 16, background: COLORS.fill, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ position: "absolute", top: 4, right: 4, width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }} className="bg-admin-fill">
                           <span style={{ color: "#fff", fontSize: 9 }}>✓</span>
                         </div>
                       )}
@@ -1138,15 +1135,15 @@ function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: Med
 
   const StatCard = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (
     <div style={{ padding: "16px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, background: "#fff" }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700, color: COLORS.ink }}>{value}</div>
-      {sub && <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 4 }} className="text-admin-ink-muted">{label}</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700 }} className="text-admin-ink">{value}</div>
+      {sub && <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{sub}</div>}
     </div>
   );
 
   return (
     <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, color: COLORS.ink, marginBottom: 20 }}>Analytics</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, marginBottom: 20 }} className="text-admin-ink">Analytics</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 28 }}>
         <StatCard label="Total photos" value={photos.length} />
@@ -1157,24 +1154,24 @@ function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: Med
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 12 }}>By talent</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">By talent</div>
+          <div className="flex flex-col gap-1.5">
             {byTalent.slice(0, 10).map(([name, stats]) => (
               <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, whiteSpace: "nowrap" }}>{stats.count} · {formatBytes(stats.bytes)}</div>
+                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{name}</div>
+                <div style={{ fontFamily: FONTS.body, fontSize: 12, whiteSpace: "nowrap" }} className="text-admin-ink-muted">{stats.count} · {formatBytes(stats.bytes)}</div>
                 {stats.pending > 0 && <span style={{ background: COLORS.amber, color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800, padding: "1px 5px" }}>{stats.pending}</span>}
               </div>
             ))}
           </div>
         </div>
         <div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 12 }}>By variant kind</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">By variant kind</div>
+          <div className="flex flex-col gap-1.5">
             {byKind.map(([kind, count]) => (
               <div key={kind} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>{VARIANT_LABELS[kind] ?? kind}</div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>{count}</div>
+                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">{VARIANT_LABELS[kind] ?? kind}</div>
+                <div style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">{count}</div>
               </div>
             ))}
           </div>
@@ -1221,7 +1218,7 @@ function PhotoCard({
       }}
     >
       {/* Image */}
-      <div style={{ width: "100%", aspectRatio: "3/4", position: "relative", overflow: "hidden", background: COLORS.surfaceAlt }}>
+      <div style={{ width: "100%", aspectRatio: "3/4", position: "relative", overflow: "hidden" }} className="bg-admin-surface-alt">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={photo.thumbUrl} alt={photo.talentName} loading="lazy"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
@@ -1303,10 +1300,7 @@ function PhotoCard({
 
       {/* Footer — talent name only */}
       <div style={{ padding: "7px 9px 9px" }}>
-        <div style={{
-          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, color: COLORS.ink,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>{photo.talentName}</div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{photo.talentName}</div>
       </div>
 
       <style jsx>{`
@@ -1868,21 +1862,21 @@ export function WorkspaceMediaPage() {
   if (!isAgency) {
     return (
       <div style={{ padding: "48px 28px", maxWidth: 560, margin: "0 auto" }}>
-        <div style={{ marginBottom: 8 }}>
-          <h1 style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700, color: COLORS.ink, margin: 0 }}>Media</h1>
-          <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, marginTop: 4, marginBottom: 0 }}>Your workspace photo library — every photo across every talent, with watermark control and usage tracking.</p>
+        <div className="mb-2">
+          <h1 style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700, margin: 0 }} className="text-admin-ink">Media</h1>
+          <p style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 4, marginBottom: 0 }} className="text-admin-ink-muted">Your workspace photo library — every photo across every talent, with watermark control and usage tracking.</p>
         </div>
         <div style={{ marginTop: 32, padding: 28, borderRadius: 16, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={{ fontSize: 36 }}>🖼️</div>
           <div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>Branded media gallery — Agency plan</div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6, marginBottom: 16 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, marginBottom: 6 }} className="text-admin-ink">Branded media gallery — Agency plan</div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }} className="text-admin-ink-muted">
               Every photo your agency controls — folders, tags, watermarks, bulk actions, and analytics.
             </div>
             <ul style={{ padding: 0, margin: "0 0 20px 0", listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
               {["Workspace-wide photo inventory", "Folders + tags for organisation", "Logo watermark — position · opacity", "Bulk approve / reject / reassign", "Usage analytics per talent"].map((item) => (
                 <li key={item} style={{ display: "flex", gap: 8, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
-                  <span style={{ color: COLORS.success }}>✓</span>{item}
+                  <span className="text-admin-success">✓</span>{item}
                 </li>
               ))}
             </ul>
@@ -1954,7 +1948,7 @@ export function WorkspaceMediaPage() {
               )}
               <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>All ({filtered.length})</span>
+                <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">All ({filtered.length})</span>
               </label>
             </div>
           </div>
@@ -1962,11 +1956,8 @@ export function WorkspaceMediaPage() {
 
         {/* Pending review: keyboard hint bar */}
         {view.kind === "pending" && filtered.length > 0 && selCount === 0 && (
-          <div style={{
-            padding: "7px 20px", background: "rgba(255,193,7,0.08)", borderBottom: `1px solid ${COLORS.borderSoft}`,
-            display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted,
-          }}>
-            <span style={{ color: COLORS.amber, fontWeight: 700 }}>{filtered.length} pending</span>
+          <div style={{ padding: "7px 20px", background: "rgba(255,193,7,0.08)", borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
+            <span style={{ fontWeight: 700 }} className="text-admin-amber">{filtered.length} pending</span>
             <span>·</span>
             <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>Y</kbd> Approve</span>
             <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>N</kbd> Reject</span>
@@ -2034,7 +2025,7 @@ export function WorkspaceMediaPage() {
               {wsWatermarkConfigured && <BulkBtn icon="🔖" label="Watermark…" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
               <BulkBtn icon="📂" label="Move to talent…" onClick={() => void openReassignModal()} />
               {folders.length > 0 && (
-                <div style={{ position: "relative" }}>
+                <div className="relative">
                   <BulkBtn icon="🗂" label="Add to folder…" onClick={() => setFolderMenuOpen((v) => !v)} />
                   {folderMenuOpen && (
                     <>
@@ -2106,8 +2097,8 @@ export function WorkspaceMediaPage() {
               return (
                 <div key={groupName} style={{ marginBottom: 28 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{groupName}</div>
-                    <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>{groupPhotos.length} photo{groupPhotos.length !== 1 ? "s" : ""}</div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{groupName}</div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">{groupPhotos.length} photo{groupPhotos.length !== 1 ? "s" : ""}</div>
                     <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
                     {isByTalent && groupPhotos.length > ROW_SIZE && (
                       <button
@@ -2144,11 +2135,7 @@ export function WorkspaceMediaPage() {
               );
             })
           ) : filtered.length === 0 ? (
-            <div style={{
-              padding: 56, textAlign: "center",
-              fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
-              border: `1px dashed ${COLORS.border}`, borderRadius: 12,
-            }}>
+            <div style={{ padding: 56, textAlign: "center", fontFamily: FONTS.body, fontSize: 13, border: `1px dashed ${COLORS.border}`, borderRadius: 12 }} className="text-admin-ink-muted">
               {view.kind === "folder"
                 ? "No photos in this folder yet. Select photos and use '+ Folder…' to add them."
                 : view.kind === "pending"
@@ -2202,7 +2189,7 @@ export function WorkspaceMediaPage() {
           background: `${COLORS.fill}12`, border: `3px dashed ${COLORS.fill}`,
           borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none",
         }}>
-          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, color: COLORS.fill }}>Drop photos here</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700 }} className="text-admin-fill">Drop photos here</div>
         </div>
       )}
 
@@ -2216,7 +2203,7 @@ export function WorkspaceMediaPage() {
         {/* Bridge cap banner — totalCount now comes from a dedicated post-
             join count query, so this comparison is finally honest. */}
         {bridgeMediaTotalCount != null && bridgeMediaTotalCount > photos.length && (
-          <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(255,193,7,0.08)", border: "1px solid rgba(255,193,7,0.22)", fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+          <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(255,193,7,0.08)", border: "1px solid rgba(255,193,7,0.22)", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
             Showing <strong>{photos.length.toLocaleString()}</strong> of <strong>{bridgeMediaTotalCount.toLocaleString()}</strong> photos. Use filters or folders to narrow what you see.
           </div>
         )}
@@ -2228,15 +2215,15 @@ export function WorkspaceMediaPage() {
         )}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingBottom: 14 }}>
           <div>
-            <h1 style={{ fontFamily: FONTS.body, fontSize: 20, fontWeight: 700, color: COLORS.ink, margin: 0 }}>Media</h1>
-            <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, marginBottom: 0 }}>
+            <h1 style={{ fontFamily: FONTS.body, fontSize: 20, fontWeight: 700, margin: 0 }} className="text-admin-ink">Media</h1>
+            <p style={{ fontFamily: FONTS.body, fontSize: 12.5, marginTop: 2, marginBottom: 0 }} className="text-admin-ink-muted">
               {photos.length} photo{photos.length !== 1 ? "s" : ""} · {folders.length} folder{folders.length !== 1 ? "s" : ""}
-              {mediaSettings.showWatermark && wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8, color: COLORS.success }}>· Watermark on</span>}
+              {mediaSettings.showWatermark && wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8 }} className="text-admin-success">· Watermark on</span>}
             </p>
           </div>
           <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
             {/* Settings gear */}
-            <div style={{ position: "relative" }}>
+            <div className="relative">
               <SecondaryButton size="sm" onClick={() => setShowSettings((v) => !v)}>⚙ Settings</SecondaryButton>
               {showSettings && (
                 <>
@@ -2250,7 +2237,7 @@ export function WorkspaceMediaPage() {
                     width: 240, padding: "6px 0",
                     fontFamily: FONTS.body,
                   }}>
-                    <div style={{ padding: "6px 14px 8px", fontSize: 10.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: COLORS.inkDim }}>
+                    <div style={{ padding: "6px 14px 8px", fontSize: 10.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }} className="text-admin-ink-dim">
                       Media features
                     </div>
                     {([
@@ -2316,7 +2303,7 @@ export function WorkspaceMediaPage() {
               )}
             </div>
             {/* Upload dropdown */}
-            <div style={{ position: "relative" }}>
+            <div className="relative">
               <PrimaryButton size="sm" onClick={() => setShowUploadMenu((v) => !v)} disabled={assignBusy}>
                 + Upload ▾
               </PrimaryButton>
@@ -2348,8 +2335,8 @@ export function WorkspaceMediaPage() {
                       >
                         <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
                         <div>
-                          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{item.label}</div>
-                          <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{item.sub}</div>
+                          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{item.label}</div>
+                          <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{item.sub}</div>
                         </div>
                       </button>
                     ))}
@@ -2394,9 +2381,9 @@ export function WorkspaceMediaPage() {
 
             {/* Phase 2 row: confirm count + Import button */}
             {drivePanelStatus.kind === "confirmed" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="flex flex-col gap-1.5">
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
                     Found <strong>{drivePanelStatus.total}</strong> photo{drivePanelStatus.total !== 1 ? "s" : ""} in that folder
                   </div>
                   <button type="button"
@@ -2408,7 +2395,7 @@ export function WorkspaceMediaPage() {
                     style={{ background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>Cancel</button>
                 </div>
                 {drivePanelStatus.truncated && (
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.amber }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-amber">
                     Folder is very large — only the first {drivePanelStatus.total} images are listed. Move excess into a sub-folder and re-run.
                   </div>
                 )}
@@ -2417,21 +2404,21 @@ export function WorkspaceMediaPage() {
 
             {/* Importing progress row */}
             {drivePanelStatus.kind === "importing" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="flex flex-col gap-1.5">
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
                     Importing… <strong>{drivePanelStatus.done}</strong> / {drivePanelStatus.total} photos
                   </div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>Safe to leave — import continues server-side</div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">Safe to leave — import continues server-side</div>
                 </div>
                 <div style={{ height: 4, borderRadius: 4, background: COLORS.borderSoft, overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 4, background: COLORS.fill, width: `${drivePanelStatus.total > 0 ? Math.round((drivePanelStatus.done / drivePanelStatus.total) * 100) : 0}%`, transition: "width 0.4s ease" }} />
+                  <div style={{ height: "100%", borderRadius: 4, width: `${drivePanelStatus.total > 0 ? Math.round((drivePanelStatus.done / drivePanelStatus.total) * 100) : 0}%`, transition: "width 0.4s ease" }} />
                 </div>
               </div>
             )}
 
             {drivePanelStatus.kind === "loading-talents" && (
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>Loading roster…</div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="bg-admin-fill text-admin-ink-muted">Loading roster…</div>
             )}
             {drivePanelStatus.kind === "error" && (
               <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "#c0392b", padding: "5px 10px", background: "rgba(192,57,43,0.07)", borderRadius: 6, border: "1px solid rgba(192,57,43,0.2)" }}>
@@ -2439,12 +2426,12 @@ export function WorkspaceMediaPage() {
               </div>
             )}
             {drivePanelStatus.kind === "ok" && (
-              <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.success, padding: "5px 10px", background: "rgba(46,125,91,0.07)", borderRadius: 6, border: "1px solid rgba(46,125,91,0.2)" }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12, padding: "5px 10px", background: "rgba(46,125,91,0.07)", borderRadius: 6, border: "1px solid rgba(46,125,91,0.2)" }} className="text-admin-success">
                 {drivePanelStatus.count} photo{drivePanelStatus.count !== 1 ? "s" : ""} imported.
               </div>
             )}
             {(drivePanelStatus.kind === "idle" || drivePanelStatus.kind === "error") && (
-              <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
                 Works with any file or folder shared as &quot;Anyone with the link&quot;
               </div>
             )}
@@ -2528,7 +2515,7 @@ export function WorkspaceMediaPage() {
             padding: "24px 28px 28px",
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>Keyboard shortcuts</div>
+              <div style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">Keyboard shortcuts</div>
               <button type="button" onClick={() => setShowShortcutHelp(false)}
                 style={{ background: "none", border: "none", color: COLORS.inkMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
@@ -2551,8 +2538,8 @@ export function WorkspaceMediaPage() {
               ]},
             ].map(({ label, rows }) => (
               <div key={label} style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>{label}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }} className="text-admin-ink-muted">{label}</div>
+                <div className="flex flex-col gap-1.5">
                   {(rows as [string, string][]).map(([key, desc]) => (
                     <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <kbd style={{
@@ -2560,13 +2547,13 @@ export function WorkspaceMediaPage() {
                         border: `1px solid ${COLORS.border}`, background: COLORS.surfaceAlt,
                         fontFamily: "monospace", fontSize: 11.5, color: COLORS.ink, minWidth: 52, textAlign: "center",
                       }}>{key}</kbd>
-                      <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted }}>{desc}</span>
+                      <span style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">{desc}</span>
                     </div>
                   ))}
                 </div>
               </div>
             ))}
-            <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
+            <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
               Press <kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10 }}>?</kbd> again to close
             </div>
           </div>

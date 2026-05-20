@@ -221,7 +221,7 @@ export function PermissionConsentDrawer({
                 }}
               >
                 <span style={{ fontSize: 22, lineHeight: 1 }}>{meta.emoji}</span>
-                <div style={{ flex: 1 }}>
+                <div className="flex-1">
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, marginBottom: 2 }}>
                     {meta.label}
                   </div>
@@ -346,7 +346,7 @@ export function AgencyMediaCurationPanel({
       )}
 
       {rows && rows.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {rows.map((r) => (
             <div key={r.id} style={{
               display: "flex", alignItems: "center", gap: 10,
@@ -357,7 +357,7 @@ export function AgencyMediaCurationPanel({
                 width: 40, height: 40, borderRadius: 6,
                 background: T.surfaceAlt, flexShrink: 0,
               }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>
                   {r.master_media_id ? "Override" : "Agency-original"}
                   {!r.is_visible_on_agency_site && (
@@ -474,7 +474,7 @@ export function TrustBadgesPanel({
 
       {loading && <div style={{ color: T.inkMuted, fontSize: 12 }}>Loading…</div>}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {allBadgeKinds.map((kind) => {
           const meta = BADGE_META[kind];
           const badge = byKind.get(kind);
@@ -487,7 +487,7 @@ export function TrustBadgesPanel({
               border: `1px solid ${badge?.status === "verified" ? T.accent : T.border}`,
             }}>
               <span style={{ fontSize: 20 }}>{meta.emoji}</span>
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>
                   {meta.label}
                 </div>

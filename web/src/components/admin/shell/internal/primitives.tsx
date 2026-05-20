@@ -823,21 +823,14 @@ export function ConfirmDialog({
         <H3 style={{ marginBottom: 8 }}>
           <span id="tulala-confirm-title">{title}</span>
         </H3>
-        <div style={{ fontSize: 14, color: COLORS.inkMuted, lineHeight: 1.5, marginBottom: 14 }}>
+        <div style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 14 }} className="text-admin-ink-muted">
           {body}
         </div>
         {typeNameToConfirm && (
           <div className="mb-3.5">
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                color: COLORS.inkMuted,
-                marginBottom: 6,
-              }}
-            >
+            <label style={{ display: "block", fontSize: 12, marginBottom: 6 }} className="text-admin-ink-muted">
               Type{" "}
-              <strong style={{ color: COLORS.ink, fontWeight: 600 }}>
+              <strong style={{ fontWeight: 600 }} className="text-admin-ink">
                 {typeNameToConfirm}
               </strong>{" "}
               to confirm:
@@ -950,8 +943,7 @@ export function CapsLabel({
 
 export function Bullet() {
   return (
-    <span
-      style={{ color: COLORS.inkDim, fontSize: 12, padding: "0 6px" }}
+    <span style={{ fontSize: 12, padding: "0 6px" }}
       aria-hidden
     >
       ·
@@ -976,12 +968,7 @@ export function StatDot({
   return (
     <span
       style={{
-        display: "inline-block",
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: palette[tone],
-      }}
+        display: "inline-block", width: size, height: size, borderRadius: "50%", background: palette[tone], }}
       aria-hidden
     />
   );
@@ -1027,20 +1014,7 @@ export function StatusPill({
   return (
     <span
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: showDot ? 5 : 0,
-        background: c.bg,
-        color: c.fg,
-        padding,
-        borderRadius: 999,
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        fontWeight: 500,
-        textTransform: capitalize ? "capitalize" : undefined,
-        whiteSpace: "nowrap",
-      }}
-    >
+        display: "inline-flex", alignItems: "center", gap: showDot ? 5 : 0, background: c.bg, color: c.fg, padding, borderRadius: 999, fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, textTransform: capitalize ? "capitalize" : undefined, whiteSpace: "nowrap" }} className="text-admin-ink-dim">
       {showDot && <StatDot tone={tone} size={5} />}
       {label}
     </span>
@@ -1096,20 +1070,7 @@ export function PlanChip({
 
 export function RoleChip({ role }: { role: Role }) {
   return (
-    <span
-      style={{
-        background: "rgba(11,11,13,0.05)",
-        color: COLORS.ink,
-        fontFamily: FONTS.body,
-        fontSize: 10.5,
-        fontWeight: 600,
-        letterSpacing: 0.3,
-        padding: "3px 8px",
-        borderRadius: 999,
-        display: "inline-flex",
-        alignItems: "center",
-      }}
-    >
+    <span style={{ background: "rgba(11,11,13,0.05)", fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3, padding: "3px 8px", borderRadius: 999, display: "inline-flex", alignItems: "center" }} className="text-admin-ink">
       {ROLE_META[role].label}
     </span>
   );
@@ -1553,15 +1514,7 @@ export function TrustBoostBanner({
         >
           {isActionable ? "Get Verified — open more talent inboxes" : `You're at ${meta.label}`}
         </div>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            color: COLORS.inkMuted,
-            marginTop: 2,
-            lineHeight: 1.45,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink-muted">
           {isActionable
             ? "Verification confirms a real, traceable buyer. Talent that filters out anonymous inquiries will see your next message."
             : level === "verified"
@@ -1600,23 +1553,7 @@ export function TrustBoostBanner({
 export function ReadOnlyChip() {
   const { t } = useAdminShell();
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        background: "transparent",
-        color: COLORS.inkDim,
-        border: `1px solid ${COLORS.border}`,
-        fontFamily: FONTS.body,
-        fontSize: 10,
-        fontWeight: 500,
-        letterSpacing: 0.4,
-        padding: "2px 7px",
-        borderRadius: 999,
-        textTransform: "uppercase",
-      }}
-    >
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "transparent", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 10, fontWeight: 500, letterSpacing: 0.4, padding: "2px 7px", borderRadius: 999, textTransform: "uppercase" }} className="text-admin-ink-dim">
       <Icon name="lock" size={9} stroke={2} />
       {t("dashboard.readOnlyBadge")}
     </span>
@@ -1978,31 +1915,13 @@ export function PrimaryCard({
           {icon && <IconChip>{icon}</IconChip>}
           <div className="flex-1 min-w-0">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-              <h3
-                style={{
-                  fontFamily: FONTS.display,
-                  fontSize: 16,
-                  fontWeight: 500,
-                  letterSpacing: -0.15,
-                  color: COLORS.ink,
-                  margin: 0,
-                  lineHeight: 1.3,
-                }}
-              >
+              <h3 style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, letterSpacing: -0.15, margin: 0, lineHeight: 1.3 }} className="text-admin-ink">
                 {title}
               </h3>
               {badge}
             </div>
             {description && (
-              <p
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  color: COLORS.inkMuted,
-                  margin: 0,
-                  lineHeight: 1.5,
-                }}
-              >
+              <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: 0, lineHeight: 1.5 }} className="text-admin-ink-muted">
                 {description}
               </p>
             )}
@@ -2020,7 +1939,7 @@ export function PrimaryCard({
               paddingTop: meta || footer ? 10 : 0,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: COLORS.inkMuted, fontSize: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }} className="text-admin-ink-muted">
               {meta}
             </div>
             {footer ?? (onClick && <Affordance label={affordance} />)}
@@ -2060,29 +1979,11 @@ export function SecondaryCard({
           }
         `}</style>
         <div>
-          <h3
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 14,
-              fontWeight: 600,
-              letterSpacing: -0.05,
-              color: COLORS.ink,
-              margin: 0,
-              lineHeight: 1.35,
-            }}
-          >
+          <h3 style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, letterSpacing: -0.05, margin: 0, lineHeight: 1.35 }} className="text-admin-ink">
             {title}
           </h3>
           {description && (
-            <p
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.inkMuted,
-                margin: "4px 0 0",
-                lineHeight: 1.5,
-              }}
-            >
+            <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: "4px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
               {description}
             </p>
           )}
@@ -2099,7 +2000,7 @@ export function SecondaryCard({
               paddingTop: 6,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: COLORS.inkMuted, fontSize: 11.5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5 }} className="text-admin-ink-muted">
               {meta}
             </div>
             {onClick && <Affordance label={affordance} />}
@@ -2186,16 +2087,9 @@ export function StatusStrip({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: toneColor(it.tone),
-                  flexShrink: 0,
-                }}
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: toneColor(it.tone), flexShrink: 0, }}
               />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500, whiteSpace: "nowrap" }}>{it.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap" }} className="text-admin-ink-muted">{it.label}</span>
             </div>
             <div
               style={{
@@ -2723,15 +2617,7 @@ export function StatusCard({
               <Icon name={icon} size={12} stroke={1.7} />
             </span>
           )}
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 11.5,
-              fontWeight: 500,
-              color: COLORS.inkMuted,
-              letterSpacing: 0.05,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, letterSpacing: 0.05 }} className="text-admin-ink-muted">
             {label}
           </div>
         </div>
@@ -2766,13 +2652,7 @@ function StatusCaption({ text }: { text: string }) {
   const match = text.match(/([+\-−–][\d.,]+%?)/);
   if (!match) {
     return (
-      <div
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          color: COLORS.inkMuted,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
         {text}
       </div>
     );
@@ -2783,13 +2663,7 @@ function StatusCaption({ text }: { text: string }) {
   const isPositive = /^[+]/.test(trend);
   const trendColor = isPositive ? COLORS.green : COLORS.red;
   return (
-    <div
-      style={{
-        fontFamily: FONTS.body,
-        fontSize: 12,
-        color: COLORS.inkMuted,
-      }}
-    >
+    <div style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
       {before}
       <span
         style={{
@@ -2824,45 +2698,15 @@ export function LockedCard({
     <CardFrame onClick={onClick} variant="locked" fullHeight={fullHeight}>
       <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
         <div className="flex items-start gap-3">
-          <span
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              background: COLORS.accentSoft,
-              border: `1px solid rgba(15,79,62,0.22)`,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: COLORS.accent,
-              flexShrink: 0,
-            }}
-          >
+          <span style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid rgba(15,79,62,0.22)`, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent">
             <Icon name="sparkle" size={13} stroke={1.7} color={COLORS.accent} />
           </span>
           <div className="flex-1 min-w-0">
-            <h3
-              style={{
-                fontFamily: FONTS.display,
-                fontSize: 18,
-                fontWeight: 500,
-                color: COLORS.ink,
-                margin: 0,
-                lineHeight: 1.25,
-              }}
-            >
+            <h3 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, lineHeight: 1.25 }} className="text-admin-ink">
               {title}
             </h3>
             {description && (
-              <p
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                  color: COLORS.inkMuted,
-                  margin: "2px 0 0",
-                  lineHeight: 1.5,
-                }}
-              >
+              <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: "2px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
                 {description}
               </p>
             )}
@@ -2878,22 +2722,7 @@ export function LockedCard({
             paddingTop: 6,
           }}
         >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "3px 8px",
-              borderRadius: 999,
-              background: "#fff",
-              border: `1px solid rgba(15,79,62,0.20)`,
-              fontFamily: FONTS.body,
-              fontSize: 11,
-              fontWeight: 600,
-              color: COLORS.accentDeep,
-              letterSpacing: 0.2,
-            }}
-          >
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px", borderRadius: 999, background: "#fff", border: `1px solid rgba(15,79,62,0.20)`, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, letterSpacing: 0.2 }} className="text-admin-accent-deep">
             {PLAN_META[requiredPlan].label} · {planPriceCompact(requiredPlan)}
           </div>
           {onClick && <Affordance label={affordance} color={COLORS.accent} />}
@@ -2916,31 +2745,10 @@ export function CompactLockedCard({
     <CardFrame onClick={onClick} variant="locked">
       <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
         <Icon name="sparkle" size={12} stroke={1.7} color={COLORS.accent} />
-        <span
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            fontWeight: 500,
-            color: COLORS.ink,
-            flex: 1,
-            minWidth: 0,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {title}
         </span>
-        <span
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 11,
-            fontWeight: 600,
-            color: COLORS.accentDeep,
-            letterSpacing: 0.2,
-            whiteSpace: "nowrap",
-          }}
-        >
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, letterSpacing: 0.2, whiteSpace: "nowrap" }} className="text-admin-accent-deep">
           {PLAN_META[requiredPlan].label} · {planPriceCompact(requiredPlan)}
         </span>
       </div>
@@ -3004,46 +2812,15 @@ export function StarterCard({
         }}
       />
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: COLORS.accentSoft,
-            color: COLORS.accent,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
+        <div style={{ width: 36, height: 36, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent">
           <Icon name="sparkle" size={16} stroke={1.8} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 16,
-              fontWeight: 700,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.2,
-              lineHeight: 1.25,
-            }}
-          >
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: -0.2, lineHeight: 1.25 }} className="text-admin-ink">
             {title}
           </h3>
           {subtitle && (
-            <p
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                color: COLORS.inkMuted,
-                margin: "4px 0 0",
-                lineHeight: 1.55,
-                maxWidth: 640,
-              }}
-            >
+            <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.55, maxWidth: 640 }} className="text-admin-ink-muted">
               {subtitle}
             </p>
           )}
@@ -3152,15 +2929,7 @@ export function CapNudge({
         >
           {headline}
         </div>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            color: COLORS.inkMuted,
-            marginTop: 1,
-            lineHeight: 1.4,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 1, lineHeight: 1.4 }} className="text-admin-ink-muted">
           {detail}
         </div>
       </div>
@@ -3273,44 +3042,14 @@ export function EmptyState({
         gap: 4,
       }}
     >
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: COLORS.accentSoft,
-          color: COLORS.accent,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 10,
-        }}
-      >
+      <div style={{ width: 36, height: 36, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }} className="bg-admin-accent-soft text-admin-accent">
         <Icon name={icon} size={16} stroke={1.7} color={COLORS.accent} />
       </div>
-      <h3
-        style={{
-          fontFamily: FONTS.display,
-          fontSize: 17,
-          fontWeight: 500,
-          color: COLORS.ink,
-          margin: 0,
-          letterSpacing: -0.15,
-          lineHeight: 1.3,
-        }}
-      >
+      <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 500, margin: 0, letterSpacing: -0.15, lineHeight: 1.3 }} className="text-admin-ink">
         {title}
       </h3>
       {body && (
-        <p
-          style={{
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            margin: "2px 0 0",
-            lineHeight: 1.5,
-            maxWidth: 360,
-          }}
-        >
+        <p style={{ fontSize: 12.5, margin: "2px 0 0", lineHeight: 1.5, maxWidth: 360 }} className="text-admin-ink-muted">
           {body}
         </p>
       )}
@@ -3388,14 +3127,7 @@ function EmptyStateTip({
     <div className="flex-1 min-w-0">
       <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35 }}>{label}</div>
       {description && (
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            marginTop: 2,
-            lineHeight: 1.4,
-          }}
-        >
+        <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
           {description}
         </div>
       )}
@@ -3529,28 +3261,11 @@ export function CelebrationBanner({
             {eyebrow}
           </div>
         )}
-        <h3
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 17,
-            fontWeight: 500,
-            color: COLORS.ink,
-            margin: 0,
-            letterSpacing: -0.15,
-            lineHeight: 1.3,
-          }}
-        >
+        <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 500, margin: 0, letterSpacing: -0.15, lineHeight: 1.3 }} className="text-admin-ink">
           {title}
         </h3>
         {body && (
-          <p
-            style={{
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              margin: "4px 0 0",
-              lineHeight: 1.5,
-            }}
-          >
+          <p style={{ fontSize: 12.5, margin: "4px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
             {body}
           </p>
         )}
@@ -4322,31 +4037,13 @@ export function DrawerShell({
               </button>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h2
-                style={{
-                  fontFamily: FONTS.display,
-                  fontSize: 22,
-                  fontWeight: 500,
-                  letterSpacing: -0.3,
-                  color: COLORS.ink,
-                  margin: 0,
-                  lineHeight: 1.2,
-                }}
-              >
+              <h2 style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3, margin: 0, lineHeight: 1.2 }} className="text-admin-ink">
                 {title}
               </h2>
               {toolbar}
             </div>
             {description && (
-              <p
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  color: COLORS.inkMuted,
-                  margin: "4px 0 0",
-                  lineHeight: 1.5,
-                }}
-              >
+              <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
                 {description}
               </p>
             )}
@@ -4840,11 +4537,7 @@ export function ChannelVisibilityStrip({
             fontFamily: FONTS.body,
           }}
         >
-          <div style={{
-            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
-            textTransform: "uppercase", color: COLORS.inkDim,
-            padding: "4px 8px 6px",
-          }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 8px 6px" }} className="text-admin-ink-dim">
             {copy.t(label)}
           </div>
           {channels.map((c) => {
@@ -4874,10 +4567,7 @@ export function ChannelVisibilityStrip({
                   }}>
                     {copy.t({ public: "Public", agency: "Agency", private: "Private" }[c])}
                   </span>
-                  <span style={{
-                    display: "block", fontSize: 10.5, color: COLORS.inkDim,
-                    lineHeight: 1.35, marginTop: 1,
-                  }}>
+                  <span style={{ display: "block", fontSize: 10.5, lineHeight: 1.35, marginTop: 1 }} className="text-admin-ink-dim">
                     {copy.t(CHANNEL_DESC[c])}
                   </span>
                 </span>
@@ -4960,15 +4650,7 @@ export function FieldRow({
     <div className="flex flex-col gap-1.5">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
         {!hideLabel && (
-        <label
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 500,
-            color: COLORS.ink,
-            letterSpacing: 0.1,
-          }}
-        >
+        <label style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, letterSpacing: 0.1 }} className="text-admin-ink">
           {label}
           {required && (
             <span
@@ -5033,13 +4715,7 @@ export function FieldRow({
           </span>
         </>
       ) : hint ? (
-        <span
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-          }}
-        >
+        <span style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
           {hint}
         </span>
       ) : null}
@@ -5097,18 +4773,7 @@ export function TextInput({
       }}
     >
       {prefix && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0 10px",
-            background: "rgba(11,11,13,0.03)",
-            borderRight: `1px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-          }}
-        >
+        <span style={{ display: "inline-flex", alignItems: "center", padding: "0 10px", background: "rgba(11,11,13,0.03)", borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
           {prefix}
         </span>
       )}
@@ -5157,18 +4822,7 @@ export function TextInput({
         </span>
       )}
       {suffix && !showCount && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "0 10px",
-            background: "rgba(11,11,13,0.03)",
-            borderLeft: `1px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-          }}
-        >
+        <span style={{ display: "inline-flex", alignItems: "center", padding: "0 10px", background: "rgba(11,11,13,0.03)", borderLeft: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
           {suffix}
         </span>
       )}
@@ -5298,10 +4952,7 @@ export function Divider({ label }: { label?: string }) {
         margin: "16px 0 8px",
       }}
     >
-      <h2 style={{
-        margin: 0, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-        color: COLORS.ink, letterSpacing: -0.05,
-      }}>{label}</h2>
+      <h2 style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">{label}</h2>
       <div aria-hidden style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
       <style>{`
         @media (max-width: 540px) {
@@ -6540,10 +6191,10 @@ export function ConfirmModal({
           animation: "tulala-page-fade .18s ease",
         }}
       >
-        <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: "0 0 8px", color: COLORS.ink }}>
+        <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: "0 0 8px" }} className="text-admin-ink">
           {title}
         </h2>
-        <p style={{ fontSize: 14, color: COLORS.inkMuted, margin: "0 0 20px", lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, margin: "0 0 20px", lineHeight: 1.5 }} className="text-admin-ink-muted">
           {message}
         </p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -6657,7 +6308,7 @@ export function ShortcutsModal({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, color: COLORS.ink }}>
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0 }} className="text-admin-ink">
             Keyboard shortcuts
           </h2>
           <button
@@ -6684,7 +6335,7 @@ export function ShortcutsModal({
                 borderRadius: 8,
               }}
             >
-              <span style={{ fontSize: 13, color: COLORS.ink }}>{label}</span>
+              <span style={{ fontSize: 13 }} className="text-admin-ink">{label}</span>
               <span className="inline-flex gap-1">
                 {keys.map((k) => (
                   <kbd
@@ -6851,16 +6502,9 @@ export function FloatingFab({
               boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.30)",
             }}
           >
+            <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(11,11,13,0.10)", margin: "0 auto 14px", }} />
             <div style={{
-              width: 36, height: 4, borderRadius: 999,
-              background: "rgba(11,11,13,0.10)",
-              margin: "0 auto 14px",
-            }} />
-            <div style={{
-              fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-              color: COLORS.inkMuted, textTransform: "uppercase",
-              marginBottom: 10, paddingLeft: 4,
-            }}>
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10, paddingLeft: 4 }} className="text-admin-ink-muted">
               Create new
             </div>
             <div className="flex flex-col gap-1">
@@ -6898,9 +6542,9 @@ export function FloatingFab({
                     {a.emoji ?? "+"}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{a.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">{a.label}</div>
                     {a.sub && (
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.35 }}>{a.sub}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.35 }} className="text-admin-ink-muted">{a.sub}</div>
                     )}
                   </div>
                   <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 16 }}>›</span>
@@ -6942,7 +6586,7 @@ export function RetryCard({
       <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={COLORS.red} strokeWidth={2} strokeLinecap="round">
         <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       </svg>
-      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink }}>{message}</span>
+      <span style={{ flex: 1, fontSize: 13 }} className="text-admin-ink">{message}</span>
       <button
         type="button"
         onClick={onRetry}
@@ -6992,30 +6636,18 @@ export function ActivityFeedItem({
         fontFamily: FONTS.body,
       }}
     >
-      <div
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          background: COLORS.surfaceAlt,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          fontSize: 13,
-          color: COLORS.inkMuted,
-        }}
+      <div style={{ width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, }}
         aria-hidden
       >
         {iconName ? <Icon name={iconName} size={13} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "📋")}
       </div>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.4 }} className="bg-admin-surface-alt text-admin-ink-muted text-admin-ink">
           <strong className="font-semibold">{actor}</strong>
           {" "}{action}{" "}
           <strong className="font-medium">{target}</strong>
         </div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{timestamp}</div>
+        <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{timestamp}</div>
       </div>
     </div>
   );
@@ -7176,15 +6808,7 @@ export function StickyDrawerSaveBar({
         boxShadow: "0 -4px 16px rgba(11,11,13,0.06)",
       }}
     >
-      <span
-        style={{
-          flex: 1,
-          fontFamily: FONTS.body,
-          fontSize: 12.5,
-          fontWeight: 500,
-          color: COLORS.inkMuted,
-        }}
-      >
+      <span style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink-muted">
         {label}
       </span>
       <SecondaryButton size="sm" onClick={onCancel} disabled={saving}>
@@ -7466,7 +7090,7 @@ export function ModalPopover({
               flexShrink:     0,
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+            <span style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
               {title}
             </span>
             <button
@@ -7842,15 +7466,7 @@ export function GuidedTour({
           <div style={{ position: "absolute", top: rect.bottom + 4, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
           {/* Spotlight ring */}
           <div style={{
-            position: "absolute",
-            top:    rect.top    - 4,
-            left:   rect.left   - 4,
-            width:  rect.width  + 8,
-            height: rect.height + 8,
-            borderRadius: RADIUS.md,
-            boxShadow: `0 0 0 3px ${COLORS.accent}`,
-            pointerEvents: "none",
-          }} />
+            position: "absolute", top:    rect.top    - 4, left:   rect.left   - 4, width:  rect.width  + 8, height: rect.height + 8, boxShadow: `0 0 0 3px ${COLORS.accent}`, pointerEvents: "none", }} />
         </>
       ) : (
         <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
@@ -7869,12 +7485,10 @@ export function GuidedTour({
           border:        `1px solid ${COLORS.border}`,
           padding:       "16px",
           pointerEvents: "auto",
-          zIndex:        1301,
-        }}
-      >
+          zIndex:        1301, }} className="rounded-admin-md">
         {/* Step counter */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-ink-muted">
             Step {stepIdx + 1} of {steps.length}
           </span>
           <button
@@ -7888,10 +7502,10 @@ export function GuidedTour({
         </div>
 
         {/* Content */}
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 4 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONTS.body, marginBottom: 4 }} className="text-admin-ink">
           {step.title}
         </div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.5, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.5, marginBottom: 14 }} className="text-admin-ink-muted">
           {step.body}
         </div>
 
@@ -8128,10 +7742,10 @@ export function ConflictDialog({
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
               Edit conflict
             </div>
-            <div style={{ fontSize: 13, color: COLORS.inkMuted }}>
+            <div style={{ fontSize: 13 }} className="text-admin-ink-muted">
               <strong>{theirAuthor}</strong> also edited <em>{field}</em>. Choose which version to keep.
             </div>
           </div>
@@ -8145,7 +7759,7 @@ export function ConflictDialog({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {/* Your version */}
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
               Your version
             </div>
             <div style={SIDE}>{yourValue}</div>
@@ -8162,7 +7776,7 @@ export function ConflictDialog({
 
           {/* Their version */}
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
               {theirAuthor}&rsquo;s version
             </div>
             <div style={{ ...SIDE, borderColor: COLORS.accent + "55" }}>{theirValue}</div>
@@ -8179,7 +7793,7 @@ export function ConflictDialog({
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 16, fontSize: 12, color: COLORS.inkMuted, textAlign: "center" }}>
+        <div style={{ marginTop: 16, fontSize: 12, textAlign: "center" }} className="text-admin-ink-muted">
           Your changes will be discarded if you keep the other version.
         </div>
       </div>
@@ -8485,7 +8099,7 @@ export function OverviewSkeleton() {
         ))}
       </div>
       {/* Recent activity */}
-      <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "16px", border: `1px solid ${COLORS.border}` }}>
+      <div style={{ padding: "16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
         <Skeleton height={14} width={120} style={{ marginBottom: 14 }} />
         {[0, 1, 2, 3, 4].map((i) => (
           <SkRow key={i} />
@@ -8505,7 +8119,7 @@ export function TalentTodaySkeleton() {
         <Skeleton height={13} width="60%" />
       </div>
       {/* Checklist card */}
-      <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+      <div style={{ padding: 16, border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
         <Skeleton height={14} width={140} style={{ marginBottom: 12 }} />
         {[80, 90, 75].map((w, i) => (
           <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
@@ -8522,12 +8136,12 @@ export function TalentTodaySkeleton() {
       </div>
       {/* Earnings grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+        <div style={{ padding: 16, border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
           <Skeleton height={10} width="50%" style={{ marginBottom: 10 }} />
           <Skeleton height={28} width="55%" style={{ marginBottom: 8 }} />
           <Skeleton height={36} width="100%" radius={4} />
         </div>
-        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+        <div style={{ padding: 16, border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
           <Skeleton height={10} width="50%" style={{ marginBottom: 10 }} />
           {[90, 70, 80].map((w, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -8605,18 +8219,7 @@ export function InlineFilePreview({
   const isPreviewable = attachment.kind === "image" || attachment.kind === "pdf";
 
   return (
-    <div
-      style={{
-        border:       `1px solid ${COLORS.border}`,
-        borderRadius: RADIUS.lg,
-        overflow:     "hidden",
-        background:   COLORS.surfaceAlt,
-        display:      "inline-flex",
-        flexDirection: "column",
-        maxWidth:     260,
-        fontFamily:   FONTS.body,
-      }}
-    >
+    <div style={{ border:       `1px solid ${COLORS.border}`, overflow:     "hidden", display:      "inline-flex", flexDirection: "column", maxWidth:     260, fontFamily:   FONTS.body }} className="rounded-admin-lg bg-admin-surface-alt">
       {/* Image preview placeholder */}
       {expanded && attachment.kind === "image" && (
         <div style={{
@@ -8633,13 +8236,10 @@ export function InlineFilePreview({
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
         <span style={{ fontSize: 20, flexShrink: 0 }}>{ATTACHMENT_ICON[attachment.kind]}</span>
         <div className="flex-1 min-w-0">
-          <div style={{
-            fontSize: 12.5, fontWeight: 600, color: COLORS.ink,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-          }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
             {attachment.name}
           </div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{attachment.size}</div>
+          <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{attachment.size}</div>
         </div>
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           {isPreviewable && (
@@ -8795,20 +8395,15 @@ export function ActivityFeed({
               }}
             >
               {/* Icon column */}
-              <div style={{
-                width: 28, height: 28, borderRadius: "50%",
-                background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0, marginTop: 1,
-              }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }} className="bg-admin-surface-alt">
                 <Icon name={entry.icon ?? "bolt"} size={12} color={COLORS.inkMuted} />
               </div>
 
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontWeight: 700, fontSize: 12.5, color: COLORS.ink }}>{entry.actor}</span>
-                  <span style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{entry.action}</span>
+                  <span style={{ fontWeight: 700, fontSize: 12.5 }} className="text-admin-ink">{entry.actor}</span>
+                  <span style={{ fontSize: 12.5 }} className="text-admin-ink-muted">{entry.action}</span>
                   {entry.badge && (
                     <span style={{
                       fontSize: 10.5, fontWeight: 700,
@@ -8820,17 +8415,14 @@ export function ActivityFeed({
                   )}
                 </div>
                 {entry.detail && (
-                  <div style={{
-                    marginTop: 4, fontSize: 12, color: COLORS.inkMuted,
-                    lineHeight: 1.5, fontStyle: "italic",
-                  }}>
+                  <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink-muted">
                     &ldquo;{entry.detail}&rdquo;
                   </div>
                 )}
               </div>
 
               {/* Timestamp */}
-              <span style={{ fontSize: 11, color: COLORS.inkMuted, flexShrink: 0, marginTop: 2 }}>
+              <span style={{ fontSize: 11, flexShrink: 0, marginTop: 2 }} className="text-admin-ink-muted">
                 {entry.at}
               </span>
             </div>

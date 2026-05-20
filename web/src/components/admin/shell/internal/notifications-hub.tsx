@@ -376,7 +376,7 @@ export function NotificationsBell({
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{copy.t("Notifications")}</span>
+          <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{copy.t("Notifications")}</span>
           {totalUnread > 0 && (
             <button type="button" onClick={() => { markAllRead(); force(n => n + 1); }} style={{
               background: "transparent", border: "none", padding: 0, cursor: "pointer",
@@ -388,7 +388,7 @@ export function NotificationsBell({
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: 4 }}>
           {items.length === 0 && (
-            <div style={{ padding: "30px 16px", textAlign: "center", fontSize: 12.5, color: COLORS.inkMuted }}>
+            <div style={{ padding: "30px 16px", textAlign: "center", fontSize: 12.5 }} className="text-admin-ink-muted">
               <div style={{ fontSize: 28, marginBottom: 6 }}>✓</div>
               {copy.t("All caught up.")}
             </div>
@@ -418,10 +418,7 @@ export function NotificationsBell({
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`,
-          fontSize: 11, color: COLORS.inkMuted, textAlign: "center",
-        }}>
+        <div style={{ padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 11, textAlign: "center" }} className="text-admin-ink-muted">
           <button type="button" onClick={() => { popoverRef.current?.hidePopover?.(); openDrawer("notifications-prefs"); }} style={{
             background: "transparent", border: "none", padding: 0, cursor: "pointer",
             fontSize: 11, fontWeight: 500, color: COLORS.inkMuted,
@@ -443,12 +440,7 @@ function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
   const copy = useDashboardText();
   return (
     <div style={{ marginTop: 4, marginBottom: 6 }}>
-      <div style={{
-        padding: "6px 10px",
-        fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase",
-        color: COLORS.inkMuted,
-        display: "flex", alignItems: "center", gap: 5,
-      }}>
+      <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5 }} className="text-admin-ink-muted">
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: accent }} />
         {label}
         <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {items.length}</span>
@@ -469,23 +461,13 @@ function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
             onMouseEnter={(e) => { if (it.cta) e.currentTarget.style.background = COLORS.surfaceAlt; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = isRead ? "transparent" : "rgba(91,107,160,0.04)"; }}
           >
-            <span style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: COLORS.surfaceAlt,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0, fontSize: 13,
-            }}>{it.icon}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13 }} className="bg-admin-surface-alt">{it.icon}</span>
+            <div className="flex-1 min-w-0">
               <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{
-                  fontSize: 12.5, fontWeight: isRead ? 500 : 600,
-                  color: COLORS.ink,
-                  flex: 1, minWidth: 0,
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                }}>{it.title}</span>
-                <span style={{ fontSize: 10, color: COLORS.inkDim, flexShrink: 0 }}>{it.whenLabel}</span>
+                <span style={{ fontSize: 12.5, fontWeight: isRead ? 500 : 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{it.title}</span>
+                <span style={{ fontSize: 10, flexShrink: 0 }} className="text-admin-ink-dim">{it.whenLabel}</span>
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 11, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
                 {it.body}
               </div>
             </div>

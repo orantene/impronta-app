@@ -855,20 +855,14 @@ function BottomActionFab() {
                     transition: `background ${TRANSITION.micro}`,
                   }}
                 >
-                  <span style={{
-                    width: 32, height: 32, borderRadius: 9,
-                    background: selected ? "#fff" : COLORS.surfaceAlt,
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0, color: COLORS.ink,
-                    boxShadow: selected ? `0 0 0 1px ${COLORS.borderSoft}` : "none",
-                  }}>
+                  <span style={{ width: 32, height: 32, borderRadius: 9, background: selected ? "#fff" : COLORS.surfaceAlt, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: selected ? `0 0 0 1px ${COLORS.borderSoft}` : "none" }} className="text-admin-ink">
                     <Icon name={it.icon} size={14} stroke={1.7} />
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>
+                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1 }} className="text-admin-ink">
                       {it.label}
                     </span>
-                    <span style={{ display: "block", fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                    <span style={{ display: "block", fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                       {it.sub}
                     </span>
                   </span>
@@ -899,10 +893,7 @@ function BottomActionFab() {
               })}
 
               {q && filteredItems.length === 0 && (
-                <div style={{
-                  padding: "14px 14px 6px",
-                  fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5,
-                }}>
+                <div style={{ padding: "14px 14px 6px", fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
                   No matching action. Ask Tulala instead?
                 </div>
               )}
@@ -929,10 +920,10 @@ function BottomActionFab() {
                     <Icon name="sparkle" size={14} stroke={1.7} color={COLORS.royalDeep} />
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.royalDeep, letterSpacing: 0.2, textTransform: "uppercase" }}>
+                    <span style={{ display: "block", fontSize: 12, fontWeight: 600, letterSpacing: 0.2, textTransform: "uppercase" }} className="text-admin-royal-deep">
                       Ask AI
                     </span>
-                    <span style={{ display: "block", fontSize: 13, color: COLORS.ink, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ display: "block", fontSize: 13, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">
                       {query.trim()}
                     </span>
                   </span>
@@ -946,12 +937,7 @@ function BottomActionFab() {
               )}
 
               {!q && state.surface === "workspace" && (
-                <div style={{
-                  margin: "6px 8px 4px",
-                  padding: "8px 8px 4px",
-                  borderTop: `1px solid ${COLORS.borderSoft}`,
-                  fontSize: 10.5, color: COLORS.inkDim,
-                }}>
+                <div style={{ margin: "6px 8px 4px", padding: "8px 8px 4px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5 }} className="text-admin-ink-dim">
                   Press G then a key from anywhere to quick-create.
                 </div>
               )}
@@ -1063,7 +1049,7 @@ function FabRecentPanel({ query = "" }: { query?: string }) {
       <RecentSection title="Drafts" items={filteredDrafts} />
       <RecentSection title="Last created" items={filteredRecent} />
       {empty && (
-        <div style={{ padding: "14px 14px 6px", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        <div style={{ padding: "14px 14px 6px", fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           Nothing recent matches “{query}”.
         </div>
       )}
@@ -1078,11 +1064,7 @@ function RecentSection({ title, items }: {
   if (items.length === 0) return null;
   return (
     <div className="mb-1.5">
-      <div style={{
-        padding: "6px 10px 4px",
-        fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase",
-        color: COLORS.inkMuted,
-      }}>{title}</div>
+      <div style={{ padding: "6px 10px 4px", fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">{title}</div>
       {items.map(it => (
         <button key={it.id} type="button" onClick={it.action} style={{
           display: "flex", alignItems: "center", gap: 11,
@@ -1095,19 +1077,14 @@ function RecentSection({ title, items }: {
           onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
-          <span style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: COLORS.surfaceAlt, color: COLORS.ink,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
+          <span style={{ width: 28, height: 28, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-surface-alt text-admin-ink">
             <Icon name="bolt" size={13} stroke={1.7} />
           </span>
           <span className="flex-1 min-w-0">
-            <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+            <span style={{ display: "block", fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
               {it.label}
             </span>
-            <span style={{ display: "block", fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+            <span style={{ display: "block", fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
               {it.note}
             </span>
           </span>
@@ -1203,11 +1180,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 320, maxHeight: 460 }}>
       {helpEntry && (
-        <div style={{
-          padding: "6px 14px",
-          background: COLORS.royalSoft,
-          fontSize: 10.5, color: COLORS.royalDeep, fontWeight: 500,
-        }}>Context: {helpEntry.category}</div>
+        <div style={{ padding: "6px 14px", fontSize: 10.5, fontWeight: 500 }} className="bg-admin-royal-soft text-admin-royal-deep">Context: {helpEntry.category}</div>
       )}
       <div ref={listRef} style={{
         flex: 1, overflowY: "auto", padding: "12px 14px",

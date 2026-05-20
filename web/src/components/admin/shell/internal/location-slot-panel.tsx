@@ -141,7 +141,7 @@ function CityAutocomplete({
   const showList = open && q.trim().length >= 1;
   return (
     <div ref={boxRef}>
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <input
           value={q}
           placeholder={placeholder}
@@ -222,7 +222,7 @@ function CityAutocomplete({
               }}
               style={rowBtnCss}
             >
-              <span style={{ fontWeight: 600 }}>{o.name}</span>
+              <span className="font-semibold">{o.name}</span>
               {o.sub ? (
                 <span style={{ color: T.inkMuted }}> · {o.sub}</span>
               ) : null}
@@ -339,7 +339,7 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
         <div style={{ padding: 10, marginBottom: 10, borderRadius: 8, background: T.redSoft, border: `1px solid ${T.red}`, fontSize: 12, color: T.ink }}>{error}</div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
+      <div className="mb-3">
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, color: T.inkMuted, textTransform: "uppercase", marginBottom: 6 }}>{copy.t("Home base")}</div>
         {d.homeBase ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 999, background: T.surfaceWarm, border: `1px solid ${T.border}`, fontSize: 12.5, fontWeight: 600, color: T.ink, opacity: saving ? 0.6 : 1 }}>
@@ -359,7 +359,7 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
         )}
       </div>
 
-      <div style={{ marginBottom: 12 }}>
+      <div className="mb-3">
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, color: T.inkMuted, textTransform: "uppercase", marginBottom: 6 }}>{copy.t("Also serves")}</div>
         {d.travelTo.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
@@ -384,7 +384,7 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
         />
       </div>
 
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <div style={{ fontSize: 12, color: T.ink, marginBottom: 4 }}>
           {copy.t("Travel radius")} — {d.travelRadiusKm >= 999 ? copy.t("Anywhere") : `${d.travelRadiusKm} km`}
         </div>

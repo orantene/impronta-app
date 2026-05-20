@@ -144,21 +144,8 @@ function PlatformTopbar() {
     >
       <div data-tulala-app-topbar-row style={{ display: "flex", alignItems: "center", gap: 16, height: 56 }}>
         {/* Tulala HQ identity */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: COLORS.surfaceAlt,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: FONTS.display,
-              fontWeight: 600,
-              color: COLORS.ink,
-            }}
-          >
+        <div className="flex items-center gap-2.5">
+          <span style={{ width: 28, height: 28, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontWeight: 600 }} className="bg-admin-surface-alt text-admin-ink">
             T
           </span>
           <span
@@ -391,7 +378,7 @@ function PageHeader({
       }
     `}</style>
     <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {eyebrow && (
           <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <span
@@ -751,7 +738,7 @@ function TenantRow({ tenant }: { tenant: PlatformTenant }) {
       onClick={() => openDrawer("platform-tenant-detail", { id: tenant.id })}
     >
       <td style={{ padding: "12px 8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex items-center gap-2.5">
           <span style={{ fontWeight: 500, color: HQ.ink }}>{tenant.name}</span>
           <span style={{ color: HQ.inkDim, fontFamily: FONTS.mono, fontSize: 11 }}>{tenant.slug}</span>
         </div>
@@ -799,7 +786,7 @@ function TenantRow({ tenant }: { tenant: PlatformTenant }) {
       <td style={{ padding: "12px 8px", textAlign: "right", color: HQ.inkMuted }}>{tenant.talentCount}</td>
       <td style={{ padding: "12px 8px", textAlign: "right", fontWeight: 500 }}>{tenant.mrr}</td>
       <td style={{ padding: "12px 8px" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span className="inline-flex items-center gap-1.5">
           <span
             style={{
               width: 7,
@@ -959,7 +946,7 @@ function HubSubmissionRow({ sub }: { sub: HubSubmission }) {
         color: HQ.ink,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 13, fontWeight: 500 }}>{sub.talentName}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {sub.agency} · {sub.submittedAt}
@@ -1005,7 +992,7 @@ function ModerationRow({ item }: { item: ModerationItem }) {
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: sevColor, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 13 }}>{item.subject}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {item.reason} · {item.reportedAt}
@@ -1152,7 +1139,7 @@ function FlagRow({ flag }: { flag: FeatureFlag }) {
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: stateColor, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontFamily: FONTS.mono, fontSize: 12, fontWeight: 500 }}>{flag.name}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {flag.description} · {flag.owner}
@@ -1200,7 +1187,7 @@ function JobRow({ job }: { job: SystemJob }) {
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: stateColor, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontFamily: FONTS.mono, fontSize: 12, fontWeight: 500 }}>{job.name}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {job.lastRun} · {job.duration}
@@ -1260,7 +1247,7 @@ function IncidentRow({ incident }: { incident: PlatformIncident }) {
       >
         {incident.severity}
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 13, fontWeight: 500 }}>{incident.title}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {incident.state} · started {incident.startedAt}
@@ -1291,7 +1278,7 @@ function SupportTicketRow({ ticket }: { ticket: SupportTicket }) {
         color: HQ.ink,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 13, fontWeight: 500 }}>{ticket.subject}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {ticket.tenant} · {ticket.reportedBy} · {ticket.ageHrs}h ago
@@ -1340,7 +1327,7 @@ function PlatformSettingsPage() {
               }}
             >
               <Avatar initials={m.initials} size={28} tone="ink" />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</div>
                 <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 1 }}>{m.email}</div>
               </div>
@@ -1386,7 +1373,7 @@ function PlatformSettingsPage() {
                 color: HQ.ink,
               }}
             >
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{row.label}</div>
                 <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>{row.desc}</div>
               </div>
@@ -1413,7 +1400,7 @@ export function PlatformTodayPulseDrawer() {
       title="Platform pulse"
       description="Everything that needs attention right now — incidents, tickets, hub queue."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {[
           ...PLATFORM_INCIDENTS.filter((i) => i.state !== "resolved").map((i) => ({
             label: i.title,
@@ -1445,9 +1432,9 @@ export function PlatformTodayPulseDrawer() {
             }}
           >
             <StatDot tone={row.tone === "red" ? "red" : row.tone === "amber" ? "amber" : "ink"} size={8} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{row.label}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{row.sub}</div>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{row.label}</div>
+              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{row.sub}</div>
             </div>
           </div>
         ))}
@@ -1502,26 +1489,18 @@ export function PlatformTenantDetailDrawer() {
           <span style={{ fontSize: 11, opacity: 0.7 }}>
             {t.entityType === "hub" ? "·•·" : "▣"}
           </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              color: COLORS.ink,
-            }}
-          >
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink">
             {ENTITY_TYPE_META[t.entityType].label} · {ENTITY_TYPE_META[t.entityType].tagline}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {ENTITY_TYPE_META[t.entityType].inquiryModel}
         </div>
-        <div style={{ fontSize: 12, color: COLORS.inkDim, marginTop: 4 }}>
+        <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-dim">
           Revenue: {ENTITY_TYPE_META[t.entityType].revenueModel}
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="Slug" value={t.slug} />
         <DrawerKv label="Entity" value={ENTITY_TYPE_META[t.entityType].label} />
         <DrawerKv label="Plan" value={PLAN_META[t.plan].label} />
@@ -1530,7 +1509,7 @@ export function PlatformTenantDetailDrawer() {
         <DrawerKv label="Last active" value={t.lastActivity} />
       </div>
       <Divider label="Plan controls" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <button
           onClick={() => openDrawer("platform-tenant-plan-override", { id: t.id })}
           style={drawerActionStyle()}
@@ -1580,19 +1559,10 @@ function DrawerKv({ label, value }: { label: string; value: string }) {
         fontFamily: FONTS.body,
       }}
     >
-      <span
-        style={{
-          width: 110,
-          fontSize: 11.5,
-          color: COLORS.inkMuted,
-          fontWeight: 600,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-        }}
-      >
+      <span style={{ width: 110, fontSize: 11.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </span>
-      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink }}>{value}</span>
+      <span style={{ flex: 1, fontSize: 13 }} className="text-admin-ink">{value}</span>
     </div>
   );
 }
@@ -1649,7 +1619,7 @@ export function PlatformTenantImpersonateDrawer() {
         </span>
       </div>
       <Divider label="What you'll see" />
-      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
+      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink">
         {[
           "Their workspace UI — exactly as their owner sees it",
           "Their plan, team, talent roster, inquiries, bookings",
@@ -1756,10 +1726,10 @@ export function PlatformTenantPlanOverrideDrawer() {
             }}
           >
             <input type="radio" name="plan-override" checked={selectedPlan === p} onChange={() => setSelectedPlan(p)} />
-            <span style={{ flex: 1, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+            <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
               {PLAN_META[p].label}
             </span>
-            <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{PLAN_META[p].theme}</span>
+            <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{PLAN_META[p].theme}</span>
           </label>
         ))}
       </div>
@@ -1785,7 +1755,7 @@ export function PlatformUserDetailDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="Primary tenant" value={u.primaryTenant} />
         <DrawerKv label="Tenants" value={String(u.tenants)} />
         <DrawerKv label="Type" value={u.isTalent ? "Talent" : "Booker / admin"} />
@@ -1817,7 +1787,7 @@ export function PlatformUserMergeDrawer() {
         </>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
         Merges are irreversible and need a canonical target plus audit approval before support changes account records.
       </div>
     </DrawerShell>
@@ -1846,7 +1816,7 @@ export function PlatformUserResetDrawer() {
         </>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
         Support can verify the user record and trigger the auth provider email from the operational console.
       </div>
     </DrawerShell>
@@ -1879,21 +1849,11 @@ export function PlatformHubSubmissionDrawer() {
         </>
       }
     >
-      <div
-        style={{
-          aspectRatio: "16 / 9",
-          background: COLORS.surfaceAlt,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 80,
-        }}
-      >
+      <div style={{ aspectRatio: "16 / 9", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 80 }} className="bg-admin-surface-alt">
         ✨
       </div>
       <Divider label="Decision" />
-      <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <p style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
         Feature on the Tulala hub for 30 days. Featured talent appear at the top of search.
         Decline if profile incomplete or media doesn&apos;t meet quality bar.
       </p>
@@ -1923,7 +1883,7 @@ export function PlatformHubRulesDrawer() {
         </>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink">
         <p>Featured rotation: 30 days · Ranking: completeness × recency × engagement.</p>
       </div>
     </DrawerShell>
@@ -1949,7 +1909,7 @@ export function PlatformBillingInvoiceDrawer() {
         ) : null
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="Status" value={i.status} />
         <DrawerKv label="Plan" value={PLAN_META[i.plan].label} />
         <DrawerKv label="Date" value={i.date} />
@@ -1990,7 +1950,7 @@ export function PlatformRefundDrawer() {
         )
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
         {canRefund
           ? "This drawer does not reverse a Stripe charge by itself. Billing must verify the invoice and apply the refund in the payment system."
           : "Switch your HQ role to Billing or Exec to issue refunds."}
@@ -2019,7 +1979,7 @@ export function PlatformDunningDrawer() {
         <PrimaryButton onClick={emailDunningRequest}>Email retry request</PrimaryButton>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink">
         Retry sequence: day 1 → day 3 → day 7. After day 14 the tenant is marked at-risk.
       </div>
     </DrawerShell>
@@ -2057,13 +2017,13 @@ export function PlatformFeatureFlagDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="State" value={f.state} />
         <DrawerKv label="Owner" value={f.owner} />
         {f.rollout && <DrawerKv label="Rollout" value={f.rollout} />}
       </div>
       <Divider label="Set state" />
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         {(["off", "rollout", "on"] as const).map((s) => (
           <button
             key={s}
@@ -2120,7 +2080,7 @@ export function PlatformModerationItemDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="Kind" value={m.kind} />
         <DrawerKv label="Reason" value={m.reason} />
         <DrawerKv label="Severity" value={m.severity} />
@@ -2157,7 +2117,7 @@ export function PlatformSystemJobDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="State" value={j.state} />
       </div>
     </DrawerShell>
@@ -2192,7 +2152,7 @@ export function PlatformIncidentDrawer() {
         </>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
         This drawer does not post to the public status page. Support must verify monitoring and publish any status update.
       </div>
     </DrawerShell>
@@ -2227,7 +2187,7 @@ export function PlatformSupportTicketDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <DrawerKv label="State" value={t.state} />
         <DrawerKv label="Tenant" value={t.tenant} />
         <DrawerKv label="Reporter" value={t.reportedBy} />
@@ -2255,7 +2215,7 @@ export function PlatformAuditExportDrawer() {
         <PrimaryButton onClick={emailAuditRequest}>Email export request</PrimaryButton>
       }
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
         Includes impersonations, refunds, plan overrides, flag changes, suspensions.
       </div>
     </DrawerShell>
@@ -2281,7 +2241,7 @@ export function PlatformHqTeamDrawer() {
         <PrimaryButton onClick={emailInviteRequest}>Email invite request</PrimaryButton>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {PLATFORM_HQ_TEAM.map((m) => (
           <div
             key={m.id}
@@ -2297,22 +2257,11 @@ export function PlatformHqTeamDrawer() {
             }}
           >
             <Avatar initials={m.initials} size={32} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{m.name}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{m.email}</div>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{m.name}</div>
+              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{m.email}</div>
             </div>
-            <span
-              style={{
-                padding: "2px 8px",
-                background: "rgba(11,11,13,0.04)",
-                color: COLORS.ink,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                borderRadius: 999,
-              }}
-            >
+            <span style={{ padding: "2px 8px", background: "rgba(11,11,13,0.04)", fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", borderRadius: 999 }} className="text-admin-ink">
               {m.role}
             </span>
           </div>
@@ -2341,7 +2290,7 @@ export function PlatformRegionConfigDrawer() {
         <PrimaryButton onClick={emailRegionRequest}>Email change request</PrimaryButton>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {[
           { region: "EU", db: "eu-west-1", payment: "Stripe EU" },
           { region: "NA", db: "us-east-1", payment: "Stripe US" },
@@ -2360,20 +2309,10 @@ export function PlatformRegionConfigDrawer() {
               alignItems: "center",
             }}
           >
-            <span
-              style={{
-                padding: "2px 8px",
-                background: COLORS.fill,
-                color: "#fff",
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                borderRadius: 6,
-              }}
-            >
+            <span style={{ padding: "2px 8px", color: "#fff", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, borderRadius: 6 }} className="bg-admin-fill">
               {r.region}
             </span>
-            <span style={{ flex: 1, fontSize: 13, color: COLORS.ink }}>
+            <span style={{ flex: 1, fontSize: 13 }} className="text-admin-ink">
               {r.db} · {r.payment}
             </span>
           </div>

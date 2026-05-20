@@ -156,7 +156,7 @@ export function LanguageAddSearch({
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {list.map((l) => {
               const already = existingCodes.has(l.code);
               const sel = selected.has(l.code);

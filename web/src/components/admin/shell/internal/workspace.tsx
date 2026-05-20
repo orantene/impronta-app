@@ -172,11 +172,11 @@ function MinorProtectionBanner({ talents, compact = false }: {
         }}
       >
         <span aria-hidden style={{ fontSize: 14 }}>🛡️</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.coralDeep }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-coral-deep">
           {talents.length === 1 ? `${talents[0].name} is a minor` : `${talents.length} minors on this inquiry`}
         </span>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: COLORS.coralDeep, fontWeight: 600 }}>
+        <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-coral-deep">
           Review protections →
         </span>
       </button>
@@ -198,16 +198,13 @@ function MinorProtectionBanner({ talents, compact = false }: {
     >
       <span aria-hidden style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🛡️</span>
       <div className="flex-1 min-w-0">
-        <div style={{
-          display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4,
-          fontSize: 12.5, fontWeight: 700, color: COLORS.coralDeep,
-        }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4, fontSize: 12.5, fontWeight: 700 }} className="text-admin-coral-deep">
           Minor protections in effect
           <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", opacity: 0.75 }}>
             non-overridable
           </span>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: 11.5, color: COLORS.coralDeep }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: 11.5 }} className="text-admin-coral-deep">
           {talents.map(t => {
             const age = t.birthYear ? today - t.birthYear : null;
             const p = t.minorProtections;
@@ -693,7 +690,7 @@ function PhoneMessagingStream({
           </PrimaryButton>
         </div>
         {sendError && (
-          <div style={{ marginTop: 4, fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.coral }}>
+          <div style={{ marginTop: 4, fontFamily: FONTS.body, fontSize: 10.5 }} className="text-admin-coral">
             ⚠ {sendError}
           </div>
         )}
@@ -742,9 +739,9 @@ function StatusStrip({
         }}
       >
         <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={7} />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{meta.label}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{meta.label}</span>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{nextLabel}</span>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{nextLabel}</span>
       </div>
     );
   }
@@ -764,24 +761,16 @@ function StatusStrip({
       }}
     >
       <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={8} />
-      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
         {meta.label}
       </span>
-      <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{meta.description}</span>
+      <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{meta.description}</span>
       <span style={{ flex: 1 }} />
-      <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{nextLabel}</span>
+      <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{nextLabel}</span>
       {pov === "admin" && inquiry.coordinator && (
         <>
           <Bullet />
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 11.5,
-              color: COLORS.inkMuted,
-            }}
-          >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5 }} className="text-admin-ink-muted">
             <Avatar initials={inquiry.coordinator.initials} size={18} />
             {inquiry.coordinator.name}
           </span>
@@ -874,14 +863,7 @@ function DateDivider({ day }: { day: string }) {
       <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
       <span
         style={{
-          fontFamily: FONTS.body,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: COLORS.inkDim,
-        }}
-      >
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-dim">
         {label}
       </span>
       <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
@@ -964,7 +946,7 @@ function SystemEventGroup({ messages }: { messages: ThreadMessage[] }) {
                 borderLeft: `2px solid ${COLORS.borderSoft}`,
               }}
             >
-              <span style={{ color: COLORS.inkDim, marginRight: 6 }}>{m.ts}</span>
+              <span style={{ marginRight: 6 }} className="text-admin-ink-dim">{m.ts}</span>
               {m.body}
             </div>
           ))}
@@ -1051,7 +1033,7 @@ function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismis
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "#7A2026", lineHeight: 1.4 }}>
           {message.requiresActionLabel ?? message.body}
         </div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{message.ts}</div>
+        <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{message.ts}</div>
       </div>
       <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
         <button
@@ -1199,7 +1181,7 @@ function ThreadSearchBar({
         flexShrink: 0,
       }}
     >
-      <span style={{ fontSize: 12, color: COLORS.inkDim }}>🔍</span>
+      <span style={{ fontSize: 12 }} className="text-admin-ink-dim">🔍</span>
       <input
         ref={inputRef}
         type="search"
@@ -1218,7 +1200,7 @@ function ThreadSearchBar({
         onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       />
       {query.length > 0 && (
-        <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, flexShrink: 0 }} className="text-admin-ink-muted">
           {matchCount} {matchCount === 1 ? "match" : "matches"}
         </span>
       )}
@@ -1614,26 +1596,10 @@ function MessagingPanel({
           >
             <div className="flex items-center gap-1.5">
               <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
-                  color: COLORS.royal,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-royal">
                 AI Summary
               </span>
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 10,
-                  color: COLORS.inkDim,
-                  marginLeft: 2,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.body, fontSize: 10, marginLeft: 2 }} className="text-admin-ink-dim">
                 · draft, not saved
               </span>
             </div>
@@ -1695,22 +1661,15 @@ function MessagingPanel({
             flexShrink: 0,
           }}
         >
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: THREAD_ACCENT[forcedThread ?? active],
-              flexShrink: 0,
-            }}
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: THREAD_ACCENT[forcedThread ?? active], flexShrink: 0, }}
           />
-          <span style={{ fontWeight: 600, color: COLORS.ink }}>
+          <span style={{ fontWeight: 600 }} className="text-admin-ink">
             {labels[forcedThread ?? active]}
           </span>
           {pov === "client" && (
             <>
               <Bullet />
-              <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
+              <span style={{ fontSize: 11.5 }} className="text-admin-ink-dim">
                 Direct line to your coordinator. Talent can&apos;t see this.
               </span>
             </>
@@ -1718,7 +1677,7 @@ function MessagingPanel({
           {pov === "talent" && (
             <>
               <Bullet />
-              <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
+              <span style={{ fontSize: 11.5 }} className="text-admin-ink-dim">
                 You and the other booked talent. The client can&apos;t see this.
               </span>
             </>
@@ -1729,10 +1688,7 @@ function MessagingPanel({
             type="button"
             onClick={() => { setSearchActive((v) => !v); setSearchQuery(""); }}
             style={{
-              background: "transparent", border: "none", cursor: "pointer",
-              color: COLORS.inkMuted, fontSize: 13, padding: "2px 4px", borderRadius: 4,
-            }}
-          >
+              background: "transparent", border: "none", cursor: "pointer", fontSize: 13, padding: "2px 4px", borderRadius: 4 }} className="text-admin-ink-muted">
             🔍
           </button>
         </div>
@@ -1895,11 +1851,11 @@ function MessagingPanel({
       >
         {/* WS-18.1 — AI reply suggestions strip (admin only, dismissible) */}
         {pov === "admin" && suggestionsVisible && (
-          <div style={{ marginBottom: 8, background: COLORS.royalSoft, borderRadius: RADIUS.md, padding: "8px 10px" }}>
+          <div style={{ marginBottom: 8, padding: "8px 10px" }} className="bg-admin-royal-soft rounded-admin-md">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <Icon name="sparkle" size={11} color={COLORS.royal} stroke={1.8} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.royal }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-royal">
                   Suggested replies
                 </span>
               </div>
@@ -2068,11 +2024,11 @@ function MessagingPanel({
         </div>
         {/* Error / context hint */}
         {sendError ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10, color: COLORS.coral }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10 }} className="text-admin-coral">
             ⚠ {sendError}
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkDim }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10 }} className="text-admin-ink-dim">
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: THREAD_ACCENT[active], display: "inline-block", flexShrink: 0 }} />
             <span>{active === "private" ? "Client thread" : "Talent group"} · {active === "private" ? "visible to client + coordinator" : "visible to coordinator + booked talent"}</span>
             {draft.length > 0 && <><span>·</span><span>⌘↵ to send</span></>}
@@ -2115,7 +2071,7 @@ function MessageBubble({
 
   if (isSystem) {
     return (
-      <div style={{ textAlign: "center", fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim, padding: "4px 0" }}>
+      <div style={{ textAlign: "center", fontFamily: FONTS.body, fontSize: 11.5, padding: "4px 0" }} className="text-admin-ink-dim">
         {message.body}
       </div>
     );
@@ -2141,32 +2097,13 @@ function MessageBubble({
     >
       <Avatar initials={message.senderInitials} size={28} tone={isYou ? "ink" : isCoordinator ? "warm" : "neutral"} />
       <div style={{ maxWidth: "82%", display: "flex", flexDirection: "column", alignItems: isYou ? "flex-end" : "flex-start" }}>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            flexDirection: isYou ? "row-reverse" : "row",
-          }}
-        >
-          <span style={{ color: COLORS.ink, fontWeight: 500 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: FONTS.body, fontSize: 11.5, flexDirection: isYou ? "row-reverse" : "row" }} className="text-admin-ink-muted">
+          <span style={{ fontWeight: 500 }} className="text-admin-ink">
             {isYou ? "You" : message.senderName}
           </span>
           {/* T7: Coordinator chip — clearly labels who has authority in the thread */}
           {isCoordinator && !isYou && pov === "talent" && (
-            <span style={{
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              color: COLORS.amberDeep,
-              background: "rgba(82,96,109,0.12)",
-              padding: "2px 6px",
-              borderRadius: 4,
-            }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", background: "rgba(82,96,109,0.12)", padding: "2px 6px", borderRadius: 4 }} className="text-admin-amber-deep">
               Coordinator
             </span>
           )}
@@ -2361,50 +2298,21 @@ function WorkspaceFilesPanel({
             return (
               <div key={file.id}>
                 {/* ── Primary file row ── */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 14px",
-                    borderBottom: `1px solid ${COLORS.borderSoft}`,
-                    background: "#fff",
-                    transition: `background ${TRANSITION.micro}`,
-                  }}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, background: "#fff", transition: `background ${TRANSITION.micro}`, }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                 >
                   {/* File icon */}
                   <span
                     style={{
-                      fontSize: 22,
-                      flexShrink: 0,
-                      width: 36,
-                      height: 36,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: COLORS.surfaceAlt,
-                      borderRadius: 8,
-                    }}
-                  >
+                      fontSize: 22, flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }} className="bg-admin-surface-alt">
                     {FILE_ICON[file.kind] ?? "📎"}
                   </span>
 
                   {/* File meta */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        style={{
-                          fontFamily: FONTS.body,
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          color: COLORS.ink,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
+                      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
                         {/* For versioned files, show display name without version suffix */}
                         {file.versionGroup
                           ? file.name.replace(/-v\d+(\.[^.]+)$/, "$1")
@@ -2412,34 +2320,12 @@ function WorkspaceFilesPanel({
                       </div>
                       {/* WS-10.5 — "v2" current-version badge */}
                       {file.version !== undefined && (
-                        <span
-                          style={{
-                            padding: "1px 5px",
-                            borderRadius: 4,
-                            background: "rgba(31,92,66,0.1)",
-                            color: COLORS.accent,
-                            fontFamily: FONTS.body,
-                            fontSize: 10,
-                            fontWeight: 700,
-                            flexShrink: 0,
-                          }}
-                        >
+                        <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(31,92,66,0.1)", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, flexShrink: 0 }} className="text-admin-accent">
                           v{file.version}
                         </span>
                       )}
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        marginTop: 2,
-                        fontFamily: FONTS.body,
-                        fontSize: 11,
-                        color: COLORS.inkMuted,
-                        flexWrap: "wrap",
-                      }}
-                    >
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2, fontFamily: FONTS.body, fontSize: 11, flexWrap: "wrap" }} className="text-admin-ink-muted">
                       <span>{file.size}</span>
                       <span style={{ opacity: 0.4 }}>·</span>
                       <span>{file.senderName}</span>
@@ -2508,18 +2394,14 @@ function WorkspaceFilesPanel({
                     <span style={{ fontSize: 16, flexShrink: 0 }}>{FILE_ICON[oldFile.kind] ?? "📎"}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, color: COLORS.inkMuted }}>
+                        <span style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">
                           {oldFile.name}
                         </span>
-                        <span style={{
-                          padding: "1px 5px", borderRadius: 4,
-                          background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
-                          fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
-                        }}>
+                        <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(11,11,13,0.06)", fontFamily: FONTS.body, fontSize: 10, fontWeight: 600 }} className="text-admin-ink-muted">
                           v{oldFile.version}
                         </span>
                       </div>
-                      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkDim, marginTop: 1 }}>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-dim">
                         {oldFile.size} · {oldFile.senderName} · {oldFile.date}
                       </div>
                     </div>
@@ -2626,19 +2508,11 @@ function ViewingNowBadge({ inquiry }: { inquiry: RichInquiry }) {
         color: COLORS.successDeep,
       }}
     >
-      <span
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          background: COLORS.green,
-          flexShrink: 0,
-          boxShadow: "0 0 0 2px rgba(46,125,91,0.25)",
-        }}
+      <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 0 2px rgba(46,125,91,0.25)", }}
       />
       <Avatar initials={inquiry.coordinator.initials} size={18} tone="ink" />
       <span className="font-medium">{inquiry.coordinator.name}</span>
-      <span style={{ color: COLORS.green, fontWeight: 400 }}>viewing now</span>
+      <span style={{ color: COLORS.green, fontWeight: 400 }} className="bg-admin-green">viewing now</span>
     </div>
   );
 }
@@ -2684,27 +2558,10 @@ function SummaryPanel({ inquiry }: { inquiry: RichInquiry }) {
 function KvCompact({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "5px 0" }}>
-      <span
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 1.2,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-          minWidth: 64,
-          flexShrink: 0,
-        }}
-      >
+      <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", minWidth: 64, flexShrink: 0 }} className="text-admin-ink-muted">
         {label}
       </span>
-      <span
-        style={{
-          fontFamily: mono ? FONTS.mono : FONTS.body,
-          fontSize: mono ? 11.5 : 13,
-          color: COLORS.ink,
-        }}
-      >
+      <span style={{ fontFamily: mono ? FONTS.mono : FONTS.body, fontSize: mono ? 11.5 : 13 }} className="text-admin-ink">
         {value}
       </span>
     </div>
@@ -2718,35 +2575,23 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
         <div className="flex items-center gap-2.5">
           <Avatar initials={inquiry.coordinator.initials} size={32} tone="ink" />
           <div className="flex-1 min-w-0">
-            <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
               {inquiry.coordinator.name}
             </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
               {inquiry.coordinator.acceptedAt
                 ? `Accepted ${inquiry.coordinator.acceptedAt}`
                 : "Awaiting accept"}
             </div>
           </div>
           {inquiry.coordinator.isPrimary && (
-            <span
-              style={{
-                padding: "2px 7px",
-                background: "rgba(11,11,13,0.05)",
-                color: COLORS.ink,
-                fontSize: 10,
-                fontWeight: 600,
-                borderRadius: 999,
-                fontFamily: FONTS.body,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-              }}
-            >
+            <span style={{ padding: "2px 7px", background: "rgba(11,11,13,0.05)", fontSize: 10, fontWeight: 600, borderRadius: 999, fontFamily: FONTS.body, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink">
               Primary
             </span>
           )}
         </div>
       ) : (
-        <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
           No coordinator assigned.
         </div>
       )}
@@ -2763,17 +2608,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
               borderTop: `1px solid ${COLORS.borderSoft}`,
             }}
           >
-            <div
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
-                marginBottom: 8,
-              }}
-            >
+            <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
               {rel.agencyName} track record
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
@@ -2792,14 +2627,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
                     border: `1px solid ${COLORS.borderSoft}`,
                   }}
                 >
-                  <div
-                    style={{
-                      fontFamily: FONTS.body,
-                      fontSize: 10.5,
-                      color: COLORS.inkMuted,
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div style={{ fontFamily: FONTS.body, fontSize: 10.5, marginBottom: 2 }} className="text-admin-ink-muted">
                     {s.label}
                   </div>
                   <div
@@ -2841,10 +2669,10 @@ function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
               fontFamily: FONTS.body,
             }}
           >
-            <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+            <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
               {REQUIREMENT_ROLE_META[g.role].pluralLabel}
             </span>
-            <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+            <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
               {g.approved}/{g.needed} approved
             </span>
           </div>
@@ -2900,16 +2728,7 @@ function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
                   </div>
                   {/* WS-1.F.2 — last-said snippet */}
                   {t.lastSaidSnippet && (
-                    <div
-                      style={{
-                        fontSize: 10.5,
-                        color: COLORS.inkMuted,
-                        marginTop: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <div style={{ fontSize: 10.5, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">
                       <span className="text-admin-ink-dim">{t.lastSaidTs} — </span>
                       &ldquo;{t.lastSaidSnippet}&rdquo;
                     </div>
@@ -2940,7 +2759,7 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
   if (!inquiry.offer) {
     return (
       <RailCard title="Offer">
-        <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
           {pov === "admin"
             ? "No offer drafted yet. Build one once the lineup is locked."
             : "The agency hasn't sent an offer yet — they'll let you know."}
@@ -2952,7 +2771,7 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
     <RailCard
       title={`Offer · v${inquiry.offer.version}`}
       action={
-        <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
           {inquiry.offer.sentAt ? `sent ${inquiry.offer.sentAt}` : "draft"}
         </span>
       }
@@ -2975,15 +2794,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
           marginBottom: 10,
         }}
       >
-        <span
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 22,
-            fontWeight: 500,
-            color: COLORS.ink,
-            letterSpacing: -0.3,
-          }}
-        >
+        <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3 }} className="text-admin-ink">
           {offer.total}
         </span>
         <ApprovalChip status={offer.clientApproval} who="Client" />
@@ -2991,17 +2802,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
 
       {/* WS-18.3 — AI anomaly detection: compare offer total vs past history */}
       {pov === "admin" && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 7,
-            padding: "8px 10px",
-            background: COLORS.royalSoft,
-            borderRadius: RADIUS.sm,
-            marginBottom: 10,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "8px 10px", marginBottom: 10 }} className="bg-admin-royal-soft rounded-admin-sm">
           <span style={{ flexShrink: 0, marginTop: 2, lineHeight: 0 }}>
             <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
           </span>
@@ -3013,7 +2814,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                 ? `${offer.total} is on the low end vs your last 3 bookings with this client.`
                 : `${offer.total} is within your usual range for this client type.`;
             return (
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.royalDeep, lineHeight: 1.45 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-royal-deep">
                 {msg}
               </div>
             );
@@ -3047,8 +2848,8 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
               ) : (
                 <span style={{ fontSize: 14 }}>{li.thumb}</span>
               )}
-              <span style={{ flex: 1, color: COLORS.ink }}>{li.talentName}</span>
-              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{li.fee}</span>
+              <span style={{ flex: 1 }} className="text-admin-ink">{li.talentName}</span>
+              <span style={{ fontWeight: 500 }} className="text-admin-ink">{li.fee}</span>
               <ApprovalChip status={li.status} compact />
             </div>
           );
@@ -3058,17 +2859,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
       {/* C19 — Version history trail */}
       {offer.history && offer.history.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${COLORS.borderSoft}` }}>
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
-              marginBottom: 8,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
             Version history
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -3086,20 +2877,12 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                   borderBottom: `1px dashed ${COLORS.borderSoft}`,
                 }}
               >
-                <span
-                  style={{
-                    fontWeight: 700,
-                    color: COLORS.inkDim,
-                    fontSize: 10.5,
-                    letterSpacing: 0.3,
-                    flexShrink: 0,
-                  }}
-                >
+                <span style={{ fontWeight: 700, fontSize: 10.5, letterSpacing: 0.3, flexShrink: 0 }} className="text-admin-ink-dim">
                   v{h.version}
                 </span>
-                <span style={{ fontWeight: 600, color: COLORS.ink, flexShrink: 0 }}>{h.total}</span>
+                <span style={{ fontWeight: 600, flexShrink: 0 }} className="text-admin-ink">{h.total}</span>
                 <span style={{ flex: 1, fontSize: 11.5 }}>{h.note}</span>
-                <span style={{ flexShrink: 0, fontSize: 11, color: COLORS.inkDim }}>{h.sentAt}</span>
+                <span style={{ flexShrink: 0, fontSize: 11 }} className="text-admin-ink-dim">{h.sentAt}</span>
               </div>
             ))}
             {/* Current version */}
@@ -3113,20 +2896,12 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                 padding: "4px 0",
               }}
             >
-              <span
-                style={{
-                  fontWeight: 700,
-                  color: COLORS.ink,
-                  fontSize: 10.5,
-                  letterSpacing: 0.3,
-                  flexShrink: 0,
-                }}
-              >
+              <span style={{ fontWeight: 700, fontSize: 10.5, letterSpacing: 0.3, flexShrink: 0 }} className="text-admin-ink">
                 v{offer.version} ←
               </span>
-              <span style={{ fontWeight: 600, color: COLORS.ink, flexShrink: 0 }}>{offer.total}</span>
-              <span style={{ flex: 1, fontSize: 11.5, color: COLORS.inkMuted }}>current</span>
-              <span style={{ flexShrink: 0, fontSize: 11, color: COLORS.inkDim }}>{offer.sentAt ?? "draft"}</span>
+              <span style={{ fontWeight: 600, flexShrink: 0 }} className="text-admin-ink">{offer.total}</span>
+              <span style={{ flex: 1, fontSize: 11.5 }} className="text-admin-ink-muted">current</span>
+              <span style={{ flexShrink: 0, fontSize: 11 }} className="text-admin-ink-dim">{offer.sentAt ?? "draft"}</span>
             </div>
           </div>
         </div>
@@ -3134,12 +2909,12 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
 
       {/* Per-POV CTAs */}
       {pov === "client" && offer.clientApproval === "pending" && (
-        <div style={{ marginTop: 12, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+        <div style={{ marginTop: 12, fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">
           Review the offer here; your coordinator will confirm the final decision in the thread.
         </div>
       )}
       {pov === "talent" && offer.lineItems.some((l) => l.status === "pending") && (
-        <div style={{ marginTop: 12, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+        <div style={{ marginTop: 12, fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">
           Your line-item status is visible here; response actions will live in the thread.
         </div>
       )}
@@ -3248,15 +3023,7 @@ function DualTimeBadge({
       <span style={{ fontWeight: 600, color: "rgba(79,70,229,0.85)" }}>{localLabel}</span>
       <span className="text-admin-ink-dim">·</span>
       <span className="text-admin-ink-muted">{remoteLabel}</span>
-      <span
-        style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          letterSpacing: 0.3,
-          textTransform: "uppercase",
-          color: COLORS.inkDim,
-        }}
-      >
+      <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink-dim">
         (LOCATION)
       </span>
     </div>
@@ -3299,7 +3066,7 @@ function BookingPanel({ inquiry }: { inquiry: RichInquiry }) {
   }
   return (
     <RailCard title="Convert to booking">
-      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
         All parties have approved. Convert to a booking to lock the dates, generate the contract, and notify the talent.
       </div>
     </RailCard>
@@ -3368,25 +3135,17 @@ function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
           >
             <Avatar initials={receiver.initials} size={28} />
             <div className="flex-1 min-w-0">
-              <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
                 {receiver.displayName}
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                 {PAYOUT_RECEIVER_KIND_LABEL[receiver.kind]}
               </div>
             </div>
             <PayoutStatusChip status={receiver.status} />
           </div>
         ) : (
-          <div
-            style={{
-              padding: "10px 0 4px",
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              lineHeight: 1.5,
-            }}
-          >
+          <div style={{ padding: "10px 0 4px", fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
             No receiver set yet. Payment cannot be requested until one is selected.
           </div>
         )}
@@ -3402,19 +3161,7 @@ function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
         )}
       </div>
       {summary.downstreamNote && (
-        <div
-          style={{
-            marginTop: 10,
-            padding: "8px 10px",
-            background: "rgba(11,11,13,0.03)",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            lineHeight: 1.5,
-          }}
-        >
+        <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {summary.downstreamNote}
         </div>
       )}
@@ -3631,19 +3378,7 @@ export function ShortcutHelpOverlay({
       }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        style={{
-          background:   COLORS.surface,
-          borderRadius: RADIUS.xl,
-          border:       `1px solid ${COLORS.border}`,
-          boxShadow:    "0 20px 60px rgba(0,0,0,0.2)",
-          width:        560,
-          maxWidth:     "100%",
-          maxHeight:    "80vh",
-          overflow:     "auto",
-          padding:      "20px 0",
-        }}
-      >
+      <div style={{ border:       `1px solid ${COLORS.border}`, boxShadow:    "0 20px 60px rgba(0,0,0,0.2)", width:        560, maxWidth:     "100%", maxHeight:    "80vh", overflow:     "auto", padding:      "20px 0" }} className="bg-admin-surface rounded-admin-xl">
         {/* Header */}
         <div style={{
           display:     "flex",
@@ -3653,7 +3388,7 @@ export function ShortcutHelpOverlay({
           borderBottom: `1px solid ${COLORS.border}`,
           marginBottom: 12,
         }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+          <span style={{ fontSize: 15, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
             Keyboard shortcuts
           </span>
           <button
@@ -3678,15 +3413,7 @@ export function ShortcutHelpOverlay({
         }}>
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title}>
-              <div style={{
-                fontSize:      10,
-                fontWeight:    700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color:         COLORS.inkDim,
-                fontFamily:    FONTS.body,
-                marginBottom:  8,
-              }}>
+              <div style={{ fontSize:      10, fontWeight:    700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily:    FONTS.body, marginBottom:  8 }} className="text-admin-ink-dim">
                 {group.title}
               </div>
               <div className="flex flex-col gap-1">
@@ -3697,7 +3424,7 @@ export function ShortcutHelpOverlay({
                     justifyContent: "space-between",
                     gap:         8,
                   }}>
-                    <span style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                    <span style={{ fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                       {sc.label}
                     </span>
                     <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
@@ -3725,15 +3452,7 @@ export function ShortcutHelpOverlay({
         </div>
 
         {/* Footer hint */}
-        <div style={{
-          marginTop:   16,
-          padding:     "12px 20px 0",
-          borderTop:   `1px solid ${COLORS.border}`,
-          fontSize:    11,
-          color:       COLORS.inkMuted,
-          fontFamily:  FONTS.body,
-          textAlign:   "center",
-        }}>
+        <div style={{ marginTop:   16, padding:     "12px 20px 0", borderTop:   `1px solid ${COLORS.border}`, fontSize:    11, fontFamily:  FONTS.body, textAlign:   "center" }} className="text-admin-ink-muted">
           Press <kbd style={{ fontSize: 10, padding: "1px 5px", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, borderRadius: 3 }}>?</kbd> or <kbd style={{ fontSize: 10, padding: "1px 5px", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, borderRadius: 3 }}>esc</kbd> to close
         </div>
       </div>

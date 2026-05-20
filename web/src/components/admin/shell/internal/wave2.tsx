@@ -122,15 +122,7 @@ export function InboxSnippetsDrawer() {
             gap: 10,
           }}
         >
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              fontWeight: 600,
-              color: COLORS.ink,
-              letterSpacing: 0.05,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, letterSpacing: 0.05 }} className="text-admin-ink">
             Preview snippet
           </div>
           <FieldRow label="Title">
@@ -154,14 +146,7 @@ export function InboxSnippetsDrawer() {
         </section>
 
         <section className="flex flex-col gap-2">
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 11,
-              fontWeight: 600,
-                            color: COLORS.inkMuted,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
             Preview library — {snippets.length}
           </div>
           {snippets.map((s) => (
@@ -178,31 +163,14 @@ export function InboxSnippetsDrawer() {
                 alignItems: "flex-start",
               }}
             >
-              <span
-                style={{
-                  fontFamily: FONTS.mono,
-                  fontSize: 11,
-                  background: COLORS.accentSoft,
-                  color: COLORS.accentDeep,
-                  padding: "2px 6px",
-                  borderRadius: 5,
-                  flexShrink: 0,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11, padding: "2px 6px", borderRadius: 5, flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent-deep">
                 /
               </span>
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                   {s.title}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: COLORS.inkMuted,
-                    marginTop: 2,
-                    lineHeight: 1.45,
-                  }}
-                >
+                <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink-muted">
                   {s.body}
                 </div>
               </div>
@@ -284,17 +252,7 @@ type LockScreenPrivacy = "full" | "name-only" | "none";
 
 function NotifUrgencyHeader({ label }: { label: string }) {
   return (
-    <div
-      style={{
-        padding: "6px 14px",
-        background: "rgba(11,11,13,0.02)",
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
-        borderTop: `1px solid ${COLORS.borderSoft}`,
-        fontSize: 10,
-        fontWeight: 700,
-        color: COLORS.inkMuted,
-      }}
-    >
+    <div style={{ padding: "6px 14px", background: "rgba(11,11,13,0.02)", borderBottom: `1px solid ${COLORS.borderSoft}`, borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 10, fontWeight: 700 }} className="text-admin-ink-muted">
       {label}
     </div>
   );
@@ -425,7 +383,7 @@ export function NotificationsPrefsDrawer() {
             <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: dndNow ? "#92400E" : COLORS.ink }}>
               Do not disturb
             </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
               {dndNow ? "All channels silenced. Digest + booking-confirmed still deliver." : "Silence all channels until you turn this off."}
             </div>
           </div>
@@ -442,20 +400,7 @@ export function NotificationsPrefsDrawer() {
           }}
         >
           {/* Column headers */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: GRID,
-              padding: "9px 14px",
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-              background: "rgba(11,11,13,0.025)",
-              fontFamily: FONTS.body,
-              fontSize: 10.5,
-              fontWeight: 700,
-                            color: COLORS.inkMuted,
-              alignItems: "center",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: GRID, padding: "9px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, background: "rgba(11,11,13,0.025)", fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, alignItems: "center" }} className="text-admin-ink-muted">
             <span>Event</span>
             {CHANNELS.map((ch) => (
               <span key={ch} style={{ textAlign: "center" }}>{CHANNEL_LABELS[ch]}</span>
@@ -503,10 +448,10 @@ export function NotificationsPrefsDrawer() {
         >
           <div className="flex items-center gap-2.5">
             <div className="flex-1 min-w-0">
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                 Quiet hours
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 Email + push + SMS suppressed. Digest still delivers.
               </div>
             </div>
@@ -523,21 +468,21 @@ export function NotificationsPrefsDrawer() {
                   onChange={(e) => setQuietStart(e.target.value)}
                   style={timeInputStyle}
                 />
-                <span style={{ fontFamily: FONTS.body, color: COLORS.inkMuted, fontSize: 12 }}>to</span>
+                <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">to</span>
                 <input
                   type="time"
                   value={quietEnd}
                   onChange={(e) => setQuietEnd(e.target.value)}
                   style={timeInputStyle}
                 />
-                <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkDim, marginLeft: 2 }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 11, marginLeft: 2 }} className="text-admin-ink-dim">
                   Europe/Lisbon
                 </span>
               </div>
 
               {/* Day-of-week selector */}
               <div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginBottom: 7 }}>
+                <div style={{ fontFamily: FONTS.body, fontSize: 11, marginBottom: 7 }} className="text-admin-ink-muted">
                   Apply on
                 </div>
                 <div style={{ display: "flex", gap: 5 }}>
@@ -585,10 +530,10 @@ export function NotificationsPrefsDrawer() {
             gap: 10,
           }}
         >
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
             Lock-screen preview
           </div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">
             Controls what appears on your phone lock screen for Tulala push notifications.
           </div>
           <div className="flex flex-col gap-1.5">
@@ -633,7 +578,7 @@ export function NotificationsPrefsDrawer() {
                   <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
                     {opt.label}
                   </div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                     {opt.hint}
                   </div>
                 </div>
@@ -675,10 +620,10 @@ function NotifPrefsRow({
       }}
     >
       <div>
-        <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
           {ev.label}
         </div>
-        <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
           {ev.description}
         </div>
       </div>
@@ -764,10 +709,10 @@ export function DataExportDrawer() {
                 style={{ marginTop: 3 }}
               />
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                   {label}
                 </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                   {desc}
                 </div>
               </div>
@@ -871,7 +816,7 @@ export function AuditLogDrawer() {
           >
             <Avatar initials={e.actorInitials} hashSeed={e.actor} size={28} tone="auto" />
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.45 }}>
+              <div style={{ fontSize: 13, lineHeight: 1.45 }} className="text-admin-ink">
                 <strong className="font-semibold">{e.actor}</strong>
                 {" "}
                 <span className="text-admin-ink-muted">{e.action}</span>
@@ -879,25 +824,11 @@ export function AuditLogDrawer() {
                 <span>{e.subject}</span>
               </div>
               {e.detail && (
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    color: COLORS.inkMuted,
-                    marginTop: 2,
-                    lineHeight: 1.5,
-                  }}
-                >
+                <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
                   {e.detail}
                 </div>
               )}
-              <div
-                style={{
-                  fontSize: 11,
-                  color: COLORS.inkDim,
-                  marginTop: 4,
-                  fontFamily: FONTS.mono,
-                }}
-              >
+              <div style={{ fontSize: 11, marginTop: 4, fontFamily: FONTS.mono }} className="text-admin-ink-dim">
                 {e.ts}
               </div>
             </div>
@@ -995,12 +926,12 @@ export function TenantSwitcherDrawer() {
     >
       <div className="flex flex-col gap-3.5">
         {wsLoading && (
-          <div style={{ padding: "20px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+          <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-dim">
             Loading workspaces…
           </div>
         )}
         {!wsLoading && realWorkspaces.length === 0 && (
-          <div style={{ padding: "20px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+          <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-dim">
             No workspaces found.
           </div>
         )}
@@ -1041,10 +972,10 @@ export function TenantSwitcherDrawer() {
           return (
             <section key={roleGroup} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <header style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 2 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
                   {groupHeading}
                 </span>
-                <span style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.4 }}>
+                <span style={{ fontSize: 11, lineHeight: 1.4 }} className="text-admin-ink-dim">
                   {groupSub}
                 </span>
               </header>
@@ -1120,12 +1051,7 @@ export function TenantSwitcherDrawer() {
                         display: "flex", alignItems: "center", gap: 5,
                         minWidth: 0,
                       }}>
-                        <span style={{
-                          fontSize: 11.5, color: COLORS.inkMuted,
-                          fontVariantNumeric: "tabular-nums",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                          minWidth: 0, flex: "0 1 auto",
-                        }}>
+                        <span style={{ fontSize: 11.5, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, flex: "0 1 auto" }} className="text-admin-ink-muted">
                           {t.domain}
                         </span>
                         <span
@@ -1177,7 +1103,7 @@ export function TenantSwitcherDrawer() {
                             italicized hint differentiates that case from
                             owning a multi-seat workspace. */}
                         {t.role === "Owner" && t.tier === "free" && (
-                          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>· solo (you are the team)</span>
+                          <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">· solo (you are the team)</span>
                         )}
                         {/* Seat meter — billing signal, so only the
                             workspace OWNER sees it. Coords/admins on
@@ -1207,14 +1133,7 @@ export function TenantSwitcherDrawer() {
                       </div>
                     </div>
                     {isCurrent && (
-                      <span style={{
-                        fontSize: 9.5,
-                        fontWeight: 600,
-                        padding: "3px 7px",
-                        background: "rgba(15,79,62,0.18)",
-                        color: COLORS.accentDeep,
-                        borderRadius: 999,
-                      }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 600, padding: "3px 7px", background: "rgba(15,79,62,0.18)", borderRadius: 999 }} className="text-admin-accent-deep">
                         Current
                       </span>
                     )}
@@ -1247,11 +1166,11 @@ export function TenantSwitcherDrawer() {
             }}>
               <div className="flex items-center gap-2">
                 <Icon name="plus" size={14} stroke={1.7} color={COLORS.inkMuted} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
+                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
                   Create a new workspace
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45, fontFamily: FONTS.body }}>
+              <div style={{ fontSize: 11, lineHeight: 1.45, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                 You&apos;ll be its Owner. Pick the tier that fits — you can upgrade later.
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -1371,7 +1290,7 @@ export function TalentAgencySwitcherDrawer() {
     >
       <div className="flex flex-col gap-3.5">
         {agencies.length === 0 && (
-          <div style={{ padding: "24px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+          <div style={{ padding: "24px 0", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-dim">
             You&apos;re not affiliated with any agency yet.
           </div>
         )}
@@ -1379,10 +1298,10 @@ export function TalentAgencySwitcherDrawer() {
         {groups.map(({ heading, sub, rows }) => (
           <section key={heading} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <header style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 2 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
                 {heading}
               </span>
-              <span style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.4 }}>
+              <span style={{ fontSize: 11, lineHeight: 1.4 }} className="text-admin-ink-dim">
                 {sub}
               </span>
             </header>
@@ -1435,11 +1354,7 @@ export function TalentAgencySwitcherDrawer() {
 
                     {/* Domain + copy/open */}
                     <div style={{ marginTop: 2, display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-                      <span style={{
-                        fontSize: 11.5, color: COLORS.inkMuted,
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        minWidth: 0, flex: "0 1 auto",
-                      }}>
+                      <span style={{ fontSize: 11.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, flex: "0 1 auto" }} className="text-admin-ink-muted">
                         {domain}
                       </span>
                       <span
@@ -1464,11 +1379,7 @@ export function TalentAgencySwitcherDrawer() {
                         {isExclusive ? "Exclusive" : "Non-exclusive"}
                       </span>
                       {a.isPrimary && (
-                        <span style={{
-                          fontSize: 9.5, fontWeight: 700,
-                          padding: "1px 6px", borderRadius: 999,
-                          background: "rgba(15,79,62,0.10)", color: COLORS.accentDeep,
-                        }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "rgba(15,79,62,0.10)" }} className="text-admin-accent-deep">
                           Primary
                         </span>
                       )}
@@ -1477,12 +1388,7 @@ export function TalentAgencySwitcherDrawer() {
 
                   {/* Current badge */}
                   {isCurrent && (
-                    <span style={{
-                      fontSize: 9.5, fontWeight: 600,
-                      padding: "3px 7px",
-                      background: "rgba(15,79,62,0.18)", color: COLORS.accentDeep,
-                      borderRadius: 999, flexShrink: 0,
-                    }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 600, padding: "3px 7px", background: "rgba(15,79,62,0.18)", borderRadius: 999, flexShrink: 0 }} className="text-admin-accent-deep">
                       Current
                     </span>
                   )}
@@ -1597,7 +1503,7 @@ export function WorkspaceProfileDrawer() {
             <Avatar initials={effectiveTenant.initials} size={44} tone="ink" />
             <div className="flex-1 min-w-0">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+                <span style={{ fontSize: 16, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
                   {name}
                 </span>
                 <span style={{
@@ -1609,17 +1515,13 @@ export function WorkspaceProfileDrawer() {
                   {tierPalette.label}
                 </span>
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontFamily: FONTS.body }}>
+              <div style={{ fontSize: 11.5, marginTop: 3, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                 {previewUrl} · You&apos;re <strong>{myRole}</strong>
               </div>
             </div>
           </div>
           {!canEditIdentity && (
-            <div style={{
-              padding: "8px 10px", borderRadius: 8,
-              background: "rgba(11,11,13,0.05)",
-              fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body,
-            }}>
+            <div style={{ padding: "8px 10px", borderRadius: 8, background: "rgba(11,11,13,0.05)", fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               You&apos;re {myRole.toLowerCase()} on this workspace — identity edits require Owner or Admin role.
             </div>
           )}
@@ -1629,7 +1531,7 @@ export function WorkspaceProfileDrawer() {
         <section style={sectionStyle}>
           <div style={labelStyle}>Identity</div>
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Display name</span>
+            <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">Display name</span>
             <input
               type="text"
               value={name}
@@ -1639,7 +1541,7 @@ export function WorkspaceProfileDrawer() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Slug · drives team URL</span>
+            <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">Slug · drives team URL</span>
             <div className="flex items-center gap-1.5">
               <input
                 type="text"
@@ -1650,18 +1552,13 @@ export function WorkspaceProfileDrawer() {
                 style={{ ...inputDisabledStyle, flex: 1 }}
               />
             </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
               → {previewUrl}
             </div>
           </label>
           <div className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Logo</span>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", borderRadius: 8,
-              border: `1px dashed ${COLORS.border}`,
-              background: COLORS.surfaceAlt,
-            }}>
+            <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">Logo</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1px dashed ${COLORS.border}` }} className="bg-admin-surface-alt">
               <Avatar initials={name.slice(0, 2).toUpperCase()} size={36} tone="ink" />
               <button type="button"
                 disabled
@@ -1676,7 +1573,7 @@ export function WorkspaceProfileDrawer() {
                 }}>
                 Upload logo
               </button>
-              <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+              <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                 PNG / SVG · square, ≥ 200×200
               </span>
             </div>
@@ -1695,7 +1592,7 @@ export function WorkspaceProfileDrawer() {
               <div style={{ fontSize: 13, fontWeight: 700, color: tierPalette.fg, fontFamily: FONTS.body }}>
                 {tierPalette.label} plan
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2, fontFamily: FONTS.body }}>
+              <div style={{ fontSize: 11, marginTop: 2, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                 {seatsUsed} of {seatsCap} talent seats used
                 {tier !== "free" && tier !== "network" && " · billed monthly"}
               </div>
@@ -1715,7 +1612,7 @@ export function WorkspaceProfileDrawer() {
             </button>
           </div>
           {!canEditPlan && (
-            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Only the Owner can change the plan or manage billing.
             </div>
           )}
@@ -1733,25 +1630,25 @@ export function WorkspaceProfileDrawer() {
                 disabled={!canEditIdentity}
                 style={{ width: 14, height: 14, cursor: canEditIdentity ? "pointer" : "not-allowed" }}
               />
-              <span style={{ fontSize: 11.5, color: COLORS.ink, fontWeight: 600, fontFamily: FONTS.body }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
                 {systemUserEnabled ? "Enabled" : "Disabled"}
               </span>
             </label>
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 11.5, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             When enabled, automated messages (booking confirmations, offer-sent
             events, reassign notes) post as <strong>{name}</strong> rather than
             an individual coordinator. Coordinators can also opt to send replies
             as the workspace from the composer.
             {tier === "free" && (
-              <span style={{ display: "block", marginTop: 6, color: COLORS.inkDim }}>
+              <span style={{ display: "block", marginTop: 6 }} className="text-admin-ink-dim">
                 On Free, you ARE the workspace — System User and your personal
                 identity are the same. Toggle has no visual effect at this tier.
               </span>
             )}
           </div>
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Outbound signature</span>
+            <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">Outbound signature</span>
             <input
               type="text"
               value={signature}
@@ -1766,7 +1663,7 @@ export function WorkspaceProfileDrawer() {
         {/* Default coordinator */}
         <section style={sectionStyle}>
           <div style={labelStyle}>Default coordinator</div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 11.5, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             Who picks up unassigned inbound inquiries. Falls back to the
             workspace owner if the default coordinator is unavailable.
           </div>
@@ -1787,8 +1684,8 @@ export function WorkspaceProfileDrawer() {
         <section style={sectionStyle}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>Members + roles</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, fontFamily: FONTS.body }}>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">Members + roles</div>
+              <div style={{ fontSize: 11.5, marginTop: 2, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                 Manage Owners, Admins, Coordinators, Editors, and Talent.
               </div>
             </div>
@@ -1810,7 +1707,7 @@ export function WorkspaceProfileDrawer() {
         {(tier === "agency" || tier === "network") && (
           <section style={sectionStyle}>
             <div style={labelStyle}>Custom domain</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Replace your tulala subdomain with a domain you own (e.g.
               <em> book.atelier-roma.com</em>). DNS config required.
             </div>
@@ -2048,19 +1945,7 @@ function NotifRow({
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span
-              style={{
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: COLORS.ink,
-                letterSpacing: -0.05,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
+            <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }} className="text-admin-ink">
               {notif.title}
             </span>
             {notif.mention && (
@@ -2096,30 +1981,13 @@ function NotifRow({
               />
             )}
             {notif.when && (
-              <span
-                style={{
-                  fontSize: 10.5,
-                  color: COLORS.inkDim,
-                  flexShrink: 0,
-                  fontFamily: FONTS.body,
-                }}
-              >
+              <span style={{ fontSize: 10.5, flexShrink: 0, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                 {notif.when}
               </span>
             )}
           </div>
           {notif.sub && (
-            <div
-              style={{
-                fontSize: 11.5,
-                color: COLORS.inkMuted,
-                marginTop: 1,
-                lineHeight: 1.4,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+            <div style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
               {notif.sub}
             </div>
           )}
@@ -2142,25 +2010,12 @@ function NotifRow({
                   overflow: "hidden",
                 }}
               >
-                <span
-                  style={{
-                    display: "block",
-                    height: "100%",
-                    width: `${(notif.progress.done / notif.progress.total) * 100}%`,
-                    background: tone.fg,
-                    borderRadius: 2,
-                  }}
+                <span style={{ display: "block", height: "100%", width: `${(notif.progress.done / notif.progress.total) * 100}%`, background: tone.fg, borderRadius: 2, }}
                 />
               </div>
               <span
                 style={{
-                  fontSize: 10.5,
-                  color: COLORS.inkMuted,
-                  flexShrink: 0,
-                  fontFamily: FONTS.body,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
+                  fontSize: 10.5, flexShrink: 0, fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
                 {notif.progress.label ??
                   `${notif.progress.done}/${notif.progress.total}`}
               </span>
@@ -2392,35 +2247,15 @@ export function TalentNotificationsDrawer() {
                   padding: "0 2px",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                                        color: COLORS.inkMuted,
-                  }}
-                >
+                <span style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
                   {meta.label} · {items.length}
                   {oldestForCategory(cat) && cat === "action" && (
-                    <span
-                      style={{
-                        marginLeft: 8,
-                        color: COLORS.coral,
-                        textTransform: "none",
-                        letterSpacing: 0,
-                        fontWeight: 500,
-                      }}
-                    >
+                    <span style={{ marginLeft: 8, textTransform: "none", letterSpacing: 0, fontWeight: 500 }} className="text-admin-coral">
                       oldest {oldestForCategory(cat)}
                     </span>
                   )}
                 </span>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    color: COLORS.inkDim,
-                    fontFamily: FONTS.body,
-                  }}
-                >
+                <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                   {meta.hint}
                 </span>
               </div>
@@ -2453,15 +2288,7 @@ export function TalentNotificationsDrawer() {
           );
         })}
         {visible.length === 0 && (
-          <div
-            style={{
-              padding: "24px 12px",
-              textAlign: "center",
-              fontSize: 13,
-              color: COLORS.inkMuted,
-              fontFamily: FONTS.body,
-            }}
-          >
+          <div style={{ padding: "24px 12px", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             All clear. No notifications right now.
           </div>
         )}
@@ -2496,10 +2323,10 @@ export function TalentNotificationsDrawer() {
       >
         <span className="inline-flex items-center gap-2">
           <Icon name="settings" size={13} stroke={1.7} color={COLORS.inkMuted} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
             Notification settings
           </span>
-          <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
             Email + push per event
           </span>
         </span>
@@ -2526,18 +2353,7 @@ export function TalentNotificationsDrawer() {
             marginTop: 6,
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 70px 70px",
-              padding: "8px 14px",
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-              background: "rgba(11,11,13,0.02)",
-              fontSize: 10.5,
-              fontWeight: 600,
-                            color: COLORS.inkMuted,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 70px", padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, background: "rgba(11,11,13,0.02)", fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
             <span>Event</span>
             <span className="text-center">Email</span>
             <span className="text-center">Push</span>
@@ -2555,10 +2371,10 @@ export function TalentNotificationsDrawer() {
               }}
             >
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                   {row.label}
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                   {row.description}
                 </div>
               </div>
@@ -2604,34 +2420,14 @@ export function TalentShareCardDrawer() {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              background: COLORS.surfaceAlt,
-              height: 160,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: COLORS.inkMuted,
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-            }}
-          >
+          <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.body, fontSize: 12, borderBottom: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt text-admin-ink-muted">
             [Cover photo + 4-up grid preview]
           </div>
           <div style={{ padding: "14px 16px" }}>
-            <div
-              style={{
-                fontFamily: FONTS.display,
-                fontSize: 20,
-                fontWeight: 500,
-                color: COLORS.ink,
-                letterSpacing: -0.2,
-              }}
-            >
+            <div style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, letterSpacing: -0.2 }} className="text-admin-ink">
               {talentName}
             </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+            <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
               Editorial · Runway · Commercial · Based in Madrid
             </div>
             <button
@@ -2695,10 +2491,10 @@ export function TalentAnalyticsCard() {
     >
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
             Profile views · last 7 days
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             How your link is performing.
           </div>
         </div>
@@ -2735,22 +2531,11 @@ function Stat({ value, label, trend }: { value: string; label: string; trend?: s
         gap: 12,
       }}
     >
-      <div
-        style={{
-          fontFamily: FONTS.display,
-          fontSize: 26,
-          fontWeight: 500,
-          letterSpacing: -0.4,
-          color: COLORS.ink,
-          fontVariantNumeric: "tabular-nums",
-          lineHeight: 1,
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, fontVariantNumeric: "tabular-nums", lineHeight: 1, flexShrink: 0 }} className="text-admin-ink">
         {value}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: COLORS.ink, fontWeight: 500, lineHeight: 1.2 }}>{label}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.2 }} className="text-admin-ink">{label}</div>
         {trend && (
           <div
             style={{
@@ -2806,7 +2591,7 @@ export function TalentFunnelCard({
       }}
     >
       <div className="flex items-center gap-2">
-        <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
           Inquiries you&apos;re in
         </div>
         <span
@@ -2823,7 +2608,7 @@ export function TalentFunnelCard({
           Watching
         </span>
       </div>
-      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+      <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
         Who else you&apos;re up against, and where each is in the pipeline.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 12 }}>
@@ -2920,16 +2705,7 @@ function ConversationFunnelRow({
         <ClientTrustBadge level={conv.clientTrust} />
       </div>
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           <span
             style={{
               whiteSpace: "nowrap",
@@ -2939,8 +2715,8 @@ function ConversationFunnelRow({
             }}
           >
             {conv.client}{" "}
-            <span style={{ color: COLORS.inkDim, fontWeight: 400 }}>·</span>{" "}
-            <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{summary}</span>
+            <span style={{ fontWeight: 400 }} className="text-admin-ink-dim">·</span>{" "}
+            <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">{summary}</span>
           </span>
         </div>
         <div
@@ -3115,16 +2891,7 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
         <ClientTrustBadge level={inquiry.clientTrust} />
       </div>
       <div className="flex-1 min-w-0">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13.5,
-            fontWeight: 500,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
           <span
             style={{
               whiteSpace: "nowrap",
@@ -3134,8 +2901,8 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
             }}
           >
             {inquiry.clientName}{" "}
-            <span style={{ color: COLORS.inkDim, fontWeight: 400 }}>·</span>{" "}
-            <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{summary}</span>
+            <span style={{ fontWeight: 400 }} className="text-admin-ink-dim">·</span>{" "}
+            <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">{summary}</span>
           </span>
         </div>
         <div
@@ -3197,26 +2964,11 @@ export function InquiryTemplatesPicker({
   }));
   if (past.length === 0) return null;
   return (
-    <div
-      style={{
-        background: COLORS.accentSoft,
-        border: `1px solid rgba(15,79,62,0.18)`,
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 16,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11.5,
-          fontWeight: 600,
-          color: COLORS.accentDeep,
-          letterSpacing: 0.3,
-        }}
-      >
+    <div style={{ border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 12, padding: 14, marginBottom: 16 }} className="bg-admin-accent-soft">
+      <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: 0.3 }} className="text-admin-accent-deep">
         Start from a similar brief
       </div>
-      <div style={{ fontSize: 11, color: COLORS.accentDeep, opacity: 0.8, marginTop: 2 }}>
+      <div style={{ fontSize: 11, opacity: 0.8, marginTop: 2 }} className="text-admin-accent-deep">
         We found {past.length} past inquiries with the same shape. Click one to prefill.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
@@ -3240,19 +2992,10 @@ export function InquiryTemplatesPicker({
             }}
           >
             <div className="flex-1 min-w-0">
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: COLORS.ink,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
+              <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
                 {p.title}
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 {p.client}
               </div>
             </div>
@@ -3309,10 +3052,10 @@ export function DoubleBookingWarning({
         !
       </span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.red }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-red">
           {talentName} is already booked
         </div>
-        <div style={{ fontSize: 12, color: COLORS.ink, marginTop: 2, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink">
           Conflicts with <strong>{conflictTitle}</strong> on {conflictDates}. Holding for both will
           force one to drop.
         </div>
@@ -3336,17 +3079,7 @@ export function ReadReceipt({
 }) {
   if (seenBy.length === 0) return null;
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "4px 12px 8px",
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        color: COLORS.inkMuted,
-      }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 8px", fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
       <div style={{ display: "inline-flex", gap: -8 }}>
         {seenBy.slice(0, 3).map((s, i) => (
           <span key={i} style={{ marginLeft: i === 0 ? 0 : -6 }}>
@@ -3368,18 +3101,7 @@ export function ReadReceipt({
 /** Companion: an ephemeral typing indicator. */
 export function TypingIndicator({ name }: { name: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "4px 12px 6px",
-        fontFamily: FONTS.body,
-        fontSize: 11.5,
-        color: COLORS.inkMuted,
-        fontStyle: "italic",
-      }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 6px", fontFamily: FONTS.body, fontSize: 11.5, fontStyle: "italic" }} className="text-admin-ink-muted">
       <span
         aria-hidden
         style={{
@@ -3429,26 +3151,14 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
       }}
     >
       <div className="flex items-start gap-3">
-        <span
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: COLORS.accentSoft,
-            color: COLORS.accent,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ width: 36, height: 36, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent">
           <Icon name="calendar" size={16} stroke={1.7} color={COLORS.accent} />
         </span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
             Sync to your calendar
           </div>
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
             {`Subscribe to ${talentName}'s confirmed bookings and holds in your phone or laptop calendar app. Updates automatically.`}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -3551,17 +3261,7 @@ export function OnboardingArc({
   const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100);
 
   return (
-    <section
-      style={{
-        background: COLORS.surfaceAlt,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 14,
-        padding: 18,
-        marginBottom: 16,
-        position: "relative",
-        fontFamily: FONTS.body,
-      }}
-    >
+    <section style={{ border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 18, marginBottom: 16, position: "relative", fontFamily: FONTS.body }} className="bg-admin-surface-alt">
       <button
         type="button"
         onClick={dismiss}
@@ -3582,34 +3282,14 @@ export function OnboardingArc({
         ×
       </button>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-        <span
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: COLORS.accentSoft,
-            color: COLORS.accent,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ width: 36, height: 36, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent">
           <Icon name="sparkle" size={16} stroke={1.7} color={COLORS.accent} />
         </span>
         <div className="flex-1 min-w-0">
-          <div
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 500,
-              letterSpacing: -0.2,
-              color: COLORS.ink,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2 }} className="text-admin-ink">
             {title}
           </div>
-          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.55 }} className="text-admin-ink-muted">
             {subtitle}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
@@ -3622,16 +3302,10 @@ export function OnboardingArc({
                 overflow: "hidden",
               }}
             >
-              <div
-                style={{
-                  width: `${pct}%`,
-                  height: "100%",
-                  background: COLORS.accent,
-                  transition: "width .3s",
-                }}
+              <div style={{ width: `${pct}%`, height: "100%", transition: "width .3s", }}
               />
             </div>
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }} className="bg-admin-accent text-admin-ink-muted">
               {doneCount}/{total} done · {pct}%
             </span>
           </div>
@@ -3682,7 +3356,7 @@ export function OnboardingArc({
                 >
                   {step.label}
                 </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.45 }}>
+                <div style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.45 }} className="text-admin-ink-muted">
                   {step.description}
                 </div>
               </div>
@@ -3861,14 +3535,7 @@ export function SavedViewsBar<T>({
         flexWrap: "wrap",
       }}
     >
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-                    color: COLORS.inkMuted,
-          marginRight: 4,
-        }}
-      >
+      <span style={{ fontSize: 11, fontWeight: 600, marginRight: 4 }} className="text-admin-ink-muted">
         Views
       </span>
       {views.map((v) => (
@@ -3962,15 +3629,7 @@ export function LoadMore({
 }) {
   if (shown >= total) {
     return (
-      <div
-        style={{
-          padding: "16px 0 0",
-          textAlign: "center",
-          fontSize: 11.5,
-          color: COLORS.inkDim,
-          fontFamily: FONTS.body,
-        }}
-      >
+      <div style={{ padding: "16px 0 0", textAlign: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
         End of list · {total} {total === 1 ? "item" : "items"}
       </div>
     );
@@ -4235,7 +3894,7 @@ export function MentionTypeahead({
         >
           <Avatar initials={u.name.split(" ").map((p) => p[0]).join("").slice(0, 2)} hashSeed={u.name} size={22} tone="auto" />
           <span className="flex-1">{u.name}</span>
-          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{u.role}</span>
+          <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{u.role}</span>
         </button>
       ))}
     </div>
@@ -4387,32 +4046,14 @@ export function WhatsNewDrawer() {
                 idx === CHANGELOG.length - 1 ? "none" : `1px solid ${COLORS.borderSoft}`,
             }}
           >
-            <div
-              style={{
-                width: 56,
-                flexShrink: 0,
-                fontFamily: FONTS.mono,
-                fontSize: 11,
-                color: COLORS.inkDim,
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-                paddingTop: 1,
-              }}
-            >
+            <div style={{ width: 56, flexShrink: 0, fontFamily: FONTS.mono, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4, paddingTop: 1 }} className="text-admin-ink-dim">
               {item.date}
             </div>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                 {item.title}
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: COLORS.inkMuted,
-                  marginTop: 4,
-                  lineHeight: 1.55,
-                }}
-              >
+              <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.55 }} className="text-admin-ink-muted">
                 {item.body}
               </div>
             </div>
@@ -4445,7 +4086,7 @@ export function HelpDrawer() {
             padding: 14,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
             Keyboard shortcuts
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body }}>
@@ -4459,20 +4100,10 @@ export function HelpDrawer() {
               ] as const
             ).map(([key, desc]) => (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span
-                  style={{
-                    fontFamily: FONTS.mono,
-                    fontSize: 11,
-                    padding: "2px 7px",
-                    background: "rgba(11,11,13,0.06)",
-                    color: COLORS.ink,
-                    borderRadius: 5,
-                    minWidth: 80,
-                  }}
-                >
+                <span style={{ fontFamily: FONTS.mono, fontSize: 11, padding: "2px 7px", background: "rgba(11,11,13,0.06)", borderRadius: 5, minWidth: 80 }} className="text-admin-ink">
                   {key}
                 </span>
-                <span style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{desc}</span>
+                <span style={{ fontSize: 12.5 }} className="text-admin-ink-muted">{desc}</span>
               </div>
             ))}
           </div>
@@ -4486,7 +4117,7 @@ export function HelpDrawer() {
             padding: 14,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
             Get help
           </div>
           <div className="flex flex-col gap-1.5">
@@ -4570,20 +4201,14 @@ export function WorkspaceActivationBanner() {
   if (dismissed || allDone) return null;
 
   return (
-    <div
-      style={{
-        background: COLORS.surfaceAlt, borderRadius: RADIUS.xl,
-        border: `1px solid ${COLORS.border}`, padding: "16px 18px",
-        fontFamily: FONTS.body, marginBottom: 20,
-      }}
-    >
+    <div style={{ border: `1px solid ${COLORS.border}`, padding: "16px 18px", fontFamily: FONTS.body, marginBottom: 20 }} className="bg-admin-surface-alt rounded-admin-xl">
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
             Get your workspace ready
           </div>
-          <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+          <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
             {doneCount} of {steps.length} steps complete
           </div>
         </div>
@@ -4602,11 +4227,7 @@ export function WorkspaceActivationBanner() {
 
       {/* Progress bar */}
       <div style={{ height: 6, background: COLORS.border, borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
-        <div style={{
-          height: "100%", width: `${pct}%`,
-          background: COLORS.accent, borderRadius: 999,
-          transition: "width .5s ease",
-        }} />
+        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999, transition: "width .5s ease", }} />
       </div>
 
       {/* Step list */}
@@ -4619,9 +4240,7 @@ export function WorkspaceActivationBanner() {
               padding: "8px 10px", borderRadius: RADIUS.md,
               background: step.done ? "transparent" : "#fff",
               border: `1px solid ${step.done ? "transparent" : COLORS.borderSoft}`,
-              opacity: step.done ? 0.55 : 1,
-            }}
-          >
+              opacity: step.done ? 0.55 : 1, }} className="bg-admin-accent">
             {/* Check */}
             <div style={{
               width: 18, height: 18, borderRadius: "50%",
@@ -4632,11 +4251,11 @@ export function WorkspaceActivationBanner() {
               {step.done && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
             </div>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 12.5, fontWeight: step.done ? 400 : 600, color: COLORS.ink, textDecoration: step.done ? "line-through" : "none" }}>
+              <div style={{ fontSize: 12.5, fontWeight: step.done ? 400 : 600, textDecoration: step.done ? "line-through" : "none" }} className="text-admin-ink">
                 {step.label}
               </div>
               {!step.done && (
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{step.desc}</div>
+                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{step.desc}</div>
               )}
             </div>
             {!step.done && step.onCta && (
@@ -4703,14 +4322,7 @@ export function TalentFirstRunBanner() {
   if (dismissed) return null;
 
   return (
-    <div
-      style={{
-        background: "linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)",
-        borderRadius: RADIUS.xl, padding: "20px 20px 16px",
-        fontFamily: FONTS.body, marginBottom: 20, color: "#fff",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-      }}
-    >
+    <div style={{ background: "linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)", padding: "20px 20px 16px", fontFamily: FONTS.body, marginBottom: 20, color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }} className="rounded-admin-xl">
       {/* Progress dots */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {TALENT_FIRST_RUN_STEPS.map((s) => (
@@ -4826,13 +4438,7 @@ export function ClientFirstRunBanner() {
   if (dismissed) return null;
 
   return (
-    <div
-      style={{
-        background: COLORS.surfaceAlt, borderRadius: RADIUS.xl,
-        border: `1px solid ${COLORS.border}`, padding: "18px 18px 14px",
-        fontFamily: FONTS.body, marginBottom: 20,
-      }}
-    >
+    <div style={{ border: `1px solid ${COLORS.border}`, padding: "18px 18px 14px", fontFamily: FONTS.body, marginBottom: 20 }} className="bg-admin-surface-alt rounded-admin-xl">
       {/* Step pills */}
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {CLIENT_FIRST_RUN_STEPS.map((s) => (
@@ -4849,10 +4455,10 @@ export function ClientFirstRunBanner() {
       </div>
 
       <div style={{ fontSize: 24, marginBottom: 6 }}>{step.emoji}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginBottom: 3 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }} className="text-admin-ink">
         Step {step.step}: {step.title}
       </div>
-      <div style={{ fontSize: 13, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.55 }}>
+      <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.55 }} className="text-admin-ink-muted">
         {step.body}
       </div>
 
@@ -4928,25 +4534,13 @@ export function DemoDataBanner() {
   if (dismissed) return null;
 
   return (
-    <div
-      style={{
-        display:        "flex",
-        alignItems:     "center",
-        gap:            12,
-        padding:        "10px 14px",
-        background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt,
-        border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`,
-        borderRadius:   RADIUS.lg,
-        fontFamily:     FONTS.body,
-        marginBottom:   16,
-      }}
-    >
+    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt, border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
       <span style={{ fontSize: 18 }}>🧪</span>
       <div className="flex-1">
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
           {enabled ? "Demo data is active" : "Evaluating Tulala?"}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+        <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
           {enabled ? "All data shown is fictional." : "Load sample inquiries, bookings, and talent to explore the full platform."}
         </div>
       </div>

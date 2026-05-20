@@ -208,22 +208,20 @@ export function GuidedTour({
             }} />
           ))}
         </div>
-        <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, color: COLORS.inkDim, textTransform: "uppercase", marginBottom: 6 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-dim">
           {stepIdx + 1} of {steps.length}{durationLabel ? ` · ${durationLabel}` : ""}
         </div>
         <h3 id={`tulala-tour-title-${storageKey}`} style={{
           margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2,
         }}>{step.title}</h3>
-        <p style={{
-          margin: "6px 0 12px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5,
-        }}>{step.body}</p>
+        <p style={{ margin: "6px 0 12px", fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">{step.body}</p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <button type="button" onClick={closeTour} style={{
             background: "transparent", border: "none", padding: 0,
             color: COLORS.inkMuted, cursor: "pointer",
             fontSize: 11.5, fontWeight: 500,
           }}>Skip</button>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="flex gap-1.5">
             {stepIdx > 0 && (
               <button type="button" onClick={() => setStepIdx(stepIdx - 1)} style={{
                 padding: "8px 14px", borderRadius: 999,

@@ -174,7 +174,7 @@ export function LiveCategoryFieldsHistoryModal({
             </div>
           )}
           {rows && rows.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
               {rows.map((r) => (
                 <div key={r.id} style={{
                   padding: "10px 18px",
@@ -184,7 +184,7 @@ export function LiveCategoryFieldsHistoryModal({
                   gap: 12,
                   alignItems: "start",
                 }}>
-                  <div style={{ minWidth: 0 }}>
+                  <div className="min-w-0">
                     <div style={{
                       display: "flex", alignItems: "center", gap: 8,
                       fontSize: 12.5, fontWeight: 600, color: T.ink,
@@ -225,7 +225,7 @@ export function LiveCategoryFieldsHistoryModal({
                     <div style={{ color: T.ink, fontWeight: 600 }}>
                       {formatDateTime(r.changed_at)}
                     </div>
-                    <div style={{ marginTop: 2 }}>{formatTime(r.changed_at)}</div>
+                    <div className="mt-0.5">{formatTime(r.changed_at)}</div>
                     <div style={{ marginTop: 2, textTransform: "capitalize" }}>
                       {r.actor_role ?? "—"}
                     </div>

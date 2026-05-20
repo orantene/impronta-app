@@ -438,29 +438,13 @@ export function CommandPalette() {
         </div>
         <div ref={listRef} style={{ overflowY: "auto", padding: "6px 0" }}>
           {filtered.length === 0 && (
-            <div
-              style={{
-                padding: "32px 16px",
-                textAlign: "center",
-                color: COLORS.inkMuted,
-                fontSize: 13,
-              }}
-            >
+            <div style={{ padding: "32px 16px", textAlign: "center", fontSize: 13 }} className="text-admin-ink-muted">
               No matches. Try a different word.
             </div>
           )}
           {grouped.map(([group, list]) => (
             <div key={group}>
-              <div
-                style={{
-                  padding: "8px 16px 4px",
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                  color: COLORS.inkDim,
-                }}
-              >
+              <div style={{ padding: "8px 16px 4px", fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-dim">
                 {group}
               </div>
               {list.map((it) => {
@@ -488,10 +472,10 @@ export function CommandPalette() {
                       textAlign: "left",
                     }}
                   >
-                    <span style={{ flex: 1, minWidth: 0 }}>{it.label}</span>
+                    <span className="flex-1 min-w-0">{it.label}</span>
                     {it.current && <CurrentChip />}
                     {it.hint && (
-                      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{it.hint}</span>
+                      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{it.hint}</span>
                     )}
                   </button>
                 );
@@ -499,19 +483,7 @@ export function CommandPalette() {
             </div>
           ))}
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            padding: "8px 14px",
-            borderTop: `1px solid ${COLORS.borderSoft}`,
-            fontSize: 11,
-            color: COLORS.inkMuted,
-            background: COLORS.surface,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 14px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 11 }} className="text-admin-ink-muted bg-admin-surface">
           <span>
             <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate · <Kbd>↵</Kbd> select
           </span>
@@ -544,18 +516,7 @@ function Kbd({ children }: { children: ReactNode }) {
 
 function CurrentChip() {
   return (
-    <span
-      style={{
-        fontSize: 9.5,
-        fontWeight: 600,
-        letterSpacing: 0.5,
-        textTransform: "uppercase",
-        padding: "2px 6px",
-        borderRadius: 999,
-        background: COLORS.accentSoft,
-        color: COLORS.accentDeep,
-      }}
-    >
+    <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999 }} className="bg-admin-accent-soft text-admin-accent-deep">
       Current
     </span>
   );

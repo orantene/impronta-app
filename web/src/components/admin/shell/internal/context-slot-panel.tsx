@@ -408,7 +408,7 @@ export function ContextSlotPanel({
           >
             {copy.term(g.group_name)}
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {g.items.map((c) => {
               const saving = savingIds.has(c.context_term_id);
               return (

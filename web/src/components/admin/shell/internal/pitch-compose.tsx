@@ -244,59 +244,19 @@ function SortableTalentRow({
           }}
         />
       ) : (
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 10,
-            background: "rgba(11,11,13,0.04)",
-            border: `1px solid ${COLORS.borderSoft}`,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 17,
-            fontWeight: 600,
-            color: COLORS.inkMuted,
-            fontFamily: FONTS.body,
-          }}
-        >
+        <div style={{ width: 48, height: 48, borderRadius: 10, background: "rgba(11,11,13,0.04)", border: `1px solid ${COLORS.borderSoft}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink-muted">
           {entry.name.charAt(0).toUpperCase()}
         </div>
       )}
 
       {/* Name + type + note */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 14,
-              fontWeight: 600,
-              color: COLORS.ink,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              letterSpacing: -0.1,
-            }}
-          >
+          <span style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: -0.1 }} className="text-admin-ink">
             {entry.name}
           </span>
           {entry.primaryType && (
-            <span
-              style={{
-                fontSize: 10.5,
-                fontWeight: 600,
-                color: COLORS.inkMuted,
-                background: "rgba(11,11,13,0.04)",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 999,
-                padding: "2px 8px",
-                letterSpacing: 0.3,
-                textTransform: "capitalize",
-                flexShrink: 0,
-              }}
-            >
+            <span style={{ fontSize: 10.5, fontWeight: 600, background: "rgba(11,11,13,0.04)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3, textTransform: "capitalize", flexShrink: 0 }} className="text-admin-ink-muted">
               {entry.primaryType.replace(/[-_]/g, " ")}
             </span>
           )}
@@ -363,20 +323,7 @@ function AttachmentChip({
   onRemove: () => void;
 }) {
   return (
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        background: COLORS.borderSoft,
-        borderRadius: 6,
-        padding: "4px 8px",
-        fontFamily: FONTS.body,
-        fontSize: 12,
-        color: COLORS.ink,
-        maxWidth: 180,
-      }}
-    >
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.borderSoft, borderRadius: 6, padding: "4px 8px", fontFamily: FONTS.body, fontSize: 12, maxWidth: 180 }} className="text-admin-ink">
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {name}
       </span>
@@ -471,17 +418,7 @@ function PostSendView({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
       {/* Compact success line — replaces the full-width banner. */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontFamily: FONTS.body,
-          fontSize: 12.5,
-          color: COLORS.successDeep,
-          fontWeight: 600,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600 }} className="text-admin-success-deep">
         <span
           aria-hidden
           style={{
@@ -505,43 +442,15 @@ function PostSendView({
       {/* Pitch summary — recipient + talent avatars + expiry. Replaces the
           empty space at the bottom of the previous design with a real
           confirmation of what went out. */}
-      <div
-        style={{
-          background: COLORS.surfaceAlt,
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 12,
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
+      <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 14 }} className="bg-admin-surface-alt">
         <div>
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              color: COLORS.inkDim,
-              marginBottom: 4,
-            }}
-          >
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-dim">
             Recipient
           </div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: COLORS.ink,
-              fontFamily: FONTS.body,
-            }}
-          >
+          <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
             {recipientName || "—"}
             {recipientCompany ? (
-              <span
-                style={{ fontWeight: 400, color: COLORS.inkMuted, marginLeft: 6 }}
-              >
+              <span style={{ fontWeight: 400, marginLeft: 6 }} className="text-admin-ink-muted">
                 · {recipientCompany}
               </span>
             ) : null}
@@ -550,7 +459,7 @@ function PostSendView({
 
         <div style={{ height: 1, background: COLORS.borderSoft }} />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="flex items-center gap-3">
           {/* Overlapping avatars */}
           <div style={{ display: "flex", flexShrink: 0 }}>
             {visibleAvatars.map((t, i) => (
@@ -580,60 +489,24 @@ function PostSendView({
               </div>
             ))}
             {overflow > 0 ? (
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 999,
-                  background: COLORS.surface,
-                  border: `2px solid ${COLORS.surfaceAlt}`,
-                  marginLeft: -10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: COLORS.inkMuted,
-                  fontFamily: FONTS.body,
-                }}
-              >
+              <div style={{ width: 32, height: 32, borderRadius: 999, border: `2px solid ${COLORS.surfaceAlt}`, marginLeft: -10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONTS.body }} className="bg-admin-surface text-admin-ink-muted">
                 +{overflow}
               </div>
             ) : null}
           </div>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: COLORS.ink,
-                fontFamily: FONTS.body,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 13, fontWeight: 500, fontFamily: FONTS.body, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
               {talents.length} talent{talents.length === 1 ? "" : "s"}
               {talentNames ? (
-                <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>
+                <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">
                   {" · "}
                   {talentNames}
                 </span>
               ) : null}
             </div>
             {expiryLabel ? (
-              <div
-                style={{
-                  marginTop: 4,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                  fontFamily: FONTS.body,
-                }}
-              >
+              <div style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                 <span
                   style={{
                     width: 5,
@@ -669,33 +542,9 @@ function PostSendView({
           truncated; full value still goes into the clipboard on copy. */}
       <div>
         <p style={sectionHeading}>Share link</p>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "stretch",
-            background: COLORS.card,
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "baseline",
-              gap: 2,
-              fontSize: 12.5,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              color: COLORS.inkMuted,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            <span style={{ color: COLORS.ink, fontWeight: 600 }}>
+        <div style={{ display: "flex", alignItems: "stretch", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }} className="bg-admin-card">
+          <div style={{ flex: 1, minWidth: 0, padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 2, fontSize: 12.5, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
+            <span style={{ fontWeight: 600 }} className="text-admin-ink">
               {linkLabel.host}
             </span>
             {linkLabel.tail ? <span>/{linkLabel.tail}</span> : null}
@@ -730,7 +579,7 @@ function PostSendView({
       {(data.whatsappUrl || data.emailUrl) && (
         <div>
           <p style={sectionHeading}>Send directly to client</p>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             {data.whatsappUrl ? (
               <a
                 href={data.whatsappUrl}
@@ -768,8 +617,8 @@ function PostSendView({
                 >
                   💬
                 </span>
-                <span style={{ flex: 1 }}>WhatsApp</span>
-                <span style={{ color: COLORS.inkDim, fontSize: 14, fontWeight: 400 }}>↗</span>
+                <span className="flex-1">WhatsApp</span>
+                <span style={{ fontSize: 14, fontWeight: 400 }} className="text-admin-ink-dim">↗</span>
               </a>
             ) : null}
             {data.emailUrl ? (
@@ -809,8 +658,8 @@ function PostSendView({
                 >
                   ✉
                 </span>
-                <span style={{ flex: 1 }}>Email</span>
-                <span style={{ color: COLORS.inkDim, fontSize: 14, fontWeight: 400 }}>↗</span>
+                <span className="flex-1">Email</span>
+                <span style={{ fontSize: 14, fontWeight: 400 }} className="text-admin-ink-dim">↗</span>
               </a>
             ) : null}
           </div>
@@ -818,15 +667,7 @@ function PostSendView({
       )}
 
       {!data.whatsappUrl && !data.emailUrl ? (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: COLORS.inkMuted,
-            lineHeight: 1.5,
-            fontFamily: FONTS.body,
-          }}
-        >
+        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
           No phone or email on file — copy the link above to share it manually.
         </p>
       ) : null}
@@ -1158,7 +999,7 @@ export function PitchComposeDrawer({
           }}
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="flex flex-col gap-6">
           {/* ── Recipient ─────────────────────────────────────── */}
           <section>
             <Eyebrow>Who is this for?</Eyebrow>
@@ -1212,8 +1053,8 @@ export function PitchComposeDrawer({
                         cursor: "pointer",
                       }}
                     >
-                      <span style={{ fontWeight: 600 }}>{c.name}</span>
-                      <span style={{ color: COLORS.inkMuted, marginLeft: 6 }}>{c.contact}</span>
+                      <span className="font-semibold">{c.name}</span>
+                      <span style={{ marginLeft: 6 }} className="text-admin-ink-muted">{c.contact}</span>
                     </button>
                   ))}
                 </div>
@@ -1268,7 +1109,7 @@ export function PitchComposeDrawer({
           {/* ── Personal message ──────────────────────────────── */}
           <section>
             <Eyebrow>A short note from you</Eyebrow>
-            <p style={{ margin: "4px 0 10px", fontSize: 12, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+            <p style={{ margin: "4px 0 10px", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">
               Sets the tone — first thing the recipient reads.
             </p>
             <textarea
@@ -1287,27 +1128,15 @@ export function PitchComposeDrawer({
                 Talent ({talents.length})
               </Eyebrow>
               {talents.length > 1 ? (
-                <span style={{ fontSize: 11.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+                <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                   Drag to reorder
                 </span>
               ) : null}
             </div>
             {talents.length === 0 ? (
-              <div
-                style={{
-                  padding: "24px",
-                  textAlign: "center",
-                  color: COLORS.inkMuted,
-                  fontSize: 13,
-                  fontFamily: FONTS.body,
-                  background: "rgba(11,11,13,0.02)",
-                  border: `1px dashed ${COLORS.borderSoft}`,
-                  borderRadius: 12,
-                  lineHeight: 1.6,
-                }}
-              >
+              <div style={{ padding: "24px", textAlign: "center", fontSize: 13, fontFamily: FONTS.body, background: "rgba(11,11,13,0.02)", border: `1px dashed ${COLORS.borderSoft}`, borderRadius: 12, lineHeight: 1.6 }} className="text-admin-ink-muted">
                 No talents selected.<br />
-                <span style={{ color: COLORS.inkDim, fontSize: 12 }}>
+                <span style={{ fontSize: 12 }} className="text-admin-ink-dim">
                   Close, then pick some from the roster to start a pitch.
                 </span>
               </div>
@@ -1321,7 +1150,7 @@ export function PitchComposeDrawer({
                   items={talents.map((t) => t.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="flex flex-col gap-2">
                     {talents.map((entry) => (
                       <SortableTalentRow
                         key={entry.id}
@@ -1362,16 +1191,16 @@ export function PitchComposeDrawer({
                 onChange={(e) => setExpiryEnabled(e.target.checked)}
                 style={{ cursor: "pointer", width: 16, height: 16, accentColor: COLORS.ink }}
               />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Set an expiry</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div className="flex-1">
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Set an expiry</div>
+                <div style={{ fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">
                   Link auto-expires; recipient sees a friendly notice instead of stale data.
                 </div>
               </div>
             </label>
             {expiryEnabled && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, paddingLeft: 26 }}>
-                <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
                   Expires in
                 </span>
                 <input
@@ -1382,7 +1211,7 @@ export function PitchComposeDrawer({
                   onChange={(e) => setExpiryDays(Math.max(1, Math.min(90, Number(e.target.value))))}
                   style={{ ...field, width: 72, padding: "8px 10px" }}
                 />
-                <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
                   days
                 </span>
               </div>
@@ -1392,7 +1221,7 @@ export function PitchComposeDrawer({
           {/* ── File attachments ──────────────────────────────── */}
           <section>
             <Eyebrow>Attachments</Eyebrow>
-            <p style={{ margin: "4px 0 10px", fontSize: 12, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+            <p style={{ margin: "4px 0 10px", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">
               Lookbook, casting brief, mood board — optional.
             </p>
             {attachments.length > 0 && (
@@ -1453,14 +1282,7 @@ export function PitchComposeDrawer({
               </svg>
               Add files
             </button>
-            <p
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 11,
-                color: COLORS.inkDim,
-                marginTop: 5,
-              }}
-            >
+            <p style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 5 }} className="text-admin-ink-dim">
               Images, PDFs, Word docs. Upload goes live when you hit Send.
             </p>
           </section>

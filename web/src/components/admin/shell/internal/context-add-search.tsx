@@ -247,7 +247,7 @@ export function AddContextSearch({
               >
                 {copy.term(g.group_name_en)}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className="flex flex-wrap gap-1.5">
                 {g.contexts.map((c) => {
                   const already = existingContextIds.has(c.id);
                   const isSel = selected.has(c.id);

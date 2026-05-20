@@ -252,7 +252,7 @@ export function TalentTodayPulseDrawer() {
       description="Everything from your agencies that's still in motion."
       width={560}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {items.map((r) => (
           <button
             key={r.id}
@@ -271,23 +271,14 @@ export function TalentTodayPulseDrawer() {
             }}
           >
             <RequestKindBadge kind={r.kind} status={r.status} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13.5,
-                  fontWeight: 500,
-                  color: COLORS.ink,
-                }}
-              >
+            <div className="flex-1 min-w-0">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
                 <span style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.client} · {r.brief}
                 </span>
                 <ClientTrustChip level={r.clientTrust} compact />
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                 via {r.agency}
                 {r.date && <> · {r.date}</>}
                 {r.amount && <> · {r.amount}</>}
@@ -353,20 +344,20 @@ export function TalentOfferDetailDrawer() {
         )
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         <KvRow label="Status" value={statusLabel(r.status)} />
         <KvRow label="Date" value={r.date ?? "TBC"} />
         <KvRow label="Fee" value={r.amount ?? "TBC"} />
         <KvRow label="Client" value={r.client} />
         <KvRow label="Agency" value={r.agency} />
         <Divider label="Brief" />
-        <p style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: FONTS.body, fontSize: 13.5, lineHeight: 1.6 }} className="text-admin-ink">
           The agency briefed this as: &quot;<em>{r.brief}</em>&quot;. Tap accept to confirm — your agency
           will turn this into a confirmed booking with full call sheet and contract once the
           client locks in. You can also hold open if you want more time.
         </p>
         <Divider label="Terms (preview)" />
-        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.7 }}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink-muted">
           <li>Usage: web + social, 12 months · in-region (Europe)</li>
           <li>Turnaround: deliver same week</li>
           <li>Buyout option: clients can extend usage at +30%</li>
@@ -390,20 +381,10 @@ function statusLabel(s: TalentRequest["status"]): string {
 function KvRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-      <span
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: 1.2,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-          minWidth: 90,
-        }}
-      >
+      <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", minWidth: 90 }} className="text-admin-ink-muted">
         {label}
       </span>
-      <span style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink }}>{value}</span>
+      <span style={{ fontFamily: FONTS.body, fontSize: 13.5 }} className="text-admin-ink">{value}</span>
     </div>
   );
 }
@@ -425,14 +406,14 @@ export function TalentBookingDetailDrawer() {
       width={560}
       footer={<PrimaryButton onClick={closeDrawer}>Got it</PrimaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         <KvRow label="Date" value={b.endDate ? `${b.startDate} → ${b.endDate}` : b.startDate} />
         <KvRow label="Call time" value={b.call} />
         <KvRow label="Location" value={b.location} />
         <KvRow label="Fee" value={b.amount} />
         <KvRow label="Status" value={b.status} />
         <Divider label="What to bring" />
-        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
           <li>Nude underwear · neutral footwear</li>
           <li>Hair dry & natural · light skin prep only</li>
           <li>Government ID · agency contract reference</li>
@@ -547,7 +528,7 @@ export function TalentClosedBookingDrawer() {
       >
         <Icon name="lock" size={12} stroke={1.7} />
         <span>Archived · paid {e.payoutDate}. Read-only.</span>
-        <span style={{ marginLeft: "auto", color: COLORS.ink, fontWeight: 600 }}>
+        <span style={{ marginLeft: "auto", fontWeight: 600 }} className="text-admin-ink">
           {e.amount}
         </span>
       </div>
@@ -568,34 +549,13 @@ export function TalentClosedBookingDrawer() {
       >
         <SourceChip source={e.source} />
         {e.broughtTeam && e.team && e.team.length > 0 && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "3px 8px",
-              borderRadius: 999,
-              background: COLORS.coralSoft,
-              color: COLORS.coralDeep,
-              fontWeight: 600,
-              fontSize: 11,
-            }}
-          >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 999, fontWeight: 600, fontSize: 11 }} className="bg-admin-coral-soft text-admin-coral-deep">
             <Icon name="user" size={10} stroke={1.8} />
             You brought {e.team.join(", ")}
           </span>
         )}
         {!e.team || e.team.length === 0 ? (
-          <span
-            style={{
-              padding: "3px 8px",
-              borderRadius: 999,
-              background: "rgba(11,11,13,0.05)",
-              color: COLORS.inkMuted,
-              fontWeight: 500,
-              fontSize: 11,
-            }}
-          >
+          <span style={{ padding: "3px 8px", borderRadius: 999, background: "rgba(11,11,13,0.05)", fontWeight: 500, fontSize: 11 }} className="text-admin-ink-muted">
             Solo
           </span>
         ) : null}
@@ -620,13 +580,13 @@ export function TalentClosedBookingDrawer() {
           }}
         >
           <Icon name="check" size={12} stroke={1.7} color={COLORS.green} />
-          <span style={{ color: COLORS.successDeep, fontWeight: 500 }}>
+          <span style={{ fontWeight: 500 }} className="text-admin-success-deep">
             Booking #{sameClient.length} with {e.client} · {lifetimeLabel} lifetime
           </span>
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         {/* Booking facts */}
         <section>
           <SectionLabel>Booking</SectionLabel>
@@ -677,23 +637,12 @@ export function TalentClosedBookingDrawer() {
                     .join("")
                     .toUpperCase()}
                 />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: COLORS.ink, fontWeight: 500 }}>{p.name}</div>
-                  <div style={{ color: COLORS.inkMuted, fontSize: 11 }}>{p.role}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontWeight: 500 }} className="text-admin-ink">{p.name}</div>
+                  <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
                 </div>
                 {p.you && (
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      letterSpacing: 0.4,
-                      textTransform: "uppercase",
-                      padding: "2px 7px",
-                      background: COLORS.coralSoft,
-                      color: COLORS.coralDeep,
-                      borderRadius: 999,
-                    }}
-                  >
+                  <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 7px", borderRadius: 999 }} className="bg-admin-coral-soft text-admin-coral-deep">
                     You
                   </span>
                 )}
@@ -705,47 +654,17 @@ export function TalentClosedBookingDrawer() {
         {/* Chat archive — read-only snapshot */}
         <section>
           <SectionLabel>Archived chat</SectionLabel>
-          <div
-            style={{
-              marginTop: 8,
-              padding: "12px 14px",
-              background: COLORS.surfaceAlt,
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-            }}
-          >
+          <div style={{ marginTop: 8, padding: "12px 14px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-surface-alt">
             {detail.chat.map((m, i) => (
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 6,
-                    color: COLORS.inkMuted,
-                    fontSize: 11,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: COLORS.ink }}>{m.from}</span>
-                  <span style={{ color: COLORS.inkDim }}>· {m.when}</span>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 11 }} className="text-admin-ink-muted">
+                  <span style={{ fontWeight: 600 }} className="text-admin-ink">{m.from}</span>
+                  <span className="text-admin-ink-dim">· {m.when}</span>
                 </div>
-                <div style={{ color: COLORS.ink, lineHeight: 1.5 }}>{m.body}</div>
+                <div style={{ lineHeight: 1.5 }} className="text-admin-ink">{m.body}</div>
               </div>
             ))}
-            <div
-              style={{
-                marginTop: 4,
-                paddingTop: 10,
-                borderTop: `1px solid ${COLORS.borderSoft}`,
-                fontSize: 11,
-                color: COLORS.inkDim,
-                textAlign: "center",
-              }}
-            >
+            <div style={{ marginTop: 4, paddingTop: 10, borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 11, textAlign: "center" }} className="text-admin-ink-dim">
               Thread closed when payout landed. {detail.chat.length} messages archived.
             </div>
           </div>
@@ -755,16 +674,7 @@ export function TalentClosedBookingDrawer() {
         {detail.delivered && (
           <section>
             <SectionLabel>Delivered</SectionLabel>
-            <ul
-              style={{
-                margin: "8px 0 0",
-                paddingLeft: 18,
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.ink,
-                lineHeight: 1.7,
-              }}
-            >
+            <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.7 }} className="text-admin-ink">
               {detail.delivered.map((d) => (
                 <li key={d}>{d}</li>
               ))}
@@ -817,11 +727,11 @@ export function TalentClosedBookingDrawer() {
             >
               PDF
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                 Signed booking agreement
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                 {e.client} · {e.workDate} · counter-signed by both parties
               </div>
             </div>
@@ -851,34 +761,17 @@ export function TalentClosedBookingDrawer() {
                   marginBottom: 6,
                 }}
               >
-                <span
-                  style={{
-                    color: COLORS.green,
-                    fontSize: 13,
-                    letterSpacing: 1,
-                  }}
-                >
+                <span style={{ fontSize: 13, letterSpacing: 1 }} className="text-admin-green">
                   {"★".repeat(detail.review.rating)}
-                  <span style={{ color: COLORS.inkDim, opacity: 0.6 }}>
+                  <span style={{ opacity: 0.6 }} className="text-admin-ink-dim">
                     {"★".repeat(5 - detail.review.rating)}
                   </span>
                 </span>
-                <span
-                  style={{
-                    fontSize: 11.5,
-                    color: COLORS.inkMuted,
-                  }}
-                >
+                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
                   {detail.review.author}
                 </span>
               </div>
-              <div
-                style={{
-                  color: COLORS.ink,
-                  lineHeight: 1.6,
-                  fontStyle: "italic",
-                }}
-              >
+              <div style={{ lineHeight: 1.6, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{detail.review.body}&quot;
               </div>
             </div>
@@ -946,16 +839,7 @@ function SourceChip({ source }: { source: import("./state").EarningSource }) {
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div
-      style={{
-        fontFamily: FONTS.body,
-        fontSize: 10.5,
-        fontWeight: 600,
-        letterSpacing: 0.6,
-        textTransform: "uppercase",
-        color: COLORS.inkMuted,
-      }}
-    >
+    <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-muted">
       {children}
     </div>
   );
@@ -1222,16 +1106,7 @@ export function TalentHubDetailDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONTS.body }}>
         {channel.description && (
-          <div
-            style={{
-              padding: "12px 14px",
-              background: COLORS.surfaceAlt,
-              borderRadius: 10,
-              fontSize: 13,
-              color: COLORS.ink,
-              lineHeight: 1.55,
-            }}
-          >
+          <div style={{ padding: "12px 14px", borderRadius: 10, fontSize: 13, lineHeight: 1.55 }} className="bg-admin-surface-alt text-admin-ink">
             {channel.description}
           </div>
         )}
@@ -1253,15 +1128,7 @@ export function TalentHubDetailDrawer() {
 
         <section>
           <SubsectionLabel>What happens when you join</SubsectionLabel>
-          <ul
-            style={{
-              margin: "8px 0 0",
-              paddingLeft: 18,
-              fontSize: 12.5,
-              color: COLORS.ink,
-              lineHeight: 1.7,
-            }}
-          >
+          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12.5, lineHeight: 1.7 }} className="text-admin-ink">
             <li>{channel.name} can list your profile + forward inquiries</li>
             <li>Inquiries land in your Tulala inbox alongside agency-routed ones</li>
             <li>Your contact-policy filters still apply — Basic-tier clients are blocked if you&apos;ve blocked them</li>
@@ -1275,18 +1142,8 @@ export function TalentHubDetailDrawer() {
         </section>
 
         {!channel.verified && (
-          <div
-            style={{
-              padding: "10px 12px",
-              background: COLORS.coralSoft,
-              border: `1px solid rgba(194,106,69,0.18)`,
-              borderRadius: 8,
-              fontSize: 11.5,
-              color: COLORS.coralDeep,
-              lineHeight: 1.5,
-            }}
-          >
-            <strong style={{ fontWeight: 600 }}>Heads up:</strong>{" "}
+          <div style={{ padding: "10px 12px", border: `1px solid rgba(194,106,69,0.18)`, borderRadius: 8, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-coral-soft text-admin-coral-deep">
+            <strong className="font-semibold">Heads up:</strong>{" "}
             {channel.name} isn&apos;t yet Tulala-verified. Inquiries may include
             unvetted clients. You can leave with one click if quality drops.
           </div>
@@ -1342,21 +1199,12 @@ export function TalentAddEventDrawer() {
         />
       )}
       {mode === "work" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div
-            style={{
-              padding: "20px 16px",
-              background: COLORS.surfaceAlt,
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12,
-              fontFamily: FONTS.body,
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginBottom: 6 }}>
+        <div className="flex flex-col gap-4">
+          <div style={{ padding: "20px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
               Booking log — coming soon
             </div>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
               Off-platform booking tracking will be available in an upcoming update.
             </div>
           </div>
@@ -1364,21 +1212,12 @@ export function TalentAddEventDrawer() {
         </div>
       )}
       {mode === "block" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div
-            style={{
-              padding: "20px 16px",
-              background: COLORS.surfaceAlt,
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12,
-              fontFamily: FONTS.body,
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginBottom: 6 }}>
+        <div className="flex flex-col gap-4">
+          <div style={{ padding: "20px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
               Block time — coming soon
             </div>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
               Calendar blocking will be available in an upcoming update.
             </div>
           </div>
@@ -1392,7 +1231,7 @@ export function TalentAddEventDrawer() {
 /** Mode picker — two big choices, clear contracts. */
 function ModePicker({ onPick }: { onPick: (m: "work" | "block") => void }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       <ModePickerCard
         kind="work"
         title="Log work"
@@ -1478,37 +1317,14 @@ function ModePickerCard({
       >
         <Icon name={icon} size={14} stroke={1.7} />
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: COLORS.ink,
-            letterSpacing: -0.05,
-          }}
-        >
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">
           {title}
         </div>
-        <div
-          style={{
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            marginTop: 2,
-            lineHeight: 1.5,
-          }}
-        >
+        <div style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {body}
         </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: COLORS.inkDim,
-            marginTop: 6,
-            fontWeight: 500,
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
-          }}
-        >
+        <div style={{ fontSize: 11, marginTop: 6, fontWeight: 500, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink-dim">
           {meta}
         </div>
       </div>
@@ -1573,7 +1389,7 @@ function LogWorkForm({
               />
             </FieldRow>
             <FieldRow label="Amount" hint="What you earned. Optional if you haven't been paid yet.">
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="flex gap-2">
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
@@ -1595,7 +1411,7 @@ function LogWorkForm({
                   <option>¥</option>
                   <option>—</option>
                 </select>
-                <div style={{ flex: 1 }}>
+                <div className="flex-1">
                   <TextInput
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
@@ -1730,11 +1546,11 @@ function LogWorkForm({
                     >
                       {iBroughtTeam && <Icon name="check" size={10} stroke={2.5} color="#fff" />}
                     </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                    <div className="flex-1">
+                      <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                         I brought them
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                         Marks you as the de-facto coordinator. Surfaces a &quot;You brought {teamMates.split(",")[0]?.trim()}&quot; tag in your booking history.
                       </div>
                     </div>
@@ -1746,7 +1562,7 @@ function LogWorkForm({
                 optional
                 hint="How you got paid. Tax-relevant — especially in-kind / gifts."
               >
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div className="flex flex-wrap gap-1.5">
                   {([
                     { id: "transfer", label: "Transfer" },
                     { id: "cash", label: "Cash · efectivo" },
@@ -1808,21 +1624,7 @@ function LogWorkForm({
         )}
 
         {/* Off-platform note — sets expectations on what this means. */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            padding: "10px 12px",
-            background: COLORS.coralSoft,
-            border: `1px solid rgba(194,106,69,0.18)`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.coralDeep,
-            lineHeight: 1.55,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", border: `1px solid rgba(194,106,69,0.18)`, borderRadius: 8, fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.55 }} className="bg-admin-coral-soft text-admin-coral-deep">
           <Icon name="info" size={11} stroke={1.7} />
           <span>
             <strong>Off-platform booking</strong> — visible only to you. Adds to your earnings,
@@ -1963,14 +1765,7 @@ function BlockTimeForm({
             })}
           </div>
           {reason && (
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 11.5,
-                color: COLORS.inkMuted,
-                fontFamily: FONTS.body,
-              }}
-            >
+            <div style={{ marginTop: 8, fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               {reasonOptions.find((r) => r.id === reason)?.hint}
             </div>
           )}
@@ -1978,14 +1773,7 @@ function BlockTimeForm({
 
         <section>
           <SubsectionLabel>Note for your agencies</SubsectionLabel>
-          <div
-            style={{
-              fontSize: 11.5,
-              color: COLORS.inkMuted,
-              marginTop: 4,
-              marginBottom: 10,
-            }}
-          >
+          <div style={{ fontSize: 11.5, marginTop: 4, marginBottom: 10 }} className="text-admin-ink-muted">
             Optional. They see this when they try to pitch you on a blocked date.
           </div>
           <TextInput
@@ -2062,12 +1850,12 @@ function ToggleRow({
         borderRadius: 10,
       }}
     >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+      <div className="flex-1">
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
           {label}
         </div>
         {hint && (
-          <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
             {hint}
           </div>
         )}
@@ -2087,24 +1875,14 @@ function ToggleRow({
 // the real editor. See docs/phase-0a-deferred-drawers-2026-05-19.md.
 function ProfileSectionNotConnected({ section }: { section: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        padding: 16,
-        background: COLORS.surfaceAlt,
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 10,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10 }} className="bg-admin-surface-alt">
+      <div className="flex items-center gap-2.5">
         <Icon name="info" size={14} color={COLORS.inkMuted} />
-        <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
           Not connected to your profile yet
         </span>
       </div>
-      <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}>
+      <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.6 }} className="text-admin-ink-muted">
         This {section} panel is not linked to your live profile yet. Nothing shown here is your
         real data, and saving is disabled so nothing incorrect is stored. Manage your real{" "}
         {section} from your profile editor (Edit profile).
@@ -2148,7 +1926,7 @@ export function TalentAvailabilityDrawer() {
       width={520}
       footer={<StandardFooter onSave={() => closeDrawer()} saveLabel="Done" />}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {AVAILABILITY_BLOCKS.map((a) => (
           <div
             key={a.id}
@@ -2163,18 +1941,12 @@ export function TalentAvailabilityDrawer() {
               fontFamily: FONTS.body,
             }}
           >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted,
-              }}
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted, }}
             />
-            <span style={{ flex: 1, fontSize: 13.5, color: COLORS.ink }}>
+            <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
               {a.startDate} – {a.endDate}
             </span>
-            <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{a.reason}</span>
+            <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{a.reason}</span>
           </div>
         ))}
       </div>
@@ -2220,7 +1992,7 @@ export function TalentBlockDatesDrawer() {
         {/* ─── 1. Where are you? — C7 location autocomplete suggestions ── */}
         <section>
           <SubsectionLabel>Where are you?</SubsectionLabel>
-          <div style={{ marginTop: 10 }}>
+          <div className="mt-2.5">
             <FieldRow
               label="Current location"
               hint="Synced with your profile · helps agencies pitch you the right local jobs first."
@@ -2241,18 +2013,7 @@ export function TalentBlockDatesDrawer() {
                 marginTop: 8,
               }}
             >
-              <span
-                style={{
-                  fontSize: 10.5,
-                  color: COLORS.inkDim,
-                  fontFamily: FONTS.body,
-                  fontWeight: 500,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                  marginRight: 4,
-                  alignSelf: "center",
-                }}
-              >
+              <span style={{ fontSize: 10.5, fontFamily: FONTS.body, fontWeight: 500, letterSpacing: 0.4, textTransform: "uppercase", marginRight: 4, alignSelf: "center" }} className="text-admin-ink-dim">
                 Quick pick:
               </span>
               {[
@@ -2316,26 +2077,8 @@ export function TalentBlockDatesDrawer() {
           </div>
           {/* C6: Travel preferences richer — only when travel is on */}
           {availableToTravel && availableForWork && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "12px 14px",
-                background: COLORS.surfaceAlt,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 10,
-                fontFamily: FONTS.body,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                  color: COLORS.inkMuted,
-                  marginBottom: 8,
-                }}
-              >
+            <div style={{ marginTop: 12, padding: "12px 14px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
                 Travel preferences
               </div>
               <FieldRow label="Willing to fly to" optional hint="Cities or regions you'll travel for. Leave blank for anywhere.">
@@ -2362,17 +2105,9 @@ export function TalentBlockDatesDrawer() {
                   textAlign: "left",
                 }}
               >
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 3,
-                    background: "transparent",
-                    border: `1.5px solid ${COLORS.border}`,
-                    flexShrink: 0,
-                  }}
+                <span style={{ width: 14, height: 14, borderRadius: 3, background: "transparent", border: `1.5px solid ${COLORS.border}`, flexShrink: 0, }}
                 />
-                <div style={{ fontSize: 12, color: COLORS.ink }}>
+                <div style={{ fontSize: 12 }} className="text-admin-ink">
                   Travel costs must be covered by client
                 </div>
               </button>
@@ -2417,11 +2152,11 @@ export function TalentBlockDatesDrawer() {
                       flexShrink: 0,
                     }}
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                       {b.startDate} – {b.endDate}
                     </div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                    <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                       {b.reason}
                     </div>
                   </div>
@@ -2454,18 +2189,10 @@ export function TalentBlockDatesDrawer() {
             to the richer flow when the talent needs to log or block. */}
         <section>
           <SubsectionLabel>Add to your calendar</SubsectionLabel>
-          <div
-            style={{
-              marginTop: 6,
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              marginBottom: 10,
-            }}
-          >
+          <div style={{ marginTop: 6, fontFamily: FONTS.body, fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">
             Track work you did off-platform, or block dates when you can&apos;t work.
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <AvailabilityAddAction
               icon="credit"
               tone="success"
@@ -2556,24 +2283,11 @@ function AvailabilityAddAction({
       >
         <Icon name={icon} size={13} stroke={1.7} />
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: COLORS.ink,
-          }}
-        >
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
           {title}
         </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            marginTop: 2,
-            lineHeight: 1.4,
-          }}
-        >
+        <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
           {body}
         </div>
       </div>
@@ -2584,16 +2298,7 @@ function AvailabilityAddAction({
 
 function SubsectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div
-      style={{
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: 0.5,
-        textTransform: "uppercase",
-        color: COLORS.inkMuted,
-      }}
-    >
+    <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
       {children}
     </div>
   );
@@ -2628,27 +2333,12 @@ function AvailabilityToggleRow({
         opacity: disabled ? 0.55 : 1,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            fontWeight: 600,
-            color: COLORS.ink,
-          }}
-        >
+      <div className="flex-1 min-w-0">
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
           {label}
         </div>
         {hint && (
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              marginTop: 2,
-              lineHeight: 1.5,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
             {hint}
           </div>
         )}
@@ -2751,22 +2441,11 @@ export function TalentAgencyRelationshipDrawer() {
         width={520}
         footer={<SecondaryButton onClick={closeDrawer}>Got it</SecondaryButton>}
       >
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6, marginBottom: 14 }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }} className="text-admin-ink">
           Share this link with any agency you&apos;d like to work with. When they add you to their roster, you&apos;ll get an invite in your inbox.
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              background: COLORS.surfaceAlt,
-              border: `1px solid rgba(15,79,62,0.18)`,
-              borderRadius: 10,
-              fontFamily: FONTS.mono,
-              fontSize: 12,
-              color: COLORS.ink,
-            }}
-          >
+        <div className="flex items-center gap-2">
+          <div style={{ flex: 1, padding: "10px 12px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.mono, fontSize: 12 }} className="bg-admin-surface-alt text-admin-ink">
             {publicUrl}
           </div>
           <button
@@ -2815,7 +2494,7 @@ export function TalentAgencyRelationshipDrawer() {
           {primaryError}
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         {/* Plan + commission summary chip */}
         <div
           style={{
@@ -2831,7 +2510,7 @@ export function TalentAgencyRelationshipDrawer() {
           }}
         >
           <Icon name="info" size={12} stroke={1.7} color={COLORS.inkMuted} />
-          <span style={{ color: COLORS.ink, fontWeight: 500 }}>
+          <span style={{ fontWeight: 500 }} className="text-admin-ink">
             {planLabel} · {commissionLabel}
           </span>
         </div>
@@ -2855,13 +2534,13 @@ export function TalentAgencyRelationshipDrawer() {
                 Exclusivity request pending
               </span>
             </div>
-            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, marginBottom: 10 }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5, marginBottom: 10 }} className="text-admin-ink">
               <strong>{name}</strong> added you as their <strong>exclusive talent</strong>.
               Confirm to keep them as your primary agency (they pitch you to
               clients + take {commissionRate > 0 ? `${Math.round(commissionRate * 100)}%` : "their commission"} on bookings they bring),
               or decline to continue the relationship as non-exclusive.
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleConfirmExclusivity}
@@ -2904,7 +2583,7 @@ export function TalentAgencyRelationshipDrawer() {
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           <KvRow label="Status" value={status} />
           <KvRow label="Joined" value={joinedAt} />
           <KvRow label="Primary" value={isPrimary ? "Yes" : "No"} />
@@ -2933,20 +2612,13 @@ export function TalentAgencyRelationshipDrawer() {
           </button>
         )}
         {status === "exclusive" && (
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 11.5,
-              color: COLORS.inkDim,
-              fontStyle: "italic",
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontStyle: "italic" }} className="text-admin-ink-dim">
             To switch exclusivity to a different agency, end this relationship first.
           </div>
         )}
 
         <Divider label="What this agency can do" />
-        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
           <li>Pitch you to clients (you confirm before anything is booked)</li>
           <li>List you on their public roster</li>
           <li>Hold dates on your calendar with your approval</li>
@@ -3016,7 +2688,7 @@ export function TalentLeaveAgencyDrawer() {
           {sendError}
         </div>
       )}
-      <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13.5, lineHeight: 1.6 }} className="text-admin-ink">
         Active bookings stay confirmed and get paid out. New pitches stop immediately. Past
         earnings remain in your activity log. Your agency can&apos;t see your inbox or calendar
         once the 14 days are up.
@@ -3077,7 +2749,7 @@ export function TalentPrivacyDrawer() {
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         <ToggleRow label="Tulala hub (curated discovery)" hint="Only featured talent are shown." defaultOn={hubVisible} onChange={setHubVisible} />
         <ToggleRow label="Acme Models public roster" defaultOn={true} />
         <ToggleRow label="Praline London public roster" defaultOn={true} />
@@ -3172,15 +2844,7 @@ export function TalentContactPreferencesDrawer() {
         }}
       >
         <CapsLabel>How this works</CapsLabel>
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.ink,
-            marginTop: 6,
-            lineHeight: 1.55,
-          }}
-        >
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 6, lineHeight: 1.55 }} className="text-admin-ink">
           Higher-trust clients have completed verification or funded their
           account on Tulala. You decide which tiers can reach you. Lower-trust
           tiers always have your agency&apos;s roster page available — they just
@@ -3203,7 +2867,7 @@ export function TalentContactPreferencesDrawer() {
       </div>
 
       {/* Per-tier toggles — the actual control surface. */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {CLIENT_TRUST_LEVELS.map((tier) => {
           const meta = CLIENT_TRUST_META[tier];
           return (
@@ -3219,30 +2883,12 @@ export function TalentContactPreferencesDrawer() {
                 borderRadius: 10,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontFamily: FONTS.body,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: COLORS.ink,
-                  }}
-                >
+              <div className="flex-1 min-w-0">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                   <ClientTrustChip level={tier} compact withDot={false} />
                   Allow inquiries from {meta.label} clients
                 </div>
-                <div
-                  style={{
-                    fontFamily: FONTS.body,
-                    fontSize: 12,
-                    color: COLORS.inkMuted,
-                    marginTop: 4,
-                    lineHeight: 1.5,
-                  }}
-                >
+                <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
                   {meta.rationale}
                 </div>
               </div>
@@ -3257,15 +2903,7 @@ export function TalentContactPreferencesDrawer() {
 
       {/* What changes — a soft note about the consequence of selectivity. */}
       {!allOn && (
-        <div
-          style={{
-            marginTop: 14,
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            lineHeight: 1.55,
-          }}
-        >
+        <div style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
           Blocked tiers can still see your roster page. They&apos;ll be invited to
           verify or fund their account before they can send you a direct
           inquiry. Your agency&apos;s coordinator inbox is unaffected.
@@ -3320,36 +2958,16 @@ export function TalentPayoutsDrawer() {
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div
-          style={{
-            padding: "12px 14px",
-            background: COLORS.accentSoft,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            color: COLORS.ink,
-            lineHeight: 1.5,
-          }}
-        >
-          <strong style={{ color: COLORS.accentDeep }}>Encrypted via Stripe.</strong>{" "}
+      <div className="flex flex-col gap-4">
+        <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-accent-soft text-admin-ink">
+          <strong className="text-admin-accent-deep">Encrypted via Stripe.</strong>{" "}
           Bank details and ID never touch Tulala servers.
         </div>
-        <div
-          style={{
-            padding: "24px 16px",
-            background: COLORS.surfaceAlt,
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            fontFamily: FONTS.body,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginBottom: 6 }}>
+        <div style={{ padding: "24px 16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, fontFamily: FONTS.body, textAlign: "center" }} className="bg-admin-surface-alt">
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }} className="text-admin-ink">
             Payout setup — coming soon
           </div>
-          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55, maxWidth: 340, margin: "0 auto" }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55, maxWidth: 340, margin: "0 auto" }} className="text-admin-ink-muted">
             Stripe Connect KYC onboarding is being integrated. You&apos;ll be able to link your bank account and set up automatic payouts when it&apos;s ready.
           </div>
         </div>
@@ -3409,34 +3027,13 @@ export function TalentVerificationDrawer() {
         </>
       }
     >
-      <div
-        style={{
-          padding: "12px 14px",
-          background: COLORS.accentSoft,
-          border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 10,
-          marginBottom: 14,
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          color: COLORS.ink,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ color: COLORS.accentDeep }}>End-to-end encrypted.</strong>{" "}
+      <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-accent-soft text-admin-ink">
+        <strong className="text-admin-accent-deep">End-to-end encrypted.</strong>{" "}
         Documents are reviewed by Tulala&apos;s trust team and deleted after approval. Never shared with clients.
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h3
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 18,
-            fontWeight: 500,
-            color: COLORS.ink,
-            margin: 0,
-            letterSpacing: -0.15,
-          }}
-        >
+      <div className="flex flex-col gap-3.5">
+        <h3 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.15 }} className="text-admin-ink">
           Why verify?
         </h3>
         <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -3458,47 +3055,21 @@ export function TalentVerificationDrawer() {
                 fontFamily: FONTS.body,
               }}
             >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: COLORS.accentSoft,
-                  color: COLORS.accentDeep,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
-              >
+              <span style={{ width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent-deep">
                 {idx + 1}
               </span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, lineHeight: 1.35 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35 }} className="text-admin-ink">
                   {item.label}
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
+                <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink-muted">
                   {item.body}
                 </div>
               </div>
             </li>
           ))}
         </ul>
-        <div
-          style={{
-            padding: "16px",
-            background: COLORS.surfaceAlt,
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            lineHeight: 1.55,
-            textAlign: "center",
-          }}
-        >
+        <div style={{ padding: "16px", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55, textAlign: "center" }} className="bg-admin-surface-alt text-admin-ink-muted">
           ID verification is coming soon. We&apos;ll notify you when it&apos;s available.
         </div>
       </div>
@@ -3564,13 +3135,13 @@ export function TalentReferralsDrawer() {
         >
           <Icon name="external" size={13} color={COLORS.inkMuted} />
           <span style={{ flex: 1, fontFamily: "monospace" }}>{link}</span>
-          <span style={{ fontSize: 11.5, color: COLORS.accentDeep, fontWeight: 600 }}>Copy</span>
+          <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-accent-deep">Copy</span>
         </button>
       </FieldRow>
 
       <Divider label="Referrals" />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {REFERRAL_LIST.map((r) => (
           <div
             key={r.id}
@@ -3586,9 +3157,9 @@ export function TalentReferralsDrawer() {
             }}
           >
             <Avatar initials={r.name.split(" ").map((n) => n[0]).join("")} size={28} tone="ink" />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{r.name}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{r.name}</div>
+              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 {r.status === "earning"
                   ? `Earned · joined ${r.joinedAt}`
                   : r.status === "joined"
@@ -3597,19 +3168,12 @@ export function TalentReferralsDrawer() {
               </div>
             </div>
             {r.earned > 0 && (
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: COLORS.green,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-green">
                 +€{r.earned}
               </span>
             )}
             {r.status === "invited" && (
-              <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkDim }}>Invited</span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-dim">Invited</span>
             )}
           </div>
         ))}
@@ -3679,34 +3243,11 @@ export function TalentHubCompareDrawer() {
             }}
           >
             {hub.recommended && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: -10,
-                  left: 12,
-                  background: COLORS.accent,
-                  color: "#fff",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                  padding: "3px 8px",
-                  borderRadius: 999,
-                }}
-              >
+              <span style={{ position: "absolute", top: -10, left: 12, color: "#fff", fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 8px", borderRadius: 999 }} className="bg-admin-accent">
                 Best fit
               </span>
             )}
-            <div
-              style={{
-                fontFamily: FONTS.display,
-                fontSize: 15,
-                fontWeight: 500,
-                color: COLORS.ink,
-                marginBottom: 10,
-                letterSpacing: -0.1,
-              }}
-            >
+            <div style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 500, marginBottom: 10, letterSpacing: -0.1 }} className="text-admin-ink">
               {hub.name}
             </div>
             <KvRow label="Listing fee" value={hub.listingFee} />
@@ -3714,17 +3255,10 @@ export function TalentHubCompareDrawer() {
             <KvRow label="Avg day rate" value={hub.averageDayRate} />
             <KvRow label="Close rate" value={hub.closeRate} />
             <KvRow label="Roster size" value={`${hub.talentCount} talents`} />
-            <p
-              style={{
-                margin: "10px 0 0",
-                fontSize: 11.5,
-                color: COLORS.inkMuted,
-                lineHeight: 1.5,
-              }}
-            >
+            <p style={{ margin: "10px 0 0", fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               {hub.notes}
             </p>
-            <div style={{ marginTop: 12 }}>
+            <div className="mt-3">
               <PrimaryButton
                 size="sm"
                 onClick={() => undefined}
@@ -3784,7 +3318,7 @@ export function TalentTaxDocsDrawer() {
 
       <Divider label="Available documents" />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {[
           { label: "2026 W-8BEN form", body: "On file · expires Dec 2029", action: "Download" },
           { label: "2025 income summary (1099-K equivalent)", body: "EU residents: tax receipt PDF · €18,420 reported", action: "Download" },
@@ -3808,29 +3342,17 @@ export function TalentTaxDocsDrawer() {
             }}
           >
             <Icon name="external" size={14} color={COLORS.inkMuted} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{doc.label}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{doc.body}</div>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{doc.label}</div>
+              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{doc.body}</div>
             </div>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.accentDeep }}>{doc.action}</span>
+            <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-accent-deep">{doc.action}</span>
           </button>
         ))}
       </div>
 
-      <div
-        style={{
-          marginTop: 16,
-          padding: "12px 14px",
-          background: COLORS.indigoSoft,
-          border: `1px solid rgba(91,107,160,0.18)`,
-          borderRadius: 10,
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          color: COLORS.indigoDeep,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ fontWeight: 600 }}>About off-platform & in-kind:</strong>{" "}
+      <div style={{ marginTop: 16, padding: "12px 14px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
+        <strong className="font-semibold">About off-platform & in-kind:</strong>{" "}
         Off-platform earnings you log via &quot;Log work&quot; appear in your year-end summary
         as self-declared income. In-kind / gift work shows separately and isn&apos;t
         included in the cash total — useful for your records, not reported to tax
@@ -3894,21 +3416,7 @@ export function TalentConflictResolveDrawer() {
             }}
           >
             {c.recommended && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: -10,
-                  left: 14,
-                  background: COLORS.accent,
-                  color: "#fff",
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                  padding: "3px 8px",
-                  borderRadius: 999,
-                }}
-              >
+              <span style={{ position: "absolute", top: -10, left: 14, color: "#fff", fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 8px", borderRadius: 999 }} className="bg-admin-accent">
                 AI suggests
               </span>
             )}
@@ -3929,12 +3437,12 @@ export function TalentConflictResolveDrawer() {
             >
               {selected && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{c.client}</div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{c.brief}</div>
+              <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{c.brief}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.green }}>{c.rate}</span>
-                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>· {c.trust}</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">{c.rate}</span>
+                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">· {c.trust}</span>
               </div>
             </div>
           </button>
@@ -3969,9 +3477,9 @@ export function TalentConflictResolveDrawer() {
             flexShrink: 0,
           }}
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>Propose alternative dates to both</div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+        <div className="flex-1 min-w-0">
+          <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">Propose alternative dates to both</div>
+          <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             Suggest May 12 to Mango and May 16 to Atelier · we draft the messages
           </div>
         </div>
@@ -4062,9 +3570,9 @@ function NetworkRow({
       }}
     >
       <Avatar initials={t.initials} size={32} tone="ink" />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{t.name}</div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{t.name}</div>
+        <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
           {t.category} · {t.booked} bookings · {t.mutuals} mutuals · {t.lastSeen}
         </div>
       </div>
@@ -4183,16 +3691,16 @@ export function TalentVoiceReplyDrawer() {
               <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.green }} />
               <CapsLabel>Transcript · {Math.max(seconds, 8)}s</CapsLabel>
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: COLORS.ink, lineHeight: 1.55 }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink">
               &quot;Hi Mango — yes, available May 14, day rate is twelve hundred euros. Sending quote now.&quot;
             </p>
-            <div style={{ marginTop: 12, fontSize: 11.5, color: COLORS.inkMuted }}>
+            <div style={{ marginTop: 12, fontSize: 11.5 }} className="text-admin-ink-muted">
               Edit transcript before sending if you want — the audio still goes through as-is.
             </div>
           </div>
         )}
         {!done && (
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, textAlign: "center" }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, textAlign: "center" }} className="text-admin-ink-muted">
             {recording ? `Recording · ${seconds}s` : "Hold to record · max 60s"}
           </div>
         )}
@@ -4228,7 +3736,7 @@ export function TalentMultiAgencyPickerDrawer() {
       width={520}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {MY_NETWORK_AGENCIES.map((a) => (
           <button
             key={a.id}
@@ -4249,27 +3757,16 @@ export function TalentMultiAgencyPickerDrawer() {
             }}
           >
             <Avatar initials={a.name.split(" ").map((n) => n[0]).join("")} size={32} tone="ink" />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{a.name}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{a.name}</span>
                 {a.primary && (
-                  <span
-                    style={{
-                      fontSize: 9.5,
-                      fontWeight: 700,
-                      letterSpacing: 0.6,
-                      textTransform: "uppercase",
-                      color: COLORS.accentDeep,
-                      background: COLORS.accentSoft,
-                      padding: "2px 6px",
-                      borderRadius: 999,
-                    }}
-                  >
+                  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999 }} className="text-admin-accent-deep bg-admin-accent-soft">
                     Primary
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                 {a.role} · {a.plan} plan · {a.talents} talents
               </div>
             </div>
@@ -4277,20 +3774,8 @@ export function TalentMultiAgencyPickerDrawer() {
           </button>
         ))}
       </div>
-      <div
-        style={{
-          marginTop: 16,
-          padding: "12px 14px",
-          background: COLORS.indigoSoft,
-          border: `1px solid rgba(91,107,160,0.18)`,
-          borderRadius: 10,
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          color: COLORS.indigoDeep,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ fontWeight: 600 }}>Cross-agency commission:</strong>{" "}
+      <div style={{ marginTop: 16, padding: "12px 14px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
+        <strong className="font-semibold">Cross-agency commission:</strong>{" "}
         Each agency keeps its contracted rate. Switching workspace doesn&apos;t move money — it&apos;s only about who sees what inbox.
       </div>
     </DrawerShell>
@@ -4332,7 +3817,7 @@ export function ReplyTemplatesDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {REPLY_TEMPLATES.map((t) => (
           <button
             key={t.id}
@@ -4355,8 +3840,8 @@ export function ReplyTemplatesDrawer() {
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.title}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t.title}</div>
+            <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
               {t.body.length > 120 ? `${t.body.slice(0, 118)}…` : t.body}
             </div>
           </button>
@@ -4400,7 +3885,7 @@ export function TalentChatArchiveDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex flex-col gap-3">
         <KvRow label="Thread" value="Mango · Spring campaign" />
         <KvRow label="Messages" value="42 · April 2 to April 19" />
         <KvRow label="Attachments" value="3 files · 2 PDFs + 1 image" />
@@ -4414,7 +3899,7 @@ export function TalentChatArchiveDrawer() {
             "Booking summary card (dates, rate, scope, status)",
           ].map((line, idx) => (
             <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
-              <span style={{ marginTop: 4, width: 4, height: 4, borderRadius: "50%", background: COLORS.green, flexShrink: 0 }} />
+              <span style={{ marginTop: 4, width: 4, height: 4, borderRadius: "50%", flexShrink: 0 }} />
               {line}
             </li>
           ))}
@@ -4429,9 +3914,7 @@ export function TalentChatArchiveDrawer() {
             fontFamily: FONTS.body,
             fontSize: 11.5,
             color: COLORS.green,
-            lineHeight: 1.5,
-          }}
-        >
+            lineHeight: 1.5, }} className="bg-admin-green">
           The PDF is generated server-side and signed with a timestamp hash — useful as evidence if there&apos;s a dispute.
         </div>
       </div>
@@ -4455,7 +3938,7 @@ export function TalentEarningsDetailDrawer() {
       width={520}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         <KvRow label="Work date" value={e.workDate} />
         <KvRow label="Paid on" value={e.payoutDate} />
         <KvRow label="Agency" value={e.agency} />
@@ -4464,47 +3947,15 @@ export function TalentEarningsDetailDrawer() {
         <KvRow label="Agency cut" value="20%" />
         <KvRow label="Net to you" value={netOf(e.amount)} />
         <Divider label="Documents" />
-        <button
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 14px",
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.ink,
-            cursor: "pointer",
-            textAlign: "left",
-            width: "100%",
-          }}
-        >
+        <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", textAlign: "left", width: "100%" }} className="text-admin-ink">
           <Icon name="external" size={13} />
           Booking contract.pdf
-          <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11.5 }}>2 pages</span>
+          <span style={{ marginLeft: "auto", fontSize: 11.5 }} className="text-admin-ink-muted">2 pages</span>
         </button>
-        <button
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 14px",
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.ink,
-            cursor: "pointer",
-            textAlign: "left",
-            width: "100%",
-          }}
-        >
+        <button style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", textAlign: "left", width: "100%" }} className="text-admin-ink">
           <Icon name="external" size={13} />
           Payout statement.pdf
-          <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11.5 }}>1 page</span>
+          <span style={{ marginLeft: "auto", fontSize: 11.5 }} className="text-admin-ink-muted">1 page</span>
         </button>
       </div>
     </DrawerShell>
@@ -4585,7 +4036,7 @@ export function TalentPhotoEditDrawer() {
         }}>
           <div style={{ marginBottom: 10, fontSize: 24 }}>📷</div>
           {copy.t("Photo editing requires a live talent profile.")}
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-4">
             <button type="button" onClick={closeDrawer} style={{
               fontFamily: '"Inter", system-ui, sans-serif', fontSize: 13,
               padding: "8px 18px", borderRadius: 8, cursor: "pointer",
@@ -4722,7 +4173,7 @@ export function TalentCreditsDrawer() {
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {credits.map((c) => (
           <div
             key={c.id}
@@ -4736,22 +4187,15 @@ export function TalentCreditsDrawer() {
               borderRadius: 10,
             }}
           >
-            <span
-              style={{
-                width: 56,
-                fontFamily: FONTS.mono,
-                fontSize: 11,
-                color: COLORS.inkMuted,
-              }}
-            >
+            <span style={{ width: 56, fontFamily: FONTS.mono, fontSize: 11 }} className="text-admin-ink-muted">
               {c.year}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
                 {c.brand}
-                {c.pinned && <span style={{ color: COLORS.accentDeep, marginLeft: 6 }}>★</span>}
+                {c.pinned && <span style={{ marginLeft: 6 }} className="text-admin-accent-deep">★</span>}
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                 {c.type}
                 {c.role && <> · {c.role}</>}
                 {c.credit && <> · {c.credit}</>}
@@ -4838,7 +4282,7 @@ export function TalentLimitsDrawer() {
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {limits.map((l) => (
           <div
             key={l.id}
@@ -4852,20 +4296,13 @@ export function TalentLimitsDrawer() {
               borderRadius: 10,
             }}
           >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: l.enforcement === "hard" ? COLORS.red : COLORS.amber,
-                flexShrink: 0,
-              }}
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: l.enforcement === "hard" ? COLORS.red : COLORS.amber, flexShrink: 0, }}
             />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, fontWeight: 500 }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
                 {l.label}
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, textTransform: "capitalize" }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2, textTransform: "capitalize" }} className="text-admin-ink-muted">
                 {l.category} · {l.enforcement === "hard" ? "Hard limit" : "Needs confirmation"}
               </div>
             </div>
@@ -4885,19 +4322,7 @@ export function TalentLimitsDrawer() {
           </div>
         ))}
       </div>
-      <div
-        style={{
-          marginTop: 14,
-          padding: "12px 14px",
-          background: COLORS.surfaceAlt,
-          border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 10,
-          fontFamily: FONTS.body,
-          fontSize: 12.5,
-          color: COLORS.ink,
-          lineHeight: 1.55,
-        }}
-      >
+      <div style={{ marginTop: 14, padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="bg-admin-surface-alt text-admin-ink">
         Agencies on Tulala are contractually bound to honour your limits. If a client brief
         violates a hard limit, the offer is auto-blocked before it ever reaches your inbox.
       </div>
@@ -4965,22 +4390,13 @@ export function TalentRateCardDrawer() {
               textAlign: "left",
             }}
           >
-            <span
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: "50%",
-                border: `1.5px solid ${vis === o.value ? COLORS.accentDeep : COLORS.inkMuted}`,
-                background: vis === o.value ? COLORS.accentDeep : "transparent",
-                flexShrink: 0,
-                marginTop: 2,
-              }}
+            <span style={{ width: 14, height: 14, borderRadius: "50%", border: `1.5px solid ${vis === o.value ? COLORS.accentDeep : COLORS.inkMuted}`, background: vis === o.value ? COLORS.accentDeep : "transparent", flexShrink: 0, marginTop: 2, }}
             />
             <div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                 {o.label}
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                 {o.hint}
               </div>
             </div>
@@ -5003,24 +4419,16 @@ export function TalentRateCardDrawer() {
             }}
           >
             <div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                 {line.label}
               </div>
               {line.note && (
-                <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
                   {line.note}
                 </div>
               )}
             </div>
-            <div
-              style={{
-                fontFamily: FONTS.mono,
-                fontSize: 12.5,
-                color: COLORS.ink,
-                textAlign: "right",
-                alignSelf: "center",
-              }}
-            >
+            <div style={{ fontFamily: FONTS.mono, fontSize: 12.5, textAlign: "right", alignSelf: "center" }} className="text-admin-ink">
               {line.range}
             </div>
           </div>
@@ -5072,7 +4480,7 @@ export function TalentTravelDrawer() {
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         <FieldRow label="Based in">
           <TextInput value={basedIn} onChange={(e) => setBasedIn(e.target.value)} />
         </FieldRow>
@@ -5080,7 +4488,7 @@ export function TalentTravelDrawer() {
         <KvRow label="Home radius" value={t.homeRadius ?? "—"} />
         <KvRow label="Preferred travel class" value={t.preferredClass ?? "economy"} />
         <Divider label="Work authorization" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {t.workAuth.map((w, i) => (
             <div
               key={i}
@@ -5095,7 +4503,7 @@ export function TalentTravelDrawer() {
               }}
             >
               <Icon name="check" size={12} color={COLORS.green} />
-              <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, flex: 1 }}>{w}</span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 13, flex: 1 }} className="text-admin-ink">{w}</span>
             </div>
           ))}
         </div>
@@ -5119,7 +4527,7 @@ export function TalentTravelDrawer() {
           ))}
         </div>
         {t.lastTrip && (
-          <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
             Last trip: {t.lastTrip}
           </div>
         )}
@@ -5144,7 +4552,7 @@ export function TalentLinksDrawer() {
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {links.map((l, i) => (
           <div
             key={i}
@@ -5159,39 +4567,23 @@ export function TalentLinksDrawer() {
               borderRadius: 10,
             }}
           >
-            <span
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: 1.2,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
-                width: 80,
-              }}
-            >
+            <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", width: 80 }} className="text-admin-ink-muted">
               {l.kind}
             </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+            <div className="min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                 {l.label}
               </div>
-              <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.mono, fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
                 {l.url}
               </div>
             </div>
             {l.followers ? (
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
                 {l.followers}
               </span>
             ) : (
-              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>—</span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-dim">—</span>
             )}
           </div>
         ))}
@@ -5230,7 +4622,7 @@ export function TalentReviewsDrawer() {
         <SummaryStat label="Reviews" value={String(reviews.length)} accent="ink" />
         <SummaryStat label="On-time rate" value={`${stats.onTimeRate}%`} accent="green" />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {reviews.map((r) => (
           <div
             key={r.id}
@@ -5242,18 +4634,18 @@ export function TalentReviewsDrawer() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ color: COLORS.accentDeep, fontSize: 13 }}>
+              <span style={{ fontSize: 13 }} className="text-admin-accent-deep">
                 {"★".repeat(r.rating)}
-                <span style={{ color: COLORS.inkDim }}>{"★".repeat(5 - r.rating)}</span>
+                <span className="text-admin-ink-dim">{"★".repeat(5 - r.rating)}</span>
               </span>
-              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginLeft: "auto" }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, marginLeft: "auto" }} className="text-admin-ink-muted">
                 {r.shootDate}
               </span>
             </div>
-            <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.55 }}>
+            <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13.5, lineHeight: 1.55 }} className="text-admin-ink">
               &quot;{r.body}&quot;
             </p>
-            <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+            <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
               — {r.reviewerName} · {r.reviewerRole} · {r.brand}
             </div>
           </div>
@@ -5274,16 +4666,7 @@ function SummaryStat({ label, value, accent }: { label: string; value: string; a
         borderRadius: 10,
       }}
     >
-      <div
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 1.2,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </div>
       <div style={{ fontFamily: FONTS.display, fontSize: 18, color: tone, marginTop: 4 }}>{value}</div>
@@ -5312,24 +4695,11 @@ export function TalentShowreelDrawer() {
         </>
       }
     >
-      <div
-        style={{
-          aspectRatio: "16 / 9",
-          background: COLORS.surfaceAlt,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 96,
-          border: `1px solid ${COLORS.borderSoft}`,
-          marginBottom: 16,
-          position: "relative",
-        }}
-      >
+      <div style={{ aspectRatio: "16 / 9", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 96, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 16, position: "relative" }} className="bg-admin-surface-alt">
         {p.showreelThumb ?? "🎞️"}
       </div>
       <Divider label="Why a showreel" />
-      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
         <li>Speaking voice + accent for any TV/voiceover briefs</li>
         <li>Range of expression beyond what a still shows</li>
         <li>Movement quality — walking, turning, gesture</li>
@@ -5426,7 +4796,7 @@ export function TalentEmergencyContactDrawer() {
       }
     >
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         <FieldRow label="Name">
           <TextInput value={name} onChange={(e) => setName(e.target.value)} />
         </FieldRow>
@@ -5437,7 +4807,7 @@ export function TalentEmergencyContactDrawer() {
           <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} />
         </FieldRow>
         <Divider label="When this is shown" />
-        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.7 }}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink-muted">
           <li>The day of a confirmed booking, on that booking&apos;s call sheet only</li>
           <li>To the producer named on the contract — no one else</li>
           <li>Auto-revoked 24h after the wrap time</li>
@@ -5634,15 +5004,7 @@ export function TalentPublicPreviewDrawer() {
             >
               {TALENT_TIER_META[t].label}
               {isCurrent && (
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: COLORS.accentDeep,
-                    fontWeight: 700,
-                    letterSpacing: 0.4,
-                    textTransform: "uppercase",
-                  }}
-                >
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-accent-deep">
                   · current
                 </span>
               )}
@@ -5656,10 +5018,7 @@ export function TalentPublicPreviewDrawer() {
           Open per row. Custom domain only appears on Portfolio when
           verified — otherwise the canonical Tulala URL is the active
           one. */}
-      <div style={{
-        fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
-        color: COLORS.inkMuted, marginBottom: 8,
-      }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
         Where you appear · {TALENT_TIER_META[previewTier].label}
       </div>
       <div style={{
@@ -5674,15 +5033,11 @@ export function TalentPublicPreviewDrawer() {
             border: `1px solid ${row.primary ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}`,
             borderRadius: 10,
           }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
                 {row.label}
               </div>
-              <div style={{
-                fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body,
-                marginTop: 1,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
+              <div style={{ fontSize: 11.5, fontFamily: FONTS.body, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">
                 {row.url.replace(/^https?:\/\//, "")} · {row.sub}
               </div>
             </div>
@@ -5733,31 +5088,21 @@ export function TalentPublicPreviewDrawer() {
         borderRadius: 12,
       }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
             {features.headline}
           </div>
           {previewTier !== currentTier && tierAheadOfCurrent && (
-            <span style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
-              color: COLORS.accentDeep, background: "#fff",
-              padding: "2px 7px", borderRadius: 999,
-            }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", background: "#fff", padding: "2px 7px", borderRadius: 999 }} className="text-admin-accent-deep">
               Upgrade required
             </span>
           )}
           {previewTier === currentTier && (
-            <span style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
-              color: COLORS.successDeep,
-            }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-success-deep">
               Active
             </span>
           )}
         </div>
-        <ul style={{
-          margin: "8px 0 0", paddingLeft: 18,
-          fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.6,
-        }}>
+        <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.6 }} className="text-admin-ink">
           {features.bullets.map((b, i) => (
             <li key={i} style={{ marginBottom: 2 }}>{b}</li>
           ))}
@@ -5772,16 +5117,10 @@ export function TalentPublicPreviewDrawer() {
         background: "rgba(11,11,13,0.02)", border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 10,
       }}>
-        <div style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
-          color: COLORS.inkMuted, marginBottom: 6,
-        }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
           Hidden until they inquire
         </div>
-        <ul style={{
-          margin: 0, paddingLeft: 18,
-          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55,
-        }}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.55 }} className="text-admin-ink-muted">
           <li>Full measurements (private — agency-controlled)</li>
           <li>Rate ranges (rate card visibility = {p.rateCard.visibility})</li>
           <li>Limits and wardrobe constraints</li>
@@ -5802,19 +5141,10 @@ function PreviewKv({ label, value }: { label: string; value: string }) {
         borderRadius: 8,
       }}
     >
-      <div
-        style={{
-          fontFamily: FONTS.body,
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: 1.2,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.body, fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, marginTop: 3 }}>{value}</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, marginTop: 3 }} className="text-admin-ink">{value}</div>
     </div>
   );
 }
@@ -5880,22 +5210,7 @@ export function TalentTierCompareDrawer() {
               }}
             >
               {isCurrent && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: -10,
-                    left: 14,
-                    background: COLORS.accentDeep,
-                    color: "#fff",
-                    fontFamily: FONTS.body,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    padding: "3px 9px",
-                    borderRadius: 999,
-                    textTransform: "uppercase",
-                  }}
-                >
+                <span style={{ position: "absolute", top: -10, left: 14, color: "#fff", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 999, textTransform: "uppercase" }} className="bg-admin-accent-deep">
                   Current
                 </span>
               )}
@@ -5960,25 +5275,11 @@ export function TalentTierCompareDrawer() {
           }}
         >
           {/* Header */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.6fr 1fr 1fr 1fr",
-              padding: "10px 14px",
-              background: "rgba(11,11,13,0.025)",
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-              fontFamily: FONTS.body,
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", padding: "10px 14px", background: "rgba(11,11,13,0.025)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
             <span>Feature</span>
-            <span style={{ textAlign: "center" }}>Basic</span>
-            <span style={{ textAlign: "center" }}>Pro</span>
-            <span style={{ textAlign: "center" }}>Portfolio</span>
+            <span className="text-center">Basic</span>
+            <span className="text-center">Pro</span>
+            <span className="text-center">Portfolio</span>
           </div>
           {/* Rows */}
           {TIER_FEATURE_MATRIX.map((f, i) => (
@@ -5995,7 +5296,7 @@ export function TalentTierCompareDrawer() {
                 alignItems: "center",
               }}
             >
-              <span style={{ fontWeight: 500 }}>{f.label}</span>
+              <span className="font-medium">{f.label}</span>
               <FeatureCell value={f.basic} />
               <FeatureCell value={f.pro} />
               <FeatureCell value={f.portfolio} />
@@ -6004,19 +5305,7 @@ export function TalentTierCompareDrawer() {
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 16,
-          padding: "12px 14px",
-          background: COLORS.surfaceAlt,
-          border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 10,
-          fontFamily: FONTS.body,
-          fontSize: 12.5,
-          color: COLORS.ink,
-          lineHeight: 1.55,
-        }}
-      >
+      <div style={{ marginTop: 16, padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="bg-admin-surface-alt text-admin-ink">
         Personal page tiers are independent of agency / hub presence. You stay on every roster
         you&apos;re on now. The tier only affects your direct Tulala destination page.
       </div>
@@ -6035,11 +5324,11 @@ export function TalentTierCompareDrawer() {
           fontFamily: FONTS.body,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.indigoDeep, marginBottom: 4 }}>
+        <div className="flex-1 min-w-0">
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }} className="text-admin-indigo-deep">
             Pro &amp; Portfolio launching soon
           </div>
-          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
             Join the waitlist and you&apos;ll be first to know — plus an early-access discount when billing opens.
           </div>
         </div>
@@ -6069,20 +5358,14 @@ export function TalentTierCompareDrawer() {
 function FeatureCell({ value }: { value: string | true }) {
   if (value === true) {
     return (
-      <span style={{ textAlign: "center", color: COLORS.green, fontWeight: 600 }}>✓</span>
+      <span style={{ textAlign: "center", fontWeight: 600 }} className="text-admin-green">✓</span>
     );
   }
   if (value === "—") {
-    return <span style={{ textAlign: "center", color: COLORS.inkDim }}>—</span>;
+    return <span style={{ textAlign: "center" }} className="text-admin-ink-dim">—</span>;
   }
   return (
-    <span
-      style={{
-        textAlign: "center",
-        fontSize: 11.5,
-        color: COLORS.inkMuted,
-      }}
-    >
+    <span style={{ textAlign: "center", fontSize: 11.5 }} className="text-admin-ink-muted">
       {value}
     </span>
   );
@@ -6117,7 +5400,7 @@ export function TalentPersonalPageDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {sections.map((s) => (
           <div
             key={s.id}
@@ -6131,17 +5414,17 @@ export function TalentPersonalPageDrawer() {
               borderRadius: 10,
             }}
           >
-            <span style={{ color: COLORS.inkDim, fontSize: 14, cursor: "grab" }}>⋮⋮</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+            <span style={{ fontSize: 14, cursor: "grab" }} className="text-admin-ink-dim">⋮⋮</span>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
                 {s.label}
                 {!s.removable && (
-                  <span style={{ marginLeft: 8, fontSize: 11, color: COLORS.inkMuted, fontWeight: 400 }}>
+                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400 }} className="text-admin-ink-muted">
                     Required
                   </span>
                 )}
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                 {s.body}
               </div>
             </div>
@@ -6196,19 +5479,7 @@ export function TalentPageTemplateDrawer() {
                 opacity: isLocked ? 0.78 : 1,
               }}
             >
-              <div
-                style={{
-                  aspectRatio: "16 / 9",
-                  background: COLORS.surfaceAlt,
-                  borderRadius: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 48,
-                  marginBottom: 10,
-                  filter: isLocked ? "grayscale(0.4)" : "none",
-                }}
-              >
+              <div style={{ aspectRatio: "16 / 9", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 10, filter: isLocked ? "grayscale(0.4)" : "none" }} className="bg-admin-surface-alt">
                 {t.thumb}
               </div>
               <div
@@ -6218,15 +5489,15 @@ export function TalentPageTemplateDrawer() {
                   gap: 8,
                 }}
               >
-                <span style={{ fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink }}>{t.label}</span>
+                <span style={{ fontFamily: FONTS.display, fontSize: 16 }} className="text-admin-ink">{t.label}</span>
                 {isActive && (
-                  <span style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.accentDeep, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                  <span style={{ fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-accent-deep">
                     Active
                   </span>
                 )}
                 {isLocked && <LockedBadge requiredTier={t.availableAt} />}
               </div>
-              <p style={{ margin: "4px 0 0", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+              <p style={{ margin: "4px 0 0", fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
                 {t.blurb}
               </p>
             </button>
@@ -6283,25 +5554,14 @@ export function TalentMediaEmbedsDrawer() {
               borderRadius: 10,
             }}
           >
-            <span
-              style={{
-                width: 36,
-                height: 36,
-                background: COLORS.surfaceAlt,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 18,
-              }}
-            >
+            <span style={{ width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }} className="bg-admin-surface-alt">
               {e.thumb}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink, textTransform: "capitalize" }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, textTransform: "capitalize" }} className="text-admin-ink">
                 {e.kind} · {e.label}
               </div>
-              <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.mono, fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
                 {e.url}
               </div>
             </div>
@@ -6370,7 +5630,7 @@ export function TalentPressDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {press.map((c) => (
           <div
             key={c.id}
@@ -6382,22 +5642,22 @@ export function TalentPressDrawer() {
             }}
           >
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, letterSpacing: 0.5, textTransform: "uppercase" }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-accent-deep">
                 {c.outlet}
               </span>
-              <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginLeft: "auto" }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-muted">
                 {c.date}
               </span>
             </div>
-            <div style={{ fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink, marginTop: 4 }}>
+            <div style={{ fontFamily: FONTS.display, fontSize: 16, marginTop: 4 }} className="text-admin-ink">
               {c.headline}
             </div>
             {c.quote && (
-              <p style={{ margin: "6px 0 0", fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55, fontStyle: "italic" }}>
+              <p style={{ margin: "6px 0 0", fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{c.quote}&quot;
               </p>
             )}
-            <div style={{ marginTop: 6, fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted }}>
+            <div style={{ marginTop: 6, fontFamily: FONTS.mono, fontSize: 11 }} className="text-admin-ink-muted">
               {c.url}
             </div>
           </div>
@@ -6440,38 +5700,25 @@ export function TalentMediaKitDrawer() {
             gap: 14,
           }}
         >
-          <div
-            style={{
-              width: 56,
-              height: 70,
-              background: COLORS.surfaceAlt,
-              borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 28,
-              border: `1px solid ${COLORS.borderSoft}`,
-              flexShrink: 0,
-            }}
-          >
+          <div style={{ width: 56, height: 70, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, border: `1px solid ${COLORS.borderSoft}`, flexShrink: 0 }} className="bg-admin-surface-alt">
             {kit.thumb}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
               {kit.filename}
             </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {kit.size} · updated {kit.updatedAt}
             </div>
           </div>
         </div>
       ) : (
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
           No kit generated yet. Click Re-generate to build one from your current profile.
         </div>
       )}
       <Divider label="What's in the kit" />
-      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
         <li>Cover page · headshot · name · contact CTA</li>
         <li>Comp card spread (measurements + 4 polaroids)</li>
         <li>Pinned credits + tear-sheets</li>
@@ -6508,19 +5755,7 @@ export function TalentCustomDomainDrawer() {
       </FieldRow>
       <div style={{ marginTop: 14 }}>
         <CapsLabel>DNS configuration</CapsLabel>
-        <div
-          style={{
-            marginTop: 8,
-            padding: "12px 14px",
-            background: COLORS.surfaceAlt,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 10,
-            fontFamily: FONTS.mono,
-            fontSize: 12,
-            color: COLORS.ink,
-            lineHeight: 1.7,
-          }}
-        >
+        <div style={{ marginTop: 8, padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.mono, fontSize: 12, lineHeight: 1.7 }} className="bg-admin-surface-alt text-admin-ink">
           <div>A record &nbsp;@ &nbsp;→ &nbsp;76.76.21.21</div>
           <div>CNAME &nbsp;www &nbsp;→ &nbsp;cname.tulala.digital</div>
         </div>
@@ -6537,15 +5772,9 @@ export function TalentCustomDomainDrawer() {
           gap: 10,
         }}
       >
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: sub.customDomainStatus === "verified" ? COLORS.green : COLORS.amber,
-          }}
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: sub.customDomainStatus === "verified" ? COLORS.green : COLORS.amber, }}
         />
-        <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
           Status:{" "}
           <strong>
             {sub.customDomain
@@ -6574,7 +5803,7 @@ export function TalentCustomDomainDrawer() {
           Re-check
         </button>
       </div>
-      <p style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+      <p style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
         Tulala issues + auto-renews a Let&apos;s Encrypt SSL certificate once your DNS is pointing
         correctly. No manual cert config needed.
       </p>
@@ -6639,10 +5868,10 @@ export function TalentCareerAnalyticsDrawer() {
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
               padding: "14px 16px", border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+              <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginBottom: 2 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 2 }} className="text-admin-ink">
                 {tile.value}
               </div>
               <div style={{ fontSize: 11, color: (tile as { label: string; value: string | number; sub: string; subColor?: string }).subColor ?? COLORS.inkMuted }}>
@@ -6653,8 +5882,8 @@ export function TalentCareerAnalyticsDrawer() {
         </div>
 
         {/* Rate trend sparkline */}
-        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "14px 16px", border: `1px solid ${COLORS.border}` }}>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+        <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }} className="text-admin-ink-muted">
             Day-rate trend (last 7 bookings)
           </div>
           <svg width={sparkW} height={sparkH} style={{ display: "block", overflow: "visible" }}>
@@ -6667,7 +5896,7 @@ export function TalentCareerAnalyticsDrawer() {
               strokeLinejoin="round"
             />
           </svg>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5, color: COLORS.inkMuted }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5 }} className="text-admin-ink-muted">
             <span>€{minRate.toLocaleString()}</span>
             <span>€{maxRate.toLocaleString()}</span>
           </div>
@@ -6675,10 +5904,10 @@ export function TalentCareerAnalyticsDrawer() {
 
         {/* Top clients */}
         <div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }} className="text-admin-ink-muted">
             Top clients YTD
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {s.topClients.map((c) => (
               <div key={c.name} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -6686,10 +5915,10 @@ export function TalentCareerAnalyticsDrawer() {
                 borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{c.bookings} bookings</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.bookings} bookings</div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">
                   €{c.spend.toLocaleString()}
                 </div>
               </div>
@@ -6698,30 +5927,14 @@ export function TalentCareerAnalyticsDrawer() {
         </div>
 
         {/* WS-18.4 — AI talent-side insights */}
-        <div
-          style={{
-            background: COLORS.royalSoft,
-            borderRadius: RADIUS.lg,
-            padding: "14px 16px",
-            border: `1px solid rgba(95,75,139,0.15)`,
-          }}
-        >
+        <div style={{ padding: "14px 16px", border: `1px solid rgba(95,75,139,0.15)` }} className="bg-admin-royal-soft rounded-admin-lg">
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
             <Icon name="sparkle" size={13} color={COLORS.royal} stroke={1.7} />
-            <span
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                color: COLORS.royal,
-              }}
-            >
+            <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-royal">
               AI Insights
             </span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {(
               [
                 {
@@ -6810,13 +6023,13 @@ export function TalentReceiveReviewDrawer() {
       <DrawerShell open={open} onClose={closeDrawer} title="Review submitted">
         <div style={{ textAlign: "center", padding: "32px 20px", fontFamily: FONTS.body }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🌟</div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, marginBottom: 8 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }} className="text-admin-ink">
             Thanks for the feedback!
           </div>
-          <div style={{ fontSize: 13, color: COLORS.inkMuted }}>
+          <div style={{ fontSize: 13 }} className="text-admin-ink-muted">
             Your review helps other coordinators know what it&apos;s like working with you.
           </div>
-          <div style={{ marginTop: 20 }}><PrimaryButton onClick={closeDrawer}>Done</PrimaryButton></div>
+          <div className="mt-5"><PrimaryButton onClick={closeDrawer}>Done</PrimaryButton></div>
         </div>
       </DrawerShell>
     );
@@ -6841,19 +6054,19 @@ export function TalentReceiveReviewDrawer() {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        <div style={{ padding: "12px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}`, fontSize: 13, color: COLORS.inkMuted }}>
+        <div style={{ padding: "12px 14px", border: `1px solid ${COLORS.border}`, fontSize: 13 }} className="bg-admin-surface-alt rounded-admin-lg text-admin-ink-muted">
           A client has left a review of your performance. Once you publish it, it will appear on your public profile.
         </div>
 
         {/* Dimension ratings */}
         {REVIEW_DIMENSIONS.map((d) => (
           <div key={d.key} style={{ borderBottom: `1px solid ${COLORS.borderSoft}`, paddingBottom: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, color: COLORS.ink, marginBottom: 2 }}>{d.label}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 6 }}>{d.hint}</div>
-            <div style={{ display: "flex", gap: 2 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }} className="text-admin-ink">{d.label}</div>
+            <div style={{ fontSize: 11.5, marginBottom: 6 }} className="text-admin-ink-muted">{d.hint}</div>
+            <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map((s) => <Star key={s} dim={d.key} star={s} />)}
               {ratings[d.key] && (
-                <span style={{ marginLeft: 6, fontSize: 12, color: COLORS.inkMuted, alignSelf: "center" }}>
+                <span style={{ marginLeft: 6, fontSize: 12, alignSelf: "center" }} className="text-admin-ink-muted">
                   {["", "Poor", "Fair", "Good", "Great", "Excellent"][ratings[d.key] ?? 0]}
                 </span>
               )}
@@ -6863,13 +6076,8 @@ export function TalentReceiveReviewDrawer() {
 
         {/* Written comment */}
         <div>
-          <div style={{ fontWeight: 600, fontSize: 13, color: COLORS.ink, marginBottom: 6 }}>Client&apos;s written feedback</div>
-          <div style={{
-            padding: "12px 14px", background: "#fff",
-            borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}`,
-            fontSize: 13, color: COLORS.ink, lineHeight: 1.6,
-            fontStyle: "italic",
-          }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }} className="text-admin-ink">Client&apos;s written feedback</div>
+          <div style={{ padding: "12px 14px", background: "#fff", border: `1px solid ${COLORS.border}`, fontSize: 13, lineHeight: 1.6, fontStyle: "italic" }} className="rounded-admin-md text-admin-ink">
             &ldquo;Sofia was fantastic — arrived on time, full of ideas, and made the team feel comfortable immediately. Would book again without hesitation.&rdquo;
           </div>
         </div>
@@ -6913,10 +6121,10 @@ export function TalentAgencyAnalyticsDrawer() {
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
               padding: "12px 14px", border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+              <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }} className="text-admin-ink-muted">
                 {t.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink }}>{t.value}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-ink">{t.value}</div>
             </div>
           ))}
         </div>
@@ -6934,7 +6142,7 @@ export function TalentAgencyAnalyticsDrawer() {
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "12px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   <div style={{
                     width: 24, height: 24, borderRadius: "50%",
                     background: [COLORS.accent, "#3B82F6", "#8B5CF6"][i] ?? COLORS.ink,
@@ -6943,7 +6151,7 @@ export function TalentAgencyAnalyticsDrawer() {
                   }}>
                     {i + 1}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{a.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{a.name}</span>
                 </div>
                 <button
                   type="button"
@@ -6968,10 +6176,10 @@ export function TalentAgencyAnalyticsDrawer() {
                     padding: "10px 14px", textAlign: "center",
                     borderRight: j < 2 ? `1px solid ${COLORS.borderSoft}` : "none",
                   }}>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }} className="text-admin-ink-muted">
                       {stat.label}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
                       {stat.value}
                     </div>
                   </div>
@@ -6980,14 +6188,10 @@ export function TalentAgencyAnalyticsDrawer() {
 
               {/* Booking share bar */}
               <div style={{ padding: "8px 14px 12px" }}>
-                <div style={{ height: 4, background: COLORS.surfaceAlt, borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%", width: `${pct}%`,
-                    background: [COLORS.accent, "#3B82F6", "#8B5CF6"][i] ?? COLORS.ink,
-                    borderRadius: 999,
-                  }} />
+                <div style={{ height: 4, borderRadius: 999, overflow: "hidden" }} className="bg-admin-surface-alt">
+                  <div style={{ height: "100%", width: `${pct}%`, background: [COLORS.accent, "#3B82F6", "#8B5CF6"][i] ?? COLORS.ink, borderRadius: 999, }} />
                 </div>
-                <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 3 }}>
+                <div style={{ fontSize: 10.5, marginTop: 3 }} className="text-admin-ink-muted">
                   {pct}% of total bookings
                 </div>
               </div>

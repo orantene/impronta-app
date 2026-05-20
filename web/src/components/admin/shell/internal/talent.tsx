@@ -31,7 +31,7 @@ export type { ConvOutcome, ConvSource, Conversation, Participant } from "./talen
 
 export function TalentSurface() {
   return (
-    <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 50px - 56px)" }}>
+    <div style={{ minHeight: "calc(100vh - 50px - 56px)" }} className="bg-admin-surface">
       {/* WS-12.10 — skip link before topbar nav so keyboard users can
           bypass the talent page navigation */}
       <a href="#tulala-talent-content" className="skip-to-main">

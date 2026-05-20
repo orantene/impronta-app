@@ -341,7 +341,7 @@ function GroupBlock({
         <span style={{
           width: 8, height: 8, borderRadius: "50%", background: dotColor, flexShrink: 0,
         }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, letterSpacing: 0.1 }}>
             {title}
           </div>
@@ -1182,7 +1182,7 @@ export function LiveCategoryFieldsEditor({
   };
 
   return (
-    <div style={{ marginBottom: 4 }}>
+    <div className="mb-1">
       {/* Audit #9 — progress/History bar + the group switcher stay
           pinned together while you scroll a long section, so you never
           lose where you are or the way out. */}
@@ -1198,7 +1198,7 @@ export function LiveCategoryFieldsEditor({
         }}>
           {scope === "general" ? "General · " : ""}{totalFilled}/{fields.length} complete · auto-saved
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           {requiredMissing > 0 && (
             <button
               type="button"

@@ -2751,28 +2751,13 @@ export function HelpPanel({
               {a}
             </span>
           ))}
-          <span
-            style={{
-              fontSize: 11,
-              color: COLORS.inkMuted,
-              fontWeight: 500,
-              letterSpacing: 0.3,
-            }}
-          >
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: 0.3 }} className="text-admin-ink-muted">
             · {entry.category}
           </span>
         </div>
 
         {/* Purpose */}
-        <p
-          style={{
-            margin: 0,
-            fontSize: 14,
-            lineHeight: 1.55,
-            color: COLORS.ink,
-            fontWeight: 450,
-          }}
-        >
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, fontWeight: 450 }} className="text-admin-ink">
           {entry.purpose}
         </p>
 
@@ -2780,16 +2765,7 @@ export function HelpPanel({
             terse entry doesn't render an empty heading. */}
         {entry.youCanHere.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <h4
-            style={{
-              margin: "0 0 6px",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
-            }}
-          >
+          <h4 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
             What you can do here
           </h4>
           <ul
@@ -2835,16 +2811,7 @@ export function HelpPanel({
         {/* Related drawers */}
         {entry.relatedDrawers && entry.relatedDrawers.length > 0 && (
           <div className="mt-4">
-            <h4
-              style={{
-                margin: "0 0 6px",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
-              }}
-            >
+            <h4 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
               Related views
             </h4>
             <div className="flex flex-wrap gap-1.5">
@@ -2960,19 +2927,7 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
 
   if (vote) {
     return (
-      <div
-        style={{
-          marginTop: 16,
-          paddingTop: 12,
-          borderTop: `1px dashed ${COLORS.borderSoft}`,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: 12,
-          color: COLORS.inkMuted,
-          fontFamily: FONTS.body,
-        }}
-      >
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
         <span aria-hidden style={{ fontSize: 13 }}>
           {vote === "up" ? "✓" : "✦"}
         </span>
@@ -2986,19 +2941,7 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
   }
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        paddingTop: 12,
-        borderTop: `1px dashed ${COLORS.borderSoft}`,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        fontSize: 12,
-        color: COLORS.inkMuted,
-        fontFamily: FONTS.body,
-      }}
-    >
+    <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
       <span>Was this helpful?</span>
       <div className="inline-flex gap-1.5">
         <button
@@ -3073,20 +3016,10 @@ function FooterActions({
   };
 
   return (
-    <div
-      style={{
-        marginTop: 12,
-        // No divider here — FeedbackRow above already drew a dashed
+    <div style={{ marginTop: 12, // No divider here — FeedbackRow above already drew a dashed
         // line for this whole "drawer-meta" footer block. Stacking
         // two horizontal rules created visual noise.
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 12,
-        fontSize: 12,
-        color: COLORS.inkMuted,
-        alignItems: "center",
-      }}
-    >
+        display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, alignItems: "center" }} className="text-admin-ink-muted">
       <button
         type="button"
         onClick={() =>

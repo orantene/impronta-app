@@ -168,14 +168,7 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
   }, []);
 
   return (
-    <div style={{
-      padding: 16,
-      background: "#fff",
-      border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.lg,
-      fontFamily: FONTS.body,
-      marginBottom: 16,
-    }}>
+    <div style={{ padding: 16, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, marginBottom: 16 }} className="rounded-admin-lg">
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <span aria-hidden style={{
           width: 28, height: 28, borderRadius: 7,
@@ -183,28 +176,21 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           fontSize: 14, fontWeight: 700,
         }}>🔑</span>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, margin: 0, letterSpacing: -0.1 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">
           Sign in with passkey
         </h3>
         {state.kind !== "none" && (
-          <span style={{
-            fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
-            color: COLORS.successDeep, background: COLORS.successSoft,
-            padding: "2px 8px", borderRadius: 999,
-          }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999 }} className="text-admin-success-deep bg-admin-success-soft">
             {state.kind === "verified" ? "Active" : "Set up"}
           </span>
         )}
       </div>
-      <p style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, margin: "4px 0 12px" }}>
+      <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: "4px 0 12px" }} className="text-admin-ink-muted">
         Use Touch ID, Face ID, or your phone&apos;s biometrics instead of a password. Passkeys are phishing-resistant and never stored on Tulala&apos;s servers.
       </p>
 
       {!supported ? (
-        <div style={{
-          padding: "9px 11px", borderRadius: 8,
-          background: COLORS.surfaceAlt, fontSize: 11.5, color: COLORS.inkMuted,
-        }}>
+        <div style={{ padding: "9px 11px", borderRadius: 8, fontSize: 11.5 }} className="bg-admin-surface-alt text-admin-ink-muted">
           Your browser doesn&apos;t support passkeys. Try Safari 16+, Chrome 108+, or Firefox 120+.
         </div>
       ) : state.kind === "none" ? (
@@ -234,7 +220,7 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
           }}>
             Remove passkey
           </button>
-          <span style={{ fontSize: 11, color: COLORS.inkDim, marginLeft: "auto" }}>
+          <span style={{ fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-dim">
             {state.kind === "verified"
               ? `Verified ${new Date(state.verifiedAt).toLocaleTimeString()}`
               : `Set up ${new Date(state.createdAt).toLocaleString()}`}
@@ -243,11 +229,7 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
       )}
 
       {err && (
-        <div style={{
-          marginTop: 10, padding: "8px 11px", borderRadius: 8,
-          background: COLORS.criticalSoft, color: COLORS.criticalDeep,
-          fontSize: 11.5, lineHeight: 1.45,
-        }}>
+        <div style={{ marginTop: 10, padding: "8px 11px", borderRadius: 8, fontSize: 11.5, lineHeight: 1.45 }} className="bg-admin-critical-soft text-admin-critical-deep">
           {err}
         </div>
       )}
@@ -397,16 +379,9 @@ export function GalleryFxCard() {
   }, []);
 
   return (
-    <div style={{
-      padding: 16,
-      background: "#fff",
-      border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.lg,
-      fontFamily: FONTS.body,
-      marginBottom: 16,
-    }}>
+    <div style={{ padding: 16, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, marginBottom: 16 }} className="rounded-admin-lg">
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, margin: 0, letterSpacing: -0.1 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">
           Animated cover · WebGPU
         </h3>
         <span style={{
@@ -419,15 +394,10 @@ export function GalleryFxCard() {
           {status === "running" ? "Live" : status === "unsupported" ? "Fallback" : status === "error" ? "Error" : "Loading…"}
         </span>
       </div>
-      <p style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5, margin: "0 0 12px" }}>
+      <p style={{ fontSize: 12, lineHeight: 1.5, margin: "0 0 12px" }} className="text-admin-ink-muted">
         Renders directly on the GPU via a fragment shader. Falls back to a static gradient when WebGPU isn&apos;t available.
       </p>
-      <div style={{
-        position: "relative",
-        width: "100%", aspectRatio: "16 / 9",
-        borderRadius: RADIUS.md, overflow: "hidden",
-        background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDeep})`,
-      }}>
+      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", overflow: "hidden", background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDeep})` }} className="rounded-admin-md">
         <canvas
           ref={canvasRef}
           width={640}
