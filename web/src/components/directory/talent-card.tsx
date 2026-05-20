@@ -58,6 +58,105 @@ function availabilityChipText(
   return availableLabel;
 }
 
+/**
+ * §10-rich availability line (Lane 5 / acceptance AV-2). Derived from
+ * `nextAvailableDate` + `availableDaysInNext30` on the DTO; falls back to
+ * the ratified "Availability unknown — ask to confirm" string when no
+ * signal exists. Never fabricates "available now" for null data.
+ */
+const AVAILABILITY_UNKNOWN = "Availability unknown — ask to confirm";
+
+function formatRichAvailability(card: DirectoryCardDTO): {
+  label: string;
+  known: boolean;
+} {
+  if (card.nextAvailableDate) {
+    const d = new Date(`${card.nextAvailableDate}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      const when = d.toLocaleDateString("en", {
+        month: "short",
+        day: "numeric",
+      });
+      return { label: `Available from ${when}`, known: true };
+    }
+  }
+  if (
+    typeof card.availableDaysInNext30 === "number" &&
+    card.availableDaysInNext30 > 0
+  ) {
+    return {
+      label: `Available ${card.availableDaysInNext30} days in next 30`,
+      known: true,
+    };
+  }
+  return { label: AVAILABILITY_UNKNOWN, known: false };
+}
+
+/** Trust ladder badge (TN-1, TN-2). Cool-not-warm tokens only. */
+function TrustTierBadge({ tier }: { tier: string }) {
+  // Map ladder → terse label + style. Basic stays present but muted (per
+  // DS §12.5 RATIFIED: unverified appear with a 'Basic' badge, never hidden).
+  const t = tier.toLowerCase();
+  const styles: Record<string, string> = {
+    basic:
+      "border-white/15 bg-black/40 text-white/70",
+    verified:
+      "border-sky-300/40 bg-sky-500/15 text-sky-100",
+    silver:
+      "border-slate-200/40 bg-slate-200/15 text-slate-50",
+    gold:
+      // Cool-not-warm: we render the highest trust tier as a cool platinum
+      // instead of warm gold — the brand-gold token belongs to the legacy
+      // card shell, not to new §10 badges (Lane 5 constraints).
+      "border-cyan-200/40 bg-cyan-400/15 text-cyan-50",
+  };
+  const labels: Record<string, string> = {
+    basic: "Basic",
+    verified: "Verified",
+    silver: "Silver",
+    gold: "Gold",
+  };
+  const cls = styles[t] ?? styles.basic;
+  const label = labels[t] ?? "Basic";
+  return (
+    <span
+      data-card-trust={t}
+      className={cn(
+        "pointer-events-none rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] backdrop-blur-sm sm:text-[9px]",
+        cls,
+      )}
+      title={`Trust: ${label}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Agency / Independent first-class ownership badge (TN-3). */
+function OwnershipBadge({
+  agencyName,
+  isExclusive,
+}: {
+  agencyName: string | null;
+  isExclusive: boolean;
+}) {
+  const label =
+    isExclusive && agencyName
+      ? `${agencyName} · exclusive`
+      : agencyName
+        ? agencyName
+        : "Independent";
+  return (
+    <span
+      data-card-ownership
+      className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-white/15 bg-black/45 px-2 py-0.5 text-[8px] font-medium tracking-[0.12em] text-white/90 backdrop-blur-sm sm:text-[9px]"
+      title={label}
+    >
+      {label}
+    </span>
+  );
+}
+
 export type TalentCardProps = {
   card: DirectoryCardDTO;
   saved: boolean;
@@ -196,13 +295,24 @@ export function TalentCard({
           aria-hidden
         />
 
-        {/* Top-left: availability + featured badges
-         * data-card-ribbon marks the element used by editorial-bridal CSS
-         * to repaint as an ivory "Destination-ready"-style ribbon. */}
+        {/* Top-left: §10-rich (Lane 5) trust + ownership + featured + availability.
+         * Trust + ownership are first-class (TN-1 / TN-3); they render at rest
+         * in the upper half of the card. data-card-ribbon marks the element
+         * used by editorial-bridal CSS to repaint as an ivory ribbon. */}
         <div
-          className="absolute left-2 top-2 z-[1] flex flex-wrap items-center gap-1.5"
+          className="absolute left-2 top-2 z-[1] flex max-w-[calc(100%-3rem)] flex-wrap items-center gap-1.5"
           data-card-ribbon
         >
+          {card.trustTier ? <TrustTierBadge tier={card.trustTier} /> : null}
+          {/* Ownership badge present whenever the §10-rich projection is
+           * attached (agencyName set OR explicit independent). When the DTO
+           * has none of the §10 fields populated, omit (legacy behavior). */}
+          {card.trustTier !== undefined ? (
+            <OwnershipBadge
+              agencyName={card.agencyName ?? null}
+              isExclusive={card.isExclusive === true}
+            />
+          ) : null}
           {card.isFeatured ? (
             <span className="pointer-events-none rounded-full border border-[var(--impronta-gold)]/30 bg-black/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--impronta-gold)] backdrop-blur-sm sm:text-[9px]">
               {c.featuredLabel}
@@ -271,6 +381,28 @@ export function TalentCard({
               </>
             ) : null}
           </p>
+          {/* §10-rich availability line (Lane 5 / AV-2). Renders only when
+           * the §10 projection is attached so legacy callers stay unchanged.
+           * Uses the ratified fallback for unknown — never fabricates "now". */}
+          {card.trustTier !== undefined ? (() => {
+            const a = formatRichAvailability(card);
+            return (
+              <span
+                data-card-availability
+                data-availability-known={a.known ? "true" : "false"}
+                className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-white/75 sm:text-[11px]"
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    a.known ? "bg-white/80" : "bg-white/40",
+                  )}
+                />
+                {a.label}
+              </span>
+            );
+          })() : null}
         </div>
       </Link>
 

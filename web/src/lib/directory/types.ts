@@ -58,6 +58,21 @@ export type DirectoryCardDTO = {
   };
   /** Why this match — overlap between active filters and profile data (classic directory). */
   filterMatchLabels?: readonly string[];
+  /**
+   * §10-rich card data — sourced from `talent_discover_index` matview (A2 +
+   * D1). Additive on the DTO; legacy callers ignore. Surfaced by Phase B
+   * lane-5 (closes TN-1, TN-2, mirrors TN-3 / AV-2 on the reactive grid).
+   *
+   * `trustTier`: 'basic' | 'verified' | 'silver' | 'gold' | null (unmapped).
+   * `agencyName` + `isExclusive`: primary-roster ownership; null = independent.
+   * `nextAvailableDate`: ISO yyyy-mm-dd (or null when no signal exists).
+   * `availableDaysInNext30`: 0-30 (or null when unknown).
+   */
+  trustTier?: string | null;
+  agencyName?: string | null;
+  isExclusive?: boolean;
+  nextAvailableDate?: string | null;
+  availableDaysInNext30?: number | null;
 };
 
 /**

@@ -821,6 +821,44 @@ export async function fetchDirectoryPage(
     throw new Error(`[directory] media rows: ${mediaRowsRes.error.message}`);
   }
 
+  // §10-rich enrichment (Lane 5): batch-fetch trust_tier, agency_name,
+  // is_exclusive, availability snapshot from `talent_discover_index`. The
+  // matview already denormalizes everything we need (Lane 2 added trust_tier
+  // in migration 20260520000921). Single batched IN(...) — no per-card N+1
+  // (acceptance PF-5). Failures here are non-fatal: the card simply falls
+  // back to its legacy treatment.
+  type DiscoverIndexRow = {
+    id: string;
+    trust_tier: string | null;
+    agency_name: string | null;
+    is_exclusive: boolean | null;
+    next_available_date: string | null;
+    available_days_in_next_30: number | null;
+  };
+  const indexByProfile = new Map<string, DiscoverIndexRow>();
+  {
+    const { data: idxRows, error: idxErr } = await auditTime(
+      audit,
+      timings,
+      "discoverIndexEnrichmentMs",
+      () =>
+        supabase
+          .from("talent_discover_index")
+          .select(
+            "id, trust_tier, agency_name, is_exclusive, next_available_date, available_days_in_next_30",
+          )
+          .in("id", profileIds),
+    );
+    if (idxErr) {
+      // Non-fatal — degrade gracefully (no §10 badges that page) and log.
+      logServerError("directory/discover-index-enrichment", idxErr);
+    } else {
+      for (const row of (idxRows ?? []) as DiscoverIndexRow[]) {
+        indexByProfile.set(row.id, row);
+      }
+    }
+  }
+
   const taxonomyByProfile = new Map<string, TaxonomyAssignmentRow[]>();
   for (const row of (taxonomyRowsRes.data ?? []) as TaxonomyAssignmentRow[]) {
     const items = taxonomyByProfile.get(row.talent_profile_id) ?? [];
@@ -978,6 +1016,14 @@ export async function fetchDirectoryPage(
       card_attributes_jsonb: cardAttributes,
       filter_match_labels_jsonb:
         matchLabels.length > 0 ? matchLabels : undefined,
+      // §10-rich projection from `talent_discover_index` (Lane 5).
+      trust_tier: indexByProfile.get(profile.id)?.trust_tier ?? null,
+      agency_name: indexByProfile.get(profile.id)?.agency_name ?? null,
+      is_exclusive: indexByProfile.get(profile.id)?.is_exclusive ?? false,
+      next_available_date:
+        indexByProfile.get(profile.id)?.next_available_date ?? null,
+      available_days_in_next_30:
+        indexByProfile.get(profile.id)?.available_days_in_next_30 ?? null,
     };
   });
 

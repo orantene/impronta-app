@@ -41,6 +41,15 @@ export type ApiDirectoryCardRpcRow = {
   card_attributes_jsonb: unknown;
   /** Deterministic overlap between active directory filters and profile (classic listing). */
   filter_match_labels_jsonb?: unknown;
+  /**
+   * §10-rich projection from `talent_discover_index` matview (Lane 5).
+   * All null when the matview row is missing (e.g. talent not in the index).
+   */
+  trust_tier?: string | null;
+  agency_name?: string | null;
+  is_exclusive?: boolean | null;
+  next_available_date?: string | null;
+  available_days_in_next_30?: number | null;
 };
 
 function pickLocalizedName(
@@ -177,5 +186,16 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
       height: row.thumb_height,
     },
     ...(filterMatchLabels.length > 0 ? { filterMatchLabels } : {}),
+    // §10-rich fields (Lane 5). Surfaced when the directory page enrichment
+    // joined the matview row; otherwise left undefined so the card falls
+    // back to its legacy treatment.
+    trustTier: row.trust_tier ?? null,
+    agencyName: row.agency_name ?? null,
+    isExclusive: row.is_exclusive ?? false,
+    nextAvailableDate: row.next_available_date ?? null,
+    availableDaysInNext30:
+      typeof row.available_days_in_next_30 === "number"
+        ? row.available_days_in_next_30
+        : null,
   };
 }
