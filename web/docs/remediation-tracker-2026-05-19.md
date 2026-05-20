@@ -28,6 +28,7 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | **Wave 1+ HONEST READ** | **~84-88** | per-dimension math says 95 but this is paper-math, not a re-audit; realistic is high-80s pending Wave 2 + T2b |
 | **+ Wave 2 partial** (T2b batch 1, Y2, Q4 phase A) | **~86-90** est. | T2b 1/25 batches landed (3 commits) + Y2 codemod replay (-797 inline-style) + Q4 WorkspacePageView (-58 react-hooks/static-components); per-dimension Style +18 / Code Quality +2 / Security +1 (T2b ramping) |
 | **+ Q4 COMPLETE (Phase B-D)** | **~88-92** est. | Q4 6 more commits — all reachable static-components hoisted across 5 files; 11 hoists total; -22 suppressions; 27 remaining react-hooks violations are REAL (not stale) and deferred to a new Q5 lane (purity/refs/rules-of-hooks/preserve-manual-memoization/immutability per-rule surgery); plugin gap finding logged (eslint-plugin-react-hooks 7.0.1 → 7.1.1 would surface 200+ more violations) |
+| **+ TSC_BASE restored 6 → 4** | **~88-92** est. (no score change; gate integrity) | TSC_BASE fix 3 commits — light-01.tsx jumpItems.icon narrowed to AdminShellIconName + WorkspaceTopbar.tsx items.drawer narrowed to DrawerId\|null + null-guard added at call site; TSC_BASE lowered back to 4 (the 4 remaining are PM2-era profile-shell-internal baseline) |
 | Wave 1+ honest target | **~84** | per `improvement-plan-2026-05-19-weak-dimensions.md` end-to-end (14–16 weeks) |
 
 > **🏁 ALL STRUCTURAL LANES LANDED `554e2c8cd`** — `talent 15.5k→275` (1a) ·
