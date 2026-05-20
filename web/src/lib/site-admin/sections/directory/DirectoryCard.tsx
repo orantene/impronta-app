@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import type { DirectoryCardData } from "./fetch";
+import type { DirectoryCardData } from "./card-data";
 import type { DirectoryV1 } from "./schema";
 
 /**

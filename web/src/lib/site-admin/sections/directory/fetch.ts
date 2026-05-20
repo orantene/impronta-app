@@ -8,7 +8,17 @@ import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { withLocalePath } from "@/i18n/pathnames";
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  AVAILABILITY_UNKNOWN,
+  type DirectoryCardData,
+} from "./card-data";
 import type { DirectoryV1 } from "./schema";
+
+// Re-export so existing server callers (`DirectoryCard.tsx`, etc.)
+// keep importing the shape from this module. Clients should import
+// from `./card-data` directly to avoid pulling `server-only` chains.
+export { AVAILABILITY_UNKNOWN };
+export type { DirectoryCardData };
 
 /**
  * Path A data (CDP-0 amendment): the canonical card is fed by
@@ -23,28 +33,6 @@ import type { DirectoryV1 } from "./schema";
  * Path A data until the projection is extended. by_talent_type filters
  * on `primaryTypeSlug`; manual on `profileCode`.
  */
-
-export type DirectoryCardData = {
-  id: string;
-  name: string;
-  /** Raw profile code (for inquiry actions). Null when unset. */
-  profileCode: string | null;
-  /** Final, tenant- + locale-prefixed `/t/<code>`. Empty when no code. */
-  profileHref: string;
-  primaryType: string | null;
-  location: string | null;
-  photoUrl: string | null;
-  agencyName: string | null;
-  isExclusive: boolean;
-  /** Human availability line, or the ratified unknown fallback. */
-  availabilityLabel: string;
-  availabilityKnown: boolean;
-  /** Days free in the next 30 (sort key); null = unknown. */
-  availableDaysInNext30: number | null;
-};
-
-/** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */
-export const AVAILABILITY_UNKNOWN = "Availability unknown — ask to confirm";
 
 function formatAvailability(item: DiscoverTalentListItem): {
   label: string;

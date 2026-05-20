@@ -71,10 +71,12 @@ const cachedBuildDirectoryUiCopy = cache(
  * path-aware `clientDirectoryHref` (auto-detects basePath from pathname),
  * not by editing those controls.
  *
- * Premium `DirectoryCard` is *not* used in the reactive grid this phase —
- * the grid uses the legacy card via `DirectoryInfiniteGrid`. §10
- * trust/agency/availability badges remain deferred to Phase B #3 (Lane 5)
- * until the public anonymous Discover listing endpoint lands.
+ * B3 — Premium `DirectoryCard` IS now the reactive-grid card. The
+ * portable section owns its own `useInfiniteQuery` in
+ * `DirectoryReactiveGrid`, fetches `/api/directory` (and `/api/ai/search`
+ * when an AI query is live), and renders the canonical card via
+ * `DirectoryCardAdapter`. The legacy `DirectoryInfiniteGrid` +
+ * `TalentCard` are no longer mounted by this section.
  */
 export async function DirectoryComponent({
   props,
@@ -321,6 +323,17 @@ export async function DirectoryComponent({
             scopeLimitedHint={scopeLimitedHint}
             density={props.density}
             hoverBehavior={props.hoverBehavior}
+            cardStyle={props.cardStyle}
+            cardAspect={props.cardAspect}
+            showName={props.showName}
+            showTalentType={props.showTalentType}
+            showLocation={props.showLocation}
+            showAvailability={props.showAvailability}
+            showBadges={props.showBadges}
+            nameFallback={props.nameFallback}
+            columnsDesktop={props.columnsDesktop}
+            columnsTablet={props.columnsTablet}
+            columnsMobile={props.columnsMobile}
           />
         )}
       </div>

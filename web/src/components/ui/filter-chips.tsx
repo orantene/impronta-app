@@ -39,7 +39,10 @@ export function FilterChip({
       aria-selected={ariaSelected}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium outline-none transition-colors",
-        "focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        // B3 polish — cool-not-warm focus ring. Was `--impronta-gold/50`
+        // (visible on keyboard tab everywhere FilterChip mounts); now a
+        // neutral white/30 that pairs with the new directory pill bar.
+        "focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "border-primary/60 bg-primary/15 text-foreground"
           : "border-border/80 bg-background/40 text-muted-foreground hover:border-border hover:text-foreground",

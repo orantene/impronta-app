@@ -17,7 +17,7 @@ Legend: ⬜ pending · 🟦 in flight · ✅ done · ⚠️ done w/ honest gap �
 
 | ID | Title | Pillar | Effort | Impact | Deps | Status | Commit |
 |---|---|---|---|---|---|:-:|---|
-| **B3** | Swap reactive grid to OUR DirectoryCard | Storefront | M (~90 min) | 🔥 transformational | — | ⬜ | |
+| **B3** | Swap reactive grid to OUR DirectoryCard | Storefront | M (~90 min) | 🔥 transformational | — | ✅ | _pending_ |
 | **B1** | Adaptive pill bar (3–6 + More) | Storefront | S | 🔥 | — | ⬜ | |
 | **B2** | Editorial skeleton + intentional empty state | Storefront | S | high | — | ⬜ | |
 | **B6** | AI hero band → live filter in place | Storefront | M | 🔥 | B3 | ⬜ | |

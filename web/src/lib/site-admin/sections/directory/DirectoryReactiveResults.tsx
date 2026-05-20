@@ -20,13 +20,13 @@ import type {
 import { DIRECTORY_SORT_VALUES, type DirectorySortValue } from "@/lib/directory/types";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { DirectoryFilterSidebarBlock } from "@/lib/directory/field-driven-filters";
-import { DirectoryInfiniteGrid } from "@/components/directory/directory-infinite";
 import { DirectoryTalentTypeBar } from "@/components/directory/directory-talent-type-bar";
 import { DirectoryResultsToolbar } from "@/components/directory/directory-results-toolbar";
 import { DirectoryFiltersSidebar } from "@/components/directory/directory-filters-sidebar";
 import { DirectoryMobileFilters } from "@/components/directory/directory-mobile-filters";
 import { DirectoryQueryProvider } from "@/components/directory/query-provider";
 
+import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -40,25 +40,21 @@ export type DirectoryTopBarFacetPropShape = {
 };
 
 /**
- * P1 Option B — Client island that makes the portable Directory section
- * reactive. Reads the live URL via `useSearchParams()`, parses with the
- * pure (server+client safe) helpers from `lib/directory/search-params`,
- * and mounts the legacy `DirectoryInfiniteGrid` against the public
+ * Client island that makes the portable Directory section reactive.
+ * Reads the live URL via `useSearchParams()`, parses with the pure
+ * (server+client safe) helpers from `lib/directory/search-params`, and
+ * mounts the section-owned `<DirectoryReactiveGrid>` against the public
  * `/api/directory` endpoint. Filter controls (talent-type pill bar,
  * desktop sidebar, mobile filters, results toolbar) are the existing
  * legacy components — they already `usePathname() + useSearchParams() +
  * commitDirectoryListingUrl`, so the path-aware `clientDirectoryHref`
  * keeps every navigation on the section's own URL.
  *
- * Per the research doc (Option B), the SSR seed is unfiltered: the
- * client reconciles to URL filters on mount via the grid's
- * `initialDataUpdatedAt: 0` mechanism. A *filtered* SSR seed would
- * require Option A's prop threading (recorded as a Phase-2b limitation).
- *
- * The card visual layer (premium DirectoryCard) is currently handled by
- * the legacy `talent-card.tsx` inside `DirectoryInfiniteGrid`. The §10
- * trust/agency/availability badges remain deferred to Phase B #3 (Lane 5)
- * when the public anonymous Discover listing endpoint lands.
+ * B3 — Card visual layer is now the canonical `<DirectoryCard>` via
+ * `<DirectoryCardAdapter>` inside `<DirectoryReactiveGrid>`. The legacy
+ * `<TalentCard>` + `<DirectoryInfiniteGrid>` are no longer mounted by
+ * this section. Trust/agency/availability badges ride along on Lane 5's
+ * enriched DTO (with honest fallbacks when fields are unset).
  */
 export function DirectoryReactiveResults({
   initialPage,
@@ -76,6 +72,17 @@ export function DirectoryReactiveResults({
   scopeLimitedHint,
   density,
   hoverBehavior,
+  cardStyle,
+  cardAspect,
+  showName,
+  showTalentType,
+  showLocation,
+  showAvailability,
+  showBadges,
+  nameFallback,
+  columnsDesktop,
+  columnsTablet,
+  columnsMobile,
 }: {
   /** Server-fetched first page (unfiltered for the section scope). */
   initialPage: DirectoryPageResponse;
@@ -97,6 +104,18 @@ export function DirectoryReactiveResults({
   scopeLimitedHint?: string;
   density: DirectoryV1["density"];
   hoverBehavior: DirectoryV1["hoverBehavior"];
+  // B3 — card-level config threaded through to the new reactive grid.
+  cardStyle: DirectoryV1["cardStyle"];
+  cardAspect: DirectoryV1["cardAspect"];
+  showName: boolean;
+  showTalentType: boolean;
+  showLocation: boolean;
+  showAvailability: boolean;
+  showBadges: boolean;
+  nameFallback: DirectoryV1["nameFallback"];
+  columnsDesktop: number;
+  columnsTablet: number;
+  columnsMobile: number;
 }) {
   return (
     <DirectoryQueryProvider>
@@ -116,6 +135,17 @@ export function DirectoryReactiveResults({
           scopeLimitedHint={scopeLimitedHint}
           density={density}
           hoverBehavior={hoverBehavior}
+          cardStyle={cardStyle}
+          cardAspect={cardAspect}
+          showName={showName}
+          showTalentType={showTalentType}
+          showLocation={showLocation}
+          showAvailability={showAvailability}
+          showBadges={showBadges}
+          nameFallback={nameFallback}
+          columnsDesktop={columnsDesktop}
+          columnsTablet={columnsTablet}
+          columnsMobile={columnsMobile}
         />
       </Suspense>
     </DirectoryQueryProvider>
@@ -151,6 +181,17 @@ function DirectoryReactiveResultsInner({
   scopeLimitedHint,
   density,
   hoverBehavior,
+  cardStyle,
+  cardAspect,
+  showName,
+  showTalentType,
+  showLocation,
+  showAvailability,
+  showBadges,
+  nameFallback,
+  columnsDesktop,
+  columnsTablet,
+  columnsMobile,
 }: {
   initialPage: DirectoryPageResponse;
   locale: "en" | "es";
@@ -166,6 +207,17 @@ function DirectoryReactiveResultsInner({
   scopeLimitedHint?: string;
   density: DirectoryV1["density"];
   hoverBehavior: DirectoryV1["hoverBehavior"];
+  cardStyle: DirectoryV1["cardStyle"];
+  cardAspect: DirectoryV1["cardAspect"];
+  showName: boolean;
+  showTalentType: boolean;
+  showLocation: boolean;
+  showAvailability: boolean;
+  showBadges: boolean;
+  nameFallback: DirectoryV1["nameFallback"];
+  columnsDesktop: number;
+  columnsTablet: number;
+  columnsMobile: number;
 }) {
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -284,7 +336,7 @@ function DirectoryReactiveResultsInner({
             />
           ) : null}
 
-          <DirectoryInfiniteGrid
+          <DirectoryReactiveGrid
             taxonomyTermIds={taxonomyTermIds}
             initialPage={initialPage}
             locale={locale}
@@ -299,6 +351,19 @@ function DirectoryReactiveResultsInner({
             view={view}
             ui={ui}
             directorySearchViaAi={aiSearchEnabled && query.trim().length > 0}
+            cardStyle={cardStyle}
+            cardAspect={cardAspect}
+            show={{
+              showName,
+              showTalentType,
+              showLocation,
+              showAvailability,
+              showBadges,
+            }}
+            nameFallback={nameFallback}
+            columnsDesktop={columnsDesktop}
+            columnsTablet={columnsTablet}
+            columnsMobile={columnsMobile}
           />
         </div>
       </div>
