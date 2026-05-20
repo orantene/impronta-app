@@ -29,6 +29,8 @@
     "db:push": "npx -y supabase@latest db push --linked --include-all --yes",
     "db:check": "node --env-file=.env.local scripts/check-migrations-applied.mjs",
     "ci": "npm run check:untracked-imports && npm run typecheck && npm run check:migrations-applied && npm run verify:server-actions && npm run test:phase1-i18n && npm run test:locale-precedence && npm run test:inquiry-workspace && npm run test:ai-guardrails && npm run test:tenant-isolation && npm run test:builder-capabilities && npm run test:builder-node-bindings && npm run test:node-presentation && npm run test:publish-preflight && npm run verify:ui-messages && npm run lint && npm run build",
+    "test:components": "vitest run",
+    "test:components:watch": "vitest",
     "test:auth-routing": "tsx --test src/lib/auth-routing.test.ts",
     "test:access": "tsx --test src/lib/access/parity.test.ts",
     "test:csv-parser": "tsx --test src/components/admin/shell/internal/csv-parser.test.ts",
@@ -181,18 +183,24 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
     "embedded-postgres": "^17.9.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
     "libphonenumber-js": "^1.11.20",
     "pg": "^8.20.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }
