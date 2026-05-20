@@ -17,13 +17,17 @@ export function commitDirectoryListingUrl(
   pathname: string,
   currentSearchString: string,
   mutate: (params: URLSearchParams) => void,
-  options: { replace?: boolean; scroll?: boolean } = {},
+  options: { replace?: boolean; scroll?: boolean; basePath?: string } = {},
 ): void {
   const params = new URLSearchParams(currentSearchString);
   mutate(params);
   canonicalizeDirectorySearchParams(params);
   const qs = params.toString();
-  const href = clientDirectoryHref(pathname, qs ? `?${qs}` : "");
+  const href = clientDirectoryHref(
+    pathname,
+    qs ? `?${qs}` : "",
+    options.basePath ?? "/directory",
+  );
   const navOpts = { scroll: options.scroll ?? false };
   if (options.replace ?? true) {
     router.replace(href, navOpts);

@@ -1,43 +1,156 @@
-import { Suspense, type CSSProperties } from "react";
+import { Suspense, cache, type CSSProperties } from "react";
 
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { getPublicDirectoryFirstPage } from "@/lib/directory/cache";
+import {
+  directorySurfaceFromTenantId,
+  getCachedDirectoryFilterSidebarModel,
+} from "@/lib/directory/field-driven-filters";
+import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
+import { logServerError } from "@/lib/server/safe-error";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
 
+import { nodePresentationInlineStyle } from "../shared/node-presentation";
+import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
-import { loadDirectorySectionTalents } from "./fetch";
-import { DirectoryCard } from "./DirectoryCard";
-import { DirectoryCardActions } from "./DirectoryCardActions";
+import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
+
+function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.68rem",
+    md: "0.75rem",
+    lg: "0.85rem",
+    xl: "0.95rem",
+  }[size];
+}
+
+function headingSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "1.9rem",
+    md: "2.35rem",
+    lg: "2.85rem",
+    xl: "3.4rem",
+  }[size];
+}
+
+function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.9rem",
+    md: "1rem",
+    lg: "1.12rem",
+    xl: "1.25rem",
+  }[size];
+}
 
 /**
- * Public render — the canonical Atelier shell.
+ * #6 polish: cache `buildDirectoryUiCopy` per request so nested renders
+ * within a single request reuse the built copy table instead of rebuilding
+ * it. `React.cache` is request-scoped and keyed on argument identity.
+ */
+const cachedBuildDirectoryUiCopy = cache(
+  (
+    t: ReturnType<typeof createTranslator>,
+    brand?: string | null,
+  ) => buildDirectoryUiCopy(t, brand),
+);
+
+/**
+ * P1 Option B — Public render of the portable Directory section.
  *
- * Editorial gallery: premium heading, the REAL AI search (HeroSearch,
- * the same component the team already shipped — interpret + URL sync),
- * and a Portrait/Editorial grid fed by the Discover path (CDP-0 Path A),
- * cool-not-warm. Filter sidebar / save-state / infinite scroll =
- * Phase 2b (needs the section↔searchParams reactivity seam). Trust badge
- * deferred (Amendment A2).
+ * Server shell (this file): heading, AI `HeroSearch` band, structured-data
+ * hooks, empty state. Server-fetches the unfiltered first page + sidebar
+ * model for the section's scope and hands them to a `"use client"` island
+ * (`DirectoryReactiveResults`) which reads the live URL via
+ * `useSearchParams()` and reconciles via the legacy `DirectoryInfiniteGrid`
+ * → public `/api/directory`. Filter / sort / pill / pagination controls are
+ * the existing legacy components; portability is delivered by the
+ * path-aware `clientDirectoryHref` (auto-detects basePath from pathname),
+ * not by editing those controls.
+ *
+ * Premium `DirectoryCard` is *not* used in the reactive grid this phase —
+ * the grid uses the legacy card via `DirectoryInfiniteGrid`. §10
+ * trust/agency/availability badges remain deferred to Phase B #3 (Lane 5)
+ * until the public anonymous Discover listing endpoint lands.
  */
 export async function DirectoryComponent({
   props,
   locale,
-  publicPathPrefix,
+  builderNodeBindings,
 }: SectionComponentProps<DirectoryV1>) {
   const loc: Locale = isLocale(locale) ? locale : defaultLocale;
-  const prefix = publicPathPrefix ?? "";
+  const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
-  const [{ items, total }, aiFlags] = await Promise.all([
-    loadDirectorySectionTalents(props, { locale: loc, publicPathPrefix: prefix }),
-    getAiFeatureFlags(),
+  // Tenant context for the public directory query (scoped by host).
+  const [hostContext, publicScope] = await Promise.all([
+    getPublicHostContext(),
+    getPublicTenantScope(),
   ]);
+  const directoryTenantId =
+    hostContext.kind === "agency" ? hostContext.tenantId : null;
+  const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
+
+  // Section-scope → seed taxonomy filter (currently only by_talent_type
+  // contributes term ids; by_tag / manual / all leave the seed open). The
+  // engine expects term *ids*, not catalog keys, so we cannot pre-filter
+  // `by_talent_type` without a key→id resolver. Phase B #3 work — for
+  // Phase 1, the seed remains open and the pill bar drives taxonomy
+  // filtering reactively.
+  const seedTaxonomyTermIds: string[] = [];
+
+  // #6 polish: honest scope-limited hint for `by_tag` with non-empty
+  // tagKeys (no fake filtering — Amendment A2 rule).
+  const scopeLimitedHint =
+    props.scope === "by_tag" && props.tagKeys.length > 0
+      ? loc === "es"
+        ? "Esta sección muestra todos los talentos disponibles — el filtro por etiquetas aún no proyecta en este endpoint."
+        : "This section shows all talent — tag-scope projection lands with the deferred public Discover listing endpoint."
+      : undefined;
+
+  let initialPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
+    null;
+  let sidebar: Awaited<ReturnType<typeof getCachedDirectoryFilterSidebarModel>> = {
+    blocks: [],
+  };
+  let aiFlags: Awaited<ReturnType<typeof getAiFeatureFlags>> | null = null;
+
+  try {
+    [initialPage, sidebar, aiFlags] = await Promise.all([
+      getPublicDirectoryFirstPage({
+        taxonomyTermIds: seedTaxonomyTermIds,
+        locale: loc,
+        sort: "recommended",
+        limit: props.pageSize,
+        tenantId: directoryTenantId,
+      }),
+      getCachedDirectoryFilterSidebarModel(
+        loc,
+        {
+          taxonomyTermIds: seedTaxonomyTermIds,
+          locationSlug: "",
+          heightMinCm: null,
+          heightMaxCm: null,
+          ageMin: null,
+          ageMax: null,
+          query: "",
+          fieldFacets: [],
+        },
+        surface,
+      ),
+      getAiFeatureFlags(),
+    ]);
+  } catch (e) {
+    logServerError("directory-section/ssr-seed", e);
+  }
 
   const t = createTranslator(loc);
-  const ui = buildDirectoryUiCopy(t);
-  const aiEnabled = aiFlags.ai_master_enabled && aiFlags.ai_search_enabled;
+  const ui = cachedBuildDirectoryUiCopy(t);
+  const aiEnabled = Boolean(
+    aiFlags?.ai_master_enabled && aiFlags.ai_search_enabled,
+  );
   const heroCopy: HeroSearchCopy = {
     placeholder:
       props.aiPlaceholder || t("public.home.hero.searchPlaceholder"),
@@ -65,28 +178,38 @@ export async function DirectoryComponent({
       ? "items-start text-left"
       : "items-center text-center mx-auto";
 
-  const gridStyle = {
+  // #6 polish: density + hover knobs propagate as data attributes so card
+  // CSS can opt in without DirectoryCard growing hooks (RP-1 / T2 reuse:
+  // DirectoryCard stays pure prop-driven).
+  const sectionStyle = {
     "--dir-cols-m": props.columnsMobile,
     "--dir-cols-t": props.columnsTablet,
     "--dir-cols-d": props.columnsDesktop,
   } as unknown as CSSProperties;
 
-  const gap =
-    props.density === "compact" ? "gap-x-4 gap-y-6" : "gap-x-5 gap-y-9";
+  const seedItems = initialPage?.items ?? [];
+  const hasResults = seedItems.length > 0;
+  const seedFailed = initialPage === null;
 
-  const showCard = {
-    showName: props.showName,
-    showTalentType: props.showTalentType,
-    showLocation: props.showLocation,
-    showAvailability: props.showAvailability,
-    showBadges: props.showBadges,
-  };
+  const topBarFacet =
+    props.topBarMode === "talent_type" && sidebar.topBarFacet
+      ? {
+          label: sidebar.topBarFacet.label,
+          options: sidebar.topBarFacet.options.map((o) => ({
+            id: o.id,
+            label: o.label,
+            ...(o.count !== undefined ? { count: o.count } : {}),
+          })),
+        }
+      : undefined;
 
   return (
     <section
       data-section="directory"
       data-template={props.template}
       data-card-style={props.cardStyle}
+      data-density={props.density}
+      data-hover={props.hoverBehavior}
       className={
         props.background === "cool_ground"
           ? "w-full bg-[var(--impronta-surface)]/25 px-4 py-12 sm:px-6 sm:py-16"
@@ -94,6 +217,7 @@ export async function DirectoryComponent({
             ? "w-full bg-foreground/[0.015] px-4 py-12 sm:px-6 sm:py-16"
             : "w-full px-4 py-12 sm:px-6 sm:py-16"
       }
+      style={sectionStyle}
     >
       <div className={boxed ? "mx-auto w-full max-w-7xl" : "w-full"}>
         {props.showHeading &&
@@ -102,18 +226,39 @@ export async function DirectoryComponent({
             className={`mb-9 flex max-w-2xl flex-col gap-3 ${headAlign}`}
           >
             {props.eyebrow ? (
-              <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--impronta-muted)]">
-                {props.eyebrow}
+              <span
+                className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--impronta-muted)]"
+                data-builder-node-id={nodeIdsByRole?.subheadline}
+                style={nodePresentationInlineStyle(
+                  props.nodePresentation?.subheadline,
+                  eyebrowSize,
+                )}
+              >
+                {renderInlineRich(props.eyebrow)}
               </span>
             ) : null}
             {props.headline ? (
-              <h2 className="font-display text-3xl font-medium tracking-wide text-foreground sm:text-4xl">
-                {props.headline}
+              <h2
+                className="font-display text-3xl font-medium tracking-wide text-foreground sm:text-4xl"
+                data-builder-node-id={nodeIdsByRole?.headline}
+                style={nodePresentationInlineStyle(
+                  props.nodePresentation?.headline,
+                  headingSize,
+                )}
+              >
+                {renderInlineRich(props.headline)}
               </h2>
             ) : null}
             {props.copy ? (
-              <p className="text-[15px] leading-relaxed text-[var(--impronta-muted)]">
-                {props.copy}
+              <p
+                className="text-[15px] leading-relaxed text-[var(--impronta-muted)]"
+                data-builder-node-id={nodeIdsByRole?.copy}
+                style={nodePresentationInlineStyle(
+                  props.nodePresentation?.copy,
+                  paragraphSize,
+                )}
+              >
+                {renderInlineRich(props.copy)}
               </p>
             ) : null}
           </header>
@@ -141,7 +286,13 @@ export async function DirectoryComponent({
           </div>
         ) : null}
 
-        {items.length === 0 ? (
+        {seedFailed ? (
+          <div className="rounded-2xl border border-border bg-background/50 px-6 py-20 text-center">
+            <p className="mt-2 text-sm text-[var(--impronta-muted)]">
+              {ui.discoverLoadError}
+            </p>
+          </div>
+        ) : !hasResults ? (
           <div className="rounded-2xl border border-border bg-background/50 px-6 py-20 text-center">
             {props.emptyStateTitle ? (
               <p className="font-display text-lg text-foreground">
@@ -154,60 +305,23 @@ export async function DirectoryComponent({
             </p>
           </div>
         ) : (
-          <>
-            {props.showResultCount ? (
-              <p className="mb-5 text-xs uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
-                {total}{" "}
-                {props.entityLabel === "talent"
-                  ? total === 1
-                    ? "talent"
-                    : "talent"
-                  : props.entityLabel}
-              </p>
-            ) : null}
-            <div
-              className={`grid ${gap} [grid-template-columns:repeat(var(--dir-cols-m),minmax(0,1fr))] sm:[grid-template-columns:repeat(var(--dir-cols-t),minmax(0,1fr))] lg:[grid-template-columns:repeat(var(--dir-cols-d),minmax(0,1fr))]`}
-              style={gridStyle}
-            >
-              {items.map((data, i) => (
-                <div key={data.id} className="relative">
-                  <DirectoryCard
-                    data={data}
-                    style={
-                      props.cardStyle === "editorial" ? "editorial" : "portrait"
-                    }
-                    show={showCard}
-                    nameFallback={props.nameFallback}
-                    aspect={props.cardAspect}
-                    index={i}
-                    priority={i < props.columnsDesktop}
-                  />
-                  {props.showSave || props.showAddToInquiry ? (
-                    <div className="absolute right-2.5 top-2.5 z-10">
-                      <DirectoryCardActions
-                        talentId={data.id}
-                        showSave={props.showSave}
-                        inquiry={
-                          props.showAddToInquiry && data.profileCode
-                            ? ui.inquiry
-                            : undefined
-                        }
-                        talent={
-                          props.showAddToInquiry && data.profileCode
-                            ? {
-                                id: data.id,
-                                profileCode: data.profileCode,
-                                displayName: data.name,
-                              }
-                            : undefined
-                        }
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </>
+          <DirectoryReactiveResults
+            initialPage={initialPage!}
+            locale={loc === "es" ? "es" : "en"}
+            ui={ui}
+            topBarFacet={topBarFacet}
+            sidebarBlocks={sidebar.blocks}
+            defaultSort={props.defaultSort}
+            showTopBar={props.topBarMode !== "none"}
+            showSidebar={props.sidebarShow}
+            showSort={props.sortControlShow}
+            showResultCount={props.showResultCount}
+            showActiveChips={props.showActiveChips}
+            aiSearchEnabled={aiEnabled}
+            scopeLimitedHint={scopeLimitedHint}
+            density={props.density}
+            hoverBehavior={props.hoverBehavior}
+          />
         )}
       </div>
     </section>
