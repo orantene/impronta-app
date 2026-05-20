@@ -298,7 +298,7 @@ function DirectoryReactiveResultsInner({
             fieldFacets={fieldFacets}
             view={view}
             ui={ui}
-            directorySearchViaAi={aiSearchEnabled}
+            directorySearchViaAi={aiSearchEnabled && query.trim().length > 0}
           />
         </div>
       </div>

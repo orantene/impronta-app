@@ -40,7 +40,7 @@ export function EmptyState({
     <div
       className={cn(
         "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60",
-        "bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/30 to-muted/10",
+        "bg-card/30",
         "px-6 py-10 text-center",
         className,
       )}
@@ -49,7 +49,7 @@ export function EmptyState({
         <div
           className={cn(
             "mb-4 flex size-12 items-center justify-center rounded-2xl",
-            "bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]",
+            "bg-white/10 text-white/80",
           )}
         >
           <Icon className="size-6" strokeWidth={1.5} aria-hidden />

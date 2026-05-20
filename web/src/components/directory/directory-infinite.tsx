@@ -441,7 +441,7 @@ export function DirectoryInfiniteGrid({
       <EmptyState
         icon={Search}
         title={ui.emptyResults}
-        className="border-[var(--impronta-gold-border)] bg-black/20 py-16"
+        className="border-white/15 bg-white/[0.02] py-16"
       />
     );
   }

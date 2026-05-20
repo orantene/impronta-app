@@ -50,7 +50,7 @@ export function DirectorySort({
       value={current}
       onChange={handleChange}
       className={cn(
-        "h-9 rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-3 py-1.5 text-sm text-[var(--impronta-muted)] outline-none transition-colors focus:border-[var(--impronta-gold)] focus:ring-1 focus:ring-[var(--impronta-gold)]/30",
+        "h-9 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-sm text-white/70 outline-none transition-colors focus:border-white/40 focus:ring-1 focus:ring-white/25",
         pending && "opacity-60",
         className,
       )}

@@ -368,7 +368,7 @@ export function HeroSearch({
           type="submit"
           size="lg"
           disabled={interpreting}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)]"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] bg-white text-black hover:bg-white/90"
         >
           {/* Icon-only on mobile, text on sm+ */}
           <Search className="size-5 sm:hidden" />
