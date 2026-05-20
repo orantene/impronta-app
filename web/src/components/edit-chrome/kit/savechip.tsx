@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * SaveChip — colour-coded status pill used in drawer headers and the
  * top-bar status indicator.
