@@ -113,7 +113,7 @@ Actual writers of `talent_profiles.height_cm` (verified `grep`):
 
 1. [`field-values-height-mirror.ts:12`](../src/lib/field-values-height-mirror.ts) — the documented mirror (good).
 2. [`admin/roster/[id]/actions.ts:217`](../src/app/(workspace)/[tenantSlug]/admin/roster/[id]/actions.ts) — direct UPDATE from form input.
-3. [`api/admin/roster-import/route.ts:235`](../src/app/api/admin/roster-import/route.ts) — bulk import direct set.
+3. [`lib/server-actions/roster-import.ts:207`](../src/lib/server-actions/roster-import.ts) (update branch) + [`:221`](../src/lib/server-actions/roster-import.ts) (insert branch) — bulk import direct set. **Correction (2026-05-20):** the original runbook listed `api/admin/roster-import/route.ts:235`, but that file is a thin HTTP wrapper that only parses the upload and dispatches each row to `processRosterImportRow` exported from this lib module. The actual `talent_profiles.height_cm` writers live here.
 
 The talent-field-values writer (admin + talent paths) DOES go through the
 mirror correctly. But (2) and (3) are NOT mirrored. They write to
@@ -354,7 +354,7 @@ height_cm). No other prerequisite.
 
 - [`field-values-height-mirror.ts:12`](../src/lib/field-values-height-mirror.ts) — stays as the documented governed→denorm mirror.
 - [`admin/roster/[id]/actions.ts:217`](../src/app/(workspace)/[tenantSlug]/admin/roster/[id]/actions.ts) — route through `mirrorHeightCmToTalentProfile` AND seed/update the canonical `physical.height_cm` value via the catalog write path.
-- [`api/admin/roster-import/route.ts:235`](../src/app/api/admin/roster-import/route.ts) — same treatment for bulk import.
+- [`lib/server-actions/roster-import.ts:207`](../src/lib/server-actions/roster-import.ts) (update) + [`:221`](../src/lib/server-actions/roster-import.ts) (insert) — same treatment for bulk import. (Correction from the originally-cited `api/admin/roster-import/route.ts:235` — that path is an HTTP wrapper; the height writer lives in the lib module it dispatches to.)
 
 Add a header comment to `field-values-height-mirror.ts` declaring it the
 sole legitimate denorm path; cross-reference the canonical write paths
