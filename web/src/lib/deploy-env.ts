@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 /**
  * Startup / CI checks for Vercel and production deploys.
  * Does not throw — logs warnings so cold starts stay resilient.
@@ -53,13 +54,13 @@ export function logDeployEnvReadiness(): void {
   const site = checkSiteUrlForVercel();
   const issues = [...supa.issues, ...site.issues];
   if (issues.length === 0) return;
-  console.warn(
-    JSON.stringify({
+  void improntaLog("deploy_env.warn", {
+    message: JSON.stringify({
       ns: "impronta",
       event: "deploy_env_warning",
       issues,
       vercel: process.env.VERCEL === "1",
       nodeEnv: process.env.NODE_ENV,
     }),
-  );
+  });
 }

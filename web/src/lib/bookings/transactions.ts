@@ -10,6 +10,7 @@
  * for auditability.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -920,7 +921,9 @@ const VALID_PAYOUT_RECEIVER_KINDS: readonly string[] = ["agency", "admin", "coor
 function parsePayoutReceiverKind(raw: string | null): PayoutReceiverKind | null {
   if (raw === null) return null;
   if (VALID_PAYOUT_RECEIVER_KINDS.includes(raw)) return raw as PayoutReceiverKind;
-  console.warn(`[transactions] Unknown payout_receiver_kind value: "${raw}" — treating as null`);
+  void improntaLog("bookings_transactions.warn", {
+    message: `[transactions] Unknown payout_receiver_kind value: "${raw}" — treating as null`,
+  });
   return null;
 }
 

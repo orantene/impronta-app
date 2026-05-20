@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 /**
  * Server-side Google Places (legacy REST) for city autocomplete + place details.
  *
@@ -58,18 +59,18 @@ function warnGooglePlaces(
   if (s === "REQUEST_DENIED") {
     if (loggedGooglePlacesRequestDenied) return;
     loggedGooglePlacesRequestDenied = true;
-    console.warn(
-      `[google-places] ${label}: ${s}`,
-      errorMessage?.trim() || "",
-      "— Use a server-side key (no HTTP referrer restriction); see web/.env.example.",
-    );
+    void improntaLog("google_places.warn", {
+      message: `[google-places] ${label}: ${s}`,
+      detail: errorMessage?.trim() || "",
+      hint: "— Use a server-side key (no HTTP referrer restriction); see web/.env.example.",
+    });
     return;
   }
-  console.warn(
-    `[google-places] ${label}:`,
+  void improntaLog("google_places.warn", {
+    message: `[google-places] ${label}:`,
     s,
-    errorMessage ?? "(enable Places API, billing, and a server-appropriate API key)",
-  );
+    detail: errorMessage ?? "(enable Places API, billing, and a server-appropriate API key)",
+  });
 }
 
 function slugify(input: string): string {

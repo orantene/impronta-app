@@ -216,6 +216,36 @@ def get_indent(text: str, pos: int) -> str:
     return m.group(1) if m else ""
 
 
+def console_is_in_string(text: str, match_start: int) -> bool:
+    """
+    Returns True if the console.xxx( match at match_start is inside a string literal
+    on the same source line.  Uses a line-scoped check to avoid cross-line comment
+    confusion that plagues global string-state trackers.
+
+    Logic: count un-escaped quote characters BEFORE the match on the same line.
+    If the count for either " or ' is odd, we're inside that string.
+    Edge-case: we check " first; if we're inside a "-string we ignore '.
+    """
+    line_start = text.rfind("\n", 0, match_start)
+    line_start = 0 if line_start == -1 else line_start + 1
+    before = text[line_start:match_start]
+
+    in_str: Optional[str] = None
+    i = 0
+    while i < len(before):
+        c = before[i]
+        if in_str:
+            if c == "\\" and i + 1 < len(before):
+                i += 2
+                continue
+            if c == in_str:
+                in_str = None
+        elif c in ('"', "'", "`"):
+            in_str = c
+        i += 1
+    return in_str is not None
+
+
 # ─────────────────────────────────────────────────────
 # Error-var detection (Refinement 1)
 # ─────────────────────────────────────────────────────
@@ -359,6 +389,10 @@ def transform_file(path: str, dry_run: bool = False) -> dict:
     flags = []
 
     for m in CONSOLE_RE.finditer(text):
+        # Skip matches inside string literals (e.g. code-sample defaults)
+        if console_is_in_string(text, m.start()):
+            continue
+
         method = m.group(1)
         open_paren = m.end() - 1
         close_paren = find_call_end(text, open_paren)

@@ -697,8 +697,8 @@ export async function fetchDirectoryPage(
   if (profileIds.length === 0) {
     if (audit) {
       timings.wallTotalMs = performance.now() - wallStart;
-      console.log(
-        JSON.stringify({
+      void improntaLog("directory_fetch_directory_page.info", {
+        message: JSON.stringify({
           event: "directory_fetch_directory_page",
           timings,
           note: "empty_profile_page",
@@ -709,7 +709,7 @@ export async function fetchDirectoryPage(
           hasLocationSlug: locationSlug.length > 0,
           taxonomyTermIdsCount: taxonomyTermIds.length,
         }),
-      );
+      });
     }
     return {
       items: [],
@@ -995,8 +995,8 @@ export async function fetchDirectoryPage(
 
   if (audit) {
     timings.wallTotalMs = performance.now() - wallStart;
-    console.log(
-      JSON.stringify({
+    void improntaLog("directory_fetch_directory_page.info", {
+      message: JSON.stringify({
         event: "directory_fetch_directory_page",
         timings,
         limit,
@@ -1007,7 +1007,7 @@ export async function fetchDirectoryPage(
         taxonomyTermIdsCount: taxonomyTermIds.length,
         itemCount: items.length,
       }),
-    );
+    });
   }
 
   return {

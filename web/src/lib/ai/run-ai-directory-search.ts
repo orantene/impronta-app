@@ -323,12 +323,12 @@ async function runAiDirectorySearchOnce(
           void improntaLog("ai_search_vector_rpc_error", {
             message: matchResult.message.slice(0, 240),
           });
-          console.warn(
-            JSON.stringify({
+          void improntaLog("ai_run_ai_directory_search.warn", {
+            message: JSON.stringify({
               event: "ai_search_vector_rpc_error",
               message: matchResult.message.slice(0, 240),
             }),
-          );
+          });
         } else if (matchResult.rows.length === 0) {
           fallbackReason = "no_vector_matches";
         } else {
@@ -454,14 +454,14 @@ async function runAiDirectorySearchOnce(
       search_mode: searchMode,
       query_len: normalizedForEmbedding?.length ?? 0,
     });
-    console.warn(
-      JSON.stringify({
+    void improntaLog("ai_run_ai_directory_search.warn", {
+      message: JSON.stringify({
         event: "ai_search_fallback",
         fallback_reason: fallbackReason,
         search_mode: searchMode,
         query_len: normalizedForEmbedding?.length ?? 0,
       }),
-    );
+    });
   }
 
   const vecScores = results

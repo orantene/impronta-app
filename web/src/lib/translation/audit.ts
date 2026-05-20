@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/server/safe-error";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type TranslationAuditInput = {
@@ -28,6 +29,6 @@ export async function appendTranslationAudit(
     meta: row.meta ?? {},
   });
   if (error) {
-    console.error("translation_audit_events insert", error);
+    logServerError("translation_audit", error);
   }
 }

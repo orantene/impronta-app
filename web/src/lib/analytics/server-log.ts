@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 export type LogAnalyticsEventInput = {
   name: string;
@@ -27,6 +28,9 @@ export async function logAnalyticsEventServer(input: LogAnalyticsEventInput): Pr
   });
 
   if (error && process.env.NODE_ENV === "development") {
-    console.warn("[logAnalyticsEventServer]", error.message);
+    void improntaLog("analytics_server_log.warn", {
+      message: "[logAnalyticsEventServer]",
+      error: error.message,
+    });
   }
 }

@@ -3,6 +3,7 @@
  * Silently no-ops when RESEND_API_KEY is not set (dev / test envs without email).
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { Resend } from "resend";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -29,7 +30,10 @@ export type SendEmailInput = {
 export async function sendEmail(input: SendEmailInput): Promise<void> {
   const client = getClient();
   if (!client) {
-    console.warn("[email] RESEND_API_KEY not set — skipping email:", input.subject);
+    void improntaLog("email.warn", {
+      message: "[email] RESEND_API_KEY not set — skipping email:",
+      input: input.subject,
+    });
     return;
   }
 

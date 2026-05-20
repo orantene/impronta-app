@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import {
   fetchGoogleCityPredictions,
@@ -243,7 +244,10 @@ export async function searchCanonicalCountries(query: string): Promise<CountrySu
     local = await searchLocalCountries(q);
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[location-autocomplete] searchLocalCountries failed:", e);
+      void improntaLog("location_autocomplete.warn", {
+        message: "[location-autocomplete] searchLocalCountries failed:",
+        error: String(e),
+      });
     }
   }
 
@@ -266,7 +270,10 @@ export async function searchCanonicalCountries(query: string): Promise<CountrySu
     }
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[location-autocomplete] searchGoogleCountries failed:", e);
+      void improntaLog("location_autocomplete.warn", {
+        message: "[location-autocomplete] searchGoogleCountries failed:",
+        error: String(e),
+      });
     }
   }
   if (external.length === 0) {
@@ -274,7 +281,10 @@ export async function searchCanonicalCountries(query: string): Promise<CountrySu
       external = await searchExternalCountries(q);
     } catch (e) {
       if (process.env.NODE_ENV === "development") {
-        console.warn("[location-autocomplete] searchExternalCountries failed:", e);
+        void improntaLog("location_autocomplete.warn", {
+          message: "[location-autocomplete] searchExternalCountries failed:",
+          error: String(e),
+        });
       }
     }
   }
@@ -284,7 +294,10 @@ export async function searchCanonicalCountries(query: string): Promise<CountrySu
     merged = mergeCountrySuggestions(local, external);
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[location-autocomplete] mergeCountrySuggestions failed:", e);
+      void improntaLog("location_autocomplete.warn", {
+        message: "[location-autocomplete] mergeCountrySuggestions failed:",
+        error: String(e),
+      });
     }
   }
 
@@ -349,7 +362,10 @@ export async function searchCanonicalCities(input: {
     local = await searchLocalCities(q, countryIso2);
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[location-autocomplete] searchLocalCities failed:", e);
+      void improntaLog("location_autocomplete.warn", {
+        message: "[location-autocomplete] searchLocalCities failed:",
+        error: String(e),
+      });
     }
   }
 
@@ -366,7 +382,10 @@ export async function searchCanonicalCities(input: {
     });
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[location-autocomplete] searchGoogleCities failed:", e);
+      void improntaLog("location_autocomplete.warn", {
+        message: "[location-autocomplete] searchGoogleCities failed:",
+        error: String(e),
+      });
     }
   }
 
@@ -375,7 +394,10 @@ export async function searchCanonicalCities(input: {
       external = await searchExternalCities(q, countryIso2);
     } catch (e) {
       if (process.env.NODE_ENV === "development") {
-        console.warn("[location-autocomplete] searchExternalCities failed:", e);
+        void improntaLog("location_autocomplete.warn", {
+          message: "[location-autocomplete] searchExternalCities failed:",
+          error: String(e),
+        });
       }
     }
   }
@@ -405,7 +427,10 @@ async function searchLocalCountries(query: string): Promise<CountrySuggestion[]>
 
   const { data, error } = await builder;
   if (error && process.env.NODE_ENV === "development") {
-    console.warn("[location-autocomplete] searchLocalCountries:", error.message);
+    void improntaLog("location_autocomplete.warn", {
+      message: "[location-autocomplete] searchLocalCountries:",
+      error: error.message,
+    });
   }
   const rows = (data ?? []) as CountrySuggestion[];
   return rows

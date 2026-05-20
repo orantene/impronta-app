@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 /**
  * Centralized status-tone palette + contrast validation (D.6).
  *
@@ -88,7 +89,7 @@ export function assertToneContrastAA(): void {
     if (process.env.NODE_ENV !== "production") {
       throw new Error(msg);
     }
-    console.warn(msg);
+    void improntaLog("ui_status_tones.warn", { message: msg });
   }
 }
 
@@ -98,6 +99,6 @@ if (process.env.NODE_ENV !== "production") {
   try {
     assertToneContrastAA();
   } catch (err) {
-    console.warn("[status-tones]", err);
+    void improntaLog("ui_status_tones.warn", { message: "[status-tones]", error: String(err) });
   }
 }

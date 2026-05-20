@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createTranslator } from "@/i18n/messages";
@@ -406,9 +407,9 @@ async function rpcFacetTaxonomy(
   });
   if (error) {
     if (isPostgrestMissingColumnError(error)) {
-      console.warn(
-        "[directory/facet-taxonomy-rpc] PostgREST has no matching RPC (migration likely not applied). Run migration 20260411220000_directory_facet_count_rpcs.sql against this project, then reload the API schema if needed.",
-      );
+      void improntaLog("directory_field_driven_filters.warn", {
+        message: "[directory/facet-taxonomy-rpc] PostgREST has no matching RPC (migration likely not applied). Run migration 20260411220000_directory_facet_count_rpcs.sql against this project, then reload the API schema if needed.",
+      });
     } else {
       logServerError("directory/facet-taxonomy-rpc", error);
     }
@@ -451,9 +452,9 @@ async function rpcFacetLocation(
   );
   if (error) {
     if (isPostgrestMissingColumnError(error)) {
-      console.warn(
-        "[directory/facet-location-rpc] PostgREST has no matching RPC (migration likely not applied). Run migration 20260411220000_directory_facet_count_rpcs.sql against this project, then reload the API schema if needed.",
-      );
+      void improntaLog("directory_field_driven_filters.warn", {
+        message: "[directory/facet-location-rpc] PostgREST has no matching RPC (migration likely not applied). Run migration 20260411220000_directory_facet_count_rpcs.sql against this project, then reload the API schema if needed.",
+      });
     } else {
       logServerError("directory/facet-location-rpc", error);
     }
@@ -489,9 +490,9 @@ async function rpcFacetGenderCounts(
   });
   if (error) {
     if (isPostgrestMissingColumnError(error)) {
-      console.warn(
-        "[directory/facet-gender-rpc] Missing RPC directory_facet_gender_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
-      );
+      void improntaLog("directory_field_driven_filters.warn", {
+        message: "[directory/facet-gender-rpc] Missing RPC directory_facet_gender_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
+      });
     } else {
       logServerError("directory/facet-gender-rpc", error);
     }
@@ -527,9 +528,9 @@ async function rpcFacetBooleanFieldCounts(
   });
   if (error) {
     if (isPostgrestMissingColumnError(error)) {
-      console.warn(
-        "[directory/facet-boolean-rpc] Missing RPC directory_facet_boolean_field_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
-      );
+      void improntaLog("directory_field_driven_filters.warn", {
+        message: "[directory/facet-boolean-rpc] Missing RPC directory_facet_boolean_field_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
+      });
     } else {
       logServerError("directory/facet-boolean-rpc", error);
     }
@@ -565,9 +566,9 @@ async function rpcFacetTextFieldCounts(
   });
   if (error) {
     if (isPostgrestMissingColumnError(error)) {
-      console.warn(
-        "[directory/facet-text-rpc] Missing RPC directory_facet_text_field_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
-      );
+      void improntaLog("directory_field_driven_filters.warn", {
+        message: "[directory/facet-text-rpc] Missing RPC directory_facet_text_field_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
+      });
     } else {
       logServerError("directory/facet-text-rpc", error);
     }

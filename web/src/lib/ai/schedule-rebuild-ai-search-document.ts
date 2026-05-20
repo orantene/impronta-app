@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 import { rebuildAiSearchDocument } from "@/lib/ai/rebuild-ai-search-document";
@@ -43,7 +44,9 @@ function runDeferredRebuild(supabase: SupabaseClient, talentProfileId: string) {
   // another pass.
   pending.delete(talentProfileId);
   const startedAt = Date.now();
-  console.info(`${LOG} rebuild start profile=${talentProfileId}`);
+  void improntaLog("ai_schedule_rebuild_ai_search_document.info", {
+    message: `${LOG} rebuild start profile=${talentProfileId}`,
+  });
   return rebuildAiSearchDocument(supabase, talentProfileId)
     .then(({ error }) => {
       const ms = Date.now() - startedAt;
@@ -52,20 +55,20 @@ function runDeferredRebuild(supabase: SupabaseClient, talentProfileId: string) {
           "scheduleRebuildAiSearchDocument",
           new Error(error),
         );
-        console.warn(
-          `${LOG} rebuild FAILED profile=${talentProfileId} (${ms}ms): ${error}`,
-        );
+        void improntaLog("ai_schedule_rebuild_ai_search_document.warn", {
+          message: `${LOG} rebuild FAILED profile=${talentProfileId} (${ms}ms): ${error}`,
+        });
       } else {
-        console.info(
-          `${LOG} rebuild done profile=${talentProfileId} (${ms}ms)`,
-        );
+        void improntaLog("ai_schedule_rebuild_ai_search_document.info", {
+          message: `${LOG} rebuild done profile=${talentProfileId} (${ms}ms)`,
+        });
       }
     })
     .catch((e) => {
       logServerError("scheduleRebuildAiSearchDocument", e);
-      console.warn(
-        `${LOG} rebuild THREW profile=${talentProfileId}: ${String(e)}`,
-      );
+      void improntaLog("ai_schedule_rebuild_ai_search_document.warn", {
+        message: `${LOG} rebuild THREW profile=${talentProfileId}: ${String(e)}`,
+      });
     });
 }
 
@@ -83,13 +86,15 @@ export async function scheduleRebuildAiSearchDocument(
   // Coalesce: a save touching multiple slugs calls this several times in
   // one request — only the first schedules; the rest are no-ops.
   if (pending.has(talentProfileId)) {
-    console.info(
-      `${LOG} coalesced (already pending) profile=${talentProfileId}`,
-    );
+    void improntaLog("ai_schedule_rebuild_ai_search_document.info", {
+      message: `${LOG} coalesced (already pending) profile=${talentProfileId}`,
+    });
     return;
   }
   pending.add(talentProfileId);
-  console.info(`${LOG} scheduled profile=${talentProfileId}`);
+  void improntaLog("ai_schedule_rebuild_ai_search_document.info", {
+    message: `${LOG} scheduled profile=${talentProfileId}`,
+  });
 
   try {
     // Preferred: run after the response is flushed (correct for

@@ -8,6 +8,7 @@
  * `mapStripeStatus` (was 2 identical copies in workspace + talent billing).
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { headers } from "next/headers";
 
 // ─── URL helpers ──────────────────────────────────────────────────────────────
@@ -76,8 +77,8 @@ export function mapStripeStatus(stripeStatus: string): AllowedStatus {
   // "unpaid" = all retries failed; treat as past_due for downgrade logic.
   if (stripeStatus === "unpaid") return "past_due";
   // eslint-disable-next-line no-console
-  console.warn(
-    `[stripe] unknown subscription status "${stripeStatus}" — defaulting to 'incomplete'`,
-  );
+  void improntaLog("stripe_utils.warn", {
+    message: `[stripe] unknown subscription status "${stripeStatus}" — defaulting to 'incomplete'`,
+  });
   return "incomplete";
 }

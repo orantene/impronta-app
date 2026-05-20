@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import type { DashboardNavGroup, DashboardNavItem } from "@/lib/dashboard/architecture";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -50,7 +51,7 @@ function dedupeFieldGroupsByVisibleLabel(groups: TalentNavFieldGroupRow[]): Tale
 
 function logTalentNavTrace(message: string, detail: Record<string, unknown>) {
   if (process.env.DEBUG_TALENT_NAV !== "1") return;
-  console.info(`[talent-nav] ${message}`, detail);
+  void improntaLog("talent_nav_groups.info", { message: `[talent-nav] ${message}`, detail: JSON.stringify(detail) });
 }
 
 /**
