@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * App drawer / side panel — same primitives as `sheet.tsx` (shared motion + width).
  */
