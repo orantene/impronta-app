@@ -73,7 +73,7 @@ jobs:
       # the array element shapes to AdminShellIconName / DrawerId | null. Count
       # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
       TSC_BASE: 4              # restored from 6 after fixing light-01 + WorkspaceTopbar Q1-narrowing collateral.
-      SUPPRESSIONS_BASE: 8509  # was 8458 post-Q4; RAISED (rare!) after eslint-plugin-react-hooks 7.0.1 → 7.1.1 bump exposed +51 NET previously-hidden violations across 4 react-hooks rules (refs +32, preserve-manual-memoization +12, purity +3, immutability +4; static-components +0 — Q4's prediction was off). NOT a regression-silencing raise; this is honest debt exposure. The same source code is now measured by a stricter plugin version. Hotspots: marketing/get-started-form.tsx (refs +12), edit-chrome/edit-context.tsx (memoization +10 + refs +4 + immutability +2), TalentProfileShellDrawer.tsx (refs +8 + memoization +1), edit-chrome/selection-layer.tsx (refs +3). Q5 scope expanded to absorb these.
+      SUPPRESSIONS_BASE: 7892  # was 8509 post-Plugin-bump; LOWERED after Y3 dynamic-styles lane (4 commits + integrator regen) — 534 fontSize codemod conversions + ~20 progress-bar CSS-var-channel conversions + 4 chevron-rotation eliminations + keyframe re-injection fix. Net -617 across mainly ratchet/no-new-inline-style (7750 → 7189) + per-rule cleanup.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
