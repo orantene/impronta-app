@@ -283,14 +283,10 @@ export function TalentRegistrationDrawer() {
               }}>
                 {reachCount}
               </div>
-              <div style={{ fontSize: 14, color: COLORS.inkMuted, marginTop: 8, fontWeight: 500 }}>
+              <div style={{ fontSize: 14, marginTop: 8, fontWeight: 500 }} className="text-admin-ink-muted">
                 clients on the {effectiveTenant.name} hub will see your profile
               </div>
-              <h2 style={{
-                margin: "20px 0 6px",
-                fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-                color: COLORS.ink, letterSpacing: -0.3,
-              }}>
+              <h2 style={{ margin: "20px 0 6px", fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }} className="text-admin-ink">
                 You&apos;re in
               </h2>
               <ol style={{
@@ -316,13 +312,13 @@ export function TalentRegistrationDrawer() {
                       flexShrink: 0,
                     }}>{item.n}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3 }}>{item.label}</div>
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.3 }}>{item.sub}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }} className="text-admin-ink">{item.label}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.3 }} className="text-admin-ink-muted">{item.sub}</div>
                     </div>
                   </li>
                 ))}
               </ol>
-              <div style={{ marginTop: 16, fontSize: 11, color: COLORS.inkDim }}>
+              <div style={{ marginTop: 16, fontSize: 11 }} className="text-admin-ink-dim">
                 Tap anywhere to close
               </div>
             </div>
@@ -348,14 +344,14 @@ export function TalentRegistrationDrawer() {
             animation: "tulalaRegStep .26s cubic-bezier(.32,.72,0,1)",
           }}
         >{cur.title}</h2>
-        <p style={{ margin: "6px 0 16px", fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5, flexShrink: 0 }}>
+        <p style={{ margin: "6px 0 16px", fontSize: 13.5, lineHeight: 1.5, flexShrink: 0 }} className="text-admin-ink-muted">
           {cur.sub}
         </p>
 
         <div style={{ flex: 1, overflowY: "auto", marginBottom: 16, marginRight: -8, paddingRight: 8 }}>
           {step === 0 && (
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
                 Stage / professional name
               </label>
               <input type="text" value={stageName} onChange={e => setStageName(e.target.value)}
@@ -366,23 +362,16 @@ export function TalentRegistrationDrawer() {
                   fontFamily: FONTS.body, fontSize: 15, color: COLORS.ink, outline: "none",
                 }}
               />
-              <div style={{
-                marginTop: 14, padding: "12px 14px", borderRadius: 10,
-                background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
-                fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-              }}>
+              <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
                 You&apos;re registering with <strong>{effectiveTenant.name}</strong>. They&apos;ll review your profile before publishing.
               </div>
             </div>
           )}
 
           {step === 1 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {visibleParents.length === 0 ? (
-                <div style={{
-                  padding: 14, borderRadius: 10, background: COLORS.surface,
-                  border: `1px solid ${COLORS.borderSoft}`, fontSize: 12.5, color: COLORS.inkMuted,
-                }}>
+                <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12.5 }} className="bg-admin-surface text-admin-ink-muted">
                   This agency hasn&apos;t enabled any talent categories yet.
                 </div>
               ) : visibleParents.map(p => {
@@ -396,9 +385,9 @@ export function TalentRegistrationDrawer() {
                     display: "flex", alignItems: "center", gap: 12,
                   }}>
                     <span style={{ fontSize: 22, flexShrink: 0 }}>{p.emoji}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{p.label}</div>
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{p.helper}</div>
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{p.label}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{p.helper}</div>
                     </div>
                     <span style={{
                       width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
@@ -415,15 +404,15 @@ export function TalentRegistrationDrawer() {
           )}
 
           {step === 2 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="flex flex-col gap-3.5">
               {[...parents].map(pid => {
                 const parent = TAXONOMY.find(p => p.id === pid)!;
                 return (
                   <div key={pid}>
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
                       {parent.emoji}  {parent.label}
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <div className="flex flex-wrap gap-1.5">
                       {parent.children.map(c => {
                         const active = children.has(c.id);
                         return (
@@ -446,9 +435,9 @@ export function TalentRegistrationDrawer() {
           )}
 
           {step === 3 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="flex flex-col gap-3.5">
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
                   Home city
                 </label>
                 <input type="text" value={city} onChange={e => setCity(e.target.value)}
@@ -461,14 +450,14 @@ export function TalentRegistrationDrawer() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
                   Travel radius — {radius === 999 ? "Anywhere" : `${radius} km`}
                 </label>
                 <input type="range" min={10} max={999} step={10} value={radius}
                   onChange={e => setRadius(Number(e.target.value))}
                   style={{ width: "100%", accentColor: COLORS.accent }}
                 />
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginTop: 4 }} className="text-admin-ink-muted">
                   <span>Local only</span>
                   <span>Worldwide</span>
                 </div>
@@ -495,12 +484,10 @@ export function TalentRegistrationDrawer() {
                   );
                 })}
               </div>
-              <div style={{
-                marginTop: 12, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5,
-              }}>
+              <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
                 Tip: One clean headshot, one full body, then 3–4 work samples.
                 {photoCount > 0 && photoCount < 3 && (
-                  <span style={{ display: "block", marginTop: 4, color: COLORS.amberDeep }}>
+                  <span style={{ display: "block", marginTop: 4 }} className="text-admin-amber-deep">
                     Need {3 - photoCount} more.
                   </span>
                 )}
@@ -521,24 +508,10 @@ export function TalentRegistrationDrawer() {
                 const optional = allFields.filter(f => f.optional).length;
                 if (allFields.length === 0) return null;
                 return (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 12px", borderRadius: 10,
-                    background: COLORS.surfaceAlt,
-                    border: `1px solid ${COLORS.borderSoft}`,
-                    fontSize: 11.5, color: COLORS.inkMuted,
-                  }}>
-                    <span style={{
-                      padding: "2px 7px", borderRadius: 999,
-                      background: COLORS.accent, color: "#fff",
-                      fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
-                    }}>{required} required</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 11.5 }} className="bg-admin-surface-alt text-admin-ink-muted">
+                    <span style={{ padding: "2px 7px", borderRadius: 999, color: "#fff", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }} className="bg-admin-accent">{required} required</span>
                     {optional > 0 && (
-                      <span style={{
-                        padding: "2px 7px", borderRadius: 999,
-                        background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
-                        fontSize: 10.5, fontWeight: 600,
-                      }}>{optional} optional</span>
+                      <span style={{ padding: "2px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">{optional} optional</span>
                     )}
                     <span style={{ marginLeft: "auto", fontSize: 10.5 }}>
                       You can fill optional fields later from your dashboard.
@@ -548,10 +521,10 @@ export function TalentRegistrationDrawer() {
               })()}
               {dynamicFields.map(g => (
                 <div key={g.parent.id}>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">
                     {g.parent.emoji}  {g.parent.label}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div className="flex flex-col gap-2.5">
                     {g.fields.map(f => (
                       <RegFieldInput key={f.id} field={f}
                         value={fields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
@@ -566,15 +539,15 @@ export function TalentRegistrationDrawer() {
           )}
 
           {step === 6 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="flex flex-col gap-4">
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
                   Languages
                 </div>
                 <LanguagesEditor value={languages} onChange={setLanguages} />
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
                   Skills & strengths · optional
                 </div>
                 <CatalogChips
@@ -591,14 +564,14 @@ export function TalentRegistrationDrawer() {
           )}
 
           {step === 7 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="flex flex-col gap-3.5">
               {/* Summary card — what gets submitted */}
               <div style={{
                 padding: 14, borderRadius: 12,
                 border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
                 fontFamily: FONTS.body,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }} className="text-admin-ink">
                   {stageName || "Your profile"}
                 </div>
                 <ReviewKv label="Categories"
@@ -624,10 +597,7 @@ export function TalentRegistrationDrawer() {
               {/* Privacy / consent — two-column "what this agency will use" */}
               <ConsentTwoCol agencyName={effectiveTenant.name} />
 
-              <div style={{
-                padding: "12px 14px", borderRadius: 10, background: COLORS.successSoft,
-                color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5,
-              }}>
+              <div style={{ padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="bg-admin-success-soft text-admin-success-deep">
                 Tap <strong>Submit for review</strong> to agree to the above and join {effectiveTenant.name}. You&apos;ll get an email when they approve you — usually within 1 business day.
               </div>
             </div>
@@ -639,7 +609,7 @@ export function TalentRegistrationDrawer() {
             background: "transparent", border: "none", padding: 0, cursor: "pointer",
             fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, fontWeight: 500,
           }}>Cancel</button>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             {step > 0 && !isLast && (
               <button type="button" onClick={() => setStep(s => s - 1)} style={{
                 padding: "10px 14px", borderRadius: 999,

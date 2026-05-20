@@ -135,19 +135,19 @@ export function DomainDrawer() {
           >
             {/* Status row */}
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex items-center gap-2">
                 <StatDot tone={verified ? "green" : "amber"} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                   {verified ? "Domain verified" : "Verification pending"}
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex items-center gap-2">
                 <StatDot tone={sslHealthy ? "green" : "amber"} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                   SSL {domain.sslStatus}
                 </span>
                 {sslDaysLeft !== null && (
-                  <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                  <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                     · renews in {sslDaysLeft} days
                   </span>
                 )}
@@ -157,10 +157,10 @@ export function DomainDrawer() {
             {/* DNS records */}
             {domain.dnsRecords && domain.dnsRecords.length > 0 && (
               <div>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6, fontFamily: FONTS.body }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                   DNS records
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div className="flex flex-col gap-1">
                   {domain.dnsRecords.map((r, i) => (
                     <div key={i} style={{
                       display: "grid", gridTemplateColumns: "60px 80px 1fr auto auto", gap: 8,
@@ -170,9 +170,9 @@ export function DomainDrawer() {
                       fontSize: 11.5, fontFamily: "ui-monospace, monospace",
                       alignItems: "center",
                     }}>
-                      <span style={{ color: COLORS.inkMuted, fontWeight: 600 }}>{r.type}</span>
-                      <span style={{ color: COLORS.ink }}>{r.host}</span>
-                      <span style={{ color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.value}</span>
+                      <span style={{ fontWeight: 600 }} className="text-admin-ink-muted">{r.type}</span>
+                      <span className="text-admin-ink">{r.host}</span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{r.value}</span>
                       <button
                         type="button"
                         onClick={() => copy(r.value, `${r.type} value`)}
@@ -216,14 +216,14 @@ export function DomainDrawer() {
 
       {isLive && domain.alternateDomains.length > 0 && (
         <Section title="Alternate domains" description="Additional domains that redirect to the primary.">
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {domain.alternateDomains.map(d => (
               <div key={d.domain} style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "8px 12px", borderRadius: 10,
                 background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, color: COLORS.ink }}>
+                <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 13 }} className="text-admin-ink">
                   {d.domain}
                 </span>
                 <span style={{
@@ -337,12 +337,7 @@ export function IdentityDrawer() {
           />
         </FieldRow>
         <FieldRow label="Workspace slug" hint="Used in URLs. Slug change is a separate flow (URL redirect mapping required) — coming next iteration.">
-          <div style={{
-            padding: "10px 12px", borderRadius: 10,
-            border: `1px solid ${COLORS.borderSoft}`,
-            background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-            fontSize: 13, fontFamily: FONTS.body,
-          }}>tulala.app/{effectiveTenant.slug}</div>
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 13, fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">tulala.app/{effectiveTenant.slug}</div>
         </FieldRow>
         <FieldRow label="Contact email">
           <TextInput
@@ -353,12 +348,7 @@ export function IdentityDrawer() {
           />
         </FieldRow>
         <FieldRow label="Support email" optional hint="Coming next iteration — stored under settings.support_email.">
-          <div style={{
-            padding: "10px 12px", borderRadius: 10,
-            border: `1px solid ${COLORS.borderSoft}`,
-            background: COLORS.surfaceAlt, color: COLORS.inkDim,
-            fontSize: 13, fontFamily: FONTS.body, fontStyle: "italic",
-          }}>not yet wired</div>
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 13, fontFamily: FONTS.body, fontStyle: "italic" }} className="bg-admin-surface-alt text-admin-ink-dim">not yet wired</div>
         </FieldRow>
       </Section>
     </DrawerShell>
@@ -585,41 +575,20 @@ export function TalentProfileDrawer() {
           borderRadius: 12,
         }}
       >
-        <div
-          style={{
-            width: 88,
-            height: 110,
-            borderRadius: 8,
-            background: COLORS.surfaceAlt,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 50,
-            flexShrink: 0,
-          }}
-        >
+        <div style={{ width: 88, height: 110, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 50, flexShrink: 0 }} className="bg-admin-surface-alt">
           {profile.thumb}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <StateChip state={profile.state} label={TALENT_STATE_LABEL[profile.state]} />
             {profile.representation && (
               <RepresentationChip representation={profile.representation} />
             )}
           </div>
-          <div
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 22,
-              fontWeight: 500,
-              color: COLORS.ink,
-              letterSpacing: -0.3,
-              marginTop: 6,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3, marginTop: 6 }} className="text-admin-ink">
             {profile.name}
           </div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 12.5, marginTop: 2 }} className="text-admin-ink-muted">
             {profile.height} <Bullet /> {profile.city}
           </div>
         </div>
@@ -688,27 +657,17 @@ export function MyProfileDrawer() {
           }}
         >
           <Avatar initials="OT" size={48} tone="ink" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+          <div className="flex-1">
+            <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
               Oran Tene
             </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">
               oran@acme-models.com
             </div>
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <RoleChip role={state.role} />
               {state.alsoTalent && (
-                <span
-                  style={{
-                    background: "rgba(11,11,13,0.05)",
-                    color: COLORS.ink,
-                    fontFamily: FONTS.body,
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    padding: "3px 8px",
-                    borderRadius: 999,
-                  }}
-                >
+                <span style={{ background: "rgba(11,11,13,0.05)", fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, padding: "3px 8px", borderRadius: 999 }} className="text-admin-ink">
                   On roster
                 </span>
               )}

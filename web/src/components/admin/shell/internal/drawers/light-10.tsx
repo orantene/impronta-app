@@ -220,15 +220,12 @@ export function FieldCatalogDrawer() {
       )}
 
       {loading && (
-        <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+        <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
           Loading the field catalog…
         </div>
       )}
       {error && !loading && (
-        <div style={{
-          padding: "12px 14px", borderRadius: 10, background: COLORS.amberSoft,
-          border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
-        }}>
+        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-amber-soft text-admin-ink">
           {error}{" "}
           <button type="button" onClick={() => void load()} style={{
             marginLeft: 6, textDecoration: "underline", background: "none",
@@ -238,7 +235,7 @@ export function FieldCatalogDrawer() {
       )}
 
       {!loading && !error && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           {order.map((bucket) => {
             const g = bucket.group;
             const groupKey = g ? `g:${g.id}` : "g:__general__";
@@ -279,11 +276,7 @@ export function FieldCatalogDrawer() {
                         textDecoration: groupOff ? "line-through" : "none",
                       }}>{groupName}</span>
                       {g && g.custom_label && (
-                        <span style={{
-                          fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
-                          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-                          letterSpacing: 0.4, textTransform: "uppercase",
-                        }}>renamed</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">renamed</span>
                       )}
                       {g && canCustomize && (
                         <>
@@ -323,11 +316,11 @@ export function FieldCatalogDrawer() {
                         fontFamily: FONTS.body,
                         opacity: f.enabled ? 1 : 0.6,
                       }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="flex-1 min-w-0">
                           {renaming === fieldKey ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div className="flex flex-col gap-1.5">
                               <div>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-admin-ink-muted">
                                   Label
                                 </div>
                                 <TextInput
@@ -338,7 +331,7 @@ export function FieldCatalogDrawer() {
                                 />
                               </div>
                               <div>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-admin-ink-muted">
                                   Guidance text <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— shown to whoever fills this field</span>
                                 </div>
                                 <TextInput
@@ -347,7 +340,7 @@ export function FieldCatalogDrawer() {
                                   onChange={(e) => setRenameHelperVal(e.target.value)}
                                 />
                               </div>
-                              <div style={{ display: "flex", gap: 6 }}>
+                              <div className="flex gap-1.5">
                                 <button type="button" onClick={() => void commitFieldLabel(f)} style={{
                                   padding: "5px 11px", borderRadius: 999, border: "none",
                                   background: COLORS.fill, color: "#fff",
@@ -362,24 +355,16 @@ export function FieldCatalogDrawer() {
                             </div>
                           ) : (
                             <>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{fieldName}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{fieldName}</span>
                                 {f.custom_label && (
-                                  <span style={{
-                                    fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
-                                    background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-                                    letterSpacing: 0.4, textTransform: "uppercase",
-                                  }}>renamed</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">renamed</span>
                                 )}
                                 {required && (
-                                  <span style={{
-                                    fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
-                                    background: COLORS.amberSoft, color: COLORS.amberDeep,
-                                    letterSpacing: 0.4, textTransform: "uppercase",
-                                  }}>required</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-amber-soft text-admin-amber-deep">required</span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+                              <div style={{ fontSize: 10.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
                                 {f.field_key}
                                 {canCustomize && (
                                   <button
@@ -398,16 +383,13 @@ export function FieldCatalogDrawer() {
                                 )}
                               </div>
                               {f.custom_helper && (
-                                <div style={{
-                                  fontSize: 10.5, color: COLORS.indigoDeep, marginTop: 3,
-                                  lineHeight: 1.35, fontStyle: "italic",
-                                }}>“{f.custom_helper}”</div>
+                                <div style={{ fontSize: 10.5, marginTop: 3, lineHeight: 1.35, fontStyle: "italic" }} className="text-admin-indigo-deep">“{f.custom_helper}”</div>
                               )}
                             </>
                           )}
                         </div>
                         {renaming !== fieldKey && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               disabled={busy || !canRequire || !f.enabled}
@@ -448,28 +430,20 @@ export function FieldCatalogDrawer() {
             );
           })}
           {fields.length === 0 && (
-            <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+            <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
               No catalog fields for this workspace yet.
             </div>
           )}
 
           {/* Custom workspace fields — honest "not yet" state. No fake add flow. */}
-          <div style={{
-            padding: 14, borderRadius: 12,
-            background: COLORS.surface, border: `1px dashed ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body,
-          }}>
+          <div style={{ padding: 14, borderRadius: 12, border: `1px dashed ${COLORS.borderSoft}`, fontFamily: FONTS.body }} className="bg-admin-surface">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
                 Workspace-specific custom fields
               </span>
-              <span style={{
-                fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 999,
-                background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
-                letterSpacing: 0.4, textTransform: "uppercase",
-              }}>coming soon</span>
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">coming soon</span>
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               {rules.canCreateCustom
                 ? "Defining brand-new fields (beyond the network catalog) is included in your plan and is being built into the Catalog Studio. For now you can fully customize which network fields you capture, rename them, and set what's required above."
                 : "Brand-new custom fields are an Agency-tier capability and are being built into the Catalog Studio. Every workspace can already customize the network catalog above — enable, rename, and require the fields you actually use."}
@@ -619,15 +593,12 @@ export function FieldPrivacyDrawer() {
       )}
 
       {loading && (
-        <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+        <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
           Loading the field catalog…
         </div>
       )}
       {error && !loading && (
-        <div style={{
-          padding: "12px 14px", borderRadius: 10, background: COLORS.amberSoft,
-          border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
-        }}>
+        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-amber-soft text-admin-ink">
           {error}{" "}
           <button type="button" onClick={() => void load()} style={{
             marginLeft: 6, textDecoration: "underline", background: "none",
@@ -636,14 +607,10 @@ export function FieldPrivacyDrawer() {
         </div>
       )}
       {!loading && !error && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           {order.map((bucket) => (
             <div key={bucket.key}>
-              <div style={{
-                fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
-                color: COLORS.inkMuted, textTransform: "uppercase",
-                marginBottom: 6, paddingLeft: 4,
-              }}>{bucket.name}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6, paddingLeft: 4 }} className="text-admin-ink-muted">{bucket.name}</div>
               <div style={{
                 background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
                 borderRadius: 12, overflow: "hidden",
@@ -665,7 +632,7 @@ export function FieldPrivacyDrawer() {
             </div>
           ))}
           {fields.length === 0 && (
-            <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+            <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
               No catalog fields for this workspace yet.
             </div>
           )}

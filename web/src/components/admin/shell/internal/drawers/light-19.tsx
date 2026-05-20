@@ -52,10 +52,10 @@ export function CalendarSyncDrawer() {
                   borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? COLORS.accent + "44" : COLORS.borderSoft}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="flex items-center gap-2.5">
                   <Icon name={intg.icon} size={16} color={intg.connected ? COLORS.accent : COLORS.inkMuted} stroke={1.6} />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{intg.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{intg.name}</div>
                     <div style={{ fontSize: 11, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted, marginTop: 1 }}>
                       {intg.note}
                     </div>
@@ -82,16 +82,11 @@ export function CalendarSyncDrawer() {
         {/* iCal subscription URL */}
         <div>
           <CapsLabel>iCal subscription URL</CapsLabel>
-          <div style={{ marginTop: 8, fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, fontSize: 12.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
             Add this URL to any calendar app that supports iCal subscriptions (Apple Calendar, Outlook, Fantastical). Read-only, updates every 15 minutes.
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{
-              flex: 1, fontSize: 11.5, fontFamily: "monospace",
-              color: COLORS.ink, background: COLORS.surfaceAlt,
-              border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm,
-              padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
+          <div className="flex gap-2">
+            <div style={{ flex: 1, fontSize: 11.5, fontFamily: "monospace", border: `1px solid ${COLORS.border}`, padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink bg-admin-surface-alt rounded-admin-sm">
               {ICAL_URL}
             </div>
             <button
@@ -157,13 +152,7 @@ export function SystemStatusDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {/* Overall status banner */}
-        <div style={{
-          padding: "12px 16px",
-          background: allOperational ? COLORS.successSoft : COLORS.coralSoft,
-          borderRadius: RADIUS.lg,
-          border: `1px solid ${allOperational ? "rgba(46,125,91,0.2)" : "rgba(194,106,69,0.2)"}`,
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
+        <div style={{ padding: "12px 16px", background: allOperational ? COLORS.successSoft : COLORS.coralSoft, border: `1px solid ${allOperational ? "rgba(46,125,91,0.2)" : "rgba(194,106,69,0.2)"}`, display: "flex", alignItems: "center", gap: 10 }} className="rounded-admin-lg">
           <div style={{
             width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
             background: allOperational ? COLORS.success : COLORS.coral,
@@ -186,16 +175,12 @@ export function SystemStatusDrawer() {
                   borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{comp.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{comp.name}</div>
+                <div className="flex items-center gap-2.5">
                   {comp.latency && (
-                    <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{comp.latency}</span>
+                    <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{comp.latency}</span>
                   )}
-                  <span style={{
-                    fontSize: 10.5, fontWeight: 700,
-                    color: statusColor(comp.status), background: statusBg(comp.status),
-                    padding: "2px 7px", borderRadius: RADIUS.sm, textTransform: "capitalize",
-                  }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(comp.status), background: statusBg(comp.status), padding: "2px 7px", textTransform: "capitalize" }} className="rounded-admin-sm">
                     {comp.status}
                   </span>
                 </div>
@@ -217,17 +202,12 @@ export function SystemStatusDrawer() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{inc.title}</div>
-                  <span style={{
-                    fontSize: 10.5, fontWeight: 700, flexShrink: 0,
-                    color: inc.resolved ? COLORS.successDeep : COLORS.coral,
-                    background: inc.resolved ? COLORS.successSoft : COLORS.coralSoft,
-                    padding: "2px 7px", borderRadius: RADIUS.sm,
-                  }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{inc.title}</div>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, flexShrink: 0, color: inc.resolved ? COLORS.successDeep : COLORS.coral, background: inc.resolved ? COLORS.successSoft : COLORS.coralSoft, padding: "2px 7px" }} className="rounded-admin-sm">
                     {inc.resolved ? "Resolved" : "Ongoing"}
                   </span>
                 </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+                <div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
                   {inc.date} · {inc.impact}
                 </div>
               </div>
@@ -288,26 +268,26 @@ export function TelemetryDashboardDrawer() {
               background: toneBg(m.tone), borderRadius: RADIUS.lg,
               padding: "12px 14px", border: `1px solid ${toneColor(m.tone)}22`,
             }}>
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">
                 {m.label}
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: toneColor(m.tone), marginBottom: 2 }}>
                 {m.value}
               </div>
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{m.sub}</div>
+              <div style={{ fontSize: 10.5 }} className="text-admin-ink-muted">{m.sub}</div>
             </div>
           ))}
         </div>
 
         {/* Event funnel */}
-        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "14px 16px", border: `1px solid ${COLORS.border}` }}>
+        <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
           <CapsLabel>Conversion funnel · today</CapsLabel>
-          <div style={{ marginTop: 12 }}>
+          <div className="mt-3">
             {EVENT_FUNNEL.map((step, i) => (
               <div key={step.label} style={{ marginBottom: i < EVENT_FUNNEL.length - 1 ? 10 : 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12.5, color: COLORS.ink }}>
-                  <span style={{ fontWeight: 500 }}>{step.label}</span>
-                  <span style={{ color: COLORS.inkMuted }}>{step.count.toLocaleString()} · {step.pct}%</span>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12.5 }} className="text-admin-ink">
+                  <span className="font-medium">{step.label}</span>
+                  <span className="text-admin-ink-muted">{step.count.toLocaleString()} · {step.pct}%</span>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 6, overflow: "hidden" }}>
                   <div style={{
@@ -357,7 +337,7 @@ export function BetaProgramDrawer() {
       title="Beta program"
       description="Opt your workspace into early-access features. You can leave any beta at any time."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <button
             type="button"
@@ -385,25 +365,19 @@ export function BetaProgramDrawer() {
             }}
           >
             <Toggle on={flag.enrolled} onChange={() => toggle(flag.id)} />
-            <div style={{ flex: 1 }}>
+            <div className="flex-1">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{flag.name}</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: COLORS.indigoDeep,
-                  background: COLORS.indigoSoft, padding: "1px 6px", borderRadius: RADIUS.sm,
-                }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{flag.name}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px" }} className="text-admin-indigo-deep bg-admin-indigo-soft rounded-admin-sm">
                   {flag.rollout}% rollout
                 </span>
                 {flag.enrolled && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, color: COLORS.successDeep,
-                    background: COLORS.successSoft, padding: "1px 6px", borderRadius: RADIUS.sm,
-                  }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px" }} className="text-admin-success-deep bg-admin-success-soft rounded-admin-sm">
                     Enrolled
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.45 }}>{flag.description}</div>
+              <div style={{ fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{flag.description}</div>
             </div>
           </div>
         ))}
@@ -443,7 +417,7 @@ export function CsvImportDrawer() {
       title={`Import ${importType}`}
       description={`Upload a CSV to bulk-import ${importType === "talent" ? "talent profiles" : "client records"}. Map columns, preview, then commit.`}
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           {step !== "upload" && step !== "done" && (
             <SecondaryButton onClick={() => setStep(step === "mapping" ? "upload" : step === "preview" ? "mapping" : "preview")}>
               ← Back
@@ -504,10 +478,10 @@ export function CsvImportDrawer() {
             }}
           >
             <div style={{ fontSize: 28, marginBottom: 10 }}>📂</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">
               Drop your CSV here, or click to browse
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 14 }}>
+            <div style={{ fontSize: 11.5, marginBottom: 14 }} className="text-admin-ink-muted">
               Max 5 MB · UTF-8 encoding · First row = headers
             </div>
             <button
@@ -530,8 +504,8 @@ export function CsvImportDrawer() {
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               {columns.map((col) => (
                 <div key={col} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}` }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{col}</span>
-                  <span style={{ fontSize: 11.5, color: COLORS.successDeep }}>✓ Auto-matched</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{col}</span>
+                  <span style={{ fontSize: 11.5 }} className="text-admin-success-deep">✓ Auto-matched</span>
                 </div>
               ))}
             </div>
@@ -569,12 +543,9 @@ export function CsvImportDrawer() {
         )}
 
         {step === "done" && (
-          <div style={{
-            padding: "16px 18px", background: COLORS.successSoft,
-            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep, marginBottom: 4 }}>✓ Import complete</div>
-            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+          <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)` }} className="bg-admin-success-soft rounded-admin-lg">
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }} className="text-admin-success-deep">✓ Import complete</div>
+            <div style={{ fontSize: 12.5 }} className="text-admin-success-deep">
               {PREVIEW_ROWS.length} {importType} records imported successfully. They appear in your roster immediately.
             </div>
           </div>
@@ -608,7 +579,7 @@ export function MigrationAssistantDrawer() {
       description="AI-assisted import from your existing tools. We parse the structure and map it to Tulala — you review and commit."
       footer={
         analysed ? (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <SecondaryButton onClick={() => setAnalysed(false)}>← Back</SecondaryButton>
             <button
               type="button"
@@ -623,7 +594,7 @@ export function MigrationAssistantDrawer() {
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
             <button
               type="button"
@@ -644,22 +615,18 @@ export function MigrationAssistantDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {analysed ? (
           <>
-            <div style={{
-              padding: "14px 16px", background: COLORS.royalSoft,
-              borderRadius: RADIUS.lg, border: `1px solid rgba(95,75,139,0.2)`,
-              display: "flex", gap: 10, alignItems: "flex-start",
-            }}>
+            <div style={{ padding: "14px 16px", border: `1px solid rgba(95,75,139,0.2)`, display: "flex", gap: 10, alignItems: "flex-start" }} className="bg-admin-royal-soft rounded-admin-lg">
               <Icon name="sparkle" size={14} color={COLORS.royal} stroke={1.7} />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.royalDeep, marginBottom: 3 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }} className="text-admin-royal-deep">
                   AI analysis complete
                 </div>
-                <div style={{ fontSize: 12.5, color: COLORS.royalDeep, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-royal-deep">
                   Found {ANALYSIS_RESULT.found} {ANALYSIS_RESULT.entities}. {ANALYSIS_RESULT.notes}
                 </div>
               </div>
             </div>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Migration runs in the background. You can close this drawer — we&apos;ll notify you when it&apos;s done. Existing data is not affected.
             </div>
           </>
@@ -683,8 +650,8 @@ export function MigrationAssistantDrawer() {
                   >
                     <span style={{ fontSize: 20 }}>{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{meta.label}</div>
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{meta.hint}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{meta.label}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{meta.hint}</div>
                     </div>
                     {source === key && (
                       <Icon name="check" size={14} color={COLORS.accent} stroke={2.5} />
@@ -693,16 +660,12 @@ export function MigrationAssistantDrawer() {
                 ))}
               </div>
             </div>
-            <div style={{
-              padding: "32px 20px", textAlign: "center",
-              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
-              border: `2px dashed ${COLORS.border}`,
-            }}>
+            <div style={{ padding: "32px 20px", textAlign: "center", border: `2px dashed ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
               <div style={{ fontSize: 22, marginBottom: 8 }}>{SOURCE_META[source].icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
                 Drop your file here
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>or click to browse</div>
+              <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">or click to browse</div>
             </div>
           </>
         )}

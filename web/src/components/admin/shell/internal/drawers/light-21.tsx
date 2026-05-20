@@ -45,7 +45,7 @@ export function CrewBookingDrawer() {
   const statusBg = (s: string) => s === "confirmed" ? COLORS.successSoft : s === "unfilled" ? `${COLORS.coral}18` : `${COLORS.amber}18`;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { toast("Crew booking saved"); closeDrawer(); }}>Save booking</SecondaryButton>
     </div>
@@ -69,12 +69,12 @@ export function CrewBookingDrawer() {
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
             {resources.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>{r.role}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }} className="text-admin-ink-muted">{r.role}</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: r.status === "unfilled" ? COLORS.inkDim : COLORS.ink, marginTop: 2 }}>{r.name}</div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, minWidth: 50, textAlign: "right" }}>{r.fee}</div>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(r.status), background: statusBg(r.status), padding: "2px 8px", borderRadius: RADIUS.sm }}>
+                <div style={{ fontSize: 13, fontWeight: 700, minWidth: 50, textAlign: "right" }} className="text-admin-ink">{r.fee}</div>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(r.status), background: statusBg(r.status), padding: "2px 8px" }} className="rounded-admin-sm">
                   {r.status}
                 </span>
               </div>
@@ -82,10 +82,10 @@ export function CrewBookingDrawer() {
           </div>
         </div>
 
-        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+        <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.inkMuted }}>Estimated total</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: COLORS.accent }}>£{total.toLocaleString()}</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink-muted">Estimated total</span>
+            <span style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-accent">£{total.toLocaleString()}</span>
           </div>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
             {["confirmed", "pending", "unfilled"].map(s => {
@@ -124,7 +124,7 @@ export function ProductionTimelineDrawer() {
   const typeColor = (t: string) => t === "shoot" ? COLORS.accent : t === "talent" ? COLORS.indigo : t === "location" ? COLORS.success : t === "break" ? COLORS.amber : COLORS.inkMuted;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton
         onClick={() => {
@@ -143,15 +143,15 @@ export function ProductionTimelineDrawer() {
         {events.map((ev, i) => (
           <div key={i} style={{ display: "flex", gap: 14, paddingBottom: 0 }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 48, flexShrink: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, paddingTop: 10 }}>{ev.time}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, paddingTop: 10 }} className="text-admin-ink-muted">{ev.time}</div>
               {i < events.length - 1 && <div style={{ width: 2, flex: 1, background: COLORS.border, margin: "4px 0" }} />}
             </div>
             <div style={{ flex: 1, padding: "10px 0 12px 0", borderBottom: i < events.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex items-center gap-2">
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: typeColor(ev.type), flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{ev.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ev.label}</span>
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 3, marginLeft: 16 }}>{ev.who}</div>
+              <div style={{ fontSize: 11, marginTop: 3, marginLeft: 16 }} className="text-admin-ink-muted">{ev.who}</div>
             </div>
           </div>
         ))}
@@ -183,7 +183,7 @@ export function UsageTrackerDrawer() {
   const statusBg = (s: string) => s === "active" ? COLORS.successSoft : s === "expiring" ? `${COLORS.amber}18` : `${COLORS.coral}18`;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton
         onClick={() => {
@@ -214,39 +214,39 @@ export function UsageTrackerDrawer() {
                 }}
               >
                 <div style={{ fontSize: 20, fontWeight: 800, color: statusColor(tab.key) }}>{count}</div>
-                <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2 }}>{tab.label}</div>
+                <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-muted">{tab.label}</div>
               </div>
             );
           })}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {filtered.map((u, i) => (
             <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{u.talent}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{u.campaign}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{u.talent}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{u.campaign}</div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(u.status), background: statusBg(u.status), padding: "2px 8px", borderRadius: RADIUS.sm, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(u.status), background: statusBg(u.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">
                   {u.status}
                 </span>
               </div>
               <div style={{ marginTop: 8, display: "flex", gap: 16 }}>
                 {[{ k: "Regions", v: u.regions }, { k: "Media", v: u.media }, { k: "Expires", v: u.expires }].map(f => (
                   <div key={f.k}>
-                    <div style={{ fontSize: 10, color: COLORS.inkDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.k}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.ink, marginTop: 1 }}>{f.v}</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }} className="text-admin-ink-dim">{f.k}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 1 }} className="text-admin-ink">{f.v}</div>
                   </div>
                 ))}
               </div>
               {u.status === "expiring" && (
-                <div style={{ marginTop: 8, fontSize: 11, color: COLORS.amber, fontWeight: 600 }}>
+                <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600 }} className="text-admin-amber">
                   ⚠ Expires in {u.daysLeft} days — renew now
                 </div>
               )}
               {u.status === "expired" && (
-                <div style={{ marginTop: 8, fontSize: 11, color: COLORS.coral, fontWeight: 600 }}>
+                <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600 }} className="text-admin-coral">
                   ✕ Expired {Math.abs(u.daysLeft)} days ago — rights no longer valid
                 </div>
               )}
@@ -271,7 +271,7 @@ export function RelicenseFlowDrawer() {
   const steps = ["Select scope", "Set terms", "Send offer"];
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={() => { if (step > 1) setStep(s => (s - 1) as 1 | 2 | 3); else closeDrawer(); }}>
         {step > 1 ? "Back" : "Cancel"}
       </GhostButton>
@@ -305,17 +305,17 @@ export function RelicenseFlowDrawer() {
         </div>
 
         {step === 1 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}`, borderRadius: RADIUS.md, padding: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>Lena Voss — Winter 2024</div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>Current: Digital · UK only · Expires 15 May 2026</div>
+          <div className="flex flex-col gap-3.5">
+            <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14 }} className="bg-admin-accent-soft rounded-admin-md">
+              <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-accent">Lena Voss — Winter 2024</div>
+              <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Current: Digital · UK only · Expires 15 May 2026</div>
             </div>
-            <div style={{ fontSize: 12, color: COLORS.ink }}>You are extending the licence for this talent and campaign. Select the new scope below.</div>
+            <div style={{ fontSize: 12 }} className="text-admin-ink">You are extending the licence for this talent and campaign. Select the new scope below.</div>
           </div>
         )}
 
         {step === 2 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="flex flex-col gap-3.5">
             <FieldRow label="Regions">
               <TextInput value={regions} onChange={(e) => setRegions(e.target.value)} placeholder="e.g. UK, EU, Global" />
             </FieldRow>
@@ -332,8 +332,8 @@ export function RelicenseFlowDrawer() {
         )}
 
         {step === 3 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 16 }}>
+          <div className="flex flex-col gap-3.5">
+            <div style={{ border: `1px solid ${COLORS.border}`, padding: 16 }} className="bg-admin-surface rounded-admin-md">
               <CapsLabel>Offer summary</CapsLabel>
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
@@ -345,13 +345,13 @@ export function RelicenseFlowDrawer() {
                   { k: "Fee", v: `£${fee}` },
                 ].map(row => (
                   <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.k}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.v}</span>
+                    <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.k}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.v}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
               An offer will be sent to Lena Voss for acceptance. Once accepted, the new usage terms will be recorded automatically.
             </div>
           </div>
@@ -381,7 +381,7 @@ export function OwnershipTransferDrawer() {
   };
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={() => { if (step === 2) setStep(1); else closeDrawer(); }}>
         {step === 2 ? "Back" : "Cancel"}
       </GhostButton>
@@ -400,22 +400,22 @@ export function OwnershipTransferDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Ownership transfer" description="Email support to start a reviewed ownership transfer." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
 
-        <div style={{ background: `${COLORS.coral}12`, border: `1px solid ${COLORS.coral}40`, borderRadius: RADIUS.md, padding: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.coral }}>⚠ Irreversible action</div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ background: `${COLORS.coral}12`, border: `1px solid ${COLORS.coral}40`, padding: 14 }} className="rounded-admin-md">
+          <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-coral">⚠ Irreversible action</div>
+          <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
             Ownership transfers require support review. This drawer does not change account access automatically.
           </div>
         </div>
 
         {step === 1 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+          <div className="flex flex-col gap-3.5">
+            <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
               <CapsLabel>Current workspace</CapsLabel>
               <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                 {[{ k: "Workspace", v: "Tulala Agency" }, { k: "Current owner", v: "orantene@gmail.com" }, { k: "Plan", v: "Studio" }, { k: "Members", v: "7" }].map(row => (
                   <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.k}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.v}</span>
+                    <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.k}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.v}</span>
                   </div>
                 ))}
               </div>
@@ -427,21 +427,21 @@ export function OwnershipTransferDrawer() {
         )}
 
         {step === 2 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+          <div className="flex flex-col gap-3.5">
+            <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
               <CapsLabel>Transfer summary</CapsLabel>
               <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                 {[{ k: "From", v: "orantene@gmail.com" }, { k: "To", v: newOwnerEmail }, { k: "Workspace", v: "Tulala Agency" }].map(row => (
                   <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.k}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.v}</span>
+                    <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.k}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.v}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setConfirmed(c => !c)}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setConfirmed(c => !c)}>
               <Toggle on={confirmed} onChange={() => setConfirmed(c => !c)} />
-              <span style={{ fontSize: 12, color: COLORS.ink }}>I understand this action is permanent and cannot be undone</span>
+              <span style={{ fontSize: 12 }} className="bg-admin-surface rounded-admin-sm text-admin-ink">I understand this action is permanent and cannot be undone</span>
             </div>
           </div>
         )}
@@ -461,7 +461,7 @@ export function MinorAccountDrawer() {
   const [marketingConsent, setMarketingConsent] = React.useState(false);
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { toast("Guardian record saved — verification email sent"); closeDrawer(); }}>Save guardian record</SecondaryButton>
     </div>
@@ -471,22 +471,22 @@ export function MinorAccountDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Minor account setup" description="Attach a parent or guardian co-pilot to this talent account." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
 
-        <div style={{ background: `${COLORS.indigo}12`, border: `1px solid ${COLORS.indigo}40`, borderRadius: RADIUS.md, padding: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.indigo }}>ℹ Under-18 account</div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ background: `${COLORS.indigo}12`, border: `1px solid ${COLORS.indigo}40`, padding: 14 }} className="rounded-admin-md">
+          <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-indigo">ℹ Under-18 account</div>
+          <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
             A parent or legal guardian must be registered as co-pilot. They will receive booking notifications and must approve all paid engagements.
           </div>
         </div>
 
-        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+        <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
           <CapsLabel>Talent (minor)</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Sofia Chen</div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted }}>sofia.chen@example.com · Age: 16</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Sofia Chen</div>
+            <div style={{ fontSize: 11 }} className="text-admin-ink-muted">sofia.chen@example.com · Age: 16</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           <CapsLabel>Guardian details</CapsLabel>
           <FieldRow label="Full name">
             <TextInput value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="Parent / legal guardian name" />
@@ -499,7 +499,7 @@ export function MinorAccountDrawer() {
           </FieldRow>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           <CapsLabel>Consent</CapsLabel>
           {[
             { key: "legal", label: "I confirm I am the legal parent or guardian and have authority to consent", value: consentGiven, setter: () => setConsentGiven(c => !c) },
@@ -507,7 +507,7 @@ export function MinorAccountDrawer() {
           ].map(item => (
             <div key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={item.setter}>
               <Toggle on={item.value} onChange={item.setter} />
-              <span style={{ fontSize: 12, color: COLORS.ink, lineHeight: "1.4" }}>{item.label}</span>
+              <span style={{ fontSize: 12, lineHeight: "1.4" }} className="text-admin-ink">{item.label}</span>
             </div>
           ))}
         </div>
@@ -541,7 +541,7 @@ export function DiscoveryFeedDrawer() {
   ];
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
     </div>
   );
@@ -550,7 +550,7 @@ export function DiscoveryFeedDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Discovery feed" description="Trending talent and editorial picks for client browsing." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           {(["trending", "editorial"] as const).map(v => (
             <div key={v} onClick={() => setView(v)} style={{
               padding: "6px 16px", borderRadius: RADIUS.sm, cursor: "pointer", fontSize: 12, fontWeight: 600, textTransform: "capitalize",
@@ -564,14 +564,14 @@ export function DiscoveryFeedDrawer() {
         </div>
 
         {view === "trending" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {trending.map((t, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }} className="bg-admin-accent">
                   {i + 1}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.name}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t.name}</div>
                   <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
                     {t.tags.map(tag => (
                       <span key={tag} style={{ fontSize: 10, color: COLORS.inkMuted, background: COLORS.borderSoft, padding: "1px 6px", borderRadius: RADIUS.sm }}>{tag}</span>
@@ -579,7 +579,7 @@ export function DiscoveryFeedDrawer() {
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{t.bookings}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{t.bookings}</div>
                   <div style={{ fontSize: 10, color: t.trend.startsWith("+") ? COLORS.success : COLORS.coral, marginTop: 1 }}>{t.trend}</div>
                 </div>
               </div>
@@ -588,14 +588,14 @@ export function DiscoveryFeedDrawer() {
         )}
 
         {view === "editorial" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {editorial.map((e, i) => (
               <div key={i} style={{ padding: "14px 16px", background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{e.title}</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.indigo, background: `${COLORS.indigo}18`, padding: "2px 7px", borderRadius: RADIUS.sm }}>{e.type}</span>
+                  <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{e.title}</div>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: `${COLORS.indigo}18`, padding: "2px 7px" }} className="text-admin-indigo rounded-admin-sm">{e.type}</span>
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div className="flex gap-1.5">
                   {e.talent.map(name => (
                     <div key={name} style={{ fontSize: 11, color: COLORS.inkMuted, background: COLORS.borderSoft, padding: "3px 8px", borderRadius: RADIUS.sm }}>{name}</div>
                   ))}
@@ -625,7 +625,7 @@ export function AvailSearchDrawer() {
   ];
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { setSearched(true); toast("Availability checked"); }}>Search availability</SecondaryButton>
     </div>
@@ -648,20 +648,20 @@ export function AvailSearchDrawer() {
         </FieldRow>
 
         {searched && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             <CapsLabel>{results.length} talent available</CapsLabel>
             {results.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted }}>{r.name.split(" ").map(n => n[0]).join("")}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-ink-muted">{r.name.split(" ").map(n => n[0]).join("")}</span>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{r.name}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{r.type}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{r.name}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{r.type}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink }}>{r.rate}</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: r.avail === "Full" ? COLORS.success : COLORS.amber, background: r.avail === "Full" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "1px 6px", borderRadius: RADIUS.sm }}>
+                  <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-ink">{r.rate}</div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: r.avail === "Full" ? COLORS.success : COLORS.amber, background: r.avail === "Full" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "1px 6px" }} className="rounded-admin-sm">
                     {r.avail}
                   </span>
                 </div>
@@ -671,7 +671,7 @@ export function AvailSearchDrawer() {
         )}
 
         {!searched && (
-          <div style={{ textAlign: "center", padding: "32px 16px", color: COLORS.inkDim, fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: "32px 16px", fontSize: 12 }} className="text-admin-ink-dim">
             Enter dates and location, then tap Search
           </div>
         )}
@@ -703,7 +703,7 @@ export function CallSheetDrawer() {
   const statusLabel = (s: string) => s === "on-set" ? "On set" : s === "unfilled" ? "Unfilled" : s === "in-transit" ? "In transit" : "Confirmed";
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton onClick={() => { toast("Call sheet shared"); closeDrawer(); }}>Share call sheet</SecondaryButton>
     </div>
@@ -713,28 +713,28 @@ export function CallSheetDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Call sheet" description="Live production day roster with real-time check-in status." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
-        <div style={{ background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}`, borderRadius: RADIUS.md, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }} className="bg-admin-accent-soft rounded-admin-md">
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>Spring Campaign 2026</div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>Studio One, Shoreditch · Tue 20 May 2026</div>
+            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-accent">Spring Campaign 2026</div>
+            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Studio One, Shoreditch · Tue 20 May 2026</div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.success }}>{crew.filter(c => c.status === "on-set").length}</div>
-            <div style={{ fontSize: 10, color: COLORS.inkMuted }}>on set now</div>
+          <div className="text-right">
+            <div style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-success">{crew.filter(c => c.status === "on-set").length}</div>
+            <div style={{ fontSize: 10 }} className="text-admin-ink-muted">on set now</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {crew.map((c, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
               <div style={{ textAlign: "center", minWidth: 36, flexShrink: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted }}>{c.callTime}</div>
+                <div style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-ink-muted">{c.callTime}</div>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{c.role}</div>
+              <div className="flex-1 min-w-0">
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.role}</div>
               </div>
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(c.status), background: statusBg(c.status), padding: "2px 8px", borderRadius: RADIUS.sm, flexShrink: 0 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(c.status), background: statusBg(c.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">
                 {statusLabel(c.status)}
               </span>
             </div>

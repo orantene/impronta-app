@@ -129,11 +129,7 @@ export function TrustVerificationQueueDrawer() {
               }}>
                 {t.label}
                 {t.count > 0 && (
-                  <span style={{
-                    fontSize: 10, padding: "1px 6px", borderRadius: 999,
-                    background: active ? "rgba(11,11,13,0.06)" : "rgba(11,11,13,0.08)",
-                    color: COLORS.inkMuted, fontWeight: 700,
-                  }}>{t.count}</span>
+                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 999, background: active ? "rgba(11,11,13,0.06)" : "rgba(11,11,13,0.08)", fontWeight: 700 }} className="text-admin-ink-muted">{t.count}</span>
                 )}
               </button>
             );
@@ -183,7 +179,7 @@ export function TrustVerificationQueueDrawer() {
           </select>
           {bulkSelected.size > 0 && (
             <>
-              <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">
                 {bulkSelected.size} selected
               </span>
               <button type="button" onClick={() => {
@@ -219,7 +215,7 @@ export function TrustVerificationQueueDrawer() {
             display: "flex", flexDirection: "column",
           }}>
             {filtered.length === 0 ? (
-              <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+              <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
                 Nothing here.
               </div>
             ) : filtered.map((r, i) => {
@@ -265,17 +261,17 @@ export function TrustVerificationQueueDrawer() {
                     cursor: "pointer", textAlign: "left",
                     fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 4,
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
                         {talentNameFor(r.subjectId)}
                       </span>
                       <StateChipMini label={meta.label} tone={meta.tone} />
                     </div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }} className="text-admin-ink-muted">
                       <span>{typeMeta.emoji} {typeMeta.shortLabel}</span>
-                      {r.claimedIdentifier && <span style={{ color: COLORS.inkDim }}>· {r.claimedIdentifier}</span>}
+                      {r.claimedIdentifier && <span className="text-admin-ink-dim">· {r.claimedIdentifier}</span>}
                     </div>
-                    <div style={{ fontSize: 10.5, color: COLORS.inkDim }}>
+                    <div style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
                       {new Date(r.createdAt).toLocaleDateString()} · code {r.verificationCode ?? "—"}
                     </div>
                   </button>
@@ -291,56 +287,41 @@ export function TrustVerificationQueueDrawer() {
             fontFamily: FONTS.body,
           }}>
             {!cur ? (
-              <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>Select a request to review.</div>
+              <div style={{ fontSize: 12 }} className="text-admin-ink-muted">Select a request to review.</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>
+                  <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">
                     {talentNameFor(cur.subjectId)}
                   </span>
                   <StateChipMini label={VR_STATUS_META[cur.status].label} tone={VR_STATUS_META[cur.status].tone} />
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 16 }}>
+                <div style={{ fontSize: 12, marginBottom: 16 }} className="text-admin-ink-muted">
                   {VERIFICATION_TYPE_META[cur.verificationType].emoji} {VERIFICATION_TYPE_META[cur.verificationType].label}
                   {" · "}via {cur.method.replace(/_/g, " ")}
                 </div>
 
                 {/* Profile preview */}
                 {cur.method === "instagram_dm" && (
-                  <div style={{
-                    padding: "12px 14px", borderRadius: 10,
-                    background: COLORS.surface,
-                    border: `1px solid ${COLORS.borderSoft}`,
-                    marginBottom: 14, fontFamily: FONTS.body,
-                  }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, textTransform: "uppercase" }}>
+                  <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontFamily: FONTS.body }} className="bg-admin-surface">
+                    <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, textTransform: "uppercase" }} className="text-admin-ink-muted">
                       What talent was instructed to do
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.ink, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink">
                       Send a DM from <strong>{cur.claimedIdentifier ?? "(handle)"}</strong> to <strong>@tulala.digital</strong> with this code:
                     </div>
-                    <div style={{
-                      marginTop: 8, padding: "8px 12px",
-                      background: "#fff", borderRadius: 8,
-                      border: `1px solid ${COLORS.borderSoft}`,
-                      fontFamily: FONTS.mono ?? FONTS.body, fontSize: 14, fontWeight: 700, color: COLORS.ink,
-                      textAlign: "center", letterSpacing: 1,
-                    }}>{cur.verificationCode ?? "—"}</div>
-                    <div style={{ marginTop: 8, fontSize: 11, color: COLORS.inkMuted }}>
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: "#fff", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.mono ?? FONTS.body, fontSize: 14, fontWeight: 700, textAlign: "center", letterSpacing: 1 }} className="text-admin-ink">{cur.verificationCode ?? "—"}</div>
+                    <div style={{ marginTop: 8, fontSize: 11 }} className="text-admin-ink-muted">
                       Profile: <a href={cur.targetUrl ?? "#"} style={{ color: COLORS.accentDeep, textDecoration: "none" }}>{cur.targetUrl ?? "—"}</a>
                     </div>
-                    <div style={{ marginTop: 6, fontSize: 11, color: COLORS.inkDim }}>
+                    <div style={{ marginTop: 6, fontSize: 11 }} className="text-admin-ink-dim">
                       Manual review: confirm DM was received, sender matches handle, code matches.
                     </div>
                   </div>
                 )}
 
                 {cur.method === "manual_review" && (
-                  <div style={{
-                    padding: "12px 14px", borderRadius: 10,
-                    background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-                    marginBottom: 14, fontSize: 12, color: COLORS.ink, lineHeight: 1.5,
-                  }}>
+                  <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-surface text-admin-ink">
                     <strong>Manual review.</strong> Open the profile and confirm: 3+ photos, bio, primary type, no suspicious content.
                   </div>
                 )}
@@ -350,10 +331,7 @@ export function TrustVerificationQueueDrawer() {
                     marginBottom: 14, padding: "10px 12px", borderRadius: 10,
                     background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
                   }}>
-                    <div style={{
-                      fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-                      textTransform: "uppercase", color: COLORS.inkDim, marginBottom: 6,
-                    }}>Evidence from talent</div>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-dim">Evidence from talent</div>
                     {cur.evidenceUrl && (
                       <div style={{ marginBottom: cur.evidenceNote ? 6 : 0, fontSize: 12 }}>
                         <a href={cur.evidenceUrl} target="_blank" rel="noopener noreferrer" style={{
@@ -364,7 +342,7 @@ export function TrustVerificationQueueDrawer() {
                       </div>
                     )}
                     {cur.evidenceNote && (
-                      <div style={{ fontSize: 12, color: COLORS.ink, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.5, whiteSpace: "pre-wrap" }} className="text-admin-ink">
                         {cur.evidenceNote}
                       </div>
                     )}
@@ -372,15 +350,12 @@ export function TrustVerificationQueueDrawer() {
                 )}
 
                 {cur.publicMessage && (
-                  <div style={{ marginBottom: 14, fontSize: 11.5, color: COLORS.inkMuted }}>
+                  <div style={{ marginBottom: 14, fontSize: 11.5 }} className="text-admin-ink-muted">
                     <strong>Public message:</strong> {cur.publicMessage}
                   </div>
                 )}
                 {cur.adminNotes && (
-                  <div style={{
-                    marginBottom: 14, padding: "8px 11px", borderRadius: 8,
-                    background: COLORS.amberSoft, fontSize: 11.5, color: COLORS.amberDeep, lineHeight: 1.5,
-                  }}>
+                  <div style={{ marginBottom: 14, padding: "8px 11px", borderRadius: 8, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-amber-soft text-admin-amber-deep">
                     <strong>Admin notes:</strong> {cur.adminNotes}
                   </div>
                 )}
@@ -403,29 +378,17 @@ export function TrustVerificationQueueDrawer() {
                   </div>
                 )}
                 {cur.status === "approved" && cur.reviewedAt && (
-                  <div style={{
-                    padding: "10px 12px", borderRadius: 10, marginTop: 16,
-                    background: COLORS.successSoft, color: COLORS.successDeep,
-                    fontSize: 12, fontWeight: 600,
-                  }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, marginTop: 16, fontSize: 12, fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
                     ✓ Approved · {new Date(cur.reviewedAt).toLocaleString()}
                   </div>
                 )}
                 {cur.status === "rejected" && cur.rejectionReason && (
-                  <div style={{
-                    padding: "10px 12px", borderRadius: 10, marginTop: 16,
-                    background: "rgba(200,40,40,0.08)", color: COLORS.red,
-                    fontSize: 12, lineHeight: 1.5,
-                  }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, marginTop: 16, background: "rgba(200,40,40,0.08)", fontSize: 12, lineHeight: 1.5 }} className="text-admin-red">
                     <strong>Rejected.</strong> {cur.rejectionReason}
                   </div>
                 )}
                 {cur.status === "pending_user_action" && (
-                  <div style={{
-                    padding: "10px 12px", borderRadius: 10, marginTop: 16,
-                    background: COLORS.amberSoft, color: COLORS.amberDeep,
-                    fontSize: 12,
-                  }}>
+                  <div style={{ padding: "10px 12px", borderRadius: 10, marginTop: 16, fontSize: 12 }} className="bg-admin-amber-soft text-admin-amber-deep">
                     Waiting for talent to send the DM and tap &quot;I sent it.&quot;
                   </div>
                 )}
@@ -448,11 +411,8 @@ export function TrustVerificationQueueDrawer() {
             background: "#fff", borderRadius: 16, padding: 22,
             boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
           }}>
-            <div style={{
-              fontFamily: FONTS.display, fontSize: 18, fontWeight: 600,
-              color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
-            }}>Reject {rejectReasonModal.talent}&apos;s verification?</div>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">Reject {rejectReasonModal.talent}&apos;s verification?</div>
+            <div style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Talent will see this reason. Be specific so they can fix it and resubmit.
             </div>
             <textarea
@@ -533,11 +493,7 @@ export function DisputedClaimsDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       {disputed.length === 0 ? (
-        <div style={{
-          padding: "24px 18px", borderRadius: 12,
-          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-          textAlign: "center", color: COLORS.inkMuted, fontSize: 13,
-        }}>
+        <div style={{ padding: "24px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, textAlign: "center", fontSize: 13 }} className="bg-admin-surface text-admin-ink-muted">
           No disputed claims. When a talent flags an agency-created profile as not theirs, it will appear here for review.
         </div>
       ) : (
@@ -556,13 +512,13 @@ export function DisputedClaimsDrawer() {
                   borderBottom: `1px solid ${COLORS.borderSoft}`, cursor: "pointer",
                   fontFamily: FONTS.body,
                 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                     {talentNameForId(c.profileId)}
                   </div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                  <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
                     {c.email ?? c.phone ?? "—"}
                   </div>
-                  <div style={{ fontSize: 11, color: COLORS.red, marginTop: 4, fontWeight: 600 }}>
+                  <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }} className="text-admin-red">
                     Disputed · {fmt(c.updatedAt)}
                   </div>
                 </button>
@@ -576,61 +532,49 @@ export function DisputedClaimsDrawer() {
             background: "#fff", padding: 16,
           }}>
             {!cur ? (
-              <div style={{ color: COLORS.inkMuted, fontSize: 12.5 }}>Pick a claim to review.</div>
+              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">Pick a claim to review.</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                  <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>
+                  <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">
                     {talentNameForId(cur.profileId)}
                   </div>
-                  <div style={{ fontSize: 11, color: COLORS.red, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-red">
                     Disputed
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">
                   Claim invitation {cur.id} · invited by agency on {fmt(cur.createdAt)}
                 </div>
 
-                <div style={{ marginBottom: 14 }}>
+                <div className="mb-3.5">
                   <SubjectRiskScoreRow subjectType="talent_profile" subjectId={cur.profileId} />
                 </div>
 
-                <div style={{
-                  padding: "10px 12px", borderRadius: 10,
-                  background: "rgba(200,40,40,0.06)", border: `1px solid rgba(200,40,40,0.20)`,
-                  fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, marginBottom: 14,
-                }}>
-                  <strong style={{ color: COLORS.red }}>Talent&apos;s report.</strong> They followed the invite link, saw a profile listed under {cur.email ?? "this address"}, and flagged it as not theirs.
+                <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(200,40,40,0.06)", border: `1px solid rgba(200,40,40,0.20)`, fontSize: 12.5, lineHeight: 1.5, marginBottom: 14 }} className="text-admin-ink">
+                  <strong className="text-admin-red">Talent&apos;s report.</strong> They followed the invite link, saw a profile listed under {cur.email ?? "this address"}, and flagged it as not theirs.
                 </div>
 
-                <div style={{
-                  display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
-                  padding: "12px 14px", borderRadius: 10,
-                  background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-                  marginBottom: 14, fontSize: 12,
-                }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontSize: 12 }} className="bg-admin-surface">
                   <div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Invite sent to</div>
-                    <div style={{ color: COLORS.ink, fontWeight: 600 }}>{cur.email ?? cur.phone ?? "—"}</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Invite sent to</div>
+                    <div style={{ fontWeight: 600 }} className="text-admin-ink">{cur.email ?? cur.phone ?? "—"}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Invited by</div>
-                    <div style={{ color: COLORS.ink, fontWeight: 600 }}>{cur.invitedByAgencyId ?? "—"}</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Invited by</div>
+                    <div style={{ fontWeight: 600 }} className="text-admin-ink">{cur.invitedByAgencyId ?? "—"}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Created</div>
-                    <div style={{ color: COLORS.ink }}>{fmt(cur.createdAt)}</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Created</div>
+                    <div className="text-admin-ink">{fmt(cur.createdAt)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Disputed</div>
-                    <div style={{ color: COLORS.ink }}>{fmt(cur.updatedAt)}</div>
+                    <div style={{ fontSize: 11, marginBottom: 2 }} className="text-admin-ink-muted">Disputed</div>
+                    <div className="text-admin-ink">{fmt(cur.updatedAt)}</div>
                   </div>
                 </div>
 
-                <div style={{
-                  fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-                  color: COLORS.inkDim, marginBottom: 8,
-                }}>Admin notes (internal)</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Admin notes (internal)</div>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
@@ -644,18 +588,15 @@ export function DisputedClaimsDrawer() {
                   }}
                 />
 
-                <div style={{
-                  fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-                  color: COLORS.inkDim, marginBottom: 8,
-                }}>Resolution</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Resolution</div>
+                <div className="flex flex-col gap-2">
                   <button type="button" onClick={() => handleResolve("release")} style={{
                     textAlign: "left", padding: "10px 14px", borderRadius: 10,
                     border: `1px solid ${COLORS.border}`, background: "#fff",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Release to talent</div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Release to talent</div>
+                    <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       Talent is right. Profile is freed from agency control. Status → Released.
                     </div>
                   </button>
@@ -664,8 +605,8 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid ${COLORS.border}`, background: "#fff",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Uphold agency claim</div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Uphold agency claim</div>
+                    <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       Agency is right (paperwork checks out). Re-issue invite. Status → Invite sent.
                     </div>
                   </button>
@@ -674,8 +615,8 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid rgba(200,40,40,0.30)`, background: "rgba(200,40,40,0.04)",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.red }}>Remove profile</div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-red">Remove profile</div>
+                    <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       Neither party owns it. Take the profile down entirely.
                     </div>
                   </button>

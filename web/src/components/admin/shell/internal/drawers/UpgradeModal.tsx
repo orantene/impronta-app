@@ -40,14 +40,7 @@ export function UpgradeModal() {
 
   return (
     <ModalShell open onClose={closeUpgrade} width={600}>
-      <header
-        style={{
-          padding: "22px 24px 18px",
-          background: COLORS.surfaceAlt,
-          position: "relative",
-          borderBottom: `1px solid rgba(15,79,62,0.16)`,
-        }}
-      >
+      <header style={{ padding: "22px 24px 18px", position: "relative", borderBottom: `1px solid rgba(15,79,62,0.16)` }} className="bg-admin-surface-alt">
         <button
           onClick={closeUpgrade}
           aria-label="Close"
@@ -69,36 +62,17 @@ export function UpgradeModal() {
         >
           <Icon name="x" size={13} stroke={1.8} />
         </button>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div className="flex items-center gap-2 mb-2">
           <PlanChip plan={requiredPlan} variant="solid" />
           <CapsLabel color={COLORS.accentDeep} style={{ letterSpacing: 1.6 }}>
             {planPrice(requiredPlan)}
           </CapsLabel>
         </div>
-        <h2
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 26,
-            fontWeight: 500,
-            letterSpacing: -0.5,
-            color: COLORS.ink,
-            margin: 0,
-            lineHeight: 1.2,
-          }}
-        >
+        <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, margin: 0, lineHeight: 1.2 }} className="text-admin-ink">
           {offer.feature ?? `Upgrade to ${meta.label}`}
         </h2>
         {(offer.outcome || offer.why) && (
-          <p
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 13.5,
-              color: COLORS.inkMuted,
-              margin: "6px 0 0",
-              lineHeight: 1.55,
-              maxWidth: 500,
-            }}
-          >
+          <p style={{ fontFamily: FONTS.body, fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.55, maxWidth: 500 }} className="text-admin-ink-muted">
             {offer.outcome ?? offer.why}
           </p>
         )}
@@ -113,7 +87,7 @@ export function UpgradeModal() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600 }} className="text-admin-ink">
                 {usage.label}
               </span>
               <span
@@ -143,7 +117,7 @@ export function UpgradeModal() {
       </header>
 
       <div style={{ padding: "18px 24px", overflowY: "auto" }}>
-        <div style={{ marginBottom: 8 }}>
+        <div className="mb-2">
           <CapsLabel>What you&apos;ll unlock</CapsLabel>
         </div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -163,19 +137,7 @@ export function UpgradeModal() {
                 color: COLORS.ink,
               }}
             >
-              <span
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  background: COLORS.accentSoft,
-                  color: COLORS.accent,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
+              <span style={{ width: 18, height: 18, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-accent-soft text-admin-accent">
                 <Icon name="check" size={11} stroke={2.5} color={COLORS.accent} />
               </span>
               {u}
@@ -183,15 +145,7 @@ export function UpgradeModal() {
           ))}
         </ul>
 
-        <p
-          style={{
-            margin: "14px 0 0",
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            lineHeight: 1.5,
-          }}
-        >
+        <p style={{ margin: "14px 0 0", fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {pricingNote}
         </p>
       </div>
@@ -233,7 +187,7 @@ export function UpgradeModal() {
               closeUpgrade();
             }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="inline-flex items-center gap-1.5">
               Upgrade to {meta.label}
               <Icon name="arrow-right" size={12} stroke={1.8} />
             </span>

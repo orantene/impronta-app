@@ -306,7 +306,7 @@ export function SimpleStubDrawer({
       footer={<StandardFooter onSave={onSave} />}
     >
       {sections.length === 0 ? (
-        <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+        <p style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
           This drawer is part of the prototype skeleton — its detailed content lands in the next iteration.
         </p>
       ) : (
@@ -395,10 +395,10 @@ export function PlanCompareDrawer() {
           }}
         >
           <div>
-            <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, color: COLORS.ink, margin: 0, lineHeight: 1.2 }}>
+            <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, margin: 0, lineHeight: 1.2 }} className="text-admin-ink">
               Choose your plan
             </h2>
-            <p style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
+            <p style={{ fontFamily: FONTS.body, fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
               Find the right fit for where your agency is headed. All plans include core messaging and the public roster.
             </p>
           </div>
@@ -514,17 +514,14 @@ export function PlanCompareDrawer() {
                       {header.price.replace("/mo", "")}
                     </span>
                     {header.price.includes("/mo") && (
-                      <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+                      <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
                         /month
                       </span>
                     )}
                   </div>
 
                   {/* Ideal for tagline */}
-                  <p style={{
-                    fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted,
-                    lineHeight: 1.5, margin: "0 0 16px", flexGrow: 1,
-                  }}>
+                  <p style={{ fontFamily: FONTS.body, fontSize: 11.5, lineHeight: 1.5, margin: "0 0 16px", flexGrow: 1 }} className="text-admin-ink-muted">
                     {header.idealFor}
                   </p>
 
@@ -587,7 +584,7 @@ export function PlanCompareDrawer() {
 
           {/* ── Feature comparison table ── */}
           <div style={{ padding: "0 28px 28px" }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 10 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }} className="text-admin-ink-muted">
               Feature breakdown
             </div>
             <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
@@ -640,7 +637,7 @@ export function PlanCompareDrawer() {
                     borderRight: `1px solid ${COLORS.borderSoft}`,
                     display: "flex", alignItems: "center", gap: 6,
                   }}>
-                    <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3 }}>
+                    <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, lineHeight: 1.3 }} className="text-admin-ink">
                       {row.dimension}
                     </span>
                     <Popover content={row.why}>
@@ -681,7 +678,7 @@ export function PlanCompareDrawer() {
               ))}
             </div>
             {/* Tax note */}
-            <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 10, textAlign: "right" }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 10, textAlign: "right" }} className="text-admin-ink-muted">
               USD · ex tax · billed monthly or annually (20% off)
             </div>
           </div>
@@ -725,7 +722,7 @@ export function ClientTrustDetailDrawer() {
 
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Client Trust Ladder" description="Higher trust unlocks access opportunities — never pay-to-DM" defaultSize="half">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="flex flex-col gap-5">
         <div style={{ padding: "14px 16px", background: current.bg, border: `1px solid ${current.color}33`, borderLeft: `3px solid ${current.color}`, borderRadius: 10, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 18 }}>{current.badge}</span>
@@ -738,7 +735,7 @@ export function ClientTrustDetailDrawer() {
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {tiers.map((t, i) => {
             const isCurrent = t.id === level;
             const isPast    = i < currentIdx;
@@ -747,9 +744,9 @@ export function ClientTrustDetailDrawer() {
                 <div style={{ width: 28, height: 28, borderRadius: "50%", background: isCurrent ? t.color : isPast ? COLORS.borderSoft : "rgba(11,11,13,0.04)", color: isCurrent || isPast ? "#fff" : COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                   {isPast ? "✓" : t.badge}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isCurrent ? t.color : COLORS.ink, marginBottom: 3 }}>{t.label}{isCurrent && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: COLORS.inkMuted }}>— you are here</span>}</div>
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{t.requirements.join(" · ")}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isCurrent ? t.color : COLORS.ink, marginBottom: 3 }}>{t.label}{isCurrent && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400 }} className="text-admin-ink-muted">— you are here</span>}</div>
+                  <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{t.requirements.join(" · ")}</div>
                 </div>
               </div>
             );
@@ -757,8 +754,8 @@ export function ClientTrustDetailDrawer() {
         </div>
         {next && (
           <div style={{ padding: "14px 16px", background: "rgba(11,11,13,0.02)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>Unlock {next.label}</div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>{next.requirements.join(", ")}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">Unlock {next.label}</div>
+            <div style={{ fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">{next.requirements.join(", ")}</div>
             <button type="button" onClick={() => openDrawer("kyc-verification")} style={{ padding: "8px 16px", background: COLORS.fill, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Start verification →
             </button>

@@ -64,7 +64,7 @@ export function FeatureControlsDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <span style={{ flex: 1, fontSize: 11, color: COLORS.inkMuted }}>{onCount}/{totalCount} features enabled</span>
+      <span style={{ flex: 1, fontSize: 11 }} className="text-admin-ink-muted">{onCount}/{totalCount} features enabled</span>
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { toast("Feature settings saved"); setDirty(false); closeDrawer(); }}>
         {dirty ? "Save changes" : "Close"}
@@ -83,7 +83,7 @@ export function FeatureControlsDrawer() {
         }}>
           {/* Search */}
           <div style={{ padding: "0 0 12px 0" }}>
-            <div style={{ position: "relative" }}>
+            <div className="relative">
               <input
                 type="text"
                 value={search}
@@ -124,7 +124,7 @@ export function FeatureControlsDrawer() {
                     <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? COLORS.accent : COLORS.ink }}>{g.label}</div>
                     <div style={{ fontSize: 10, color: audienceColor(g.audience), marginTop: 1 }}>{audienceLabel(g.audience)}</div>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.inkMuted }}>{enabledCount}/{g.features.length}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700 }} className="text-admin-ink-muted">{enabledCount}/{g.features.length}</span>
                 </button>
               );
             })}
@@ -132,14 +132,14 @@ export function FeatureControlsDrawer() {
 
           {/* Summary stats */}
           <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 6 }}>Summary</div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Enabled</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.success }}>{onCount}</span>
+            <div style={{ fontSize: 11, marginBottom: 6 }} className="text-admin-ink-muted">Summary</div>
+            <div className="flex justify-between">
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Enabled</span>
+              <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-success">{onCount}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Disabled</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.coral }}>{totalCount - onCount}</span>
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Disabled</span>
+              <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-coral">{totalCount - onCount}</span>
             </div>
             <div style={{ marginTop: 8, height: 4, background: COLORS.border, borderRadius: 2, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${(onCount / totalCount) * 100}%`, background: COLORS.success, borderRadius: 2, transition: TRANSITION.md }} />
@@ -150,24 +150,19 @@ export function FeatureControlsDrawer() {
         {/* Right — feature list */}
         <div style={{ flex: 1, paddingLeft: 20, overflowY: "auto", minHeight: 0 }}>
           {search && (
-            <div style={{ marginBottom: 12 }}>
+            <div className="mb-3">
               <CapsLabel>Search results for &quot;{search}&quot;</CapsLabel>
             </div>
           )}
           {!search && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="mb-4">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>{group.label}</span>
-                <span style={{
-                  fontSize: 10.5, fontWeight: 700,
-                  color: audienceColor(group.audience),
-                  background: `${audienceColor(group.audience)}16`,
-                  padding: "2px 8px", borderRadius: RADIUS.sm,
-                }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">{group.label}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: audienceColor(group.audience), background: `${audienceColor(group.audience)}16`, padding: "2px 8px" }} className="rounded-admin-sm">
                   {audienceLabel(group.audience)}
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="flex gap-2">
                 <GhostButton onClick={() => {
                   const next = { ...toggles };
                   group.features.forEach(f => { next[f.key] = true; });
@@ -186,7 +181,7 @@ export function FeatureControlsDrawer() {
             </div>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {visibleFeatures.map(f => {
               const isOn = toggles[f.key] ?? false;
               // For search results, find which group this feature belongs to
@@ -203,21 +198,21 @@ export function FeatureControlsDrawer() {
                     transition: TRANSITION.sm,
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{f.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{f.label}</span>
                       {f.badge && (
-                        <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.amber, background: `${COLORS.amber}18`, padding: "1px 6px", borderRadius: RADIUS.sm }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, background: `${COLORS.amber}18`, padding: "1px 6px" }} className="text-admin-amber rounded-admin-sm">
                           {f.badge}
                         </span>
                       )}
                       {search && parentGroup && (
-                        <span style={{ fontSize: 9.5, fontWeight: 600, color: audienceColor(parentGroup.audience), background: `${audienceColor(parentGroup.audience)}14`, padding: "1px 6px", borderRadius: RADIUS.sm }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 600, color: audienceColor(parentGroup.audience), background: `${audienceColor(parentGroup.audience)}14`, padding: "1px 6px" }} className="rounded-admin-sm">
                           {parentGroup.label}
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, lineHeight: "1.45" }}>{f.desc}</div>
+                    <div style={{ fontSize: 11.5, marginTop: 3, lineHeight: "1.45" }} className="text-admin-ink-muted">{f.desc}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: isOn ? COLORS.success : COLORS.coral }}>
@@ -231,7 +226,7 @@ export function FeatureControlsDrawer() {
           </div>
 
           {visibleFeatures.length === 0 && (
-            <div style={{ padding: "40px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>
+            <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12 }} className="text-admin-ink-dim">
               No features match &quot;{search}&quot;
             </div>
           )}
@@ -315,7 +310,7 @@ export function CircleManageDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{MOCK_CIRCLE.length} people in your circle</span>
+      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{MOCK_CIRCLE.length} people in your circle</span>
       <SecondaryButton onClick={() => toast("Find someone to add…")}>Add person</SecondaryButton>
     </div>
   );
@@ -325,20 +320,20 @@ export function CircleManageDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
 
         {/* Why this exists */}
-        <div style={{ background: COLORS.royalSoft, border: `1px solid ${COLORS.royalSoft}`, borderRadius: RADIUS.md, padding: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ border: `1px solid ${COLORS.royalSoft}`, padding: 12 }} className="bg-admin-royal-soft rounded-admin-md">
+          <div className="flex items-center gap-1.5">
             <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.royal }}>About your Circle</span>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-royal">About your Circle</span>
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+          <p style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
             When a coordinator needs more crew, you can recommend someone from your Circle in one tap.
             They get an invite with your endorsement attached. No more digging through 2,000 profiles.
           </p>
         </div>
 
         {/* Search + filters */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ position: "relative" }}>
+        <div className="flex flex-col gap-2">
+          <div className="relative">
             <input
               type="text"
               value={search}
@@ -381,25 +376,25 @@ export function CircleManageDrawer() {
         </div>
 
         {/* List */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {filtered.length === 0 && (
-            <div style={{ padding: "24px 12px", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>
+            <div style={{ padding: "24px 12px", textAlign: "center", fontSize: 12 }} className="text-admin-ink-dim">
               No matches. Try a different search.
             </div>
           )}
           {filtered.map(m => (
             <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.inkMuted }}>{m.name.split(" ").map(w => w[0]).join("").slice(0, 2)}</span>
+                <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-ink-muted">{m.name.split(" ").map(w => w[0]).join("").slice(0, 2)}</span>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{m.name}</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, background: "rgba(11,11,13,0.05)", padding: "1px 7px", borderRadius: 999 }}>{m.role}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{m.name}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, background: "rgba(11,11,13,0.05)", padding: "1px 7px", borderRadius: 999 }} className="text-admin-ink-muted">{m.role}</span>
                 </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>{m.lastCollab}</div>
+                <div style={{ fontSize: 11.5, marginTop: 3 }} className="text-admin-ink-muted">{m.lastCollab}</div>
                 {m.note && (
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontStyle: "italic" }}>&quot;{m.note}&quot;</div>
+                  <div style={{ fontSize: 11.5, marginTop: 3, fontStyle: "italic" }} className="text-admin-ink-muted">&quot;{m.note}&quot;</div>
                 )}
                 <div style={{ display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" }}>
                   {m.tags.map(t => (
@@ -460,8 +455,8 @@ export function CircleRecommendDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{selected.size} selected</span>
-      <div style={{ display: "flex", gap: 8 }}>
+      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{selected.size} selected</span>
+      <div className="flex gap-2">
         <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
         <SecondaryButton onClick={send}>Send recommendation</SecondaryButton>
       </div>
@@ -471,7 +466,7 @@ export function CircleRecommendDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Recommend from your Circle" description={`Invite trusted collaborators into ${inquiryId}.`} footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <input
             type="text"
             value={search}
@@ -489,7 +484,7 @@ export function CircleRecommendDrawer() {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {filtered.map(m => {
             const isSelected = selected.has(m.id);
             return (
@@ -512,9 +507,9 @@ export function CircleRecommendDrawer() {
                 }}>
                   {isSelected && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{m.name}</div>
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{m.role} · {m.lastCollab}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{m.name}</div>
+                  <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{m.role} · {m.lastCollab}</div>
                 </div>
               </div>
             );

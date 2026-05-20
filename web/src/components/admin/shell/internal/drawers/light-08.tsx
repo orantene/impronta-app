@@ -44,7 +44,7 @@ export function PagesDrawer() {
         <>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
           <PrimaryButton onClick={closeDrawer}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="inline-flex items-center gap-1.5">
               <Icon name="plus" size={12} stroke={2} />
               New page
             </span>
@@ -52,7 +52,7 @@ export function PagesDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {pages.map((p) => (
           <button
             key={p.id}
@@ -69,9 +69,9 @@ export function PagesDrawer() {
               gap: 12,
             }}
           >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{p.title}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div className="flex-1">
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{p.title}</div>
+              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 /{p.title.toLowerCase().replace(/\s/g, "-")} · updated {p.updated}
               </div>
             </div>
@@ -103,7 +103,7 @@ export function PostsDrawer() {
         <>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
           <PrimaryButton onClick={closeDrawer}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="inline-flex items-center gap-1.5">
               <Icon name="plus" size={12} stroke={2} />
               New post
             </span>
@@ -111,7 +111,7 @@ export function PostsDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {posts.map((p, idx) => (
           <div
             key={idx}
@@ -124,10 +124,10 @@ export function PostsDrawer() {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{p.title}</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{p.title}</div>
               <StateChipMini label={p.status} tone={p.status === "published" ? "green" : "dim"} />
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{p.at}</div>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{p.at}</div>
           </div>
         ))}
       </div>
@@ -313,10 +313,10 @@ export function TranslationsDrawer() {
                 fontFamily: FONTS.body,
               }}
             >
-              <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, minWidth: 24 }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11, minWidth: 24 }} className="text-admin-ink-muted">
                 {l.code}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }} className="text-admin-ink">
                 {l.name}
               </span>
               {isPrimary && <StateChipMini label="Primary" tone="green" />}
@@ -398,36 +398,12 @@ export function SeoDrawer() {
         </FieldRow>
       </Section>
       <Section title="Open Graph image">
-        <div
-          style={{
-            aspectRatio: "1.91",
-            background: COLORS.surfaceAlt,
-            borderRadius: 10,
-            border: `1px solid ${COLORS.borderSoft}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: FONTS.display,
-            fontSize: 28,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ aspectRatio: "1.91", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 28 }} className="bg-admin-surface-alt text-admin-ink">
           {effectiveTenant.name}
         </div>
       </Section>
       <Section title="Sitemap">
-        <div
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 8,
-            padding: 12,
-            fontFamily: FONTS.mono,
-            fontSize: 11,
-            color: COLORS.inkMuted,
-            lineHeight: 1.7,
-          }}
-        >
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, padding: 12, fontFamily: FONTS.mono, fontSize: 11, lineHeight: 1.7 }} className="text-admin-ink-muted">
           /sitemap.xml<br />
           {effectiveTenant.domain}/sitemap.xml
         </div>

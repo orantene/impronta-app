@@ -42,7 +42,7 @@ export function VacationHandoverDrawer() {
       title="Vacation handover"
       description="Reassign your active inquiries and set an out-of-office while you're away."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           {saved
             ? <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
             : (
@@ -67,16 +67,12 @@ export function VacationHandoverDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {saved ? (
-          <div style={{
-            padding: "16px 18px", background: COLORS.successSoft,
-            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Handover active</div>
-            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+          <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)`, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-success-soft rounded-admin-lg">
+            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-success-deep">✓ Handover active</div>
+            <div style={{ fontSize: 12.5 }} className="text-admin-success-deep">
               {OPEN_COUNT} inquiries reassigned to <strong>{handoverTo}</strong> · {fromDate} – {toDate}
             </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+            <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
               Auto-reply enabled. You&apos;ll be re-assigned automatically when you return.
             </div>
           </div>
@@ -104,11 +100,7 @@ export function VacationHandoverDrawer() {
             </FieldRow>
 
             {/* Impact summary */}
-            <div style={{
-              padding: "10px 14px", background: COLORS.amberSoft,
-              borderRadius: RADIUS.md, border: `1px solid rgba(82,96,109,0.2)`,
-              fontSize: 12.5, color: COLORS.amberDeep, lineHeight: 1.5,
-            }}>
+            <div style={{ padding: "10px 14px", border: `1px solid rgba(82,96,109,0.2)`, fontSize: 12.5, lineHeight: 1.5 }} className="bg-admin-amber-soft rounded-admin-md text-admin-amber-deep">
               <strong>{OPEN_COUNT} active inquiries</strong> will be reassigned to {handoverTo}. They&apos;ll receive a notification with context on each.
             </div>
 
@@ -157,7 +149,7 @@ export function OnCallRotationDrawer() {
       title="On-call rotation"
       description="Who's responsible today and how unresolved inquiries escalate over time."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </div>
       }
@@ -165,7 +157,7 @@ export function OnCallRotationDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {/* Tab toggle */}
-        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+        <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
           {(["schedule", "escalation"] as const).map((t) => (
             <button
               key={t}
@@ -201,7 +193,7 @@ export function OnCallRotationDrawer() {
                   border: `1px solid ${slot.isToday ? COLORS.accent + "44" : COLORS.borderSoft}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="flex items-center gap-2.5">
                   <span style={{
                     width: 32, fontSize: 11, fontWeight: 700,
                     color: slot.isToday ? COLORS.accent : COLORS.inkMuted,
@@ -209,20 +201,16 @@ export function OnCallRotationDrawer() {
                   }}>
                     {slot.day}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: slot.isToday ? 700 : 500, color: COLORS.ink }}>
+                  <span style={{ fontSize: 13, fontWeight: slot.isToday ? 700 : 500 }} className="text-admin-ink">
                     {slot.name}
                   </span>
                   {slot.isToday && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, color: COLORS.accent,
-                      background: COLORS.accentSoft, padding: "1px 6px",
-                      borderRadius: RADIUS.sm, textTransform: "uppercase",
-                    }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", textTransform: "uppercase" }} className="text-admin-accent bg-admin-accent-soft rounded-admin-sm">
                       Today
                     </span>
                   )}
                 </div>
-                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{slot.hours}</span>
+                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{slot.hours}</span>
               </div>
             ))}
           </div>
@@ -230,11 +218,11 @@ export function OnCallRotationDrawer() {
 
         {/* Escalation tab */}
         {activeTab === "escalation" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {ESCALATION.map((step, i) => (
               <div key={step.level} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 {/* Connector */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div className="flex flex-col items-center">
                   <div style={{
                     width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
                     background: i === 0 ? COLORS.success : i === 1 ? COLORS.amber : COLORS.red,
@@ -248,9 +236,9 @@ export function OnCallRotationDrawer() {
                   )}
                 </div>
                 <div style={{ flex: 1, paddingTop: 4 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{step.label}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{step.target}</div>
-                  <div style={{ fontSize: 11, color: COLORS.indigoDeep, marginTop: 2 }}>SLA: {step.sla}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{step.label}</div>
+                  <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{step.target}</div>
+                  <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-indigo-deep">SLA: {step.sla}</div>
                 </div>
               </div>
             ))}
@@ -301,7 +289,7 @@ export function GdprExportDrawer() {
       title="Export your data"
       description="GDPR / CCPA data portability. Automated exports are not connected yet, so support handles these requests."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <button
             type="button"
@@ -375,21 +363,17 @@ export function GdprExportDrawer() {
                 }}>
                   {dt.selected && <Icon name="check" size={11} color="#fff" stroke={2.5} />}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{dt.label}</div>
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{dt.description}</div>
+                <div className="flex-1">
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{dt.label}</div>
+                  <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{dt.description}</div>
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>{dt.size}</div>
+                <div style={{ fontSize: 11, flexShrink: 0 }} className="text-admin-ink-muted">{dt.size}</div>
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{
-          padding: "10px 14px", background: COLORS.indigoSoft,
-          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
-          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-        }}>
+        <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
           Support will confirm scope, identity, and delivery timing by email before preparing the export.
         </div>
       </div>
@@ -437,7 +421,7 @@ export function ConsentLogDrawer() {
       title="Consent log"
       description="Marketing and communication preferences — timestamped and auditable."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
           <GhostButton onClick={exportCsv}>Export CSV</GhostButton>
         </div>
@@ -455,7 +439,7 @@ export function ConsentLogDrawer() {
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
               padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
             }}>
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
@@ -476,14 +460,10 @@ export function ConsentLogDrawer() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{entry.channel}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{entry.timestamp} · {entry.method}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{entry.channel}</div>
+                  <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{entry.timestamp} · {entry.method}</div>
                 </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, color: toneFor(entry.status),
-                  padding: "2px 8px", borderRadius: RADIUS.sm,
-                  background: `${toneFor(entry.status)}18`,
-                }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: toneFor(entry.status), padding: "2px 8px", background: `${toneFor(entry.status)}18` }} className="rounded-admin-sm">
                   {labelFor(entry.status)}
                 </span>
               </div>
@@ -491,11 +471,7 @@ export function ConsentLogDrawer() {
           </div>
         </div>
 
-        <div style={{
-          padding: "10px 14px", background: COLORS.indigoSoft,
-          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
-          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-        }}>
+        <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
           Consent records are immutable. Withdrawals update future sends — they do not erase prior consent events. Records retained 7 years per GDPR Recital 42.
         </div>
       </div>
@@ -543,7 +519,7 @@ export function ContractTemplatesDrawer() {
       title="Contract templates"
       description="Workspace-wide reusable templates. Variables in {{brackets}} are filled at generation time."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           {activeId ? (
             <>
               <SecondaryButton onClick={() => setActiveId(null)}>← Back</SecondaryButton>
@@ -572,13 +548,8 @@ export function ContractTemplatesDrawer() {
         {active ? (
           <>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 4 }}>{active.name}</div>
-              <div style={{
-                display: "inline-block", fontSize: 10.5, fontWeight: 700,
-                color: COLORS.indigoDeep, background: COLORS.indigoSoft,
-                padding: "2px 8px", borderRadius: RADIUS.sm,
-                textTransform: "uppercase", letterSpacing: "0.05em",
-              }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }} className="text-admin-ink">{active.name}</div>
+              <div style={{ display: "inline-block", fontSize: 10.5, fontWeight: 700, padding: "2px 8px", textTransform: "uppercase", letterSpacing: "0.05em" }} className="text-admin-indigo-deep bg-admin-indigo-soft rounded-admin-sm">
                 {active.category}
               </div>
             </div>
@@ -599,19 +570,11 @@ export function ContractTemplatesDrawer() {
               </div>
             </div>
 
-            <div style={{
-              padding: "14px 16px", background: COLORS.surfaceAlt,
-              borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}`,
-              fontSize: 12.5, color: COLORS.ink, lineHeight: 1.65,
-            }}>
-              {active.body} <span style={{ color: COLORS.inkDim }}>…[continues]</span>
+            <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}`, fontSize: 12.5, lineHeight: 1.65 }} className="bg-admin-surface-alt rounded-admin-md text-admin-ink">
+              {active.body} <span className="text-admin-ink-dim">…[continues]</span>
             </div>
 
-            <div style={{
-              padding: "10px 14px", background: COLORS.indigoSoft,
-              borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
-              fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-            }}>
+            <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
               Templates are not legal advice. Have your legal counsel review before use in production.
             </div>
           </>
@@ -635,8 +598,8 @@ export function ContractTemplatesDrawer() {
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{tmpl.name}</div>
-                        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{tmpl.name}</div>
+                        <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                           {tmpl.fields.length} merge fields
                         </div>
                       </div>
@@ -695,7 +658,7 @@ export function ReportContentDrawer() {
       title={`Report ${targetType}`}
       description={`Email a confidential report about ${targetName} to Tulala support.`}
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <button
             type="button"
@@ -737,11 +700,7 @@ export function ReportContentDrawer() {
           />
         </FieldRow>
 
-        <div style={{
-          padding: "10px 14px", background: COLORS.amberSoft,
-          borderRadius: RADIUS.md, border: `1px solid rgba(82,96,109,0.2)`,
-          fontSize: 11.5, color: COLORS.amberDeep, lineHeight: 1.5,
-        }}>
+        <div style={{ padding: "10px 14px", border: `1px solid rgba(82,96,109,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-amber-soft rounded-admin-md text-admin-amber-deep">
           Reports are confidential. This opens an email to support; no automatic trust-and-safety case is created from the product yet.
         </div>
       </div>

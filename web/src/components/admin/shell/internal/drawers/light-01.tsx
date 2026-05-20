@@ -68,7 +68,7 @@ export function TenantSummaryDrawer() {
                 openDrawer("plan-compare");
               }}
             >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="inline-flex items-center gap-1.5">
                 <Icon name="arrow-right" size={12} stroke={1.8} />
                 Compare plans
               </span>
@@ -99,11 +99,11 @@ export function TenantSummaryDrawer() {
               background: COLORS.amber,
             }}
           />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+          <div className="flex-1">
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
               {planMeta.label} plan
             </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">
               {planPrice(state.plan)} {state.plan !== "free" && "· billed monthly"}
             </div>
           </div>
@@ -117,7 +117,7 @@ export function TenantSummaryDrawer() {
       </Section>
 
       <Section title="Jump to">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {jumpItems.map((item) => (
             <button
               key={item.label}
@@ -153,7 +153,7 @@ export function TenantSummaryDrawer() {
       </Section>
 
       <Section title="Plan ladder">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {(["free", "studio", "agency", "network"] as Plan[]).map((p) => {
             const isCurrent = state.plan === p;
             const isReached = meetsPlan(state.plan, p);
@@ -186,14 +186,14 @@ export function TenantSummaryDrawer() {
                     ? <Icon name="check" size={11} stroke={2.5} />
                     : <Icon name="lock" size={11} stroke={1.8} />}
                 </span>
-                <span style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink, minWidth: 70 }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, minWidth: 70 }} className="text-admin-ink">
                   {PLAN_META[p].label}
                 </span>
-                <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, flex: 1 }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 12, flex: 1 }} className="text-admin-ink-muted">
                   {PLAN_META[p].theme}
                 </span>
                 {isCurrent && (
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-muted">
                     Current
                   </span>
                 )}
@@ -241,37 +241,19 @@ export function SiteSetupDrawer() {
         </>
       }
     >
-      <div
-        style={{
-          background: COLORS.surfaceAlt,
-          border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 12,
-          padding: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 22,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, color: COLORS.ink }}>
+      <div style={{ border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 12, padding: 14, display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }} className="bg-admin-surface-alt">
+        <div className="flex-1">
+          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500 }} className="text-admin-ink">
             {Math.round((completedCount / steps.length) * 100)}% complete
           </div>
           <div style={{ height: 6, background: "rgba(15,79,62,0.18)", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
-            <div
-              style={{
-                width: `${(completedCount / steps.length) * 100}%`,
-                height: "100%",
-                background: COLORS.accentDeep,
-                borderRadius: 999,
-                transition: "width .3s",
-              }}
+            <div style={{ width: `${(completedCount / steps.length) * 100}%`, height: "100%", borderRadius: 999, transition: "width .3s", }}
             />
           </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {steps.map((step, idx) => {
           const isDone = done.has(step.id);
           return (
@@ -284,9 +266,7 @@ export function SiteSetupDrawer() {
                 padding: 14,
                 background: "#fff",
                 border: `1px solid ${isDone ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`,
-                borderRadius: 12,
-              }}
-            >
+                borderRadius: 12, }} className="bg-admin-accent-deep">
               <button
                 onClick={() => {
                   setDone((prev) => {
@@ -314,25 +294,16 @@ export function SiteSetupDrawer() {
                 {isDone ? (
                   <Icon name="check" size={14} stroke={2.5} color="#fff" />
                 ) : (
-                  <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
                     {idx + 1}
                   </span>
                 )}
               </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontFamily: FONTS.body,
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    color: COLORS.ink,
-                    textDecoration: isDone ? "line-through" : "none",
-                    opacity: isDone ? 0.6 : 1,
-                  }}
-                >
+              <div className="flex-1 min-w-0">
+                <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, textDecoration: isDone ? "line-through" : "none", opacity: isDone ? 0.6 : 1 }} className="text-admin-ink">
                   {step.label}
                 </div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
                   {step.desc}
                 </div>
               </div>
@@ -425,7 +396,7 @@ export function ThemeFoundationsDrawer() {
                   <span key={c} style={{ width: 18, height: 18, borderRadius: 4, background: c, border: `1px solid ${COLORS.borderSoft}` }} />
                 ))}
               </div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{t.label}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{t.label}</div>
             </button>
           ))}
         </div>
@@ -480,10 +451,10 @@ export function ThemeFoundationsDrawer() {
             borderRadius: 10,
           }}
         >
-          <div style={{ fontFamily: headingFont, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, color: COLORS.ink, lineHeight: 1.15 }}>
+          <div style={{ fontFamily: headingFont, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.15 }} className="text-admin-ink">
             Editorial preview
           </div>
-          <div style={{ fontFamily: bodyFont, fontSize: 13, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.55 }}>
+          <div style={{ fontFamily: bodyFont, fontSize: 13, marginTop: 6, lineHeight: 1.55 }} className="text-admin-ink-muted">
             The quick brown fox jumps over the lazy dog. The five boxing wizards jump quickly.
           </div>
         </div>
@@ -491,7 +462,7 @@ export function ThemeFoundationsDrawer() {
 
       <Section title="Brand color">
         <FieldRow label="Accent">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <input
               type="color"
               value={accent}
@@ -523,8 +494,8 @@ export function ThemeFoundationsDrawer() {
                 textAlign: "left",
               }}
             >
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{d.label}</div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{d.sub}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{d.label}</div>
+              <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{d.sub}</div>
             </button>
           ))}
         </div>
@@ -584,17 +555,17 @@ export function PlanBillingDrawer() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="flex items-center gap-2.5">
               <PlanChip plan={state.plan} variant="solid" />
-              <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, color: COLORS.ink }}>
+              <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500 }} className="text-admin-ink">
                 {planMeta.label}
               </span>
             </div>
-            <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 600 }}>
+            <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
               {planPrice(state.plan)}
             </span>
           </div>
-          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: 0, lineHeight: 1.5 }} className="text-admin-ink-muted">
             {planMeta.theme}. {state.plan === "free" ? "Upgrade any time." : "Cancel any time."}
           </p>
         </div>
@@ -616,11 +587,11 @@ export function PlanBillingDrawer() {
             <IconChip size={28}>
               <Icon name="credit" size={13} />
             </IconChip>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+            <div className="flex-1">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                 Visa ending 4242
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
                 Expires 09 / 2028
               </div>
             </div>
@@ -663,8 +634,8 @@ export function PlanBillingDrawer() {
                   fontSize: 12.5,
                 }}
               >
-                <span style={{ color: COLORS.ink }}>{inv.date}</span>
-                <span style={{ color: COLORS.inkMuted }}>{inv.amount}</span>
+                <span className="text-admin-ink">{inv.date}</span>
+                <span className="text-admin-ink-muted">{inv.amount}</span>
                 <StateChipMini label={inv.status} tone="green" />
                 <button
                   type="button"

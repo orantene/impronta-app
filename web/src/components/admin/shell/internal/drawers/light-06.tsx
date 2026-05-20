@@ -98,7 +98,7 @@ export function InquiryPeekDrawer() {
       <InquiryTrustPanel clientName={inquiry.client} talentNames={inquiry.talent} />
 
       <Section title="Talent on this inquiry">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div className="flex flex-wrap gap-1.5">
           {inquiry.talent.map((t) => (
             <span
               key={t}
@@ -127,7 +127,7 @@ export function InquiryPeekDrawer() {
       </Section>
 
       <Section title="Conversation">
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           <ConversationBubble who="Client" name={inquiry.client} when="2d ago" body={`Looking for a model for our ${inquiry.brief.toLowerCase()}. Open to suggestions.`} />
           <ConversationBubble who="You" name="Sara Bianchi" when="1d ago" body={`Sending you ${inquiry.talent[0]} — fits the brief. Rate quote attached.`} mine />
           <ConversationBubble who="Client" name={inquiry.client} when="22h ago" body="Love it. Can we lock dates?" />
@@ -260,7 +260,7 @@ export function DayDetailDrawer() {
           compact
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {dayInquiries.map((inq) => {
             const sm = stageMeta[inq.stage];
             return (
@@ -290,9 +290,9 @@ export function DayDetailDrawer() {
                   size={36}
                   tone="auto"
                 />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
                       {inq.clientName}
                     </span>
                     <span
@@ -316,11 +316,11 @@ export function DayDetailDrawer() {
                       {sm.label}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 3 }}>
+                  <div style={{ fontSize: 12.5, marginTop: 3 }} className="text-admin-ink-muted">
                     {inq.brief}
                   </div>
                   {inq.location && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: COLORS.inkDim }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5 }} className="text-admin-ink-dim">
                       <Icon name="map-pin" size={11} stroke={1.7} color={COLORS.inkDim} />
                       {inq.location}
                     </div>
@@ -601,10 +601,10 @@ export function ClientProfileDrawer() {
           </Section>
 
           <Section title="Industry" framed>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Drives Discover matching, brief templates, and which talent gets recommended.
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {INDUSTRIES.map((it) => {
                 const active = industry === it.id;
                 return (
@@ -639,13 +639,13 @@ export function ClientProfileDrawer() {
             <FieldRow label="Where do they operate?">
               <TextInput value={homeBase} onChange={(e) => setHomeBase(e.target.value)} placeholder="e.g. Tulum · Madrid · Global" />
             </FieldRow>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: -2, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11.5, marginTop: -2, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Multiple regions can be set in the full profile builder.
             </div>
           </Section>
 
           <Section title="How did this client come to you?">
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {([
                 { id: "direct" as const,   title: "Direct inquiry",        desc: "Found you through your storefront or directory." },
                 { id: "referral" as const, title: "Referral / partner",     desc: "Recommended by another agency, talent, or peer." },
@@ -686,9 +686,9 @@ export function ClientProfileDrawer() {
                     >
                       {active && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
                     </span>
-                    <div style={{ flex: 1 }}>
+                    <div className="flex-1">
                       <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{o.title}</div>
-                      <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>{o.desc}</div>
+                      <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">{o.desc}</div>
                     </div>
                   </button>
                 );
@@ -735,16 +735,16 @@ export function ClientProfileDrawer() {
               gap: 10,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="flex items-center gap-2.5">
               <ClientTrustChip level={trust} />
-              <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+              <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
                 {CLIENT_TRUST_META[trust].hint}
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55 }}>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">
               {CLIENT_TRUST_META[trust].rationale}
             </p>
-            <p style={{ margin: 0, fontSize: 11.5, color: COLORS.inkDim, lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-dim">
               Tiers reflect real verification + funded-balance events on the
               client side. Talent decide which tiers can reach them in their
               contact preferences.
@@ -754,17 +754,7 @@ export function ClientProfileDrawer() {
       )}
       {!isNew && (
         <Section title="Recent bookings">
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              padding: 12,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-            }}
-          >
+          <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: 12, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
             {client?.bookingsYTD ? `${client.bookingsYTD} confirmed bookings this year.` : "No recent bookings."}
           </div>
         </Section>

@@ -67,7 +67,7 @@ export function EmailTemplatesDrawer() {
       title="Email templates"
       description={`${TEMPLATES.length} transactional email types. Templates are role-aware and workspace-branded.`}
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </div>
       }
@@ -85,7 +85,7 @@ export function EmailTemplatesDrawer() {
               background: COLORS.surfaceAlt, borderRadius: RADIUS.md,
               padding: "10px 12px", border: `1px solid ${COLORS.border}`, textAlign: "center",
             }}>
-              <div style={{ fontSize: 9, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{tile.label}</div>
+              <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">{tile.label}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: tile.color }}>{tile.value}</div>
             </div>
           ))}
@@ -114,15 +114,11 @@ export function EmailTemplatesDrawer() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{tmpl.name}</div>
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>Trigger: {tmpl.trigger}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{tmpl.name}</div>
+                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Trigger: {tmpl.trigger}</div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{
-                        fontSize: 10.5, fontWeight: 700,
-                        color: statusColor(tmpl.status), background: statusBg(tmpl.status),
-                        padding: "2px 7px", borderRadius: RADIUS.sm, textTransform: "capitalize",
-                      }}>
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(tmpl.status), background: statusBg(tmpl.status), padding: "2px 7px", textTransform: "capitalize" }} className="rounded-admin-sm">
                         {tmpl.status}
                       </span>
                       <button
@@ -161,7 +157,7 @@ export function EmailBrandingDrawer() {
       title="Email branding"
       description="Customize how your emails look and who they're from. Changes apply to all outgoing emails."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <button
             type="button" onClick={save}
@@ -179,10 +175,7 @@ export function EmailBrandingDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {/* Preview */}
-        <div style={{
-          padding: "16px 18px", background: "#fff",
-          borderRadius: RADIUS.lg, border: `2px solid ${COLORS.border}`,
-        }}>
+        <div style={{ padding: "16px 18px", background: "#fff", border: `2px solid ${COLORS.border}` }} className="rounded-admin-lg">
           <div style={{
             borderBottom: `3px solid ${accentColor}`,
             paddingBottom: 12, marginBottom: 12,
@@ -196,12 +189,12 @@ export function EmailBrandingDrawer() {
                 {senderName.charAt(0).toUpperCase()}
               </span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{senderName}</div>
+            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{senderName}</div>
           </div>
-          <div style={{ fontSize: 12.5, color: COLORS.ink, marginBottom: 8 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 8 }} className="text-admin-ink">
             Hi [Talent Name], your booking for [Project] has been confirmed…
           </div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted }}>{footerText}</div>
+          <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{footerText}</div>
         </div>
 
         <FieldRow label="Sender name">
@@ -259,7 +252,7 @@ export function EmailSequencesDrawer() {
       title="Email sequences"
       description="Multi-step automated email campaigns. Toggle to pause without deleting."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </div>
       }
@@ -279,22 +272,17 @@ export function EmailSequencesDrawer() {
               on={seq.active}
               onChange={(v) => setSequences((prev) => prev.map((s) => s.id === seq.id ? { ...s, active: v } : s))}
             />
-            <div style={{ flex: 1 }}>
+            <div className="flex-1">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: seq.active ? COLORS.ink : COLORS.inkMuted }}>{seq.name}</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 700,
-                  color: seq.active ? COLORS.successDeep : COLORS.inkMuted,
-                  background: seq.active ? COLORS.successSoft : COLORS.surfaceAlt,
-                  padding: "1px 6px", borderRadius: RADIUS.sm, textTransform: "uppercase",
-                }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: seq.active ? COLORS.successDeep : COLORS.inkMuted, background: seq.active ? COLORS.successSoft : COLORS.surfaceAlt, padding: "1px 6px", textTransform: "uppercase" }} className="rounded-admin-sm">
                   {seq.active ? "Active" : "Paused"}
                 </span>
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 4 }}>
+              <div style={{ fontSize: 11.5, marginBottom: 4 }} className="text-admin-ink-muted">
                 Trigger: {seq.trigger} · {seq.steps} emails
               </div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>{seq.description}</div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">{seq.description}</div>
             </div>
           </div>
         ))}
@@ -341,7 +329,7 @@ export function NotificationPrefsDrawer() {
       title="Notification preferences"
       description="Choose how and when you hear from Tulala. Email, push, and SMS can be toggled independently."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <button
             type="button"
@@ -379,9 +367,9 @@ export function NotificationPrefsDrawer() {
                 gap: 12, marginBottom: 4,
               }}
             >
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{pref.label}</div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{pref.description}</div>
+              <div className="flex-1">
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{pref.label}</div>
+                <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{pref.description}</div>
               </div>
               <div style={{ display: "flex", gap: 16, flexShrink: 0 }}>
                 {CHANNELS.map((ch) => (
@@ -395,19 +383,15 @@ export function NotificationPrefsDrawer() {
         </div>
 
         {/* ── WS-11 advanced controls ── */}
-        <div style={{ marginTop: 24, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 8 }}>
+        <div style={{ marginTop: 24, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
           Delivery & quiet time
         </div>
 
         {/* WS-11.2 — Batching */}
-        <div style={{
-          padding: "11px 14px", background: COLORS.surfaceAlt,
-          borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
-          display: "flex", alignItems: "center", gap: 12, marginBottom: 4,
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Batch similar notifications</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+        <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }} className="bg-admin-surface-alt rounded-admin-md">
+          <div className="flex-1">
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Batch similar notifications</div>
+            <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
               Collapse &quot;3 new messages from Casa Pero&quot; instead of sending each separately.
             </div>
           </div>
@@ -415,22 +399,18 @@ export function NotificationPrefsDrawer() {
         </div>
 
         {/* WS-11.4 — DND / quiet hours */}
-        <div style={{
-          padding: "11px 14px", background: COLORS.surfaceAlt,
-          borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
-          marginBottom: 4,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Quiet hours</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+        <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}`, marginBottom: 4 }} className="bg-admin-surface-alt rounded-admin-md">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Quiet hours</div>
+              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 Pause push and SMS during these hours. Email is always allowed.
               </div>
             </div>
             <Toggle on={dndEnabled} onChange={setDndEnabled} />
           </div>
           {dndEnabled && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: COLORS.ink }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5 }} className="text-admin-ink">
               <span>From</span>
               <input type="time" value={dndStart} onChange={(e) => setDndStart(e.target.value)} style={{
                 padding: "4px 8px", borderRadius: RADIUS.sm,
@@ -443,18 +423,15 @@ export function NotificationPrefsDrawer() {
                 border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12,
                 background: "#fff", color: COLORS.ink, outline: "none",
               }} />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted, marginLeft: "auto" }}>workspace timezone</span>
+              <span style={{ fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-muted">workspace timezone</span>
             </div>
           )}
         </div>
 
         {/* WS-11.5 — Preview / lock-screen privacy */}
-        <div style={{
-          padding: "11px 14px", background: COLORS.surfaceAlt,
-          borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>Lock-screen previews</div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10 }}>
+        <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt rounded-admin-md">
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">Lock-screen previews</div>
+          <div style={{ fontSize: 11.5, marginBottom: 10 }} className="text-admin-ink-muted">
             What appears on your device&apos;s lock screen for push notifications.
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -526,7 +503,7 @@ export function InviteFlowDrawer() {
         sent ? (
           <SecondaryButton onClick={() => { setSent(false); setEmail(""); setName(""); }}>Send another</SecondaryButton>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
             <button
               type="button" onClick={handleSend}
@@ -545,20 +522,16 @@ export function InviteFlowDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {sent ? (
-          <div style={{
-            padding: "16px 18px", background: COLORS.successSoft,
-            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Invite sent</div>
-            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+          <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)`, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-success-soft rounded-admin-lg">
+            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-success-deep">✓ Invite sent</div>
+            <div style={{ fontSize: 12.5 }} className="text-admin-success-deep">
               {name ? name : email} will receive an invite email shortly with a personalized onboarding link.
             </div>
           </div>
         ) : (
           <>
             {/* Tab */}
-            <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+            <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
               {(["talent", "client", "agency"] as const).map((t) => (
                 <button
                   key={t}
@@ -587,11 +560,7 @@ export function InviteFlowDrawer() {
               <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tabMeta[tab].placeholder} />
             </FieldRow>
 
-            <div style={{
-              padding: "10px 14px", background: COLORS.indigoSoft,
-              borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
-              fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-            }}>
+            <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
               {tabMeta[tab].note}
             </div>
           </>
@@ -629,7 +598,7 @@ export function ReferralDashboardDrawer() {
       title="Referral program"
       description="Earn €50 credit for every new workspace that subscribes through your link."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
           <GhostButton onClick={() => {
             void navigator.clipboard
@@ -653,7 +622,7 @@ export function ReferralDashboardDrawer() {
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
               padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
             }}>
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
@@ -662,20 +631,12 @@ export function ReferralDashboardDrawer() {
         </div>
 
         {/* Referral link */}
-        <div style={{
-          padding: "12px 14px", background: COLORS.accentSoft,
-          borderRadius: RADIUS.lg, border: `1px solid rgba(15,79,62,0.2)`,
-        }}>
-          <div style={{ fontSize: 11, color: COLORS.accentDeep, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+        <div style={{ padding: "12px 14px", border: `1px solid rgba(15,79,62,0.2)` }} className="bg-admin-accent-soft rounded-admin-lg">
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }} className="text-admin-accent-deep">
             Your referral link
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{
-              flex: 1, fontSize: 12.5, fontFamily: "monospace",
-              color: COLORS.accent, background: "#fff",
-              border: `1px solid rgba(15,79,62,0.2)`, borderRadius: RADIUS.sm,
-              padding: "7px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
+          <div className="flex items-center gap-2">
+            <div style={{ flex: 1, fontSize: 12.5, fontFamily: "monospace", background: "#fff", border: `1px solid rgba(15,79,62,0.2)`, padding: "7px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-accent rounded-admin-sm">
               {REFERRAL_URL}
             </div>
             <button
@@ -708,14 +669,10 @@ export function ReferralDashboardDrawer() {
                 borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{ref.name}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{ref.date} · {ref.reward}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ref.name}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{ref.date} · {ref.reward}</div>
                 </div>
-                <span style={{
-                  fontSize: 10.5, fontWeight: 700,
-                  color: statusColor(ref.status), background: statusBg(ref.status),
-                  padding: "2px 8px", borderRadius: RADIUS.sm, textTransform: "capitalize",
-                }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(ref.status), background: statusBg(ref.status), padding: "2px 8px", textTransform: "capitalize" }} className="rounded-admin-sm">
                   {ref.status}
                 </span>
               </div>

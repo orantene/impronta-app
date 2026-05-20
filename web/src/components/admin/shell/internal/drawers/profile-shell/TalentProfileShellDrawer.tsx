@@ -1757,8 +1757,8 @@ export function TalentProfileShellDrawer() {
             width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer",
             background: "transparent", color: COLORS.ink, fontSize: 14, lineHeight: 1,
           }}>✕</button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
               {mode === "create" ? copy.t("New profile") : isSelf ? copy.t("Edit your profile") : (state.stageName || copy.t("Profile"))}
             </div>
             {mode !== "create" && payload.seed?.profileCode && (
@@ -1776,18 +1776,15 @@ export function TalentProfileShellDrawer() {
                 {payload.seed.profileCode}
               </div>
             )}
-            <div
-              style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}
+            <div style={{ fontSize: 11, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}
               title={saveSubtitleTitle || undefined}
             >
               <span style={{
-                width: 5, height: 5, borderRadius: "50%",
-                background: saveStatus === "error" ? "#C82828"
+                width: 5, height: 5, borderRadius: "50%", background: saveStatus === "error" ? "#C82828"
                   : saveStatus === "saving" ? COLORS.amberDeep
                   : savedAt ? COLORS.green
                   : serverProfileUpdatedAtMs ? COLORS.accentDeep
-                  : "rgba(11,11,13,0.20)",
-              }} />
+                  : "rgba(11,11,13,0.20)", }} />
               {saveSubtitle}
             </div>
           </div>
@@ -1815,9 +1812,7 @@ export function TalentProfileShellDrawer() {
               border: `1px solid ${COLORS.borderSoft}`,
               background: "rgba(11,11,13,0.03)",
               boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
-              overflow: "hidden",
-            }}
-          >
+              overflow: "hidden", }} className="text-admin-ink-muted">
             <button
               type="button"
               onClick={undo}
@@ -2185,32 +2180,23 @@ export function TalentProfileShellDrawer() {
                   borderBottom: `1px solid ${COLORS.borderSoft}`,
                   marginBottom: 6,
                 }}>
-                  <div style={{
-                    display: "flex", alignItems: "baseline", justifyContent: "space-between",
-                    fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
-                    letterSpacing: 0.6, textTransform: "uppercase",
-                    color: COLORS.inkMuted, marginBottom: 6,
-                  }}>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
                     <span>{copy.t("Profile")}</span>
-                    <span style={{ color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{totalDone}/{totalVisible}</span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{totalDone}/{totalVisible}</span>
                   </div>
                   <div style={{
                     height: 3, borderRadius: 2,
                     background: "rgba(11,11,13,0.06)",
                     overflow: "hidden",
                   }}>
-                    <div style={{
-                      height: "100%", width: `${Math.round(ratio * 100)}%`,
-                      background: COLORS.accent,
-                      transition: "width .3s cubic-bezier(.4,0,.2,1)",
-                    }} />
+                    <div style={{ height: "100%", width: `${Math.round(ratio * 100)}%`, transition: "width .3s cubic-bezier(.4,0,.2,1)", }} />
                   </div>
                 </div>
                 {RAIL_GROUPS.map(group => {
                   const items = group.ids.filter(visible) as Exclude<ProfileSectionId, "">[];
                   if (items.length === 0) return null;
                   return (
-                    <div key={group.label} style={{ marginBottom: 4 }}>
+                    <div key={group.label} style={{ marginBottom: 4 }} className="bg-admin-accent">
                       <div style={{
                         padding: "6px 12px 4px",
                         fontSize: 9.5, fontWeight: 700,
@@ -2256,7 +2242,7 @@ export function TalentProfileShellDrawer() {
                   );
                 })}
                 {!!payload.talentId && (
-                  <div style={{ marginBottom: 4 }}>
+                  <div className="mb-1">
                     <div style={{
                       padding: "6px 12px 4px",
                       fontSize: 9.5, fontWeight: 700,
@@ -2312,12 +2298,7 @@ export function TalentProfileShellDrawer() {
                   background: "#fff", overflow: "hidden",
                 }}
               >
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "14px 24px 4px", fontFamily: FONTS.body,
-                  fontSize: 12, fontWeight: 600, color: COLORS.inkMuted,
-                  letterSpacing: 0.2,
-                }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 24px 4px", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }} className="text-admin-ink-muted">
                   <span aria-hidden style={{
                     width: 12, height: 12, borderRadius: "50%",
                     border: `2px solid ${COLORS.borderSoft}`,
@@ -2341,10 +2322,10 @@ export function TalentProfileShellDrawer() {
                   fontFamily: FONTS.body, textAlign: "center",
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
                   {copy.t("Couldn't load this profile's saved data")}
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, maxWidth: 320 }}>
+                <div style={{ fontSize: 12, maxWidth: 320 }} className="text-admin-ink-muted">
                   {copy.t("Editing is paused so you don't overwrite real data with blanks. Retry to load it.")}
                 </div>
                 <button
@@ -2440,11 +2421,7 @@ export function TalentProfileShellDrawer() {
                     background: COLORS.surfaceAlt ?? "rgba(11,11,13,0.03)",
                   }}
                 >
-                  <div style={{
-                    fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-                    textTransform: "uppercase", color: COLORS.inkDim,
-                    marginBottom: 10, fontFamily: FONTS.body,
-                  }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                     Preview · your Discover card
                   </div>
                   <div style={{
@@ -2453,49 +2430,26 @@ export function TalentProfileShellDrawer() {
                     gap: 12,
                     alignItems: "start",
                   }}>
-                    <div
-                      style={{
-                        aspectRatio: "4 / 5",
-                        width: 84,
-                        borderRadius: 10,
-                        background: state.polaroids.find(p => p.url)?.url
+                    <div style={{ aspectRatio: "4 / 5", width: 84, borderRadius: 10, background: state.polaroids.find(p => p.url)?.url
                           ? `url(${state.polaroids.find(p => p.url)!.url}) center/cover`
                           : (state.albumsPro[0]?.items[0]?.url
                               ? `url(${state.albumsPro[0].items[0].url}) center/cover`
-                              : COLORS.borderSoft),
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: FONTS.display,
-                        fontSize: 22,
-                        fontWeight: 500,
-                        color: COLORS.inkMuted,
-                        flexShrink: 0,
-                      }}
-                    >
+                              : COLORS.borderSoft), display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, flexShrink: 0 }} className="text-admin-ink-muted">
                       {!state.polaroids.find(p => p.url)?.url
                         && !state.albumsPro[0]?.items[0]?.url
                         && (state.identity.stageName || state.stageName || "??")
                             .split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
                     </div>
                     <div style={{ minWidth: 0, fontFamily: FONTS.body }}>
-                      <div style={{
-                        fontSize: 14, fontWeight: 600, color: COLORS.ink,
-                        marginBottom: 3, display: "flex", alignItems: "center",
-                        gap: 6, flexWrap: "wrap",
-                      }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }} className="text-admin-ink">
                         <span>{state.identity.stageName || state.stageName || copy.t("Your name")}</span>
-                        <span style={{
-                          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
-                          padding: "1px 6px", borderRadius: 4,
-                          background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
-                        }}>BASIC</span>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3, padding: "1px 6px", borderRadius: 4, background: "rgba(11,11,13,0.06)" }} className="text-admin-ink-muted">BASIC</span>
                       </div>
-                      <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 3 }}>
+                      <div style={{ fontSize: 12, marginBottom: 3 }} className="text-admin-ink-muted">
                         {state.primaryType ?? copy.t("Add a primary category")}
                         {state.serviceArea.homeBase ? ` · ${state.serviceArea.homeBase}` : ""}
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, fontStyle: "italic", lineHeight: 1.45 }}>
+                      <div style={{ fontSize: 11, marginTop: 8, fontStyle: "italic", lineHeight: 1.45 }} className="text-admin-ink-dim">
                         {copy.t("Trust badge, 14-day availability strip, and rate band are derived live by Discover — they update as your verification, calendar, and rates change.")}
                       </div>
                     </div>
@@ -2595,26 +2549,20 @@ export function TalentProfileShellDrawer() {
                     </button>
                   )}
                   {/* M7 fix — "Live taxonomy" replaced with plain English. */}
-                  <div style={{ fontSize: 10.5, color: COLORS.inkDim }}>
+                  <div style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
                     Showing {visibleParentsLP.length} categories{restParentsLP.length > 0 ? ` · ${restParentsLP.length} more available` : ""}
                     {liveTax.error && ` · ${liveTax.error}`}
                   </div>
                 </>
               )}
               {!bridgeTenantIdentity?.tenantId && state.primaryType && (
-                <details style={{ marginTop: 12 }}>
-                  <summary style={{
-                    fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-                    color: COLORS.inkMuted, marginBottom: 6,
-                    cursor: "pointer", listStyle: "none",
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    userSelect: "none",
-                  }}>
+                <details className="mt-3">
+                  <summary style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, cursor: "pointer", listStyle: "none", display: "inline-flex", alignItems: "center", gap: 6, userSelect: "none" }} className="text-admin-ink-muted">
                     <span aria-hidden="true" style={{ fontSize: 10, transform: "translateY(-1px)" }}>▸</span>
                     Career interests
-                    <span style={{ fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· optional · open-to-grow signals</span>
+                    <span style={{ fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· optional · open-to-grow signals</span>
                   </summary>
-                  <div style={{ marginTop: 8 }}>
+                  <div className="mt-2">
                     <AspirationsEditor
                       allowedParents={allowedParents}
                       primaryType={state.primaryType}
@@ -2684,9 +2632,9 @@ export function TalentProfileShellDrawer() {
               </FieldRow>
 
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
                   Seasonal windows
-                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· &quot;I&apos;m here X months a year&quot;</span>
+                  <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· &quot;I&apos;m here X months a year&quot;</span>
                 </div>
                 <SeasonalEditor windows={state.seasonalWindows} onChange={(w) => patch({ seasonalWindows: w })} />
               </div>
@@ -2709,16 +2657,8 @@ export function TalentProfileShellDrawer() {
                   to filter out talents the client can't legally hire
                   for a cross-border job before sending the inquiry.
                   All optional + admin-visibility by default. */}
-              <div style={{
-                marginTop: 6, padding: "10px 12px",
-                background: COLORS.surfaceAlt, borderRadius: 10,
-                border: `1px solid ${COLORS.borderSoft}`,
-              }}>
-                <div style={{
-                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-                  textTransform: "uppercase", color: COLORS.inkMuted,
-                  marginBottom: 8,
-                }}>
+              <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
                   Travel & work eligibility
                 </div>
                 {/* Audit fix #8 — back-reference to Identity for related
@@ -2726,15 +2666,7 @@ export function TalentProfileShellDrawer() {
                     of residence). Helps the talent see the cluster
                     despite the data being split across two ProfileState
                     slices. */}
-                <div style={{
-                  marginBottom: 10,
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                  fontFamily: FONTS.body,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}>
+                <div style={{ marginBottom: 10, fontSize: 11.5, fontFamily: FONTS.body, display: "inline-flex", alignItems: "center", gap: 6 }} className="text-admin-ink-muted">
                   <span aria-hidden>ℹ️</span>
                   <span>Nationality &amp; country of residence are in <strong>Identity</strong>.</span>
                 </div>
@@ -2915,7 +2847,7 @@ export function TalentProfileShellDrawer() {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
                   Languages
-                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· Languages this talent can use with clients.</span>
+                  <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· Languages this talent can use with clients.</span>
                 </div>
                 {payload.talentId && bridgeTenantIdentity?.tenantId ? (
                   // Real tenant: DB-backed immediate-setAll panel owns
@@ -2987,11 +2919,11 @@ export function TalentProfileShellDrawer() {
                   padding: "16px 24px 6px", textAlign: "left",
                   fontFamily: FONTS.body,
                 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: -0.1 }} className="text-admin-ink">
                       {copy.t("Details")}
                     </div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                    <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       {copy.t("Type-specific fields for this talent's categories.")}
                     </div>
                   </div>
@@ -3106,10 +3038,10 @@ export function TalentProfileShellDrawer() {
                   if (other.length === 0) return null;
                   return (
                   <div key={g.parent.id}>
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">
                       {g.parent.emoji}  {g.parent.label}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="flex flex-col gap-2.5">
                       {other.map(f => (
                         <RegFieldInput key={f.id} field={f}
                           value={state.dynFields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
@@ -3129,11 +3061,7 @@ export function TalentProfileShellDrawer() {
                 {/* Custom workspace fields — agency-specific extras added via Field Catalog */}
                 {workspaceCustomTalentFields.length > 0 && (
                   <div>
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-                      color: COLORS.inkMuted, marginBottom: 8,
-                    }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">
                       <span style={{ fontSize: 13 }}>✦</span>
                       Custom workspace fields
                       <span style={{
@@ -3142,7 +3070,7 @@ export function TalentProfileShellDrawer() {
                         marginLeft: 4, letterSpacing: 0.4,
                       }}>AGENCY</span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="flex flex-col gap-2.5">
                       {workspaceCustomTalentFields.map(cf => (
                         <CustomWorkspaceFieldInput
                           key={cf.id}
@@ -3264,7 +3192,7 @@ export function TalentProfileShellDrawer() {
                 </div>
               )}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, marginTop: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, marginTop: 6 }} className="text-admin-ink-muted">
                   Package bundles
                 </div>
                 <PackageRatesEditor packages={state.packageRates} onChange={(p) => patch({ packageRates: p })} />
@@ -3432,17 +3360,7 @@ export function TalentProfileShellDrawer() {
               onToggle={() => setActiveSection(activeSection === "verifications" ? "" : "verifications")}
             >
               {adminVisible && (
-                <div style={{
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                  color: COLORS.inkMuted,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: "rgba(15,79,62,0.06)",
-                  border: `1px solid rgba(15,79,62,0.12)`,
-                  marginBottom: 12,
-                  fontFamily: FONTS.body,
-                }}>
+                <div style={{ fontSize: 12, lineHeight: 1.45, padding: "10px 12px", borderRadius: 10, background: "rgba(15,79,62,0.06)", border: `1px solid rgba(15,79,62,0.12)`, marginBottom: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                   {copy.t("Trust preview note")}
                 </div>
               )}

@@ -125,19 +125,15 @@ export function TalentApprovalsDrawer() {
         }
       >
         {queue.length === 0 ? (
-          <div style={{
-            padding: "32px 16px", textAlign: "center",
-            background: COLORS.successSoft, borderRadius: 12,
-            color: COLORS.successDeep, fontFamily: FONTS.body,
-          }}>
+          <div style={{ padding: "32px 16px", textAlign: "center", borderRadius: 12, fontFamily: FONTS.body }} className="bg-admin-success-soft text-admin-success-deep">
             <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>All caught up</div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
               New self-registrations will land here. You&apos;ll get a notification too.
             </div>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {queue.map(p => {
               const isActive = active === p.id;
               const parent = TAXONOMY.find(x => x.id === p.parentCategory);
@@ -155,15 +151,12 @@ export function TalentApprovalsDrawer() {
                       width: 48, height: 48, borderRadius: "50%", flexShrink: 0,
                       background: `url(${p.thumb}) center/cover, ${COLORS.surfaceAlt}`,
                     }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="flex-1 min-w-0">
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{p.name}</span>
-                        <span style={{
-                          fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-                          background: COLORS.amberSoft, color: COLORS.amberDeep,
-                        }}>Pending · {p.submittedAgo}</span>
+                        <span style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">{p.name}</span>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }} className="bg-admin-amber-soft text-admin-amber-deep">Pending · {p.submittedAgo}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 4 }}>
+                      <div style={{ fontSize: 12, marginBottom: 4 }} className="text-admin-ink-muted">
                         {parent?.emoji} {parent?.label} · {p.city}
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
@@ -178,7 +171,7 @@ export function TalentApprovalsDrawer() {
                           ) : null;
                         })}
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.inkDim }}>
+                      <div style={{ fontSize: 11 }} className="text-admin-ink-dim">
                         {p.photoCount} photo{p.photoCount === 1 ? "" : "s"} · {p.languages.join(" · ")}
                       </div>
                     </div>
@@ -195,13 +188,7 @@ export function TalentApprovalsDrawer() {
                         }} />
                       ))}
                       {p.photoCount > photos.length && (
-                        <div style={{
-                          flexShrink: 0,
-                          width: 56, aspectRatio: "3 / 4", borderRadius: 6,
-                          border: `1px dashed ${COLORS.borderSoft}`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 10, color: COLORS.inkMuted, fontWeight: 600,
-                        }}>+{p.photoCount - photos.length}</div>
+                        <div style={{ flexShrink: 0, width: 56, aspectRatio: "3 / 4", borderRadius: 6, border: `1px dashed ${COLORS.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600 }} className="text-admin-ink-muted">+{p.photoCount - photos.length}</div>
                       )}
                     </div>
                   )}
@@ -228,13 +215,10 @@ export function TalentApprovalsDrawer() {
             background: "#fff", borderRadius: 16, padding: 22,
             boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
           }}>
-            <div style={{
-              fontFamily: FONTS.display, fontSize: 18, fontWeight: 600,
-              color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
-            }}>
+            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">
               Reject {rejectModalFor.name}?
             </div>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12.5, marginBottom: 14, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Talent will receive your reason by email. Be specific so they can resubmit.
             </div>
             <textarea
@@ -396,16 +380,11 @@ export function BrandingDrawer() {
                 borderRadius: 8, background: COLORS.surfaceAlt, padding: 4, flexShrink: 0,
               }} />
             ) : (
-              <span style={{
-                width: 56, height: 56, borderRadius: 8, background: COLORS.fill, color: "#fff",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, flexShrink: 0,
-              }}>{effectiveTenant.initials}</span>
+              <span style={{ width: 56, height: 56, borderRadius: 8, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, flexShrink: 0 }} className="bg-admin-fill">{effectiveTenant.initials}</span>
             )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{logoFileName}</div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{logoFileName}</div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 {logoFile ? `${(logoFile.size / 1024).toFixed(0)} KB · ready to save` : "Upload to use as watermark"}
               </div>
             </div>
@@ -430,14 +409,14 @@ export function BrandingDrawer() {
 
       <Section title="Color tokens" framed>
         <FieldRow label="Primary">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
               style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
             <TextInput value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
           </div>
         </FieldRow>
         <FieldRow label="Accent">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
               style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
             <TextInput value={accentColor} onChange={(e) => setAccentColor(e.target.value)} />
@@ -447,7 +426,7 @@ export function BrandingDrawer() {
 
       {isStudioPlus ? (
         <Section title="Photo watermark" framed>
-          <div style={{ marginBottom: 12 }}>
+          <div className="mb-3">
             <WatermarkPreviewCard preset={wm} logoUrl={logoPreview} />
           </div>
           <FieldRow label="Enable watermark">
@@ -475,7 +454,7 @@ export function BrandingDrawer() {
                   style={{ width: "100%", accentColor: COLORS.fill }} />
               </FieldRow>
               <FieldRow label="Logo variant">
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="flex gap-2">
                   {(["light", "dark"] as const).map((v) => (
                     <button key={v} type="button" onClick={() => setWmField("variant", v)} style={{
                       padding: "5px 14px", borderRadius: 999, border: "none", cursor: "pointer",
@@ -491,13 +470,13 @@ export function BrandingDrawer() {
         </Section>
       ) : (
         <Section title="Photo watermark" framed>
-          <div style={{ padding: 16, borderRadius: 10, background: COLORS.surfaceAlt, display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <div style={{ padding: 16, borderRadius: 10, display: "flex", gap: 14, alignItems: "flex-start" }} className="bg-admin-surface-alt">
             <span style={{ fontSize: 22 }}>🔒</span>
             <div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
                 Logo watermark — Studio &amp; above
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
                 Apply your logo to talent photos on public profiles and pitch links.
               </div>
               <SecondaryButton size="sm" onClick={() => openUpgrade({
@@ -567,8 +546,8 @@ export function WatermarkEditorDrawer() {
         footer={<StandardFooter onSave={() => openUpgrade({ feature: "Logo watermark", requiredPlan: "studio" })} saveLabel="Upgrade to unlock" />}>
         <div style={{ padding: 24, textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>Studio plan required</div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>Logo watermarks are a Studio &amp; Agency feature.</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">Studio plan required</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">Logo watermarks are a Studio &amp; Agency feature.</div>
         </div>
       </DrawerShell>
     );
@@ -593,7 +572,7 @@ export function WatermarkEditorDrawer() {
         </div>
       }
     >
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-5">
         <WatermarkPreviewCard preset={wm} logoUrl={null} />
       </div>
       <Section title="Override" framed>
@@ -622,7 +601,7 @@ export function WatermarkEditorDrawer() {
                 style={{ width: "100%", accentColor: COLORS.fill }} />
             </FieldRow>
             <FieldRow label="Logo variant">
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="flex gap-2">
                 {(["light", "dark"] as const).map((v) => (
                   <button key={v} type="button" onClick={() => setWmField("variant", v)} style={{
                     padding: "5px 14px", borderRadius: 999, border: "none", cursor: "pointer",

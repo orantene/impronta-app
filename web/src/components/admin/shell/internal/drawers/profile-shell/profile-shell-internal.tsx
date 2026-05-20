@@ -223,14 +223,9 @@ export function FieldGroupBlock({
 }) {
   return (
     <div>
-      <div style={{
-        fontSize: 11.5, fontWeight: 700, color: COLORS.ink,
-        letterSpacing: 0.3, marginBottom: 2,
-      }}>{title}</div>
-      <div style={{
-        fontSize: 10.5, color: COLORS.inkMuted, marginBottom: 6,
-      }}>{subtitle}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }} className="text-admin-ink">{title}</div>
+      <div style={{ fontSize: 10.5, marginBottom: 6 }} className="text-admin-ink-muted">{subtitle}</div>
+      <div className="flex flex-col gap-1">
         {fields.map((f) => {
           // Canonical visibility (tenant override already baked into the
           // resolved channels — see resolvedToVisInput note).
@@ -269,20 +264,16 @@ export function FieldGroupBlock({
                   background: hasValue ? COLORS.success : COLORS.borderStrong,
                 }}
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 12.5, color: COLORS.ink }}>
+              <div className="flex-1 min-w-0">
+                <span style={{ fontSize: 12.5 }} className="text-admin-ink">
                 {f.label}
                 {f.required_before_publish && (
-                  <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700, fontSize: 10 }}
+                  <span style={{ marginLeft: 6, fontWeight: 700, fontSize: 10 }}
                     title="Required before publish">*</span>
                 )}
                 {f.required_at_registration && (
                   <span style={{
-                    marginLeft: 6, fontSize: 9, fontWeight: 700,
-                    padding: "1px 5px", borderRadius: 3,
-                    background: COLORS.red, color: "#fff",
-                    letterSpacing: 0.4,
-                  }}>REG</span>
+                    marginLeft: 6, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, color: "#fff", letterSpacing: 0.4 }} className="text-admin-red bg-admin-red">REG</span>
                 )}
                 {f.required_before_verification && (
                   <span style={{
@@ -302,10 +293,7 @@ export function FieldGroupBlock({
                 )}
                 </span>
                 {f.helper && (
-                  <div style={{
-                    fontSize: 10.5, color: COLORS.inkMuted,
-                    marginTop: 2, lineHeight: 1.35,
-                  }}>{f.helper}</div>
+                  <div style={{ fontSize: 10.5, marginTop: 2, lineHeight: 1.35 }} className="text-admin-ink-muted">{f.helper}</div>
                 )}
                 {/* Truth-preview chip row */}
                 <div style={{
@@ -379,11 +367,7 @@ export function FieldGroupBlock({
                 textTransform: "uppercase", letterSpacing: 0.4,
                 flexShrink: 0,
               }}>{f.tier}</span>
-              <span style={{
-                fontSize: 10.5, color: COLORS.inkMuted,
-                fontFamily: "ui-monospace, monospace",
-                flexShrink: 0,
-              }}>{f.kind}</span>
+              <span style={{ fontSize: 10.5, fontFamily: "ui-monospace, monospace", flexShrink: 0 }} className="text-admin-ink-muted">{f.kind}</span>
             </div>
           );
         })}
@@ -492,11 +476,11 @@ export function LiveCategoryFieldsPanel({
         }}
       >
         <span style={{ fontSize: 18 }}>🧬</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+        <div className="flex-1">
+          <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
             {copy.t("Agency Fields")}
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+          <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
             {fields
               ? (copy.isSpanish
                 ? `${fields.length} campo${fields.length === 1 ? "" : "s"} resuelto${fields.length === 1 ? "" : "s"} desde tipos principales y secundarios`
@@ -504,32 +488,25 @@ export function LiveCategoryFieldsPanel({
               : copy.t("DB-resolved field catalog for this talent's types")}
           </div>
         </div>
-        <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{open ? "▾" : "▸"}</span>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
         <div style={{ padding: "12px 14px" }}>
           {loading && (
-            <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>{copy.t("Loading…")}</div>
+            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">{copy.t("Loading…")}</div>
           )}
           {error && (
-            <div style={{
-              padding: 10, borderRadius: 8, background: COLORS.amberSoft,
-              border: `1px solid ${COLORS.amber}`, fontSize: 12, color: COLORS.ink,
-            }}>{error}</div>
+            <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 12 }} className="bg-admin-amber-soft text-admin-ink">{error}</div>
           )}
           {fields && fields.length === 0 && (
-            <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>
+            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
               No category-specific fields yet. Set a primary type first.
             </div>
           )}
           {fields && fields.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="flex flex-col gap-3.5">
               {/* Architecture summary header */}
-              <div style={{
-                padding: "10px 12px", borderRadius: 8,
-                background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
-                fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-              }}>
+              <div style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
                   {fields.length} fields across {groups.length} groups · {completion.required} required to publish
                 </div>
@@ -544,16 +521,8 @@ export function LiveCategoryFieldsPanel({
               {/* Phase 4 — "View as" role selector + live per-view summary.
                   Read-only: recomputes from loaded data, never refetches,
                   never edits. Editing stays in the Details editor. */}
-              <div style={{
-                display: "flex", flexWrap: "wrap", alignItems: "center",
-                gap: 10, padding: "9px 12px", borderRadius: 8,
-                background: COLORS.surfaceAlt,
-                border: `1px solid ${COLORS.borderSoft}`,
-              }}>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, color: COLORS.ink,
-                  letterSpacing: 0.2,
-                }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.2 }} className="text-admin-ink">
                   {copy.isSpanish ? "Ver como" : "View as"}
                 </span>
                 <div style={{ display: "inline-flex", gap: 4 }} role="group"
@@ -582,9 +551,7 @@ export function LiveCategoryFieldsPanel({
                     );
                   })}
                 </div>
-                <span style={{
-                  fontSize: 10.5, color: COLORS.inkMuted, marginLeft: "auto",
-                }}>
+                <span style={{ fontSize: 10.5, marginLeft: "auto" }} className="text-admin-ink-muted">
                   {copy.isSpanish
                     ? `${viewSummary.visible} visible${viewSummary.visible === 1 ? "" : "s"} · ${viewSummary.hidden} oculto${viewSummary.hidden === 1 ? "" : "s"} · ${viewSummary.withValue} con valor · ${viewSummary.overrides} override${viewSummary.overrides === 1 ? "" : "s"}`
                     : `${viewSummary.visible} visible · ${viewSummary.hidden} hidden · ${viewSummary.withValue} with a value · ${viewSummary.overrides} workspace override${viewSummary.overrides === 1 ? "" : "s"}`}
@@ -656,14 +623,14 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
   onChange: (v: string | string[]) => void;
 }) {
   const labelRow = (
-    <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+    <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
       {field.name}
-      {!field.required && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
-      {field.required && <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.amberDeep }}>· required</span>}
+      {!field.required && <span style={{ fontSize: 10, fontWeight: 500 }} className="text-admin-ink-dim">· optional</span>}
+      {field.required && <span style={{ fontSize: 10, fontWeight: 700 }} className="text-admin-amber-deep">· required</span>}
     </label>
   );
   const helper = field.helper && (
-    <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4 }}>{field.helper}</div>
+    <div style={{ fontSize: 10.5, marginTop: 4 }} className="text-admin-ink-dim">{field.helper}</div>
   );
 
   if (field.kind === "Text" || field.kind === "Number" || field.kind === "Date") {
@@ -700,13 +667,9 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
             background: v ? COLORS.accent : "rgba(11,11,13,0.12)",
             position: "relative", flexShrink: 0,
           }}>
-            <span style={{
-              position: "absolute", top: 2, left: v ? 16 : 2,
-              width: 18, height: 18, borderRadius: "50%",
-              background: "#fff", transition: "left 0.15s",
-            }} />
+            <span style={{ position: "absolute", top: 2, left: v ? 16 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", }} />
           </span>
-          <span style={{ fontSize: 12.5, color: COLORS.ink }}>{v ? "Yes" : "No"}</span>
+          <span style={{ fontSize: 12.5 }} className="text-admin-ink">{v ? "Yes" : "No"}</span>
         </button>
         {helper}
       </div>
@@ -1389,31 +1352,17 @@ export function AdvancedAgencySettingsSection({
         >
           {open ? "▾" : "▸"}
         </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              display: "block",
-              fontSize: 12,
-              fontWeight: 600,
-              color: COLORS.ink,
-            }}
-          >
+        <span className="flex-1 min-w-0">
+          <span style={{ display: "block", fontSize: 12, fontWeight: 600 }} className="text-admin-ink">
             Advanced agency settings
           </span>
-          <span
-            style={{
-              display: "block",
-              fontSize: 11,
-              color: COLORS.inkMuted,
-              marginTop: 1,
-            }}
-          >
+          <span style={{ display: "block", fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
             Per-agency visibility, featured, display order & internal notes
           </span>
         </span>
       </button>
       {open && (
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           <SkillOverridesPanel
             talentProfileId={talentProfileId}
             viewMode="admin"
@@ -1459,29 +1408,23 @@ export function ServicesEditor({
   return (
     <>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 4 }} className="text-admin-ink-muted">
           Booked as
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
           What clients book this person as. Pick the main one.
         </div>
         {primaryRes ? (
           <div>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "8px 12px", borderRadius: 999,
-              background: "rgba(15,79,62,0.08)", color: COLORS.accentDeep,
-              border: `1.5px solid ${COLORS.accent}`,
-              fontSize: 13, fontWeight: 600,
-            }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(15,79,62,0.08)", border: `1.5px solid ${COLORS.accent}`, fontSize: 13, fontWeight: 600 }} className="text-admin-accent-deep">
               <span style={{ fontSize: 14 }}>{primaryRes.parent.emoji}</span>
               {primaryRes.child.label}
               <button type="button" onClick={onClearPrimary} aria-label="Change main service"
                 style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700, padding: 0 }}>×</button>
             </div>
             {primaryRes.child.specialties && primaryRes.child.specialties.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginBottom: 4 }}>
+              <div className="mt-2.5">
+                <div style={{ fontSize: 10.5, marginBottom: 4 }} className="text-admin-ink-dim">
                   Specialties under {primaryRes.child.label}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -1503,13 +1446,7 @@ export function ServicesEditor({
             )}
           </div>
         ) : hydrating ? (
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "8px 12px", borderRadius: 999,
-            background: "rgba(11,11,13,0.04)", color: COLORS.inkMuted,
-            border: `1px solid ${COLORS.borderSoft}`,
-            fontSize: 12.5, fontWeight: 500, fontFamily: FONTS.body,
-          }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(11,11,13,0.04)", border: `1px solid ${COLORS.borderSoft}`, fontSize: 12.5, fontWeight: 500, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             <span aria-hidden style={{
               width: 8, height: 8, borderRadius: "50%",
               background: COLORS.inkDim, display: "inline-block", opacity: 0.5,
@@ -1525,15 +1462,15 @@ export function ServicesEditor({
           marginTop: 14, paddingTop: 14,
           borderTop: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 4 }} className="text-admin-ink-muted">
             Also bookable as
             {primaryRes && (
-              <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>
+              <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">
                 · within {shortParentLabel(primaryRes.parent)} · optional
               </span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: COLORS.inkDim, marginBottom: 8, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 11, marginBottom: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
             Other things this person can be booked as. Pick any that apply.
           </div>
           <SiblingTopNPicker
@@ -1544,7 +1481,7 @@ export function ServicesEditor({
             excludeId={primaryType ?? null}
           />
           {otherCategories.length > 0 && (
-            <div style={{ marginTop: 12 }}>
+            <div className="mt-3">
               <button type="button"
                 onClick={() => setShowOtherCategories(v => !v)}
                 aria-expanded={showOtherCategories}
@@ -1560,8 +1497,8 @@ export function ServicesEditor({
                 <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
                   {otherCategories.map(p => (
                     <div key={p.id}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
-                        <span style={{ marginRight: 4 }}>{p.emoji}</span>{shortParentLabel(p)}
+                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
+                        <span className="mr-1">{p.emoji}</span>{shortParentLabel(p)}
                       </div>
                       <SiblingTopNPicker
                         children={p.children}
@@ -1580,13 +1517,13 @@ export function ServicesEditor({
       )}
       {specialtyOptions.filter(g => g.typeId !== primaryType).length > 0 && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
             More specialties
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {specialtyOptions.filter(g => g.typeId !== primaryType).map(g => (
               <div key={g.typeId}>
-                <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginBottom: 4 }}>Under {g.typeLabel}</div>
+                <div style={{ fontSize: 10.5, marginBottom: 4 }} className="text-admin-ink-dim">Under {g.typeLabel}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {g.items.map(s => {
                     const active = specialties.includes(s);
@@ -1742,11 +1679,7 @@ export type RatesEditorProps = {
 export const RatesEditor = React.memo(function RatesEditor({ rates, selectedTypeIds, onChange }: RatesEditorProps) {
   if (selectedTypeIds.length === 0) {
     return (
-      <div style={{
-        padding: 14, borderRadius: 10,
-        background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-        fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.5,
-      }}>
+      <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.5 }} className="bg-admin-surface text-admin-ink-muted">
         Pick a Talent Type in Services first. Each type gets its own rate.
       </div>
     );
@@ -1783,7 +1716,7 @@ export const RatesEditor = React.memo(function RatesEditor({ rates, selectedType
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 14 }}>{r.parent.emoji}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{r.child.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{r.child.label}</span>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <select value={r.currency} onChange={(e) => updateRow(r.typeId, { currency: e.target.value })} style={{
@@ -1872,7 +1805,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
 
   return (
     <div style={{ fontFamily: FONTS.body }}>
-      <div style={{ display: "flex", gap: 10, fontSize: 11, color: COLORS.inkMuted, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 10, fontSize: 11, marginBottom: 8 }} className="text-admin-ink-muted">
         <Legend dotColor={COLORS.green} label={`Open · ${counts.open}`} />
         <Legend dotColor={COLORS.amberDeep} label={`Busy · ${counts.busy}`} />
         <Legend dotColor="rgba(11,11,13,0.4)" label={`Blocked · ${counts.blocked}`} />
@@ -1904,7 +1837,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
           );
         })}
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4 }}>
+      <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
         Tap a day to cycle: open → busy → blocked → open. Today highlighted in green.
       </div>
     </div>
@@ -1914,7 +1847,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
 
 export function Legend({ dotColor, label }: { dotColor: string; label: string }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+    <span className="inline-flex items-center gap-1">
       <span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor }} />
       {label}
     </span>
@@ -1949,11 +1882,11 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
           <span style={{ fontSize: 18 }}>{tierMeta.emoji}</span>
           {tierMeta.label}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {tierMeta.helper}
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {rows.map(r => (
           <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <ToggleControl
@@ -1961,16 +1894,12 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
               onChange={(v) => onChange({ ...verifications, [r.id]: v })}
               label={r.label}
             />
-            <span style={{ fontSize: 11, color: COLORS.inkDim, flex: 1 }}>{r.helper}</span>
+            <span style={{ fontSize: 11, flex: 1 }} className="text-admin-ink-dim">{r.helper}</span>
           </div>
         ))}
       </div>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginTop: 14, padding: "10px 12px", borderRadius: 10,
-        background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-      }}>
-        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
+        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
           Bookings completed on Tulala
         </span>
         <input type="number" min={0} value={verifications.bookingsCount}
@@ -1986,7 +1915,7 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
         />
       </div>
       {isSelf && (
-        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10.5, marginTop: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
           Verification status is managed by Tulala — toggle when you complete each step.
         </div>
       )}
@@ -2002,24 +1931,18 @@ export function InviteClaimBanner({ stageName, onResend, onTakeOver }: {
   onTakeOver: () => void;
 }) {
   return (
-    <div style={{
-      padding: "10px 18px",
-      background: COLORS.amberSoft,
-      borderBottom: `1px solid ${COLORS.amberDeep}30`,
-      display: "flex", alignItems: "center", gap: 10,
-      fontFamily: FONTS.body, flexShrink: 0,
-    }}>
+    <div style={{ padding: "10px 18px", borderBottom: `1px solid ${COLORS.amberDeep}30`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, flexShrink: 0 }} className="bg-admin-amber-soft">
       <span style={{
         width: 22, height: 22, borderRadius: "50%",
         background: COLORS.amberDeep, color: "#fff",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontSize: 12, flexShrink: 0,
       }}>📧</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.amberDeep }}>
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-amber-deep">
           Waiting on {stageName || "talent"} to claim this profile
         </div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+        <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
           Invite sent 3 days ago. They&apos;ll review, edit, and approve before publish.
         </div>
       </div>
@@ -2089,15 +2012,10 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
         boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.35)",
         overflowY: "auto",
       }}>
-        <div style={{ position: "relative" }}>
-          <div style={{
-            aspectRatio: "4 / 3.5",
-            background: photos[0]
+        <div className="relative">
+          <div style={{ aspectRatio: "4 / 3.5", background: photos[0]
               ? `url(${photos[0]}) center/cover, ${COLORS.surfaceAlt}`
-              : COLORS.surfaceAlt,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: COLORS.inkMuted, fontSize: 36,
-          }}>{!photos[0] && "📷"}</div>
+              : COLORS.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }} className="text-admin-ink-muted">{!photos[0] && "📷"}</div>
           <button type="button" onClick={onClose} aria-label="Close" style={{
             position: "absolute", top: 12, right: 12,
             width: 34, height: 34, borderRadius: "50%",
@@ -2114,31 +2032,27 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
         </div>
         <div style={{ padding: "16px 22px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-            <h2 style={{
-              margin: 0,
-              fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-              color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.1,
-            }}>{stageName || "Untitled profile"}</h2>
+            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.1 }} className="text-admin-ink">{stageName || "Untitled profile"}</h2>
             <span style={{
               fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
               background: trustMeta.bg, color: trustMeta.fg,
             }}>{trustMeta.emoji} {trustMeta.label}</span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-accent-deep">
             {primaryRes ? primaryRes.child.label : "—"}
           </div>
           {showTagline && tagline && (
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, fontStyle: "italic", marginBottom: 6 }}>
+            <div style={{ fontSize: 12.5, fontStyle: "italic", marginBottom: 6 }} className="text-admin-ink-muted">
               {tagline}
             </div>
           )}
           {showLocation && (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">
               📍 {[serviceArea.homeBase, ...serviceArea.serviceCities].filter(Boolean).slice(0, 4).join(" · ") || "—"}
             </div>
           )}
           {showSecondaries && secondaryTypes.length > 0 && (
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>
+            <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">
               Also available as: {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).join(" · ")}
             </div>
           )}
@@ -2153,7 +2067,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
             </div>
           )}
           {showBio && enBio && (
-            <p style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.55, marginTop: 8, marginBottom: 12 }}>
+            <p style={{ fontSize: 13, lineHeight: 1.55, marginTop: 8, marginBottom: 12 }} className="text-admin-ink">
               {enBio}
             </p>
           )}
@@ -2172,8 +2086,8 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
             </div>
           )}
           {showLanguages && languages.length > 0 && (
-            <div style={{ marginTop: 14, fontSize: 11.5, color: COLORS.inkMuted }}>
-              <strong style={{ color: COLORS.ink }}>Languages — </strong>
+            <div style={{ marginTop: 14, fontSize: 11.5 }} className="text-admin-ink-muted">
+              <strong className="text-admin-ink">Languages — </strong>
               {languages.map(l => `${l.language} (${l.level})`).join(" · ")}
             </div>
           )}
@@ -2189,7 +2103,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
             color: COLORS.ink,
             fontSize: 13, fontWeight: 600, cursor: "pointer",
           }}>Close preview</button>
-          <div style={{ flex: 1, padding: "12px 18px", borderRadius: 999, background: COLORS.fill, color: "#fff", fontSize: 13.5, fontWeight: 600, textAlign: "center" }}>
+          <div style={{ flex: 1, padding: "12px 18px", borderRadius: 999, color: "#fff", fontSize: 13.5, fontWeight: 600, textAlign: "center" }} className="bg-admin-fill">
             Send inquiry
           </div>
         </div>
@@ -2242,12 +2156,9 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
           padding: "16px 20px", borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", gap: 10,
         }}>
-          <div style={{ flex: 1 }}>
-            <h2 style={{
-              margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700,
-              color: COLORS.ink, letterSpacing: -0.2,
-            }}>{isAdmin ? "Review changes" : "What you've changed"}</h2>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.4 }}>
+          <div className="flex-1">
+            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{isAdmin ? "Review changes" : "What you've changed"}</h2>
+            <p style={{ margin: "3px 0 0", fontSize: 12, lineHeight: 1.4 }} className="text-admin-ink-muted">
               {entries.length === 0
                 ? "No changes since the last published version."
                 : `${entries.length} field${entries.length === 1 ? "" : "s"} ${isAdmin ? "modified by talent" : "you've changed"}.`}
@@ -2261,12 +2172,12 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
           {entries.length === 0 ? (
-            <div style={{ padding: "30px 20px", textAlign: "center", fontSize: 13, color: COLORS.inkMuted }}>
+            <div style={{ padding: "30px 20px", textAlign: "center", fontSize: 13 }} className="text-admin-ink-muted">
               <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
               All clear — nothing has changed.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="flex flex-col gap-3.5">
               {entries.map(e => (
                 <div key={e.fieldId} style={{
                   padding: 12, borderRadius: 10,
@@ -2276,13 +2187,13 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                     display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8,
                     marginBottom: 6,
                   }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
                       {e.fieldLabel}
                     </div>
                     {isAdmin && (() => {
                       const d = decisions.get(e.fieldId);
                       return (
-                        <div style={{ display: "inline-flex", gap: 4 }}>
+                        <div className="inline-flex gap-1">
                           <button type="button" onClick={() => setDecision(e.fieldId, "rejected")}
                             aria-pressed={d === "rejected"}
                             style={{
@@ -2305,27 +2216,15 @@ export function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejec
                       );
                     })()}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div className="flex flex-col gap-1">
                     {e.before && (
-                      <div style={{
-                        padding: "8px 10px", borderRadius: 8,
-                        background: "rgba(176,48,58,0.06)",
-                        borderLeft: `3px solid rgba(176,48,58,0.4)`,
-                        fontSize: 12.5, lineHeight: 1.4,
-                        color: COLORS.inkMuted, textDecoration: "line-through",
-                      }}>{e.before}</div>
+                      <div style={{ padding: "8px 10px", borderRadius: 8, background: "rgba(176,48,58,0.06)", borderLeft: `3px solid rgba(176,48,58,0.4)`, fontSize: 12.5, lineHeight: 1.4, textDecoration: "line-through" }} className="text-admin-ink-muted">{e.before}</div>
                     )}
                     {e.after && (
-                      <div style={{
-                        padding: "8px 10px", borderRadius: 8,
-                        background: COLORS.successSoft,
-                        borderLeft: `3px solid ${COLORS.successDeep}`,
-                        fontSize: 12.5, lineHeight: 1.4,
-                        color: COLORS.ink, fontWeight: 500,
-                      }}>{e.after}</div>
+                      <div style={{ padding: "8px 10px", borderRadius: 8, borderLeft: `3px solid ${COLORS.successDeep}`, fontSize: 12.5, lineHeight: 1.4, fontWeight: 500 }} className="bg-admin-success-soft text-admin-ink">{e.after}</div>
                     )}
                     {!e.before && (
-                      <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontStyle: "italic", marginTop: -2 }}>
+                      <div style={{ fontSize: 10.5, fontStyle: "italic", marginTop: -2 }} className="text-admin-ink-dim">
                         + new field
                       </div>
                     )}
@@ -2511,21 +2410,10 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, 
         textAlign: "center",
       }}>
         <div style={{ fontSize: 42, lineHeight: 1, marginBottom: 8 }}>🎉</div>
-        <h2 style={{
-          margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-          color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.15,
-        }}>{stageName || "Profile"} is live</h2>
-        <p style={{
-          margin: "6px 0 16px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5,
-        }}>Share the link, drop the QR in a deck, or send the model card.</p>
+        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.15 }} className="text-admin-ink">{stageName || "Profile"} is live</h2>
+        <p style={{ margin: "6px 0 16px", fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink-muted">Share the link, drop the QR in a deck, or send the model card.</p>
         {/* Link card */}
-        <div style={{
-          padding: "10px 14px", borderRadius: 10,
-          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-          fontFamily: FONTS.mono, fontSize: 12, color: COLORS.ink,
-          marginBottom: 14,
-          textAlign: "left", overflowX: "auto",
-        }}>{profileUrl}</div>
+        <div style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.mono, fontSize: 12, marginBottom: 14, textAlign: "left", overflowX: "auto" }} className="bg-admin-surface text-admin-ink">{profileUrl}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <button type="button" onClick={() => {
             if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -2632,13 +2520,7 @@ export function ProfileOwnershipPanel({
   if (state === "unclaimed") {
     return (
       <div style={{ fontFamily: FONTS.body }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 11px", borderRadius: 999,
-          background: "rgba(11,11,13,0.04)",
-          fontSize: 12, color: COLORS.inkMuted, marginBottom: 10,
-          width: "fit-content",
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderRadius: 999, background: "rgba(11,11,13,0.04)", fontSize: 12, marginBottom: 10, width: "fit-content" }} className="text-admin-ink-muted">
           <span style={{
             width: 6, height: 6, borderRadius: "50%",
             background: COLORS.inkMuted,
@@ -2659,7 +2541,7 @@ export function ProfileOwnershipPanel({
             border: `1.5px solid ${COLORS.accent}`,
             padding: 14,
           }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-accent-deep">
               Send claim invite
             </div>
             <FieldRow label="Email" hint="Talent receives a one-tap claim link.">
@@ -2674,12 +2556,7 @@ export function ProfileOwnershipPanel({
               <ToggleControl value={includePassword} onChange={setIncludePassword}
                 label="Send a 6-digit code instead of a link · for talent without email" />
             </FieldRow>
-            <div style={{
-              padding: "8px 11px", borderRadius: 8,
-              background: COLORS.indigoSoft,
-              fontSize: 11.5, color: COLORS.indigoDeep, marginBottom: 12,
-              lineHeight: 1.5,
-            }}>
+            <div style={{ padding: "8px 11px", borderRadius: 8, fontSize: 11.5, marginBottom: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
               <strong>What happens next:</strong> {talentName} gets an email · clicks &quot;Claim my profile&quot; · creates a password · can edit any field you&apos;ve enabled below. Your existing data stays — they just become the owner.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -2703,13 +2580,7 @@ export function ProfileOwnershipPanel({
   if (state === "invited") {
     return (
       <div style={{ fontFamily: FONTS.body }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 11px", borderRadius: 999,
-          background: COLORS.amberSoft,
-          fontSize: 12, color: COLORS.amberDeep, marginBottom: 10,
-          width: "fit-content", fontWeight: 600,
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderRadius: 999, fontSize: 12, marginBottom: 10, width: "fit-content", fontWeight: 600 }} className="bg-admin-amber-soft text-admin-amber-deep">
           <span style={{
             width: 6, height: 6, borderRadius: "50%",
             background: COLORS.amber,
@@ -2734,7 +2605,7 @@ export function ProfileOwnershipPanel({
             fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, cursor: "pointer",
           }}>↗ Simulate talent accepting (demo)</button>
         </div>
-        <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, lineHeight: 1.5 }} className="text-admin-ink-dim">
           You can keep editing while the invite is pending. Talent&apos;s first edit will overwrite drafts in the fields they have permission for.
         </div>
       </div>
@@ -2744,29 +2615,14 @@ export function ProfileOwnershipPanel({
   // claimed
   return (
     <div style={{ fontFamily: FONTS.body }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "8px 11px", borderRadius: 999,
-        background: COLORS.successSoft,
-        fontSize: 12, color: COLORS.successDeep, marginBottom: 10,
-        width: "fit-content", fontWeight: 600,
-      }}>
-        <span style={{
-          width: 6, height: 6, borderRadius: "50%",
-          background: COLORS.green,
-        }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderRadius: 999, fontSize: 12, marginBottom: 10, width: "fit-content", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
+        <span style={{ width: 6, height: 6, borderRadius: "50%", }} />
         ✓ {talentName} owns this profile
       </div>
       <div style={{
-        background: "#fff", borderRadius: 10,
-        border: `1px solid ${COLORS.borderSoft}`,
-        padding: 12, marginBottom: 10,
-      }}>
-        <div style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-          color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 8,
-        }}>What talent can edit</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        background: "#fff", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, padding: 12, marginBottom: 10 }} className="bg-admin-green">
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">What talent can edit</div>
+        <div className="flex flex-col gap-1.5">
           {([
             { key: "media",        label: "Photos + albums" },
             { key: "bio",          label: "Bio + tagline" },
@@ -2808,7 +2664,7 @@ export function ProfileOwnershipPanel({
           })}
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex gap-2 flex-wrap">
         <button type="button" onClick={() => toast(`Sent ${talentName} a notification`)} style={{
           padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
           background: "transparent", color: COLORS.ink,
@@ -2820,7 +2676,7 @@ export function ProfileOwnershipPanel({
           fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}>↶ Revoke ownership</button>
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.5 }} className="text-admin-ink-dim">
         Revoking returns the profile to agency-managed. Talent&apos;s account stays, but they lose edit access on this profile.
       </div>
     </div>
@@ -2841,10 +2697,10 @@ export function ProfileActivityLog({ talentProfileId }: { talentProfileId?: stri
   }, [talentProfileId]);
 
   if (loading) return (
-    <div style={{ padding: "12px 0", color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>Loading…</div>
+    <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">Loading…</div>
   );
   if (entries.length === 0) return (
-    <div style={{ padding: "12px 0", color: COLORS.inkDim, fontSize: 12, fontFamily: FONTS.body }}>No activity recorded yet.</div>
+    <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">No activity recorded yet.</div>
   );
 
   const relTime = (iso: string) => {
@@ -2864,18 +2720,14 @@ export function ProfileActivityLog({ talentProfileId }: { talentProfileId?: stri
           padding: "8px 10px", borderRadius: 8,
           background: COLORS.surface,
         }}>
-          <span style={{
-            width: 6, height: 6, borderRadius: "50%",
-            background: e.actorRole === "admin" ? COLORS.amberDeep
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: e.actorRole === "admin" ? COLORS.amberDeep
               : e.actorRole === "talent" ? COLORS.indigoDeep
-              : COLORS.inkDim,
-            flexShrink: 0,
-          }} />
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: "block", fontSize: 12, color: COLORS.ink, lineHeight: 1.4 }}>
+              : COLORS.inkDim, flexShrink: 0, }} />
+          <span className="flex-1 min-w-0">
+            <span style={{ display: "block", fontSize: 12, lineHeight: 1.4 }} className="text-admin-ink">
               <strong style={{ fontWeight: 600, textTransform: "capitalize" }}>{e.actorRole}</strong>{" · "}{e.action}
             </span>
-            <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{relTime(e.createdAt)}</span>
+            <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{relTime(e.createdAt)}</span>
           </span>
         </div>
       ))}
@@ -2940,7 +2792,7 @@ export function CoverPhotoSlot({
   onClick: () => void;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div className="flex flex-col gap-1">
       <button
         type="button"
         onClick={onClick}
@@ -2969,10 +2821,7 @@ export function CoverPhotoSlot({
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
-          <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-            color: COLORS.inkMuted, fontFamily: FONTS.body,
-          }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
@@ -2993,8 +2842,8 @@ export function CoverPhotoSlot({
         )}
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 2 }}>
-        <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, color: COLORS.inkMuted }}>
-          Cover <span style={{ color: COLORS.inkDim }}>· 16:9 banner</span>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">
+          Cover <span className="text-admin-ink-dim">· 16:9 banner</span>
         </span>
         {imageUrl && (
           <button type="button" onClick={onClick} style={{
@@ -3031,7 +2880,7 @@ export function GalleryStrip({
         background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 86,
       }}>
         <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
-        <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, fontWeight: 500 }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
           Add photos
         </span>
       </button>
@@ -3057,12 +2906,7 @@ export function GalleryStrip({
         }} />
       ))}
       {extra > 0 && (
-        <div style={{
-          aspectRatio: "3 / 4", borderRadius: 5,
-          background: "rgba(15,79,62,0.10)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: FONTS.body, fontSize: 12, fontWeight: 700, color: COLORS.accent,
-        }}>+{extra}</div>
+        <div style={{ aspectRatio: "3 / 4", borderRadius: 5, background: "rgba(15,79,62,0.10)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.body, fontSize: 12, fontWeight: 700 }} className="text-admin-accent">+{extra}</div>
       )}
     </button>
   );
@@ -3086,7 +2930,7 @@ export function PhotoSlot({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <button
           type="button"
           onClick={onClick}
@@ -3147,9 +2991,9 @@ export function PhotoSlot({
         )}
       </div>
       <style>{`button:hover .photo-slot-overlay { opacity: 1 !important; }`}</style>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, color: COLORS.ink }}>{label}</div>
-        <div style={{ fontFamily: FONTS.body, fontSize: 9.5, color: COLORS.inkDim }}>{hint}</div>
+      <div className="text-center">
+        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink">{label}</div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 9.5 }} className="text-admin-ink-dim">{hint}</div>
       </div>
     </div>
   );
@@ -3189,7 +3033,7 @@ export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, 
   };
   return (
     <div style={{ fontFamily: FONTS.body }}>
-      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
         {filledCount} of 5 polaroids set. Casting directors check this set first.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
@@ -3250,7 +3094,7 @@ export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChan
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
       {credits.length > 0 && (
-        <div style={{ fontSize: 11, color: COLORS.inkDim, marginBottom: -2 }}>
+        <div style={{ fontSize: 11, marginBottom: -2 }} className="text-admin-ink-dim">
           Pin up to 3 with the ★ — they show first on your public profile.
         </div>
       )}
@@ -3280,7 +3124,7 @@ export const CreditsEditor = React.memo(function CreditsEditor({ credits, onChan
               background: "transparent", color: COLORS.inkMuted, fontSize: 14, cursor: "pointer",
             }}>×</button>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="flex gap-1.5">
             <select value={c.type} onChange={(e) => update(c.id, { type: e.target.value })} style={{
               padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
@@ -3364,7 +3208,7 @@ export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange 
         </div>
       ))}
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>Quick add</div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">Quick add</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {QUICK_LIMITS.filter(l => !usedLabels.has(l.toLowerCase())).map(l => (
             <button key={l} type="button" onClick={() => add(l)} style={{
@@ -3475,7 +3319,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
       {files.length === 0 && (
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           Common files: W-8BEN tax form · NDA · model release · driving license · public-liability cert.
         </div>
       )}
@@ -3486,14 +3330,14 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>{ICON_FOR_KIND[f.kind] ?? ICON_FOR_KIND.other}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 12.5, fontWeight: 600, color: f.uploadError ? "#C82828" : COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {f.name}{f.uploading ? " · uploading…" : ""}
             </div>
             {f.uploadError ? (
               <div style={{ fontSize: 10.5, color: "#C82828", marginTop: 1 }}>{f.uploadError}</div>
             ) : (
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
                 {fmtSize(f.sizeBytes)} · uploaded {new Date(f.uploadedAt).toLocaleDateString()}{f.storagePath ? " · saved" : (f.uploading ? "" : " · not saved")}
               </div>
             )}
@@ -3542,7 +3386,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
           e.target.value = "";
         }}
       />
-      <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4 }}>
+      <div style={{ fontSize: 10.5, marginTop: 4 }} className="text-admin-ink-dim">
         🔒 Files are admin-visible by default. Talent sees but doesn&apos;t edit unless an admin shares.
       </div>
     </div>
@@ -3557,11 +3401,8 @@ export function RequiredCoach({ missing, onJump }: {
 }) {
   const copy = useDashboardText();
   return (
-    <div style={{
-      borderRadius: 12, border: `1px solid rgba(91,107,160,0.18)`,
-      background: COLORS.indigoSoft, padding: 14, fontFamily: FONTS.body,
-    }}>
-      <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep, marginBottom: 6 }}>
+    <div style={{ borderRadius: 12, border: `1px solid rgba(91,107,160,0.18)`, padding: 14, fontFamily: FONTS.body }} className="bg-admin-indigo-soft">
+      <div style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 6 }} className="text-admin-indigo-deep">
         {copy.addToPublish(missing.length)}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -3572,13 +3413,9 @@ export function RequiredCoach({ missing, onJump }: {
             background: "rgba(255,255,255,0.6)", cursor: "pointer", textAlign: "left",
             fontFamily: FONTS.body,
           }}>
-            <span style={{
-              width: 16, height: 16, borderRadius: "50%",
-              border: `1.5px solid ${COLORS.indigoDeep}`,
-              flexShrink: 0,
-            }} />
-            <span style={{ fontSize: 12, color: COLORS.ink, flex: 1 }}>{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
-            <span style={{ color: COLORS.indigoDeep, fontSize: 14 }}>›</span>
+            <span style={{ width: 16, height: 16, borderRadius: "50%", border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0, }} />
+            <span style={{ fontSize: 12, flex: 1 }} className="text-admin-ink">{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
+            <span style={{ fontSize: 14 }} className="text-admin-indigo-deep">›</span>
           </button>
         ))}
       </div>
@@ -3661,7 +3498,7 @@ export function HeaderPublishCoach({ missing, onJump }: {
                 width: 14, height: 14, borderRadius: "50%",
                 border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0,
               }} />
-              <span style={{ fontSize: 12.5, color: COLORS.ink, flex: 1 }}>{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
+              <span style={{ fontSize: 12.5, flex: 1 }} className="text-admin-ink">{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
               <span aria-hidden style={{ color: COLORS.indigoDeep, fontSize: 13 }}>›</span>
             </button>
           ))}
@@ -3843,17 +3680,12 @@ export function PMobileMenuItem({ icon, label, onClick, disabled, shortcut, hasS
       onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = COLORS.surfaceAlt; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      <span style={{
-        width: 22, fontSize: 14, color: COLORS.inkMuted, textAlign: "center", flexShrink: 0,
-      }}>{icon}</span>
-      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>{copy.t(label)}</span>
+      <span style={{ width: 22, fontSize: 14, textAlign: "center", flexShrink: 0 }} className="text-admin-ink-muted">{icon}</span>
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{copy.t(label)}</span>
       {shortcut && (
-        <span style={{
-          fontSize: 10, fontFamily: FONTS.mono, color: COLORS.inkDim,
-          background: "rgba(11,11,13,0.04)", padding: "2px 6px", borderRadius: 4,
-        }}>{shortcut}</span>
+        <span style={{ fontSize: 10, fontFamily: FONTS.mono, background: "rgba(11,11,13,0.04)", padding: "2px 6px", borderRadius: 4 }} className="text-admin-ink-dim">{shortcut}</span>
       )}
-      {hasSubmenu && <span style={{ color: COLORS.inkDim, fontSize: 13 }}>›</span>}
+      {hasSubmenu && <span style={{ fontSize: 13 }} className="text-admin-ink-dim">›</span>}
     </button>
   );
 }
@@ -3895,10 +3727,10 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
         }}
         aria-label="Dismiss"
       >×</button>
-      <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
         Welcome — let&apos;s start with 3 things
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
         Each takes about 30 seconds. You can polish the rest later.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -3909,22 +3741,16 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
             background: "#fff", cursor: "pointer", textAlign: "left",
             fontFamily: FONTS.body,
           }}>
-            <span style={{
-              width: 22, height: 22, borderRadius: "50%",
-              background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-              fontSize: 11, fontWeight: 700, color: COLORS.inkMuted,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}>{i + 1}</span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{s.emoji}  {s.label}</span>
-              <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{s.helper}</span>
+            <span style={{ width: 22, height: 22, borderRadius: "50%", border: `1px solid ${COLORS.borderSoft}`, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-surface text-admin-ink-muted">{i + 1}</span>
+            <span className="flex-1 min-w-0">
+              <span style={{ display: "block", fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{s.emoji}  {s.label}</span>
+              <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{s.helper}</span>
             </span>
-            <span style={{ color: COLORS.inkDim, fontSize: 14 }}>›</span>
+            <span style={{ fontSize: 14 }} className="text-admin-ink-dim">›</span>
           </button>
         ))}
       </div>
-      <div style={{ fontSize: 10, color: COLORS.inkDim, marginTop: 8 }}>
+      <div style={{ fontSize: 10, marginTop: 8 }} className="text-admin-ink-dim">
         Profile is {completeness}% complete · publish at 100%
       </div>
     </div>
@@ -3948,20 +3774,20 @@ export function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
       fontFamily: FONTS.body,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, color: COLORS.inkMuted, textTransform: "uppercase" }}>Last 7 days</span>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">Last 7 days</span>
         <span style={{ fontSize: 10, fontWeight: 600, color: trend >= 0 ? COLORS.successDeep : COLORS.amberDeep }}>
           {trend >= 0 ? "▲" : "▼"} {Math.abs(trend)}%
         </span>
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.3 }}>{views}</div>
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>Profile views</div>
+      <div className="flex gap-2.5">
+        <div className="flex-1">
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.3 }} className="text-admin-ink">{views}</div>
+          <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">Profile views</div>
         </div>
         <div style={{ width: 1, background: COLORS.borderSoft }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.3 }}>{inquiries}</div>
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>Inquiries</div>
+        <div className="flex-1">
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.3 }} className="text-admin-ink">{inquiries}</div>
+          <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">Inquiries</div>
         </div>
       </div>
       <button type="button" onClick={onJump} style={{
@@ -4027,10 +3853,7 @@ export function CollapsibleIdentityField({
         }}
       >
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-          <span style={{
-            fontSize: 12, fontWeight: 600, color: COLORS.ink,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
+          <span style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">
             {label}
           </span>
           {!open && (
@@ -4112,9 +3935,9 @@ export function ProfileAccordionSection({ id, title, sub, complete, started, ope
         padding: "16px 16px 6px", textAlign: "left",
         fontFamily: FONTS.body,
       }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 13.5, fontWeight: 700, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.05 }}>{title}</div>
-          {sub && <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>{sub}</div>}
+          {sub && <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">{sub}</div>}
         </div>
       </div>
       {(
@@ -4207,11 +4030,7 @@ export function CountryAutocompleteInput({
         style={SHARED_FIELD_INPUT_STYLE}
       />
       {open && suggestions.length > 0 && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999,
-          background: COLORS.surface, border: `1px solid ${COLORS.border}`,
-          borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden",
-        }}>
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999, border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden" }} className="bg-admin-surface">
           {suggestions.map((c, i) => (
             <button key={`${c.google_place_id ?? c.iso2 ?? c.name_en}-${i}`}
               onMouseDown={(e) => { e.preventDefault(); void handleSelect(c); }}
@@ -4222,9 +4041,9 @@ export function CountryAutocompleteInput({
                 fontFamily: FONTS.body, borderBottom: `1px solid ${COLORS.borderSoft}`,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>{c.name_en}</span>
+              <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }} className="text-admin-ink">{c.name_en}</span>
               {c.iso2 && (
-                <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600 }}>{c.iso2}</span>
+                <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">{c.iso2}</span>
               )}
             </button>
           ))}
@@ -4308,17 +4127,12 @@ export function CityAutocompleteInput({
         style={SHARED_FIELD_INPUT_STYLE}
       />
       {!configured && (
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
           Google Places not configured — type any city name.
         </div>
       )}
       {open && predictions.length > 0 && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999,
-          background: COLORS.surface, border: `1px solid ${COLORS.border}`,
-          borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
-          overflow: "hidden",
-        }}>
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999, border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden" }} className="bg-admin-surface">
           {predictions.map((p) => (
             <button key={p.placeId}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(p); }}
@@ -4328,9 +4142,9 @@ export function CityAutocompleteInput({
                 fontFamily: FONTS.body, borderBottom: `1px solid ${COLORS.borderSoft}`,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{p.mainText}</span>
+              <span style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{p.mainText}</span>
               {p.secondaryText && (
-                <span style={{ fontSize: 11.5, color: COLORS.inkMuted, marginLeft: 6 }}>{p.secondaryText}</span>
+                <span style={{ fontSize: 11.5, marginLeft: 6 }} className="text-admin-ink-muted">{p.secondaryText}</span>
               )}
             </button>
           ))}
@@ -4361,10 +4175,10 @@ export function UpcomingVisitsEditor({
     onChange(visits.map((v) => (v.id === id ? { ...v, ...patch } : v)));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="flex flex-col gap-2">
       {visits.map((v) => (
         <div key={v.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <CityAutocompleteInput
               value={v.city}
               placeId={v.placeId}
@@ -4415,13 +4229,7 @@ export function ServiceAreaMap({ homeBase, travelKm, cities }: {
 }) {
   const radius = Math.max(20, Math.min(70, travelKm / 12));
   return (
-    <div style={{
-      position: "relative",
-      height: 130, borderRadius: 10,
-      background: COLORS.surface,
-      border: `1px solid ${COLORS.borderSoft}`,
-      overflow: "hidden",
-    }}>
+    <div style={{ position: "relative", height: 130, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }} className="bg-admin-surface">
       <svg width="100%" height="100%" viewBox="0 0 280 130" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>
         <defs>
           <pattern id="psgrid" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -4439,12 +4247,7 @@ export function ServiceAreaMap({ homeBase, travelKm, cities }: {
           return <circle key={c} cx={cx} cy={cy} r="3" fill={COLORS.indigoDeep}/>;
         })}
       </svg>
-      <div style={{
-        position: "absolute", bottom: 8, left: 10, right: 10,
-        display: "flex", justifyContent: "space-between",
-        fontSize: 10, color: COLORS.inkMuted, fontWeight: 500,
-        fontFamily: FONTS.body,
-      }}>
+      <div style={{ position: "absolute", bottom: 8, left: 10, right: 10, display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 500, fontFamily: FONTS.body }} className="text-admin-ink-muted">
         <span>📍 {homeBase || "Set home base"}</span>
         <span>{travelKm === 999 ? "Anywhere" : `${travelKm} km`}</span>
       </div>
@@ -4474,7 +4277,7 @@ export function StatusPillDropdown({ status, onChange, role }: {
   const popoverId = React.useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button type="button"
         // Native popover trigger — browser handles open/close
         {...({ popoverTarget: popoverId } as Record<string, string>)}
@@ -4593,7 +4396,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
     placeholder?: string;
     onPick: (id: string | null) => void;
   }) => (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <select
         value={value ?? ""}
         onChange={(e) => onPick(e.target.value === "" ? null : e.target.value)}
@@ -4675,17 +4478,11 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
         filled={!!(identity.legalName && identity.legalName.trim())}
         summary={(identity.legalName && identity.legalName.trim()) || copy.t("Add legal name")}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {/* ADMIN-ONLY pill + compact visibility chip. flexWrap + rowGap
               so they never collide / overflow on narrow widths. */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
-            <span style={{
-              fontSize: 9.5, fontWeight: 600, letterSpacing: 0.4,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted, background: "rgba(11,11,13,0.06)",
-              border: `1px solid rgba(11,11,13,0.1)`,
-              borderRadius: 5, padding: "1px 6px",
-            }}>
+            <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", background: "rgba(11,11,13,0.06)", border: `1px solid rgba(11,11,13,0.1)`, borderRadius: 5, padding: "1px 6px" }} className="text-admin-ink-muted">
               {copy.t("Admin only")}
             </span>
             <div style={{ marginLeft: "auto" }}>
@@ -4863,10 +4660,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
       >
       <FieldRow hideLabel label={copy.t("Email")} optional hint={copy.t("Direct contact. Never shown publicly.")} visibility={["agency"]}>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <span style={{
-            position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
-            color: COLORS.inkMuted,
-          }}>✉️</span>
+          <span style={{ position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none" }} className="text-admin-ink-muted">✉️</span>
           <input
             type="email"
             placeholder="talent@example.com"
@@ -4986,10 +4780,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
       >
       <FieldRow hideLabel label={copy.t("Business line")} optional hint={copy.t("Secondary email, agency handle, or manager contact.")} visibility={["agency"]}>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <span style={{
-            position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
-            color: COLORS.inkMuted,
-          }}>🏢</span>
+          <span style={{ position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none" }} className="text-admin-ink-muted">🏢</span>
           <input
             type="text"
             placeholder={copy.t("manager@agency.com or @handle")}
@@ -5049,12 +4840,9 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
 export function LockedHint({ reason }: { reason?: string }) {
   const copy = useDashboardText();
   return (
-    <div style={{
-      marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4,
-      fontSize: 10.5, color: COLORS.amberDeep, fontFamily: FONTS.body,
-    }}>
+    <div style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-amber-deep">
       🔒 {copy.t("Locked by your agency")}
-      {reason ? <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}> · {reason}</span> : null}
+      {reason ? <span style={{ fontWeight: 400 }} className="text-admin-ink-muted"> · {reason}</span> : null}
     </div>
   );
 }
@@ -5080,15 +4868,7 @@ export function FieldLocksOverviewPanel({
   const copy = useDashboardText();
   if (locks.length === 0) {
     return (
-      <div style={{
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: `1px dashed ${COLORS.borderSoft}`,
-        background: "rgba(11,11,13,0.02)",
-        fontFamily: FONTS.body,
-        fontSize: 12,
-        color: COLORS.inkMuted,
-      }}>
+      <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px dashed ${COLORS.borderSoft}`, background: "rgba(11,11,13,0.02)", fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
         {copy.t("No locked fields. Open a section and tap \"🔓 Talent can edit\" next to a field to lock it.")}
       </div>
     );
@@ -5127,13 +4907,9 @@ export function FieldLocksOverviewPanel({
             borderRadius: 8,
             background: "rgba(184,128,38,0.05)",
           }}>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              fontSize: 12, fontWeight: 600, color: COLORS.amberDeep,
-              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }} title={path}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", }} title={path}>
               <span aria-hidden>🔒</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-amber-deep">{label}</span>
             </div>
             <input
               type="text"
@@ -5177,7 +4953,7 @@ export function FieldLocksOverviewPanel({
           </div>
         );
       })}
-      <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, padding: "0 4px" }}>
+      <div style={{ fontSize: 10.5, marginTop: 2, padding: "0 4px" }} className="text-admin-ink-muted">
         Tip: lock anything tied to a contract, payout setup, or trust signal — talent see the reason next to the field.
       </div>
     </div>
@@ -5213,7 +4989,7 @@ export function SkillsProEditor({ entries, onChange }: {
               {meta.label}
               <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {inThisBucket.length}</span>
             </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginBottom: 6 }}>
+            <div style={{ fontSize: 10.5, marginBottom: 6 }} className="text-admin-ink-dim">
               {meta.helper}
             </div>
             {inThisBucket.length > 0 && (
@@ -5240,7 +5016,7 @@ export function SkillsProEditor({ entries, onChange }: {
       <div style={{
         borderTop: `1px solid ${COLORS.borderSoft}`, paddingTop: 10,
       }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
           Catalog · tap to start at &quot;Great at&quot; then cycle to lower tiers
         </div>
         <CatalogChips
@@ -5271,14 +5047,14 @@ export const PersonalityEditor = React.memo(function PersonalityEditor({ value, 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
           ❤️  I love
         </div>
         <ChipsInput label="" placeholder="e.g. Champagne service, French villas, late-night gigs"
           values={value.loves} onChange={setLoves} />
       </div>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
           ⊘  I avoid
         </div>
         <ChipsInput label="" placeholder="e.g. Photoshoots before 10am, smoking environments"
@@ -5327,26 +5103,17 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
   };
   return (
     <div style={{ marginBottom: 12, fontFamily: FONTS.body }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
         ✦  Hello reel · 30 sec intro
       </div>
       {reel ? (
-        <div style={{
-          padding: 12, borderRadius: 12,
-          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <span style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: COLORS.accent, color: "#fff",
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, flexShrink: 0,
-          }}>▶</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+        <div style={{ padding: 12, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10 }} className="bg-admin-surface">
+          <span style={{ width: 36, height: 36, borderRadius: 10, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }} className="bg-admin-accent">▶</span>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
               {uploading ? "Uploading reel…" : "Reel uploaded"}
             </div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+            <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
               {reel.durationSec ? `~${reel.durationSec}s` : "Ready"} · {reel.url.startsWith("blob:") ? (uploading ? "saving…" : "local preview") : "saved"}
             </div>
           </div>
@@ -5417,16 +5184,13 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}>
-              {a.name} <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>· {loading ? "…" : a.items.length}</span>
+              {a.name} <span style={{ fontWeight: 500 }} className="text-admin-ink-dim">· {loading ? "…" : a.items.length}</span>
             </button>
           );
         })}
       </div>
-      <div style={{
-        background: COLORS.surface, padding: 14, borderRadius: 10,
-        border: `1px solid ${COLORS.borderSoft}`,
-      }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>
+      <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">
           Manage albums
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
@@ -5440,7 +5204,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{loading ? "…" : `${a.items.length} photo${a.items.length === 1 ? "" : "s"}`}</span>
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{loading ? "…" : `${a.items.length} photo${a.items.length === 1 ? "" : "s"}`}</span>
               {albums.length > 1 && (
                 <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
                   width: 24, height: 24, borderRadius: 6,
@@ -5451,7 +5215,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           <input type="text" value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlbum(); } }}
@@ -5521,7 +5285,7 @@ export function SeasonalEditor({ windows, onChange }: {
               padding: "8px 10px", borderRadius: 10,
               background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
             }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, flex: 1 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }} className="text-admin-ink">
                 {w.city} · {monthName(w.startMonth)}–{monthName(w.endMonth)}
               </span>
               <button type="button" onClick={() => onChange(windows.filter(x => x.id !== w.id))} aria-label="Remove" style={{
@@ -5545,7 +5309,7 @@ export function SeasonalEditor({ windows, onChange }: {
           style={{ padding: "8px 8px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink, background: "#fff" }}>
           {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{monthName(i+1)}</option>)}
         </select>
-        <span style={{ color: COLORS.inkDim, fontSize: 11 }}>→</span>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-dim">→</span>
         <select value={draft.endMonth} onChange={(e) => setDraft(d => ({ ...d, endMonth: Number(e.target.value) }))}
           style={{ padding: "8px 8px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink, background: "#fff" }}>
           {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{monthName(i+1)}</option>)}
@@ -5577,7 +5341,7 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
           Recurring pattern
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -5620,16 +5384,12 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
         )}
       </div>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
           Vacation mode
         </div>
         {vacation ? (
-          <div style={{
-            padding: "10px 12px", borderRadius: 10,
-            background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
-            display: "flex", alignItems: "center", gap: 8,
-          }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.indigoDeep, flex: 1 }}>
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, display: "flex", alignItems: "center", gap: 8 }} className="bg-admin-indigo-soft">
+            <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }} className="text-admin-indigo-deep">
               Out {vacation.start} → {vacation.end}
             </span>
             <button type="button" onClick={() => onVacationChange(null)} style={{
@@ -5641,7 +5401,7 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
         ) : (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input type="date" id="vacstart" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
-            <span style={{ color: COLORS.inkDim, fontSize: 11 }}>→</span>
+            <span style={{ fontSize: 11 }} className="text-admin-ink-dim">→</span>
             <input type="date" id="vacend"   style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
             <button type="button" onClick={() => {
               const s = (document.getElementById("vacstart") as HTMLInputElement)?.value;
@@ -5769,10 +5529,7 @@ export const PastClientsEditor = React.memo(function PastClientsEditor({ clients
               }}
             />
             {c.verified && (
-              <span style={{
-                fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-                background: COLORS.successSoft, color: COLORS.successDeep,
-              }}>✓ Verified booking</span>
+              <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }} className="bg-admin-success-soft text-admin-success-deep">✓ Verified booking</span>
             )}
             <button type="button" onClick={() => remove(c.id)} aria-label="Remove" style={{
               width: 28, height: 28, borderRadius: 8, border: "none",
@@ -5850,7 +5607,7 @@ export function NextTierCoach({ tier, verifications }: {
       <div style={{ fontSize: 11.5, fontWeight: 600, color: targetMeta.fg, marginBottom: 6 }}>
         Reach {targetMeta.label} {targetMeta.emoji}
       </div>
-      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: COLORS.ink, lineHeight: 1.55 }}>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.55 }} className="text-admin-ink">
         {nextSteps.map(s => <li key={s}>{s}</li>)}
       </ul>
     </div>
@@ -5887,7 +5644,7 @@ export function FieldLockToggle({ path, locks, onChange, fieldLabel }: {
       }}
     >
       {fieldLabel && (
-        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+        <span style={{ fontWeight: 700 }} className="text-admin-ink">
           {copy.t(fieldLabel)} ·
         </span>
       )}
@@ -6284,19 +6041,13 @@ export function NewTalentDrawer() {
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
           fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}>📋 Paste contact</button>
-        <span style={{ fontSize: 11, color: COLORS.inkDim }}>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-dim">
           vCard · @handle · linkedin.com/in/… · plain text
         </span>
       </div>
 
       {/* Hero — photo + name + display + pronunciation */}
-      <div style={{
-        display: "flex", gap: 14, alignItems: "flex-start",
-        padding: 14, borderRadius: 14,
-        background: COLORS.surface,
-        border: `1px solid ${COLORS.borderSoft}`,
-        marginBottom: 16,
-      }}>
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: 14, borderRadius: 14, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 16 }} className="bg-admin-surface">
         <button type="button" onClick={() => fileRef.current?.click()} aria-label="Upload photo" style={{
           width: 88, height: 88, flexShrink: 0,
           borderRadius: 14,
@@ -6333,7 +6084,7 @@ export function NewTalentDrawer() {
           }}
         />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="flex gap-1.5">
             <input type="text" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)}
               style={qaInputStyle()}
             />
@@ -6354,7 +6105,7 @@ export function NewTalentDrawer() {
         <FieldRow label="Email"
           hint={method === "invited" ? "Required — they'll receive a claim link." : "Optional — used for booking comms."}
         >
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <input type="email" placeholder="talent@example.com"
               value={email} onChange={(e) => setEmail(e.target.value)}
               style={{
@@ -6375,7 +6126,7 @@ export function NewTalentDrawer() {
           </div>
         </FieldRow>
         <FieldRow label="Phone" optional hint="Used for SMS verification + day-of booking comms.">
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="flex gap-1.5">
             <select value={phoneCountry} onChange={(e) => setPhoneCountry(e.target.value)} style={{
               padding: "10px 10px", borderRadius: 10,
               border: `1px solid ${COLORS.border}`, background: "#fff",
@@ -6406,16 +6157,10 @@ export function NewTalentDrawer() {
         {primaryType && (() => {
           const match = allowedParents.flatMap(p => p.children.map(c => ({ parent: p, child: c }))).find(x => x.child.id === primaryType);
           return match ? (
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "5px 10px 5px 7px", borderRadius: 999,
-              background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`,
-              fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink,
-              marginBottom: 10,
-            }}>
-              <span style={{ color: COLORS.green, fontSize: 11 }}>✓</span>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
+              <span style={{ fontSize: 11 }} className="text-admin-green">✓</span>
               <span>{match.child.label}</span>
-              <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>under {match.parent.label}</span>
+              <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">under {match.parent.label}</span>
               <button type="button" onClick={() => setPrimaryType(null)} style={{
                 background: "none", border: "none", cursor: "pointer",
                 color: COLORS.inkMuted, fontSize: 13, padding: 0, lineHeight: 1,
@@ -6423,7 +6168,7 @@ export function NewTalentDrawer() {
             </div>
           ) : null;
         })()}
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
           What clients book this person as. Add secondary roles below — this matches what registration collects.
         </div>
         <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={(id) => setPrimaryType(id)} />
@@ -6437,7 +6182,7 @@ export function NewTalentDrawer() {
             {showMore ? `– Hide ${restParentsLP.length} more` : `+ More… (${restParentsLP.length})`}
           </button>
         )}
-        <div style={{ marginTop: 6, fontSize: 10.5, color: COLORS.inkDim }}>
+        <div style={{ marginTop: 6, fontSize: 10.5 }} className="text-admin-ink-dim">
           {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible · {restParentsLP.length} more
         </div>
       </Section>
@@ -6457,10 +6202,10 @@ export function NewTalentDrawer() {
             ? "free" : "free") as "free" | "studio" | "agency" | "network") <= currentRank);
         return (
           <Section title="Secondary talent types" framed>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Optional. Pick categories this talent ALSO works in — e.g. a model who also hosts, or a host who also drives. Multi-role profiles surface in more searches.
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {candidates.map(p => {
                 const active = secondaryTypes.includes(p.id);
                 return (
@@ -6487,7 +6232,7 @@ export function NewTalentDrawer() {
               })}
             </div>
             {secondaryTypes.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 10.5, color: COLORS.inkDim }}>
+              <div style={{ marginTop: 8, fontSize: 10.5 }} className="text-admin-ink-dim">
                 {secondaryTypes.length} secondary {secondaryTypes.length === 1 ? "role" : "roles"} selected.
               </div>
             )}
@@ -6522,18 +6267,18 @@ export function NewTalentDrawer() {
         );
         return (
           <Section title="What's collected next" framed>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
               After save, the full profile shell asks for these fields. Catalog-driven — workspace overrides apply.
             </div>
             {required.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
+              <div className="mb-2.5">
                 <div style={{
                   fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
                   color: COLORS.accentDeep ?? COLORS.accent, marginBottom: 4,
                 }}>
                   Required ({required.length})
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                <div className="flex flex-wrap gap-1">
                   {required.slice(0, 12).map(f => (
                     <span key={f.id} style={{
                       padding: "2px 8px", borderRadius: 999,
@@ -6544,7 +6289,7 @@ export function NewTalentDrawer() {
                     }}>{f.label}</span>
                   ))}
                   {required.length > 12 && (
-                    <span style={{ fontSize: 10.5, color: COLORS.inkMuted, alignSelf: "center" }}>
+                    <span style={{ fontSize: 10.5, alignSelf: "center" }} className="text-admin-ink-muted">
                       +{required.length - 12} more
                     </span>
                   )}
@@ -6553,13 +6298,10 @@ export function NewTalentDrawer() {
             )}
             {recommended.length > 0 && (
               <div>
-                <div style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-                  color: COLORS.inkMuted, marginBottom: 4,
-                }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">
                   Recommended ({recommended.length})
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                <div className="flex flex-wrap gap-1">
                   {recommended.slice(0, 8).map(f => (
                     <span key={f.id} style={{
                       padding: "2px 8px", borderRadius: 999,
@@ -6570,7 +6312,7 @@ export function NewTalentDrawer() {
                     }}>{f.label}</span>
                   ))}
                   {recommended.length > 8 && (
-                    <span style={{ fontSize: 10.5, color: COLORS.inkDim, alignSelf: "center" }}>
+                    <span style={{ fontSize: 10.5, alignSelf: "center" }} className="text-admin-ink-dim">
                       +{recommended.length - 8} more
                     </span>
                   )}
@@ -6602,11 +6344,11 @@ export function NewTalentDrawer() {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
           fontFamily: FONTS.body,
         }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
               Mobile-first self-registration
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
               The talent fills out their own profile. Goes to your approval queue.
             </div>
           </div>
@@ -6616,7 +6358,7 @@ export function NewTalentDrawer() {
             fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer", flexShrink: 0,
           }}>Preview</button>
         </div>
-        <div style={{ marginTop: 10 }}>
+        <div className="mt-2.5">
           <button
             type="button"
             onClick={() => {
@@ -6643,14 +6385,8 @@ export function NewTalentDrawer() {
 
       {/* Inline hint when required fields aren't filled yet */}
       {addMode === "single" && !minimumValid && (firstName.trim() || lastName.trim()) && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 14px", borderRadius: 8,
-          background: "rgba(11,11,13,0.04)",
-          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
-          marginTop: 4,
-        }}>
-          <span style={{ flexShrink: 0 }}>ℹ</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "rgba(11,11,13,0.04)", fontFamily: FONTS.body, fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
+          <span className="shrink-0">ℹ</span>
           <span>
             {!primaryType && !homeBase.trim()
               ? "Pick a primary type and home base to continue"
@@ -6697,15 +6433,11 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
 
   return (
     <div style={{ fontFamily: FONTS.body }}>
-      <div style={{
-        padding: 14, borderRadius: 12,
-        background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-        marginBottom: 14,
-      }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+      <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14 }} className="bg-admin-surface">
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
           Paste or upload a CSV
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
           Headers we recognize: <code style={{ fontFamily: FONTS.mono }}>firstName, lastName, email, phone, type, city</code>.
           Other column orders work too.
         </div>
@@ -6751,7 +6483,7 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
             display: "flex", alignItems: "center", justifyContent: "space-between",
             marginBottom: 8,
           }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
               Preview · {parsed.length} row{parsed.length === 1 ? "" : "s"} ({valid} valid)
             </div>
             <select value={defaultType ?? ""} onChange={(e) => setDefaultType(e.target.value || null)} style={{
@@ -6773,7 +6505,7 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
             <div style={{ maxHeight: 260, overflowY: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FONTS.body, fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: COLORS.surface }}>
+                  <tr className="bg-admin-surface">
                     <th style={csvCellStyle(true)}>Name</th>
                     <th style={csvCellStyle(true)}>Email</th>
                     <th style={csvCellStyle(true)}>Phone</th>
@@ -6787,13 +6519,13 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
                     return (
                       <tr key={i} style={{ borderTop: `1px solid ${COLORS.borderSoft}`, opacity: isValid ? 1 : 0.55 }}>
                         <td style={csvCellStyle(false)}>
-                          {`${r.firstName} ${r.lastName}`.trim() || <span style={{ color: COLORS.amberDeep }}>missing name</span>}
+                          {`${r.firstName} ${r.lastName}`.trim() || <span className="text-admin-amber-deep">missing name</span>}
                         </td>
                         <td style={csvCellStyle(false)}>
-                          {r.email || <span style={{ color: COLORS.amberDeep }}>missing email</span>}
+                          {r.email || <span className="text-admin-amber-deep">missing email</span>}
                         </td>
                         <td style={csvCellStyle(false)}>{r.phone || "—"}</td>
-                        <td style={csvCellStyle(false)}>{r.type || (defaultType && allowedParents.flatMap(p => p.children).find(c => c.id === defaultType)?.label) || <span style={{ color: COLORS.inkDim }}>—</span>}</td>
+                        <td style={csvCellStyle(false)}>{r.type || (defaultType && allowedParents.flatMap(p => p.children).find(c => c.id === defaultType)?.label) || <span className="text-admin-ink-dim">—</span>}</td>
                         <td style={csvCellStyle(false)}>{r.city || "—"}</td>
                       </tr>
                     );
@@ -6803,7 +6535,7 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
             </div>
           </div>
           {parsed.length > 200 && (
-            <div style={{ padding: "8px 12px", borderRadius: 8, background: COLORS.amberSoft, color: COLORS.amberDeep, fontSize: 12, marginBottom: 8 }}>
+            <div style={{ padding: "8px 12px", borderRadius: 8, fontSize: 12, marginBottom: 8 }} className="bg-admin-amber-soft text-admin-amber-deep">
               {parsed.length} rows detected — imports are capped at 200. Trim your CSV to continue.
             </div>
           )}
@@ -6818,11 +6550,7 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
       )}
 
       {parsed.length === 0 && raw.trim() && (
-        <div style={{
-          padding: 12, borderRadius: 10,
-          background: COLORS.amberSoft, color: COLORS.amberDeep,
-          fontSize: 12, lineHeight: 1.5,
-        }}>
+        <div style={{ padding: 12, borderRadius: 10, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-amber-soft text-admin-amber-deep">
           Couldn&apos;t parse this. The first row should be column headers (firstName, lastName, email, …).
         </div>
       )}
@@ -6865,8 +6593,8 @@ export function PasteContactModal({ onClose, onApply }: {
         background: "#fff", borderRadius: 14, padding: 20,
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
       }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Paste a contact</h3>
-        <p style={{ margin: "6px 0 12px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} className="text-admin-ink">Paste a contact</h3>
+        <p style={{ margin: "6px 0 12px", fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
           vCard · Instagram handle (@user) · linkedin.com/in/slug · or just paste a name + email + phone.
           We&apos;ll extract what we can.
         </p>
@@ -6983,7 +6711,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       {/* Search */}
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <input
           ref={inputRef}
           type="search"
@@ -7023,7 +6751,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
             padding: 4,
           }}>
             {matched.length === 0 ? (
-              <div style={{ padding: "10px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+              <div style={{ padding: "10px 12px", fontSize: 12 }} className="text-admin-ink-muted">
                 No matches. Try a broader search.
               </div>
             ) : (
@@ -7043,19 +6771,16 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                     onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                   >
                     <span style={{ fontSize: 16, flexShrink: 0 }}>{t.parent.emoji}</span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                    <span className="flex-1 min-w-0">
+                      <span style={{ display: "block", fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                         {t.child.label}
                       </span>
-                      <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                      <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {t.parent.label}{t.child.specialties && t.child.specialties.length > 0 ? ` · ${t.child.specialties.slice(0, 3).join(", ")}` : ""}
                       </span>
                     </span>
                     {t.popularity >= 50 && (
-                      <span style={{
-                        fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 999,
-                        background: COLORS.amberSoft, color: COLORS.amberDeep, flexShrink: 0,
-                      }}>★ Popular</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 999, flexShrink: 0 }} className="bg-admin-amber-soft text-admin-amber-deep">★ Popular</span>
                     )}
                   </button>
                 );
@@ -7070,16 +6795,12 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
           types at the top level — that's the V1 reset rule. */}
       {q.length === 0 && (
         <>
-          <div style={{ fontSize: 11.5, color: COLORS.inkDim, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 11.5, lineHeight: 1.4 }} className="text-admin-ink-dim">
             Choose a category to see the specific roles inside it.
           </div>
 
           {/* Per-parent rolled-up rows */}
-          <div style={{
-            background: COLORS.surface, borderRadius: 12,
-            border: `1px solid ${COLORS.borderSoft}`,
-            overflow: "hidden",
-          }}>
+          <div style={{ borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }} className="bg-admin-surface">
             {parents.map((parent, i) => {
               const isOpen = expandedParentId === parent.id;
               return (
@@ -7093,19 +6814,15 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                     fontFamily: FONTS.body,
                   }}>
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{parent.emoji}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                    <div className="flex-1">
+                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                         {shortParentLabel(parent)}
                       </div>
-                      <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                      <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {parent.children.length} type{parent.children.length === 1 ? "" : "s"} · {parent.helper}
                       </div>
                     </div>
-                    <span style={{
-                      color: COLORS.inkMuted, fontSize: 14,
-                      transform: isOpen ? "rotate(90deg)" : "none",
-                      transition: "transform .15s",
-                    }}>›</span>
+                    <span style={{ fontSize: 14, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }} className="text-admin-ink-muted">›</span>
                   </button>
                   {isOpen && (
                     <ParentExpandedView
@@ -7119,7 +6836,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
             })}
           </div>
 
-          <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontStyle: "italic" }}>
+          <div style={{ fontSize: 10.5, fontStyle: "italic" }} className="text-admin-ink-dim">
             Looking for something specific? Use the search above.
           </div>
         </>
@@ -7127,8 +6844,8 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
 
       {/* Selection acknowledgment */}
       {selectedPair && (
-        <div style={{ fontSize: 11, color: COLORS.inkDim }}>
-          ✓ Selected: <strong style={{ color: COLORS.ink, fontWeight: 600 }}>{selectedPair.child.label}</strong> under {selectedPair.parent.label}
+        <div style={{ fontSize: 11 }} className="text-admin-ink-dim">
+          ✓ Selected: <strong style={{ fontWeight: 600 }} className="text-admin-ink">{selectedPair.child.label}</strong> under {selectedPair.parent.label}
         </div>
       )}
     </div>
@@ -7183,7 +6900,7 @@ export function ParentExpandedView({
     <div style={{ padding: "4px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
       {/* Per-parent search — only when there are enough children to warrant one */}
       {parent.children.length > TOP_N && (
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <input
             type="search"
             value={localQuery}
@@ -7216,14 +6933,14 @@ export function ParentExpandedView({
 
       {/* "Top in {parent}" or "All N types" header */}
       {!filtered && (
-        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 2 }}>
+        <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-dim">
           {showAll
             ? `All ${popSorted.length} types in ${shortLabel}`
             : `Top in ${shortLabel}`}
         </div>
       )}
       {filtered && (
-        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 2 }}>
+        <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-dim">
           {filtered.length === 0
             ? "No matches in this category."
             : `${filtered.length} match${filtered.length === 1 ? "" : "es"} in ${shortLabel}`}
@@ -7245,7 +6962,7 @@ export function ParentExpandedView({
             }}>
               {c.label}
               {(TYPE_POPULARITY[c.id] ?? 0) >= 50 && (
-                <span style={{ marginLeft: 5, fontSize: 9, color: COLORS.amberDeep }}>★</span>
+                <span style={{ marginLeft: 5, fontSize: 9 }} className="text-admin-amber-deep">★</span>
               )}
             </button>
           );
@@ -7326,10 +7043,10 @@ export function SiblingTopNPicker({
   const hidden = filtered ? 0 : Math.max(0, popSorted.length - TOP_N);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="flex flex-col gap-2">
       {/* Per-parent search — only when there are enough siblings to warrant one */}
       {pool.length > TOP_N && (
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <input
             type="search"
             value={localQuery}
@@ -7361,7 +7078,7 @@ export function SiblingTopNPicker({
       )}
 
       {filtered && filtered.length === 0 && (
-        <div style={{ fontSize: 11, color: COLORS.inkDim, fontStyle: "italic" }}>
+        <div style={{ fontSize: 11, fontStyle: "italic" }} className="text-admin-ink-dim">
           No matches in {parentLabel}.
         </div>
       )}
@@ -7461,7 +7178,7 @@ export function ManagementMethodPicker({
     },
   ];
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="flex flex-col gap-2.5">
       {options.map((o) => {
         const active = value === o.id;
         return (
@@ -7483,12 +7200,12 @@ export function ManagementMethodPicker({
               }}>
                 {active && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />}
               </span>
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                   <span style={{ fontSize: 14 }}>{o.emoji}</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{o.title}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{o.title}</span>
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>{o.desc}</div>
+                <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">{o.desc}</div>
               </div>
             </div>
             {active && (
@@ -7496,18 +7213,10 @@ export function ManagementMethodPicker({
                 marginLeft: 32, paddingTop: 10,
                 borderTop: `1px solid ${COLORS.borderSoft}`,
               }}>
-                <div style={{
-                  fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-                  color: COLORS.accentDeep, marginBottom: 8, textTransform: "uppercase",
-                }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8, textTransform: "uppercase" }} className="text-admin-accent-deep">
                   ↗ {o.cta}
                 </div>
-                <ul style={{
-                  margin: 0, paddingLeft: 14,
-                  display: "flex", flexDirection: "column", gap: 4,
-                  fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5,
-                  listStyle: "disc",
-                }}>
+                <ul style={{ margin: 0, paddingLeft: 14, display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, lineHeight: 1.5, listStyle: "disc" }} className="text-admin-ink-muted">
                   {o.nextFields.map((f) => (<li key={f}>{f}</li>))}
                 </ul>
               </div>

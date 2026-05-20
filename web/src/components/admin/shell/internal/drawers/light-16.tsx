@@ -58,7 +58,7 @@ export function TopPerformersDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {/* Tab toggle */}
-        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+        <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
           {(["talent", "clients"] as const).map((t) => (
             <button
               key={t}
@@ -83,7 +83,7 @@ export function TopPerformersDrawer() {
 
         {/* Talent ranked rows */}
         {tab === "talent" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {TALENT_ROWS.map((row, i) => (
               <div
                 key={row.name}
@@ -93,7 +93,7 @@ export function TopPerformersDrawer() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="flex items-center gap-2">
                     <span style={{
                       width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
                       background: i === 0 ? COLORS.accent : COLORS.surfaceAlt,
@@ -104,21 +104,17 @@ export function TopPerformersDrawer() {
                     }}>
                       {i + 1}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.name}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{row.name}</span>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>€{row.revenue.toLocaleString()}</div>
+                  <div className="text-right">
+                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">€{row.revenue.toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
                   </div>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
-                  <div style={{
-                    background: i === 0 ? COLORS.accent : COLORS.indigo,
-                    width: `${Math.round((row.revenue / maxRevenue) * 100)}%`,
-                    height: "100%", borderRadius: 3,
-                  }} />
+                  <div style={{ background: i === 0 ? COLORS.accent : COLORS.indigo, width: `${Math.round((row.revenue / maxRevenue) * 100)}%`, height: "100%", borderRadius: 3, }} />
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>{row.bookings} bookings YTD</div>
+                <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">{row.bookings} bookings YTD</div>
               </div>
             ))}
           </div>
@@ -126,7 +122,7 @@ export function TopPerformersDrawer() {
 
         {/* Client ranked rows */}
         {tab === "clients" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {CLIENT_ROWS.map((row, i) => (
               <div
                 key={row.name}
@@ -136,7 +132,7 @@ export function TopPerformersDrawer() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="flex items-center gap-2">
                     <span style={{
                       width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
                       background: i === 0 ? COLORS.indigo : COLORS.surfaceAlt,
@@ -147,21 +143,17 @@ export function TopPerformersDrawer() {
                     }}>
                       {i + 1}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.name}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{row.name}</span>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>€{row.spend.toLocaleString()}</div>
+                  <div className="text-right">
+                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">€{row.spend.toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
                   </div>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
-                  <div style={{
-                    background: i === 0 ? COLORS.indigo : COLORS.accent,
-                    width: `${Math.round((row.spend / maxSpend) * 100)}%`,
-                    height: "100%", borderRadius: 3,
-                  }} />
+                  <div style={{ background: i === 0 ? COLORS.indigo : COLORS.accent, width: `${Math.round((row.spend / maxSpend) * 100)}%`, height: "100%", borderRadius: 3, }} />
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>{row.bookings} bookings YTD</div>
+                <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">{row.bookings} bookings YTD</div>
               </div>
             ))}
           </div>
@@ -213,10 +205,10 @@ export function CoordinatorWorkloadDrawer() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink }}>{tile.value}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-ink">{tile.value}</div>
             </div>
           ))}
         </div>
@@ -238,13 +230,10 @@ export function CoordinatorWorkloadDrawer() {
                   {/* Header row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{coord.name}</div>
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{coord.role}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{coord.name}</div>
+                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{coord.role}</div>
                     </div>
-                    <div style={{
-                      fontSize: 11.5, fontWeight: 700, color: color,
-                      background: `${color}1A`, padding: "3px 8px", borderRadius: RADIUS.sm,
-                    }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: color, background: `${color}1A`, padding: "3px 8px" }} className="rounded-admin-sm">
                       {coord.load}% load
                     </div>
                   </div>
@@ -259,7 +248,7 @@ export function CoordinatorWorkloadDrawer() {
                   </div>
 
                   {/* Stat row */}
-                  <div style={{ display: "flex", gap: 20 }}>
+                  <div className="flex gap-5">
                     {[
                       { label: "Active",    value: String(coord.active) },
                       { label: "Messages",  value: String(coord.messages) },
@@ -270,7 +259,7 @@ export function CoordinatorWorkloadDrawer() {
                         <div style={{ fontSize: 10, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                           {stat.label}
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
                           {stat.value}
                         </div>
                       </div>
@@ -335,7 +324,7 @@ export function MyQueueDrawer() {
               padding: "12px 14px", border: `1px solid ${COLORS.border}`,
               textAlign: "center",
             }}>
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
               <div style={{
@@ -367,20 +356,15 @@ export function MyQueueDrawer() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted }}>{item.id}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{item.client}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-ink-muted">{item.id}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{item.client}</span>
                   </div>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600,
-                    color: item.slaUrgent ? COLORS.coral : COLORS.inkMuted,
-                    background: item.slaUrgent ? COLORS.coralSoft : COLORS.surfaceAlt,
-                    padding: "2px 7px", borderRadius: RADIUS.sm,
-                  }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: item.slaUrgent ? COLORS.coral : COLORS.inkMuted, background: item.slaUrgent ? COLORS.coralSoft : COLORS.surfaceAlt, padding: "2px 7px" }} className="rounded-admin-sm">
                     {item.slaLabel}
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: COLORS.inkMuted }}>
+                <div style={{ display: "flex", gap: 10, fontSize: 11.5 }} className="text-admin-ink-muted">
                   <span>{item.talent}</span>
                   <span>·</span>
                   <span>{item.stage}</span>
@@ -442,7 +426,7 @@ export function SlaTimersDrawer() {
               padding: "12px 14px", border: `1px solid ${COLORS.border}`,
               textAlign: "center",
             }}>
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
@@ -470,8 +454,8 @@ export function SlaTimersDrawer() {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <div>
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginRight: 6 }}>{row.id}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.client}</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, marginRight: 6 }} className="text-admin-ink-muted">{row.id}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{row.client}</span>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: tone }}>{slaLabel(row.hoursLeft)}</span>
                   </div>
@@ -479,7 +463,7 @@ export function SlaTimersDrawer() {
                   <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden", marginBottom: 6 }}>
                     <div style={{ background: tone, width: `${pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.inkMuted }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }} className="text-admin-ink-muted">
                     <span>{row.stage}</span>
                     <span>{row.assignee}</span>
                   </div>
@@ -526,7 +510,7 @@ export function RulesBuilderDrawer() {
       title="Automation rules"
       description="Trigger-action rules that run automatically. Changes apply within 60 seconds."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>
           <GhostButton onClick={() => setShowNew(true)}>+ New rule</GhostButton>
         </div>
@@ -536,12 +520,8 @@ export function RulesBuilderDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {/* New rule form */}
         {showNew && (
-          <div style={{
-            padding: "14px 16px", background: COLORS.royalSoft,
-            borderRadius: RADIUS.lg, border: `1px solid rgba(95,75,139,0.2)`,
-            display: "flex", flexDirection: "column", gap: 10,
-          }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.royalDeep, marginBottom: 2 }}>New rule</div>
+          <div style={{ padding: "14px 16px", border: `1px solid rgba(95,75,139,0.2)`, display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-royal-soft rounded-admin-lg">
+            <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 2 }} className="text-admin-royal-deep">New rule</div>
             <FieldRow label="Rule name">
               <TextInput
                 value={newName}
@@ -575,7 +555,7 @@ export function RulesBuilderDrawer() {
                 {ACTION_OPTIONS.map((a) => <option key={a}>{a}</option>)}
               </select>
             </FieldRow>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -626,10 +606,10 @@ export function RulesBuilderDrawer() {
                   on={rule.active}
                   onChange={(v) => setRules((prev) => prev.map((r) => r.id === rule.id ? { ...r, active: v } : r))}
                 />
-                <div style={{ flex: 1 }}>
+                <div className="flex-1">
                   <div style={{ fontSize: 13, fontWeight: 600, color: rule.active ? COLORS.ink : COLORS.inkMuted }}>{rule.name}</div>
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
-                    <span style={{ fontWeight: 500 }}>When</span> {rule.trigger} → <span style={{ fontWeight: 500 }}>then</span> {rule.action}
+                  <div style={{ fontSize: 11.5, marginTop: 3 }} className="text-admin-ink-muted">
+                    <span className="font-medium">When</span> {rule.trigger} → <span className="font-medium">then</span> {rule.action}
                   </div>
                 </div>
                 <button
@@ -646,11 +626,7 @@ export function RulesBuilderDrawer() {
         </div>
 
         {/* Info note */}
-        <div style={{
-          padding: "10px 14px", background: COLORS.indigoSoft,
-          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
-          fontSize: 12, color: COLORS.indigoDeep, lineHeight: 1.5,
-        }}>
+        <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 12, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
           Rules run in order. Toggle off to pause without deleting. Webhooks require an endpoint configured in Settings → Integrations.
         </div>
       </div>
@@ -686,7 +662,7 @@ export function SavedRepliesDrawer() {
       title="Saved replies"
       description="Reusable message templates. Variables in {{brackets}} are filled at send time."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>
         </div>
       }
@@ -717,7 +693,7 @@ export function SavedRepliesDrawer() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{reply.name}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{reply.name}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -735,7 +711,7 @@ export function SavedRepliesDrawer() {
                         {copied === reply.id ? "Copied ✓" : "Copy"}
                       </button>
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5, maxHeight: 44, overflow: "hidden" }}>
+                    <div style={{ fontSize: 12, lineHeight: 1.5, maxHeight: 44, overflow: "hidden" }} className="text-admin-ink-muted">
                       {reply.body.slice(0, 120)}{reply.body.length > 120 ? "…" : ""}
                     </div>
                   </div>

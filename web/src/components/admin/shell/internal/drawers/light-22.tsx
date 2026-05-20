@@ -42,7 +42,7 @@ export function OnsetCheckinDrawer() {
   };
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton onClick={() => { toast(`Check-in saved — ${checkedIn.size} confirmed`); closeDrawer(); }}>Save check-ins</SecondaryButton>
     </div>
@@ -52,18 +52,18 @@ export function OnsetCheckinDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="On-set check-in" description="Mark talent and crew as arrived on set." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", background: COLORS.accentSoft, borderRadius: RADIUS.md, border: `1px solid ${COLORS.accent}` }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.accent }}>Spring Campaign 2026</div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>Tue 20 May · Studio One</div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", border: `1px solid ${COLORS.accent}` }} className="bg-admin-accent-soft rounded-admin-md">
+          <div className="flex-1">
+            <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-accent">Spring Campaign 2026</div>
+            <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Tue 20 May · Studio One</div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.accent }}>{checkedIn.size}/{crew.length}</div>
-            <div style={{ fontSize: 10, color: COLORS.inkMuted }}>checked in</div>
+          <div className="text-right">
+            <div style={{ fontSize: 24, fontWeight: 800 }} className="text-admin-accent">{checkedIn.size}/{crew.length}</div>
+            <div style={{ fontSize: 10 }} className="text-admin-ink-muted">checked in</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {crew.map((c, i) => {
             const isIn = checkedIn.has(c.name);
             return (
@@ -83,20 +83,20 @@ export function OnsetCheckinDrawer() {
                 }}>
                   {isIn && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{c.role} · Call: {c.callTime}</div>
+                <div className="flex-1">
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.role} · Call: {c.callTime}</div>
                 </div>
-                {isIn && <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.success }}>Checked in</span>}
+                {isIn && <span style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-success">Checked in</span>}
               </div>
             );
           })}
         </div>
 
         {checkedIn.size === crew.length && (
-          <div style={{ background: COLORS.successSoft, border: `1px solid ${COLORS.success}`, borderRadius: RADIUS.md, padding: 14, textAlign: "center" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.success }}>Full crew on set ✓</div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 3 }}>All {crew.length} members checked in</div>
+          <div style={{ border: `1px solid ${COLORS.success}`, padding: 14, textAlign: "center" }} className="bg-admin-success-soft rounded-admin-md">
+            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-success">Full crew on set ✓</div>
+            <div style={{ fontSize: 11, marginTop: 3 }} className="text-admin-ink-muted">All {crew.length} members checked in</div>
           </div>
         )}
       </div>
@@ -126,7 +126,7 @@ export function IncidentReportDrawer() {
   ];
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { setSubmitted(true); toast("Incident report submitted"); }}>Submit report</SecondaryButton>
     </div>
@@ -136,14 +136,14 @@ export function IncidentReportDrawer() {
     return (
       <DrawerShell open={open} onClose={closeDrawer} title="Incident report" description="" footer={<GhostButton onClick={closeDrawer}>Close</GhostButton>} defaultSize="half">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "40px 24px", fontFamily: FONTS.body, textAlign: "center" }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: COLORS.successSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>✓</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Report submitted</div>
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, maxWidth: 280 }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }} className="bg-admin-success-soft">✓</div>
+          <div style={{ fontSize: 16, fontWeight: 700 }} className="text-admin-ink">Report submitted</div>
+          <div style={{ fontSize: 12, maxWidth: 280 }} className="text-admin-ink-muted">
             Your report has been logged securely. {anonymous ? "Submitted anonymously. " : ""}An admin will review within 24 hours and may reach out if further information is needed.
           </div>
-          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "8px 14px" }}>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted }}>Reference</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: "monospace" }}>INC-{Date.now().toString().slice(-6)}</div>
+          <div style={{ border: `1px solid ${COLORS.border}`, padding: "8px 14px" }} className="bg-admin-surface rounded-admin-sm">
+            <div style={{ fontSize: 11 }} className="text-admin-ink-muted">Reference</div>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }} className="text-admin-ink">INC-{Date.now().toString().slice(-6)}</div>
           </div>
         </div>
       </DrawerShell>
@@ -200,9 +200,9 @@ export function IncidentReportDrawer() {
           <TextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what happened, when, and who was involved (optional)." rows={4} />
         </FieldRow>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setAnonymous(a => !a)}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setAnonymous(a => !a)}>
           <Toggle on={anonymous} onChange={() => setAnonymous(a => !a)} />
-          <span style={{ fontSize: 12, color: COLORS.ink }}>Submit anonymously</span>
+          <span style={{ fontSize: 12 }} className="bg-admin-surface rounded-admin-sm text-admin-ink">Submit anonymously</span>
         </div>
       </div>
     </DrawerShell>
@@ -227,7 +227,7 @@ export function DisputeResolutionDrawer() {
   const selected = disputes.find(d => d.id === selectedDispute);
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={() => { if (selectedDispute) setSelectedDispute(null); else closeDrawer(); }}>
         {selectedDispute ? "Back" : "Close"}
       </GhostButton>
@@ -255,7 +255,7 @@ export function DisputeResolutionDrawer() {
               })}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               {disputes.map(d => (
                 <div
                   key={d.id}
@@ -263,13 +263,13 @@ export function DisputeResolutionDrawer() {
                   style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <div style={{ fontSize: 12, fontFamily: "monospace", color: COLORS.inkMuted }}>{d.id}</div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: stageColor(d.stage), background: `${stageColor(d.stage)}18`, padding: "2px 7px", borderRadius: RADIUS.sm }}>{d.stage}</span>
+                    <div style={{ fontSize: 12, fontFamily: "monospace" }} className="text-admin-ink-muted">{d.id}</div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: stageColor(d.stage), background: `${stageColor(d.stage)}18`, padding: "2px 7px" }} className="rounded-admin-sm">{d.stage}</span>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{d.parties}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{d.parties}</div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                    <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{d.type} · {d.opened}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink }}>{d.amount}</span>
+                    <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{d.type} · {d.opened}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-ink">{d.amount}</span>
                   </div>
                 </div>
               ))}
@@ -279,15 +279,15 @@ export function DisputeResolutionDrawer() {
 
         {selectedDispute && selected && (
           <>
-            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+            <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontFamily: "monospace", color: COLORS.inkMuted }}>{selected.id}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>{selected.parties}</div>
+                  <div style={{ fontSize: 13, fontFamily: "monospace" }} className="text-admin-ink-muted">{selected.id}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">{selected.parties}</div>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.ink }}>{selected.amount}</div>
+                <div style={{ fontSize: 16, fontWeight: 800 }} className="text-admin-ink">{selected.amount}</div>
               </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{selected.type} · Opened {selected.opened}</div>
+              <div style={{ fontSize: 12 }} className="text-admin-ink-muted">{selected.type} · Opened {selected.opened}</div>
             </div>
 
             <div>
@@ -315,7 +315,7 @@ export function DisputeResolutionDrawer() {
 
             <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
               <CapsLabel>Advance to next stage</CapsLabel>
-              <div style={{ marginTop: 8, fontSize: 12, color: COLORS.inkMuted }}>
+              <div style={{ marginTop: 8, fontSize: 12 }} className="text-admin-ink-muted">
                 Moving from <strong>{selected.stage}</strong> to <strong>{stages[stages.indexOf(selected.stage) + 1] || "Resolved"}</strong> will notify both parties and update the dispute record.
               </div>
             </div>
@@ -349,7 +349,7 @@ export function LocationsDrawer() {
   const typeColor = (t: string) => t === "studio" ? COLORS.accent : t === "outdoor" ? COLORS.success : t === "venue" ? COLORS.indigo : COLORS.amber;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={() => { if (view === "add") setView("list"); else closeDrawer(); }}>
         {view === "add" ? "Back" : "Close"}
       </GhostButton>
@@ -380,20 +380,20 @@ export function LocationsDrawer() {
               })}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               {locations.map((loc, i) => (
                 <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{loc.name}</span>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "capitalize", color: typeColor(loc.type), background: `${typeColor(loc.type)}18`, padding: "1px 6px", borderRadius: RADIUS.sm }}>{loc.type}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{loc.name}</span>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "capitalize", color: typeColor(loc.type), background: `${typeColor(loc.type)}18`, padding: "1px 6px" }} className="rounded-admin-sm">{loc.type}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{loc.address}</div>
+                      <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{loc.address}</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{loc.bookings}</div>
-                      <div style={{ fontSize: 10, color: COLORS.inkMuted }}>bookings</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{loc.bookings}</div>
+                      <div style={{ fontSize: 10 }} className="text-admin-ink-muted">bookings</div>
                     </div>
                   </div>
                 </div>
@@ -403,7 +403,7 @@ export function LocationsDrawer() {
         )}
 
         {view === "add" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="flex flex-col gap-3.5">
             <FieldRow label="Location name">
               <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Studio Two" />
             </FieldRow>
@@ -461,7 +461,7 @@ export function AiWorkspaceDrawer() {
   const logColor = (t: string) => t === "success" ? COLORS.success : t === "warn" ? COLORS.amber : t === "error" ? COLORS.coral : COLORS.indigo;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton onClick={() => { toast("AI settings saved"); closeDrawer(); }}>Save settings</SecondaryButton>
     </div>
@@ -471,7 +471,7 @@ export function AiWorkspaceDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="AI workspace" description="Manage AI providers, usage controls, and the prompt console." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="flex gap-1">
           {(["providers", "usage", "console"] as const).map(tab => (
             <div key={tab} onClick={() => setActiveTab(tab)} style={{
               flex: 1, padding: "7px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center", fontSize: 12, fontWeight: 600, textTransform: "capitalize",
@@ -485,31 +485,26 @@ export function AiWorkspaceDrawer() {
         </div>
 
         {activeTab === "providers" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {providers.map((p, i) => (
               <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{p.name}</div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: "monospace", marginTop: 1 }}>{p.model}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{p.name}</div>
+                    <div style={{ fontSize: 11, fontFamily: "monospace", marginTop: 1 }} className="text-admin-ink-muted">{p.model}</div>
                   </div>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, textTransform: "capitalize",
-                    color: p.status === "active" ? COLORS.success : COLORS.inkDim,
-                    background: p.status === "active" ? COLORS.successSoft : COLORS.borderSoft,
-                    padding: "2px 8px", borderRadius: RADIUS.sm,
-                  }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: p.status === "active" ? COLORS.success : COLORS.inkDim, background: p.status === "active" ? COLORS.successSoft : COLORS.borderSoft, padding: "2px 8px" }} className="rounded-admin-sm">
                     {p.status}
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: 16 }}>
+                <div className="flex gap-4">
                   <div>
-                    <div style={{ fontSize: 10, color: COLORS.inkDim }}>Calls this month</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{p.calls.toLocaleString()}</div>
+                    <div style={{ fontSize: 10 }} className="text-admin-ink-dim">Calls this month</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{p.calls.toLocaleString()}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: COLORS.inkDim }}>Cost this month</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{p.cost}</div>
+                    <div style={{ fontSize: 10 }} className="text-admin-ink-dim">Cost this month</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{p.cost}</div>
                   </div>
                 </div>
               </div>
@@ -518,14 +513,14 @@ export function AiWorkspaceDrawer() {
         )}
 
         {activeTab === "usage" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="flex flex-col gap-4">
             <div>
               <CapsLabel>API calls — last 12 days</CapsLabel>
               <div style={{ marginTop: 12, display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
                 {usageTrend.map((v, i) => (
                   <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
                     <div style={{ width: "100%", background: COLORS.royal, borderRadius: "2px 2px 0 0", height: `${(v / maxUsage) * 64}px`, opacity: 0.7 + (i / usageTrend.length) * 0.3 }} />
-                    <div style={{ fontSize: 8.5, color: COLORS.inkDim }}>{i + 1}</div>
+                    <div style={{ fontSize: 8.5 }} className="text-admin-ink-dim">{i + 1}</div>
                   </div>
                 ))}
               </div>
@@ -538,13 +533,13 @@ export function AiWorkspaceDrawer() {
                 { label: "Avg/day", value: "180" },
               ].map(stat => (
                 <div key={stat.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "10px 12px", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.royal }}>{stat.value}</div>
-                  <div style={{ fontSize: 10, color: COLORS.inkMuted, marginTop: 2 }}>{stat.label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800 }} className="text-admin-royal">{stat.value}</div>
+                  <div style={{ fontSize: 10, marginTop: 2 }} className="text-admin-ink-muted">{stat.label}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               <CapsLabel>Controls</CapsLabel>
               {[
                 { label: "Enable AI-generated bios", key: "bios" },
@@ -553,7 +548,7 @@ export function AiWorkspaceDrawer() {
                 { label: "Auto-tag uploaded images", key: "tags" },
               ].map(item => (
                 <div key={item.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-                  <span style={{ fontSize: 12, color: COLORS.ink }}>{item.label}</span>
+                  <span style={{ fontSize: 12 }} className="text-admin-ink">{item.label}</span>
                   <Toggle on={true} onChange={() => toast(`${item.label} toggled`)} />
                 </div>
               ))}
@@ -562,8 +557,8 @@ export function AiWorkspaceDrawer() {
         )}
 
         {activeTab === "console" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ background: "#0f1117", borderRadius: RADIUS.md, padding: 14, display: "flex", flexDirection: "column", gap: 6, minHeight: 160 }}>
+          <div className="flex flex-col gap-3">
+            <div style={{ background: "#0f1117", padding: 14, display: "flex", flexDirection: "column", gap: 6, minHeight: 160 }} className="rounded-admin-md">
               {consoleLog.map((entry, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
                   <span style={{ fontSize: 10, color: "#666", fontFamily: "monospace", flexShrink: 0 }}>{entry.ts}</span>

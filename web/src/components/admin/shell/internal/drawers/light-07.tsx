@@ -65,7 +65,7 @@ export function TodayPulseDrawer() {
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {items.length === 0 && (
           <EmptyState icon="sparkle" title="All clear" body="Nothing needs your attention right now." compact />
         )}
@@ -90,9 +90,9 @@ export function TodayPulseDrawer() {
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
           >
             <StatDot tone={it.tone} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{it.title}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{it.sub}</div>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{it.title}</div>
+              <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{it.sub}</div>
             </div>
             <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
           </button>
@@ -138,14 +138,14 @@ export function PipelineDrawer() {
           const items = inquiries.filter((i) => col.stages.includes(i.stage));
           return (
             <section key={col.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div className="flex items-center gap-2 mb-2">
                 <StatDot tone={col.tone} />
                 <CapsLabel>{col.label}</CapsLabel>
-                <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkDim }}>
+                <span style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-dim">
                   · {items.length}
                 </span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="flex flex-col gap-1.5">
                 {items.map((iq) => (
                   <button
                     key={iq.id}
@@ -163,12 +163,12 @@ export function PipelineDrawer() {
                       gap: 12,
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{iq.client}</div>
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{iq.brief}</div>
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{iq.client}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{iq.brief}</div>
                     </div>
                     {iq.amount && (
-                      <span style={{ fontSize: 12, color: COLORS.inkMuted, fontWeight: 500 }}>
+                      <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
                         {iq.amount}
                       </span>
                     )}
@@ -216,7 +216,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {items.length === 0 ? (
           <EmptyState
             compact
@@ -238,15 +238,15 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
               textAlign: "left",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{iq.client}</div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{iq.brief}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{iq.client}</div>
+            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{iq.brief}</div>
             <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
               <StageBadgeMini stage={iq.stage} />
               {iq.amount && (
-                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{iq.amount}</span>
+                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{iq.amount}</span>
               )}
               {iq.date && (
-                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>· {iq.date}</span>
+                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">· {iq.date}</span>
               )}
             </div>
           </button>
@@ -365,9 +365,9 @@ export function NotificationsDrawer() {
       }}
     >
       <Avatar initials={n.actorInitials} size={compact ? 22 : 28} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: compact ? 11.5 : 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span style={{ fontSize: compact ? 11.5 : 13, fontWeight: 600 }} className="text-admin-ink">{n.title}</span>
           {!n.read && (
             <span
               aria-label="Unread"
@@ -375,20 +375,16 @@ export function NotificationsDrawer() {
             />
           )}
         </div>
-        <div style={{ fontSize: compact ? 11 : 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+        <div style={{ fontSize: compact ? 11 : 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {n.body}
         </div>
         {!compact && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-            <span style={{
-              fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em",
-              textTransform: "uppercase", color: COLORS.inkDim,
-              display: "inline-flex", alignItems: "center", gap: 4,
-            }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 4 }} className="text-admin-ink-dim">
               <Icon name={KIND_ICON[n.kind]} size={10} stroke={1.8} />
               {n.kind}
             </span>
-            <span style={{ fontSize: 11, color: COLORS.inkDim }}>{n.ts}</span>
+            <span style={{ fontSize: 11 }} className="text-admin-ink-dim">{n.ts}</span>
           </div>
         )}
       </div>
@@ -450,18 +446,14 @@ export function NotificationsDrawer() {
             ))}
           </div>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{b.summary}</span>
-              <span style={{
-                display: "inline-flex", padding: "1px 6px", minWidth: 18, height: 18,
-                borderRadius: 999, background: COLORS.accent, color: "#fff",
-                fontSize: 10, fontWeight: 700, alignItems: "center", justifyContent: "center",
-              }}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{b.summary}</span>
+              <span style={{ display: "inline-flex", padding: "1px 6px", minWidth: 18, height: 18, borderRadius: 999, color: "#fff", fontSize: 10, fontWeight: 700, alignItems: "center", justifyContent: "center" }} className="bg-admin-accent">
                 {b.count}
               </span>
             </div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
               {b.ts} · tap to {isExpanded ? "collapse" : "expand"}
             </div>
           </div>
@@ -508,16 +500,7 @@ export function NotificationsDrawer() {
 
         {/* Expanded individual items */}
         {isExpanded && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              padding: "4px 8px 8px",
-              borderTop: `1px solid ${COLORS.borderSoft}`,
-              background: COLORS.surfaceAlt,
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px 8px 8px", borderTop: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
             {b.items.map((n) => renderSingleItem(n, true))}
           </div>
         )}
@@ -580,7 +563,7 @@ export function NotificationsDrawer() {
           );
         })}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {batched.length === 0 && (
           <EmptyState
             compact
@@ -627,7 +610,7 @@ export function ActivityFeedDrawer({ kind }: { kind: "team" | "talent" }) {
       description={kind === "team" ? "What teammates and clients did recently." : "Updates from talent on your roster."}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="flex flex-col">
         {items.map((it, idx) => (
           <div key={idx} style={{ borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
             <ActivityFeedItem
@@ -714,7 +697,7 @@ export function MyActivityDrawer() {
         })}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="flex flex-col">
         {filtered.map((action, idx) => {
           // Map MyAction.icon → ActivityFeedItem iconName (drop "plus" → "bolt")
           type AFIName = "mail" | "check" | "bolt" | "calendar" | "settings" | "user" | "archive" | "alert";

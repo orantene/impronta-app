@@ -90,7 +90,7 @@ export function TalentPhoneVerifyDrawer() {
       )}
       {stage === "code" && (
         <>
-          <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink }}>
+          <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} className="bg-admin-surface text-admin-ink">
             Code sent to <strong>{phone}</strong>. Expires in 10 min. Demo code: <strong>{generatedCode}</strong>
           </div>
           <VmFieldLabel>6-digit code</VmFieldLabel>
@@ -103,10 +103,7 @@ export function TalentPhoneVerifyDrawer() {
         </>
       )}
       {stage === "done" && (
-        <div style={{
-          padding: 20, borderRadius: 12, background: COLORS.successSoft, color: COLORS.successDeep,
-          fontSize: 13, textAlign: "center", fontWeight: 600,
-        }}>
+        <div style={{ padding: 20, borderRadius: 12, fontSize: 13, textAlign: "center", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
           ✓ Phone verified. Your account security level just went up.
         </div>
       )}
@@ -160,11 +157,7 @@ export function TalentIdVerifyDrawer() {
       width={560}
       footer={<><SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton><PrimaryButton onClick={submit}>Submit for review</PrimaryButton></>}
     >
-      <div style={{
-        padding: "10px 12px", borderRadius: 10, marginBottom: 14,
-        background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`,
-        fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-      }}>
+      <div style={{ padding: "10px 12px", borderRadius: 10, marginBottom: 14, background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-indigo-deep">
         🔒 Documents are encrypted, viewed only by trained reviewers, and deleted 30 days after decision.
       </div>
 
@@ -310,12 +303,8 @@ export function TalentDomainVerifyDrawer() {
       )}
       {stage === "instructions" && (
         <>
-          <div style={{ fontSize: 13, color: COLORS.ink, marginBottom: 10 }}>Add this TXT record to <strong>{domain}</strong>:</div>
-          <div style={{
-            padding: "12px 14px", borderRadius: 10, background: COLORS.surface,
-            border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14,
-            fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12, color: COLORS.ink, lineHeight: 1.6,
-          }}>
+          <div style={{ fontSize: 13, marginBottom: 10 }} className="text-admin-ink">Add this TXT record to <strong>{domain}</strong>:</div>
+          <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14, fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12, lineHeight: 1.6 }} className="bg-admin-surface text-admin-ink">
             <div><strong>Type:</strong> TXT</div>
             <div><strong>Host:</strong> @</div>
             <div><strong>Value:</strong> {txtValue}</div>
@@ -326,15 +315,12 @@ export function TalentDomainVerifyDrawer() {
         </>
       )}
       {stage === "checking" && (
-        <div style={{ textAlign: "center", padding: 30, color: COLORS.inkMuted, fontSize: 13 }}>
+        <div style={{ textAlign: "center", padding: 30, fontSize: 13 }} className="text-admin-ink-muted">
           Looking up TXT record on {domain}…
         </div>
       )}
       {stage === "done" && (
-        <div style={{
-          padding: 20, borderRadius: 12, background: COLORS.successSoft, color: COLORS.successDeep,
-          fontSize: 13, textAlign: "center", fontWeight: 600,
-        }}>
+        <div style={{ padding: 20, borderRadius: 12, fontSize: 13, textAlign: "center", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
           ✓ {domain} verified. Domain badge is live.
         </div>
       )}
@@ -385,22 +371,19 @@ export function TalentPaymentVerifyDrawer() {
     >
       {stage === "intro" && (
         <>
-          <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.6, marginBottom: 14 }}>
+          <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14 }} className="text-admin-ink">
             We&apos;ll attempt a €1 hold on your connected payout method, then immediately refund it. Nothing actually moves.
           </div>
           <PrimaryButton onClick={run}>Run check</PrimaryButton>
         </>
       )}
       {stage === "running" && (
-        <div style={{ textAlign: "center", padding: 30, color: COLORS.inkMuted, fontSize: 13 }}>
+        <div style={{ textAlign: "center", padding: 30, fontSize: 13 }} className="text-admin-ink-muted">
           Pinging Stripe…
         </div>
       )}
       {stage === "done" && (
-        <div style={{
-          padding: 20, borderRadius: 12, background: COLORS.successSoft, color: COLORS.successDeep,
-          fontSize: 13, textAlign: "center", fontWeight: 600,
-        }}>
+        <div style={{ padding: 20, borderRadius: 12, fontSize: 13, textAlign: "center", fontWeight: 600 }} className="bg-admin-success-soft text-admin-success-deep">
           ✓ Payment account verified.
         </div>
       )}
@@ -483,15 +466,11 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Bulk import clients" description="Paste or upload a CSV of clients to add to your workspace." footer={footer}>
       <div style={{ padding: 20, fontFamily: FONTS.body }}>
-        <div style={{
-          padding: 14, borderRadius: 12,
-          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-          marginBottom: 14,
-        }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+        <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14 }} className="bg-admin-surface">
+          <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
             Paste or upload a CSV
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
             Headers we recognize: <code style={{ fontFamily: FONTS.mono }}>name, contact, email</code>.
             Other column orders work too.
           </div>
@@ -537,7 +516,7 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 8,
             }}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
                 Preview · {parsed.length} row{parsed.length === 1 ? "" : "s"} ({valid} valid)
               </div>
             </div>
@@ -556,9 +535,9 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
                     background: isValid ? "#fff" : COLORS.amberSoft,
                     fontSize: 11.5,
                   }}>
-                    <span style={{ fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name || "—"}</span>
-                    <span style={{ color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.contact || "—"}</span>
-                    <span style={{ color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.email || "—"}</span>
+                    <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{r.name || "—"}</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{r.contact || "—"}</span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{r.email || "—"}</span>
                     <span style={{ color: isValid ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 700, textAlign: "center" }}>{isValid ? "✓" : "!"}</span>
                   </div>
                 );
@@ -589,7 +568,7 @@ export function TaxonomyDrawer() {
     >
       {taxonomies.map((tx) => (
         <Section key={tx.label} title={tx.label}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {tx.values.map((v) => (
               <span
                 key={v}
@@ -607,18 +586,7 @@ export function TaxonomyDrawer() {
                 {v}
               </span>
             ))}
-            <button
-              style={{
-                background: "transparent",
-                border: `1px dashed ${COLORS.border}`,
-                padding: "5px 10px",
-                borderRadius: 999,
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                color: COLORS.inkMuted,
-                cursor: "pointer",
-              }}
-            >
+            <button style={{ background: "transparent", border: `1px dashed ${COLORS.border}`, padding: "5px 10px", borderRadius: 999, fontFamily: FONTS.body, fontSize: 11.5, cursor: "pointer" }} className="text-admin-ink-muted">
               + Add
             </button>
           </div>
@@ -648,28 +616,16 @@ export function WidgetsDrawer() {
             padding: 12,
           }}
         >
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
             Roster grid
           </div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             Used on acme-models.com/talent
           </div>
         </div>
       </Section>
       <Section title="Embed code">
-        <div
-          style={{
-            background: COLORS.fillDeep,
-            color: "#9DD9C7",
-            padding: 12,
-            borderRadius: 8,
-            fontFamily: FONTS.mono,
-            fontSize: 11,
-            lineHeight: 1.7,
-            overflowX: "auto",
-            whiteSpace: "pre",
-          }}
-        >
+        <div style={{ color: "#9DD9C7", padding: 12, borderRadius: 8, fontFamily: FONTS.mono, fontSize: 11, lineHeight: 1.7, overflowX: "auto", whiteSpace: "pre" }} className="bg-admin-fill-deep">
 {`<script src="https://embed.tulala.app/v1/widget.js"
   data-tenant="${effectiveTenant.slug}"
   data-view="grid"
@@ -708,10 +664,10 @@ export function ApiKeysDrawer() {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ color: COLORS.ink }}>tul_pk_••••••••••a91f</span>
+            <span className="text-admin-ink">tul_pk_••••••••••a91f</span>
             <StateChipMini label="Read only" tone="green" />
           </div>
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 4, fontFamily: FONTS.body }}>
+          <div style={{ fontSize: 10.5, marginTop: 4, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             Used 184× in last 7 days
           </div>
         </div>
@@ -739,7 +695,7 @@ export function SiteHealthDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <Section title="Latest report">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {checks.map((c) => (
             <div
               key={c.label}
@@ -755,10 +711,10 @@ export function SiteHealthDrawer() {
               }}
             >
               <StatDot tone={c.tone} />
-              <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>
+              <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                 {c.label}
               </span>
-              <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{c.value}</span>
+              <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{c.value}</span>
             </div>
           ))}
         </div>

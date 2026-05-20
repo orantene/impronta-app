@@ -99,7 +99,7 @@ export function TeamDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <Section title="Members">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {team.map((m) => {
             // Match team member by name to a payout receiver candidate
             // so the member row can show their payout connection state.
@@ -120,11 +120,11 @@ export function TeamDrawer() {
                 }}
               >
                 <Avatar initials={m.initials} tone={m.role === "owner" ? "ink" : "neutral"} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                     {m.name}
                   </div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
                     {m.email}
                   </div>
                 </div>
@@ -188,7 +188,7 @@ export function TeamDrawer() {
               <div style={{ fontSize: 12, fontWeight: 600, color: "#093328", marginBottom: 6 }}>
                 Invite link ready
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, marginBottom: 8 }} className="text-admin-ink-muted">
                 Expires {new Date(inviteResult.expiresAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}.
                 Share with your invitee — clicking takes them through sign-up and lands them on the workspace.
               </div>
@@ -281,8 +281,8 @@ export function TeamDrawer() {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Default coordinator</div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency tier</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Default coordinator</div>
+              <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Requires Agency tier</div>
             </div>
             <span
               style={{

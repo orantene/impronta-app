@@ -38,7 +38,7 @@ export function BriefBuilderDrawer() {
       title="Brief builder"
       description="Structured brief for clients. Fill in scope, dates, and requirements — generates a clean PDF and pre-fills the inquiry form."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <button
             type="button"
@@ -134,7 +134,7 @@ export function BrandAssetsDrawer() {
       title="Brand assets"
       description="Central library for logos, photography, and documents. Shared across all workspace surfaces."
       footer={
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </div>
       }
@@ -142,7 +142,7 @@ export function BrandAssetsDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+        <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
           {(["all", "logo", "photo", "doc"] as const).map((f) => (
             <button
               key={f}
@@ -176,11 +176,11 @@ export function BrandAssetsDrawer() {
               }}
             >
               <span style={{ fontSize: 20, flexShrink: 0 }}>{typeIcon(asset.type)}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{asset.name}</div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{asset.size} · Added {asset.date}</div>
+              <div className="flex-1">
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{asset.name}</div>
+                <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{asset.size} · Added {asset.date}</div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="flex gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -252,7 +252,7 @@ export function ApprovalFlowDrawer() {
               background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
               padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
             }}>
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
@@ -272,13 +272,13 @@ export function ApprovalFlowDrawer() {
                     borderRadius: RADIUS.lg, border: `1px solid ${COLORS.amberSoft}`,
                   }}
                 >
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{item.title}</div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                  <div className="mb-2">
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{item.title}</div>
+                    <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       {item.type} · From {item.requester} · {item.daysAgo === 0 ? "Today" : `${item.daysAgo}d ago`}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => decide(item.id, "approved")}
@@ -324,14 +324,10 @@ export function ApprovalFlowDrawer() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.inkMuted }}>{item.title}</div>
-                    <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>{item.type} · {item.daysAgo}d ago</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink-muted">{item.title}</div>
+                    <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-dim">{item.type} · {item.daysAgo}d ago</div>
                   </div>
-                  <span style={{
-                    fontSize: 10.5, fontWeight: 700,
-                    color: statusColor(item.status), background: statusBg(item.status),
-                    padding: "2px 8px", borderRadius: RADIUS.sm, textTransform: "capitalize",
-                  }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(item.status), background: statusBg(item.status), padding: "2px 8px", textTransform: "capitalize" }} className="rounded-admin-sm">
                     {item.status}
                   </span>
                 </div>
@@ -364,7 +360,7 @@ export function SiteContextSwitcherDrawer() {
   const current = contexts.find(c => c.id === active)!;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton onClick={() => { toast("Switched context"); closeDrawer(); }}>Open editor</SecondaryButton>
     </div>
@@ -373,7 +369,7 @@ export function SiteContextSwitcherDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Site context" description="Switch between your managed web properties." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {contexts.map(ctx => (
             <div
               key={ctx.id}
@@ -386,31 +382,26 @@ export function SiteContextSwitcherDrawer() {
                 transition: TRANSITION.sm,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: RADIUS.sm, background: active === ctx.id ? COLORS.accent : COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div className="flex items-center gap-3">
+                <div style={{ width: 36, height: 36, background: active === ctx.id ? COLORS.accent : COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center" }} className="rounded-admin-sm">
                   <Icon name="globe" size={16} color={active === ctx.id ? "#fff" : COLORS.inkMuted} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{ctx.label}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{ctx.url}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ctx.label}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{ctx.url}</div>
                 </div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <span style={{
-                  fontSize: 10.5, fontWeight: 700, textTransform: "uppercase",
-                  color: ctx.status === "live" ? COLORS.success : COLORS.amber,
-                  background: ctx.status === "live" ? COLORS.successSoft : `${COLORS.amber}18`,
-                  padding: "2px 7px", borderRadius: RADIUS.sm,
-                }}>
+              <div className="text-right">
+                <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", color: ctx.status === "live" ? COLORS.success : COLORS.amber, background: ctx.status === "live" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "2px 7px" }} className="rounded-admin-sm">
                   {ctx.status}
                 </span>
-                <div style={{ fontSize: 10, color: COLORS.inkDim, marginTop: 3 }}>{ctx.pages} pages · {ctx.lastEdit}</div>
+                <div style={{ fontSize: 10, marginTop: 3 }} className="text-admin-ink-dim">{ctx.pages} pages · {ctx.lastEdit}</div>
               </div>
             </div>
           ))}
         </div>
 
-        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 16 }}>
+        <div style={{ border: `1px solid ${COLORS.border}`, padding: 16 }} className="bg-admin-surface rounded-admin-md">
           <CapsLabel>Selected: {current.label}</CapsLabel>
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             {[
@@ -420,8 +411,8 @@ export function SiteContextSwitcherDrawer() {
               { label: "Last edit", value: current.lastEdit },
             ].map(row => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.value}</span>
+                <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.value}</span>
               </div>
             ))}
           </div>
@@ -447,7 +438,7 @@ export function PageSchedulerDrawer() {
   ];
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { toast("Schedule saved"); closeDrawer(); }}>Save schedule</SecondaryButton>
     </div>
@@ -456,12 +447,12 @@ export function PageSchedulerDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Page scheduler" description="Queue publish and unpublish events for any page." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-        <div style={{ background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}`, borderRadius: RADIUS.md, padding: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent }}>Scheduling: Spring campaign landing</div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>tulala.digital/spring-2026</div>
+        <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14 }} className="bg-admin-accent-soft rounded-admin-md">
+          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-accent">Scheduling: Spring campaign landing</div>
+          <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">tulala.digital/spring-2026</div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           <CapsLabel>Publish date & time</CapsLabel>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <FieldRow label="Date">
@@ -489,15 +480,10 @@ export function PageSchedulerDrawer() {
             {scheduled.map((item, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{item.title}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{item.action} · {item.when}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{item.title}</div>
+                  <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{item.action} · {item.when}</div>
                 </div>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, textTransform: "uppercase",
-                  color: item.status === "published" ? COLORS.success : COLORS.amber,
-                  background: item.status === "published" ? COLORS.successSoft : `${COLORS.amber}18`,
-                  padding: "2px 7px", borderRadius: RADIUS.sm,
-                }}>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: item.status === "published" ? COLORS.success : COLORS.amber, background: item.status === "published" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "2px 7px" }} className="rounded-admin-sm">
                   {item.status}
                 </span>
               </div>
@@ -528,7 +514,7 @@ export function CastingFlowDrawer() {
   };
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
       <SecondaryButton onClick={() => { toast("Casting flow saved"); closeDrawer(); }}>Save casting config</SecondaryButton>
     </div>
@@ -553,7 +539,7 @@ export function CastingFlowDrawer() {
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 600, color: castingType === t ? COLORS.accent : COLORS.ink, textTransform: "capitalize" }}>{t}</div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 3 }}>
+                <div style={{ fontSize: 11, marginTop: 3 }} className="text-admin-ink-muted">
                   {t === "open" ? "Anyone may submit" : "Invite-only applicants"}
                 </div>
               </div>
@@ -564,27 +550,27 @@ export function CastingFlowDrawer() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <CapsLabel>Rounds ({rounds})</CapsLabel>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="flex gap-1.5">
               <GhostButton onClick={() => { if (rounds > 1) { setRounds(r => r - 1); setRoundCounts(rc => rc.slice(0, -1)); } }}>–</GhostButton>
               <GhostButton onClick={() => { if (rounds < 5) { setRounds(r => r + 1); setRoundCounts(rc => [...rc, 10]); } }}>+</GhostButton>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {Array.from({ length: rounds }, (_, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-accent">
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{i + 1}</span>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>Round {i + 1}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                <div className="flex-1">
+                  <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">Round {i + 1}</div>
+                  <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
                     {i === 0 ? "Initial applications" : `Callbacks from round ${i}`}
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Target:</span>
+                <div className="flex items-center gap-1.5">
+                  <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Target:</span>
                   <GhostButton onClick={() => updateCount(i, Math.max(1, (roundCounts[i] || 10) - 5))}>–</GhostButton>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, minWidth: 28, textAlign: "center" }}>{roundCounts[i] ?? 10}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, minWidth: 28, textAlign: "center" }} className="text-admin-ink">{roundCounts[i] ?? 10}</span>
                   <GhostButton onClick={() => updateCount(i, (roundCounts[i] || 10) + 5)}>+</GhostButton>
                 </div>
               </div>
@@ -601,8 +587,8 @@ export function CastingFlowDrawer() {
               { label: "Final spots", value: String(roundCounts[rounds - 1] ?? 10) },
             ].map(item => (
               <div key={item.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "10px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.accent }}>{item.value}</div>
-                <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2 }}>{item.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }} className="text-admin-accent">{item.value}</div>
+                <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-muted">{item.label}</div>
               </div>
             ))}
           </div>
@@ -636,7 +622,7 @@ export function CallbackTrackerDrawer() {
   const statusBg = (s: string) => s === "confirmed" ? COLORS.successSoft : s === "declined" ? `${COLORS.coral}18` : s === "invited" ? `${COLORS.indigo}18` : `${COLORS.amber}18`;
 
   const footer = (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex gap-2">
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
       <SecondaryButton onClick={() => { toast("Callbacks saved"); closeDrawer(); }}>Save callbacks</SecondaryButton>
     </div>
@@ -646,7 +632,7 @@ export function CallbackTrackerDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Callback tracker" description="Track talent progress and feedback across casting rounds." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           {[1, 2].map(r => (
             <div
               key={r}
@@ -663,24 +649,24 @@ export function CallbackTrackerDrawer() {
           ))}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {(talentByRound[selectedRound] || []).map((t, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted }}>{t.name.split(" ").map(n => n[0]).join("")}</span>
+                <span style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-ink-muted">{t.name.split(" ").map(n => n[0]).join("")}</span>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.name}</div>
-                {t.notes && <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.notes}</div>}
+              <div className="flex-1 min-w-0">
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t.name}</div>
+                {t.notes && <div style={{ fontSize: 11, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{t.notes}</div>}
               </div>
-              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: statusColor(t.status), background: statusBg(t.status), padding: "2px 8px", borderRadius: RADIUS.sm, flexShrink: 0 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: statusColor(t.status), background: statusBg(t.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">
                 {t.status}
               </span>
             </div>
           ))}
         </div>
 
-        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+        <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
           <CapsLabel>Round {selectedRound} summary</CapsLabel>
           <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
             {["confirmed", "pending", "invited", "declined"].map(s => {

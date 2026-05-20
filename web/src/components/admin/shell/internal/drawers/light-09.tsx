@@ -170,8 +170,8 @@ export function WorkspaceFieldSettingsDrawer() {
           display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
           fontFamily: FONTS.body,
         }}>
-          <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            <strong style={{ color: COLORS.ink }}>{overrideCount}</strong> {overrideCount === 1 ? "override" : "overrides"} active
+          <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+            <strong className="text-admin-ink">{overrideCount}</strong> {overrideCount === 1 ? "override" : "overrides"} active
             {overrideCount > 0 && canCustomize && (
               <button type="button" onClick={() => void resetAll()} style={{
                 marginLeft: 10,
@@ -182,19 +182,15 @@ export function WorkspaceFieldSettingsDrawer() {
               }}>Reset all</button>
             )}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <SecondaryButton onClick={() => openDrawer("field-privacy")}>Field privacy</SecondaryButton>
             <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
           </div>
         </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-          padding: "10px 12px", borderRadius: 10,
-          background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-        }}>
+      <div className="flex flex-col gap-3.5">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
           <input
             type="text"
             placeholder="Search field by label or key…"
@@ -211,26 +207,19 @@ export function WorkspaceFieldSettingsDrawer() {
         </div>
 
         {!canCustomize && (
-          <div style={{
-            padding: "8px 12px", borderRadius: 8,
-            background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`,
-            fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.45, fontFamily: FONTS.body,
-          }}>
+          <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.45, fontFamily: FONTS.body }} className="text-admin-indigo-deep">
             Your plan can view the catalog. <strong>Studio</strong> unlocks enable/disable + rename;
             <strong> Agency</strong> adds required-field control. Visibility lives in <strong>Field privacy</strong>.
           </div>
         )}
 
         {loading && (
-          <div style={{ padding: 18, textAlign: "center", fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+          <div style={{ padding: 18, textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             Loading workspace field settings…
           </div>
         )}
         {error && !loading && (
-          <div style={{
-            padding: 14, borderRadius: 10, background: COLORS.amberSoft,
-            border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.amberDeep,
-          }}>
+          <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5 }} className="bg-admin-amber-soft text-admin-amber-deep">
             {error} <button type="button" onClick={() => void load()} style={{
               marginLeft: 8, padding: "3px 9px", borderRadius: 999, border: "none",
               background: COLORS.amberDeep, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer",
@@ -240,12 +229,8 @@ export function WorkspaceFieldSettingsDrawer() {
 
         {!loading && !error && order.map(({ key, group, items }) => (
           <div key={key}>
-            <div style={{
-              fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6,
-              textTransform: "uppercase", color: COLORS.inkMuted,
-              marginBottom: 6, paddingLeft: 4,
-            }}>{group ? (group.custom_label ?? group.name) : "General"}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6, paddingLeft: 4 }} className="text-admin-ink-muted">{group ? (group.custom_label ?? group.name) : "General"}</div>
+            <div className="flex flex-col gap-1.5">
               {items.map((f) => {
                 const open = expanded.has(f.field_definition_id);
                 const busy = saving.has(f.field_definition_id);
@@ -272,23 +257,14 @@ export function WorkspaceFieldSettingsDrawer() {
                         display: "flex", alignItems: "center", gap: 10,
                       }}
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: 13, fontWeight: 600, color: COLORS.ink,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        }}>
+                      <div className="flex-1 min-w-0">
+                        <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">
                           {f.custom_label ?? f.label}
                           {over && (
-                            <span style={{
-                              marginLeft: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-                              color: COLORS.amberDeep, textTransform: "uppercase",
-                            }}>· customized</span>
+                            <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-amber-deep">· customized</span>
                           )}
                         </div>
-                        <div style={{
-                          fontSize: 10.5, color: COLORS.inkDim, marginTop: 1,
-                          fontFamily: "ui-monospace, monospace",
-                        }}>{f.field_key}</div>
+                        <div style={{ fontSize: 10.5, marginTop: 1, fontFamily: "ui-monospace, monospace" }} className="text-admin-ink-dim">{f.field_key}</div>
                       </div>
                       <span style={{
                         padding: "1px 6px", borderRadius: 999,
@@ -297,11 +273,7 @@ export function WorkspaceFieldSettingsDrawer() {
                         fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, flexShrink: 0,
                       }}>{required ? "REQUIRED" : "OPTIONAL"}</span>
                       {!f.enabled && (
-                        <span style={{
-                          padding: "1px 6px", borderRadius: 999,
-                          background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
-                          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, flexShrink: 0,
-                        }}>OFF</span>
+                        <span style={{ padding: "1px 6px", borderRadius: 999, background: "rgba(11,11,13,0.06)", fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, flexShrink: 0 }} className="text-admin-ink-muted">OFF</span>
                       )}
                       <span aria-hidden style={{ color: COLORS.inkMuted, fontSize: 11 }}>{open ? "▾" : "▸"}</span>
                     </button>
@@ -330,7 +302,7 @@ export function WorkspaceFieldSettingsDrawer() {
                         />
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
                           <div>
-                            <label style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+                            <label style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink-muted">
                               Custom label
                             </label>
                             <input
@@ -348,7 +320,7 @@ export function WorkspaceFieldSettingsDrawer() {
                             />
                           </div>
                           <div>
-                            <label style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+                            <label style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink-muted">
                               Custom helper text
                             </label>
                             <input
@@ -384,10 +356,7 @@ export function WorkspaceFieldSettingsDrawer() {
           </div>
         ))}
         {!loading && !error && shown.length === 0 && (
-          <div style={{
-            padding: 18, textAlign: "center",
-            fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body,
-          }}>{fields.length === 0 ? "No catalog fields for this workspace." : "No fields match your search."}</div>
+          <div style={{ padding: 18, textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">{fields.length === 0 ? "No catalog fields for this workspace." : "No fields match your search."}</div>
         )}
       </div>
     </DrawerShell>

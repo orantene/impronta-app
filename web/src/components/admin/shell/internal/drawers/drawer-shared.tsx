@@ -539,20 +539,12 @@ export function Section({
   return (
     <section style={{ marginBottom: 22 }}>
       {title && (
-        <div style={{ marginBottom: 6 }}>
+        <div className="mb-1.5">
           <CapsLabel>{title}</CapsLabel>
         </div>
       )}
       {description && (
-        <p
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            margin: "0 0 10px",
-            lineHeight: 1.5,
-          }}
-        >
+        <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: "0 0 10px", lineHeight: 1.5 }} className="text-admin-ink-muted">
           {description}
         </p>
       )}
@@ -587,10 +579,10 @@ export function UsageRow({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
           {label}
         </span>
-        <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
           {Math.round(pct)}%
         </span>
       </div>
@@ -687,11 +679,7 @@ export function CategoryExpandPanel({
     >
       {label}
       {typeof count === "number" && (
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
-          background: tab === id ? COLORS.surfaceAlt : "rgba(11,11,13,0.06)",
-          color: COLORS.inkMuted,
-        }}>{count}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: tab === id ? COLORS.surfaceAlt : "rgba(11,11,13,0.06)" }} className="text-admin-ink-muted">{count}</span>
       )}
     </button>
   );
@@ -704,10 +692,7 @@ export function CategoryExpandPanel({
       : 0);
 
   return (
-    <div style={{
-      padding: "0 14px 14px 14px", display: "flex", flexDirection: "column", gap: 10,
-      background: COLORS.surfaceAlt,
-    }}>
+    <div style={{ padding: "0 14px 14px 14px", display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-surface-alt">
       {/* Tab strip */}
       <div style={{ display: "flex", gap: 6, paddingTop: 10 }}>
         <TabBtn id="subtypes" label="Sub-types" count={subtypeCount} />
@@ -719,12 +704,12 @@ export function CategoryExpandPanel({
       {tab === "subtypes" && (
         <div>
           {isLoading && !detail && (
-            <div style={{ padding: 12, color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>
+            <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Loading sub-types…
             </div>
           )}
           {detail && detail.groups.length === 0 && detail.directTalentTypes.length === 0 && parent.children.length === 0 && (
-            <div style={{ padding: 12, color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>
+            <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               No sub-types defined yet. Add a custom one below.
             </div>
           )}
@@ -744,19 +729,15 @@ export function CategoryExpandPanel({
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "8px 10px",
                 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                  <div className="flex-1">
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
                       {sub.custom_label ?? sub.name_en}
                       {sub.is_custom && (
-                        <span style={{
-                          marginLeft: 6, fontSize: 9.5, fontWeight: 700,
-                          padding: "1px 6px", borderRadius: 4,
-                          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-                        }}>CUSTOM</span>
+                        <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">CUSTOM</span>
                       )}
                     </div>
                     {ttList.length > 0 && (
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                      <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                         {ttList.length} talent type{ttList.length === 1 ? "" : "s"}
                       </div>
                     )}
@@ -773,10 +754,7 @@ export function CategoryExpandPanel({
                         position: "relative",
                       }}
                     >
-                      <span style={{
-                        position: "absolute", top: 2, left: sub.is_enabled ? 14 : 2,
-                        width: 12, height: 12, borderRadius: "50%", background: "#fff",
-                      }} />
+                      <span style={{ position: "absolute", top: 2, left: sub.is_enabled ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "#fff", }} />
                     </button>
                   )}
                   {sub.is_custom && (
@@ -784,20 +762,11 @@ export function CategoryExpandPanel({
                       type="button"
                       onClick={() => onRemoveCustom(sub)}
                       style={{
-                        padding: "3px 8px", fontSize: 11, fontWeight: 600,
-                        borderRadius: 6, border: `1px solid ${COLORS.border}`,
-                        background: "#fff", color: COLORS.red, cursor: "pointer",
-                        fontFamily: FONTS.body,
-                      }}
-                    >Remove</button>
+                        padding: "3px 8px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: `1px solid ${COLORS.border}`, background: "#fff", cursor: "pointer", fontFamily: FONTS.body }} className="text-admin-red">Remove</button>
                   )}
                 </div>
                 {ttList.length > 0 && (
-                  <div style={{
-                    padding: "6px 10px 10px 24px", display: "flex", flexWrap: "wrap", gap: 4,
-                    background: COLORS.surfaceAlt,
-                    borderTop: `1px solid ${COLORS.borderSoft}`,
-                  }}>
+                  <div style={{ padding: "6px 10px 10px 24px", display: "flex", flexWrap: "wrap", gap: 4, borderTop: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
                     {ttList.map((tt) => (
                       <span key={tt.id} style={{
                         padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
@@ -818,10 +787,10 @@ export function CategoryExpandPanel({
               background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
               fontFamily: FONTS.body,
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 6, letterSpacing: 0.4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
                 DIRECT TYPES
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              <div className="flex flex-wrap gap-1">
                 {detail.directTalentTypes.map((tt) => (
                   <span key={tt.id} style={{
                     padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
@@ -888,7 +857,7 @@ export function CategoryExpandPanel({
       {tab === "fields" && (
         <div>
           {isLoading && !detail && (
-            <div style={{ padding: 12, color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>
+            <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Loading field catalog…
             </div>
           )}
@@ -909,11 +878,8 @@ export function CategoryExpandPanel({
               if (list.length === 0) return null;
               return (
                 <div key={tier} style={{ marginBottom: 12 }}>
-                  <div style={{
-                    fontSize: 11, fontWeight: 700, color: COLORS.ink, letterSpacing: 0.4,
-                    marginBottom: 4, fontFamily: FONTS.body,
-                  }}>{label.toUpperCase()} · {list.length}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 6, fontFamily: FONTS.body }}>{desc}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, marginBottom: 4, fontFamily: FONTS.body }} className="text-admin-ink">{label.toUpperCase()} · {list.length}</div>
+                  <div style={{ fontSize: 11, marginBottom: 6, fontFamily: FONTS.body }} className="text-admin-ink-muted">{desc}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                     {list.map((f) => (
                       <div key={f.field_definition_id} style={{
@@ -922,21 +888,16 @@ export function CategoryExpandPanel({
                         background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
                         fontFamily: FONTS.body,
                       }}>
-                        <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink }}>
+                        <span style={{ flex: 1, fontSize: 12.5 }} className="text-admin-ink">
                           {f.label}
                           {f.is_required && (
-                            <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700 }}>*</span>
+                            <span style={{ marginLeft: 6, fontWeight: 700 }} className="text-admin-red">*</span>
                           )}
                         </span>
                         {f.tier === "type-specific" && (
-                          <span style={{
-                            fontSize: 10, color: COLORS.inkMuted,
-                          }}>{f.source}</span>
+                          <span style={{ fontSize: 10 }} className="text-admin-ink-muted">{f.source}</span>
                         )}
-                        <span style={{
-                          fontSize: 10, color: COLORS.inkMuted,
-                          fontFamily: "ui-monospace, monospace",
-                        }}>{f.kind}</span>
+                        <span style={{ fontSize: 10, fontFamily: "ui-monospace, monospace" }} className="text-admin-ink-muted">{f.kind}</span>
                       </div>
                     ))}
                   </div>
@@ -949,13 +910,9 @@ export function CategoryExpandPanel({
 
       {/* SETTINGS TAB */}
       {tab === "settings" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {!parent.is_enabled && (
-            <div style={{
-              padding: 10, borderRadius: 8,
-              background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`,
-              fontSize: 11.5, color: COLORS.ink, fontFamily: FONTS.body,
-            }}>
+            <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 11.5, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
               This category is currently disabled. The flags below take effect once you enable it.
             </div>
           )}
@@ -1175,35 +1132,23 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       }
     >
       {error && (
-        <div style={{
-          padding: 12, borderRadius: 10, background: COLORS.amberSoft,
-          border: `1px solid ${COLORS.amber}`, fontSize: 12, color: COLORS.ink,
-          marginBottom: 14, fontFamily: FONTS.body,
-        }}>
+        <div style={{ padding: 12, borderRadius: 10, border: `1px solid ${COLORS.amber}`, fontSize: 12, marginBottom: 14, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
           Couldn&apos;t load live taxonomy: {error}
         </div>
       )}
 
       {loading && (
-        <div style={{
-          padding: 24, textAlign: "center", color: COLORS.inkMuted,
-          fontFamily: FONTS.body, fontSize: 13,
-        }}>Loading taxonomy…</div>
+        <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">Loading taxonomy…</div>
       )}
 
       {tree && (
         <>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "12px 14px", borderRadius: 10,
-            background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
-            fontFamily: FONTS.body, marginBottom: 14,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontFamily: FONTS.body, marginBottom: 14 }} className="bg-admin-indigo-soft">
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.indigoDeep }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-indigo-deep">
                 {totalEnabled} of {tree.length} categories enabled
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
                 Changes save instantly to your workspace.
               </div>
             </div>
@@ -1228,15 +1173,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                     opacity: parent.is_enabled ? 1 : 0.55,
                   }}
                 >
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 12,
-                    padding: "12px 14px", cursor: "pointer",
-                  }} onClick={() => toggleExpand(parent.id)}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", cursor: "pointer", }} onClick={() => toggleExpand(parent.id)}>
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
                         {parent.custom_label ?? parent.name_en}
                       </div>
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {childCount} sub-type{childCount === 1 ? "" : "s"}
                         {customCount > 0 ? ` · ${customCount} custom` : ""}
                         {parent.is_enabled ? "" : " · disabled"}
@@ -1337,17 +1279,12 @@ export function LegacyTalentTypesDrawer() {
       }
     >
       {/* Plan usage strip */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 14px", borderRadius: 10,
-        background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
-        fontFamily: FONTS.body, marginBottom: 14,
-      }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontFamily: FONTS.body, marginBottom: 14 }} className="bg-admin-indigo-soft">
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.indigoDeep }}>
+          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-indigo-deep">
             {limit === 999 ? "All groups available" : `${enabledCount} of ${limit} groups enabled`}
           </div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
             {planLabel} plan · {limit === 999 ? "no cap" : "upgrade to enable more"}
           </div>
         </div>
@@ -1361,10 +1298,7 @@ export function LegacyTalentTypesDrawer() {
       </div>
 
       {/* Available now (within plan tier) */}
-      <div style={{
-        fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-        color: COLORS.inkMuted, marginBottom: 8,
-      }}>Available on your plan</div>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">Available on your plan</div>
       <div style={{
         background: "#fff", borderRadius: 12, overflow: "hidden",
         border: `1px solid ${COLORS.borderSoft}`,
@@ -1387,10 +1321,7 @@ export function LegacyTalentTypesDrawer() {
       {/* Locked behind plan */}
       {TAXONOMY.some(p => planRank(p.minPlan) > currentRank) && (
         <>
-          <div style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-            color: COLORS.inkMuted, marginBottom: 8,
-          }}>Locked — upgrade to enable</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">Locked — upgrade to enable</div>
           <div style={{
             background: "#fff", borderRadius: 12, overflow: "hidden",
             border: `1px solid ${COLORS.borderSoft}`,
@@ -1438,20 +1369,16 @@ export function TalentTypeRow({
         padding: "12px 14px", cursor: locked ? "not-allowed" : "pointer",
       }} onClick={() => !locked && setting.isEnabled && setExpanded(e => !e)}>
         <span style={{ fontSize: 22, flexShrink: 0 }}>{parent.emoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+        <div className="flex-1 min-w-0">
+          <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
             {parent.label}
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+          <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
             {parent.helper}
           </div>
         </div>
         {locked ? (
-          <span style={{
-            fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 999,
-            background: COLORS.royalSoft, color: COLORS.royalDeep,
-            textTransform: "capitalize",
-          }}>{parent.minPlan}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 999, textTransform: "capitalize" }} className="bg-admin-royal-soft text-admin-royal-deep">{parent.minPlan}</span>
         ) : (
           <button type="button"
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -1502,7 +1429,7 @@ export function TalentTypeRow({
 
 export function TaxonomyToggleRow({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div className="flex items-center gap-2.5">
       <button type="button" onClick={() => onChange(!value)}
         aria-pressed={value}
         style={{
@@ -1510,14 +1437,11 @@ export function TaxonomyToggleRow({ label, desc, value, onChange }: { label: str
           background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
           position: "relative", flexShrink: 0,
         }}>
-        <span style={{
-          position: "absolute", top: 2, left: value ? 16 : 2,
-          width: 14, height: 14, borderRadius: "50%", background: "#fff",
-        }} />
+        <span style={{ position: "absolute", top: 2, left: value ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", }} />
       </button>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{label}</div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{desc}</div>
+      <div className="flex-1">
+        <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{label}</div>
+        <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{desc}</div>
       </div>
     </div>
   );
@@ -1566,12 +1490,7 @@ export function RequiredPill({ field, primaryType }: { field: RegField; primaryT
     : catalogRequired !== null ? !catalogRequired
     : !!field.optional;
   return isOptional ? (
-    <span style={{
-      padding: "1px 6px", borderRadius: 999,
-      background: "rgba(11,11,13,0.04)",
-      color: COLORS.inkDim,
-      fontSize: 9.5, fontWeight: 600, letterSpacing: 0.3,
-    }}>OPTIONAL</span>
+    <span style={{ padding: "1px 6px", borderRadius: 999, background: "rgba(11,11,13,0.04)", fontSize: 9.5, fontWeight: 600, letterSpacing: 0.3 }} className="text-admin-ink-dim">OPTIONAL</span>
   ) : (
     <span style={{
       padding: "1px 6px", borderRadius: 999,
@@ -1626,7 +1545,7 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
   if (field.kind === "text" || field.kind === "number") {
     return (
       <div>
-        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
           {field.label}
           <RequiredPill field={field} primaryType={primaryType} />
         </label>
@@ -1637,7 +1556,7 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
           style={SHARED_FIELD_INPUT_STYLE}
         />
         {field.helper && (
-          <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{field.helper}</div>
+          <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-dim">{field.helper}</div>
         )}
         {stripBelow}
       </div>
@@ -1647,11 +1566,11 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
     const v = typeof value === "string" ? value : "";
     return (
       <div>
-        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
           {field.label}
           <RequiredPill field={field} primaryType={primaryType} />
         </label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div className="flex flex-wrap gap-1.5">
           {(field.options ?? []).map(opt => {
             const active = v === opt;
             return (
@@ -1677,11 +1596,11 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
     };
     return (
       <div>
-        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
           {field.label}
           <RequiredPill field={field} primaryType={primaryType} />
         </label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div className="flex flex-wrap gap-1.5">
           {(field.options ?? []).map(opt => {
             const active = v.includes(opt);
             return (
@@ -1750,15 +1669,9 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
           [data-tulala-consent] [data-cc-cols] { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      <div style={{
-        padding: "12px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`,
-        background: COLORS.surface,
-      }}>
-        <div style={{
-          fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
-          color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 3,
-        }}>Privacy · what {agencyName} will use</div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+      <div style={{ padding: "12px 14px", borderBottom: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-ink-muted">Privacy · what {agencyName} will use</div>
+        <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           Tulala always captures your full profile. {agencyName} chooses what&apos;s public and what stays internal. Here&apos;s what they&apos;ve configured.
         </div>
       </div>
@@ -1766,51 +1679,39 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0,
       }}>
         <div style={{ padding: 12, borderRight: `1px solid ${COLORS.borderSoft}` }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 5,
-            fontSize: 11, fontWeight: 600, color: COLORS.successDeep,
-            marginBottom: 8,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, marginBottom: 8 }} className="text-admin-success-deep">
             <span style={{ fontSize: 12 }}>🌐</span>
             <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>On {agencyName}&apos;s site</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {publicLabels.length === 0 && (
-              <li style={{ fontSize: 11, color: COLORS.inkDim }}>None — fully internal.</li>
+              <li style={{ fontSize: 11 }} className="text-admin-ink-dim">None — fully internal.</li>
             )}
             {publicLabels.map(l => (
               <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
-                <span style={{ color: COLORS.successDeep, marginRight: 4 }}>✓</span>{l}
+                <span style={{ marginRight: 4 }} className="text-admin-success-deep">✓</span>{l}
               </li>
             ))}
           </ul>
         </div>
-        <div style={{ padding: 12 }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 5,
-            fontSize: 11, fontWeight: 600, color: COLORS.amberDeep,
-            marginBottom: 8,
-          }}>
+        <div className="p-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, marginBottom: 8 }} className="text-admin-amber-deep">
             <span style={{ fontSize: 12 }}>🔒</span>
             <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>Agency admins see</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {internalLabels.length === 0 && (
-              <li style={{ fontSize: 11, color: COLORS.inkDim }}>None.</li>
+              <li style={{ fontSize: 11 }} className="text-admin-ink-dim">None.</li>
             )}
             {internalLabels.map(l => (
               <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
-                <span style={{ color: COLORS.amberDeep, marginRight: 4 }}>✓</span>{l}
+                <span style={{ marginRight: 4 }} className="text-admin-amber-deep">✓</span>{l}
               </li>
             ))}
           </ul>
         </div>
       </div>
-      <div style={{
-        padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`,
-        background: COLORS.surface,
-        fontSize: 10.5, color: COLORS.inkDim, lineHeight: 1.5,
-      }}>
+      <div style={{ padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, lineHeight: 1.5 }} className="bg-admin-surface text-admin-ink-dim">
         ✦ = custom field defined by {agencyName}. You can revoke this agency&apos;s access any time from your Talent settings.
       </div>
     </div>
@@ -1821,8 +1722,8 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
 export function ReviewKv({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", padding: "6px 0", borderTop: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
-      <span style={{ width: 100, fontSize: 11, color: COLORS.inkMuted, fontWeight: 600 }}>{label}</span>
-      <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>{value}</span>
+      <span style={{ width: 100, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">{label}</span>
+      <span style={{ flex: 1, fontSize: 12.5, lineHeight: 1.4 }} className="text-admin-ink">{value}</span>
     </div>
   );
 }
@@ -1851,7 +1752,7 @@ export const ChipsInput = React.memo(function ChipsInput({ label, placeholder, v
   };
   return (
     <div>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
         {label}
       </label>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
@@ -1870,7 +1771,7 @@ export const ChipsInput = React.memo(function ChipsInput({ label, placeholder, v
           </span>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex gap-1.5">
         <input type="text" value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
@@ -1987,12 +1888,7 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
             }}
           >
             {i === 0 ? (
-              <span style={{
-                position: "absolute", top: 4, left: 4,
-                fontSize: 9, fontWeight: 700, fontFamily: FONTS.body,
-                padding: "2px 6px", borderRadius: 999,
-                background: COLORS.accent, color: "#fff",
-              }}>★ MAIN</span>
+              <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">★ MAIN</span>
             ) : (
               <button type="button" onClick={(e) => { e.stopPropagation(); makeMain(i); }} aria-label="Make main"
                 style={{
@@ -2033,7 +1929,7 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
           </button>
         )}
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
+      <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }} className="text-admin-ink-dim">
         Drag tiles to reorder. ★ promotes to main. ✂ to crop.
       </div>
 
@@ -2077,8 +1973,8 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }
         maxWidth: 420, width: "90%",
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.35)",
       }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{title}</h3>
-        <p style={{ margin: "8px 0 16px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>{body}</p>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} className="text-admin-ink">{title}</h3>
+        <p style={{ margin: "8px 0 16px", fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink-muted">{body}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onCancel} style={{
             padding: "9px 14px", borderRadius: 999,
@@ -2115,7 +2011,7 @@ export function CropModal({ src, onClose, onSave }: {
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>Crop photo</h3>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }} className="text-admin-ink">Crop photo</h3>
           <button type="button" onClick={onClose} aria-label="Close" style={{
             background: "transparent", border: "none", padding: 4, cursor: "pointer", fontSize: 16, color: COLORS.inkMuted,
           }}>✕</button>
@@ -2126,17 +2022,11 @@ export function CropModal({ src, onClose, onSave }: {
           borderRadius: 10, overflow: "hidden", position: "relative",
           border: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{
-            position: "absolute", inset: 0,
-            backgroundImage: `url(${src})`,
-            backgroundSize: `${zoom * 100}%`,
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }} />
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${src})`, backgroundSize: `${zoom * 100}%`, backgroundPosition: "center", backgroundRepeat: "no-repeat", }} />
         </div>
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>Aspect ratio</div>
-          <div style={{ display: "flex", gap: 6 }}>
+        <div className="mt-3">
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">Aspect ratio</div>
+          <div className="flex gap-1.5">
             {(["4:5", "1:1", "16:9"] as const).map(r => {
               const active = ratio === r;
               return (
@@ -2151,8 +2041,8 @@ export function CropModal({ src, onClose, onSave }: {
             })}
           </div>
         </div>
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+        <div className="mt-3">
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">
             Zoom · {Math.round(zoom * 100)}%
           </div>
           <input type="range" min={1} max={3} step={0.1} value={zoom}
@@ -2215,16 +2105,13 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}>
-              {a.name} <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>· {a.photos.length}</span>
+              {a.name} <span style={{ fontWeight: 500 }} className="text-admin-ink-dim">· {a.photos.length}</span>
             </button>
           );
         })}
       </div>
-      <div style={{
-        background: COLORS.surface, padding: 14, borderRadius: 10,
-        border: `1px solid ${COLORS.borderSoft}`,
-      }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>
+      <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">
           Manage albums
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
@@ -2238,7 +2125,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
+              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
               {albums.length > 1 && (
                 <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
                   width: 24, height: 24, borderRadius: 6,
@@ -2249,7 +2136,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           <input type="text" value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlbum(); } }}
@@ -2305,10 +2192,10 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
     onMediaAssetIdChange?.(null);
   };
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="mb-3">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Cover photo · banner</div>
-        <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>1600×900 · landscape</span>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, fontFamily: FONTS.body }} className="text-admin-ink-muted">Cover photo · banner</div>
+        <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">1600×900 · landscape</span>
       </div>
       {url ? (
         <div style={{
@@ -2340,7 +2227,7 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
         }}>
           <span style={{ fontSize: 24, lineHeight: 1 }}>+</span>
           <span>Drop or pick a cover banner</span>
-          <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontWeight: 500 }}>The wide image at the top of your public profile</span>
+          <span style={{ fontSize: 10.5, fontWeight: 500 }} className="text-admin-ink-dim">The wide image at the top of your public profile</span>
         </button>
       )}
       <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
@@ -2421,12 +2308,7 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
               }}
             >
               {i === 0 ? (
-                <span style={{
-                  position: "absolute", top: 4, left: 4,
-                  fontSize: 9, fontWeight: 700, fontFamily: FONTS.body,
-                  padding: "2px 6px", borderRadius: 999,
-                  background: COLORS.accent, color: "#fff",
-                }}>★ MAIN</span>
+                <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">★ MAIN</span>
               ) : (
                 <button type="button" onClick={() => onMakeMain(i)} aria-label="Make main"
                   style={{
@@ -2474,7 +2356,7 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
           </button>
         )}
       </div>
-      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
+      <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }} className="text-admin-ink-dim">
         First photo = main. Tap ★ on any other to swap. Drag a tile to reorder.
       </div>
     </div>
@@ -2515,14 +2397,10 @@ export function ToggleControl({ value, onChange, label, disabled }: { value: boo
           background: value ? COLORS.accent : "rgba(11,11,13,0.18)",
           position: "relative", transition: "background 0.15s", flexShrink: 0,
         }}>
-          <span style={{
-            position: "absolute", top: 2, left: value ? 14 : 2,
-            width: 14, height: 14, borderRadius: "50%", background: "#fff",
-            transition: "left 0.15s",
-          }} />
+          <span style={{ position: "absolute", top: 2, left: value ? 14 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 0.15s", }} />
         </span>
       </button>
-      <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>{label}</div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.4 }} className="text-admin-ink">{label}</div>
     </div>
   );
 }
@@ -2539,11 +2417,11 @@ export function CatalogChips({ items, selected, onToggle }: {
     return acc;
   }, {});
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       {Object.entries(groups).map(([group, rows]) => (
         <div key={group}>
           {group !== "All" && (
-            <div style={{ fontSize: 10.5, fontWeight: 500, color: COLORS.inkDim, marginBottom: 4 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 500, marginBottom: 4 }} className="text-admin-ink-dim">
               {group}
             </div>
           )}
@@ -2606,7 +2484,7 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
               border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
               padding: 10, background: "#fff",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div className="flex items-center gap-2 mb-2">
                 <input type="text" value={row.language}
                   onChange={(e) => update(i, { language: e.target.value })}
                   style={{
@@ -2631,7 +2509,7 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
                   color: COLORS.inkMuted, fontSize: 16, lineHeight: 1, fontWeight: 700,
                 }}>×</button>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className="flex flex-wrap gap-1.5">
                 {([
                   { key: "canHost",      label: "Can host" },
                   { key: "canSell",      label: "Can sell" },
@@ -2658,7 +2536,7 @@ export const LanguagesEditor = React.memo(function LanguagesEditor({ value, onCh
           ))}
         </div>
       )}
-      <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex gap-1.5">
         <input type="text" value={draftLang}
           onChange={(e) => setDraftLang(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
@@ -2905,12 +2783,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
               </div>
             )}
             {i === 0 && (
-              <span style={{
-                position: "absolute", top: 4, left: 4,
-                fontSize: 9, fontWeight: 700, fontFamily: FONTS.body,
-                padding: "2px 6px", borderRadius: 999,
-                background: COLORS.accent, color: "#fff",
-              }}>★ MAIN</span>
+              <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, padding: "2px 6px", borderRadius: 999, color: "#fff" }} className="bg-admin-accent">★ MAIN</span>
             )}
             {it.tag && (
               <span style={{
@@ -2938,7 +2811,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
                   display: "flex", alignItems: "center", justifyContent: "center",
                   boxShadow: "0 4px 12px rgba(11,11,13,0.25)",
                 }}>
-                  <span style={{ fontSize: 14, color: COLORS.ink, marginLeft: 2 }}>▶</span>
+                  <span style={{ fontSize: 14, marginLeft: 2 }} className="text-admin-ink">▶</span>
                 </div>
                 <span style={{
                   position: "absolute", top: 4, right: 28,
@@ -3004,11 +2877,11 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
             }}>+ Video</button>
           </div>
           {videoUrlError && (
-            <div style={{ fontSize: 10.5, color: COLORS.coral, fontFamily: FONTS.body }}>{videoUrlError}</div>
+            <div style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-coral">{videoUrlError}</div>
           )}
         </div>
       )}
-      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
+      <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }} className="text-admin-ink-dim">
         Tap a tile to add tag + alt text + caption. Drag to reorder. Mobile camera supported.
       </div>
 
@@ -3047,7 +2920,7 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
             {item.videoUrl ? "Video details" : "Photo details"}
           </h3>
           <button type="button" onClick={onClose} aria-label="Close" style={{
@@ -3061,11 +2934,7 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
           const parsed = parseVideoUrl(item.videoUrl);
           if (parsed && (parsed.provider === "youtube" || parsed.provider === "vimeo")) {
             return (
-              <div style={{
-                width: "100%", aspectRatio: "16 / 9", borderRadius: 10, marginBottom: 12,
-                overflow: "hidden", border: `1px solid ${COLORS.borderSoft}`,
-                background: COLORS.surfaceAlt,
-              }}>
+              <div style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: 10, marginBottom: 12, overflow: "hidden", border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
                 <iframe
                   src={parsed.embedUrl}
                   title="Video preview"
@@ -3155,7 +3024,7 @@ export function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
               fontSize: 12, fontWeight: 600, cursor: "pointer",
             }}>★ Make main</button>
           ) : <span />}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <button type="button" onClick={onClose} style={{
               padding: "9px 14px", borderRadius: 999,
               border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
@@ -3236,10 +3105,7 @@ export function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPre
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
           ) : (
-            <div style={{
-              background: "#fff", borderRadius: 4, padding: "3px 6px",
-              fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, color: COLORS.ink, whiteSpace: "nowrap",
-            }}>YOUR LOGO</div>
+            <div style={{ background: "#fff", borderRadius: 4, padding: "3px 6px", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }} className="text-admin-ink">YOUR LOGO</div>
           )}
         </div>
       )}
@@ -3321,10 +3187,10 @@ export function StateExplainer({ state }: { state: "draft" | "invited" | "publis
         padding: 14,
       }}
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
         {m.title}
       </div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
         {m.body}
       </div>
     </div>
@@ -3380,10 +3246,10 @@ export function RepresentationCard({
         padding: 14,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <div className="flex items-center gap-2 mb-2">
         <RepresentationChip representation={representation} />
       </div>
-      <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, margin: "0 0 12px", lineHeight: 1.55 }}>
+      <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: "0 0 12px", lineHeight: 1.55 }} className="text-admin-ink">
         {subtitle}
       </p>
       <CapsLabel>Inquiry routing by source</CapsLabel>
@@ -3400,8 +3266,8 @@ export function RepresentationCard({
               alignItems: "baseline",
             }}
           >
-            <span style={{ color: COLORS.inkMuted }}>{row.surface}</span>
-            <span style={{ color: COLORS.ink }}>{row.owner}</span>
+            <span className="text-admin-ink-muted">{row.surface}</span>
+            <span className="text-admin-ink">{row.owner}</span>
           </div>
         ))}
       </div>
@@ -3424,7 +3290,7 @@ export function ToggleRow({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
       <Toggle on={on} onChange={handle} label={label} />
-      <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>{label}</span>
+      <span style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink">{label}</span>
     </div>
   );
 }
@@ -3440,7 +3306,7 @@ export function ToggleRow({
 export function RadioCardGroup({ options, defaultId }: { options: { id: string; title: string; desc: string }[]; defaultId: string }) {
   const [selected, setSelected] = useState(defaultId);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="flex flex-col gap-2">
       {options.map((o) => {
         const isSelected = selected === o.id;
         return (
@@ -3478,9 +3344,9 @@ export function RadioCardGroup({ options, defaultId }: { options: { id: string; 
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />
               )}
             </span>
-            <div style={{ flex: 1 }}>
+            <div className="flex-1">
               <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{o.title}</div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
                 {o.desc}
               </div>
             </div>
@@ -3514,24 +3380,24 @@ export function InquiryTrustPanel({ clientName, talentNames }: { clientName: str
           padding: 12, borderRadius: 10,
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 4 }}>Client</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>{clientName}</div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">Client</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">{clientName}</div>
           <TrustBadgeGroup trust={clientTrust} surface="coordinator_workspace" size="sm" max={3} />
-          <div style={{ marginTop: 8 }}><RiskScorePill score={clientRisk} label="Score" /></div>
+          <div className="mt-2"><RiskScorePill score={clientRisk} label="Score" /></div>
         </div>
         <div style={{
           padding: 12, borderRadius: 10,
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 4 }}>Talent</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>{talentName ?? "—"}</div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">Talent</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">{talentName ?? "—"}</div>
           {talentTrust ? (
             <>
               <TrustBadgeGroup trust={talentTrust} surface="coordinator_workspace" size="sm" max={3} />
-              {talentRisk !== null && <div style={{ marginTop: 8 }}><RiskScorePill score={talentRisk} label="Score" /></div>}
+              {talentRisk !== null && <div className="mt-2"><RiskScorePill score={talentRisk} label="Score" /></div>}
             </>
           ) : (
-            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Not on roster</span>
+            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Not on roster</span>
           )}
         </div>
       </div>
@@ -3550,10 +3416,10 @@ export function SummaryTile({ label, value }: { label: string; value: ReactNode 
         padding: "10px 12px",
       }}
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 14, color: COLORS.ink, fontWeight: 600, marginTop: 4 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, marginTop: 4 }} className="text-admin-ink">
         {value}
       </div>
     </div>
@@ -3712,7 +3578,7 @@ export type ActivityCategory = MyAction["category"] | "all";
 
 export function ReorderList({ items }: { items: string[] }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="flex flex-col gap-1.5">
       {items.map((it, idx) => (
         <div
           key={it}
@@ -3729,9 +3595,9 @@ export function ReorderList({ items }: { items: string[] }) {
             color: COLORS.ink,
           }}
         >
-          <span style={{ color: COLORS.inkDim, cursor: "grab", fontSize: 14 }}>⋮⋮</span>
-          <span style={{ color: COLORS.inkMuted, fontSize: 11.5, minWidth: 16 }}>{idx + 1}</span>
-          <span style={{ flex: 1 }}>{it}</span>
+          <span style={{ cursor: "grab", fontSize: 14 }} className="text-admin-ink-dim">⋮⋮</span>
+          <span style={{ fontSize: 11.5, minWidth: 16 }} className="text-admin-ink-muted">{idx + 1}</span>
+          <span className="flex-1">{it}</span>
           <Icon name="external" size={11} color={COLORS.inkDim} />
         </div>
       ))}
@@ -3812,28 +3678,18 @@ export function SettingToggleRow({
           cursor: disabled ? "not-allowed" : "pointer",
         }}
       >
-        <span style={{
-          position: "absolute", top: 2, left: value ? 15 : 2,
-          width: 15, height: 15, borderRadius: "50%", background: "#fff",
-          transition: "left .15s",
-        }} />
+        <span style={{ position: "absolute", top: 2, left: value ? 15 : 2, width: 15, height: 15, borderRadius: "50%", background: "#fff", transition: "left .15s", }} />
       </button>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{
-          fontSize: 12.5, fontWeight: 500, color: COLORS.ink,
-          display: "flex", alignItems: "center", gap: 6,
-        }}>
+          fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }} className="text-admin-ink">
           <span>{label}</span>
           {isOverridden && (
-            <span style={{
-              padding: "0 5px", borderRadius: 999,
-              background: COLORS.amberSoft, color: COLORS.amberDeep,
-              fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-            }}>overridden</span>
+            <span style={{ padding: "0 5px", borderRadius: 999, fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-amber-soft text-admin-amber-deep">overridden</span>
           )}
         </div>
         {hint && (
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.35 }}>
+          <div style={{ fontSize: 10.5, marginTop: 1, lineHeight: 1.35 }} className="text-admin-ink-muted">
             {hint}
           </div>
         )}
@@ -3893,19 +3749,15 @@ export function FieldPrivacyRow({
       borderTop: isFirst ? "none" : `1px solid ${COLORS.borderSoft}`,
       fontFamily: FONTS.body,
     }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{label}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{label}</span>
           {isOverridden && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
-              background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-              letterSpacing: 0.4, textTransform: "uppercase",
-            }}>changed</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">changed</span>
           )}
         </div>
         {description && (
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{description}</div>
+          <div style={{ fontSize: 10.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">{description}</div>
         )}
       </div>
       <div style={{ display: "inline-flex", padding: 2, borderRadius: 999, background: "rgba(11,11,13,0.04)" }}>
@@ -4020,15 +3872,8 @@ export function ActivityLogPanel({ request }: { request: VerificationRequest }) 
   };
 
   return (
-    <div style={{
-      marginTop: 16, padding: "12px 14px",
-      borderRadius: 12, background: COLORS.surface,
-      border: `1px solid ${COLORS.borderSoft}`,
-    }}>
-      <div style={{
-        fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-        color: COLORS.inkDim, marginBottom: 10,
-      }}>Activity</div>
+    <div style={{ marginTop: 16, padding: "12px 14px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10 }} className="text-admin-ink-dim">Activity</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
         {events.map((ev, i) => {
           const last = i === events.length - 1;
@@ -4046,10 +3891,10 @@ export function ActivityLogPanel({ request }: { request: VerificationRequest }) 
                 )}
               </div>
               <div style={{ flex: 1, paddingBottom: last ? 0 : 12 }}>
-                <div style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 500, lineHeight: 1.3 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.3 }} className="text-admin-ink">
                   {ev.label}
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 2 }}>
+                <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-dim">
                   {ev.ts ? fmt(ev.ts) : "—"}
                 </div>
               </div>
@@ -4093,7 +3938,7 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
     <Section title="Trust health" framed>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: suggestions.length > 0 ? 14 : 0 }}>
         <RiskScorePill score={score} label="Score" />
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {activeBadgeCount === 0
             ? "No active badges yet. Verifying lifts your score and your inquiry priority."
             : `${activeBadgeCount} active badge${activeBadgeCount === 1 ? "" : "s"}. Score blends verifications, claim status, and account history.`}
@@ -4101,10 +3946,7 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
       </div>
       {suggestions.length > 0 && (
         <>
-          <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
-            color: COLORS.inkDim, marginBottom: 8,
-          }}>Earn more trust</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Earn more trust</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
             {suggestions.map(s => (
               <button key={s.type} type="button" onClick={() => openDrawer(s.drawer as DrawerSuggestion)}
@@ -4115,9 +3957,9 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
                   fontFamily: FONTS.body, textAlign: "left",
                 }}>
                 <span style={{ fontSize: 18 }}>{s.emoji}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{s.copy}</div>
-                  <div style={{ fontSize: 11, color: COLORS.successDeep, marginTop: 1, fontWeight: 600 }}>+{s.lift} score</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{s.copy}</div>
+                  <div style={{ fontSize: 11, marginTop: 1, fontWeight: 600 }} className="text-admin-success-deep">+{s.lift} score</div>
                 </div>
               </button>
             ))}
@@ -4155,25 +3997,22 @@ export function ExistingRequestRow({
     : request.status === "needs_more_info" ? "Needs more info"
     : request.status;
   return (
-    <div style={{
-      padding: "12px 14px", borderRadius: 10,
-      background: COLORS.amberSoft, fontFamily: FONTS.body,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, color: COLORS.amberDeep, marginBottom: 6 }}>
+    <div style={{ padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-amber-soft">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, marginBottom: 6 }} className="text-admin-amber-deep">
         <span>◌</span>
         {heading}
       </div>
       {request.claimedIdentifier && request.verificationCode && (
-        <div style={{ fontSize: 11.5, color: COLORS.ink, marginBottom: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink">
           DM <strong>@tulala.digital</strong> from <strong>{request.claimedIdentifier}</strong> with code <strong style={{ fontFamily: FONTS.mono ?? FONTS.body, letterSpacing: 1 }}>{request.verificationCode}</strong>
         </div>
       )}
       {request.publicMessage && (
-        <div style={{ fontSize: 11.5, color: COLORS.ink, marginTop: 4, marginBottom: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11.5, marginTop: 4, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink">
           <strong>Note:</strong> {request.publicMessage}
         </div>
       )}
-      <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex gap-1.5">
         {request.status === "pending_user_action" && (
           <button type="button" onClick={onMarkSent} style={{
             padding: "7px 12px", borderRadius: 999, border: "none",
@@ -4230,17 +4069,14 @@ export function InstagramVerificationInstructions({
         }}>
           <span aria-hidden style={{ fontSize: 11 }}>📸</span> Instagram Verified
         </div>
-        <div style={{
-          fontFamily: FONTS.display, fontSize: 20, fontWeight: 600,
-          color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
-        }}>Verify your Instagram</div>
-        <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">Verify your Instagram</div>
+        <div style={{ fontSize: 12.5, marginBottom: 16, lineHeight: 1.5 }} className="text-admin-ink-muted">
           Send a DM from your Instagram account to <strong>@tulala.digital</strong> with the code we&apos;ll generate. Tulala admins manually confirm the DM matches before approving.
         </div>
 
         {/* Step 1: handle */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6, display: "block" }}>
+        <div className="mb-3.5">
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
             1 · Your Instagram handle
           </label>
           <input
@@ -4259,34 +4095,29 @@ export function InstagramVerificationInstructions({
         </div>
 
         {/* Step 2: send DM */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6, display: "block" }}>
+        <div className="mb-3.5">
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
             2 · Send this DM
           </label>
-          <div style={{
-            padding: "12px 14px", borderRadius: 10,
-            background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
-            lineHeight: 1.55,
-          }}>
-            <div style={{ marginBottom: 6 }}>
+          <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="bg-admin-surface text-admin-ink">
+            <div className="mb-1.5">
               To: <strong>@tulala.digital</strong>
             </div>
-            <div style={{ color: COLORS.inkMuted, fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12 }}>
+            <div style={{ fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
               Verify my Tulala profile:<br />
               https://atelier-roma.tulala.app/{(existingHandle || "marta").replace("@", "")}<br />
               <br />
-              Verification code: <strong style={{ color: COLORS.ink }}>{previewCode}</strong>
+              Verification code: <strong className="text-admin-ink">{previewCode}</strong>
             </div>
           </div>
-          <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
+          <div style={{ fontSize: 10.5, marginTop: 6 }} className="text-admin-ink-dim">
             ↗ Code is locked when you confirm. Expires in 72h.
           </div>
         </div>
 
         {/* Step 3: optional evidence */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6, display: "block" }}>
+        <div className="mb-3.5">
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
             3 · Evidence (optional · speeds up review)
           </label>
           <input
@@ -4318,12 +4149,7 @@ export function InstagramVerificationInstructions({
         </div>
 
         {/* Step 4: confirm */}
-        <div style={{
-          padding: "10px 12px", borderRadius: 8,
-          background: "rgba(91,107,160,0.08)",
-          fontFamily: FONTS.body, fontSize: 11, color: COLORS.indigoDeep, lineHeight: 1.5,
-          marginBottom: 14,
-        }}>
+        <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(91,107,160,0.08)", fontFamily: FONTS.body, fontSize: 11, lineHeight: 1.5, marginBottom: 14 }} className="text-admin-indigo-deep">
           <strong>4 · Confirm.</strong> Tulala admins verify the DM was received from your handle and matches the code. Most decisions in &lt;24h.
         </div>
 
@@ -4378,11 +4204,11 @@ export function ConfigRow({ label, hint, children }: { label: string; hint?: str
       display: "flex", alignItems: "flex-start", gap: 12,
       padding: "10px 0", borderBottom: `1px solid ${COLORS.borderSoft}`,
     }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{label}</div>
-        {hint && <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{hint}</div>}
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{label}</div>
+        {hint && <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{hint}</div>}
       </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
@@ -4413,11 +4239,7 @@ export function vmChipStyle(active: boolean): React.CSSProperties {
 
 export function MethodDisabledNotice() {
   return (
-    <div style={{
-      padding: "20px 18px", borderRadius: 12,
-      background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
-      textAlign: "center", color: COLORS.inkMuted, fontSize: 13, lineHeight: 1.55,
-    }}>
+    <div style={{ padding: "20px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, textAlign: "center", fontSize: 13, lineHeight: 1.55 }} className="bg-admin-surface text-admin-ink-muted">
       This verification method isn&apos;t enabled on Tulala right now.<br />Check back later — platform admins decide which methods are available.
     </div>
   );
@@ -4425,10 +4247,7 @@ export function MethodDisabledNotice() {
 
 export function VmFieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label style={{
-      fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted,
-      textTransform: "uppercase", marginBottom: 6, marginTop: 12, display: "block",
-    }}>{children}</label>
+    <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6, marginTop: 12, display: "block" }} className="text-admin-ink-muted">{children}</label>
   );
 }
 
@@ -4499,7 +4318,7 @@ export function ConfirmTypedAction({
         gap: 10,
       }}
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
         Type{" "}
         <code
           style={{
@@ -4522,7 +4341,7 @@ export function ConfirmTypedAction({
         onChange={(e) => setTyped(e.target.value)}
         placeholder={confirmPhrase}
       />
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         <SecondaryButton onClick={() => { setArmed(false); setTyped(""); }}>Cancel</SecondaryButton>
         <button
           disabled={!matches}
@@ -4659,12 +4478,12 @@ export function PaymentsSetupDrawer() {
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-            <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink }}>
+            <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500 }} className="text-admin-ink">
               {fee.label}
             </span>
             <PlanChip plan={state.plan} variant="solid" />
           </div>
-          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: "8px 0 0", lineHeight: 1.55 }}>
+          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: "8px 0 0", lineHeight: 1.55 }} className="text-admin-ink-muted">
             {fee.controlsHint}
           </p>
         </div>
@@ -4686,18 +4505,18 @@ export function PaymentsSetupDrawer() {
           }}
         >
           <Avatar initials={receiver.initials} size={40} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
               {receiver.displayName}
             </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {PAYOUT_RECEIVER_KIND_LABEL[receiver.kind]}
               {receiver.legalName ? ` · ${receiver.legalName}` : ""}
             </div>
           </div>
           <PayoutStatusChip status={receiver.status} />
         </div>
-        <p style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontFamily: FONTS.body, fontSize: 12, margin: 0, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {receiverMeta.hint}
         </p>
       </Section>
@@ -4777,10 +4596,10 @@ export function MiniMetric({ label, value }: { label: string; value: string }) {
         padding: "12px 14px",
       }}
     >
-      <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 11, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </div>
-      <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, color: COLORS.ink, marginTop: 4 }}>
+      <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, marginTop: 4 }} className="text-admin-ink">
         {value}
       </div>
     </div>
@@ -4849,7 +4668,7 @@ export function PayoutReceiverPickerDrawer() {
         title="Eligible candidates"
         description="Only verified, payout-connected entities can be selected. Pending or restricted accounts must finish setup first."
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {PAYOUT_RECEIVER_CANDIDATES.map((rec) => {
             const meta = PAYOUT_STATUS_META[rec.status];
             const key = `${rec.kind}:${rec.displayName}`;
@@ -4876,11 +4695,11 @@ export function PayoutReceiverPickerDrawer() {
                 }}
               >
                 <Avatar initials={rec.initials} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
                     {rec.displayName}
                   </div>
-                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                  <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                     {PAYOUT_RECEIVER_KIND_LABEL[rec.kind]}
                     {rec.legalName && rec.legalName !== "—" ? ` · ${rec.legalName}` : ""}
                   </div>
@@ -4893,26 +4712,15 @@ export function PayoutReceiverPickerDrawer() {
       </Section>
 
       <Section title="Distribution">
-        <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.55 }}>
+        <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: 0, lineHeight: 1.55 }} className="text-admin-ink-muted">
           Tulala pays the selected receiver in full. Splitting between
           agency, talent, and any third parties happens off-platform —
           handled by whoever you select.
         </p>
         {summary?.distributionNote && (
-          <div
-            style={{
-              padding: "10px 12px",
-              background: "rgba(11,11,13,0.03)",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              color: COLORS.ink,
-              lineHeight: 1.55,
-            }}
-          >
+          <div style={{ padding: "10px 12px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">
             <CapsLabel>Coordinator note</CapsLabel>
-            <div style={{ marginTop: 4 }}>{summary.distributionNote}</div>
+            <div className="mt-1">{summary.distributionNote}</div>
           </div>
         )}
       </Section>
@@ -4968,13 +4776,13 @@ export function PaymentDetailDrawer() {
             gap: 10,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <PaymentStatusChip status={row.status} />
-            <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+            <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
               {row.date}
             </span>
           </div>
-          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.55 }}>
+          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, margin: 0, lineHeight: 1.55 }} className="text-admin-ink-muted">
             {statusMeta.description}
           </p>
         </div>
@@ -4994,14 +4802,7 @@ export function PaymentDetailDrawer() {
           <BreakdownRow label="Net payout" value={row.netPayout} emphasis />
         </div>
         {summary?.paidVia && (
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              padding: "0 2px",
-            }}
-          >
+          <div style={{ fontFamily: FONTS.body, fontSize: 12, padding: "0 2px" }} className="text-admin-ink-muted">
             Paid via {summary.paidVia.brand} •• {summary.paidVia.last4}
           </div>
         )}
@@ -5021,11 +4822,11 @@ export function PaymentDetailDrawer() {
             }}
           >
             <Avatar initials={summary.receiver.initials} size={36} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
                 {summary.receiver.displayName}
               </div>
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                 {PAYOUT_RECEIVER_KIND_LABEL[summary.receiver.kind]}
                 {summary.receiver.legalName ? ` · ${summary.receiver.legalName}` : ""}
               </div>
@@ -5033,22 +4834,12 @@ export function PaymentDetailDrawer() {
             <PayoutStatusChip status={summary.receiver.status} />
           </div>
         ) : (
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12,
-              padding: 12,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              color: COLORS.ink,
-            }}
-          >
+          <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: 12, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
             {row.receiverName}
           </div>
         )}
         {summary?.downstreamNote && (
-          <p style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontFamily: FONTS.body, fontSize: 12, margin: 0, lineHeight: 1.5 }} className="text-admin-ink-muted">
             {summary.downstreamNote}
           </p>
         )}
@@ -5077,8 +4868,8 @@ export function PaymentDetailDrawer() {
                   fontSize: 12.5,
                 }}
               >
-                <span style={{ color: COLORS.inkMuted }}>{entry.ts}</span>
-                <span style={{ color: COLORS.ink }}>{entry.label}</span>
+                <span className="text-admin-ink-muted">{entry.ts}</span>
+                <span className="text-admin-ink">{entry.label}</span>
               </div>
             ))}
           </div>

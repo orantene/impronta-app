@@ -51,16 +51,16 @@ export function EscrowDetailDrawer() {
             </div>
             <div style={{ flex: 1, paddingTop: 6, paddingBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: s.active ? 600 : 500, color: s.active || s.done ? COLORS.ink : COLORS.inkMuted, marginBottom: 2 }}>
-                {s.label}{s.active && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" as const, color: COLORS.green }}>Current</span>}
+                {s.label}{s.active && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" as const }} className="text-admin-green">Current</span>}
               </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>{s.desc}</div>
+              <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">{s.desc}</div>
             </div>
           </div>
         ))}
         {stage === "held" && (
           <div style={{ marginTop: 4, padding: "12px 14px", background: "rgba(46,125,91,0.06)", border: "1px solid rgba(46,125,91,0.18)", borderRadius: 10 }}>
-            <div style={{ fontSize: 12, color: COLORS.successDeep, fontWeight: 500, marginBottom: 8 }}>🔒 Funds are secured. Auto-released 24h after confirmed shoot date.</div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8 }} className="text-admin-success-deep">🔒 Funds are secured. Auto-released 24h after confirmed shoot date.</div>
+            <div className="flex gap-2">
               <button type="button" onClick={() => requestEscrowSupport("release")} style={{ padding: "7px 14px", background: COLORS.green, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Request release</button>
               <button type="button" onClick={() => requestEscrowSupport("dispute")} style={{ padding: "7px 14px", background: "transparent", color: COLORS.red, border: "1px solid rgba(176,48,58,0.25)", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Email dispute</button>
             </div>
@@ -93,7 +93,7 @@ export function RefundFlowDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Request Refund" description="Email support to start a refund review." defaultSize="compact">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           {(["full","partial"] as const).map((t) => (
             <button key={t} type="button" onClick={() => setAmount(t)} style={{ flex: 1, padding: "10px 0", border: `1px solid ${amount===t ? COLORS.accent : COLORS.borderSoft}`, background: amount===t ? COLORS.fill : "transparent", color: amount===t ? "#fff" : COLORS.ink, borderRadius: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" as const }}>{t} refund</button>
           ))}
@@ -144,9 +144,9 @@ export function DisputeFlowDrawer() {
             </div>
           ))}
         </div>
-        {step === 1 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.accent : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
-        {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, opacity: 0.65 }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Evidence upload coming soon</div><div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>Attach evidence to the support email after it opens.</div></div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
-        {step === 3 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}><strong style={{ color: "#7A2026" }}>Support must review this manually.</strong> Emailing this request does not freeze escrow automatically; support will confirm payment status and next steps.</div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={emailDisputeRequest} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Email dispute request</button></div></div>}
+        {step === 1 && <div className="flex flex-col gap-2">{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.accent : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
+        {step === 2 && <div className="flex flex-col gap-4"><div style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, opacity: 0.65 }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Evidence upload coming soon</div><div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">Attach evidence to the support email after it opens.</div></div><div className="flex gap-2"><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
+        {step === 3 && <div className="flex flex-col gap-4"><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, lineHeight: 1.6 }} className="text-admin-ink-muted"><strong style={{ color: "#7A2026" }}>Support must review this manually.</strong> Emailing this request does not freeze escrow automatically; support will confirm payment status and next steps.</div><div className="flex gap-2"><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={emailDisputeRequest} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Email dispute request</button></div></div>}
       </div>
     </DrawerShell>
   );
@@ -160,10 +160,10 @@ export function KycVerificationDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Identity Verification" description="Secure · Encrypted · ~3 minutes" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 20 }}>
-        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span style={{ fontSize: 22 }}>{i.icon}</span><div><div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{i.title}</div><div style={{ fontSize: 12, color: COLORS.inkMuted }}>{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
-        {step === "id" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker — select ID document"); setStep("selfie"); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🪪</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Tap to upload or take a photo</div></div></div>}
-        {step === "selfie" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => setStep("done")} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🤳</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Selfie holding your ID</div><div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>Both your face and document must be clearly visible</div></div></div>}
-        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Submitted</div><div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Review within 24 hours. You&apos;ll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
+        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span style={{ fontSize: 22 }}>{i.icon}</span><div><div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{i.title}</div><div style={{ fontSize: 12 }} className="text-admin-ink-muted">{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
+        {step === "id" && <div className="flex flex-col gap-4"><div onClick={() => { toast("File picker — select ID document"); setStep("selfie"); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🪪</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Tap to upload or take a photo</div></div></div>}
+        {step === "selfie" && <div className="flex flex-col gap-4"><div onClick={() => setStep("done")} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🤳</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Selfie holding your ID</div><div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">Both your face and document must be clearly visible</div></div></div>}
+        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div style={{ fontSize: 16, fontWeight: 700 }} className="text-admin-ink">Submitted</div><div style={{ fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">Review within 24 hours. You&apos;ll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
       </div>
     </DrawerShell>
   );
@@ -176,7 +176,7 @@ export function ProofOfFundsDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Proof of Funds" description="Required for Silver and Gold trust tiers" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Demonstrate available funds via bank link (instant) or wire deposit (1–3 business days).</div>
+        <div style={{ fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">Demonstrate available funds via bank link (instant) or wire deposit (1–3 business days).</div>
         <button type="button" onClick={() => toast("Bank link — opens Plaid / TrueLayer")} style={{ padding: "12px 16px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" as const }}>🏦 Link bank account (instant)</button>
         <button type="button" onClick={() => toast("Wire instructions sent to your email")} style={{ padding: "12px 16px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" as const }}>💸 Wire deposit (1–3 days)</button>
       </div>
@@ -217,7 +217,7 @@ export function SubscriptionLifecycleDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title={c.title} defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>{c.desc}</div>
+        <div style={{ fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">{c.desc}</div>
         <button type="button" onClick={() => toast(c.cta)} style={{ padding: "11px", background: c.ctaColor, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{c.cta}</button>
         {phase === "active" && <button type="button" onClick={() => toast("Cancellation + win-back flow")} style={{ padding: "10px", background: "transparent", border: "none", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 12, cursor: "pointer" }}>Cancel subscription</button>}
       </div>
@@ -232,7 +232,7 @@ export function NotificationDetailDrawer() {
   const n = state.drawer.payload?.notification as Record<string,string> | undefined;
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Notification" defaultSize="compact">
-      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">
         {n?.body ?? "No additional detail available."}
       </div>
     </DrawerShell>
@@ -267,7 +267,7 @@ export function AiDraftAssistDrawer() {
         <button type="button" onClick={generate} disabled={loading || !prompt.trim()} style={{ padding: "10px", background: prompt.trim() ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: prompt.trim() ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: prompt.trim() ? "pointer" : "default" }}>{loading ? "Drafting…" : "Generate draft"}</button>
         {result && (
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, color: COLORS.inkMuted, marginBottom: 6 }}>Draft — edit before sending</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, marginBottom: 6 }} className="text-admin-ink-muted">Draft — edit before sending</div>
             <textarea value={result} onChange={(e) => setResult(e.target.value)} rows={6} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(79,70,229,0.35)", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, resize: "vertical" as const, outline: "none", background: "rgba(79,70,229,0.03)", boxSizing: "border-box" as const }} />
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button type="button" onClick={() => { toast("Draft copied to composer"); closeDrawer(); }} style={{ flex: 1, padding: "9px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Use draft →</button>
@@ -289,8 +289,8 @@ export function AiSearchExplainDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Search interpretation" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 14 }}>
-        {query && <div style={{ padding: "10px 12px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, fontSize: 13, color: COLORS.ink }}>&ldquo;{query}&rdquo;</div>}
-        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Searched across name, agency, brief, status, and location. Found <strong style={{ color: COLORS.ink }}>{results} results</strong>. Try date ranges, status filters, or talent names for precision.</div>
+        {query && <div style={{ padding: "10px 12px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, fontSize: 13 }} className="text-admin-ink">&ldquo;{query}&rdquo;</div>}
+        <div style={{ fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">Searched across name, agency, brief, status, and location. Found <strong className="text-admin-ink">{results} results</strong>. Try date ranges, status filters, or talent names for precision.</div>
       </div>
     </DrawerShell>
   );
@@ -359,23 +359,13 @@ export function AiWeeklyDigestDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
         {/* AI header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 14px",
-            background: COLORS.royalSoft,
-            borderRadius: RADIUS.lg,
-            border: "1px solid rgba(95,75,139,0.18)",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "1px solid rgba(95,75,139,0.18)" }} className="bg-admin-royal-soft rounded-admin-lg">
           <Icon name="sparkle" size={14} color={COLORS.royal} stroke={1.7} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.royal }}>
+          <div className="flex-1">
+            <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-royal">
               AI-generated · not saved · Apr 21 – Apr 28
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.royal, opacity: 0.75, marginTop: 1 }}>
+            <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 1 }} className="text-admin-royal">
               Pulled from 47 activity events, 12 messages, 3 inquiry updates.
             </div>
           </div>
@@ -421,16 +411,7 @@ export function AiWeeklyDigestDrawer() {
               }}
             >
               <Icon name={section.icon} size={13} color={COLORS.inkMuted} stroke={1.8} />
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
-                  color: COLORS.inkMuted,
-                }}
-              >
+              <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
                 {section.label}
               </span>
             </div>
@@ -529,10 +510,10 @@ export function WorkspaceRevenueDrawer() {
                 padding: "14px 16px", border: `1px solid ${COLORS.border}`,
               }}
             >
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+              <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginBottom: 2 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 2 }} className="text-admin-ink">
                 {tile.value}
               </div>
               <div style={{ fontSize: 11, color: (tile as { subColor?: string }).subColor ?? COLORS.inkMuted }}>
@@ -543,9 +524,9 @@ export function WorkspaceRevenueDrawer() {
         </div>
 
         {/* Monthly bar chart */}
-        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "14px 16px", border: `1px solid ${COLORS.border}` }}>
+        <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
           <CapsLabel>Monthly revenue · last 6 months</CapsLabel>
-          <div style={{ marginTop: 12 }}>
+          <div className="mt-3">
             <svg width={BAR_W} height={BAR_H + 20} style={{ display: "block", overflow: "visible" }}>
               {MONTHLY.map((m, i) => {
                 const x = i * (BAR_W / MONTHLY.length) + 3;
@@ -569,7 +550,7 @@ export function WorkspaceRevenueDrawer() {
               })}
             </svg>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5, color: COLORS.inkMuted }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5 }} className="text-admin-ink-muted">
             <span>€0</span>
             <span>€{(maxRev / 1000).toFixed(0)}k</span>
           </div>
@@ -581,12 +562,12 @@ export function WorkspaceRevenueDrawer() {
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
             {CATEGORIES.map((cat) => (
               <div key={cat.label}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5, color: COLORS.ink }}>
-                  <span style={{ fontWeight: 500 }}>{cat.label}</span>
-                  <span style={{ color: COLORS.inkMuted }}>€{cat.value.toLocaleString()} · {cat.pct}%</span>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5 }} className="text-admin-ink">
+                  <span className="font-medium">{cat.label}</span>
+                  <span className="text-admin-ink-muted">€{cat.value.toLocaleString()} · {cat.pct}%</span>
                 </div>
                 <div style={{ background: COLORS.borderSoft, borderRadius: 3, height: 6, overflow: "hidden" }}>
-                  <div style={{ background: COLORS.accent, width: `${cat.pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
+                  <div style={{ width: `${cat.pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
                 </div>
               </div>
             ))}
@@ -622,7 +603,7 @@ export function ConversionFunnelDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
       defaultSize="half"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }} className="bg-admin-accent">
         {/* Summary KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[
@@ -637,19 +618,19 @@ export function ConversionFunnelDrawer() {
                 padding: "12px 14px", border: `1px solid ${COLORS.border}`,
               }}
             >
-              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
               <div style={{ fontSize: 19, fontWeight: 800, color: (tile as { warn?: boolean }).warn ? COLORS.coral : COLORS.ink, marginBottom: 2 }}>
                 {tile.value}
               </div>
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{tile.sub}</div>
+              <div style={{ fontSize: 10.5 }} className="text-admin-ink-muted">{tile.sub}</div>
             </div>
           ))}
         </div>
 
         {/* SVG funnel */}
-        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "16px", border: `1px solid ${COLORS.border}` }}>
+        <div style={{ padding: "16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
           <CapsLabel>Pipeline funnel · last 90 days</CapsLabel>
           <div style={{ marginTop: 14 }}>
             <svg
@@ -701,19 +682,16 @@ export function ConversionFunnelDrawer() {
                   borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: STAGE_COLORS[i] ?? COLORS.accent, flexShrink: 0,
-                  }} />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{stage.label}</span>
+                <div className="flex items-center gap-2">
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: STAGE_COLORS[i] ?? COLORS.accent, flexShrink: 0, }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{stage.label}</span>
                 </div>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{stage.count}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{stage.count}</span>
                   {stage.dropPct !== null ? (
-                    <span style={{ fontSize: 11, color: COLORS.coral }}>−{stage.dropPct}% drop</span>
+                    <span style={{ fontSize: 11 }} className="text-admin-coral">−{stage.dropPct}% drop</span>
                   ) : (
-                    <span style={{ fontSize: 11, color: COLORS.inkMuted }}>entry stage</span>
+                    <span style={{ fontSize: 11 }} className="text-admin-ink-muted">entry stage</span>
                   )}
                 </div>
               </div>
