@@ -1,4 +1,6 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -407,13 +409,13 @@ export function TalentProfileShellDrawer() {
     // run's stays false and applies the data).
     const { entry: _hy, reused: _reused } = _getEditorHydration(tid, isSelf);
     if (_reused) {
-      console.info(
-        `[editor-loader] duplicate prevented (in-flight reuse) talent=${tid}`,
-      );
+      void improntaLog("admin_talentprofileshelldrawer.info", {
+        message: `[editor-loader] duplicate prevented (in-flight reuse) talent=${tid}`,
+      });
     } else {
-      console.info(
-        `[hydration] effect start talent=${tid} ts=${Date.now()}`,
-      );
+      void improntaLog("admin_talentprofileshelldrawer.info", {
+        message: `[hydration] effect start talent=${tid} ts=${Date.now()}`,
+      });
     }
 
     void _hy.media
@@ -666,7 +668,9 @@ export function TalentProfileShellDrawer() {
       });
     return () => {
       cancelled = true;
-      console.info(`[hydration] effect cleanup talent=${tid}`);
+      void improntaLog("admin_talentprofileshelldrawer.info", {
+        message: `[hydration] effect cleanup talent=${tid}`,
+      });
       // No ref-nulling here: dedupe is the module in-flight cache, not
       // this ref (nulling it here is exactly what let StrictMode double
       // fire). The in-flight entry self-evicts on settle.
@@ -962,7 +966,10 @@ export function TalentProfileShellDrawer() {
       if (!batchRes.ok) {
         setSaveStatus("error");
         setSaveError(batchRes.error);
-        console.error("[saveAll] batch:", batchRes.error);
+        void improntaLog("admin_talentprofileshelldrawer.error", {
+          message: "[saveAll] batch:",
+          batchRes: batchRes.error,
+        });
         return false;
       }
       setDirty(false);
@@ -1043,7 +1050,10 @@ export function TalentProfileShellDrawer() {
     if (failures.length > 0) {
       setSaveStatus("error");
       setSaveError(failures.join(" · "));
-      console.error("[saveAll] failures:", failures);
+      void improntaLog("admin_talentprofileshelldrawer.error", {
+        message: "[saveAll] failures:",
+        failures: failures.join(", "),
+      });
       return false;
     }
 
@@ -1056,7 +1066,10 @@ export function TalentProfileShellDrawer() {
       if (!taxRes.ok) {
         setSaveStatus("error");
         setSaveError(taxRes.error);
-        console.error("[saveAll] taxonomy:", taxRes.error);
+        void improntaLog("admin_talentprofileshelldrawer.error", {
+          message: "[saveAll] taxonomy:",
+          taxRes: taxRes.error,
+        });
         return false;
       }
     }
@@ -1079,7 +1092,7 @@ export function TalentProfileShellDrawer() {
       const msg = e instanceof Error ? e.message : "Save failed";
       setSaveStatus("error");
       setSaveError(msg);
-      console.error("[saveAll] error:", e);
+      logServerError("saveall", e);
       return false;
     }
   }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity?.tenantId]);

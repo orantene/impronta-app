@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // language-slot-panel.tsx — Languages editor (real-tenant, DB-backed, V1)
@@ -92,9 +93,9 @@ export function LanguageSlotPanel({
   }, [languages]);
 
   useEffect(() => {
-    console.info(
-      `[lang-ui] LanguageSlotPanel mounted talent=${talentProfileId}`,
-    );
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] LanguageSlotPanel mounted talent=${talentProfileId}`,
+    });
   }, [talentProfileId]);
 
   const fetchData = async (useCache: boolean) => {
@@ -171,35 +172,35 @@ export function LanguageSlotPanel({
     const reqId = `lang-${seq}`;
     const base = languagesRef.current ?? [];
     const rollbackSnapshot = base;
-    console.info(
-      `[lang-ui] ${reqId} seq=${seq} ${label} desired-before=[` +
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] ${reqId} seq=${seq} ${label} desired-before=[` +
         `${base.map((l) => l.language_code).join(",")}]`,
-    );
+    });
     // Optimistic + synchronous ref advance.
     languagesRef.current = next;
     setLanguages(next);
     setSaving(savingKey, true);
     const payload = next.map((l, i) => ({ ...l, display_order: i }));
-    console.info(
-      `[lang-ui] ${reqId} seq=${seq} desired-after-optimistic=[` +
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] ${reqId} seq=${seq} desired-after-optimistic=[` +
         `${next.map((l) => `${l.language_code}:${l.speaking_level}`).join(",")}] ` +
         `payload-sent=${payload.length}`,
-    );
+    });
     const res = await setTalentLanguages({
       talent_profile_id: talentProfileId,
       languages: payload,
     });
     setSaving(savingKey, false);
     if (seq !== mutationSeqRef.current) {
-      console.info(
-        `[lang-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+      void improntaLog("admin_language_slot_panel.info", {
+        message: `[lang-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
           `${mutationSeqRef.current}) serverOk=${res.ok}` +
           (res.ok
             ? ` serverReturned=[${res.languages
                 .map((l) => l.language_code)
                 .join(",")}]`
             : ""),
-      );
+      });
       return;
     }
     if (!res.ok) {
@@ -210,10 +211,10 @@ export function LanguageSlotPanel({
         ts: Date.now(),
       });
       setError(res.error);
-      console.info(
-        `[lang-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
+      void improntaLog("admin_language_slot_panel.info", {
+        message: `[lang-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
           `${res.error}) finalUI=${rollbackSnapshot.length}`,
-      );
+      });
       return;
     }
     languagesRef.current = res.languages;
@@ -223,18 +224,18 @@ export function LanguageSlotPanel({
       ts: Date.now(),
     });
     setError(null);
-    console.info(
-      `[lang-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] ${reqId} seq=${seq} APPLIED server truth ` +
         `serverReturned=[${res.languages
           .map((l) => l.language_code)
           .join(",")}] finalUI=${res.languages.length}`,
-    );
+    });
   };
 
   const handleAdd = async (picked: Array<{ code: string; name: string }>) => {
-    console.info(
-      `[lang-ui] add submitted codes=[${picked.map((p) => p.code).join(",")}]`,
-    );
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] add submitted codes=[${picked.map((p) => p.code).join(",")}]`,
+    });
     const base = languagesRef.current ?? [];
     const have = new Set(base.map((l) => l.language_code));
     const additions: LangRow[] = picked
@@ -256,7 +257,9 @@ export function LanguageSlotPanel({
   };
 
   const handleLevelChange = async (code: string, level: UiLevel) => {
-    console.info(`[lang-ui] level changed code=${code} -> ${level}`);
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] level changed code=${code} -> ${level}`,
+    });
     const base = languagesRef.current ?? [];
     // Preserve every other field (incl. capability flags); sync is_native.
     const next = base.map((l) =>
@@ -268,9 +271,9 @@ export function LanguageSlotPanel({
   };
 
   const handleRemove = async (row: LangRow) => {
-    console.info(
-      `[lang-ui] remove clicked code=${row.language_code} name="${row.language_name}"`,
-    );
+    void improntaLog("admin_language_slot_panel.info", {
+      message: `[lang-ui] remove clicked code=${row.language_code} name="${row.language_name}"`,
+    });
     const base = languagesRef.current ?? [];
     const next = base.filter((l) => l.language_code !== row.language_code);
     await commitDesired(next, row.language_code, "remove");

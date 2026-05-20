@@ -350,7 +350,13 @@ def build_logservererror_call(context: str, err_var: str) -> str:
 # ─────────────────────────────────────────────────────
 
 def already_imports(text: str, identifier: str) -> bool:
-    return bool(re.search(r"import[^;]*\b" + re.escape(identifier) + r"\b", text))
+    # Use ^ + MULTILINE so we only match *static* import statements (line-starting),
+    # not dynamic import("…") expressions which can appear mid-expression.
+    return bool(re.search(
+        r"^import[^;]*\b" + re.escape(identifier) + r"\b",
+        text,
+        re.MULTILINE,
+    ))
 
 
 def add_import(text: str, import_line: str) -> str:

@@ -1,4 +1,6 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
+import { logServerError } from "@/lib/server/safe-error";
 // ─────────────────────────────────────────────────────────────────────
 // Phase 1b decomposition of _state.tsx (remediation-plan-2026-05-19 §4).
 // Byte-for-byte declaration bodies; public surface re-exported by the
@@ -537,7 +539,10 @@ function runWithViewTransition(work: () => void): void {
     ranFallback = true;
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
-      console.warn("[admin-shell] view-transition failed, falling back", err);
+      void improntaLog("admin_context.warn", {
+        message: "[admin-shell] view-transition failed, falling back",
+        error: String(err),
+      });
     }
     work();
   };
@@ -1443,7 +1448,7 @@ export function AdminShellProvider({
       // Dynamic import keeps the server action out of the standalone bundle.
       import("@/lib/server-actions/user-prefs")
         .then(({ setPreferredSurface }) => setPreferredSurface(target))
-        .catch((err: unknown) => console.error("[flipMode] pref persist failed", err));
+        .catch((err: unknown) => logServerError("flipmode", err));
     }
   }, [alsoTalent, surface, page, talentPage, handleSetSurface, initialBridgeData, router]);
 

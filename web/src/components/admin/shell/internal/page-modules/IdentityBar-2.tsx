@@ -1,5 +1,5 @@
 "use client";
-
+import { logServerError } from "@/lib/server/safe-error";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
@@ -187,7 +187,7 @@ function ModeToggleFirstRunTip() {
       setVisible(false);
       import("@/lib/server-actions/user-prefs")
         .then(({ markToggleTipSeen }) => markToggleTipSeen())
-        .catch((err: unknown) => console.error("[ModeToggleFirstRunTip] markToggleTipSeen failed", err));
+        .catch((err: unknown) => logServerError("modetogglefirstruntip", err));
     }, 8000);
     return () => clearTimeout(t);
   }, []);
@@ -196,7 +196,7 @@ function ModeToggleFirstRunTip() {
     setVisible(false);
     import("@/lib/server-actions/user-prefs")
       .then(({ markToggleTipSeen }) => markToggleTipSeen())
-      .catch((err: unknown) => console.error("[ModeToggleFirstRunTip] markToggleTipSeen failed", err));
+      .catch((err: unknown) => logServerError("modetogglefirstruntip", err));
   }, []);
 
   if (!visible) return null;

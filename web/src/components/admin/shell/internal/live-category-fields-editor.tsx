@@ -1,4 +1,6 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // live-category-fields-editor.tsx — Write-mode editor for the DB-driven
@@ -532,10 +534,10 @@ function DetailsFieldGroup({
   // order — out === in by construction. Logged for QA continuity.
   useEffect(() => {
     const slug = fields[0]?.field_group_slug ?? "_other";
-    console.info(
-      `[detailsGroup-ui] group=${slug} parity in=${fields.length} ` +
+    void improntaLog("admin_live_category_fields_editor.info", {
+      message: `[detailsGroup-ui] group=${slug} parity in=${fields.length} ` +
         `out=${fields.length} ok=true mode=per-field-collapsible-autospan`,
-    );
+    });
   }, [fields]);
 
   return (
@@ -821,7 +823,9 @@ function resolveTalentFieldsShared<F, V>(
   const key = `${talentProfileId}::${String(refreshKey)}`;
   const existing = _lcfeShared.get(key);
   if (existing) {
-    console.info(`[lcfe] reuse shared payload key=${key}`);
+    void improntaLog("admin_live_category_fields_editor.info", {
+      message: `[lcfe] reuse shared payload key=${key}`,
+    });
     return existing as Promise<[F, V]>;
   }
   // refreshKey changed → any older cached set for this talent is stale.
@@ -829,7 +833,9 @@ function resolveTalentFieldsShared<F, V>(
     if (k.startsWith(`${talentProfileId}::`) && k !== key) _lcfeShared.delete(k);
   }
   const t0 = Date.now();
-  console.info(`[lcfe] fetch start key=${key}`);
+  void improntaLog("admin_live_category_fields_editor.info", {
+    message: `[lcfe] fetch start key=${key}`,
+  });
   const p = Promise.all([
     getFieldsAction({ talent_profile_id: talentProfileId }),
     getValuesAction({ talent_profile_id: talentProfileId }),
@@ -838,13 +844,15 @@ function resolveTalentFieldsShared<F, V>(
   void p.then(
     ([f]) => {
       const ok = (f as { ok?: boolean })?.ok !== false;
-      console.info(
-        `[lcfe] fetch done key=${key} ms=${Date.now() - t0} ok=${ok}`,
-      );
+      void improntaLog("admin_live_category_fields_editor.info", {
+        message: `[lcfe] fetch done key=${key} ms=${Date.now() - t0} ok=${ok}`,
+      });
       if (!ok) _lcfeShared.delete(key); // don't cache a failure
     },
     (e) => {
-      console.warn(`[lcfe] fetch threw key=${key}: ${String(e)}`);
+      void improntaLog("admin_live_category_fields_editor.warn", {
+        message: `[lcfe] fetch threw key=${key}: ${String(e)}`,
+      });
       _lcfeShared.delete(key);
     },
   );
@@ -991,12 +999,15 @@ export function LiveCategoryFieldsEditor({
         } else {
           // Non-fatal: editor still works, just starts blank.
           // eslint-disable-next-line no-console
-          console.warn("[LiveCategoryFieldsEditor] getTalentFieldValues:", valuesRes.error);
+          void improntaLog("admin_live_category_fields_editor.warn", {
+            message: "[LiveCategoryFieldsEditor] getTalentFieldValues:",
+            valuesRes: valuesRes.error,
+          });
         }
       } catch (err) {
         if (cancelled) return;
         // eslint-disable-next-line no-console
-        console.error("[LiveCategoryFieldsEditor] load threw:", err);
+        logServerError("livecategoryfieldseditor", err);
         setError(err instanceof Error ? err.message : "Failed to load.");
         setAllFields([]);
       }

@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // _skill-slot-panel.tsx — Multi-skill talent picker UI (Phase 2 refactor)
@@ -146,10 +147,10 @@ export function SkillSlotPanel({
   // what's on screen for the tested talent. If QA never sees this line,
   // the Services UI is rendering a different/legacy/display-only surface.
   useEffect(() => {
-    console.info(
-      `[skills-ui] SkillSlotPanel mounted talent=${talentProfileId} ` +
+    void improntaLog("admin_skill_slot_panel.info", {
+      message: `[skills-ui] SkillSlotPanel mounted talent=${talentProfileId} ` +
         `mode=${viewMode} admin=${adminControls}`,
-    );
+    });
   }, [talentProfileId, viewMode, adminControls]);
 
   const fetchData = async (useCache: boolean) => {
@@ -316,10 +317,10 @@ export function SkillSlotPanel({
   const handleRemove = async (skill: ResolvedSkill) => {
     // Click marker BEFORE any gate/async — if this never logs, the click
     // isn't reaching handleRemove (wrong surface / display-only chip).
-    console.info(
-      `[skills-ui] remove clicked label="${skill.skill_name_en}" ` +
+    void improntaLog("admin_skill_slot_panel.info", {
+      message: `[skills-ui] remove clicked label="${skill.skill_name_en}" ` +
         `id=${skill.skill_term_id} role=${skill.relationship_type}`,
-    );
+    });
     // No native window.confirm() gate: it BLOCKS and is auto-dismissed by
     // agent/automated browsers (returns false), which silently aborted the
     // whole mutation before any log/state/server call — the reported QA
@@ -333,10 +334,10 @@ export function SkillSlotPanel({
     // restores it (the reported "removed roles come back" bug).
     const base = skillsRef.current ?? [];
     const rollbackSnapshot = base;
-    console.info(
-      `[skills-ui] ${reqId} seq=${seq} desired-before-remove=[` +
+    void improntaLog("admin_skill_slot_panel.info", {
+      message: `[skills-ui] ${reqId} seq=${seq} desired-before-remove=[` +
         `${base.map((s) => s.skill_term_id).join(",")}]`,
-    );
+    });
     const nextSkills = base.filter(
       (s) => s.skill_term_id !== skill.skill_term_id,
     );
@@ -352,12 +353,12 @@ export function SkillSlotPanel({
     // off this result.
     skillsRef.current = nextSkills;
     setSkills(nextSkills);
-    console.info(
-      `[skills-ui] ${reqId} seq=${seq} remove="${skill.skill_name_en}" ` +
+    void improntaLog("admin_skill_slot_panel.info", {
+      message: `[skills-ui] ${reqId} seq=${seq} remove="${skill.skill_name_en}" ` +
         `desired-after-optimistic-remove=[` +
         `${nextSkills.map((s) => s.skill_term_id).join(",")}] ` +
         `payload-sent=${desired.length}`,
-    );
+    });
     const res = await setTalentProfileSkills({
       talent_profile_id: talentProfileId,
       skills: desired,
@@ -368,13 +369,13 @@ export function SkillSlotPanel({
     // this removal, so discarding it loses nothing and can't resurrect a
     // role via an out-of-order older payload.
     if (seq !== mutationSeqRef.current) {
-      console.info(
-        `[skills-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+      void improntaLog("admin_skill_slot_panel.info", {
+        message: `[skills-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
           `${mutationSeqRef.current}) serverOk=${res.ok}` +
           (res.ok
             ? ` serverReturned=[${res.skills.map((s) => s.skill_term_id).join(",")}]`
             : ""),
-      );
+      });
       return;
     }
     if (!res.ok) {
@@ -386,10 +387,10 @@ export function SkillSlotPanel({
         ts: Date.now(),
       });
       setError(res.error);
-      console.info(
-        `[skills-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
+      void improntaLog("admin_skill_slot_panel.info", {
+        message: `[skills-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
           `${res.error}) finalUI=${rollbackSnapshot.length}`,
-      );
+      });
       return;
     }
     // Trust server result (authoritative final list).
@@ -400,11 +401,11 @@ export function SkillSlotPanel({
       aspirations,
       ts: Date.now(),
     });
-    console.info(
-      `[skills-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+    void improntaLog("admin_skill_slot_panel.info", {
+      message: `[skills-ui] ${reqId} seq=${seq} APPLIED server truth ` +
         `serverReturned=[${res.skills.map((s) => s.skill_term_id).join(",")}] ` +
         `finalUI=${res.skills.length}`,
-    );
+    });
     onSkillsChanged?.();
   };
 
@@ -635,17 +636,17 @@ export function SkillSlotPanel({
           totalSkills={totalSkills}
           onClose={() => setAddingForRole(null)}
           onAdded={async ({ ids, role, items, parentId, parentName }) => {
-            console.info(
-              `[skills-ui] add submitted ids=[${ids.join(",")}] role=${role}`,
-            );
+            void improntaLog("admin_skill_slot_panel.info", {
+              message: `[skills-ui] add submitted ids=[${ids.join(",")}] role=${role}`,
+            });
             const seq = ++mutationSeqRef.current;
             const reqId = `add-${seq}`;
             const base = skillsRef.current ?? [];
             const rollbackSnapshot = base;
-            console.info(
-              `[skills-ui] ${reqId} seq=${seq} desired-before-add=[` +
+            void improntaLog("admin_skill_slot_panel.info", {
+              message: `[skills-ui] ${reqId} seq=${seq} desired-before-add=[` +
                 `${base.map((s) => s.skill_term_id).join(",")}]`,
-            );
+            });
             // OPTIMISTIC: merge provisional chips into the authoritative ref
             // BEFORE awaiting. This is the add+remove race fix — a remove
             // fired during this await reads skillsRef and MUST see the
@@ -686,11 +687,11 @@ export function SkillSlotPanel({
                 ? "primary"
                 : "secondary") as "primary" | "secondary",
             }));
-            console.info(
-              `[skills-ui] ${reqId} seq=${seq} desired-after-optimistic-add=[` +
+            void improntaLog("admin_skill_slot_panel.info", {
+              message: `[skills-ui] ${reqId} seq=${seq} desired-after-optimistic-add=[` +
                 `${optimistic.map((s) => s.skill_term_id).join(",")}] ` +
                 `payload-sent=${desired.length}`,
-            );
+            });
             const res = await setTalentProfileSkills({
               talent_profile_id: talentProfileId,
               skills: desired,
@@ -707,28 +708,28 @@ export function SkillSlotPanel({
                   ts: Date.now(),
                 });
                 setError(res.error);
-                console.info(
-                  `[skills-ui] ${reqId} seq=${seq} APPLIED rollback ` +
+                void improntaLog("admin_skill_slot_panel.info", {
+                  message: `[skills-ui] ${reqId} seq=${seq} APPLIED rollback ` +
                     `(add-failure: ${res.error}) finalUI=${rollbackSnapshot.length}`,
-                );
+                });
               } else {
                 // Superseded: the latest mutation's setAll already carries
                 // this add (built from the ref we just updated); it owns
                 // truth. Don't rollback — that would fight the newer state.
-                console.info(
-                  `[skills-ui] ${reqId} seq=${seq} IGNORED stale add-failure ` +
+                void improntaLog("admin_skill_slot_panel.info", {
+                  message: `[skills-ui] ${reqId} seq=${seq} IGNORED stale add-failure ` +
                     `(latest=${mutationSeqRef.current}: ${res.error})`,
-                );
+                });
               }
               return { ok: false, error: res.error };
             }
             if (!isLatest) {
-              console.info(
-                `[skills-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+              void improntaLog("admin_skill_slot_panel.info", {
+                message: `[skills-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
                   `${mutationSeqRef.current}) serverReturned=` +
                   `[${res.skills.map((s) => s.skill_term_id).join(",")}] — ` +
                   `latest setAll carries this add`,
-              );
+              });
               setAddingForRole(null);
               return { ok: true };
             }
@@ -740,11 +741,11 @@ export function SkillSlotPanel({
               ts: Date.now(),
             });
             setAddingForRole(null);
-            console.info(
-              `[skills-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+            void improntaLog("admin_skill_slot_panel.info", {
+              message: `[skills-ui] ${reqId} seq=${seq} APPLIED server truth ` +
                 `serverReturned=[${res.skills.map((s) => s.skill_term_id).join(",")}] ` +
                 `finalUI=${res.skills.length}`,
-            );
+            });
             // Roles changed → the field catalog must re-resolve. ONE
             // taxonomyVersion bump (P3-phase-2 makes that a single
             // shared LiveCategoryFieldsEditor fetch). NOT fetchData().

@@ -1,4 +1,6 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -3443,7 +3445,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
       onChange(next);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[FilesEditor upload]", err);
+      logServerError("fileseditor_upload", err);
       const next = [...filesRef.current];
       const idx2 = next.findIndex(f => f.id === id);
       if (idx2 !== -1) next[idx2] = { ...next[idx2], uploading: false, uploadError: "Upload failed — try again." };
@@ -5318,7 +5320,7 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[HelloReelEditor upload]", err);
+      logServerError("helloreeleditor_upload", err);
       toast("Reel upload failed");
       onChange(null);
     } finally {
@@ -6018,7 +6020,7 @@ export function NewTalentDrawer() {
           if (!upRes.ok) toast(`Photo upload failed: ${upRes.error}`, { tone: "error" });
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.error("[NewTalentDrawer photo upload]", err);
+          logServerError("newtalentdrawer_photo_upload", err);
           toast("Photo upload failed — talent created without photo", { tone: "error" });
         }
       }
@@ -6237,7 +6239,10 @@ export function NewTalentDrawer() {
                 }
                 if (res.failed > 0) {
                   // eslint-disable-next-line no-console
-                  console.warn("[bulk-add talent] failures:", res.errors);
+                  void improntaLog("admin_profile_shell_internal.warn", {
+                    message: "[bulk-add talent] failures:",
+                    res: JSON.stringify(res.errors),
+                  });
                   toast(`Created ${res.created} of ${res.created + res.failed}. ${res.failed} failed — see console.`, { tone: res.created > 0 ? undefined : "error" });
                 } else {
                   toast(`Created ${res.created} talent profile${res.created === 1 ? "" : "s"}`);

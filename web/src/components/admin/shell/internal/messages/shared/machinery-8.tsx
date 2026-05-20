@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -267,7 +268,7 @@ export function InquiryComposer({
       } catch (err) {
         // Network / unexpected error — keep the drawer open so the user
         // can retry without losing their draft.
-        console.error("[createAgencyInquiry] failed", err);
+        logServerError("createagencyinquiry", err);
         toast("Couldn't create inquiry — try again.");
       } finally {
         setIsSaving(false);

@@ -1,4 +1,6 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -2734,7 +2736,12 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
     const arr = Array.from(files).slice(0, 12 - items.length);
     if (arr.length === 0) return;
     // eslint-disable-next-line no-console
-    console.info("[PhotoGalleryPro] addFiles", { count: arr.length, talentProfileId, hasId: !!talentProfileId });
+    void improntaLog("admin_drawer_shared.info", {
+      message: "[PhotoGalleryPro] addFiles",
+      count: arr.length,
+      talentProfileId,
+      hasId: !!talentProfileId,
+    });
     // Optimistic — show blob previews immediately so the user sees something.
     const blobs: PhotoMeta[] = arr.map(f => ({
       url: URL.createObjectURL(f),
@@ -2766,7 +2773,13 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
         const meta = albumId ? { albumId } : {};
         const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", meta);
         // eslint-disable-next-line no-console
-        console.info("[PhotoGalleryPro] upload result", { fileName: file.name, albumId, ok: res.ok, error: res.ok ? null : res.error });
+        void improntaLog("admin_drawer_shared.info", {
+          message: "[PhotoGalleryPro] upload result",
+          fileName: file.name,
+          albumId,
+          ok: res.ok,
+          error: res.ok ? null : res.error,
+        });
         const next = [...itemsRef.current];
         const idx = startIdx + i;
         if (idx >= next.length) return;
@@ -2789,7 +2802,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
         }
         toast(`Upload failed: ${message}`);
         // eslint-disable-next-line no-console
-        console.error("[PhotoGalleryPro upload]", err);
+        logServerError("photogallerypro_upload", err);
       }
     }));
   };

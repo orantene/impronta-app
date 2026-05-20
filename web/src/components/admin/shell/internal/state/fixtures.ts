@@ -4315,7 +4315,7 @@ export const FONTS = {
 export function track(event: TrackEvent, props: TrackProps = {}): void {
   if (typeof window === "undefined") return;
   if (process.env.NODE_ENV !== "production") {
-    console.debug("[track]", event, props);
+    void 0;
   }
   // Future: pipe to analytics here. Example contracts:
   //   window.posthog?.capture(event, props);

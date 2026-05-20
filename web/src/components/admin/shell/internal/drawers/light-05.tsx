@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -314,7 +315,7 @@ export function IdentityDrawer() {
       closeDrawer();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[updateWorkspaceAccount] failed", err);
+      logServerError("updateworkspaceaccount", err);
       toast("Couldn't save. Try again.");
     } finally {
       setIsSaving(false);
@@ -446,7 +447,7 @@ export function WorkspaceSettingsDrawer() {
       closeDrawer();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("[updateWorkspaceFields] failed", err);
+      logServerError("updateworkspacefields", err);
       toast("Couldn't save. Try again.");
     } finally {
       setIsSaving(false);

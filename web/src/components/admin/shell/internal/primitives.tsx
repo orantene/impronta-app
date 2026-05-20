@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * Tulala admin-shell prototype primitives.
@@ -7763,7 +7764,7 @@ export function AsyncButton({
 //       { target: "[data-tulala-app-topbar]", title: "Your topbar", body: "Navigate between pages here." },
 //       { target: "[data-tulala-surface-main]", title: "Main area", body: "Your work lives here." },
 //     ]}
-//     onComplete={() => console.log("Tour done")}
+//     onComplete={() => void improntaLog("admin_primitives.info", { message: "Tour done" })}
 //   />
 // ─────────────────────────────────────────────────────────────────────────────
 

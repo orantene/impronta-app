@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 // ============================================================================
 // live-category-fields-history.tsx — Audit modal for the per-talent field
@@ -102,7 +103,7 @@ export function LiveCategoryFieldsHistoryModal({
       } catch (err) {
         if (cancelled) return;
         // eslint-disable-next-line no-console
-        console.error("[LiveCategoryFieldsHistoryModal] load threw:", err);
+        logServerError("livecategoryfieldshistorymodal", err);
         setError(err instanceof Error ? err.message : "Failed to load history.");
         setRows([]);
       }

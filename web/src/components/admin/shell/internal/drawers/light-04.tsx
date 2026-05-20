@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -366,7 +367,7 @@ export function BrandingDrawer() {
       queueRouterRefresh();
       closeDrawer();
     } catch (err) {
-      console.error("[BrandingDrawer.save]", err);
+      logServerError("brandingdrawer_save", err);
       toast("Couldn't save. Try again.");
     } finally {
       setIsSaving(false); setIsUploadingLogo(false);

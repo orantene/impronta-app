@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // location-slot-panel.tsx — Canonical Service-Area editor (real-tenant, V1)
@@ -83,7 +84,9 @@ function CityAutocomplete({
     let off = false;
     setLoading(true);
     const h = setTimeout(() => {
-      console.info(`[serviceAreas-ui] search query="${query}"`);
+      void improntaLog("admin_location_slot_panel.info", {
+        message: `[serviceAreas-ui] search query="${query}"`,
+      });
       fetch(`/api/location-cities?query=${encodeURIComponent(query)}`, {
         cache: "no-store",
       })
@@ -105,9 +108,9 @@ function CityAutocomplete({
                 name: c.name_en,
                 sub: c.country_name_en || c.country_iso2 || "",
               }));
-            console.info(
-              `[serviceAreas-ui] search results count=${mapped.length}`,
-            );
+            void improntaLog("admin_location_slot_panel.info", {
+              message: `[serviceAreas-ui] search results count=${mapped.length}`,
+            });
             setOpts(mapped);
           },
         )
@@ -210,9 +213,9 @@ function CityAutocomplete({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                console.info(
-                  `[serviceAreas-ui] pick city label="${o.name}" id=${o.id}`,
-                );
+                void improntaLog("admin_location_slot_panel.info", {
+                  message: `[serviceAreas-ui] pick city label="${o.name}" id=${o.id}`,
+                });
                 onPick({ id: o.id, name: o.name });
                 setQ("");
                 closeList();
@@ -246,7 +249,9 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
   useEffect(() => { desiredRef.current = desired; }, [desired]);
 
   useEffect(() => {
-    console.info(`[serviceAreas-ui] LocationSlotPanel mounted talent=${talentProfileId}`);
+    void improntaLog("admin_location_slot_panel.info", {
+      message: `[serviceAreas-ui] LocationSlotPanel mounted talent=${talentProfileId}`,
+    });
     let off = false;
     getTalentServiceAreasForTalent({ talent_profile_id: talentProfileId }).then((res) => {
       if (off) return;
@@ -276,9 +281,9 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
       desiredRef.current = next;
       setDesired(next);
       setSaving(true);
-      console.info(
-        `[serviceAreas-ui] ${reqId} seq=${seq} ${label} payload home=${next.homeBase?.id ?? "-"} travel=[${next.travelTo.map((c) => c.id).join(",")}] r=${next.travelRadiusKm} fee=${next.travelFeeRequired} remote=${next.remoteOnly}`,
-      );
+      void improntaLog("admin_location_slot_panel.info", {
+        message: `[serviceAreas-ui] ${reqId} seq=${seq} ${label} payload home=${next.homeBase?.id ?? "-"} travel=[${next.travelTo.map((c) => c.id).join(",")}] r=${next.travelRadiusKm} fee=${next.travelFeeRequired} remote=${next.remoteOnly}`,
+      });
       const res = await saveTalentServiceAreas({
         talent_profile_id: talentProfileId,
         home_base_location_id: next.homeBase?.id ?? null,
@@ -289,14 +294,18 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
       });
       setSaving(false);
       if (seq !== seqRef.current) {
-        console.info(`[serviceAreas-ui] ${reqId} seq=${seq} IGNORED stale (latest=${seqRef.current}) ok=${res.ok}`);
+        void improntaLog("admin_location_slot_panel.info", {
+          message: `[serviceAreas-ui] ${reqId} seq=${seq} IGNORED stale (latest=${seqRef.current}) ok=${res.ok}`,
+        });
         return;
       }
       if (!res.ok) {
         desiredRef.current = rollback;
         setDesired(rollback);
         setError(res.error);
-        console.info(`[serviceAreas-ui] ${reqId} seq=${seq} APPLIED rollback (${res.error})`);
+        void improntaLog("admin_location_slot_panel.info", {
+          message: `[serviceAreas-ui] ${reqId} seq=${seq} APPLIED rollback (${res.error})`,
+        });
         return;
       }
       const home = res.rows.find((r) => r.service_kind === "home_base") ?? null;
@@ -310,9 +319,9 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
       desiredRef.current = truth;
       setDesired(truth);
       setError(null);
-      console.info(
-        `[serviceAreas-ui] ${reqId} seq=${seq} APPLIED server truth rows=${res.rows.length}`,
-      );
+      void improntaLog("admin_location_slot_panel.info", {
+        message: `[serviceAreas-ui] ${reqId} seq=${seq} APPLIED server truth rows=${res.rows.length}`,
+      });
     },
     [talentProfileId],
   );
@@ -341,7 +350,9 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
           <CityAutocomplete
             placeholder={copy.t("Type a city…")}
             onPick={(c) => {
-              console.info(`[serviceAreas-ui] home base selected id=${c.id}`);
+              void improntaLog("admin_location_slot_panel.info", {
+                message: `[serviceAreas-ui] home base selected id=${c.id}`,
+              });
               commit({ ...base(), homeBase: c }, "home-set");
             }}
           />
@@ -363,7 +374,9 @@ export function LocationSlotPanel({ talentProfileId }: { talentProfileId: string
         <CityAutocomplete
           placeholder={copy.t("Add a city…")}
           onPick={(c) => {
-            console.info(`[serviceAreas-ui] service city selected id=${c.id}`);
+            void improntaLog("admin_location_slot_panel.info", {
+              message: `[serviceAreas-ui] service city selected id=${c.id}`,
+            });
             const b = base();
             if (b.homeBase?.id === c.id || b.travelTo.some((x) => x.id === c.id)) return;
             commit({ ...b, travelTo: [...b.travelTo, c] }, "city-add");

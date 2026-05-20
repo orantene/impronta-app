@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 /**
  * PitchComposeDrawer — admin compose surface for the Pitch feature.
@@ -1067,7 +1068,7 @@ export function PitchComposeDrawer({
       });
       onPitchSent?.(sent.data.pitchId);
     } catch (e) {
-      console.error("[pitch-compose] send failed", e);
+      logServerError("pitch_compose", e);
       setError("Unexpected error. Please try again.");
     } finally {
       setIsLoading(false);

@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // ============================================================================
 // context-slot-panel.tsx — Contexts / Best-Fit editor (real-tenant, DB-backed)
@@ -80,9 +81,9 @@ export function ContextSlotPanel({
   }, [contexts]);
 
   useEffect(() => {
-    console.info(
-      `[contexts-ui] ContextSlotPanel mounted talent=${talentProfileId}`,
-    );
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ContextSlotPanel mounted talent=${talentProfileId}`,
+    });
   }, [talentProfileId]);
 
   const fetchData = async (useCache: boolean) => {
@@ -163,18 +164,18 @@ export function ContextSlotPanel({
   const ready = contexts !== null;
 
   const handleRemove = async (ctx: ResolvedContext) => {
-    console.info(
-      `[contexts-ui] remove clicked label="${ctx.context_name_en}" ` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] remove clicked label="${ctx.context_name_en}" ` +
         `id=${ctx.context_term_id}`,
-    );
+    });
     const seq = ++mutationSeqRef.current;
     const reqId = `rm-${seq}`;
     const base = contextsRef.current ?? [];
     const rollbackSnapshot = base;
-    console.info(
-      `[contexts-ui] ${reqId} seq=${seq} desired-before-remove=[` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ${reqId} seq=${seq} desired-before-remove=[` +
         `${base.map((c) => c.context_term_id).join(",")}]`,
-    );
+    });
     const next = base.filter(
       (c) => c.context_term_id !== ctx.context_term_id,
     );
@@ -184,25 +185,25 @@ export function ContextSlotPanel({
     contextsRef.current = next;
     setContexts(next);
     const desiredIds = next.map((c) => c.context_term_id);
-    console.info(
-      `[contexts-ui] ${reqId} seq=${seq} desired-after-optimistic-remove=[` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ${reqId} seq=${seq} desired-after-optimistic-remove=[` +
         `${desiredIds.join(",")}] payload-sent=${desiredIds.length}`,
-    );
+    });
     const res = await setTalentProfileContexts({
       talent_profile_id: talentProfileId,
       context_term_ids: desiredIds,
     });
     setSaving(ctx.context_term_id, false);
     if (seq !== mutationSeqRef.current) {
-      console.info(
-        `[contexts-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+      void improntaLog("admin_context_slot_panel.info", {
+        message: `[contexts-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
           `${mutationSeqRef.current}) serverOk=${res.ok}` +
           (res.ok
             ? ` serverReturned=[${res.contexts
                 .map((c) => c.context_term_id)
                 .join(",")}]`
             : ""),
-      );
+      });
       return;
     }
     if (!res.ok) {
@@ -213,10 +214,10 @@ export function ContextSlotPanel({
         ts: Date.now(),
       });
       setError(res.error);
-      console.info(
-        `[contexts-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
+      void improntaLog("admin_context_slot_panel.info", {
+        message: `[contexts-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
           `${res.error}) finalUI=${rollbackSnapshot.length}`,
-      );
+      });
       return;
     }
     contextsRef.current = res.contexts;
@@ -225,12 +226,12 @@ export function ContextSlotPanel({
       contexts: res.contexts,
       ts: Date.now(),
     });
-    console.info(
-      `[contexts-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ${reqId} seq=${seq} APPLIED server truth ` +
         `serverReturned=[${res.contexts
           .map((c) => c.context_term_id)
           .join(",")}] finalUI=${res.contexts.length}`,
-    );
+    });
     onContextsChanged?.();
   };
 
@@ -245,17 +246,17 @@ export function ContextSlotPanel({
       group_sort_order: number;
     }>;
   }) => {
-    console.info(
-      `[contexts-ui] add submitted ids=[${picked.ids.join(",")}]`,
-    );
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] add submitted ids=[${picked.ids.join(",")}]`,
+    });
     const seq = ++mutationSeqRef.current;
     const reqId = `add-${seq}`;
     const base = contextsRef.current ?? [];
     const rollbackSnapshot = base;
-    console.info(
-      `[contexts-ui] ${reqId} seq=${seq} desired-before-add=[` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ${reqId} seq=${seq} desired-before-add=[` +
         `${base.map((c) => c.context_term_id).join(",")}]`,
-    );
+    });
     const metaById = new Map(picked.items.map((it) => [it.id, it]));
     const provisional: ResolvedContext[] = picked.ids
       .filter((id) => !base.some((c) => c.context_term_id === id))
@@ -277,10 +278,10 @@ export function ContextSlotPanel({
     contextsRef.current = optimistic;
     setContexts(optimistic);
     const desiredIds = optimistic.map((c) => c.context_term_id);
-    console.info(
-      `[contexts-ui] ${reqId} seq=${seq} desired-after-optimistic-add=[` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ${reqId} seq=${seq} desired-after-optimistic-add=[` +
         `${desiredIds.join(",")}] payload-sent=${desiredIds.length}`,
-    );
+    });
     const res = await setTalentProfileContexts({
       talent_profile_id: talentProfileId,
       context_term_ids: desiredIds,
@@ -295,25 +296,25 @@ export function ContextSlotPanel({
           ts: Date.now(),
         });
         setError(res.error);
-        console.info(
-          `[contexts-ui] ${reqId} seq=${seq} APPLIED rollback (add-failure: ` +
+        void improntaLog("admin_context_slot_panel.info", {
+          message: `[contexts-ui] ${reqId} seq=${seq} APPLIED rollback (add-failure: ` +
             `${res.error}) finalUI=${rollbackSnapshot.length}`,
-        );
+        });
       } else {
-        console.info(
-          `[contexts-ui] ${reqId} seq=${seq} IGNORED stale add-failure ` +
+        void improntaLog("admin_context_slot_panel.info", {
+          message: `[contexts-ui] ${reqId} seq=${seq} IGNORED stale add-failure ` +
             `(latest=${mutationSeqRef.current}: ${res.error})`,
-        );
+        });
       }
       return { ok: false, error: res.error };
     }
     if (!isLatest) {
-      console.info(
-        `[contexts-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+      void improntaLog("admin_context_slot_panel.info", {
+        message: `[contexts-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
           `${mutationSeqRef.current}) serverReturned=[${res.contexts
             .map((c) => c.context_term_id)
             .join(",")}] — latest setAll carries this add`,
-      );
+      });
       setAdding(false);
       return { ok: true };
     }
@@ -324,12 +325,12 @@ export function ContextSlotPanel({
       ts: Date.now(),
     });
     setAdding(false);
-    console.info(
-      `[contexts-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+    void improntaLog("admin_context_slot_panel.info", {
+      message: `[contexts-ui] ${reqId} seq=${seq} APPLIED server truth ` +
         `serverReturned=[${res.contexts
           .map((c) => c.context_term_id)
           .join(",")}] finalUI=${res.contexts.length}`,
-    );
+    });
     onContextsChanged?.();
     return { ok: true };
   };
