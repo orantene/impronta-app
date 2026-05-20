@@ -18,18 +18,18 @@ Legend: ⬜ pending · 🟦 in flight · ✅ done · ⚠️ done w/ honest gap �
 | ID | Title | Pillar | Effort | Impact | Deps | Status | Commit |
 |---|---|---|---|---|---|:-:|---|
 | **B3** | Swap reactive grid to OUR DirectoryCard | Storefront | M (~90 min) | 🔥 transformational | — | ✅ | `bd88369b0` |
-| **B1** | Adaptive pill bar (3–6 + More) | Storefront | S | 🔥 | — | ⬜ | |
-| **B2** | Editorial skeleton + intentional empty state | Storefront | S | high | — | ⬜ | |
-| **B6** | AI hero band → live filter in place | Storefront | M | 🔥 | B3 | ⬜ | |
-| **A4** | Drawer micro-copy + grouping rename | Editor | S | high | — | ⬜ | |
-| **A1** | Live preview pane in editor | Editor | M | 🔥 | — | ⬜ | |
-| **C1** | Field-engine resolver → card hover-reveal | Engine | L | 🔥 | B3 | ⬜ | |
-| **C7** | Trust badge data activation (matview column) | Engine | S | medium | — | ⬜ | |
-| **B9** | Persistent shortlist + inquiry-from-shortlist | Storefront | M | 🔥 | — | ⬜ | |
-| **D2** | Apply Lane 3's signup wire (with paid path) | SaaS | S | high | paid-creation flow exists | ⬜ | |
-| **D3** | Track-C plan-gate enforcement | SaaS | M | high | D2 | ⬜ | |
-| **D1** | Agency onboarding wizard | SaaS | L | 🔥 | D3 | ⬜ | |
-| **D6** | Roster-quality dashboard | SaaS | M | high | — | ⬜ | |
+| **B1** | Adaptive pill bar (3–6 + More) | Storefront | S | 🔥 | — | ✅ | `7e81d2914` |
+| **B2** | Editorial skeleton + intentional empty state | Storefront | S | high | — | ✅ | `18ed88585` (+B3 skeleton) |
+| **B6** | AI hero band → live filter in place | Storefront | M | 🔥 | B3 | ✅ | `0c4afa090` |
+| **A4** | Drawer micro-copy + grouping rename | Editor | S | high | — | ✅ | `87ced039e` |
+| **A1** | Live preview pane in editor | Editor | M | 🔥 | — | ⚠️ | _deferred 2026-05-20_ — requires new preview-only route + postMessage bridge + admin-shell split-pane layout; structural work safer as a dedicated session. Pragmatic interim left to operators: open the storefront in a separate tab + refresh. |
+| **C1** | Field-engine resolver → card hover-reveal | Engine | L | 🔥 | B3 | ⬜ | _next session_ — L effort (3-4 sessions per the prompt); needs careful resolver→DTO mapping + hover-reveal UI in card. Several condensed moves (C2-C6) cascade off this. |
+| **C7** | Trust badge data activation (matview column) | Engine | S | medium | — | ⚠️ | _deferred 2026-05-20_ — needs Supabase service-role writes (manual talent verification) + matview refresh, AND the canonical `DirectoryCard` doesn't render a trust badge yet. Two-part work: data activation script + card-side TrustTierBadge slot. |
+| **B9** | Persistent shortlist + inquiry-from-shortlist | Storefront | M | 🔥 | — | ⚠️ | _deferred 2026-05-20_ — needs B7 (card-hover Save icon) first; the new `DirectoryCard` has no inline Save affordance. Shipping the FAB without input from the new cards = visible bug. |
+| **D2** | Apply Lane 3's signup wire (with paid path) | SaaS | S | high | paid-creation flow exists | ⬜ | _next session_ — needs Lane-3 signup-wire context + Stripe Connect test-mode env vars. |
+| **D3** | Track-C plan-gate enforcement | SaaS | M | high | D2 | ⬜ | _blocked by D2_ |
+| **D1** | Agency onboarding wizard | SaaS | L | 🔥 | D3 | ⬜ | _blocked by D3_ |
+| **D6** | Roster-quality dashboard | SaaS | M | high | — | ⬜ | _next session_ — admin route scaffold + stats SQL; standalone work, defer to dedicated session. |
 | A2 | In-canvas overlay editing | Editor | L | 🔥 | A1 | ⬜ | |
 | A3 | AI-suggested presets at insert time | Editor | M | high | — | ⬜ | |
 | A5 | Visual feedback + save toast | Editor | S | medium | — | ⬜ | |
