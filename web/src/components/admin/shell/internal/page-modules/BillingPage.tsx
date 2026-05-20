@@ -365,6 +365,62 @@ function BillingPage() {
  * WORKSPACE_PAYMENTS but renders an interactive list with a chip per
  * row and a click-to-open-drawer affordance.
  */
+// Q5: BillingActivityRow extracted so its `useState(hovered)` is owned by
+// a component instead of being called inside a `.map()` callback (which
+// tripped react-hooks/rules-of-hooks at the previous L390).
+function BillingActivityRow({
+  row, onOpen,
+}: { row: typeof WORKSPACE_PAYMENTS[number]; onOpen: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
+        alignItems: "center",
+        gap: 0,
+        padding: "12px 16px",
+        background: hovered ? "rgba(11,11,13,0.025)" : "transparent",
+        border: "none",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        width: "100%",
+        textAlign: "left",
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        fontSize: 13,
+        color: COLORS.ink,
+        transition: `background ${TRANSITION.micro}`,
+      }}
+    >
+      <div className="font-semibold">{row.ref}</div>
+      <div>
+        <div className="text-admin-ink">{row.client}</div>
+        <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{row.brief}</div>
+      </div>
+      <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</div>
+      <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
+        {row.netPayout}
+        <div style={{ fontSize: 11 }} className="text-admin-ink-dim">fee {row.fee}</div>
+      </div>
+      <div className="text-admin-ink-muted">{row.receiverName}</div>
+      <div>
+        <PaymentStatusChip status={row.status} />
+      </div>
+      <div style={{ textAlign: "right", fontSize: 12 }}>
+        {hovered ? (
+          <span style={{ fontWeight: 600, fontSize: 11 }} className="text-admin-accent">Details →</span>
+        ) : (
+          <span className="text-admin-ink-muted">{row.date}</span>
+        )}
+      </div>
+    </button>
+  );
+}
+
 function BillingActivityTable() {
   const { openDrawer } = useAdminShell();
   return (
@@ -386,57 +442,13 @@ function BillingActivityTable() {
         <span>Status</span>
         <span className="text-right">Date</span>
       </div>
-      {WORKSPACE_PAYMENTS.map((row) => {
-        const [hovered, setHovered] = useState(false);
-        return (
-          <button
-            key={row.id}
-            type="button"
-            onClick={() => openDrawer("payment-detail", { id: row.id })}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
-              alignItems: "center",
-              gap: 0,
-              padding: "12px 16px",
-              background: hovered ? "rgba(11,11,13,0.025)" : "transparent",
-              border: "none",
-              borderTop: `1px solid ${COLORS.borderSoft}`,
-              width: "100%",
-              textAlign: "left",
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              color: COLORS.ink,
-              transition: `background ${TRANSITION.micro}`,
-            }}
-          >
-            <div className="font-semibold">{row.ref}</div>
-            <div>
-              <div className="text-admin-ink">{row.client}</div>
-              <div className="text-admin-ink-muted text-admin-11h">{row.brief}</div>
-            </div>
-            <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</div>
-            <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
-              {row.netPayout}
-              <div className="text-admin-ink-dim text-admin-11">fee {row.fee}</div>
-            </div>
-            <div className="text-admin-ink-muted">{row.receiverName}</div>
-            <div>
-              <PaymentStatusChip status={row.status} />
-            </div>
-            <div style={{ textAlign: "right", fontSize: 12 }}>
-              {hovered ? (
-                <span style={{ fontWeight: 600, fontSize: 11 }} className="text-admin-accent">Details →</span>
-              ) : (
-                <span className="text-admin-ink-muted">{row.date}</span>
-              )}
-            </div>
-          </button>
-        );
-      })}
+      {WORKSPACE_PAYMENTS.map((row) => (
+        <BillingActivityRow
+          key={row.id}
+          row={row}
+          onOpen={() => openDrawer("payment-detail", { id: row.id })}
+        />
+      ))}
     </div>
   );
 }
