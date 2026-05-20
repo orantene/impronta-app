@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -57,7 +58,8 @@ function loadCachedNavigation(
         .eq("zone", zone)
         .order("sort_order", { ascending: true });
       if (error) {
-        console.warn("[cms/public-navigation] load failed", {
+        void improntaLog("cms_public_navigation.warn", {
+          message: "[cms/public-navigation] load failed",
           tenantId,
           locale,
           zone,

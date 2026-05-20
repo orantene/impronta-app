@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * Phase 10 — props-aware heading lint loader.
@@ -98,10 +99,10 @@ export async function loadHeadingProbeForLint(
     // was removed when this fn switched to taking tenantId explicitly
     // — see comment block below.
     if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[heading-probe] auth gate failed — Outline view will fall back to display names:",
-        auth.error,
-      );
+      void improntaLog("site_admin_heading_lint_action.warn", {
+        message: "[heading-probe] auth gate failed — Outline view will fall back to display names:",
+        auth: auth.error,
+      });
     }
     return { ok: false, error: auth.error };
   }
@@ -118,11 +119,11 @@ export async function loadHeadingProbeForLint(
   const isMember = memberships.some((m) => m.tenant_id === tenantId);
   if (!isMember) {
     if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[heading-probe] caller is not staff of tenant",
+      void improntaLog("site_admin_heading_lint_action.warn", {
+        message: "[heading-probe] caller is not staff of tenant",
         tenantId,
-        "— Outline view will fall back to display names",
-      );
+        detail: "— Outline view will fall back to display names",
+      });
     }
     return { ok: false, error: "Not staff of tenant." };
   }

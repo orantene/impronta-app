@@ -18,6 +18,7 @@
  * payloads.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { createHash } from "node:crypto";
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -69,7 +70,8 @@ export async function emitAuditEvent(
     p_correlation_id: event.correlationId,
   });
   if (error) {
-    console.warn("[site-admin/audit] rpc failed", {
+    void improntaLog("site_admin_audit.warn", {
+      message: "[site-admin/audit] rpc failed",
       action: event.action,
       error: error.message,
     });

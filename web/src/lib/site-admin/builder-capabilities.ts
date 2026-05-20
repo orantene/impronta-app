@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   brandedSubdomainEligible,
@@ -114,7 +115,8 @@ export async function loadBuilderWorkspacePlan(
     if (options?.onError) {
       options.onError(error.message);
     } else if (options?.logTag) {
-      console.warn(`[${options.logTag}] failed to load workspace plan_tier`, {
+      void improntaLog("site_admin_builder_capabilities.warn", {
+        message: `[${options.logTag}] failed to load workspace plan_tier`,
         tenantId,
         error: error.message,
       });

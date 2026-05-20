@@ -99,6 +99,14 @@ def derive_event(filepath: str) -> str:
     if len(filtered) > 2:
         filtered = [filtered[0], filtered[-1]]
 
+    # Deduplicate: if the last segment already starts with the first (e.g. inquiry/inquiry-action-log),
+    # keep only the more-specific last segment.
+    if len(filtered) == 2:
+        fn = re.sub(r"[^a-zA-Z0-9]", "_", filtered[0]).lower().strip("_")
+        ln = re.sub(r"[^a-zA-Z0-9]", "_", filtered[-1]).lower().strip("_")
+        if ln.startswith(fn + "_") or ln == fn:
+            filtered = [filtered[-1]]
+
     raw = "_".join(filtered)
     raw = re.sub(r"[^a-zA-Z0-9]", "_", raw).lower()
     return re.sub(r"_+", "_", raw).strip("_")
@@ -255,9 +263,8 @@ def sanitize_field(field_str: str) -> str:
 
 
 def build_improntolog_fields(first: str, rest: list) -> list:
-    fields = []
-    if first:
-        fields.append("message: " + first)
+    # Build rest fields first to detect key collisions with "message"
+    rest_fields = []
     for arg in rest:
         arg = arg.strip()
         if not arg:
@@ -265,16 +272,24 @@ def build_improntolog_fields(first: str, rest: list) -> list:
         if is_object_literal(arg):
             for f in extract_object_fields(arg):
                 if f:
-                    fields.append(sanitize_field(f))
+                    rest_fields.append(sanitize_field(f))
         elif re.match(r"^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)+$", arg):
             # Property access (e.g. error.message, pgErr.code) → "obj: obj.prop"
             obj = arg.split(".", 1)[0]
-            fields.append(obj + ": " + arg)
+            rest_fields.append(obj + ": " + arg)
         elif re.match(r"^[a-zA-Z_$][\w$]*$", arg):
             # Bare identifier
-            fields.append(sanitize_field(arg))
+            rest_fields.append(sanitize_field(arg))
         else:
-            fields.append("detail: " + arg)
+            rest_fields.append("detail: " + arg)
+
+    fields = []
+    if first:
+        # Use "context" instead of "message" if rest already emits a "message" key
+        existing_keys = {f.split(":")[0].strip() for f in rest_fields}
+        first_key = "context" if "message" in existing_keys else "message"
+        fields.append(first_key + ": " + first)
+    fields.extend(rest_fields)
     return fields
 
 

@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 /**
  * safeAction — wraps a server action call with network-error resilience.
  *
@@ -45,17 +46,29 @@ export async function safeAction<R, F>(
   try {
     action = invoke().catch((err) => {
       if (err instanceof Error) {
-        console.warn(`[safeAction] ${label} failed:`, err.message);
+        void improntaLog("site_admin_safe_action.warn", {
+          message: `[safeAction] ${label} failed:`,
+          err: err.message,
+        });
       } else {
-        console.warn(`[safeAction] ${label} failed with non-Error:`, err);
+        void improntaLog("site_admin_safe_action.warn", {
+          message: `[safeAction] ${label} failed with non-Error:`,
+          error: String(err),
+        });
       }
       return opts.fallback;
     });
   } catch (err) {
     if (err instanceof Error) {
-      console.warn(`[safeAction] ${label} failed:`, err.message);
+      void improntaLog("site_admin_safe_action.warn", {
+        message: `[safeAction] ${label} failed:`,
+        err: err.message,
+      });
     } else {
-      console.warn(`[safeAction] ${label} failed with non-Error:`, err);
+      void improntaLog("site_admin_safe_action.warn", {
+        message: `[safeAction] ${label} failed with non-Error:`,
+        error: String(err),
+      });
     }
     return opts.fallback;
   }
@@ -64,9 +77,9 @@ export async function safeAction<R, F>(
     let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
     const timeout = new Promise<F>((resolve) => {
       timeoutId = globalThis.setTimeout(() => {
-        console.warn(
-          `[safeAction] ${label} timed out after ${opts.timeoutMs}ms`,
-        );
+        void improntaLog("site_admin_safe_action.warn", {
+          message: `[safeAction] ${label} timed out after ${opts.timeoutMs}ms`,
+        });
         resolve(opts.fallback);
       }, opts.timeoutMs);
     });

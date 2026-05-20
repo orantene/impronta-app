@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -74,7 +75,8 @@ export async function logInquiryAction(
 
     if (error) {
       // Server console only — we do not surface log failures to the caller.
-      console.error("[inquiry_action_log] insert failed", {
+      void improntaLog("inquiry_action_log.error", {
+        context: "[inquiry_action_log] insert failed",
         inquiryId: input.inquiryId,
         actionType: input.actionType,
         result: input.result,
@@ -89,10 +91,11 @@ export async function logInquiryAction(
     // Absolute last-resort catch. If the Supabase client throws synchronously
     // (network failure pre-request, thrown interceptor, etc.), we still must
     // not propagate to the caller.
-    console.error("[inquiry_action_log] threw unexpectedly", {
+    void improntaLog("inquiry_action_log.error", {
+      message: "[inquiry_action_log] threw unexpectedly",
       inquiryId: input.inquiryId,
       actionType: input.actionType,
-      err,
+      error: String(err),
     });
     return false;
   }

@@ -1,4 +1,5 @@
 "use server";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * Edit-mode server helpers + actions.
@@ -63,7 +64,10 @@ export interface EnterEditModeResult {
 export async function enterEditModeAction(): Promise<EnterEditModeResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
-    console.warn("[edit-mode] enter denied:", auth.error);
+    void improntaLog("site_admin_edit_mode.warn", {
+      message: "[edit-mode] enter denied:",
+      auth: auth.error,
+    });
     return {
       ok: false,
       error: "You need to be signed in as staff to enter edit mode.",
@@ -71,7 +75,7 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
   }
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
-    console.warn("[edit-mode] enter: no tenant scope");
+    void improntaLog("site_admin_edit_mode.warn", { message: "[edit-mode] enter: no tenant scope" });
     return {
       ok: false,
       error: "Pick an agency workspace before opening the editor.",
@@ -98,7 +102,10 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
     revalidatePath("/", "layout");
     return { ok: true, entered: true };
   } catch (e) {
-    console.warn("[edit-mode] enter failed:", e);
+    void improntaLog("site_admin_edit_mode.warn", {
+      message: "[edit-mode] enter failed:",
+      error: String(e),
+    });
     return {
       ok: false,
       error:
