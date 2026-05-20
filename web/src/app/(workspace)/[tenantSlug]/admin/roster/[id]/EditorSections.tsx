@@ -1045,7 +1045,10 @@ async function readImageDimensions(file: File): Promise<{ width: number; height:
 export function DeleteTalentButton({
   tenantSlug, talentId, talentName, locale,
 }: { tenantSlug: string; talentId: string; talentName: string; locale: string }) {
-  const t = createTranslator(locale);
+  // Q5: memoize the translator so handleClick's useCallback can list `t` as a
+  // dep without re-creating on every render (createTranslator returns a fresh
+  // closure each call, which breaks React-Compiler's preserve-manual-memoization).
+  const t = useMemo(() => createTranslator(locale), [locale]);
   const router = useRouter();
   const [busy, startMutation] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -1064,7 +1067,7 @@ export function DeleteTalentButton({
         router.refresh();
       }
     });
-  }, [tenantSlug, talentId, talentName, router]);
+  }, [tenantSlug, talentId, talentName, router, t]);
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
