@@ -223,6 +223,69 @@ function parseInquiryFields(formData: FormData) {
   };
 }
 
+/**
+ * Toggle a talent in the visitor's **personal favorites** (the ♥ bookmark,
+ * persistent across sessions). For authenticated users this writes to
+ * `client_favorites`. For guests, the favorite is held in localStorage on
+ * the client side only — the cookie+merge bridge picks them up at signup
+ * time and writes them into `client_favorites` via
+ * `mergeGuestActivity()`'s favorites-mirror phase.
+ *
+ * Distinct from `setTalentSaved` which is the **inquiry cart** (transient,
+ * clears on submit, mirrors to `saved_talent`).
+ */
+export async function setTalentFavorited(
+  talentProfileId: string,
+  favorited: boolean,
+): Promise<ActionResult> {
+  const supabase = await getCachedServerSupabase();
+
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      if (favorited) {
+        const { error } = await supabase.from("client_favorites").upsert(
+          {
+            client_user_id: user.id,
+            talent_profile_id: talentProfileId,
+          },
+          {
+            onConflict: "client_user_id,talent_profile_id",
+            ignoreDuplicates: true,
+          },
+        );
+        if (error) {
+          logServerError("directory/setTalentFavorited/client-insert", error);
+          const t = createTranslator(await getRequestLocale());
+          return { ok: false, error: t("public.errors.saveTalent") };
+        }
+      } else {
+        const { error } = await supabase
+          .from("client_favorites")
+          .delete()
+          .eq("client_user_id", user.id)
+          .eq("talent_profile_id", talentProfileId);
+        if (error) {
+          logServerError("directory/setTalentFavorited/client-delete", error);
+          const t = createTranslator(await getRequestLocale());
+          return { ok: false, error: t("public.errors.saveTalent") };
+        }
+      }
+      revalidatePath("/directory");
+      revalidatePath("/client");
+      revalidatePath("/client/favorites");
+      return { ok: true };
+    }
+  }
+
+  // Guest path — favorites are localStorage-only client-side. The cookie +
+  // merge bridge handles the eventual write into `client_favorites` at
+  // signup. We return ok so the optimistic UI commit holds.
+  return { ok: true };
+}
+
 export async function setTalentSaved(
   talentProfileId: string,
   saved: boolean,

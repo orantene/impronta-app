@@ -20,19 +20,64 @@ export type ClientProfileActionState =
 export type MergeGuestActivitySummary = {
   mergedSavedCount: number;
   mergedInquiryCount: number;
+  mergedFavoritesCount: number;
 };
 
-export async function mergeGuestActivity(): Promise<
-  ServerActionResult<MergeGuestActivitySummary>
-> {
+/**
+ * On signup/signin, merge the visitor's guest-mode state into their
+ * authed account. Three independent sweeps:
+ *
+ *   1. **Inquiry cart** (`saved_talent` rows with `guest_session_id`)
+ *      → repointed to `client_user_id` via the existing
+ *      `merge_guest_session_to_client` RPC.
+ *   2. **Inquiries** (any in-flight inquiries the guest started) — same
+ *      RPC handles these.
+ *   3. **Personal favorites** (the ♥ bookmark list). Guests hold these
+ *      in localStorage only; the client passes the IDs as
+ *      `guestFavoriteIds` and we upsert them into `client_favorites`.
+ *      Pass an empty array (or omit) to skip.
+ */
+export async function mergeGuestActivity(
+  guestFavoriteIds: string[] = [],
+): Promise<ServerActionResult<MergeGuestActivitySummary>> {
   const auth = await requireClient();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
 
+  // — Personal favorites mirror — independent of guest-session cookie.
+  let mergedFavoritesCount = 0;
+  if (guestFavoriteIds.length > 0) {
+    const uniqueIds = Array.from(new Set(guestFavoriteIds)).slice(0, 500);
+    const { error: favError } = await supabase
+      .from("client_favorites")
+      .upsert(
+        uniqueIds.map((talentId) => ({
+          client_user_id: user.id,
+          talent_profile_id: talentId,
+        })),
+        {
+          onConflict: "client_user_id,talent_profile_id",
+          ignoreDuplicates: true,
+        },
+      );
+    if (favError) {
+      logServerError("client/mergeGuestActivity/favorites", favError);
+    } else {
+      mergedFavoritesCount = uniqueIds.length;
+    }
+  }
+
   const cookieStore = await cookies();
   const sessionKey = cookieStore.get(GUEST_COOKIE)?.value;
   if (!sessionKey) {
-    return { ok: true, data: { mergedSavedCount: 0, mergedInquiryCount: 0 } };
+    return {
+      ok: true,
+      data: {
+        mergedSavedCount: 0,
+        mergedInquiryCount: 0,
+        mergedFavoritesCount,
+      },
+    };
   }
 
   const { data: guestSession } = await supabase
@@ -42,7 +87,14 @@ export async function mergeGuestActivity(): Promise<
     .maybeSingle();
 
   if (!guestSession?.id) {
-    return { ok: true, data: { mergedSavedCount: 0, mergedInquiryCount: 0 } };
+    return {
+      ok: true,
+      data: {
+        mergedSavedCount: 0,
+        mergedInquiryCount: 0,
+        mergedFavoritesCount,
+      },
+    };
   }
 
   const [{ count: savedCount }, { count: inquiryCount }] = await Promise.all([
@@ -63,12 +115,14 @@ export async function mergeGuestActivity(): Promise<
   });
 
   revalidatePath("/client");
+  revalidatePath("/client/favorites");
   revalidatePath("/directory");
   return {
     ok: true,
     data: {
       mergedSavedCount: savedCount ?? 0,
       mergedInquiryCount: inquiryCount ?? 0,
+      mergedFavoritesCount,
     },
   };
 }

@@ -35,7 +35,7 @@ import { createTranslator } from "@/i18n/messages";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 import type { Locale } from "@/i18n/config";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { getSavedTalentIds } from "@/lib/public-discovery";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import {
   isStaffRole,
   resolveAccountHref,
@@ -78,18 +78,20 @@ export async function HeaderAuthArea({
           ? { href: "/talent", label: t("public.header.myProfile") }
           : { href: "/client", label: t("public.header.dashboard") };
 
-  const savedIds = showDiscoveryTools ? await getSavedTalentIds() : [];
+  const [savedIds, favoriteIds] = showDiscoveryTools
+    ? await Promise.all([getSavedTalentIds(), getFavoriteTalentIds()])
+    : [[], []];
 
   const directoryHeaderCopy = {
-    shortlistAria: t("public.header.directoryShortlistAria"),
-    shortlistTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
-    shortlistTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
-    inquirySparklesAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
-    inquirySparklesAriaWithShortlist: t(
+    favoritesAria: t("public.header.directoryShortlistAria"),
+    favoritesTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
+    favoritesTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
+    inquiryAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
+    inquiryAriaWithCart: t(
       "public.header.directoryInquirySparklesAriaWithShortlist",
     ),
     inquiryTooltipEmpty: t("public.header.directoryInquiryTooltipEmpty"),
-    inquiryTooltipWithShortlist: t("public.header.directoryInquiryTooltipWithShortlist"),
+    inquiryTooltipWithCart: t("public.header.directoryInquiryTooltipWithShortlist"),
   };
 
   return (
@@ -103,11 +105,9 @@ export async function HeaderAuthArea({
       ) : null}
       {showDiscoveryTools ? (
         <PublicHeaderDiscoveryTools
-          locale={locale}
-          pathnameWithoutLocale={pathnameWithoutLocale}
-          initialSavedCount={savedIds.length}
+          initialFavoritesCount={favoriteIds.length}
+          initialCartCount={savedIds.length}
           directoryHeaderCopy={directoryHeaderCopy}
-          savedDirectoryAria={t("public.header.savedDirectoryAria")}
         />
       ) : null}
       {showAccountMenu ? (

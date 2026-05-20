@@ -21,7 +21,7 @@ import {
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
 import { Button } from "@/components/ui/button";
-import { getSavedTalentIds } from "@/lib/public-discovery";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
@@ -75,7 +75,10 @@ export async function PublicHeader() {
     ? { ...rawSecondaryAction, href: headerHref(rawSecondaryAction.href) }
     : null;
 
-  const savedIds = await getSavedTalentIds();
+  const [savedIds, favoriteIds] = await Promise.all([
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+  ]);
   const cmsHeaderLinksRaw = await getPublicCmsNavigationLinks(locale, "header");
   const cmsHeaderLinks = cmsHeaderLinksRaw.map((link) => ({
     ...link,
@@ -106,16 +109,22 @@ export async function PublicHeader() {
     ? await isEditModeActiveForTenant(tenantIdForIdentity)
     : false;
 
+  // Bookmark icon = favorites (♥, personal saves). Plane icon = inquiry
+  // cart (current selection for sending). Two independent surfaces.
+  // i18n keys retained for translation continuity; semantics remapped
+  // ("shortlist" wording stays for favorites because users mentally
+  // bookmark a "shortlist of talents I might want", and sparkles→plane
+  // visual is a copy-stable rename).
   const directoryHeaderCopy = {
-    shortlistAria: t("public.header.directoryShortlistAria"),
-    shortlistTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
-    shortlistTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
-    inquirySparklesAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
-    inquirySparklesAriaWithShortlist: t(
+    favoritesAria: t("public.header.directoryShortlistAria"),
+    favoritesTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
+    favoritesTooltipWithCount: t("public.header.directoryShortlistTooltipWithCount"),
+    inquiryAriaEmpty: t("public.header.directoryInquirySparklesAriaEmpty"),
+    inquiryAriaWithCart: t(
       "public.header.directoryInquirySparklesAriaWithShortlist",
     ),
     inquiryTooltipEmpty: t("public.header.directoryInquiryTooltipEmpty"),
-    inquiryTooltipWithShortlist: t("public.header.directoryInquiryTooltipWithShortlist"),
+    inquiryTooltipWithCart: t("public.header.directoryInquiryTooltipWithShortlist"),
   };
 
   // ── Step-4 token reads ───────────────────────────────────────────────
@@ -397,11 +406,9 @@ export async function PublicHeader() {
             pathnameWithoutLocale={pathnameWithoutLocale}
           />
           <PublicHeaderDiscoveryTools
-            locale={locale}
-            pathnameWithoutLocale={pathnameWithoutLocale}
-            initialSavedCount={savedIds.length}
+            initialFavoritesCount={favoriteIds.length}
+            initialCartCount={savedIds.length}
             directoryHeaderCopy={directoryHeaderCopy}
-            savedDirectoryAria={t("public.header.savedDirectoryAria")}
           />
           {user ? (
             <>

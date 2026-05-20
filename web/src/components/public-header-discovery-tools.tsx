@@ -1,43 +1,26 @@
 import { DirectoryDiscoveryHeaderActions } from "@/components/directory/directory-discovery-header-actions";
 import type { DirectoryDiscoveryHeaderCopy } from "@/components/directory/directory-discovery-header-actions";
-import { SavedEntryButton } from "@/components/directory/saved-entry-button";
-import type { Locale } from "@/i18n/config";
-import { publicLocaleHref } from "@/i18n/client-directory-href";
 
+/**
+ * Mounts the two-icon discovery header (bookmark = favorites drawer,
+ * plane = inquiry cart drawer) on every public page. The icons live in
+ * the global public shell (`PublicHeader`); behavior is identical across
+ * home, /directory, /p/*, talent profiles, etc.
+ */
 export function PublicHeaderDiscoveryTools({
-  locale,
-  pathnameWithoutLocale,
-  initialSavedCount,
+  initialFavoritesCount,
+  initialCartCount,
   directoryHeaderCopy,
-  savedDirectoryAria,
 }: {
-  locale: Locale;
-  /** From middleware `x-impronta-original-pathname` — not `usePathname()` (rewritten URL breaks /es). */
-  pathnameWithoutLocale: string;
-  initialSavedCount: number;
+  initialFavoritesCount: number;
+  initialCartCount: number;
   directoryHeaderCopy: DirectoryDiscoveryHeaderCopy;
-  savedDirectoryAria: string;
 }) {
-  const directoryHref = publicLocaleHref(
-    pathnameWithoutLocale,
-    "/directory",
-    locale,
-  );
-
-  if (pathnameWithoutLocale === "/directory") {
-    return (
-      <DirectoryDiscoveryHeaderActions
-        initialCount={initialSavedCount}
-        copy={directoryHeaderCopy}
-      />
-    );
-  }
-
   return (
-    <SavedEntryButton
-      href={directoryHref}
-      initialCount={initialSavedCount}
-      ariaLabel={savedDirectoryAria}
+    <DirectoryDiscoveryHeaderActions
+      initialFavoritesCount={initialFavoritesCount}
+      initialCartCount={initialCartCount}
+      copy={directoryHeaderCopy}
     />
   );
 }

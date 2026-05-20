@@ -208,8 +208,9 @@ export function DirectoryReactiveGrid({
 
   // Initial loading: render skeleton placeholders (delivers a slice of
   // B2 for free — editorial 4:5 cool-shimmer boxes, no zinc gradient).
-  const isInitialLoading =
-    status === "pending" || (items.length === 0 && isFetching);
+  // With SSR `initialData` the query is never in "pending" state — we
+  // only show skeletons when we have no items AND a fetch is in flight.
+  const isInitialLoading = items.length === 0 && isFetching;
 
   if (status === "error" && items.length === 0) {
     return (

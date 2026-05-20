@@ -23,7 +23,7 @@ import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 import { publicLocaleHref } from "@/i18n/client-directory-href";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { getSavedTalentIds } from "@/lib/public-discovery";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { resolveAccountHref } from "@/lib/auth-flow";
 
 /**
@@ -57,7 +57,10 @@ async function renderRightZone(
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
   const actor = await getCachedActorSession();
   const account = resolveAccountHref(Boolean(actor.user), actor.profile);
-  const savedIds = await getSavedTalentIds();
+  const [savedIds, favoriteIds] = await Promise.all([
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+  ]);
   const isEs = locale === "es";
   return (
     <EditorialSplitActions
@@ -72,6 +75,7 @@ async function renderRightZone(
       accountHref={account.href}
       accountLabel={account.label}
       savedCount={savedIds.length}
+      favoritesCount={favoriteIds.length}
       copy={{
         menu: isEs ? "Menú" : "Menu",
         close: isEs ? "Cerrar" : "Close",

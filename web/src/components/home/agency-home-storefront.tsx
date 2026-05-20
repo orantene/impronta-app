@@ -1,12 +1,26 @@
-import { PublicHeader } from "@/components/public-header";
+import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
+import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
+import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
+import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
+import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
+import {
+  DiscoveryStateBridge,
+  PublicDiscoveryStateProvider,
+} from "@/components/directory/public-discovery-state";
+import { PublicFlashHost } from "@/components/directory/public-flash-host";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PublicHeader } from "@/components/public-header";
 import { PoweredByTulala } from "@/components/powered-by-tulala";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
-import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
-import { PublicFlashHost } from "@/components/directory/public-flash-host";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import {
+  getFavoriteTalentIds,
+  getSavedTalentIds,
+} from "@/lib/public-discovery";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   isPreviewActiveForTenant,
   loadHomepageForRender,
@@ -74,6 +88,9 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     previewActive,
     editActive,
     snapshotShellActive,
+    savedIds,
+    favoriteIds,
+    actor,
   ] = await Promise.all([
     cmsLocale
       ? loadHomepageForRender(tenantId, cmsLocale)
@@ -88,7 +105,12 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     cmsLocale
       ? shouldRenderSnapshotShell(tenantId, cmsLocale)
       : Promise.resolve(false),
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+    getCachedActorSession(),
   ]);
+  const tenantBrand = identity?.public_name?.trim() ?? null;
+  const directoryUi = buildDirectoryUiCopy(t, tenantBrand);
   // Suppress the draft banner when the in-place edit chrome is engaged — the
   // top bar already signals draft state and its "Publish" button replaces the
   // "go to the composer" instruction. Showing both is contradictory.
@@ -121,6 +143,10 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         </div>
       ) : null}
       <PublicDiscoveryStateProvider>
+        <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} />
+        {actor.user ? <MergeGuestFavorites /> : null}
+        <DirectoryInquiryModalProvider>
+          <FavoritesDrawerProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
         {/* Phase B.2.A mutex — snapshot shell wins when its gates open;
          *  otherwise legacy PublicHeader. Never both. Kept in Phase 5. */}
@@ -199,6 +225,10 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
             </footer>
           )}
         </main>
+            <DirectoryInquirySheet ui={directoryUi} locale={locale} />
+            <FavoritesDrawer signupHref="/login" />
+          </FavoritesDrawerProvider>
+        </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>
     </div>
   );

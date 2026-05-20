@@ -30,6 +30,10 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
+import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
+
 export interface EditorialSplitNavItem {
   label: string;
   href: string;
@@ -48,8 +52,10 @@ export interface EditorialSplitActionsProps {
   /** Real auth entry (server resolveAccountHref) — never invented. */
   accountHref: string;
   accountLabel: string;
-  /** Real saved-talent count for the bookmark badge (0 = hidden). */
+  /** Inquiry-cart count (the plane icon's badge — saved_talent rows). */
   savedCount: number;
+  /** Personal-favorites count (the bookmark badge — client_favorites + localStorage). */
+  favoritesCount: number;
   copy: {
     menu: string;
     close: string;
@@ -70,9 +76,29 @@ export function EditorialSplitActions({
   accountHref,
   accountLabel,
   savedCount,
+  favoritesCount,
   copy,
 }: EditorialSplitActionsProps) {
   const [open, setOpen] = useState(false);
+  // Live counts from the public discovery state (favorites + cart). On
+  // mount these reconcile with localStorage and any server-pushed
+  // hydration. SSR initialFallback keeps the badges visible on first
+  // paint without flicker.
+  const discovery = usePublicDiscoveryStateOptional();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
+  const favoritesDrawer = useFavoritesDrawer();
+  const [mountedCounts, setMountedCounts] = useState(false);
+  useEffect(() => {
+    setMountedCounts(true);
+  }, []);
+  const liveSavedCount = mountedCounts && discovery
+    ? discovery.savedCount
+    : savedCount;
+  const liveFavoritesCount = mountedCounts && discovery
+    ? discovery.favoritesCount
+    : favoritesCount;
+  const hasFavorites = liveFavoritesCount > 0;
+  const hasCart = liveSavedCount > 0;
   // Portal-mount gate: the drawer must render at <body> level, NOT inside
   // <header> — the header's backdrop-filter creates a containing block
   // that would trap a position:fixed child inside the short bar (this is
@@ -212,33 +238,89 @@ export function EditorialSplitActions({
         </a>
       </span>
 
-      {/* Saved — bookmark glyph (prototype `.ai-saved`), real directory */}
-      <Link
-        href={directoryHref}
-        className="site-header__es-ic"
-        data-tip={copy.saved}
-        aria-label={copy.saved}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-          <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
-        {savedCount > 0 ? (
-          <span className="site-header__es-bdg">{savedCount}</span>
-        ) : null}
-      </Link>
+      {/* Saved — bookmark glyph (prototype `.ai-saved`). Opens favorites
+          drawer when the drawer context is available; falls back to a
+          link to /directory when mounted outside the public layout. */}
+      {favoritesDrawer ? (
+        <button
+          type="button"
+          className="site-header__es-ic"
+          data-tip={copy.saved}
+          aria-label={copy.saved}
+          data-discovery-header-favorites
+          data-active={hasFavorites ? "true" : undefined}
+          onClick={() => favoritesDrawer.open()}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={hasFavorites ? "currentColor" : "none"}
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+          {liveFavoritesCount > 0 ? (
+            <span className="site-header__es-bdg">{liveFavoritesCount}</span>
+          ) : null}
+        </button>
+      ) : (
+        <Link
+          href={directoryHref}
+          className="site-header__es-ic"
+          data-tip={copy.saved}
+          aria-label={copy.saved}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+          {liveFavoritesCount > 0 ? (
+            <span className="site-header__es-bdg">{liveFavoritesCount}</span>
+          ) : null}
+        </Link>
+      )}
 
-      {/* Inquiry — paper-plane glyph (prototype `.ai-inq`), real CTA dest */}
-      <Link
-        href={inquiryHref}
-        className="site-header__es-ic"
-        data-tip={copy.inquiry}
-        aria-label={copy.inquiry}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-          <path d="M22 2 11 13" />
-          <path d="M22 2 15 22l-4-9-9-4z" />
-        </svg>
-      </Link>
+      {/* Inquiry — paper-plane glyph (prototype `.ai-inq`). Opens the
+          inquiry-cart drawer when context is available; falls back to a
+          link to the primary CTA. */}
+      {inquiryModal ? (
+        <button
+          type="button"
+          className="site-header__es-ic"
+          data-tip={copy.inquiry}
+          aria-label={copy.inquiry}
+          data-discovery-header-inquiry
+          data-active={hasCart ? "true" : undefined}
+          onClick={() => inquiryModal.openInquiry()}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={hasCart ? "currentColor" : "none"}
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M22 2 11 13" />
+            <path d="M22 2 15 22l-4-9-9-4z" />
+          </svg>
+          {liveSavedCount > 0 ? (
+            <span className="site-header__es-bdg">{liveSavedCount}</span>
+          ) : null}
+        </button>
+      ) : (
+        <Link
+          href={inquiryHref}
+          className="site-header__es-ic"
+          data-tip={copy.inquiry}
+          aria-label={copy.inquiry}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M22 2 11 13" />
+            <path d="M22 2 15 22l-4-9-9-4z" />
+          </svg>
+          {liveSavedCount > 0 ? (
+            <span className="site-header__es-bdg">{liveSavedCount}</span>
+          ) : null}
+        </Link>
+      )}
 
       {/* ☰ Menu — opens the prototype slide-out drawer */}
       <button

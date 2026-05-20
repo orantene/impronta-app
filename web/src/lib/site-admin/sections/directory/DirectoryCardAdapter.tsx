@@ -1,7 +1,12 @@
 "use client";
 
+import { Bookmark } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useTransition } from "react";
 
+import { setTalentFavorited, setTalentSaved } from "@/app/(public)/directory/actions";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 
@@ -13,20 +18,22 @@ import {
 import type { DirectoryV1 } from "./schema";
 
 /**
- * B3 — Adapter that maps the legacy public `DirectoryCardDTO` (engine
- * payload, what `/api/directory` + `/api/ai/search` return) onto the
- * canonical `DirectoryCardData` shape the premium `<DirectoryCard>`
- * expects.
+ * Maps the legacy public `DirectoryCardDTO` (engine payload, what
+ * `/api/directory` + `/api/ai/search` return) onto the canonical
+ * `DirectoryCardData` shape the premium `<DirectoryCard>` expects, AND
+ * wraps the card in a relative container that surfaces two affordances:
  *
- * The premium card is PURE & PROP-DRIVEN (RP-1 / T2 reuse): it doesn't
- * use any router hook itself. The adapter is the one allowed thin
- * client wrapper that derives the locale-aware profile href from the
- * current pathname, then hands the card a fully-prepared `data` object.
+ *   1. A **bookmark icon** (top-right of the photo) that toggles the
+ *      talent's membership in the personal **favorites** list
+ *      (`client_favorites` for authed, localStorage for guest). Gold
+ *      filled when saved.
+ *   2. An **INQUIRE / ADDED ✓ button** (below the photo) that toggles
+ *      the talent's membership in the **inquiry cart** (`saved_talent`).
+ *      Reflects in the header's plane icon which opens the inquiry sheet.
  *
- * Trust/agency/availability ride along on the Lane 5 enriched DTO when
- * present; missing fields fall back to honest defaults — `Independent`
- * for ownership when no `agencyName`, `AVAILABILITY_UNKNOWN` line when
- * no signal. Never invent data.
+ * Two independent lists, matching the prototype shown by the user. The
+ * `<DirectoryCard>` itself stays pure / prop-driven (RP-1 / T2 reuse);
+ * all interactivity lives in this adapter wrapper.
  */
 export function DirectoryCardAdapter({
   card,
@@ -53,26 +60,126 @@ export function DirectoryCardAdapter({
   index?: number;
 }) {
   const pathname = usePathname();
+  const discovery = usePublicDiscoveryStateOptional();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
+  const [favPending, startFavTransition] = useTransition();
+  const [cartPending, startCartTransition] = useTransition();
 
   const data = mapDtoToCardData(card, pathname);
 
-  // v1 of `<DirectoryCard>` only supports `portrait` and `editorial`. Any
-  // other section enum (portfolio / profile / stat / service / minimal)
-  // falls back to portrait — the schema comment marks these as future
-  // variations; rendering portrait keeps the public surface honest.
   const style: "portrait" | "editorial" =
     cardStyle === "editorial" ? "editorial" : "portrait";
 
+  // No state context (e.g. rendered outside the public layout) → fall
+  // back to the original pure card render with no affordances.
+  if (!discovery) {
+    return (
+      <DirectoryCard
+        data={data}
+        style={style}
+        show={show}
+        nameFallback={nameFallback}
+        aspect={cardAspect}
+        priority={priority}
+        index={index}
+      />
+    );
+  }
+
+  const favorited = discovery.isFavorited(card.id);
+  const inCart = discovery.isSaved(card.id);
+
+  const toggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !favorited;
+    discovery.setFavoriteState(card.id, next);
+    startFavTransition(async () => {
+      const res = await setTalentFavorited(card.id, next);
+      if (!res.ok) {
+        // Revert optimistic state on failure.
+        discovery.setFavoriteState(card.id, !next);
+        discovery.setFlash({
+          tone: "error",
+          title: "Could not update favorites",
+          message: res.error,
+        });
+      }
+    });
+  };
+
+  const toggleCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !inCart;
+    discovery.setSavedState(card.id, next);
+    startCartTransition(async () => {
+      const res = await setTalentSaved(card.id, next);
+      if (!res.ok) {
+        discovery.setSavedState(card.id, !next);
+        discovery.setFlash({
+          tone: "error",
+          title: "Could not update inquiry",
+          message: res.error,
+        });
+        return;
+      }
+      // Cue the header plane icon (existing animation hook).
+      if (next && inquiryModal) {
+        inquiryModal.bumpSaveCue();
+      }
+    });
+  };
+
   return (
-    <DirectoryCard
-      data={data}
-      style={style}
-      show={show}
-      nameFallback={nameFallback}
-      aspect={cardAspect}
-      priority={priority}
-      index={index}
-    />
+    <div className="group/cardwrap relative flex flex-col">
+      <div className="relative">
+        <DirectoryCard
+          data={data}
+          style={style}
+          show={show}
+          nameFallback={nameFallback}
+          aspect={cardAspect}
+          priority={priority}
+          index={index}
+        />
+        {/* Bookmark icon overlay — toggles personal favorite (♥). */}
+        <button
+          type="button"
+          onClick={toggleFavorite}
+          disabled={favPending}
+          aria-pressed={favorited}
+          aria-label={favorited ? "Remove from favorites" : "Save to favorites"}
+          className={
+            "absolute right-2.5 top-2.5 z-[2] inline-flex size-9 items-center justify-center rounded-full backdrop-blur-md outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 " +
+            (favorited
+              ? "border border-[var(--impronta-gold-border)] bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+              : "border border-white/25 bg-black/35 text-white hover:bg-black/55")
+          }
+          data-card-favorite-toggle
+          data-favorited={favorited ? "true" : "false"}
+        >
+          <Bookmark className="size-4" fill={favorited ? "currentColor" : "none"} />
+        </button>
+      </div>
+      {/* INQUIRE / ADDED ✓ — toggles inquiry cart membership. */}
+      <button
+        type="button"
+        onClick={toggleCart}
+        disabled={cartPending}
+        aria-pressed={inCart}
+        className={
+          "mt-2 inline-flex h-9 items-center justify-center rounded-md border px-4 text-[11px] font-semibold uppercase tracking-[0.18em] outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 " +
+          (inCart
+            ? "border-[var(--impronta-gold-border)] bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)] hover:bg-[var(--impronta-gold)]/20"
+            : "border-white/20 bg-transparent text-white/80 hover:border-white/40 hover:text-white")
+        }
+        data-card-inquiry-toggle
+        data-in-cart={inCart ? "true" : "false"}
+      >
+        {inCart ? "Added ✓" : "Inquire"}
+      </button>
+    </div>
   );
 }
 

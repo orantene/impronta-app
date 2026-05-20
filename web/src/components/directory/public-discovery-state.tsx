@@ -10,7 +10,26 @@ import {
 } from "react";
 import type { DirectorySortValue } from "@/lib/directory/types";
 
+/**
+ * Two independent lists per visitor:
+ *
+ *  - `savedIds`     — the **inquiry cart**. Backed by `saved_talent`
+ *                     (server) and `impronta.public.saved-ids`
+ *                     localStorage (client). Transient; clears on inquiry
+ *                     submit.
+ *  - `favoriteIds`  — the **personal favorites** (♥ bookmark). Backed by
+ *                     `client_favorites` (server, auth only) and
+ *                     `impronta.public.favorite-ids` localStorage
+ *                     (client, guest layer). Persists across sessions.
+ *                     Sweeps into `client_favorites` on signup via
+ *                     `MergeGuestFavorites`.
+ *
+ * A talent can be in BOTH lists, neither, or just one — they're
+ * orthogonal user concepts (the prototype shows a card with the bookmark
+ * filled but no `ADDED ✓`, and another with `ADDED ✓` but no bookmark).
+ */
 const SAVED_IDS_KEY = "impronta.public.saved-ids";
+const FAVORITE_IDS_KEY = "impronta.public.favorite-ids";
 const SEARCH_CONTEXT_KEY = "impronta.public.search-context";
 
 export type PublicFlashMessage = {
@@ -34,11 +53,21 @@ export type DiscoverySearchContext = {
 };
 
 type PublicDiscoveryStateValue = {
+  // — Inquiry cart (saved_talent) ——————————————————————————————
   savedIds: string[];
   savedCount: number;
   isSaved: (id: string) => boolean;
   setSavedState: (id: string, saved: boolean) => void;
   hydrateSavedIds: (ids: string[]) => void;
+  clearSavedIds: () => void;
+  // — Personal favorites (client_favorites) ——————————————————————
+  favoriteIds: string[];
+  favoritesCount: number;
+  isFavorited: (id: string) => boolean;
+  setFavoriteState: (id: string, favorited: boolean) => void;
+  hydrateFavoriteIds: (ids: string[]) => void;
+  clearFavoriteIds: () => void;
+  // — Search context (for inquiry analytics + AI assist) ————————
   searchContext: DiscoverySearchContext | null;
   setSearchContext: (context: DiscoverySearchContext | null) => void;
   flash: PublicFlashMessage | null;
@@ -48,7 +77,7 @@ type PublicDiscoveryStateValue = {
 const PublicDiscoveryStateContext =
   createContext<PublicDiscoveryStateValue | null>(null);
 
-function parseSavedIds(raw: string | null): string[] {
+function parseIdList(raw: string | null): string[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -110,12 +139,14 @@ export function PublicDiscoveryStateProvider({
   children: React.ReactNode;
 }) {
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [searchContext, setSearchContextState] =
     useState<DiscoverySearchContext | null>(null);
   const [flash, setFlashState] = useState<PublicFlashMessage | null>(null);
 
   useEffect(() => {
-    setSavedIds(parseSavedIds(window.localStorage.getItem(SAVED_IDS_KEY)));
+    setSavedIds(parseIdList(window.localStorage.getItem(SAVED_IDS_KEY)));
+    setFavoriteIds(parseIdList(window.localStorage.getItem(FAVORITE_IDS_KEY)));
     setSearchContextState(
       parseSearchContext(window.sessionStorage.getItem(SEARCH_CONTEXT_KEY)),
     );
@@ -140,6 +171,37 @@ export function PublicDiscoveryStateProvider({
     const next = Array.from(new Set(ids));
     setSavedIds(next);
     window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(next));
+  }, []);
+
+  const clearSavedIds = useCallback(() => {
+    setSavedIds([]);
+    window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify([]));
+  }, []);
+
+  const isFavorited = useCallback(
+    (id: string) => favoriteIds.includes(id),
+    [favoriteIds],
+  );
+
+  const setFavoriteState = useCallback((id: string, favorited: boolean) => {
+    setFavoriteIds((prev) => {
+      const next = favorited
+        ? Array.from(new Set([...prev, id]))
+        : prev.filter((item) => item !== id);
+      window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const hydrateFavoriteIds = useCallback((ids: string[]) => {
+    const next = Array.from(new Set(ids));
+    setFavoriteIds(next);
+    window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify(next));
+  }, []);
+
+  const clearFavoriteIds = useCallback(() => {
+    setFavoriteIds([]);
+    window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify([]));
   }, []);
 
   const setSearchContext = useCallback(
@@ -168,6 +230,13 @@ export function PublicDiscoveryStateProvider({
       isSaved,
       setSavedState,
       hydrateSavedIds,
+      clearSavedIds,
+      favoriteIds,
+      favoritesCount: favoriteIds.length,
+      isFavorited,
+      setFavoriteState,
+      hydrateFavoriteIds,
+      clearFavoriteIds,
       searchContext,
       setSearchContext,
       flash,
@@ -176,10 +245,16 @@ export function PublicDiscoveryStateProvider({
     [
       flash,
       hydrateSavedIds,
+      hydrateFavoriteIds,
+      clearSavedIds,
+      clearFavoriteIds,
       isSaved,
+      isFavorited,
       savedIds,
+      favoriteIds,
       searchContext,
       setSavedState,
+      setFavoriteState,
       setSearchContext,
       setFlash,
     ],
@@ -200,20 +275,38 @@ export function usePublicDiscoveryState(): PublicDiscoveryStateValue {
   return value;
 }
 
+/**
+ * Safe variant — returns `null` when no provider is mounted instead of
+ * throwing. Lets components like `DirectoryCardAdapter` render gracefully
+ * outside the public layout (e.g. talent-dashboard card preview).
+ */
+export function usePublicDiscoveryStateOptional(): PublicDiscoveryStateValue | null {
+  return useContext(PublicDiscoveryStateContext);
+}
+
 export function DiscoveryStateBridge({
   savedIds,
+  favoriteIds,
   searchContext,
 }: {
   savedIds?: string[];
+  favoriteIds?: string[];
   searchContext?: DiscoverySearchContext | null;
 }) {
-  const { hydrateSavedIds, setSearchContext } = usePublicDiscoveryState();
+  const { hydrateSavedIds, hydrateFavoriteIds, setSearchContext } =
+    usePublicDiscoveryState();
 
   useEffect(() => {
     if (savedIds) {
       hydrateSavedIds(savedIds);
     }
   }, [hydrateSavedIds, savedIds]);
+
+  useEffect(() => {
+    if (favoriteIds) {
+      hydrateFavoriteIds(favoriteIds);
+    }
+  }, [hydrateFavoriteIds, favoriteIds]);
 
   useEffect(() => {
     if (searchContext) {

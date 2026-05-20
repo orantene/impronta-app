@@ -40,3 +40,26 @@ async function loadSavedTalentIds(): Promise<string[]> {
 
 /** One guest ensure + saved list resolution per RSC request when reused. */
 export const getSavedTalentIds = cache(loadSavedTalentIds);
+
+async function loadFavoriteTalentIds(): Promise<string[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const actor = await getCachedActorSession();
+  if (!actor.user || !actor.supabase) return [];
+
+  const { data: favs } = await actor.supabase
+    .from("client_favorites")
+    .select("talent_profile_id")
+    .eq("client_user_id", actor.user.id)
+    .order("added_at", { ascending: false });
+
+  return favs?.map((fav: { talent_profile_id: string }) => fav.talent_profile_id) ?? [];
+}
+
+/**
+ * Server-side reader for the visitor's personal favorites. Auth-only;
+ * guests' favorites live in localStorage on the client and aren't
+ * server-readable until signup (when `mergeGuestActivity()` mirrors them
+ * into `client_favorites`).
+ */
+export const getFavoriteTalentIds = cache(loadFavoriteTalentIds);
