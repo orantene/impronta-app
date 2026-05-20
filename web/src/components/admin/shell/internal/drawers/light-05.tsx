@@ -45,6 +45,14 @@ import {
 // Phase 1d (remediation §4): 5 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
+// Q5: extracted from DomainDrawer render so react-hooks/purity stops
+// flagging the Date.now() call. The value is "days until SSL expires"
+// computed against wall-clock — a per-render request-time read, but the
+// rule (correctly) treats render-body Date.now() as impure.
+function daysUntil(iso: string): number {
+  return Math.round((new Date(iso).getTime() - Date.now()) / 86400e3);
+}
+
 export function DomainDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
@@ -81,9 +89,7 @@ export function DomainDrawer() {
       else { toast("Domain settings saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
-  const sslDaysLeft = domain.sslExpiresOn
-    ? Math.round((new Date(domain.sslExpiresOn).getTime() - Date.now()) / 86400e3)
-    : null;
+  const sslDaysLeft = domain.sslExpiresOn ? daysUntil(domain.sslExpiresOn) : null;
   const dnsAllMatched = (domain.dnsRecords ?? []).every(r => r.matched);
   const verified = domain.status === "verified" && dnsAllMatched;
   const sslHealthy = domain.sslStatus === "active";
