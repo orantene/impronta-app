@@ -10,8 +10,10 @@ import {
   setDirectoryFilterOptionSearchVisible,
   setDirectoryTopBarFacetKey,
   setDirectoryFieldSidebarVisibility,
+  setDirectorySidebarItemOrder,
   type DirectoryLiveCatalogSnapshot,
 } from "@/lib/site-admin/server/directory-catalogs";
+import { DirectorySidebarItemOrderEditor } from "./DirectorySidebarItemOrderEditor";
 
 /**
  * The 7-tab control drawer (plan §4). Every section-payload knob the
@@ -816,6 +818,20 @@ export function DirectoryEditor({
                     };
                     writeLive(next, () =>
                       setDirectoryFieldSidebarVisibility(fieldKey, visible),
+                    );
+                  }}
+                />
+                <DirectorySidebarItemOrderEditor
+                  itemOrder={liveCatalog.sidebar.itemOrder}
+                  onReorder={(nextOrder) => {
+                    const next: DirectoryLiveCatalogSnapshot = {
+                      sidebar: {
+                        ...liveCatalog.sidebar,
+                        itemOrder: nextOrder,
+                      },
+                    };
+                    writeLive(next, () =>
+                      setDirectorySidebarItemOrder(nextOrder),
                     );
                   }}
                 />
