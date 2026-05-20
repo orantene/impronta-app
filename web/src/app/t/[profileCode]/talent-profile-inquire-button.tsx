@@ -87,7 +87,7 @@ export function TalentProfileInquireButton({
   // Pre-load on mount so the drawer opens instantly when clicked.
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only prefetch: loadData is a stable useCallback with [] deps; preloads drawer data once on mount
   }, []);
 
   const handleOpen = () => {

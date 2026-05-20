@@ -4015,7 +4015,7 @@ export function TalentPhotoEditDrawer() {
 
   useEffect(() => {
     if (open && talentId) void loadAssets(talentId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadAssets is a stable useCallback([], []); re-run on open/talentId changes only
   }, [open, talentId]);
 
   if (!open) return null;

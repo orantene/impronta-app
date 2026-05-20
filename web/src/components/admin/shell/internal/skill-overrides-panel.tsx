@@ -186,7 +186,7 @@ function SkillOverrideRow({
     );
     setLabel(override?.custom_label ?? "");
     setNotes(override?.notes ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: sync on override object change; all setters are stable; override reference changes when parent re-fetches
   }, [override]);
 
   async function persist(patch: {

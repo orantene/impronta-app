@@ -212,7 +212,7 @@ export function SkillSlotPanel({
 
   useEffect(() => {
     fetchData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchData closes over talentProfileId and stable setters; re-fetch when the talent changes
   }, [talentProfileId]);
 
   const setSaving = (termId: string, on: boolean) => {

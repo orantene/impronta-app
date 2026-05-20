@@ -99,8 +99,7 @@ export function NewInquiryForm({
         });
       }
     };
-    // Mount-only — tenantSlug is stable per page render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: tenantSlug is stable per page render; trackProductEvent is a stable module fn
   }, []);
 
   // Map roster to the shape InquiryCartFormFields expects.

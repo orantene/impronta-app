@@ -60,7 +60,7 @@ export function CareerInterestsSection({
   useEffect(() => {
     if (initialAspirations !== undefined) return;
     reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload closes over talentProfileId and stable setters; re-fetch when the talent changes
   }, [talentProfileId]);
 
   const handleRemove = async (termId: string) => {
