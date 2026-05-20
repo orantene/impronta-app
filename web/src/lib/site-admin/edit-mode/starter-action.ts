@@ -259,7 +259,7 @@ const RECIPES: Record<string, Recipe> = {
           headline: "Find the right talent",
           highlight: "for your brief.",
           subheadline:
-            "Search models, hosts, performers, creators, and event talent across Riviera Maya.",
+            "Search models, hosts, performers, creators, and event talent across Riviera Maya, Mexico City, and Buenos Aires.",
           search: {
             enabled: true,
             mode: "directory-query",
@@ -268,16 +268,16 @@ const RECIPES: Record<string, Recipe> = {
             submitLabel: "Search",
           },
           primaryCta: { label: "Start Inquiry", href: "/contact" },
-          secondaryCta: { label: "Explore Talent", href: "/directory" },
+          secondaryCta: { label: "Apply as talent", href: "/register" },
           chipsSource: "manual",
-          // Locations trimmed to where the roster has ready talent
-          // (Tulum + Playa del Carmen, both in the Riviera Maya region).
-          // Cancún removed — no ready roster coverage there yet; do not
-          // over-promise. Re-add when Cancún talent are site-visible.
+          // Prototype market chips. The represented count remains manual
+          // below until product/data decides how many roster_only profiles
+          // should become site_visible.
           chips: [
-            { label: "Playa del Carmen", href: "/directory" },
-            { label: "Tulum", href: "/directory" },
             { label: "Riviera Maya", href: "/directory" },
+            { label: "Mexico City", href: "/directory" },
+            { label: "Buenos Aires", href: "/directory" },
+            { label: "More cities coming" },
           ],
           // Manual stat for launch. The dynamic `tenant_talent_count`
           // counts only publicly site-visible roster (shared storefront
@@ -287,7 +287,12 @@ const RECIPES: Record<string, Recipe> = {
           // dynamic-correct needs a product/data decision (publish more
           // roster to site_visible) — out of scope here. Manual until then.
           statSource: "manual",
-          statItems: [{ value: "28", label: "represented talent" }],
+          statItems: [
+            {
+              value: "28",
+              label: "represented talent · agency-managed from brief to confirmation",
+            },
+          ],
           layout: "editorial",
         },
       },
@@ -296,10 +301,29 @@ const RECIPES: Record<string, Recipe> = {
         sectionTypeKey: "editorial_split_hero",
         propsOverride: {
           eyebrow: "Impronta",
-          headline: "Premium talent for events, shoots, and",
-          highlight: "brand experiences.",
-          body: "Impronta helps clients discover and request agency-managed talent across Playa del Carmen, Tulum, and the Riviera Maya.",
+          headline: "Discover premium talent across",
+          highlight: "destination cities.",
+          body: "Choose a discipline and market to start with a focused shortlist — curated and managed by the agency.",
           primaryCta: { label: "Explore Talent", href: "/directory" },
+          secondaryCta: { label: "Start inquiry", href: "/contact" },
+          discoveryForm: {
+            enabled: true,
+            actionHref: "/directory",
+            categoryLabel: "Looking for",
+            marketLabel: "Market",
+            submitLabel: "Explore",
+            categories: [
+              { label: "Models", value: "models" },
+              { label: "Hosts & Promo", value: "hosts" },
+              { label: "Performers", value: "performers" },
+              { label: "Creators", value: "creators" },
+            ],
+            markets: [
+              { label: "Riviera Maya", value: "riviera-maya" },
+              { label: "Mexico City", value: "mexico-city" },
+              { label: "Buenos Aires", value: "buenos-aires" },
+            ],
+          },
           mediaMode: "static",
           // Editorial/creative-shoot frame (sanctioned prototype Unsplash
           // source). Reinforces "events, shoots, and brand experiences"
@@ -309,6 +333,15 @@ const RECIPES: Record<string, Recipe> = {
           mediaUrl:
             "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=80&w=1600&h=1200",
           mediaAlt: "Creative team on a premium editorial production set",
+          mediaStyle: "card-stack",
+          mediaStackUrls: [
+            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1200&h=1500",
+            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1200&h=760",
+            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1200&h=760",
+          ],
+          mediaStackCaptions: [
+            { name: "Selected talent", sub: "Agency managed" },
+          ],
           mediaRatio: "4/3",
           overlayStrength: "soft",
           mediaSide: "right",
@@ -454,21 +487,37 @@ const RECIPES: Record<string, Recipe> = {
         sectionTypeKey: "location_discovery",
         propsOverride: {
           presentation: { background: "muted-surface", dividerTop: "thin-line" },
-          headline: "Find Talent Near Your Event Location",
+          eyebrow: "Talent network",
+          headline: "Local faces, international reach",
           subheadline:
-            "Explore talent availability across key destinations in the Riviera Maya.",
+            "Built for destination briefs: local coordination, vetted profiles, and expansion markets ready to activate.",
           source: "manual",
-          // Cancún removed — no ready public roster coverage there yet
-          // (do not over-promise). Tulum + Playa del Carmen have the
-          // ready talent; Riviera Maya is the region umbrella.
           items: [
-            { label: "Playa del Carmen", region: "Riviera Maya", href: "/directory" },
-            { label: "Tulum", region: "Riviera Maya", href: "/directory" },
-            { label: "Riviera Maya", region: "Quintana Roo", href: "/directory" },
+            {
+              label: "Riviera Maya",
+              region: "Mexico",
+              href: "/directory",
+              featured: true,
+              status: "active",
+            },
+            {
+              label: "Mexico City",
+              region: "Mexico",
+              href: "/directory",
+              status: "active",
+            },
+            {
+              label: "Buenos Aires",
+              region: "Argentina",
+              href: "/directory",
+              status: "active",
+            },
+            { label: "Los Angeles", region: "United States", status: "coming_soon" },
+            { label: "Madrid", region: "Spain", status: "coming_soon" },
           ],
-          maxItems: 8,
+          maxItems: 5,
           showCount: false,
-          showMap: false,
+          showMap: true,
           ctaLabel: "Browse all talent",
           ctaHref: "/directory",
           layout: "grid",
@@ -481,7 +530,8 @@ const RECIPES: Record<string, Recipe> = {
         sectionTypeKey: "process_steps",
         propsOverride: {
           presentation: { background: "canvas", dividerTop: "thin-line" },
-          headline: "A Clear, Professional Process",
+          eyebrow: "How it works",
+          headline: "A clear, professional process",
           steps: [
             {
               label: "Tell Us the Brief",
@@ -513,7 +563,8 @@ const RECIPES: Record<string, Recipe> = {
         sectionTypeKey: "values_trio",
         propsOverride: {
           presentation: { background: "muted-surface", dividerTop: "thin-line" },
-          headline: "An Agency, Not a Directory",
+          eyebrow: "Why Impronta",
+          headline: "An agency, not a directory",
           items: [
             {
               title: "Verified Profiles",
