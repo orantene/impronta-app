@@ -667,9 +667,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 109
-    },
-    "react-hooks/static-components": {
-      "count": 17
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {

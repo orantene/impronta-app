@@ -47,6 +47,103 @@ function SettingsRow({
   );
 }
 
+// ── Accordion item shell ────────────────────────────────────────
+// Click the row to expand/collapse. Smooth chevron rotation + soft
+// border highlight when open. `supportLink` is wired to a data-attr
+// so backend deep-linking works.
+//
+// Hoisted to module scope (Q4). `open` + `onToggle` lifted to props so the
+// component no longer closes over WorkspacePageView's openSet state. Parent
+// computes both per call site via isOpen(id) / () => toggleSection(id).
+function AccordionItem({
+  id, label, desc, supportLink, danger, defaultBadge, open, onToggle, children,
+}: {
+  id: string;
+  label: string;
+  desc: string;
+  supportLink: string;
+  danger?: boolean;
+  defaultBadge?: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      data-settings-section={id}
+      data-support-link={supportLink}
+      style={{
+        marginBottom: 8,
+        background: "#fff",
+        border: `1px solid ${open ? (danger ? "#FCA5A5" : COLORS.border) : COLORS.borderSoft}`,
+        borderRadius: RADIUS.md,
+        overflow: "hidden",
+        transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
+        boxShadow: open ? "0 1px 3px rgba(11,11,13,0.04)" : "none",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={`settings-body-${id}`}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          width: "100%",
+          padding: "14px 16px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          textAlign: "left",
+        }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{
+              fontFamily: FONTS.display, fontSize: 15, fontWeight: 600,
+              color: danger ? "#DC2626" : COLORS.ink, letterSpacing: -0.1,
+            }}>
+              {label}
+            </span>
+            {defaultBadge}
+          </div>
+          <div style={{
+            fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {desc}
+          </div>
+        </div>
+        {/* Chevron — rotates 180° when open */}
+        <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkMuted, transition: `transform ${TRANSITION.sm}`, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <div
+          id={`settings-body-${id}`}
+          style={{
+            padding: "0 16px 14px",
+            borderTop: `1px solid ${COLORS.borderSoft}`,
+            animation: "settingsAccordionExpand .2s ease-out",
+          }}
+        >
+          <style>{`@keyframes settingsAccordionExpand { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <div style={{ paddingTop: 12 }}>{children}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkspacePageView() {
   const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
   const pendingTrustCount = verificationRequests.filter(r =>
@@ -93,98 +190,6 @@ export function WorkspacePageView() {
     const t = setTimeout(() => setSavedAt(new Date()), 1200);
     return () => clearTimeout(t);
   }, []);
-
-  // ── Accordion item shell ────────────────────────────────────────
-  // Click the row to expand/collapse. Smooth chevron rotation + soft
-  // border highlight when open. `supportLink` is wired to a data-attr
-  // so backend deep-linking works.
-  function AccordionItem({
-    id, label, desc, supportLink, danger, defaultBadge, children,
-  }: {
-    id: string;
-    label: string;
-    desc: string;
-    supportLink: string;
-    danger?: boolean;
-    defaultBadge?: ReactNode;
-    children: ReactNode;
-  }) {
-    const open = isOpen(id);
-    return (
-      <div
-        data-settings-section={id}
-        data-support-link={supportLink}
-        style={{
-          marginBottom: 8,
-          background: "#fff",
-          border: `1px solid ${open ? (danger ? "#FCA5A5" : COLORS.border) : COLORS.borderSoft}`,
-          borderRadius: RADIUS.md,
-          overflow: "hidden",
-          transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
-          boxShadow: open ? "0 1px 3px rgba(11,11,13,0.04)" : "none",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => toggleSection(id)}
-          aria-expanded={open}
-          aria-controls={`settings-body-${id}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            width: "100%",
-            padding: "14px 16px",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            textAlign: "left",
-          }}
-          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
-          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                fontFamily: FONTS.display, fontSize: 15, fontWeight: 600,
-                color: danger ? "#DC2626" : COLORS.ink, letterSpacing: -0.1,
-              }}>
-                {label}
-              </span>
-              {defaultBadge}
-            </div>
-            <div style={{
-              fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>
-              {desc}
-            </div>
-          </div>
-          {/* Chevron — rotates 180° when open */}
-          <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkMuted, transition: `transform ${TRANSITION.sm}`, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </span>
-        </button>
-        {open && (
-          <div
-            id={`settings-body-${id}`}
-            style={{
-              padding: "0 16px 14px",
-              borderTop: `1px solid ${COLORS.borderSoft}`,
-              animation: "settingsAccordionExpand .2s ease-out",
-            }}
-          >
-            <style>{`@keyframes settingsAccordionExpand { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-            <div style={{ paddingTop: 12 }}>{children}</div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <>
@@ -264,7 +269,7 @@ export function WorkspacePageView() {
         <div>
 
           {visibleSections.has("account") && (
-          <AccordionItem id="account" label="Account" desc="Workspace name, slug, and contact info." supportLink="/help/settings/account">
+          <AccordionItem id="account" label="Account" desc="Workspace name, slug, and contact info." supportLink="/help/settings/account" open={isOpen("account")} onToggle={() => toggleSection("account")}>
             <SettingsRow onClick={() => openDrawer("identity")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{effectiveTenant.name}</div>
@@ -300,7 +305,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("plan") && (
-          <AccordionItem id="plan" label="Plan & billing" desc="Your current plan, usage, and invoices." supportLink="/help/settings/billing" defaultBadge={<PlanChip plan={state.plan} variant="solid" />}>
+          <AccordionItem id="plan" label="Plan & billing" desc="Your current plan, usage, and invoices." supportLink="/help/settings/billing" defaultBadge={<PlanChip plan={state.plan} variant="solid" />} open={isOpen("plan")} onToggle={() => toggleSection("plan")}>
             {isOwner ? (
               <SettingsRow onClick={() => openDrawer("plan-billing")}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -322,7 +327,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("workspace") && (
-          <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, custom fields, and taxonomy." supportLink="/help/settings/workspace">
+          <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, custom fields, and taxonomy." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
             {[
               { title: "General",     desc: "Timezone · Locale · Default currency",  drawer: "workspace-settings" as const },
               { title: "Field catalog", desc: "Custom fields for talent, clients, bookings", drawer: "field-catalog" as const, plan: "agency" as const },
@@ -348,7 +353,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("domain") && (
-          <AccordionItem id="domain" label="Domain" desc="Run your storefront at your own domain." supportLink="/help/settings/domain">
+          <AccordionItem id="domain" label="Domain" desc="Run your storefront at your own domain." supportLink="/help/settings/domain" open={isOpen("domain")} onToggle={() => toggleSection("domain")}>
             {meetsPlan(state.plan, "studio") ? (
               <SettingsRow>
                 <div>
@@ -374,7 +379,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("branding") && (
-          <AccordionItem id="branding" label="Branding" desc="Logo, colors, email identity — what clients see." supportLink="/help/settings/branding">
+          <AccordionItem id="branding" label="Branding" desc="Logo, colors, email identity — what clients see." supportLink="/help/settings/branding" open={isOpen("branding")} onToggle={() => toggleSection("branding")}>
             {isAdmin && meetsPlan(state.plan, "agency") ? (
               <SettingsRow onClick={() => openDrawer("branding")}>
                 <div>
@@ -399,7 +404,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("media-watermark") && (
-          <AccordionItem id="media-watermark" label="Media & watermark" desc="Agency photo library, logo watermark, and photo usage tracking." supportLink="/help/settings/media">
+          <AccordionItem id="media-watermark" label="Media & watermark" desc="Agency photo library, logo watermark, and photo usage tracking." supportLink="/help/settings/media" open={isOpen("media-watermark")} onToggle={() => toggleSection("media-watermark")}>
             {/* Watermark — Studio+ */}
             {meetsPlan(state.plan, "studio") ? (
               <SettingsRow onClick={() => openDrawer("branding")}>
@@ -460,7 +465,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("team") && (
-          <AccordionItem id="team" label="Team" desc="Invite teammates and assign roles." supportLink="/help/settings/team">
+          <AccordionItem id="team" label="Team" desc="Invite teammates and assign roles." supportLink="/help/settings/team" open={isOpen("team")} onToggle={() => toggleSection("team")}>
             {isAdmin && !isFree ? (
               <SettingsRow onClick={() => openDrawer("team")}>
                 <div>
@@ -487,7 +492,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("talent-types") && (
-          <AccordionItem id="talent-types" label="Talent types & Catalog Fields" desc="Categories, field privacy and the field catalog for your roster." supportLink="/help/settings/talent-types">
+          <AccordionItem id="talent-types" label="Talent types & Catalog Fields" desc="Categories, field privacy and the field catalog for your roster." supportLink="/help/settings/talent-types" open={isOpen("talent-types")} onToggle={() => toggleSection("talent-types")}>
             <SettingsRow onClick={() => openDrawer("talent-types")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Categories on your site</div>
@@ -519,7 +524,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("roster-review") && (
-          <AccordionItem id="roster-review" label="Roster review" desc="Verification requests, disputed claims, and self-registration approvals." supportLink="/help/settings/talent-types">
+          <AccordionItem id="roster-review" label="Roster review" desc="Verification requests, disputed claims, and self-registration approvals." supportLink="/help/settings/talent-types" open={isOpen("roster-review")} onToggle={() => toggleSection("roster-review")}>
             <SettingsRow onClick={() => openDrawer("trust-verification-queue")}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                 <div>
@@ -594,7 +599,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("discover") && (
-          <AccordionItem id="discover" label="Tulala Discover" desc="What your roster unlocks on the cross-tenant talent catalog." supportLink="/help/settings/discover">
+          <AccordionItem id="discover" label="Tulala Discover" desc="What your roster unlocks on the cross-tenant talent catalog." supportLink="/help/settings/discover" open={isOpen("discover")} onToggle={() => toggleSection("discover")}>
             <SettingsRow>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Talents on Discover</div>
@@ -637,7 +642,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("integrations") && (
-          <AccordionItem id="integrations" label="Integrations" desc="Connect calendars, CRMs, and other tools." supportLink="/help/settings/integrations">
+          <AccordionItem id="integrations" label="Integrations" desc="Connect calendars, CRMs, and other tools." supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
             {[
               { name: "Google Calendar sync", status: "Connected",  connected: true  },
               { name: "Slack notifications",   status: "Not set up", connected: false },
@@ -656,7 +661,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("brand") && (
-          <AccordionItem id="brand" label="Data & brand tools" desc="Imports, migration, brand assets, and brief authoring." supportLink="/help/settings/data-brand">
+          <AccordionItem id="brand" label="Data & brand tools" desc="Imports, migration, brand assets, and brief authoring." supportLink="/help/settings/data-brand" open={isOpen("brand")} onToggle={() => toggleSection("brand")}>
             <SettingsRow onClick={() => openDrawer("csv-import", { type: "talent" })}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Import talent</div>
@@ -689,7 +694,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("growth") && (
-          <AccordionItem id="growth" label="Growth & integrations" desc="Calendar sync, referrals, and platform status." supportLink="/help/settings/growth">
+          <AccordionItem id="growth" label="Growth & integrations" desc="Calendar sync, referrals, and platform status." supportLink="/help/settings/growth" open={isOpen("growth")} onToggle={() => toggleSection("growth")}>
             <SettingsRow onClick={() => openDrawer("calendar-sync")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Calendar sync</div>
@@ -715,7 +720,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("email") && (
-          <AccordionItem id="email" label="Email & communications" desc="Templates, sequences, branding, and notification preferences." supportLink="/help/settings/email">
+          <AccordionItem id="email" label="Email & communications" desc="Templates, sequences, branding, and notification preferences." supportLink="/help/settings/email" open={isOpen("email")} onToggle={() => toggleSection("email")}>
             <SettingsRow onClick={() => openDrawer("email-templates")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email templates</div>
@@ -750,7 +755,7 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("compliance") && (
-          <AccordionItem id="compliance" label="Compliance & legal" desc="GDPR, consent records, and contract templates." supportLink="/help/settings/compliance">
+          <AccordionItem id="compliance" label="Compliance & legal" desc="GDPR, consent records, and contract templates." supportLink="/help/settings/compliance" open={isOpen("compliance")} onToggle={() => toggleSection("compliance")}>
             <SettingsRow onClick={() => openDrawer("gdpr-export")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Export your data</div>
@@ -783,7 +788,7 @@ export function WorkspacePageView() {
           )}
 
           {isAdmin && visibleSections.has("features") && (
-          <AccordionItem id="features" label="Feature controls" desc="Turn platform features on or off for your workspace." supportLink="/help/settings/features">
+          <AccordionItem id="features" label="Feature controls" desc="Turn platform features on or off for your workspace." supportLink="/help/settings/features" open={isOpen("features")} onToggle={() => toggleSection("features")}>
               <SettingsRow onClick={() => openDrawer("feature-controls")}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>All feature toggles</div>
@@ -795,7 +800,7 @@ export function WorkspacePageView() {
           )}
 
           {isOwner && visibleSections.has("danger") && (
-          <AccordionItem id="danger" label="Danger zone" desc="Irreversible operations — proceed with care." supportLink="/help/settings/danger" danger>
+          <AccordionItem id="danger" label="Danger zone" desc="Irreversible operations — proceed with care." supportLink="/help/settings/danger" danger open={isOpen("danger")} onToggle={() => toggleSection("danger")}>
               <SettingsRow borderColor="#FCA5A5" onClick={() => openDrawer("danger-zone")}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>Delete or transfer workspace</div>
