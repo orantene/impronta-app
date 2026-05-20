@@ -634,6 +634,32 @@ export function StateChipMini({ label, tone }: { label: string; tone: "green" | 
 // ════════════════════════════════════════════════════════════════════
 
 
+// Hoisted from inside CategoryExpandPanel (Q4). Closure over tab/onTabChange
+// lifted to active + onClick props; parent computes per call site.
+type CategoryTabId = "subtypes" | "fields" | "settings";
+function TabBtn({ label, count, active, onClick }: { id: CategoryTabId; label: string; count?: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "8px 12px", fontSize: 12, fontWeight: 600,
+        background: active ? "#fff" : "transparent",
+        color: active ? COLORS.ink : COLORS.inkMuted,
+        border: `1px solid ${active ? COLORS.border : "transparent"}`,
+        borderRadius: 8, cursor: "pointer",
+        fontFamily: FONTS.body,
+        display: "inline-flex", alignItems: "center", gap: 6,
+      }}
+    >
+      {label}
+      {typeof count === "number" && (
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: active ? COLORS.surfaceAlt : "rgba(11,11,13,0.06)" }} className="text-admin-ink-muted">{count}</span>
+      )}
+    </button>
+  );
+}
+
 export function CategoryExpandPanel({
   parent,
   detail,
@@ -663,27 +689,6 @@ export function CategoryExpandPanel({
   onNewSubName: (name: string) => void;
   onAddCustom: () => void;
 }) {
-  const TabBtn = ({ id, label, count }: { id: "subtypes" | "fields" | "settings"; label: string; count?: number }) => (
-    <button
-      type="button"
-      onClick={() => onTabChange(id)}
-      style={{
-        padding: "8px 12px", fontSize: 12, fontWeight: 600,
-        background: tab === id ? "#fff" : "transparent",
-        color: tab === id ? COLORS.ink : COLORS.inkMuted,
-        border: `1px solid ${tab === id ? COLORS.border : "transparent"}`,
-        borderRadius: 8, cursor: "pointer",
-        fontFamily: FONTS.body,
-        display: "inline-flex", alignItems: "center", gap: 6,
-      }}
-    >
-      {label}
-      {typeof count === "number" && (
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: tab === id ? COLORS.surfaceAlt : "rgba(11,11,13,0.06)" }} className="text-admin-ink-muted">{count}</span>
-      )}
-    </button>
-  );
-
   const subtypeCount =
     parent.children.length +
     (detail
@@ -695,9 +700,9 @@ export function CategoryExpandPanel({
     <div style={{ padding: "0 14px 14px 14px", display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-surface-alt">
       {/* Tab strip */}
       <div style={{ display: "flex", gap: 6, paddingTop: 10 }}>
-        <TabBtn id="subtypes" label="Sub-types" count={subtypeCount} />
-        <TabBtn id="fields" label="Field catalog" count={detail?.fields.length} />
-        <TabBtn id="settings" label="Settings" />
+        <TabBtn id="subtypes" label="Sub-types" count={subtypeCount} active={tab === "subtypes"} onClick={() => onTabChange("subtypes")} />
+        <TabBtn id="fields" label="Field catalog" count={detail?.fields.length} active={tab === "fields"} onClick={() => onTabChange("fields")} />
+        <TabBtn id="settings" label="Settings" active={tab === "settings"} onClick={() => onTabChange("settings")} />
       </div>
 
       {/* SUBTYPES TAB */}
