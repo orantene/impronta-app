@@ -51,6 +51,10 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath, unstable_cache } from "next/cache";
 import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
+import {
+  CACHE_TAG_FIELD_CATALOG,
+  fieldCatalogTagForTenant,
+} from "@/lib/field-engine/cache-tags";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -93,11 +97,9 @@ export async function getResolverMetricsSnapshot(): Promise<ResolverMetrics & { 
 // Strictly additive: if the service client is unavailable or the load
 // fails, `getFieldsForTalent` falls back to its original inline queries
 // (zero behaviour change).
-// NOTE: not exported — this is a `"use server"` module, where every
-// export must be an async function. Kept module-internal; if cache
-// invalidation needs this tag elsewhere later, lift it into a plain
-// (non-"use server") constants module and import it here.
-const CACHE_TAG_FIELD_CATALOG = "field-catalog";
+// The cache-tag constants live in @/lib/field-engine/cache-tags so the
+// workspace overrides writer (admin-workspace-field-settings.ts) can
+// import the same values rather than duplicating the literal.
 
 type FieldDefRow = {
   id: string; field_key: string; label: string; label_es: string | null;
@@ -214,7 +216,7 @@ async function getCachedTenantFieldCatalog(
   const result = await unstable_cache(
     () => loadTenantFieldCatalogUncached(tenantId),
     ["tenant-field-catalog", "v1", tenantId],
-    { tags: [CACHE_TAG_FIELD_CATALOG, `${CACHE_TAG_FIELD_CATALOG}:${tenantId}`], revalidate: 120 },
+    { tags: [CACHE_TAG_FIELD_CATALOG, fieldCatalogTagForTenant(tenantId)], revalidate: 120 },
   )();
   if (_metrics.catalog_misses === missesBefore) {
     // Inner function did not run → served from cache

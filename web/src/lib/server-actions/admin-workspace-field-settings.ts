@@ -22,6 +22,10 @@ import {
   visibilityToOverrideColumns,
 } from "@/lib/field-engine/effective-visibility";
 import { logEngineAudit } from "./engine-audit";
+import {
+  CACHE_TAG_FIELD_CATALOG,
+  fieldCatalogTagForTenant,
+} from "@/lib/field-engine/cache-tags";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
 // Tiny shaping helpers so the before/after snapshots stored in
@@ -49,12 +53,6 @@ const FIELD_OVERRIDE_COLS =
 
 const GROUP_OVERRIDE_COLS = "is_enabled, custom_label";
 
-// Same string the resolver's unstable_cache is tagged with
-// (admin-taxonomy.ts CACHE_TAG_FIELD_CATALOG). Phase 1b exports the
-// canonical const + tenant-scopes the key; busting the shared tag here
-// is correct and harmless in the meantime.
-const FIELD_CATALOG_TAG = "field-catalog";
-
 type WorkspaceFieldSettingRow = {
   field_definition_id: string;
   enabled_override: boolean | null;
@@ -71,8 +69,8 @@ type OkResult = { ok: true } | { ok: false; error: string };
 
 /** Bust the resolver's tenant catalog cache (tagged with both forms). */
 function bustFieldCatalog(tenantId: string): void {
-  revalidateTag(FIELD_CATALOG_TAG, "default");
-  revalidateTag(`${FIELD_CATALOG_TAG}:${tenantId}`, "default");
+  revalidateTag(CACHE_TAG_FIELD_CATALOG, "default");
+  revalidateTag(fieldCatalogTagForTenant(tenantId), "default");
 }
 
 const visibilitySchema = z.object({
