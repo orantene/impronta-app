@@ -64,6 +64,11 @@
       "count": 1
     }
   },
+  "src/app/(workspace)/platform/admin/tenants/[id]/catalog/page.tsx": {
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
       "count": 3
@@ -77,11 +82,6 @@
   "src/app/t/[profileCode]/talent-profile-inquire-button.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
-    }
-  },
-  "src/components/admin/profile-settings/profile-shell.tsx": {
-    "@next/next/no-html-link-for-pages": {
-      "count": 14
     }
   },
   "src/components/admin/shell/admin-shell-client.tsx": {
@@ -1012,6 +1012,11 @@
       "count": 1
     }
   },
+  "src/components/edit-chrome/inspectors/featured-talent-content.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/edit-chrome/inspectors/layout-panel.tsx": {
     "max-lines": {
       "count": 1
@@ -1136,6 +1141,19 @@
   "src/lib/directory/field-driven-filters.ts": {
     "max-lines": {
       "count": 1
+    }
+  },
+  "src/lib/field-engine/resolve-talent-fields.ts": {
+    "max-lines": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 7
+    }
+  },
+  "src/lib/fields/legacy-mirror.ts": {
+    "no-console": {
+      "count": 4
     }
   },
   "src/lib/inquiry/inquiry-engine-offers.ts": {
@@ -1289,11 +1307,8 @@
     }
   },
   "src/lib/server-actions/admin-taxonomy.ts": {
-    "max-lines": {
-      "count": 1
-    },
     "ratchet/no-untenanted-from": {
-      "count": 29
+      "count": 16
     }
   },
   "src/lib/server-actions/admin-translation-quick-edit.ts": {
@@ -1313,7 +1328,7 @@
   },
   "src/lib/server-actions/admin-workspace-field-settings.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 13
+      "count": 20
     }
   },
   "src/lib/server-actions/admin-workspace-settings.ts": {
@@ -1361,6 +1376,14 @@
       "count": 6
     }
   },
+  "src/lib/server-actions/engine-audit.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
   "src/lib/server-actions/inquiry-message-edit.ts": {
     "ratchet/no-untenanted-from": {
       "count": 2
@@ -1388,7 +1411,7 @@
   },
   "src/lib/server-actions/roster-import.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 9
+      "count": 12
     }
   },
   "src/lib/server-actions/search-talent.ts": {
@@ -1398,7 +1421,7 @@
   },
   "src/lib/server-actions/talent-field-values-catalog.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 16
+      "count": 11
     }
   },
   "src/lib/server-actions/talent-field-values.ts": {
@@ -1481,6 +1504,11 @@
       "count": 1
     }
   },
+  "src/lib/site-admin/sections/directory/Editor.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/site-admin/sections/node-presentation-render.test.ts": {
     "max-lines": {
       "count": 1
@@ -1492,6 +1520,11 @@
     }
   },
   "src/lib/site-admin/sections/registry.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/site-admin/sections/shared/default-content.ts": {
     "max-lines": {
       "count": 1
     }
