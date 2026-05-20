@@ -120,7 +120,7 @@ function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
       title: "Welcome to Tulala.",
       sub: "30 seconds to set you up. We'll match you with the right agencies.",
       body: (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {[
             { id: "business" as const, label: "I'm a business", desc: "Beach club, hotel, brand, restaurant — recurring or one-off bookings." },
             { id: "personal" as const, label: "I'm booking for myself", desc: "Personal event, dinner, party, photoshoot." },
@@ -146,7 +146,7 @@ function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
       title: "What do you typically book?",
       sub: "Pick all that apply — we'll filter Discover for you.",
       body: (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className="flex flex-wrap gap-2">
           {[
             { id: "models",        label: "Models",        emoji: "👤" },
             { id: "hosts",         label: "Hosts",         emoji: "🎤" },
@@ -243,7 +243,7 @@ function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
             background: "transparent", border: "none", padding: 0, cursor: "pointer",
             fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, fontWeight: 500,
           }}>Skip</button>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             {step > 0 && (
               <button type="button" onClick={() => setStep(s => s - 1)} style={{
                 padding: "10px 14px", borderRadius: 999,
@@ -489,7 +489,7 @@ function PageHeader({
       }
     `}</style>
     <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {eyebrow && (
           <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
@@ -780,12 +780,12 @@ function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
         onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3 }}>
             {inquiry.clientName}
           </div>
           <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span className="inline-flex items-center gap-1">
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.coral }} />
               Offer ready
             </span>
@@ -899,7 +899,7 @@ function ClientInquiriesPage() {
 
       {/* Legacy CLIENT_INQUIRIES (lighter-weight rows pre-RichInquiry adoption) */}
       {CLIENT_INQUIRIES.filter((c) => c.stage === "draft").length > 0 && (
-        <section style={{ marginTop: 32 }}>
+        <section className="mt-8">
           <Divider label="Drafts" />
           <div
             style={{
@@ -947,8 +947,8 @@ function ClientInquiryRow({ inquiry }: { inquiry: RichInquiry; bordered?: boolea
       onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
           <span style={{
             fontSize: 14, fontWeight: 600, color: COLORS.ink,
             flex: 1, minWidth: 0,
@@ -971,7 +971,7 @@ function ClientInquiryRow({ inquiry }: { inquiry: RichInquiry; bordered?: boolea
           fontSize: 12, color: COLORS.inkMuted, marginTop: 2,
           display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
         }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span className="inline-flex items-center gap-1">
             <span style={{
               width: 5, height: 5, borderRadius: "50%",
               background: meta.tone === "green" ? COLORS.success
@@ -981,7 +981,7 @@ function ClientInquiryRow({ inquiry }: { inquiry: RichInquiry; bordered?: boolea
             }} />
             {meta.label}
           </span>
-          <span style={{ color: COLORS.inkDim }}>· {subtitleParts.join(" · ")}</span>
+          <span className="text-admin-ink-dim">· {subtitleParts.join(" · ")}</span>
         </div>
       </div>
       {inquiry.offer && (
@@ -1358,7 +1358,7 @@ function ClientAiSearchBar({
                       background: `url(${t.thumb}) center/cover, ${COLORS.surfaceAlt}`,
                       flexShrink: 0,
                     }} />
-                    <div style={{ textAlign: "left" }}>
+                    <div className="text-left">
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{t.name}</div>
                       <div style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{t.category} · {t.city}</div>
                     </div>
@@ -1533,7 +1533,7 @@ function ClientTalentDetailSheet({
           flex: 1, overflowY: "auto", padding: "16px 22px 14px",
         }}>
           {/* Name + meta */}
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-2.5">
             <h2 style={{
               margin: 0,
               fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
@@ -1620,8 +1620,8 @@ function ClientTalentDetailSheet({
                   border: `1px solid ${COLORS.borderSoft}`,
                 }}>
                   <span style={{ fontSize: 16, flexShrink: 0 }}>{meta.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{c.name}</span>
                       {c.commission && (
                         <span style={{
@@ -1705,7 +1705,7 @@ function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onCl
             background: `url(${talent.thumb}) center/cover, ${COLORS.surfaceAlt}`,
             flexShrink: 0,
           }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
               {talent.name}
             </div>
@@ -1728,7 +1728,7 @@ function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onCl
           {talent.name.split(" ")[0]} works through {talent.channels.length} channel{talent.channels.length === 1 ? "" : "s"}. Each routes the inquiry differently.
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {talent.channels.map((c, i) => {
             const meta = c.kind === "agency"
               ? { label: "Agency", icon: "🏢", desc: "Agency handles contracts, payment, coordination." }
@@ -1746,8 +1746,8 @@ function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onCl
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.background = "#fff"; }}
               >
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{meta.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
                     <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{c.name}</span>
                     {c.commission && (
                       <span style={{
@@ -1825,7 +1825,7 @@ function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () 
         <ClientDiscoverPhotoBadge talentId={talent.id} size="md" />
       </div>
       <div style={{ padding: "12px 14px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {talent.name}
           </span>
@@ -1915,7 +1915,7 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
         <StatDot tone={m.tone === "ink" ? "ink" : m.tone} size={8} />
       </div>
       <p style={{ margin: 0, fontSize: 12.5, color: COLORS.inkMuted }}>{shortlist.brief}</p>
-      <div style={{ display: "flex", gap: 4 }}>
+      <div className="flex gap-1">
         {shortlist.thumbs.slice(0, 6).map((t, i) => (
           <span
             key={i}
@@ -2072,8 +2072,8 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
       onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
           <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {booking.talent}
           </span>
@@ -2082,11 +2082,11 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
           </span>
         </div>
         <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span className="inline-flex items-center gap-1">
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.success }} />
             {booking.date}
           </span>
-          <span style={{ color: COLORS.inkDim }}>· {booking.location}</span>
+          <span className="text-admin-ink-dim">· {booking.location}</span>
         </div>
       </div>
       {/* #18 — Review prompt on wrapped bookings */}
@@ -2140,7 +2140,7 @@ function ClientSettingsPage() {
           flexShrink: 0,
           border: `1px solid ${COLORS.borderSoft}`,
         }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
             {profile.name}
           </div>
@@ -2162,7 +2162,7 @@ function ClientSettingsPage() {
         boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
         padding: 16, marginBottom: 18, display: "flex", alignItems: "center", gap: 14, fontFamily: FONTS.body,
       }}>
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <div style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>Current plan</div>
           <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
             {planMeta.label} <span style={{ fontSize: 12, color: COLORS.inkMuted, fontWeight: 500 }}>· {planMeta.price}</span>
@@ -2301,7 +2301,7 @@ function ClientSettingsRow({ label, desc, comingSoon, onClick }: {
       onMouseEnter={(e) => { if (!comingSoon) e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
       onMouseLeave={(e) => { if (!comingSoon) e.currentTarget.style.background = "transparent"; }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{label}</div>
         <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{desc}</div>
       </div>
@@ -2404,7 +2404,7 @@ function ClientNotificationsPage() {
               background: n.read ? "transparent" : (n.cluster === "needs" ? COLORS.coral : n.cluster === "updates" ? COLORS.indigo : COLORS.success),
               flexShrink: 0, marginTop: 5,
             }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {n.title}
@@ -2470,7 +2470,7 @@ export function ClientTodayPulseDrawer() {
           }}
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {pendingDecisions.map((i) => (
             <button
               key={i.id}
@@ -2494,7 +2494,7 @@ export function ClientTodayPulseDrawer() {
               }}
             >
               <StatDot tone="amber" size={8} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>{i.brief}</div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
                   {i.agencyName} · offer {i.offer?.total}
@@ -2517,7 +2517,7 @@ export function ClientTalentCardDrawer() {
   if (!t) {
     return (
       <DrawerShell open={open} onClose={closeDrawer} title="Talent">
-        <div style={{ color: COLORS.inkMuted }}>No talent selected.</div>
+        <div className="text-admin-ink-muted">No talent selected.</div>
       </DrawerShell>
     );
   }
@@ -2552,7 +2552,7 @@ export function ClientTalentCardDrawer() {
       >
         {t.thumb}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <KvRow label="Agency" value={t.agency} />
         <KvRow label="Based in" value={t.city} />
         <KvRow label="Height" value={t.height} />
@@ -2600,7 +2600,7 @@ export function ClientShortlistDetailDrawer() {
       }
     >
       {/* Talent grid */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      <div className="flex flex-wrap gap-2.5">
         {sl.thumbs.map((t, i) => (
           <span
             key={i}
@@ -2632,7 +2632,7 @@ export function ClientShortlistDetailDrawer() {
 
       {/* Agency comparison (C16) */}
       <Divider label="Agency track record" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {AGENCY_RELIABILITY.map((rel) => {
           const barW = `${rel.onTimeRate}%`;
           return (
@@ -2654,7 +2654,7 @@ export function ClientShortlistDetailDrawer() {
                 </span>
               </div>
               {/* On-time bar */}
-              <div style={{ marginBottom: 6 }}>
+              <div className="mb-1.5">
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                   <span style={{ fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>On time</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.successDeep }}>{rel.onTimeRate}%</span>
@@ -3026,7 +3026,7 @@ export function ClientBookingDetailDrawer() {
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         <KvRow label="Talent" value={b.talent} />
         <KvRow label="Date" value={b.date} />
         <KvRow label="Location" value={b.location} />
@@ -3099,7 +3099,7 @@ export function ClientTeamDrawer() {
       title="Team"
       description="Team members can see inquiry threads and bookings for this brand."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {[
           { name: "Helena Ross", email: "helena@netaporter.com", role: "Owner" },
           { name: "Marco Lin", email: "marco@netaporter.com", role: "Booker" },
@@ -3118,7 +3118,7 @@ export function ClientTeamDrawer() {
             }}
           >
             <Avatar initials={m.name.split(" ").map((n) => n[0]).join("")} size={32} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{m.name}</div>
               <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{m.email}</div>
             </div>
@@ -3237,7 +3237,7 @@ export function ClientBrandSwitcherDrawer() {
                 background: `url(${p.photoUrl}) center/cover, ${COLORS.surfaceAlt}`,
                 flexShrink: 0,
               }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{p.name}</div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
                   {p.industry} · {p.isBusiness ? "Business" : "Personal"}
@@ -3275,7 +3275,7 @@ export function ClientSavedSearchDrawer() {
       title="Saved searches"
       description="Review saved filters and jump back into Discover."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {searches.map((s) => (
           <div
             key={s.id}
@@ -3297,7 +3297,7 @@ export function ClientSavedSearchDrawer() {
               }}
             >
               <Icon name="search" size={14} color={COLORS.inkMuted} />
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{s.name}</div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{s.count} matches</div>
               </div>
@@ -3370,7 +3370,7 @@ export function ClientQuickQuestionDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {/* Agency picker */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           <span
             style={{
               fontSize: 11.5,
@@ -3380,7 +3380,7 @@ export function ClientQuickQuestionDrawer() {
           >
             To agency
           </span>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="flex gap-2 flex-wrap">
             {["Acme Models", "Praline London", "Maison Sud"].map((a) => {
               const active = selectedAgency === a;
               return (
@@ -3513,7 +3513,7 @@ export function ClientMyTalentDrawer() {
       description="Talent you've booked before — quick-rebook or start a new inquiry."
     >
       {/* Search */}
-      <div style={{ marginBottom: 12 }}>
+      <div className="mb-3">
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
           <Icon name="search" size={13} color={COLORS.inkMuted} />
           <input
@@ -3526,7 +3526,7 @@ export function ClientMyTalentDrawer() {
       </div>
 
       {/* Talent list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {filtered.map((t) => (
           <div
             key={t.id}
@@ -3538,7 +3538,7 @@ export function ClientMyTalentDrawer() {
             }}
           >
             <Avatar initials={t.thumb} size={38} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.ink }}>{t.name}</div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 6 }}>{t.agency}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -3645,7 +3645,7 @@ export function ClientSpendReportDrawer() {
       </div>
 
       {/* Breakdown bars */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {data.map((r) => (
           <div key={r.name} style={{ fontFamily: FONTS.body }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
@@ -3696,12 +3696,12 @@ export function ClientBudgetDrawer() {
 
         {/* Live spend gauge */}
         <div style={{ padding: "16px", background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, border: `1px solid ${isNearLimit ? "#D97706" + "44" : COLORS.border}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <div className="flex justify-between mb-2">
             <div>
               <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Q2 Spend</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.ink, marginTop: 1 }}>€{spent.toLocaleString()}</div>
             </div>
-            <div style={{ textAlign: "right" }}>
+            <div className="text-right">
               <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Budget</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.ink, marginTop: 1 }}>€{budgetNum.toLocaleString()}</div>
             </div>
