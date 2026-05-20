@@ -70,7 +70,14 @@ function loadCachedNavigation(
       return (data ?? []) as unknown as RawNavRow[];
     },
     ["cms:public-navigation", tenantId, locale, zone],
-    { tags: [tagFor(tenantId, "navigation")] },
+    {
+      tags: [tagFor(tenantId, "navigation")],
+      // Defensive 300s safety-net TTL — Vercel's Data Cache persists
+      // across deploys; `revalidateTag` can't cross runtimes. Bounds
+      // staleness for cross-runtime / older-cached edge cases. Same
+      // pattern as homepage-reads.ts.
+      revalidate: 300,
+    },
   )();
 }
 

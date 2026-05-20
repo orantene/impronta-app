@@ -119,6 +119,11 @@ export function loadPublicPageBySlug(
         // via `updateTag(tagFor(tenantId, "pages", {id}))`, readers refetch
         // because their per-slug cache entry also carries `pages-all`.
       ],
+      // Defensive 300s safety-net TTL — Vercel's Data Cache persists
+      // across deploys; `revalidateTag` can't cross runtimes. Bounds
+      // staleness for cross-runtime / older-cached edge cases. Same
+      // pattern as homepage-reads.ts.
+      revalidate: 300,
     },
   )();
 }
@@ -152,7 +157,12 @@ export function loadPublicPagesList(
       return (data ?? []) as PageRow[];
     },
     ["site-admin:pages:public-list", tenantId],
-    { tags: [tagFor(tenantId, "pages-all")] },
+    {
+      tags: [tagFor(tenantId, "pages-all")],
+      // Defensive 300s safety-net TTL — same rationale as the per-slug
+      // reader above.
+      revalidate: 300,
+    },
   )();
 }
 

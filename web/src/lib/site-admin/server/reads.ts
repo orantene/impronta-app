@@ -111,7 +111,16 @@ export function loadPublicIdentity(
       return data ?? null;
     },
     ["site-admin:identity:public", tenantId],
-    { tags: [tagFor(tenantId, "identity")] },
+    {
+      tags: [tagFor(tenantId, "identity")],
+      // Defensive 300s safety-net TTL. Tags fire INSTANTLY within the
+      // same runtime, but Vercel's Data Cache persists across deploys and
+      // `revalidateTag` can't cross runtimes — so a tag-only entry could
+      // serve stale indefinitely after a deploy. Bounds staleness to 5min
+      // for cross-runtime / older-cached-version edge cases. Same pattern
+      // as homepage-reads.ts (canonical reference).
+      revalidate: 300,
+    },
   )();
 }
 
@@ -147,7 +156,12 @@ export function loadPublicBranding(
       return data ?? null;
     },
     ["site-admin:branding:public", tenantId],
-    { tags: [tagFor(tenantId, "branding")] },
+    {
+      tags: [tagFor(tenantId, "branding")],
+      // Defensive 300s safety-net TTL — same rationale as the identity
+      // reader above (cross-runtime / older-deploy edge cases).
+      revalidate: 300,
+    },
   )();
 }
 

@@ -100,6 +100,12 @@ export function loadPublishedShell(
       // narrow tagging would need a server-side shell-id resolution before
       // the read; deferred.
       tags: [tagFor(tenantId, "pages-all")],
+      // Defensive 300s safety-net TTL — Vercel's Data Cache persists
+      // across deploys and `revalidateTag` can't cross runtimes. Bounds
+      // staleness when a publish fires in a different runtime from the
+      // one that originally cached the entry. Same pattern as
+      // homepage-reads.ts (canonical reference).
+      revalidate: 300,
     },
   )();
 }

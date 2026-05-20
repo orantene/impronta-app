@@ -87,7 +87,14 @@ export function loadPublicNavigationMenu(
       return data ?? null;
     },
     ["site-admin:navigation:public", tenantId, zone, locale],
-    { tags: [tagFor(tenantId, "navigation")] },
+    {
+      tags: [tagFor(tenantId, "navigation")],
+      // Defensive 300s safety-net TTL — Vercel's Data Cache persists
+      // across deploys; `revalidateTag` can't cross runtimes. Bounds
+      // staleness for cross-runtime / older-cached edge cases. Same
+      // pattern as homepage-reads.ts.
+      revalidate: 300,
+    },
   )();
 }
 
