@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Eye, ExternalLink } from "lucide-react";
 import { SaveStatePill } from "@/components/talent/save-state-pill";
