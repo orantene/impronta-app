@@ -56,8 +56,10 @@ import { logEngineAudit } from "./engine-audit";
 import {
   resolveTalentFields,
   getResolverMetricsSnapshotSync,
-  type ResolvedField,
-  type ResolvedFieldGroup,
+} from "@/lib/field-engine/resolve-talent-fields";
+import type {
+  ResolvedField,
+  ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
 
 // Re-export the resolved-field types so existing callers
@@ -66,7 +68,19 @@ import {
 // "@/lib/server-actions/admin-taxonomy"` paths working after the P5-δ
 // resolver extraction. The shapes themselves are now owned by the field
 // engine module — single source of truth.
-export type { ResolvedField, ResolvedFieldGroup };
+//
+// IMPORTANT: this MUST be a direct `export type ... from ...` re-export,
+// not `export type { ... }` referencing the local imports above. Turbopack
+// SSR bundling miscompiles the mixed import-with-type-modifiers + local
+// re-export pattern: it emits a runtime reference to the type symbol that
+// fires `ReferenceError: ResolvedField is not defined` at module
+// evaluation. The direct re-export is statically known to be type-only
+// and emits no runtime code. Both this re-export and the `import type`
+// above point at the same module — duplication is intentional, not redundant.
+export type {
+  ResolvedField,
+  ResolvedFieldGroup,
+} from "@/lib/field-engine/resolve-talent-fields";
 
 /** Returns a snapshot of in-process resolver counters. Not durable — resets on
  *  process restart. For ops debug only. Async because this file is
