@@ -12,6 +12,7 @@
  * `@theme` block so utilities (`bg-admin-coral`, `rounded-admin-md`, ...) are
  * auto-generated. Additive only — see web/docs/design-tokens-canonical-2026-05-19.md. */
 @import "../styles/admin-color-bridge.css";
+@import "../styles/admin-animations.css";
 
 :root {
   /* P0-2: NEUTRAL platform default. This block is ONLY the no-theme

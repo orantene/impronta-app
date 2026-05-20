@@ -1,0 +1,9 @@
+/* Admin shell keyframe library — imported once from globals.css.
+ * Add any animation that was previously injected inline via <style>{`@keyframes …`}</style>
+ * inside render functions. Centralising here prevents re-injection on every
+ * mount / accordion-expand cycle. */
+
+@keyframes settingsAccordionExpand {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}

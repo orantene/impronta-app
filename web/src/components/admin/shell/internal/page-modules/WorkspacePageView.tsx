@@ -136,7 +136,6 @@ function AccordionItem({
             animation: "settingsAccordionExpand .2s ease-out",
           }}
         >
-          <style>{`@keyframes settingsAccordionExpand { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           <div style={{ paddingTop: 12 }}>{children}</div>
         </div>
       )}
