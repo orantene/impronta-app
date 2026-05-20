@@ -115,6 +115,89 @@ const FOLDER_PALETTE = [
   "#FFCA28", "#FFA726", "#8D6E63", "#78909C",
 ];
 
+// ─── Hoisted module-scope components (Q4) ─────────────────────────────────────
+// Previously defined inside MediaSidebar/MediaLightbox/AnalyticsView/WorkspaceMediaPage
+// as arrow consts. The bundled eslint-plugin-react-hooks (7.0.1) doesn't flag
+// arrow-const inner components, but they are real react-hooks/static-components
+// anti-patterns. Hoisted here per Q4 hygiene; closures lifted to props where
+// applicable (NavRow's active + onClick).
+
+function NavRow({ label, active, onClick, badge, dot }: { label: string; active: boolean; onClick: () => void; badge?: number; dot?: string }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: 7,
+      width: "100%", padding: "6px 9px", borderRadius: 7, border: "none",
+      background: active ? `${COLORS.fill}14` : "transparent",
+      color: active ? COLORS.fill : COLORS.ink,
+      fontFamily: FONTS.body, fontSize: 12.5, fontWeight: active ? 600 : 500,
+      cursor: "pointer", textAlign: "left",
+    }}>
+      {dot && <DotSwatch color={dot} />}
+      <span className="flex-1">{label}</span>
+      {badge != null && badge > 0 && (
+        <span style={{
+          background: active ? COLORS.fill : COLORS.amber,
+          color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800, padding: "1px 5px",
+        }}>{badge}</span>
+      )}
+    </button>
+  );
+}
+
+function SectionLabel({ text }: { text: string }) {
+  return (
+    <div style={{ padding: "10px 9px 3px", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }} className="text-admin-ink-muted">{text}</div>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.5)", width: 78, flexShrink: 0 }}>{label}</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.92)", flex: 1, wordBreak: "break-all" }}>{value}</div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div style={{ padding: "16px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, background: "#fff" }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 4 }} className="text-admin-ink-muted">{label}</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700 }} className="text-admin-ink">{value}</div>
+      {sub && <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{sub}</div>}
+    </div>
+  );
+}
+
+function BulkBtn({ label, icon, onClick, danger, disabled }: { label: string; icon: string; onClick: () => void; danger?: boolean; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        background: danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)",
+        border: "1px solid rgba(255,255,255,0.15)",
+        color: "#fff", padding: "5px 11px", borderRadius: 7,
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+        opacity: disabled ? 0.45 : 1, whiteSpace: "nowrap",
+      }}
+      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.95)" : "rgba(255,255,255,0.22)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)"; }}
+    >
+      <span style={{ fontSize: 13 }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+function BulkBarSep() {
+  return <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.18)", flexShrink: 0 }} />;
+}
+
 function DotSwatch({ color }: { color: string }) {
   return <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />;
 }
@@ -139,41 +222,14 @@ function MediaSidebar({
     return true;
   };
 
-  const NavRow = ({ label, v, badge, dot }: { label: string; v: ActiveView; badge?: number; dot?: string }) => {
-    const active = isActive(v);
-    return (
-      <button type="button" onClick={() => setView(v)} style={{
-        display: "flex", alignItems: "center", gap: 7,
-        width: "100%", padding: "6px 9px", borderRadius: 7, border: "none",
-        background: active ? `${COLORS.fill}14` : "transparent",
-        color: active ? COLORS.fill : COLORS.ink,
-        fontFamily: FONTS.body, fontSize: 12.5, fontWeight: active ? 600 : 500,
-        cursor: "pointer", textAlign: "left",
-      }}>
-        {dot && <DotSwatch color={dot} />}
-        <span className="flex-1">{label}</span>
-        {badge != null && badge > 0 && (
-          <span style={{
-            background: active ? COLORS.fill : COLORS.amber,
-            color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800, padding: "1px 5px",
-          }}>{badge}</span>
-        )}
-      </button>
-    );
-  };
-
-  const SectionLabel = ({ text }: { text: string }) => (
-    <div style={{ padding: "10px 9px 3px", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7 }} className="text-admin-ink-muted">{text}</div>
-  );
-
   return (
     <div style={{
       width: 196, flexShrink: 0, borderRight: `1px solid ${COLORS.borderSoft}`,
       padding: "14px 7px 24px", display: "flex", flexDirection: "column",
       overflowY: "auto", gap: 1,
     }}>
-      <NavRow label={`All (${photos.length})`} v={{ kind: "all" }} />
-      {settings.showPending && <NavRow label="Pending review" v={{ kind: "pending" }} badge={pendingCount} />}
+      <NavRow label={`All (${photos.length})`} active={isActive({ kind: "all" })} onClick={() => setView({ kind: "all" })} />
+      {settings.showPending && <NavRow label="Pending review" active={isActive({ kind: "pending" })} onClick={() => setView({ kind: "pending" })} badge={pendingCount} />}
 
       {settings.showFolders && (
         <>
@@ -182,7 +238,8 @@ function MediaSidebar({
             <NavRow
               key={f.id}
               label={f.name}
-              v={{ kind: "folder", folderId: f.id }}
+              active={isActive({ kind: "folder", folderId: f.id })}
+              onClick={() => setView({ kind: "folder", folderId: f.id })}
               dot={f.color ?? FOLDER_PALETTE[0]}
             />
           ))}
@@ -199,13 +256,13 @@ function MediaSidebar({
       )}
 
       {(settings.showByTalent || settings.showByKind) && <SectionLabel text="Group by" />}
-      {settings.showByTalent && <NavRow label="By talent" v={{ kind: "by-talent" }} />}
-      {settings.showByKind && <NavRow label="By kind" v={{ kind: "by-kind" }} />}
+      {settings.showByTalent && <NavRow label="By talent" active={isActive({ kind: "by-talent" })} onClick={() => setView({ kind: "by-talent" })} />}
+      {settings.showByKind && <NavRow label="By kind" active={isActive({ kind: "by-kind" })} onClick={() => setView({ kind: "by-kind" })} />}
 
       {settings.showAnalytics && (
         <>
           <SectionLabel text="More" />
-          <NavRow label="Analytics" v={{ kind: "analytics" }} />
+          <NavRow label="Analytics" active={isActive({ kind: "analytics" })} onClick={() => setView({ kind: "analytics" })} />
         </>
       )}
     </div>
@@ -678,13 +735,6 @@ function MediaLightbox({
     color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.7,
     marginBottom: 8,
   };
-  const MetaRow = ({ label, value }: { label: string; value: string }) => (
-    <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.5)", width: 78, flexShrink: 0 }}>{label}</div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.92)", flex: 1, wordBreak: "break-all" }}>{value}</div>
-    </div>
-  );
-
   // Admin-only header content: talent name + variant label + approval marker.
   // Replaces the default pill + previewLabel that the shared component
   // would otherwise render.
@@ -1132,14 +1182,6 @@ function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: Med
     for (const p of photos) map.set(p.variantKind, (map.get(p.variantKind) ?? 0) + 1);
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   }, [photos]);
-
-  const StatCard = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (
-    <div style={{ padding: "16px 18px", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, background: "#fff" }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 4 }} className="text-admin-ink-muted">{label}</div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700 }} className="text-admin-ink">{value}</div>
-      {sub && <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{sub}</div>}
-    </div>
-  );
 
   return (
     <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
@@ -1972,29 +2014,6 @@ export function WorkspaceMediaPage() {
         {selCount > 0 && (() => {
           const firstSelected = filtered.find((p) => selected.has(p.id)) ?? null;
           const isSingle = selCount === 1;
-          const BulkBtn = ({ label, icon, onClick, danger, disabled }: { label: string; icon: string; onClick: () => void; danger?: boolean; disabled?: boolean }) => (
-            <button
-              type="button"
-              onClick={onClick}
-              disabled={disabled}
-              title={label}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                background: danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                color: "#fff", padding: "5px 11px", borderRadius: 7,
-                cursor: disabled ? "not-allowed" : "pointer",
-                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
-                opacity: disabled ? 0.45 : 1, whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.95)" : "rgba(255,255,255,0.22)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)"; }}
-            >
-              <span style={{ fontSize: 13 }}>{icon}</span>
-              {label}
-            </button>
-          );
-          const Sep = () => <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.18)", flexShrink: 0 }} />;
           return (
             <div style={{
               padding: "8px 16px", background: "#1a1e2e", color: "#fff",
@@ -2006,7 +2025,7 @@ export function WorkspaceMediaPage() {
               <span style={{ fontWeight: 700, fontSize: 13, marginRight: 4, whiteSpace: "nowrap" }}>
                 {selCount} selected
               </span>
-              <Sep />
+              <BulkBarSep />
 
               {/* Per-photo action — single select only. Bulk-only path: open
                   the unified surface for the one selected photo (kept here so
@@ -2017,7 +2036,7 @@ export function WorkspaceMediaPage() {
                 disabled={!isSingle || !firstSelected || firstSelected.variantKind === "card"}
                 onClick={() => { if (firstSelected) void setSelectedAsCardPhoto(firstSelected); }}
               />
-              <Sep />
+              <BulkBarSep />
 
               {/* Organise — Watermark is gated on configuration, not on the
                   preview-visibility toggle, so the user can still apply
@@ -2060,14 +2079,14 @@ export function WorkspaceMediaPage() {
                   )}
                 </div>
               )}
-              <Sep />
+              <BulkBarSep />
 
               {/* Review */}
               {selHasPending && (
                 <>
                   <BulkBtn icon="✅" label={isApproving ? "…" : "Approve"} disabled={isApproving} onClick={() => void handleApproveSelected()} />
                   <BulkBtn icon="🚫" label="Reject" disabled={isApproving} onClick={() => void handleRejectSelected()} />
-                  <Sep />
+                  <BulkBarSep />
                 </>
               )}
 
