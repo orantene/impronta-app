@@ -328,7 +328,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 23
+      "count": 20
     }
   },
   "src/components/admin/shell/internal/language-add-search.tsx": {

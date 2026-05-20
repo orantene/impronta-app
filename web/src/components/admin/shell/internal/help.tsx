@@ -2834,7 +2834,7 @@ export function HelpPanel({
 
         {/* Related drawers */}
         {entry.relatedDrawers && entry.relatedDrawers.length > 0 && (
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-4">
             <h4
               style={{
                 margin: "0 0 6px",
@@ -2847,7 +2847,7 @@ export function HelpPanel({
             >
               Related views
             </h4>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {entry.relatedDrawers.map((rel) => (
                 <button
                   key={rel}
@@ -3000,7 +3000,7 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
       }}
     >
       <span>Was this helpful?</span>
-      <div style={{ display: "inline-flex", gap: 6 }}>
+      <div className="inline-flex gap-1.5">
         <button
           type="button"
           aria-label="Yes, this was helpful"
