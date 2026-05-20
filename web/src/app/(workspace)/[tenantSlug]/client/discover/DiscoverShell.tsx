@@ -840,7 +840,6 @@ function AvailabilityStrip({
       >
         {cells.map((c, i) => (
           <span
-            // eslint-disable-next-line react/no-array-index-key
             key={i}
             title={c.title}
             style={{
@@ -1146,7 +1145,6 @@ function DiscoverDetailDrawer({
                   }}>
                     {detail.galleryUrls.slice(0, 6).map((url, i) => (
                       <div
-                        // eslint-disable-next-line react/no-array-index-key
                         key={i}
                         style={{
                           aspectRatio: "1 / 1",

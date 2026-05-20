@@ -27,7 +27,6 @@ import type { ServerActionResult } from "./result";
 // Window constants — UNDO_SEND_WINDOW_MS retained as documentation of
 // the engine contract (used in commit history + UI gating); referenced
 // in the error-copy below.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _UNDO_SEND_WINDOW_MS = 30_000;
 const EDIT_WINDOW_MS = 15 * 60_000;
 

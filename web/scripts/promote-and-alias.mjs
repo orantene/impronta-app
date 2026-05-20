@@ -154,7 +154,6 @@ function waitForReady(deploymentUrl) {
     // a setTimeout would require switching the whole script to async/await.
     const wait = Date.now() + 10_000;
     while (Date.now() < wait) {
-      // eslint-disable-next-line no-empty
     }
   }
   console.error("\n  ✗ timed out waiting for Ready");

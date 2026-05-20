@@ -199,7 +199,6 @@ for (const check of [
   check_alias_drift,
   check_migration_drift,
 ]) {
-  // eslint-disable-next-line no-await-in-loop
   await check();
 }
 

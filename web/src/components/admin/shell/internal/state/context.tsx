@@ -1584,7 +1584,6 @@ export function AdminShellProvider({
   // Phase 3.12.2 — talent self-surface bridge
   const effectiveTalentInquiries = useMemo<TalentInquiryRow[]>(
     () => initialBridgeData?.talentInquiries ?? [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: dep is the nested array reference; ESLint prefers the parent object but we want fine-grained invalidation
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;

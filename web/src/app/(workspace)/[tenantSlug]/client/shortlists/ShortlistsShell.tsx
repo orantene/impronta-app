@@ -764,7 +764,6 @@ function CompareRowFragment({
       </div>
       {values.map((v, i) => (
         <div
-          // eslint-disable-next-line react/no-array-index-key
           key={i}
           style={{
             padding: "10px 12px",
