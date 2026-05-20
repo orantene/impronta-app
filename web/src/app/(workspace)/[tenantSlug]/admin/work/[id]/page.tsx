@@ -372,7 +372,7 @@ export default async function WorkspaceWorkDetailPage({
         <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
             {t("admin.work.detail.statusLabel")}
-            <div style={{ marginTop: 4 }}>
+            <div className="mt-1">
               <InquiryStatusChip status={inquiry.status} t={t} />
             </div>
           </div>
@@ -421,7 +421,7 @@ export default async function WorkspaceWorkDetailPage({
           {inquirySource && (
             <div style={{ fontSize: 12.5, color: C.inkMuted }}>
               {t("admin.work.detail.sourceLabel")}
-              <div style={{ marginTop: 2 }}>
+              <div className="mt-0.5">
                 {(inquirySource === "discover_single_talent" ||
                   inquirySource === "discover_shortlist") ? (
                   <span
@@ -877,7 +877,7 @@ export default async function WorkspaceWorkDetailPage({
                     width: 7, height: 7, borderRadius: "50%",
                     background: "rgba(11,11,13,0.18)",
                   }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 12.5, fontWeight: 500, color: C.ink }}>{label}</div>
                     {evt.actor_name && (
                       <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>

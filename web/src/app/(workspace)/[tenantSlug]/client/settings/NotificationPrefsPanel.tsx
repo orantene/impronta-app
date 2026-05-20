@@ -112,7 +112,7 @@ export function NotificationPrefsPanel({
           letterSpacing: 0.5,
         }}
       >
-        <div style={{ flex: 1 }}>Event</div>
+        <div className="flex-1">Event</div>
         <div style={{ width: 70, textAlign: "center" }}>Email</div>
         <div style={{ width: 70, textAlign: "center" }}>Push</div>
       </div>
@@ -130,7 +130,7 @@ export function NotificationPrefsPanel({
               gap: 12,
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{kind.label}</div>
               <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
                 {kind.hint}

@@ -40,7 +40,7 @@ function HqCard({
         fontFamily: F,
       }}
     >
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <span
           style={{
             fontSize: 10.5,
@@ -108,7 +108,7 @@ export default async function PlatformSettingsPage() {
   return (
     <>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <h1
           style={{
             fontFamily: FD,
@@ -188,7 +188,7 @@ export default async function PlatformSettingsPage() {
                   >
                     {initials(member.displayName)}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                       {member.displayName}
                       {isMe && (

@@ -167,7 +167,7 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
         </Link>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: C.ink, letterSpacing: -0.3 }}>
           Discover settings
         </h1>

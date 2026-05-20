@@ -185,7 +185,7 @@ function LineItemsTable({
           {offer.lines.map((ln) => (
             <tr key={ln.id}>
               <td style={{ padding: "8px 0", color: C.ink, verticalAlign: "top" }}>
-                <div style={{ fontWeight: 600 }}>
+                <div className="font-semibold">
                   {ln.label || ln.talent_name || "Item"}
                 </div>
                 {ln.talent_name && ln.label && (
@@ -261,7 +261,7 @@ function RejectionSummary({
     >
       <strong>Previously declined</strong>
       {offer.rejection_reason && (
-        <span style={{ marginLeft: 6 }}>· {humanizeReason(offer.rejection_reason)}</span>
+        <span className="ml-1.5">· {humanizeReason(offer.rejection_reason)}</span>
       )}
       {offer.rejection_reason_text && (
         <div style={{ marginTop: 4, color: C.ink, fontWeight: 400 }}>{offer.rejection_reason_text}</div>
@@ -301,7 +301,7 @@ function DecisionRibbon({
   const [confirming, setConfirming] = useState<"approve" | "decline" | null>(null);
   return (
     <>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex gap-2 flex-wrap">
         <button
           type="button"
           onClick={() => setConfirming("approve")}
@@ -396,7 +396,7 @@ function ApproveDrawer({
 
   return (
     <DrawerShell title="Approve & lock" subtitle="One last check before you confirm." onClose={onClose}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="flex flex-col gap-3.5">
         <SummaryRow label="Project" value={details.job.title ?? "Inquiry"} />
         <SummaryRow label="Talent" value={`${details.talent.selected.length} on lineup`} />
         <SummaryRow
@@ -489,8 +489,8 @@ function DeclineDrawer({
 
   return (
     <DrawerShell title="Decline offer" subtitle="Tell the coordinator what's not working." onClose={onClose}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-3.5">
+        <label className="flex flex-col gap-1.5">
           <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>Reason</span>
           <select
             value={reason}
@@ -502,7 +502,7 @@ function DeclineDrawer({
             ))}
           </select>
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <label className="flex flex-col gap-1.5">
           <span style={{ fontSize: 11.5, color: C.inkMuted, fontWeight: 600 }}>What would help (optional)</span>
           <textarea
             value={note}
@@ -615,7 +615,7 @@ function DrawerShell({
         }}
       >
         <div style={{ padding: "16px 22px", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
               Offer decision
             </div>

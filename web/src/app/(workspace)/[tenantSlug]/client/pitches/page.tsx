@@ -136,7 +136,7 @@ export default async function ClientPitchesPage({
   return (
     <div style={{ fontFamily: FONT, color: C.ink }}>
       {/* ── Header ── */}
-      <header style={{ marginBottom: 28 }}>
+      <header className="mb-7">
         <h1
           style={{
             fontFamily: FONT_DISPLAY,
@@ -268,7 +268,7 @@ export default async function ClientPitchesPage({
                   transition: "background 0.1s",
                 }}
               >
-                <div style={{ minWidth: 0 }}>
+                <div className="min-w-0">
                   {/* Status pill */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span

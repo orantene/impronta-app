@@ -45,7 +45,7 @@ export default async function TalentSelfFieldsPage() {
       maxWidth: 760, margin: "0 auto", padding: "24px 16px",
       fontFamily: "Inter, system-ui, sans-serif",
     }}>
-      <div style={{ marginBottom: 16 }}>
+      <div className="mb-4">
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0B0B0D", margin: 0 }}>
           Profile fields
         </h1>

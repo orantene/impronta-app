@@ -235,7 +235,7 @@ export default async function TalentTrustPage({ params }: { params: PageParams }
                   {t.description}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
+              <div className="flex items-center">
                 {isEarned ? (
                   <span style={{
                     fontSize: 11.5, color: C.success, fontWeight: 600,

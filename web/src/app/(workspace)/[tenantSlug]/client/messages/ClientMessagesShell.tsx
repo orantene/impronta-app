@@ -635,7 +635,7 @@ function ThreadPaneWithTabs({
     <>
       {/* Thread header — same as before, but tab strip appended below */}
       <div style={{ padding: "12px 16px 0", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onBack}
@@ -656,7 +656,7 @@ function ThreadPaneWithTabs({
             ←
           </button>
           <style dangerouslySetInnerHTML={{ __html: "@media (max-width:720px){.thread-back-btn{display:inline-flex!important;}}" }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {inq.company || details?.job.title || "Inquiry"}
             </div>
@@ -1237,7 +1237,7 @@ function ChatComposer({
             </svg>
           )}
         </button>
-        <div style={{ position: "relative", flexShrink: 0 }}>
+        <div className="relative shrink-0">
           <button
             type="button"
             onClick={() => setEmojiOpen((v) => !v)}
@@ -1584,7 +1584,7 @@ function NextActionStrip({
       }}
     >
       <span style={{ fontSize: 16, flexShrink: 0 }}>{state.icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 11.5, fontWeight: 700, color: p.ink, textTransform: "uppercase", letterSpacing: 0.4 }}>
           {state.label}
         </div>
@@ -1761,7 +1761,7 @@ function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
             : "No talent selected yet."}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {list.map((t) => (
             <div
               key={t.participant_id}
@@ -1801,7 +1801,7 @@ function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
                   {talentInitials(t.name)}
                 </div>
               )}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {t.name}
                 </div>
@@ -1887,7 +1887,7 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
           No files yet. Share references in the chat — your coordinator will collect them here.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {files.map((f, i) => (
             <a
               key={`f-${i}`}
@@ -2169,7 +2169,7 @@ function Bubble({
             </div>
           )}
           {canReact && !editing && (
-            <div style={{ position: "relative", flexShrink: 0 }}>
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setReactionPickerOpen((v) => !v)}

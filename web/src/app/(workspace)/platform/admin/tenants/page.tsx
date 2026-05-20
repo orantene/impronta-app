@@ -53,7 +53,7 @@ function planChip(plan: string) {
 function statusDot(status: string) {
   const color = status === "active" ? HQ.green : status === "suspended" ? HQ.red : HQ.amber;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
       <span style={{ color: HQ.inkMuted, fontSize: 12.5, textTransform: "capitalize" }}>{status}</span>
     </span>
@@ -70,7 +70,7 @@ export default async function PlatformTenantsPage() {
     <>
       <style>{`.hq-tenant-row:hover { background: rgba(255,255,255,0.02); }`}</style>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <h1
           style={{
             fontFamily: FD,
@@ -106,7 +106,7 @@ export default async function PlatformTenantsPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ overflowX: "auto" }}>
+        <div className="overflow-x-auto">
           <table
             style={{
               width: "100%",
@@ -169,7 +169,7 @@ export default async function PlatformTenantsPage() {
                           color: "inherit",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div className="flex items-center gap-2.5">
                           <span style={{ fontWeight: 500, color: HQ.ink }}>{t.name}</span>
                           <span
                             style={{
@@ -183,7 +183,7 @@ export default async function PlatformTenantsPage() {
                         </div>
                       </Link>
                     </td>
-                    <td style={{ padding: "12px 12px" }}>
+                    <td className="p-3">
                       <span
                         style={{
                           display: "inline-flex",
@@ -204,7 +204,7 @@ export default async function PlatformTenantsPage() {
                         {t.entityType === "hub" ? "·•· Hub" : "▣ Agency"}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 12px" }}>{planChip(t.plan)}</td>
+                    <td className="p-3">{planChip(t.plan)}</td>
                     <td
                       style={{ padding: "12px 12px", textAlign: "right", color: HQ.inkMuted }}
                     >
@@ -215,7 +215,7 @@ export default async function PlatformTenantsPage() {
                     >
                       {t.seats ?? "∞"}
                     </td>
-                    <td style={{ padding: "12px 12px" }}>{statusDot(t.status)}</td>
+                    <td className="p-3">{statusDot(t.status)}</td>
                     <td style={{ padding: "12px 12px", color: HQ.inkDim, fontSize: 12 }}>
                       <Link
                         href={`/platform/admin/tenants/${t.id}`}

@@ -136,7 +136,7 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {bucketMeta.map(({ key, label, hint }) => {
             const rows = buckets[key];
             if (rows.length === 0) return null;
@@ -183,7 +183,7 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
                           color: "inherit",
                         }}
                       >
-                        <div style={{ minWidth: 0 }}>
+                        <div className="min-w-0">
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                             <span
                               style={{

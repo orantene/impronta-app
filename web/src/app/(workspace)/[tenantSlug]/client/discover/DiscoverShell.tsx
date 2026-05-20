@@ -833,7 +833,7 @@ function AvailabilityStrip({
   })();
 
   return (
-    <div style={{ marginTop: 10 }}>
+    <div className="mt-2.5">
       <div
         style={{ display: "flex", gap: 2, alignItems: "center" }}
         aria-label={footerLabel ?? "Availability"}
@@ -1103,7 +1103,7 @@ function DiscoverDetailDrawer({
                 )}
               </div>
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className="flex flex-wrap gap-1.5">
                 {detail.agencyName ? (
                   <Pill bg={C.accentSoft} color={C.accentDeep}>
                     🏛 {detail.agencyName}{detail.isExclusive ? " · exclusive" : ""}

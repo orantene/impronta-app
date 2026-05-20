@@ -81,7 +81,7 @@ export default async function AutoAckPolicyPage({
 
   return (
     <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 720 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
           textTransform: "uppercase", color: C.inkMuted, marginBottom: 6,
@@ -249,7 +249,7 @@ export default async function AutoAckPolicyPage({
             }}>
               ✶
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{
                 fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 4,
               }}>

@@ -621,7 +621,7 @@ function SlotButton({
   const h = heightPx ?? squareSize;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <button
           type="button"
           onClick={onClick}
@@ -658,7 +658,7 @@ function SlotButton({
           >×</button>
         )}
       </div>
-      <div style={{ textAlign: "center" }}>
+      <div className="text-center">
         <div style={{ fontFamily: F, fontSize: 10, fontWeight: 600, color: C.ink }}>{label}</div>
         <div style={{ fontFamily: F, fontSize: 9, color: C.inkMuted }}>{hint}</div>
       </div>
@@ -725,7 +725,7 @@ function WorkflowSidebar({
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }}>
           {t("admin.talent.edit.workflow.statusLabel")}
         </div>
-        <div style={{ marginBottom: 12 }}>
+        <div className="mb-3">
           <WorkflowBadge status={workflowStatus} t={t} />
         </div>
         <div style={{ fontSize: 11.5, color: C.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>

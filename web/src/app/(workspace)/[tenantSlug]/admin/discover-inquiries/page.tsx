@@ -156,7 +156,7 @@ export default async function AdminDiscoverInquiriesPage({
 
   return (
     <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 1100 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
           textTransform: "uppercase", color: "rgba(11,11,13,0.55)",

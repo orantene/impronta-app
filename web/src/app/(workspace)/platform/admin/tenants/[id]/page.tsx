@@ -65,7 +65,7 @@ function statusChip(status: string) {
   };
   const s = map[status] ?? { color: HQ.amber, label: status };
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
       <span style={{ color: HQ.ink, fontSize: 12.5 }}>{s.label}</span>
     </span>
@@ -149,7 +149,7 @@ function HqCard({
         fontFamily: F,
       }}
     >
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <span
           style={{
             fontSize: 10.5,
@@ -261,7 +261,7 @@ export default async function PlatformTenantDetailPage({
   return (
     <>
       {/* Page header */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-5">
         <Link
           href="/platform/admin/tenants"
           style={{
@@ -385,7 +385,7 @@ export default async function PlatformTenantDetailPage({
                   fontFamily: F,
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div style={{ fontSize: 13, color: HQ.ink, fontWeight: 500 }}>
                     {m.displayName}
                   </div>

@@ -316,7 +316,7 @@ export default async function TalentDiscoverPage({ params }: { params: PageParam
         </div>
 
         {/* Right column — T4 + T5 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* T5 — 30-day stats */}
           <div style={{
             background: C.cardBg, border: `1px solid ${C.border}`,

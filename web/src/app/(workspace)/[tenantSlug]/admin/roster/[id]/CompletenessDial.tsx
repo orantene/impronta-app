@@ -139,7 +139,7 @@ export function CompletenessCard({
         borderBottom: `1px solid ${C.borderSoft}`,
       }}>
         <ProgressRing ratio={ratio} stroke={colors.stroke} trackBg={colors.trackBg} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{
             fontSize: 11, fontWeight: 700, color: C.inkMuted,
             letterSpacing: 0.5, textTransform: "uppercase",
@@ -198,7 +198,7 @@ export function CompletenessCard({
                     {checklistLabels[item.key] ?? item.label}
                   </button>
                 ) : (
-                  <span style={{ flex: 1 }}>{checklistLabels[item.key] ?? item.label}</span>
+                  <span className="flex-1">{checklistLabels[item.key] ?? item.label}</span>
                 )}
               </li>
             ))}
@@ -231,7 +231,7 @@ export function CompletenessCard({
                     <path d="M2 6.5l3 3 5-7" stroke={C.success} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </span>
-                <span style={{ flex: 1 }}>{checklistLabels[item.key] ?? item.label}</span>
+                <span className="flex-1">{checklistLabels[item.key] ?? item.label}</span>
               </li>
             ))}
           </ul>

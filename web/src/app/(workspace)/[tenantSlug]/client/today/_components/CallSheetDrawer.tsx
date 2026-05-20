@@ -96,7 +96,7 @@ export function CallSheetDrawer({
       >
         {/* Header */}
         <div style={{ padding: "16px 22px", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? C.success : C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
               {isToday ? "Today" : "Call sheet"}
             </div>
@@ -133,7 +133,7 @@ export function CallSheetDrawer({
           {/* Coordinator on-call */}
           <Section title="Coordinator on call">
             {booking.coordinator?.name ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="flex items-center gap-3">
                 <div
                   style={{
                     width: 44,
@@ -150,7 +150,7 @@ export function CallSheetDrawer({
                 >
                   {initials(booking.coordinator.name)}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{booking.coordinator.name}</div>
                   {booking.coordinator.phone ? (
                     <a
@@ -174,7 +174,7 @@ export function CallSheetDrawer({
             {booking.talent.length === 0 ? (
               <EmptyPrompt label="No talent confirmed yet" />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="flex flex-col gap-2">
                 {booking.talent.map((t) => (
                   <div
                     key={t.participant_id}

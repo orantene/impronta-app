@@ -393,7 +393,7 @@ function CodeList({
               opacity: code.active ? 1 : 0.55,
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ fontSize: 14, fontWeight: 600, color: HQ.ink, letterSpacing: 0.2 }}>
                 {code.code}
               </div>

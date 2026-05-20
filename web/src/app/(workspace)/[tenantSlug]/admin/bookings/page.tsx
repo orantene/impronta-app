@@ -141,7 +141,7 @@ function BookingListItem({
       </div>
 
       {/* Name + location */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             display: "flex",
@@ -480,7 +480,7 @@ export default async function WorkspaceBookingsPage({
             alignSelf: "flex-start",
           }}
         >
-          <span style={{ fontWeight: 700 }}>{commission.feePercent}</span>
+          <span className="font-bold">{commission.feePercent}</span>
           {" "}platform fee · {commission.planTier.charAt(0).toUpperCase() + commission.planTier.slice(1)} plan
         </div>
       )}

@@ -144,7 +144,7 @@ export default async function FolderSharePage({ params }: PageParams) {
           <div style={{ fontSize: 12.5, color: "#888", marginTop: 2 }}>
             {resolvedPhotos.length} photo{resolvedPhotos.length !== 1 ? "s" : ""}
             {folder.share_expires_at && (
-              <span style={{ marginLeft: 8 }}>
+              <span className="ml-2">
                 · Expires {new Date(folder.share_expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </span>
             )}

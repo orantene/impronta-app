@@ -243,7 +243,7 @@ export default async function WorkspaceRosterTalentPage({
   return (
     <div style={{ fontFamily: F, color: C.ink }}>
       {/* Back nav */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-5">
         <Link
           href={`/${tenantSlug}/admin/roster`}
           style={{
@@ -261,7 +261,7 @@ export default async function WorkspaceRosterTalentPage({
       </div>
 
       {/* Page heading */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <h1
           style={{
             fontFamily: FD,

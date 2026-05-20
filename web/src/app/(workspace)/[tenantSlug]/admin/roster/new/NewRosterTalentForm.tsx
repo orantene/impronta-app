@@ -271,7 +271,7 @@ export function NewRosterTalentForm({
         <div style={{ fontFamily: F, fontSize: 12, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.2, marginBottom: 8 }}>
           {t("admin.roster.new.management")}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           <MethodCard
             value="agency"
             selected={method === "agency"}

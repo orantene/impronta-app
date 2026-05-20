@@ -55,7 +55,7 @@ export function TodayPriorityCard({
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div
               style={{
                 fontSize: 10.5,
@@ -94,7 +94,7 @@ export function TodayPriorityCard({
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -211,7 +211,7 @@ export function UpcomingEventsTile({
         >
           Coming up
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {bookings.map((b, i) => (
             <button
               key={b.inquiry_id}
@@ -251,7 +251,7 @@ export function UpcomingEventsTile({
                   {new Date(b.event_date).toLocaleDateString(undefined, { month: "short" })}
                 </span>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {b.title}
                 </div>

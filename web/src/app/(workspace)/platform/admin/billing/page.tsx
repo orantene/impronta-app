@@ -105,7 +105,7 @@ function HqCard({
         fontFamily: F,
       }}
     >
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <span
           style={{
             fontSize: 10.5,
@@ -166,7 +166,7 @@ export default async function PlatformBillingPage() {
   return (
     <>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <h1
           style={{
             fontFamily: FD,

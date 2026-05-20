@@ -132,7 +132,7 @@ function InquiryTable({
                 transition: "background 0.1s",
               }}
             >
-              <div style={{ minWidth: 0 }}>
+              <div className="min-w-0">
                 {/* Status + action indicator */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                   <span
@@ -378,7 +378,7 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
           }
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        <div className="flex flex-col gap-7">
           <InquiryTable rows={open} label="Open" tenantSlug={tenantSlug} />
           <InquiryTable rows={closed} label="Closed" tenantSlug={tenantSlug} />
         </div>

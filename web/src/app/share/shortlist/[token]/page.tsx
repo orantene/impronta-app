@@ -279,7 +279,7 @@ export default async function PublicShortlistPage({ params }: { params: PagePara
       color: C.ink,
     }}>
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "48px 24px 64px" }}>
-        <div style={{ marginBottom: 28 }}>
+        <div className="mb-7">
           <div style={{
             fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
             textTransform: "uppercase", color: C.inkMuted, marginBottom: 6,

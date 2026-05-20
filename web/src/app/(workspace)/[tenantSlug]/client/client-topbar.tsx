@@ -123,7 +123,7 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
                 whiteSpace: "nowrap",
               }}
             >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="inline-flex items-center gap-1.5">
                 {label}
                 {(() => {
                   const n = countFor(path);

@@ -197,7 +197,7 @@ export function DiscoverMapShell({
             </span>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="flex items-center gap-3">
           <div role="tablist" aria-label="Map view mode" style={{
             display: "inline-flex",
             gap: 2,
@@ -324,7 +324,7 @@ export function DiscoverMapShell({
               }}>
                 {!selected.headshotUrl && selected.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{
                   fontSize: 13.5, fontWeight: 700, color: C.ink,
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",

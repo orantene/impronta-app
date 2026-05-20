@@ -76,7 +76,7 @@ function ProUpsellBanner({ tier }: { tier: "standard" | "pro" | "enterprise" }) 
         fontFamily: FONT,
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div className="min-w-0">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
           textTransform: "uppercase", color: C.accent, marginBottom: 4,
@@ -190,7 +190,7 @@ function ShortlistCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
             {shortlist.name}
           </div>
@@ -210,7 +210,7 @@ function ShortlistCard({
             )}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex gap-2 flex-wrap">
           <button
             type="button"
             onClick={handleShare}
@@ -283,7 +283,7 @@ function ShortlistCard({
               cursor: routableCount === 0 ? "not-allowed" : "pointer",
             }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="inline-flex items-center gap-1.5">
               {inquireOpen ? "Cancel" : `Send inquiry${routableCount > 0 ? "" : " (no agencies)"}`}
               {!hasPro && (shortlist.talents.length > 1 || routableCount > 1) && <ProTierPill />}
             </span>
@@ -305,7 +305,7 @@ function ShortlistCard({
           gap: 8,
           flexWrap: "wrap",
         }}>
-          <span style={{ fontWeight: 600 }}>Public link copied to clipboard.</span>
+          <span className="font-semibold">Public link copied to clipboard.</span>
           <code style={{
             fontSize: 10.5,
             background: "rgba(11,11,13,0.04)",

@@ -215,7 +215,7 @@ function HelpOverlay({
             ×
           </button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {rows.map(([key, label]) => (
             <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
               <kbd style={{

@@ -66,7 +66,7 @@ export default async function PlatformUsersPage({
   return (
     <>
       {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <h1
           style={{
             fontFamily: FD,
@@ -122,7 +122,7 @@ export default async function PlatformUsersPage({
           overflow: "hidden",
         }}
       >
-        <div style={{ overflowX: "auto" }}>
+        <div className="overflow-x-auto">
           <table
             style={{
               width: "100%",
@@ -207,7 +207,7 @@ export default async function PlatformUsersPage({
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "12px 12px" }}>
+                    <td className="p-3">
                       {roleChip(u.appRole)}
                     </td>
                     <td style={{ padding: "12px 12px", color: HQ.inkMuted }}>
@@ -227,7 +227,7 @@ export default async function PlatformUsersPage({
                     >
                       {u.createdAt}
                     </td>
-                    <td style={{ padding: "12px 12px" }}>
+                    <td className="p-3">
                       {!u.emailConfirmed && (
                         <form
                           action={async () => {

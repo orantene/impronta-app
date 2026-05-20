@@ -222,7 +222,7 @@ function TopupButtons({ tenantSlug }: { tenantSlug: string }) {
       <div style={{ fontSize: 11.5, fontWeight: 600, color: C.inkDim, fontFamily: FONT, letterSpacing: 0.2 }}>
         Add balance
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex gap-2 flex-wrap">
         {TOPUP_PRESETS.map((p) => (
           <ActionButton
             key={p.amountCents}
@@ -261,7 +261,7 @@ export function ClientTrustShell({
   const balanceDollars = (fundedBalanceCents / 100).toFixed(0);
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <section className="flex flex-col gap-3">
       {/* Section header */}
       <div
         style={{
@@ -297,7 +297,7 @@ export function ClientTrustShell({
           }}
         >
           <TierChip tier={trustLevel} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
               {meta.label} trust
             </div>
@@ -351,7 +351,7 @@ export function ClientTrustShell({
 
       {/* Upgrade actions */}
       {stripeEnabled && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {/* Verify CTA (unverified only) */}
           {!isVerified && (
             <div

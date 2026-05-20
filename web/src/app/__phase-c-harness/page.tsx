@@ -46,7 +46,7 @@ export default async function PhaseCHarnessPage({ searchParams }: PageProps) {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <header style={{ marginBottom: 24 }}>
+      <header className="mb-6">
         <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
           Phase C — RichEditor harness
         </h1>

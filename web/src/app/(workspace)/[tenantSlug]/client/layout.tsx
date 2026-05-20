@@ -217,7 +217,7 @@ export default async function ClientLayout({
               >
                 {userInitials}
               </div>
-              <div style={{ minWidth: 0 }}>
+              <div className="min-w-0">
                 <div
                   style={{
                     fontFamily: FONT_BODY,
@@ -288,7 +288,7 @@ export default async function ClientLayout({
             <div style={{ flex: 1 }} />
 
             {/* ── Right-side utilities ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div className="flex items-center gap-1">
 
               {/* Client pill — current surface indicator */}
               <div

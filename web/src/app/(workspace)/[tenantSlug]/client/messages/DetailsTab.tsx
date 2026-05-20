@@ -129,7 +129,7 @@ export function DetailsTab({
 
       <Section title="Your coordinator">
         {details.coordinator.assigned && details.coordinator.name ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="flex items-center gap-3">
             <div
               style={{
                 width: 40,
@@ -165,7 +165,7 @@ export function DetailsTab({
 
       <Section title="Talent lineup">
         {details.talent.selected.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {details.talent.selected.map((t) => (
               <div
                 key={t.participant_id}
@@ -195,7 +195,7 @@ export function DetailsTab({
                 >
                   {initials(t.name)}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>
                     {t.name}
                   </div>
@@ -315,7 +315,7 @@ export function DetailsTab({
                   borderBottom: `1px solid ${C.borderSoft}`,
                 }}
               >
-                <span style={{ flex: 1 }}>
+                <span className="flex-1">
                   <strong>{a.actor_name ?? actorRoleLabel(a.actor_role) ?? "System"}</strong>{" "}
                   <span style={{ color: C.inkMuted }}>{eventLabel(a.event_type)}</span>
                 </span>

@@ -108,7 +108,7 @@ function BookingRow({
       </div>
 
       {/* Details */}
-      <div style={{ minWidth: 0 }}>
+      <div className="min-w-0">
         <div
           style={{
             fontSize: 14,
@@ -221,7 +221,7 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
           actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label="Start inquiry" />}
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        <div className="flex flex-col gap-7">
           <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />
           <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
         </div>

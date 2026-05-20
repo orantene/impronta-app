@@ -69,7 +69,7 @@ export function CurrencyPicker({
         {t("admin.account.currency.label")}
       </span>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex items-center gap-2.5">
           <select
             defaultValue={currentValue ?? ""}
             onChange={handleChange}

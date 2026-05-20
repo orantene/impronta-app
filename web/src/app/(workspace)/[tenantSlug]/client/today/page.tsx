@@ -236,7 +236,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
         />
       ) : (
         /* Three-bucket layout */
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="flex flex-col gap-5">
 
           {/* Bucket 1 — Needs your decision */}
           {needsDecision.length > 0 && (
@@ -418,7 +418,7 @@ function BucketSection({
               color: "inherit",
             }}
           >
-            <div style={{ minWidth: 0 }}>
+            <div className="min-w-0">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                 <StatusChip status={inq.status} />
                 {inq.next_action_by === "client" && (

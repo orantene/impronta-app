@@ -163,7 +163,7 @@ export function ContactPrefsShell({
               borderBottom: `1px solid ${C.borderSoft}`,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="flex items-center gap-2.5">
               <span
                 aria-hidden
                 style={{

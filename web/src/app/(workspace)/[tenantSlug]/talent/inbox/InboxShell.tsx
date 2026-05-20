@@ -202,7 +202,7 @@ export function InboxShell({
     });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       {/* Filter tabs */}
       <div
         style={{

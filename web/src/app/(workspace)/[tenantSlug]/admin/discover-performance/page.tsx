@@ -344,7 +344,7 @@ export default async function AdminDiscoverPerformancePage({
 
   return (
     <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 1100 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div className="mb-6">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
           textTransform: "uppercase", color: C.inkMuted, marginBottom: 6,
@@ -508,7 +508,7 @@ export default async function AdminDiscoverPerformancePage({
               {topTalents.length === 0 ? (
                 <div style={{ fontSize: 12.5, color: C.inkMuted }}>No data yet.</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="flex flex-col gap-2">
                   {topTalents.map((t, i) => {
                     const rowInner = (
                       <>
@@ -577,7 +577,7 @@ export default async function AdminDiscoverPerformancePage({
               {topCountries.length === 0 ? (
                 <div style={{ fontSize: 12.5, color: C.inkMuted }}>No location data yet.</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="flex flex-col gap-2">
                   {topCountries.map((c, i) => (
                     <div key={c.country + i} style={{
                       display: "flex", alignItems: "center", gap: 10,

@@ -88,7 +88,7 @@ export function CuratedCityField({
   const showList = open && q.trim().length >= 1;
   return (
     <div ref={boxRef}>
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <input
           value={q}
           placeholder={selectedLabel ? `${selectedLabel} — type to change` : "Type a city…"}
@@ -143,7 +143,7 @@ export function CuratedCityField({
               }}
               style={row}
             >
-              <span style={{ fontWeight: 600 }}>{o.name}</span>
+              <span className="font-semibold">{o.name}</span>
               {o.sub ? <span style={{ color: "#8a8a8a" }}> · {o.sub}</span> : null}
             </button>
           ))}

@@ -34,7 +34,7 @@ function PageHeader({
   subtitle?: string;
 }) {
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div className="mb-6">
       {eyebrow && (
         <p
           style={{
@@ -182,7 +182,7 @@ function HqCard({
         fontFamily: F,
       }}
     >
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <span
           style={{
             fontSize: 10.5,
@@ -311,7 +311,7 @@ export default async function PlatformTodayPage() {
               </div>
             ))
           )}
-          <div style={{ marginTop: 10 }}>
+          <div className="mt-2.5">
             <Link
               href="/platform/admin/tenants"
               style={{
@@ -351,7 +351,7 @@ export default async function PlatformTodayPage() {
                 color: HQ.ink,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{item.label}</div>
                 <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 1 }}>
                   {item.desc}

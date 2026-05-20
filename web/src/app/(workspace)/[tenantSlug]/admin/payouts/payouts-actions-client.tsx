@@ -124,7 +124,7 @@ export function PayoutsActionsClient({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, fontFamily: FONT }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex gap-2 flex-wrap">
         {!hasAccount && (
           <button type="button" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
             {pending ? t("admin.payouts.actions.loading") : t("admin.payouts.actions.connectStripe")}

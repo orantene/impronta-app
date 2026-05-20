@@ -148,7 +148,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
       margin: "0 auto",
       color: C.ink,
     }}>
-      <header style={{ marginBottom: 24 }}>
+      <header className="mb-6">
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px" }}>
           {t("admin.payouts.title")}
         </h1>
@@ -185,7 +185,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
         </div>
 
         {stripeAccountId && (
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <CapabilityRow label={t("admin.payouts.onboardingSubmitted")} on={detailsSubmitted} t={t} />
             <CapabilityRow label={t("admin.payouts.chargesEnabled")} on={chargesEnabled} t={t} />
             <CapabilityRow label={t("admin.payouts.payoutsEnabled")} on={payoutsEnabled} t={t} />
@@ -203,7 +203,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
         </div>
       </section>
 
-      <section style={{ marginBottom: 24 }}>
+      <section className="mb-6">
         <PayoutsActionsClient
           tenantSlug={tenantSlug}
           status={status}

@@ -42,7 +42,7 @@ function SettingRow({ label, value, hint }: { label: string; value: string; hint
         fontFamily: FONT,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{label}</div>
         {hint && <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>{hint}</div>}
       </div>
@@ -64,7 +64,7 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
         fontFamily: FONT,
       }}
     >
-      <div style={{ marginBottom: 14 }}>
+      <div className="mb-3.5">
         <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>{title}</div>
         {subtitle && <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 3 }}>{subtitle}</div>}
       </div>

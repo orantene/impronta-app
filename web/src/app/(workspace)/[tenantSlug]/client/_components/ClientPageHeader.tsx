@@ -44,7 +44,7 @@ export function ClientPageHeader({
         marginBottom: 18,
       }}
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="flex-1 min-w-0">
         {eyebrow && (
           <div
             style={{

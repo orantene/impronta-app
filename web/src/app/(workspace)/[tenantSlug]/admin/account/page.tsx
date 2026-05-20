@@ -162,7 +162,7 @@ function RosterUsageBar({ count, limit, t }: { count: number; limit: number | nu
       }}
     >
       <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>{t("admin.account.rosterLabel")}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <span
             style={{
@@ -412,7 +412,7 @@ export default async function WorkspaceAccountPage({
                     <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
                       {t("admin.account.billingStatus")}
                     </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="flex items-center gap-2.5">
                       <SubscriptionStatusBadge status={billingState.status} locale={locale} />
                       {billingState.cancelAtPeriodEnd && (
                         <span style={{ fontSize: 11.5, color: C.amber, fontFamily: FONT }}>

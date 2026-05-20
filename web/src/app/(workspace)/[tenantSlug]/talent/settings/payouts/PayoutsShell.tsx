@@ -153,7 +153,7 @@ export function PayoutsShell({
               <path d="M2.5 8h13" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
               color: tonePalette.fg, textTransform: "uppercase",
             }}>

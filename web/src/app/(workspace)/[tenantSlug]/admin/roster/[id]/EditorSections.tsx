@@ -97,7 +97,7 @@ function SectionCard({
         borderBottom: `1px solid ${C.borderSoft}`,
         display: "flex", alignItems: "center", gap: 10,
       }}>
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <h3 style={{
             fontFamily: F, fontSize: 14, fontWeight: 700, color: C.ink,
             margin: 0, letterSpacing: -0.05,
@@ -322,7 +322,7 @@ function TaxonomyBucketEditor({
                     {t.parentNameEn} ›
                   </span>
                 )}
-                <span style={{ fontWeight: 600 }}>{t.nameEn}</span>
+                <span className="font-semibold">{t.nameEn}</span>
                 <span style={{ flex: 1 }} />
                 <span style={{
                   fontSize: 9.5, color: C.inkDim,
@@ -521,7 +521,7 @@ export function LanguagesSection({
           {t("admin.talent.edit.languages.emptyState")}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {languages.map((lang) => (
             <div key={lang.id} style={{
               display: "grid",
@@ -531,7 +531,7 @@ export function LanguagesSection({
               background: C.surface, border: `1px solid ${C.borderSoft}`,
               opacity: pendingId === lang.id ? 0.5 : 1,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex items-center gap-2">
                 <span style={{
                   fontFamily: '"JetBrains Mono", ui-monospace, monospace',
                   fontSize: 11, color: C.inkDim, textTransform: "uppercase",
@@ -559,7 +559,7 @@ export function LanguagesSection({
                   </option>
                 ))}
               </select>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="flex gap-2 flex-wrap">
                 {[
                   { key: "canHost", labelKey: "host", val: lang.canHost },
                   { key: "canSell", labelKey: "sell", val: lang.canSell },
@@ -727,7 +727,7 @@ export function ServiceAreasSection({
           {t("admin.talent.edit.serviceAreas.emptyState")}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {areas.map((a) => {
             const kindMeta = SERVICE_KINDS.find((k) => k.value === a.serviceKind);
             return (

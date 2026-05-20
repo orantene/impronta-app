@@ -242,7 +242,7 @@ export function TalentSubscriptionShell({
     : null;
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <section className="flex flex-col gap-3">
       {/* Section header */}
       <div
         style={{
@@ -278,7 +278,7 @@ export function TalentSubscriptionShell({
           }}
         >
           <PlanChip planKey={planKey} />
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
               {meta.label} — {meta.price}
             </div>
@@ -364,7 +364,7 @@ export function TalentSubscriptionShell({
                   gap: 8,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   <PlanChip planKey={p} />
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, fontFamily: FONT }}>
                     {pm.price}

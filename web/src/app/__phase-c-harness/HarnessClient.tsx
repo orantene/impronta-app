@@ -68,7 +68,7 @@ export function HarnessClient({ fixtures }: { fixtures: Fixture[] }) {
                 ariaLabel={`Fixture ${f.index + 1}`}
               />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               <div style={{ fontSize: 14 }}>{f.publicRender}</div>
               <div style={{ ...RAW_CELL, color: drift ? "#c44" : "#999" }}>
                 {drift ? `⚠ drift → ${out}` : "(byte-identical)"}

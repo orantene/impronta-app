@@ -182,7 +182,7 @@ export function CallSheetEditor({
 
       {/* Talents */}
       <Section title={`Talent on call${draft.talents.length ? ` (${draft.talents.length})` : ""}`}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {draft.talents.length === 0 && (
             <div style={{ fontSize: 12.5, color: C.inkMuted, padding: "8px 0" }}>
               No talent added yet. Use the button below to add a row per talent on the job.
@@ -224,7 +224,7 @@ export function CallSheetEditor({
 
       {/* Contacts */}
       <Section title={`Contacts${draft.contacts.length ? ` (${draft.contacts.length})` : ""}`}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {draft.contacts.length === 0 && (
             <div style={{ fontSize: 12.5, color: C.inkMuted, padding: "8px 0" }}>
               Coordinator, photographer, MUA, drivers — anyone the talent needs to reach.
@@ -323,7 +323,7 @@ const removeBtnStyle: React.CSSProperties = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginTop: 24 }}>
+    <section className="mt-6">
       <h2 style={{
         margin: "0 0 10px", fontSize: 11, fontWeight: 700, letterSpacing: 0.6,
         textTransform: "uppercase", color: C.inkMuted,
