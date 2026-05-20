@@ -67,13 +67,12 @@ jobs:
       # Bumping any of these requires a PR that demonstrably reduces the
       # underlying count first; never raise to silence a regression.
       # TSC_BASE drift note: 4 was correct at c4f833937 (PM2 baseline, all in
-      # profile-shell-internal.tsx). After Q1's no-explicit-any narrowing (e2447cb43)
-      # 2 latent type mismatches surfaced (drawer/icon any→string narrowing exposed
-      # call-site mismatches in light-01.tsx:146 and WorkspaceTopbar.tsx:549). Both
-      # are real-but-trivial — tracked for surgical fix in a follow-up commit; raising
-      # BASE to 6 reflects current reality. Lower back to 4 (or to whatever the new
-      # count is) once those 2 are fixed.
-      TSC_BASE: 6              # was 4; raised after Q1 narrowing surfaced 2 latent errors. Followup: fix light-01.tsx:146 + WorkspaceTopbar.tsx:549 to drop back to 4.
+      # profile-shell-internal.tsx). Q1's no-explicit-any narrowing (e2447cb43)
+      # surfaced 2 latent call-site mismatches (light-01.tsx:146 jumpItems.icon
+      # and WorkspaceTopbar.tsx:549 items.drawer); both fixed surgically by typing
+      # the array element shapes to AdminShellIconName / DrawerId | null. Count
+      # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
+      TSC_BASE: 4              # restored from 6 after fixing light-01 + WorkspaceTopbar Q1-narrowing collateral.
       SUPPRESSIONS_BASE: 8458  # was 8481 post-Wave-2-partial; lowered after Q4 Phase B-D landed (11 hoists across 5 files: media-page 6, drawer-shared 1, profile-shell-internal 1, WebsitePage-2 1, plus Phase-A already-landed 2 in WorkspacePageView). -22 react-hooks/static-components + -1 max-lines (WorkspacePageView shrink). 27 remaining react-hooks suppressions are REAL (purity/refs/rules-of-hooks/preserve-manual-memoization/immutability) deferred to Q5 lane per web/docs/q4-deferred.md.
     steps:
       - name: Checkout
