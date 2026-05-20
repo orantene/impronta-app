@@ -145,7 +145,7 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
         lead_id: state.leadId,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fires once per successful submission (leadId change); audience/rosterSize/tier are the submitted values, stale reads are correct here
   }, [state?.ok, state && "leadId" in state ? state.leadId : null]);
 
   const errors = state && !state.ok ? state.errors : {};
