@@ -40,6 +40,7 @@ import {
   publishHomepage,
   saveHomepageDraftComposition,
 } from "./homepage";
+import { ensureDirectoryPage } from "./onboard-directory-page";
 
 export interface OnboardStarterContentInput {
   tenantId: string;
@@ -314,6 +315,16 @@ async function seedFreeStarterHomepage(params: {
     return { ok: true, seeded: false, rosterSeededCount: 0 };
   }
 
+  // Plan tier drives the directory-page gate (Amendment A3: Free gets no
+  // dedicated directory page; Studio/Agency do). Mirrors the Free-vs-paid
+  // predicate used by resolveFreeStarterRosterSeedCount.
+  const { data: planRow } = await params.client
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", params.tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  const planTier = planRow?.plan_tier ?? null;
+
   const rosterSeededCount = await seedFreeStarterRosterProfiles({
     client: params.client,
     tenantId: params.tenantId,
@@ -413,6 +424,30 @@ async function seedFreeStarterHomepage(params: {
       ok: false,
       error: publishedHomepage.code ?? "PUBLISH_STARTER_FAILED",
     };
+  }
+
+  // ── Directory system page (Amendment A3 gate) ────────────────────────
+  // Free tier deliberately gets NO dedicated directory page (the ~5 inline
+  // on the landing one-pager covers Free). Studio/Agency/Network get the
+  // canonical `__directory__` system page. Predicate mirrors
+  // resolveFreeStarterRosterSeedCount's `planTier !== "free"`. Idempotent
+  // + non-fatal: a failure here must never abort the homepage seed (the
+  // tenant's live URL is the higher-priority guarantee). Today every
+  // provisioning entry point hard-codes plan_tier:"free", so this is a
+  // no-op for current signups (correct per A3); it auto-activates the
+  // instant a non-free tenant is provisioned or upgraded.
+  if (planTier !== "free") {
+    const directoryResult = await ensureDirectoryPage({
+      admin: params.client,
+      tenantId: params.tenantId,
+      actorProfileId: params.actorProfileId,
+    });
+    if (!directoryResult.ok) {
+      logServerError(
+        "onboardStarterContent.ensureDirectoryPage (non-fatal)",
+        new Error(directoryResult.error),
+      );
+    }
   }
 
   return { ok: true, seeded: true, rosterSeededCount };
