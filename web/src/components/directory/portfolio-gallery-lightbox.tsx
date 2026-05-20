@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 type PortfolioItem = {
@@ -104,10 +104,10 @@ export function PortfolioGalleryLightbox({
     return v;
   }, [active?.width, active?.height]);
 
-  const go = (delta: number) => {
+  const go = useCallback((delta: number) => {
     if (count <= 1) return;
     setIndex((prev) => clampIndex(prev + delta, count));
-  };
+  }, [count]);
 
   const onOpen = (i: number) => {
     setIndex(clampIndex(i, count));
@@ -131,8 +131,7 @@ export function PortfolioGalleryLightbox({
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, count]);
+  }, [open, go]);
 
   return (
     <>
