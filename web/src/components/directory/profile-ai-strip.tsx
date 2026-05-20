@@ -1,5 +1,3 @@
-"use client";
-
 import { AIErrorBoundary } from "@/components/ai/ai-error-boundary";
 import { AIPanel } from "@/components/ai/ai-panel";
 
