@@ -400,7 +400,7 @@ export function InspectorDock() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reload on section change only; isSiteHeaderSelected/setters/server actions are stable refs
   }, [selectedSectionId]);
 
   // ---- autosave loop ------------------------------------------------------
@@ -528,7 +528,7 @@ export function InspectorDock() {
     // word-boundary pauses are ≥120ms.
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: autosave fires on content changes only; saveSectionDraftAction is a stable server action; loadedSection read via latestLoadedRef to avoid stale snapshot issue
   }, [dirty, draftProps]);
 
   // ---- inspector onChange plumbing ----------------------------------------
