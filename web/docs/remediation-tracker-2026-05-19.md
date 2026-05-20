@@ -18,6 +18,8 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | **🏁 ALL STRUCTURAL LANDED (1a-e + 2 + 2f + 3)** | **~77–80 est.** | *every structural lane in; gate exact/improved each; **formal re-audit is the next action*** |
 | Post-structural re-audit (PM2 chat) | **74** | measured (not estimated); the structural runway under-delivered vs ~77–80 estimate; 4 weak dimensions identified |
 | **After T2a CI gate landed** | **74** (+5 latent) | T2a `a4ec8e203` (2026-05-19, this chat) — gate now ENFORCES ratchets; the +5 materializes the first PR that tries to grow debt and is auto-blocked. Converts every subsequent dimension gain from honor-system → enforced. |
+| **After S1 landed** | **77** (+3 Security) | S1 4 commits `918fe7b34 7e3935aff ac1ca52ae 9c65f77b3` — 4 MED/LOW auth-isolation findings hardened; all 4 `it.skip` flipped active; auth-isolation suite 43/39/4-skip → 48/48/0-skip; full saas suite 175/175 pass; tsc/lint exact before==after |
+| **After Q1 landed** | **82** (+5 Code Quality + BASE lowered) | Q1 2 commits `e2447cb43 0aacfc5d2` + integrator BASE-lower `1f1737734` — 179 source violations fixed (no-unescaped-entities 260 + display-name 26 + no-explicit-any 10) + 4884 stale orphaned suppressions cleared; suppressions count 14699 → 9519; T2a SUPPRESSIONS_BASE lowered to match |
 | Realistic structural ceiling | ~88–92 | reachable only with T2b/T2c/T2d + RSC; 90→100 = vanity |
 | Wave 1+ honest target | **~84** | per `improvement-plan-2026-05-19-weak-dimensions.md` end-to-end (14–16 weeks) |
 
@@ -95,6 +97,9 @@ before verifying (owned); integration math still holds, the 76 is pre-existing
 | 14 | `ff42b1648` `067a3b9e1` `8ddd1c117` | **Phase 3 — inline-style codemod −50 (22 talent/* modules)** | cherry-pick · conflict-free · suppressions 0-removed/0-added/22-talent-tightened/1d+1e-preserved · **FULL tsc 4-relocated/0-new** · **gate 71==71 / 981==981 EXACT** · scoped · **2026-05-19** |
 | 15 | `554e2c8cd` | **🏁 Phase 2-finish — client adopts shared ThreadShell via slots** | cherry-pick · conflict-free · **51/51 tests** (ThreadShell 6 + adapter 12 + Lane-E oracle 33) · FULL tsc 4-relocated/0-new · **gate 71==71 / 981==981 EXACT** · scoped · admin deferred w/ evidence · **2026-05-19** |
 | 16 | `a4ec8e203` | **T2a — CI structural quality gate (THE unlock)** | direct FF push (HEAD:phase-1) · 1 file `.github/workflows/ci.yml` (+183/-0) · YAML parses (js-yaml, 1 job/15 steps) · inline-node counter empirically=14699 (matches Python walk over 290-file JSON) · 9 `test:*` script names all exist in package.json · pre-push merge-base-ancestor re-verified immediately before push · BASE TSC=4 SUPPRESSIONS=14699 captured at base `c4f833937` · agent worktree `/Users/oranpersonal/Desktop/impronta-t2a-ci` · **2026-05-19** (PM3 first landing) |
+| 17 | `918fe7b34` `7e3935aff` `ac1ca52ae` `9c65f77b3` | **S1 — 4 auth-isolation MED/LOW hardenings (+3 Security)** | cherry-pick onto current phase-1 (S1 was branched off `c4f833937`, integrator cherry-picked rather than rebased to preserve commit boundaries) · 4 scoped commits · 4 files / +348/−79 (web/src/lib/saas/{scope,admin-scope}.{ts,security.test.ts}) · auth-isolation suite 43/39-pass/4-skip → 48/48-pass/0-skip (4 flipped + 5 new invariants) · full saas suite 175/175/0-fail/0-skip · tsc 4-relocated/0-new · lint 981/0-err/981-warn EXACT before==after · no suppressions touched · no migrations · uses canonical `improntaLog` for `security.*` audit events · **2026-05-19** |
+| 18 | `e2447cb43` `0aacfc5d2` | **Q1 — trivial lint auto-fixes (+5 Code Quality)** | cherry-pick from `origin/q1/lint-autofix` (branched off c4f833937) · 2 commits (source fixes + suppressions regen) · 48 files / +145/−396 source + −255 suppressions JSON · 179 violations fixed via Python script + manual (no-unescaped-entities NOT auto-fixable in this eslint version) · suppressions 14699 → 9519 (−5180 = 296 in-scope + 4884 stale orphans cleared by `--suppress-all` regen) · **integrator pre-land safety proof: 0 new file::rule pairs absorbed, 0 increased counts, 79 pair removals** · lint 981==981 EXACT · **2026-05-19** |
+| 19 | `1f1737734` | **Integrator: T2a SUPPRESSIONS_BASE 14699 → 9519** | docs-only `.github/workflows/ci.yml` (3+/3−) lowering BASE to match Q1's new floor · ratchet integrity preserved (without this, debt could re-grow to 14699 unchecked) · **2026-05-19** |
 
 ---
 
@@ -123,8 +128,8 @@ Per `improvement-plan-2026-05-19-weak-dimensions.md` — climb the 4 weak dimens
 | # | Lane | Model | Worktree | State |
 |---|---|---|---|---|
 | 1 | T2a — CI structural gate | Opus high | `impronta-t2a-ci` | ✅ **LANDED `a4ec8e203`** — see row 16 above |
-| 2 | S1 — 4 MED/LOW auth-isolation hardenings | Opus high | (agent worktree) | ▶ running |
-| 3 | Q1 — trivial lint auto-fixes (no-unescaped-entities + display-name + no-explicit-any) | Sonnet | (agent worktree) | ▶ running |
+| 2 | S1 — 4 MED/LOW auth-isolation hardenings | Opus high | `impronta-sec-s1` | ✅ **LANDED `918fe7b34 7e3935aff ac1ca52ae 9c65f77b3`** — see row 17 above |
+| 3 | Q1 — trivial lint auto-fixes (no-unescaped-entities + display-name + no-explicit-any) | Sonnet | `impronta-q1` (orig) | ✅ **LANDED `e2447cb43 0aacfc5d2`** + integrator BASE-lower `1f1737734` — see row 18+19 above |
 | 4 | Y4 — design-token canonical-map + Tailwind bridge | Opus high | (agent worktree) | ▶ running |
 | 5 | Q3 — `console.*` → structured logger | Sonnet | (agent worktree) | ⚠ **HALT-COORDINATED** — agent initially created duplicate `logger.ts`; integrator caught pre-commit, pivoted to existing `improntaLog` from `web/src/lib/server/structured-log.ts` + `logServerError` from `safe-error.ts`; awaiting revised 3-site sample |
 | 6 | Y1 — Phase 3 codemod replay across the app | Sonnet | (paused) | ⏸ **PAUSED** by PM3 — file-collision risk with Q3; resume after Q3 lands |
