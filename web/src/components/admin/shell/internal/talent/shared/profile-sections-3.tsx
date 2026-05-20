@@ -94,7 +94,8 @@ function CompletenessBar({ value }: { value: number }) {
           overflow: "hidden",
         }}
       >
-        <div style={{ width: `${value}%`, height: "100%", background: value >= 100 ? COLORS.green : COLORS.fill, }}
+        <div style={{ '--progress-w': `${value}%`, '--progress-bg': value >= 100 ? COLORS.green : COLORS.fill }}
+          className="w-[var(--progress-w)] h-full bg-[var(--progress-bg)]"
         />
       </div>
       <div

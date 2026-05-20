@@ -6189,7 +6189,7 @@ export function TalentAgencyAnalyticsDrawer() {
               {/* Booking share bar */}
               <div style={{ padding: "8px 14px 12px" }}>
                 <div style={{ height: 4, borderRadius: 999, overflow: "hidden" }} className="bg-admin-surface-alt">
-                  <div style={{ height: "100%", width: `${pct}%`, background: [COLORS.accent, "#3B82F6", "#8B5CF6"][i] ?? COLORS.ink, borderRadius: 999, }} />
+                  <div style={{ '--progress-w': `${pct}%`, '--progress-bg': [COLORS.accent, "#3B82F6", "#8B5CF6"][i] ?? COLORS.ink }} className="w-[var(--progress-w)] h-full rounded-full bg-[var(--progress-bg)]" />
                 </div>
                 <div style={{ fontSize: 10.5, marginTop: 3 }} className="text-admin-ink-muted">
                   {pct}% of total bookings

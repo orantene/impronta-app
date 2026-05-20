@@ -2680,10 +2680,10 @@ function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
           <div style={{ height: 4, background: "rgba(11,11,13,0.06)", borderRadius: 999, overflow: "hidden", marginBottom: 8 }}>
             <div
               style={{
-                width: `${g.needed === 0 ? 0 : Math.round((g.approved / g.needed) * 100)}%`,
-                height: "100%",
-                background: g.approved >= g.needed ? COLORS.green : COLORS.fill,
+                '--progress-w': `${g.needed === 0 ? 0 : Math.round((g.approved / g.needed) * 100)}%`,
+                '--progress-bg': g.approved >= g.needed ? COLORS.green : COLORS.fill,
               }}
+              className="w-[var(--progress-w)] h-full bg-[var(--progress-bg)]"
             />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>

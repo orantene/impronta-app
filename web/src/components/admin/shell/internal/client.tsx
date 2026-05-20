@@ -3427,7 +3427,7 @@ export function ClientSpendReportDrawer() {
               <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">€{r.amount.toLocaleString()}</span>
             </div>
             <div style={BAR_TRACK}>
-              <div style={{ height: "100%", width: `${r.pct}%`, borderRadius: 999, transition: "width .4s ease", }} />
+              <div style={{ '--progress-w': `${r.pct}%` }} className="w-[var(--progress-w)] h-full rounded-full [transition:width_.4s_ease]" />
             </div>
           </div>
         ))}
@@ -3485,11 +3485,10 @@ export function ClientBudgetDrawer() {
               left: `${alertPct}%`, width: 2,
               background: "#D97706", zIndex: 1,
             }} />
-            <div style={{
-              height: "100%", width: `${spentPct}%`,
-              background: isNearLimit ? "#D97706" : COLORS.accent,
-              borderRadius: 999, transition: "width .4s ease",
-            }} />
+            <div
+              style={{ '--progress-w': `${spentPct}%`, '--progress-bg': isNearLimit ? "#D97706" : COLORS.accent }}
+              className="w-[var(--progress-w)] h-full rounded-full bg-[var(--progress-bg)] [transition:width_.4s_ease]"
+            />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
             <span style={{ fontSize: 11, color: isNearLimit ? "#D97706" : COLORS.inkMuted }}>

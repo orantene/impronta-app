@@ -516,7 +516,7 @@ function OverviewFree() {
             overflow: "hidden",
           }}
         >
-          <div style={{ width: `${progressPct}%`, height: "100%", transition: "width .25s ease", }}
+          <div style={{ '--progress-w': `${progressPct}%` }} className="w-[var(--progress-w)] h-full [transition:width_.25s_ease]"
           />
         </div>
       </div>

@@ -2010,7 +2010,7 @@ function NotifRow({
                   overflow: "hidden",
                 }}
               >
-                <span style={{ display: "block", height: "100%", width: `${(notif.progress.done / notif.progress.total) * 100}%`, background: tone.fg, borderRadius: 2, }}
+                <span style={{ '--progress-w': `${(notif.progress.done / notif.progress.total) * 100}%`, '--progress-bg': tone.fg }} className="block h-full rounded-[2px] w-[var(--progress-w)] bg-[var(--progress-bg)]"
                 />
               </div>
               <span
@@ -3302,7 +3302,7 @@ export function OnboardingArc({
                 overflow: "hidden",
               }}
             >
-              <div style={{ width: `${pct}%`, height: "100%", transition: "width .3s", }}
+              <div style={{ '--progress-w': `${pct}%` }} className="w-[var(--progress-w)] h-full [transition:width_.3s]"
               />
             </div>
             <span style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }} className="bg-admin-accent text-admin-ink-muted">
@@ -4227,7 +4227,7 @@ export function WorkspaceActivationBanner() {
 
       {/* Progress bar */}
       <div style={{ height: 6, background: COLORS.border, borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
-        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999, transition: "width .5s ease", }} />
+        <div style={{ '--progress-w': `${pct}%` }} className="w-[var(--progress-w)] h-full rounded-full [transition:width_.5s_ease]" />
       </div>
 
       {/* Step list */}

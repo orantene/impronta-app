@@ -58,7 +58,7 @@ export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRo
             <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{hits.toLocaleString()}</span>
           </div>
           <div style={{ height: 4, borderRadius: 999, overflow: "hidden" }} className="bg-admin-surface-alt">
-            <div style={{ width: `${fillPct}%`, height: "100%", background: isLive ? COLORS.indigoDeep : COLORS.inkDim, borderRadius: 999, transition: "width 200ms ease" }} />
+            <div style={{ '--progress-w': `${fillPct}%`, '--progress-bg': isLive ? COLORS.indigoDeep : COLORS.inkDim }} className="w-[var(--progress-w)] h-full bg-[var(--progress-bg)] rounded-full [transition:width_200ms_ease]" />
           </div>
         </div>
         <div aria-hidden style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.02 }} className="text-admin-indigo-deep">

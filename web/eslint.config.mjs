@@ -53,7 +53,27 @@ const ratchetPlugin = {
               node.value.expression &&
               node.value.expression.type === "ObjectExpression"
             ) {
-              context.report({ node, messageId: "inline" });
+              // Allow style objects whose every key is a CSS custom property
+              // (string literal starting with "--"). These are the legitimate
+              // dynamic-value channel (e.g. style={{ '--w': `${pct}%` }} +
+              // className="w-[var(--w)]"). Plain property values must go through
+              // Tailwind utilities or token classes instead.
+              const props = node.value.expression.properties;
+              const allCssVars =
+                props.length > 0 &&
+                props.every(
+                  (p) =>
+                    !p.computed &&
+                    p.key &&
+                    ((p.key.type === "Literal" &&
+                      typeof p.key.value === "string" &&
+                      p.key.value.startsWith("--")) ||
+                      (p.key.type === "Identifier" &&
+                        p.key.name.startsWith("--")))
+                );
+              if (!allCssVars) {
+                context.report({ node, messageId: "inline" });
+              }
             }
           },
         };

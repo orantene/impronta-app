@@ -112,7 +112,7 @@ export function TopPerformersDrawer() {
                   </div>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
-                  <div style={{ background: i === 0 ? COLORS.accent : COLORS.indigo, width: `${Math.round((row.revenue / maxRevenue) * 100)}%`, height: "100%", borderRadius: 3, }} />
+                  <div style={{ '--progress-w': `${Math.round((row.revenue / maxRevenue) * 100)}%`, '--progress-bg': i === 0 ? COLORS.accent : COLORS.indigo }} className="w-[var(--progress-w)] h-full rounded-[3px] bg-[var(--progress-bg)]" />
                 </div>
                 <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">{row.bookings} bookings YTD</div>
               </div>
@@ -151,7 +151,7 @@ export function TopPerformersDrawer() {
                   </div>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
-                  <div style={{ background: i === 0 ? COLORS.indigo : COLORS.accent, width: `${Math.round((row.spend / maxSpend) * 100)}%`, height: "100%", borderRadius: 3, }} />
+                  <div style={{ '--progress-w': `${Math.round((row.spend / maxSpend) * 100)}%`, '--progress-bg': i === 0 ? COLORS.indigo : COLORS.accent }} className="w-[var(--progress-w)] h-full rounded-[3px] bg-[var(--progress-bg)]" />
                 </div>
                 <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">{row.bookings} bookings YTD</div>
               </div>
@@ -240,11 +240,10 @@ export function CoordinatorWorkloadDrawer() {
 
                   {/* Load bar */}
                   <div style={{ background: COLORS.border, borderRadius: 4, height: 6, marginBottom: 10, overflow: "hidden" }}>
-                    <div style={{
-                      width: `${coord.load}%`, height: "100%",
-                      borderRadius: 4, background: color,
-                      transition: TRANSITION.layout,
-                    }} />
+                    <div
+                      style={{ '--progress-w': `${coord.load}%`, '--progress-bg': color }}
+                      className="w-[var(--progress-w)] h-full rounded-[4px] bg-[var(--progress-bg)] [transition:width_var(--transition-admin-layout)]"
+                    />
                   </div>
 
                   {/* Stat row */}
@@ -461,7 +460,7 @@ export function SlaTimersDrawer() {
                   </div>
                   {/* Timer bar */}
                   <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden", marginBottom: 6 }}>
-                    <div style={{ background: tone, width: `${pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
+                    <div style={{ '--progress-w': `${pct}%`, '--progress-bg': tone }} className="w-[var(--progress-w)] h-full rounded-[3px] bg-[var(--progress-bg)] [transition:width_var(--transition-admin-layout)]" />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }} className="text-admin-ink-muted">
                     <span>{row.stage}</span>

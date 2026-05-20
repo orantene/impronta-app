@@ -1045,7 +1045,7 @@ function UploadModal({
           {mode === "upload" && (
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <div style={{ flex: 1, height: 3, borderRadius: 99, background: COLORS.borderSoft, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 99, width: `${stagingItems.length > 0 ? (ready / stagingItems.length) * 100 : 0}%`, transition: "width 300ms" }} />
+                <div style={{ '--progress-w': `${stagingItems.length > 0 ? (ready / stagingItems.length) * 100 : 0}%` }} className="w-[var(--progress-w)] h-full rounded-full [transition:width_300ms]" />
               </div>
               <div style={{ fontSize: 11.5, whiteSpace: "nowrap" }} className="bg-admin-fill text-admin-ink-muted">
                 {inFlight > 0 ? `${ready}/${stagingItems.length} uploaded…` : errors > 0 ? `${errors} failed` : `${ready} ready`}
@@ -2431,7 +2431,7 @@ export function WorkspaceMediaPage() {
                   <div style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">Safe to leave — import continues server-side</div>
                 </div>
                 <div style={{ height: 4, borderRadius: 4, background: COLORS.borderSoft, overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 4, width: `${drivePanelStatus.total > 0 ? Math.round((drivePanelStatus.done / drivePanelStatus.total) * 100) : 0}%`, transition: "width 0.4s ease" }} />
+                  <div style={{ '--progress-w': `${drivePanelStatus.total > 0 ? Math.round((drivePanelStatus.done / drivePanelStatus.total) * 100) : 0}%` }} className="w-[var(--progress-w)] h-full rounded-[4px] [transition:width_0.4s_ease]" />
                 </div>
               </div>
             )}

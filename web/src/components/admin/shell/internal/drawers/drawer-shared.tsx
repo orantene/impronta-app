@@ -595,13 +595,8 @@ export function UsageRow({ label, value }: { label: string; value: number }) {
         }}
       >
         <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: pct > 80 ? COLORS.amber : COLORS.fill,
-            borderRadius: 999,
-            transition: "width .3s",
-          }}
+          style={{ '--progress-w': `${pct}%`, '--progress-bg': pct > 80 ? COLORS.amber : COLORS.fill }}
+          className="w-[var(--progress-w)] h-full rounded-full bg-[var(--progress-bg)] [transition:width_.3s]"
         />
       </div>
     </div>
@@ -2027,7 +2022,7 @@ export function CropModal({ src, onClose, onSave }: {
           borderRadius: 10, overflow: "hidden", position: "relative",
           border: `1px solid ${COLORS.borderSoft}`,
         }}>
-          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${src})`, backgroundSize: `${zoom * 100}%`, backgroundPosition: "center", backgroundRepeat: "no-repeat", }} />
+          <div style={{ '--preview-bg': `url(${src})`, '--preview-bg-size': `${zoom * 100}%` }} className="absolute inset-0 bg-[image:var(--preview-bg)] bg-[size:var(--preview-bg-size)] bg-center bg-no-repeat" />
         </div>
         <div className="mt-3">
           <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink-muted">Aspect ratio</div>

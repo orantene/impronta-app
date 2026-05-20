@@ -248,7 +248,7 @@ export function SiteSetupDrawer() {
             {Math.round((completedCount / steps.length) * 100)}% complete
           </div>
           <div style={{ height: 6, background: "rgba(15,79,62,0.18)", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
-            <div style={{ width: `${(completedCount / steps.length) * 100}%`, height: "100%", borderRadius: 999, transition: "width .3s", }}
+            <div style={{ '--progress-w': `${(completedCount / steps.length) * 100}%` }} className="w-[var(--progress-w)] h-full rounded-full [transition:width_.3s]"
             />
           </div>
         </div>

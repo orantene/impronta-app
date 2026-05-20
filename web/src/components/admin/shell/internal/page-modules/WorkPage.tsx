@@ -514,11 +514,8 @@ export function FreeValuePanel() {
                     }}
                   >
                     <div
-                      style={{
-                        width: `${pct}%`,
-                        height: "100%",
-                        background: near ? COLORS.amber : COLORS.fill,
-                      }}
+                      style={{ '--progress-w': `${pct}%`, '--progress-bg': near ? COLORS.amber : COLORS.fill }}
+                      className="w-[var(--progress-w)] h-full bg-[var(--progress-bg)]"
                     />
                   </div>
                 </div>

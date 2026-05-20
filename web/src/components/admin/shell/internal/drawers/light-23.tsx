@@ -142,7 +142,7 @@ export function FeatureControlsDrawer() {
               <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-coral">{totalCount - onCount}</span>
             </div>
             <div style={{ marginTop: 8, height: 4, background: COLORS.border, borderRadius: 2, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${(onCount / totalCount) * 100}%`, background: COLORS.success, borderRadius: 2, transition: TRANSITION.md }} />
+              <div style={{ '--progress-w': `${(onCount / totalCount) * 100}%` }} className="w-[var(--progress-w)] h-full rounded-[2px] bg-admin-success [transition:width_var(--transition-admin-md)]" />
             </div>
           </div>
         </div>

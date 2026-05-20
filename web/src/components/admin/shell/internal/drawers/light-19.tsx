@@ -290,11 +290,13 @@ export function TelemetryDashboardDrawer() {
                   <span className="text-admin-ink-muted">{step.count.toLocaleString()} · {step.pct}%</span>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 6, overflow: "hidden" }}>
-                  <div style={{
-                    background: i === 0 ? COLORS.accent : i === 1 ? COLORS.indigo : i === 2 ? COLORS.success : COLORS.green,
-                    width: `${step.pct}%`, height: "100%", borderRadius: 3,
-                    transition: TRANSITION.layout,
-                  }} />
+                  <div
+                    style={{
+                      '--progress-w': `${step.pct}%`,
+                      '--progress-bg': i === 0 ? COLORS.accent : i === 1 ? COLORS.indigo : i === 2 ? COLORS.success : COLORS.green,
+                    }}
+                    className="w-[var(--progress-w)] h-full rounded-[3px] bg-[var(--progress-bg)] [transition:width_var(--transition-admin-layout)]"
+                  />
                 </div>
               </div>
             ))}

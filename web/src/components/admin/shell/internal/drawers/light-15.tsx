@@ -567,7 +567,7 @@ export function WorkspaceRevenueDrawer() {
                   <span className="text-admin-ink-muted">€{cat.value.toLocaleString()} · {cat.pct}%</span>
                 </div>
                 <div style={{ background: COLORS.borderSoft, borderRadius: 3, height: 6, overflow: "hidden" }}>
-                  <div style={{ width: `${cat.pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
+                  <div style={{ '--progress-w': `${cat.pct}%` }} className="w-[var(--progress-w)] h-full rounded-[3px] [transition:width_var(--transition-admin-layout)]" />
                 </div>
               </div>
             ))}
