@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Field, FieldLabel, Helper, HelperCounter — composable form-row primitives.
  *
