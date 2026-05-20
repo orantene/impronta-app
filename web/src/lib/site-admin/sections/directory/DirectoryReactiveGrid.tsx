@@ -230,13 +230,17 @@ export function DirectoryReactiveGrid({
   }
 
   if (items.length === 0 && !isPlaceholderData) {
+    // B2 — editorial empty state. Two-line editorial composition
+    // instead of the technical "no matches" wall. The first line is
+    // brand-tone (Cinzel display), the second is a gentle next step.
     return (
-      <div className="rounded-2xl border border-white/12 bg-white/[0.02] px-6 py-20 text-center">
-        <p className="font-display text-lg text-foreground">
-          {ui.emptyResults}
+      <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
+        <p className="font-display text-xl tracking-wide text-foreground">
+          Nothing in the roster matches that yet.
         </p>
-        <p className="mt-2 text-sm text-white/55">
-          Refine your filters or clear them to see the full roster.
+        <p className="mt-3 text-[13px] leading-relaxed text-white/55">
+          Try a broader discipline, clear filters, or check back as the
+          roster grows.
         </p>
       </div>
     );
