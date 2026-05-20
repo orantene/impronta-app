@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getPublicSettings } from "@/lib/public-settings";
 import { parseDirectoryLocale } from "@/lib/directory/search-params";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import {
+  getPublicHostContext,
+  getTenantPortalScopeBySlug,
+} from "@/lib/saas/scope";
+import { resolvePathBasedTenantPublicPath } from "@/lib/saas/surface-allow-list";
 import { isTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { isTalentIdWithinTenantPublicDisplayCap } from "@/lib/saas/public-profile-cap";
 import {
@@ -12,6 +16,22 @@ import {
 } from "@/lib/canonical-location-display";
 import { publicBioForLocale, canonicalBioEn } from "@/lib/translation/public-bio";
 import { createTranslator } from "@/i18n/messages";
+
+async function resolvePathTenantIdFromReferer(
+  request: Request,
+): Promise<string | null> {
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+  try {
+    const url = new URL(referer);
+    const resolved = resolvePathBasedTenantPublicPath(url.pathname);
+    if (!resolved) return null;
+    const scope = await getTenantPortalScopeBySlug(resolved.tenantSlug);
+    return scope?.tenantId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 type TaxonomyRow = {
   is_primary?: boolean;
@@ -50,9 +70,13 @@ export async function GET(
   const hostContext = await getPublicHostContext();
   if (
     hostContext.kind === "marketing" ||
-    hostContext.kind === "app" ||
     hostContext.kind === "unknown"
   ) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const pathTenantId =
+    hostContext.kind === "app" ? await resolvePathTenantIdFromReferer(request) : null;
+  if (hostContext.kind === "app" && !pathTenantId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -62,10 +86,12 @@ export async function GET(
     return NextResponse.json({ error: "Unavailable" }, { status: 503 });
   }
 
-  if (hostContext.kind === "agency") {
+  const tenantId =
+    hostContext.kind === "agency" ? hostContext.tenantId : pathTenantId;
+  if (tenantId) {
     const onRoster = await isTalentOnTenantRoster(
       supabase,
-      hostContext.tenantId,
+      tenantId,
       talentId,
     );
     if (!onRoster) {
@@ -74,7 +100,7 @@ export async function GET(
 
     const withinCap = await isTalentIdWithinTenantPublicDisplayCap(
       supabase,
-      hostContext.tenantId,
+      tenantId,
       talentId,
     );
     if (!withinCap) {

@@ -16,7 +16,11 @@ import {
   parseTaxonomyParam,
 } from "@/lib/directory/search-params";
 import { getPublicSettings } from "@/lib/public-settings";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import {
+  getPublicHostContext,
+  getTenantPortalScopeBySlug,
+} from "@/lib/saas/scope";
+import { resolvePathBasedTenantPublicPath } from "@/lib/saas/surface-allow-list";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -24,6 +28,22 @@ import { logSearchQuery } from "@/lib/search-queries/log-search-query";
 import { normalizeSearchQueryForEmbedding } from "@/lib/ai/normalize-search-query";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { fetchLanguageSettingsPublic } from "@/lib/language-settings/fetch-language-settings";
+
+async function resolvePathTenantIdFromReferer(
+  request: Request,
+): Promise<string | null> {
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+  try {
+    const url = new URL(referer);
+    const resolved = resolvePathBasedTenantPublicPath(url.pathname);
+    if (!resolved) return null;
+    const scope = await getTenantPortalScopeBySlug(resolved.tenantSlug);
+    return scope?.tenantId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request: Request) {
   const audit = isDirectoryApiAudit();
@@ -39,7 +59,7 @@ export async function GET(request: Request) {
   }
 
   const hostContext = await getPublicHostContext();
-  if (hostContext.kind === "marketing" || hostContext.kind === "app") {
+  if (hostContext.kind === "marketing") {
     return NextResponse.json(
       { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [] },
       { status: 404 },
@@ -51,7 +71,18 @@ export async function GET(request: Request) {
       { status: 404 },
     );
   }
-  const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;
+  const tenantId =
+    hostContext.kind === "agency"
+      ? hostContext.tenantId
+      : hostContext.kind === "app"
+        ? await resolvePathTenantIdFromReferer(request)
+        : null;
+  if (hostContext.kind === "app" && !tenantId) {
+    return NextResponse.json(
+      { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [] },
+      { status: 404 },
+    );
+  }
 
   const { searchParams } = new URL(request.url);
   const cursor = searchParams.get("cursor");

@@ -96,6 +96,8 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
     "/api/admin/inspector/talent",
     "/api/ai/search",
     "/api/ai/inquiry-draft",
+    "/api/directory",
+    "/api/directory/preview/abc",
     "/api/location-cities",
     "/api/location-countries",
     "/api/location-place-details",
@@ -126,8 +128,6 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
     "/posts/spring-2026",
     "/models",
     "/contact",
-    "/api/directory",
-    "/api/directory/preview/abc",
   ];
   for (const p of blocked) {
     assert.equal(
