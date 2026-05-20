@@ -1,5 +1,3 @@
-"use client";
-
 // ════════════════════════════════════════════════════════════════════
 // Phase 1e — pages.tsx is now a thin re-export barrel. Every page /
 // shell component body lives in ./page-modules/* (byte-for-byte moves; only
