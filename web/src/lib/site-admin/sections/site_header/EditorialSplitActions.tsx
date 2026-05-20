@@ -191,25 +191,25 @@ export function EditorialSplitActions({
         role="group"
         aria-label={copy.language}
       >
-        <Link
+        <a
           href={localeHrefs.en}
           className="site-header__es-loc-btn"
           data-on={!isEs ? "true" : undefined}
           aria-current={!isEs ? "true" : undefined}
         >
           EN
-        </Link>
+        </a>
         <span aria-hidden="true" className="site-header__es-loc-sep">
           ·
         </span>
-        <Link
+        <a
           href={localeHrefs.es}
           className="site-header__es-loc-btn"
           data-on={isEs ? "true" : undefined}
           aria-current={isEs ? "true" : undefined}
         >
           ES
-        </Link>
+        </a>
       </span>
 
       {/* Saved — bookmark glyph (prototype `.ai-saved`), real directory */}
