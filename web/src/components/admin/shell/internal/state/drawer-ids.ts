@@ -1,4 +1,3 @@
-"use client";
 // ─────────────────────────────────────────────────────────────────────
 // Phase 1b decomposition of _state.tsx (remediation-plan-2026-05-19 §4).
 // Byte-for-byte declaration bodies; public surface re-exported by the
