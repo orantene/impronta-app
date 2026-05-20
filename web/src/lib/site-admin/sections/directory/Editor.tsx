@@ -247,6 +247,22 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number];
 
+/**
+ * A4 — Operator-friendly tab labels. Internal `Tab` keys stay the same
+ * (used for state + URL stability); only the visible chip text changes.
+ * The goal: a non-engineer marketer can open this drawer and orient
+ * themselves immediately.
+ */
+const TAB_LABELS: Record<Tab, string> = {
+  Source: "Who's in this directory",
+  Template: "Layout",
+  Card: "How talent appears",
+  Filters: "How visitors narrow",
+  AI: "AI search behavior",
+  "Empty/SEO": "Edge cases",
+  Presets: "Starter kits",
+};
+
 export function DirectoryEditor({
   initial,
   onChange,
@@ -327,7 +343,7 @@ export function DirectoryEditor({
                 : "text-[var(--impronta-muted)] hover:text-foreground"
             }`}
           >
-            {tb}
+            {TAB_LABELS[tb]}
           </button>
         ))}
       </div>
@@ -375,21 +391,22 @@ export function DirectoryEditor({
           ) : null}
           {p.scope === "manual" ? (
             <FieldTags
-              label="Profile codes to include"
+              label="Hand-pick talent (by profile code)"
               value={p.manualProfileCodes}
               placeholder="TAL-00014, TAL-00017"
               onChange={(v) => set("manualProfileCodes", v)}
             />
           ) : null}
           <FieldTags
-            label="Feature first (pinned, in order)"
+            label="Feature first (pin to top, in order)"
             value={p.pinnedProfileCodes}
             placeholder="TAL-00014, TAL-00017"
             onChange={(v) => set("pinnedProfileCodes", v)}
           />
           <FieldTags
-            label="Hide these profile codes"
+            label="Hide these talent"
             value={p.excludedProfileCodes}
+            placeholder="TAL-00021"
             onChange={(v) => set("excludedProfileCodes", v)}
           />
           <FieldToggle
@@ -586,7 +603,7 @@ export function DirectoryEditor({
           />
           {!p.showName ? (
             <FieldSelect
-              label="When name hidden, show"
+              label="When name is hidden, show…"
               value={p.nameFallback}
               onChange={(v) =>
                 set("nameFallback", v as DirectoryV1["nameFallback"])
@@ -695,13 +712,17 @@ export function DirectoryEditor({
             checked={p.sidebarDefaultCollapsed}
             onChange={(v) => set("sidebarDefaultCollapsed", v)}
           />
+          <p className={HELP}>
+            Visitors expand only the filters they care about — keeps the page
+            scannable when there are many facets.
+          </p>
           <FieldToggle
-            label="Filter search box"
+            label="Show filter search box"
             checked={p.filterSearchBox}
             onChange={(v) => set("filterSearchBox", v)}
           />
           <FieldSelect
-            label="Top facet bar"
+            label="Pill bar above results"
             value={p.topBarMode}
             onChange={(v) => set("topBarMode", v as DirectoryV1["topBarMode"])}
             options={[
@@ -710,9 +731,13 @@ export function DirectoryEditor({
               { value: "field", label: "A field facet" },
             ]}
           />
+          <p className={HELP}>
+            Shows the top-5 most-populated facets as quick-tap pills with a
+            &quot;More&quot; disclosure for the rest.
+          </p>
           {p.topBarMode === "field" ? (
             <FieldText
-              label="Top bar field key"
+              label="Which field powers the pill bar"
               value={p.topBarFieldKey ?? ""}
               onChange={(v) => set("topBarFieldKey", v)}
             />
