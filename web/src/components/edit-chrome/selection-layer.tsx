@@ -424,7 +424,7 @@ export function SelectionLayer() {
   useEffect(() => {
     scheduleRectRecompute();
     // selection/hover changes → recompute immediately
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn that reads live refs; adding it would require wrapping in useCallback with the full dep chain
   }, [
     selectedSectionId,
     selectedBuilderNodeId,
@@ -522,7 +522,7 @@ export function SelectionLayer() {
 
   useEffect(() => {
     scheduleRectRecompute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn; device change re-triggers rect recompute, no other deps needed
   }, [device]);
 
   // QA 2026-05-13 — the document-level event listener effect at this
@@ -695,7 +695,7 @@ export function SelectionLayer() {
         scrollEndTimerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
   }, [contextMenu, hoveredSectionId]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
@@ -856,7 +856,7 @@ export function SelectionLayer() {
     // computeDrop is recreated every render but closes over the current
     // slotDefs/DOM. Re-running this effect on drag/moveSectionTo/slotDefs
     // is sufficient; dropping it in deps would churn listeners every paint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeDrop reads live DOM + slotDefs at call time; re-registering every paint would tear/re-queue listeners unnecessarily
   }, [drag, moveSectionTo, slotDefs]);
 
   // Auto-scroll rAF loop: when actively dragging and cursor is in an edge
@@ -910,7 +910,7 @@ export function SelectionLayer() {
     // slotDefs; re-running this rAF loop on every paint would tear down +
     // re-queue the frame and risk auto-scroll jitter. Depending on `drag`
     // is enough.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeDrop reads live DOM at call time; restarting the rAF loop on every render would cause autoscroll jitter
   }, [drag]);
 
   /**
