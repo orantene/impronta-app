@@ -824,6 +824,23 @@ export type ResolvedField = {
     | { kind: "tier" }
     | { kind: "group"; group_slug: string; weight: string }
     | { kind: "recommendation"; term_id: string };
+  /**
+   * Phase 4 (additive, read-only transparency) — true when THIS tenant has
+   * an explicit `workspace_profile_field_settings` row whose columns differ
+   * from the platform default (visibility / enabled / required / relabel /
+   * helper / order override present). Lets Agency Fields show a
+   * "workspace override" vs "platform default" provenance badge without a
+   * second query. Optional so other ResolvedField producers/consumers are
+   * untouched; `undefined` == not computed (treat as platform default).
+   */
+  tenant_override?: boolean;
+  /**
+   * Phase 4 (additive, read-only transparency) — true when a row exists in
+   * `talent_profile_field_values` for this talent + field (existence only,
+   * not the value; the store is delete-on-empty so a row == a real value).
+   * Optional; `undefined` == presence not computed by this producer.
+   */
+  has_value?: boolean;
 };
 
 export type ResolvedFieldGroup = {
@@ -861,6 +878,23 @@ export async function getFieldsForTalent(input: {
 
   if (rosterErr || !rosterRow) {
     return { ok: false, error: "Talent is not on this tenant's roster." };
+  }
+
+  // 1b. Phase 4 (additive, read-only) — which field definitions have a
+  // stored value for this talent. The value store is delete-on-empty, so a
+  // row existing == a real value present. We select ONLY the id (never the
+  // value) so this stays a pure presence signal; the panel decides per
+  // view-as role whether to even hint presence. Failure is non-fatal:
+  // `has_value` simply stays undefined and the panel degrades gracefully.
+  const valuePresenceIds = new Set<string>();
+  {
+    const { data: valRows } = await supabase
+      .from("talent_profile_field_values")
+      .select("field_definition_id")
+      .eq("talent_profile_id", input.talent_profile_id);
+    for (const row of valRows ?? []) {
+      if (row?.field_definition_id) valuePresenceIds.add(row.field_definition_id);
+    }
   }
 
   // 2. Pull primary + secondaries.
@@ -1196,6 +1230,22 @@ export async function getFieldsForTalent(input: {
       out_admin_only = is_admin_only || eff !== "public";
     }
 
+    // Phase 4 (additive, read-only) — provenance: this field carries a
+    // tenant override when the workspace_profile_field_settings row has ANY
+    // non-null override column (visibility / enable / required / relabel /
+    // helper / order). Disabled fields (`enabled_override === false`) were
+    // already `continue`d above, so an enabled-override here is meaningful.
+    const tenant_override =
+      !!o &&
+      (o.show_in_public_override != null ||
+        o.admin_only_override != null ||
+        Array.isArray(o.default_visibility_override) ||
+        o.enabled_override != null ||
+        o.required_override != null ||
+        (o.custom_label != null && o.custom_label !== "") ||
+        (o.custom_helper != null && o.custom_helper !== "") ||
+        o.display_order_override != null);
+
     resolved.push({
       field_definition_id: d.id,
       field_key: d.field_key,
@@ -1226,6 +1276,8 @@ export async function getFieldsForTalent(input: {
         (d.show_when as { field_key: string; operator: string; value: unknown } | null) ??
         null,
       brought_in_by,
+      tenant_override,
+      has_value: valuePresenceIds.has(d.id),
     });
 
     if (groupMeta) {
