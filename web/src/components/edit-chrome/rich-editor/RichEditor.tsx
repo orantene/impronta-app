@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 /**
  * Phase C — `<RichEditor>` is the inspector-side primitive that replaces
@@ -115,7 +116,7 @@ export function RichEditor({
     nodes: [AccentNode, LinkNode],
     editable: !readOnly,
     onError: (error: Error) => {
-      console.error("[inline-editor] Lexical error:", error);
+      logServerError("inline_editor", error);
     },
     editorState: buildInitialState(value, variant),
   };

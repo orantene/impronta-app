@@ -17,6 +17,7 @@
  * Must be called inside `editorState.read(...)` so node accessors work.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import {
   $isTextNode,
   IS_BOLD,
@@ -78,10 +79,10 @@ export function lexicalNodesToMarkerString(nodes: LexicalNode[]): string {
       continue;
     }
     if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[inline-editor] lexicalNodesToMarkerString: unknown node type",
-        node.getType(),
-      );
+      void improntaLog("edit_chrome_lexicaltomarker.warn", {
+        message: "[inline-editor] lexicalNodesToMarkerString: unknown node type",
+        detail: node.getType(),
+      });
     }
     tokens.push({ kind: "text", text: node.getTextContent() });
   }

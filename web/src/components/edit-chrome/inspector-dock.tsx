@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * InspectorDock — right-rail canvas editor panel.
@@ -386,7 +387,8 @@ export function InspectorDock() {
       setDirty(false);
       setTab("content");
       const tBodyPaint = now();
-      console.info("[t2-inspector-load]", {
+      void improntaLog("edit_chrome_inspector_dock.info", {
+        message: "[t2-inspector-load]",
         sectionId: sid,
         sectionTypeKey: result.section.sectionTypeKey,
         actionStartMs: Math.round(tActionStart - tClick),

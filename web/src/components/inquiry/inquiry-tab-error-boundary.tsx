@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export class InquiryTabErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("InquiryTabErrorBoundary", this.props.tab, error, info.componentStack);
+    logServerError("inquiry_tab_error_boundary", error);
   }
 
   render() {

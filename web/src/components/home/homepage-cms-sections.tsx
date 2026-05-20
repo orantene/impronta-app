@@ -19,6 +19,7 @@
  *   - We never render section props inline from free-form JSON: every render
  *     goes through a registry entry with a Zod-parsed payload.
  */
+import { improntaLog } from "@/lib/server/structured-log";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import {
   buildBuilderNodeRoleBindings,
@@ -216,8 +217,9 @@ export async function HomepageCmsSections({
     process.env.NODE_ENV !== "production" &&
     builderTreeResolution.issues.length > 0
   ) {
-    console.warn("[homepage-cms-sections] invalid builderTree; rendering legacy slots", {
-      issues: builderTreeResolution.issues,
+    void improntaLog("home_homepage_cms_sections.warn", {
+      message: "[homepage-cms-sections] invalid builderTree; rendering legacy slots",
+      issues: JSON.stringify(builderTreeResolution.issues),
     });
   }
 
@@ -232,10 +234,11 @@ export async function HomepageCmsSections({
         ] as SectionRegistryEntry | undefined;
         if (!registryEntry) {
           if (process.env.NODE_ENV !== "production") {
-            console.warn(
-              "[homepage-cms-sections] unknown section_type_key; skipping",
-              { slotKey: entry.slotKey, type: entry.sectionTypeKey },
-            );
+            void improntaLog("home_homepage_cms_sections.warn", {
+              message: "[homepage-cms-sections] unknown section_type_key; skipping",
+              slotKey: entry.slotKey,
+              type: entry.sectionTypeKey,
+            });
           }
           // In edit-mode we render a visible placeholder so the operator
           // notices an orphaned section reference (e.g. a section type
@@ -266,16 +269,14 @@ export async function HomepageCmsSections({
           );
         } catch (error) {
           if (process.env.NODE_ENV !== "production") {
-            console.warn(
-              "[homepage-cms-sections] migration failed; skipping section",
-              {
-                slotKey: entry.slotKey,
-                type: entry.sectionTypeKey,
-                from: entry.schemaVersion,
-                to: registryEntry.currentVersion,
-                error: (error as Error).message,
-              },
-            );
+            void improntaLog("home_homepage_cms_sections.warn", {
+              message: "[homepage-cms-sections] migration failed; skipping section",
+              slotKey: entry.slotKey,
+              type: entry.sectionTypeKey,
+              from: entry.schemaVersion,
+              to: registryEntry.currentVersion,
+              error: (error as Error).message,
+            });
           }
           if (editMode) {
             return (
@@ -328,10 +329,11 @@ export async function HomepageCmsSections({
           process.env.NODE_ENV !== "production" &&
           roleBindingResult.unknownNodeIds.length > 0
         ) {
-          console.warn("[homepage-cms-sections] unknown builder child node roles", {
+          void improntaLog("home_homepage_cms_sections.warn", {
+            message: "[homepage-cms-sections] unknown builder child node roles",
             sectionId: entry.sectionId,
             sectionTypeKey: entry.sectionTypeKey,
-            unknownNodeIds: roleBindingResult.unknownNodeIds,
+            unknownNodeIds: roleBindingResult.unknownNodeIds.join(", "),
           });
         }
         const builderNodeBindings =

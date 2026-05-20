@@ -22,6 +22,7 @@
  * identically to body sections.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
 import {
   buildBuilderNodeRoleBindings,
@@ -177,9 +178,9 @@ async function renderShellSlot(
   const reg = getSectionType(slot.sectionTypeKey);
   if (!reg) {
     if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        `[PublishedShell] unknown section type "${slot.sectionTypeKey}" — slot ignored`,
-      );
+      void improntaLog("site_shell_publishedshell.warn", {
+        message: `[PublishedShell] unknown section type "${slot.sectionTypeKey}" — slot ignored`,
+      });
     }
     return null;
   }
@@ -213,10 +214,11 @@ async function renderShellSlot(
     process.env.NODE_ENV !== "production" &&
     roleBindingResult.unknownNodeIds.length > 0
   ) {
-    console.warn("[published-shell] unknown builder child node roles", {
+    void improntaLog("site_shell_publishedshell.warn", {
+      message: "[published-shell] unknown builder child node roles",
       sectionId: slot.sectionId,
       sectionTypeKey: slot.sectionTypeKey,
-      unknownNodeIds: roleBindingResult.unknownNodeIds,
+      unknownNodeIds: roleBindingResult.unknownNodeIds.join(", "),
     });
   }
   const builderNodeBindings =

@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * EditTopBar — mission control bar for the canvas editor.
@@ -2064,7 +2065,9 @@ export function TopBar({
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
       if (onSchedule) onSchedule();
-      else console.info("[topbar] schedule publish: no handler wired");
+      else void improntaLog("edit_chrome_topbar.info", {
+        message: "[topbar] schedule publish: no handler wired",
+      });
     } else if (opt === "save-draft") {
       // Same affordance as the Save draft text button — write a draft
       // revision row through the existing autosave path. Phase 4 layers
@@ -2072,7 +2075,9 @@ export function TopBar({
       if (onSaveDraft) void onSaveDraft();
     } else if (opt === "discard") {
       // Phase 4 — discard draft (revert to live snapshot)
-      console.info("[topbar] discard draft: not yet implemented");
+      void improntaLog("edit_chrome_topbar.info", {
+        message: "[topbar] discard draft: not yet implemented",
+      });
     }
   }
 

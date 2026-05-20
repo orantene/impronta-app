@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
@@ -25,7 +26,11 @@ export class AIErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[AIErrorBoundary]", error.message, info.componentStack);
+      void improntaLog("ai_error_boundary.warn", {
+        message: "[AIErrorBoundary]",
+        error: error.message,
+        info: info.componentStack,
+      });
     }
   }
 

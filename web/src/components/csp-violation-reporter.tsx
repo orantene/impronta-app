@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 import { useEffect } from "react";
 
@@ -12,7 +13,8 @@ export function CspViolationReporter() {
     if (process.env.NODE_ENV !== "development") return;
 
     function onCspViolation(ev: SecurityPolicyViolationEvent) {
-      console.warn("[CSP violation]", {
+      void improntaLog("csp_violation_reporter.warn", {
+        message: "[CSP violation]",
         violatedDirective: ev.violatedDirective,
         effectiveDirective: ev.effectiveDirective,
         blockedURI: ev.blockedURI,

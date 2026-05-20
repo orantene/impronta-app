@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * EditErrorBoundary — keeps render errors inside the product surface.
@@ -50,11 +51,11 @@ export class EditErrorBoundary extends Component<Props, State> {
     // (Sentry, etc.) plug in here later. We deliberately avoid sending
     // anything to a server endpoint by default so this file stays
     // dependency-free.
-    console.error(
-      "[EditErrorBoundary] caught:",
-      error.message,
-      info.componentStack ?? "",
-    );
+    void improntaLog("edit_chrome_edit_error_boundary.error", {
+      message: "[EditErrorBoundary] caught:",
+      error: error.message,
+      detail: info.componentStack ?? "",
+    });
   }
 
   reset = () => {

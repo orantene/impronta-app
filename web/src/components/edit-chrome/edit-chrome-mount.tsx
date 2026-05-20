@@ -22,6 +22,7 @@
  * short-circuits on non-storefront and hostless/anonymous requests.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { headers } from "next/headers";
 import { requireStaff } from "@/lib/server/action-guards";
 import { getPublicHostContext } from "@/lib/saas/scope";
@@ -100,14 +101,14 @@ export async function EditChromeMount() {
         rawPathname.includes("edit=1") ||
         reqHeaders.get("referer")?.includes("edit=1");
       if (editIntent) {
-        console.warn(
-          `[edit-mode] EditChromeMount: staff check failed on tenant host ` +
+        void improntaLog("edit_chrome_mount.warn", {
+          message: `[edit-mode] EditChromeMount: staff check failed on tenant host ` +
             `${ctx.kind} (tenantId=${ctx.tenantId}) with ?edit=1 intent. ` +
             `Likely cause: no staff session on this host. In dev: the admin ` +
             `session is on localhost; this storefront is on a sibling domain. ` +
             `Sign in on the storefront host directly, or run admin from the ` +
             `same parent domain (e.g. tulala.lvh.me + impronta.lvh.me).`,
-        );
+        });
       }
     }
     return null;
@@ -175,10 +176,10 @@ export async function EditChromeMount() {
       );
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[edit-mode] loadTenantSiteLabelForEditChrome failed:",
-          err instanceof Error ? err.message : err,
-        );
+        void improntaLog("edit_chrome_mount.warn", {
+          message: "[edit-mode] loadTenantSiteLabelForEditChrome failed:",
+          detail: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }
@@ -193,17 +194,17 @@ export async function EditChromeMount() {
       if (res.ok) {
         initialComposition = res.data;
       } else {
-        console.warn(
-          `[edit-mode] prefetch composition failed: ${res.error}`,
-        );
+        void improntaLog("edit_chrome_mount.warn", {
+          message: `[edit-mode] prefetch composition failed: ${res.error}`,
+        });
       }
     } catch (err) {
       // Never let a prefetch failure break the editor — fall through to
       // the legacy client-side load path. Logged for diagnostics only.
-      console.warn(
-        "[edit-mode] prefetch composition threw:",
-        err instanceof Error ? err.message : err,
-      );
+      void improntaLog("edit_chrome_mount.warn", {
+        message: "[edit-mode] prefetch composition threw:",
+        detail: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

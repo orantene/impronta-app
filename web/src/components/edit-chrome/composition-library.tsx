@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /**
  * CompositionLibraryOverlay — section picker for the in-place editor.
@@ -857,7 +858,10 @@ export function CompositionLibraryOverlay() {
       }
       closeLibrary();
     } catch (err) {
-      console.warn("[composition-library] insertSection failed", err);
+      void improntaLog("edit_chrome_composition_library.warn", {
+        message: "[composition-library] insertSection failed",
+        error: String(err),
+      });
       setError("Couldn't add the section. Refresh the draft and try again.");
     } finally {
       setBusyTypeKey(null);
@@ -889,7 +893,10 @@ export function CompositionLibraryOverlay() {
       setReviewStarter(null);
       closeLibrary();
     } catch (err) {
-      console.warn("[composition-library] insertSection failed", err);
+      void improntaLog("edit_chrome_composition_library.warn", {
+        message: "[composition-library] insertSection failed",
+        error: String(err),
+      });
       setError("Couldn't add the section template. Refresh the draft and try again.");
     } finally {
       setBusyTypeKey(null);
@@ -962,17 +969,19 @@ export function CompositionLibraryOverlay() {
             const undoRes = await removeSection(sectionId);
             if (!undoRes.ok) {
               rollbackFailed = true;
-              console.warn(
-                "[composition-library] kit rollback: removeSection failed",
-                { sectionId, error: undoRes.error },
-              );
+              void improntaLog("edit_chrome_composition_library.warn", {
+                message: "[composition-library] kit rollback: removeSection failed",
+                sectionId,
+                error: undoRes.error,
+              });
             }
           } catch (err) {
             rollbackFailed = true;
-            console.warn(
-              "[composition-library] kit rollback: removeSection threw",
-              { sectionId, err },
-            );
+            void improntaLog("edit_chrome_composition_library.warn", {
+              message: "[composition-library] kit rollback: removeSection threw",
+              sectionId,
+              error: String(err),
+            });
           }
         }
         if (rollbackFailed) {
