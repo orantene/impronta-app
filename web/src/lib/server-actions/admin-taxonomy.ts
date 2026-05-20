@@ -59,6 +59,7 @@ import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { logEngineAudit } from "./engine-audit";
 
 // ─── Engine telemetry — in-process counters (process-scoped, not durable) ────
 // These reset on every cold start / process restart. Use only for ops debug
@@ -612,7 +613,7 @@ export async function setTaxonomyEnabled(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
 
   const parsed = setEnabledSchema.safeParse(input);
   if (!parsed.success) {
@@ -621,6 +622,15 @@ export async function setTaxonomyEnabled(input: {
       error: parsed.error.issues[0]?.message ?? "Invalid request.",
     };
   }
+
+  // Phase 7a audit — capture before-state for the audit log. Best-effort:
+  // a missing row means "default" (null beforeValue), not an error.
+  const { data: beforeRow } = await supabase
+    .from("agency_taxonomy_settings")
+    .select("is_enabled")
+    .eq("tenant_id", tenantId)
+    .eq("taxonomy_term_id", parsed.data.taxonomy_term_id)
+    .maybeSingle();
 
   // Upsert a settings row. The PK is (tenant_id, taxonomy_term_id) per
   // 20260801... migration — relying on that for ON CONFLICT.
@@ -637,6 +647,20 @@ export async function setTaxonomyEnabled(input: {
     logServerError("setTaxonomyEnabled", error);
     return { ok: false, error: CLIENT_ERROR.generic };
   }
+
+  // Phase 7a — fire-and-forget audit. Helper swallows its own errors.
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user.id,
+    actorRole: "agency_admin",
+    surface: "taxonomy",
+    subjectKind: "category",
+    subjectId: parsed.data.taxonomy_term_id,
+    subjectKey: null,
+    operation: parsed.data.is_enabled ? "enable" : "disable",
+    beforeValue: beforeRow ? { is_enabled: beforeRow.is_enabled } : null,
+    afterValue: { is_enabled: parsed.data.is_enabled },
+  });
 
   revalidatePath("/[tenantSlug]/admin/settings", "layout");
   revalidatePath("/[tenantSlug]/admin/roster", "layout");
@@ -663,7 +687,7 @@ export async function setTaxonomyFlags(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
 
   const parsed = setFlagsSchema.safeParse(input);
   if (!parsed.success) {
@@ -674,6 +698,17 @@ export async function setTaxonomyFlags(
   }
   const { taxonomy_term_id, ...flags } = parsed.data;
 
+  // Phase 7a audit — capture before-state. Missing row → null beforeValue
+  // (i.e. all defaults). Same columns as the upsert below for symmetry.
+  const { data: beforeRow } = await supabase
+    .from("agency_taxonomy_settings")
+    .select(
+      "is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, helper_text",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("taxonomy_term_id", taxonomy_term_id)
+    .maybeSingle();
+
   const { error } = await supabase.from("agency_taxonomy_settings").upsert(
     { tenant_id: tenantId, taxonomy_term_id, ...flags },
     { onConflict: "tenant_id,taxonomy_term_id" },
@@ -683,6 +718,19 @@ export async function setTaxonomyFlags(
     logServerError("setTaxonomyFlags", error);
     return { ok: false, error: CLIENT_ERROR.generic };
   }
+
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user.id,
+    actorRole: "agency_admin",
+    surface: "taxonomy",
+    subjectKind: "category",
+    subjectId: taxonomy_term_id,
+    subjectKey: null,
+    operation: "set",
+    beforeValue: beforeRow ?? null,
+    afterValue: flags,
+  });
 
   revalidatePath("/[tenantSlug]/admin/settings", "layout");
   revalidatePath("/[tenantSlug]/admin/roster", "layout");
@@ -706,7 +754,7 @@ export async function addCustomSubType(input: {
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
 
   const parsed = addCustomSchema.safeParse(input);
   if (!parsed.success) {
@@ -751,6 +799,29 @@ export async function addCustomSubType(input: {
     };
   }
 
+  // Phase 7a — audit the create. beforeValue is null (new row);
+  // afterValue captures what was inserted.
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user.id,
+    actorRole: "agency_admin",
+    surface: "taxonomy",
+    subjectKind: "category",
+    subjectId: data.id,
+    subjectKey: slug,
+    operation: "set",
+    beforeValue: null,
+    afterValue: {
+      term_type: "talent_type",
+      parent_term_id: v.parent_id,
+      slug,
+      name_en: v.name_en,
+      name_es: v.name_es ?? null,
+      description: v.helper_text ?? null,
+      is_active: true,
+    },
+  });
+
   revalidatePath("/[tenantSlug]/admin/settings", "layout");
   return { ok: true, id: data.id };
 }
@@ -764,7 +835,7 @@ export async function removeCustomSubType(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
 
   const parsed = removeCustomSchema.safeParse(input);
   if (!parsed.success) {
@@ -773,6 +844,14 @@ export async function removeCustomSubType(input: {
       error: parsed.error.issues[0]?.message ?? "Invalid request.",
     };
   }
+
+  // Phase 7a audit — capture slug + before state for the history rail.
+  const { data: termRow } = await supabase
+    .from("agency_taxonomy_terms")
+    .select("slug, is_active")
+    .eq("id", parsed.data.id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
 
   // Soft archive (is_active = false) — preserves any talent_profile_taxonomy
   // rows referencing it for historical accuracy.
@@ -786,6 +865,19 @@ export async function removeCustomSubType(input: {
     logServerError("removeCustomSubType", error);
     return { ok: false, error: CLIENT_ERROR.generic };
   }
+
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user.id,
+    actorRole: "agency_admin",
+    surface: "taxonomy",
+    subjectKind: "category",
+    subjectId: parsed.data.id,
+    subjectKey: termRow?.slug ?? null,
+    operation: "disable",
+    beforeValue: termRow ? { is_active: termRow.is_active } : null,
+    afterValue: { is_active: false },
+  });
 
   revalidatePath("/[tenantSlug]/admin/settings", "layout");
   return { ok: true };
