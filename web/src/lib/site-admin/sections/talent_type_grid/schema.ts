@@ -78,6 +78,8 @@ export const talentTypeGridSchemaV1 = z.object({
   imageOverlayStrength: z
     .enum(["none", "soft", "medium", "strong"])
     .default("medium"),
+  cardTitleScale: z.enum(["compact", "balanced", "display"]).optional(),
+  cardCopyScale: z.enum(["compact", "comfortable"]).optional(),
 
   emptyStateText: z.string().max(240).optional(),
 

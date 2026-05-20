@@ -5,6 +5,11 @@ import {
   presentationInlineStyles,
 } from "../shared/presentation";
 import {
+  buildNodePresentationResponsiveCss,
+  type NodePresentationValue,
+} from "../shared/node-presentation";
+import { renderInlineRich } from "../shared/rich-text";
+import {
   Container,
   SectionHead,
   Cta,
@@ -41,6 +46,134 @@ function colsFor(layout: TalentTypeGridV1["desktopLayout"]): string {
 
 function safeDomId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 96);
+}
+
+function textAlignFor(
+  align?: "left" | "center" | "right",
+): CSSProperties["textAlign"] {
+  if (align === "left") return "left";
+  if (align === "right") return "right";
+  if (align === "center") return "center";
+  return undefined;
+}
+
+function textToneColor(
+  tone?: "default" | "muted" | "strong",
+): CSSProperties["color"] {
+  if (tone === "muted") return "var(--token-color-muted)";
+  if (tone === "strong") return "var(--tt-ivory, var(--foreground))";
+  return undefined;
+}
+
+function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+  if (size === "sm") return "0.66rem";
+  if (size === "lg") return "0.84rem";
+  if (size === "xl") return "0.92rem";
+  return undefined;
+}
+
+function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+  if (size === "sm") return "clamp(30px, 3.4vw, 50px)";
+  if (size === "md") return "clamp(36px, 4vw, 64px)";
+  if (size === "lg") return "clamp(42px, 4.5vw, 74px)";
+  if (size === "xl") return "clamp(48px, 5vw, 84px)";
+  return undefined;
+}
+
+function paragraphSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
+  if (size === "sm") return "0.95rem";
+  if (size === "lg") return "1.1rem";
+  if (size === "xl") return "1.2rem";
+  return undefined;
+}
+
+function visibilityDisplay(
+  visibility?: "visible" | "hidden",
+): CSSProperties["display"] {
+  if (visibility === "hidden") return "none";
+  return undefined;
+}
+
+function textNodeStyle(
+  node: NodePresentationValue | undefined,
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+): CSSProperties {
+  if (!node) return {};
+  const hasMarginSides =
+    typeof node.marginLeftPx === "number" ||
+    typeof node.marginRightPx === "number";
+  const hasPaddingSides =
+    typeof node.paddingLeftPx === "number" ||
+    typeof node.paddingRightPx === "number";
+  return {
+    textAlign: textAlignFor(node.align),
+    maxWidth: node.maxWidthPx ? `${node.maxWidthPx}px` : undefined,
+    marginTop:
+      typeof node.marginTopPx === "number" ? `${node.marginTopPx}px` : undefined,
+    marginBottom:
+      typeof node.marginBottomPx === "number"
+        ? `${node.marginBottomPx}px`
+        : undefined,
+    marginInline:
+      !hasMarginSides && typeof node.marginInlinePx === "number"
+        ? `${node.marginInlinePx}px`
+        : undefined,
+    marginLeft:
+      typeof node.marginLeftPx === "number" ? `${node.marginLeftPx}px` : undefined,
+    marginRight:
+      typeof node.marginRightPx === "number" ? `${node.marginRightPx}px` : undefined,
+    paddingTop:
+      typeof node.paddingTopPx === "number" ? `${node.paddingTopPx}px` : undefined,
+    paddingBottom:
+      typeof node.paddingBottomPx === "number"
+        ? `${node.paddingBottomPx}px`
+        : undefined,
+    paddingInline:
+      !hasPaddingSides && typeof node.paddingInlinePx === "number"
+        ? `${node.paddingInlinePx}px`
+        : undefined,
+    paddingLeft:
+      typeof node.paddingLeftPx === "number"
+        ? `${node.paddingLeftPx}px`
+        : undefined,
+    paddingRight:
+      typeof node.paddingRightPx === "number"
+        ? `${node.paddingRightPx}px`
+        : undefined,
+    fontSize: sizeMapper(node.size),
+    color: textToneColor(node.tone),
+    display:
+      node.visibility === "visible"
+        ? "revert"
+        : visibilityDisplay(node.visibility),
+  };
+}
+
+function toCssDecls(style: CSSProperties): string[] {
+  const decls: string[] = [];
+  if (style.textAlign) decls.push(`text-align:${style.textAlign}`);
+  if (style.maxWidth) decls.push(`max-width:${style.maxWidth}`);
+  if (style.marginTop) decls.push(`margin-top:${style.marginTop}`);
+  if (style.marginBottom) decls.push(`margin-bottom:${style.marginBottom}`);
+  if (style.marginInline) decls.push(`margin-inline:${style.marginInline}`);
+  if (style.marginLeft) decls.push(`margin-left:${style.marginLeft}`);
+  if (style.marginRight) decls.push(`margin-right:${style.marginRight}`);
+  if (style.paddingTop) decls.push(`padding-top:${style.paddingTop}`);
+  if (style.paddingBottom) decls.push(`padding-bottom:${style.paddingBottom}`);
+  if (style.paddingInline) decls.push(`padding-inline:${style.paddingInline}`);
+  if (style.paddingLeft) decls.push(`padding-left:${style.paddingLeft}`);
+  if (style.paddingRight) decls.push(`padding-right:${style.paddingRight}`);
+  if (style.fontSize) decls.push(`font-size:${style.fontSize}`);
+  if (style.color) decls.push(`color:${style.color}`);
+  if (style.display) decls.push(`display:${style.display}`);
+  return decls;
+}
+
+function textNodeDecls(
+  node: NodePresentationValue | undefined,
+  sizeMapper: (size?: "sm" | "md" | "lg" | "xl") => CSSProperties["fontSize"],
+): string[] {
+  return toCssDecls(textNodeStyle(node, sizeMapper));
 }
 
 function renderCardIcon(icon?: string) {
@@ -175,6 +308,7 @@ export async function TalentTypeGridComponent({
   locale,
   sectionId,
   publicPathPrefix = "",
+  builderNodeBindings,
 }: SectionComponentProps<TalentTypeGridV1>) {
   const {
     eyebrow,
@@ -200,7 +334,10 @@ export async function TalentTypeGridComponent({
     showRailControls,
     overlayOpacity,
     imageOverlayStrength,
+    cardTitleScale,
+    cardCopyScale,
     emptyStateText,
+    nodePresentation,
     presentation,
   } = props;
 
@@ -265,6 +402,44 @@ export async function TalentTypeGridComponent({
     showCardIcons ?? desktopLayout === "featured-pod-rail";
   const shouldShowRailControls =
     isRailLayout && showRailControls !== false && cards.length > 2;
+  const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
+  const textNodes = nodePresentation ?? {};
+  const headAlign =
+    textNodes.subheadline?.align ??
+    textNodes.headline?.align ??
+    textNodes.copy?.align;
+  const responsiveCss = buildNodePresentationResponsiveCss({
+    sectionId,
+    rules: [
+      {
+        selector: ".site-tt-grid__head .site-eyebrow",
+        tablet: textNodeDecls(
+          textNodes.subheadline?.breakpoints?.tablet,
+          eyebrowSize,
+        ),
+        mobile: textNodeDecls(
+          textNodes.subheadline?.breakpoints?.mobile,
+          eyebrowSize,
+        ),
+      },
+      {
+        selector: ".site-tt-grid__head .site-prim-head__headline",
+        tablet: textNodeDecls(
+          textNodes.headline?.breakpoints?.tablet,
+          headingSize,
+        ),
+        mobile: textNodeDecls(
+          textNodes.headline?.breakpoints?.mobile,
+          headingSize,
+        ),
+      },
+      {
+        selector: ".site-tt-grid__head .site-prim-head__intro",
+        tablet: textNodeDecls(textNodes.copy?.breakpoints?.tablet, paragraphSize),
+        mobile: textNodeDecls(textNodes.copy?.breakpoints?.mobile, paragraphSize),
+      },
+    ],
+  });
 
   const gridStyle: CSSProperties = {
     display: "grid",
@@ -284,16 +459,27 @@ export async function TalentTypeGridComponent({
       data-tt-images={shouldShowImages ? "on" : "off"}
       data-tt-icons={shouldShowIcons ? "on" : "off"}
       data-tt-overlay={imageOverlayStrength ?? "medium"}
+      data-tt-card-title-scale={cardTitleScale ?? "balanced"}
+      data-tt-card-copy-scale={cardCopyScale ?? "comfortable"}
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
+      {responsiveCss ? (
+        <style dangerouslySetInnerHTML={{ __html: responsiveCss }} />
+      ) : null}
       <Container width={isRailLayout ? "wide" : "standard"}>
         <div className="site-tt-grid__head">
           <SectionHead
-            eyebrow={eyebrow}
-            headline={headline}
-            intro={subheadline}
-            align="start"
+            eyebrow={eyebrow ? renderInlineRich(eyebrow) : undefined}
+            headline={headline ? renderInlineRich(headline) : undefined}
+            intro={subheadline ? renderInlineRich(subheadline) : undefined}
+            align={headAlign === "center" ? "center" : "start"}
+            eyebrowBuilderNodeId={nodeIdsByRole?.subheadline}
+            headlineBuilderNodeId={nodeIdsByRole?.headline}
+            introBuilderNodeId={nodeIdsByRole?.copy}
+            eyebrowStyle={textNodeStyle(textNodes.subheadline, eyebrowSize)}
+            headlineStyle={textNodeStyle(textNodes.headline, headingSize)}
+            introStyle={textNodeStyle(textNodes.copy, paragraphSize)}
           />
           {seeAllLabel && seeAllHref ? (
             <Cta

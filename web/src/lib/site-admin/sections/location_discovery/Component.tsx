@@ -1,5 +1,7 @@
 import { presentationDataAttrs } from "../shared/presentation";
+import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import { Container, SectionHead, Cta } from "../shared/section-primitives";
+import { renderInlineRich } from "../shared/rich-text";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
@@ -13,11 +15,39 @@ type Loc = {
   count?: number;
 };
 
+function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.68rem",
+    md: "0.75rem",
+    lg: "0.85rem",
+    xl: "0.95rem",
+  }[size];
+}
+
+function headingSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "clamp(2rem, 4vw, 3.8rem)",
+    md: "clamp(2.4rem, 5vw, 5rem)",
+    lg: "clamp(3rem, 6vw, 6.2rem)",
+    xl: "clamp(3.4rem, 7vw, 7.4rem)",
+  }[size];
+}
+
+function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.95rem",
+    md: "1.05rem",
+    lg: "1.18rem",
+    xl: "1.32rem",
+  }[size];
+}
+
 export async function LocationDiscoveryComponent({
   props,
   tenantId,
   locale,
   publicPathPrefix = "",
+  builderNodeBindings,
 }: SectionComponentProps<LocationDiscoveryV1>) {
   const {
     eyebrow,
@@ -31,8 +61,10 @@ export async function LocationDiscoveryComponent({
     ctaHref,
     layout,
     emptyStateText,
+    nodePresentation,
     presentation,
   } = props;
+  const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
   // 6C — single-source link resolution (handles LinkRef object or
   // legacy string; auth routes stay root, tenant pages prefix-aware).
@@ -76,9 +108,24 @@ export async function LocationDiscoveryComponent({
       <Container width="standard">
         <div className="site-locdisc__head">
           <SectionHead
-            eyebrow={eyebrow}
-            headline={headline}
-            intro={subheadline}
+            eyebrow={eyebrow ? renderInlineRich(eyebrow) : undefined}
+            headline={headline ? renderInlineRich(headline) : undefined}
+            intro={subheadline ? renderInlineRich(subheadline) : undefined}
+            eyebrowBuilderNodeId={nodeIdsByRole?.subheadline}
+            headlineBuilderNodeId={nodeIdsByRole?.headline}
+            introBuilderNodeId={nodeIdsByRole?.copy}
+            eyebrowStyle={nodePresentationInlineStyle(
+              nodePresentation?.subheadline,
+              eyebrowSize,
+            )}
+            headlineStyle={nodePresentationInlineStyle(
+              nodePresentation?.headline,
+              headingSize,
+            )}
+            introStyle={nodePresentationInlineStyle(
+              nodePresentation?.copy,
+              paragraphSize,
+            )}
           />
           {ctaLabel && ctaHref ? (
             <Cta href={resolve(ctaHref)} variant="text" size="sm">

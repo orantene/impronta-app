@@ -156,7 +156,7 @@ export const directorySchemaV1 = z.object({
 
   nodePresentation: z
     .object({
-      eyebrow: nodePresentationSchema,
+      subheadline: nodePresentationSchema,
       headline: nodePresentationSchema,
       copy: nodePresentationSchema,
     })

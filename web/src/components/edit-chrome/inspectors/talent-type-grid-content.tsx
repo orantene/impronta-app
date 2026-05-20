@@ -9,6 +9,9 @@
  * and a one-click v11 prototype preset.
  */
 
+import { useEffect, useMemo, useRef } from "react";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 import {
   InspectorGroup,
   KIT,
@@ -32,6 +35,9 @@ type MobileLayout = TalentTypeGridV1["mobileLayout"];
 type CardRatio = TalentTypeGridV1["cardRatio"];
 type TextPosition = TalentTypeGridV1["textPosition"];
 type OverlayStrength = TalentTypeGridV1["imageOverlayStrength"];
+type CardTitleScale = NonNullable<TalentTypeGridV1["cardTitleScale"]>;
+type CardCopyScale = NonNullable<TalentTypeGridV1["cardCopyScale"]>;
+type TalentTypeGridNodeRole = "subheadline" | "headline" | "copy";
 
 interface TalentTypeGridContentInspectorProps {
   draftProps: Record<string, unknown>;
@@ -64,12 +70,22 @@ function parseItems(value: unknown): TalentTypeGridItem[] {
   });
 }
 
+function talentTypeGridNodeRoleLabel(
+  role: TalentTypeGridNodeRole | null,
+): string | null {
+  if (role === "subheadline") return "Eyebrow";
+  if (role === "headline") return "Headline";
+  if (role === "copy") return "Subheading";
+  return null;
+}
+
 export function TalentTypeGridContentInspector({
   draftProps,
   tenantId,
-  selectedBuilderNodeId: _selectedBuilderNodeId,
+  selectedBuilderNodeId,
   onChange,
 }: TalentTypeGridContentInspectorProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const mode = (asString(draftProps.mode, "manual") as SourceMode) ?? "manual";
   const items = parseItems(draftProps.items);
   const selectedTermIds = Array.isArray(draftProps.selectedTermIds)
@@ -95,6 +111,41 @@ export function TalentTypeGridContentInspector({
     draftProps.imageOverlayStrength,
     "strong",
   ) as OverlayStrength;
+  const cardTitleScale = asString(
+    draftProps.cardTitleScale,
+    "balanced",
+  ) as CardTitleScale;
+  const cardCopyScale = asString(
+    draftProps.cardCopyScale,
+    "comfortable",
+  ) as CardCopyScale;
+  const focusRole = useMemo<TalentTypeGridNodeRole | null>(() => {
+    if (!selectedBuilderNodeId) return null;
+    const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+    if (role === "subheadline" || role === "headline" || role === "copy") {
+      return role;
+    }
+    return null;
+  }, [selectedBuilderNodeId]);
+  const focusLabel = useMemo(
+    () => talentTypeGridNodeRoleLabel(focusRole),
+    [focusRole],
+  );
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-talent-type-grid-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   function update(patch: Partial<TalentTypeGridV1>) {
     onChange({ ...draftProps, ...patch });
@@ -145,7 +196,12 @@ export function TalentTypeGridContentInspector({
   const showCta = draftProps.showCta === true;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={rootRef} className="flex flex-col gap-4">
+      {focusLabel ? (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+          Editing selected canvas node: {focusLabel}
+        </div>
+      ) : null}
       <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -164,31 +220,80 @@ export function TalentTypeGridContentInspector({
 
       <InspectorGroup title="Header" storageKey="talent_type_grid:header">
         <div className="grid grid-cols-1 gap-3">
-          <label className={KIT.field}>
+          <div
+            className={KIT.field}
+            data-talent-type-grid-node-role="subheadline"
+          >
             <span className={KIT.label}>Eyebrow</span>
-            <input
-              className={KIT.input}
+            <RichEditor
               value={asString(draftProps.eyebrow)}
-              onChange={(event) => update({ eyebrow: event.target.value })}
+              onChange={(next) => update({ eyebrow: next || undefined })}
+              variant="single"
+              tenantId={tenantId}
+              placeholder="Optional - e.g. The roster"
+              ariaLabel="Talent by discipline eyebrow"
             />
-          </label>
-          <label className={KIT.field}>
+          </div>
+          <div
+            className={KIT.field}
+            data-talent-type-grid-node-role="headline"
+          >
             <span className={KIT.label}>Headline</span>
-            <input
-              className={KIT.inputLg}
+            <RichEditor
               value={asString(draftProps.headline, "Talent, by discipline")}
-              onChange={(event) => update({ headline: event.target.value })}
+              onChange={(next) => update({ headline: next || undefined })}
+              variant="single"
+              tenantId={tenantId}
+              ariaLabel="Talent by discipline headline"
+              className={KIT.inputLg}
             />
-          </label>
-          <label className={KIT.field}>
+          </div>
+          <div className={KIT.field} data-talent-type-grid-node-role="copy">
             <span className={KIT.label}>Subheading</span>
-            <textarea
-              className={KIT.textarea}
-              rows={3}
+            <RichEditor
               value={asString(draftProps.subheadline)}
-              onChange={(event) => update({ subheadline: event.target.value })}
+              onChange={(next) => update({ subheadline: next || undefined })}
+              variant="multi"
+              tenantId={tenantId}
+              placeholder="Optional supporting line"
+              ariaLabel="Talent by discipline subheading"
+              className={`${KIT.textarea} min-h-[96px] whitespace-pre-wrap break-words`}
             />
-          </label>
+          </div>
+        </div>
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Typography"
+        info="Section text uses the Style tab for selected heading nodes. These controls tune the repeated card text."
+        storageKey="talent_type_grid:typography"
+      >
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className={KIT.field}>
+            <span className={KIT.label}>Card title scale</span>
+            <VisualChipGroup<CardTitleScale>
+              value={cardTitleScale}
+              onChange={(next) => update({ cardTitleScale: next })}
+              options={[
+                { value: "compact", label: "Compact", preview: null },
+                { value: "balanced", label: "Balanced", preview: null },
+                { value: "display", label: "Display", preview: null },
+              ]}
+              columns={3}
+            />
+          </div>
+          <div className={KIT.field}>
+            <span className={KIT.label}>Description scale</span>
+            <VisualChipGroup<CardCopyScale>
+              value={cardCopyScale}
+              onChange={(next) => update({ cardCopyScale: next })}
+              options={[
+                { value: "compact", label: "Compact", preview: null },
+                { value: "comfortable", label: "Comfort", preview: null },
+              ]}
+              columns={2}
+            />
+          </div>
         </div>
       </InspectorGroup>
 

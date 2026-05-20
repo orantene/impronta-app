@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
   BUILDER_NODE_COMPOSITION_PRESETS,
   BUILDER_NODE_REGISTRY,
@@ -200,18 +201,16 @@ export function BuilderNodeContentInspector({
             <div className="flex flex-col gap-3">
               <Field flush>
                 <FieldLabel>Text</FieldLabel>
-                <input
+                <BuilderNodeRichTextField
                   key={`${node.id}:text:${node.props.text}`}
-                  defaultValue={node.props.text}
+                  value={node.props.text}
+                  tenantId={tenantId}
+                  variant="single"
+                  ariaLabel="Heading text"
                   className={KIT.inputLg}
-                  onBlur={(event) => {
-                  void commitTextInput("text", node.props.text)(event.currentTarget.value);
-                }}
-                onKeyDown={handleCommitKey((value) => {
-                  void commitTextInput("text", node.props.text)(value);
-                })}
+                  onCommit={(next) => commitTextInput("text", node.props.text)(next)}
                 />
-                <Helper>Single heading line for this selected node.</Helper>
+                <Helper>Use selected text for bold, italic, accent, and links.</Helper>
               </Field>
               <Field flush>
                 <FieldLabel>Level</FieldLabel>
@@ -245,16 +244,16 @@ export function BuilderNodeContentInspector({
           <CardBody>
             <Field flush>
               <FieldLabel>Copy</FieldLabel>
-              <textarea
+              <BuilderNodeRichTextField
                 key={`${node.id}:text:${node.props.text}`}
-                defaultValue={node.props.text}
-                rows={6}
-                className={KIT.textarea}
-                onBlur={(event) => {
-                  void commitTextInput("text", node.props.text)(event.currentTarget.value);
-                }}
+                value={node.props.text}
+                tenantId={tenantId}
+                variant="multi"
+                ariaLabel="Paragraph copy"
+                className={`${KIT.textarea} min-h-[128px] whitespace-pre-wrap break-words`}
+                onCommit={(next) => commitTextInput("text", node.props.text)(next)}
               />
-              <Helper>Standalone paragraph block inside the selected layout node.</Helper>
+              <Helper>Standalone paragraph block with inline text formatting.</Helper>
             </Field>
           </CardBody>
         </Card>
@@ -1630,4 +1629,46 @@ function childSecondaryLabel(node: BuilderNode): string {
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 1).trimEnd()}…`;
+}
+
+function BuilderNodeRichTextField({
+  value,
+  tenantId,
+  variant,
+  ariaLabel,
+  className,
+  onCommit,
+}: {
+  value: string;
+  tenantId: string;
+  variant: "single" | "multi";
+  ariaLabel: string;
+  className: string;
+  onCommit: (next: string) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    const next = draft.trim();
+    if (!next || next === value) return;
+    const timer = window.setTimeout(() => {
+      void onCommit(draft);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [draft, onCommit, value]);
+
+  return (
+    <RichEditor
+      value={draft}
+      onChange={setDraft}
+      variant={variant}
+      tenantId={tenantId}
+      ariaLabel={ariaLabel}
+      className={className}
+    />
+  );
 }

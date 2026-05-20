@@ -1,4 +1,5 @@
 import { presentationDataAttrs } from "../shared/presentation";
+import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import {
   Container,
   SectionHead,
@@ -7,15 +8,44 @@ import {
   ChipList,
   StatLine,
 } from "../shared/section-primitives";
+import { renderInlineRich } from "../shared/rich-text";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { HeroSearchV1 } from "./schema";
 import { fetchTenantTalentCount } from "./fetch";
 
+function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.68rem",
+    md: "0.75rem",
+    lg: "0.85rem",
+    xl: "0.95rem",
+  }[size];
+}
+
+function headingSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "clamp(2.25rem, 5vw, 4.5rem)",
+    md: "clamp(2.8rem, 7vw, 6.4rem)",
+    lg: "clamp(3.3rem, 8.5vw, 7.8rem)",
+    xl: "clamp(3.8rem, 10vw, 9.5rem)",
+  }[size];
+}
+
+function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.95rem",
+    md: "1.08rem",
+    lg: "1.22rem",
+    xl: "1.38rem",
+  }[size];
+}
+
 export async function HeroSearchComponent({
   props,
   tenantId,
   publicPathPrefix = "",
+  builderNodeBindings,
 }: SectionComponentProps<HeroSearchV1>) {
   const {
     eyebrow,
@@ -31,8 +61,10 @@ export async function HeroSearchComponent({
     statItems,
     statCountLabel,
     layout,
+    nodePresentation,
     presentation,
   } = props;
+  const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
   // 6C — single-source link resolution (LinkRef object or legacy
   // string; auth routes stay root, tenant pages prefix-aware).
@@ -86,18 +118,36 @@ export async function HeroSearchComponent({
       <Container width="standard">
         <div className="site-hero-search__inner">
           <SectionHead
-            eyebrow={eyebrow}
+            eyebrow={eyebrow ? renderInlineRich(eyebrow) : undefined}
             headline={
               headline ? (
                 <>
-                  {headline}
+                  {renderInlineRich(headline)}
                   {highlight ? (
-                    <span className="site-hero-search__hl"> {highlight}</span>
+                    <span className="site-hero-search__hl">
+                      {" "}
+                      {renderInlineRich(highlight)}
+                    </span>
                   ) : null}
                 </>
               ) : undefined
             }
-            intro={subheadline}
+            intro={subheadline ? renderInlineRich(subheadline) : undefined}
+            eyebrowBuilderNodeId={nodeIdsByRole?.subheadline}
+            headlineBuilderNodeId={nodeIdsByRole?.headline}
+            introBuilderNodeId={nodeIdsByRole?.copy}
+            eyebrowStyle={nodePresentationInlineStyle(
+              nodePresentation?.subheadline,
+              eyebrowSize,
+            )}
+            headlineStyle={nodePresentationInlineStyle(
+              nodePresentation?.headline,
+              headingSize,
+            )}
+            introStyle={nodePresentationInlineStyle(
+              nodePresentation?.copy,
+              paragraphSize,
+            )}
           />
 
           {searchEnabled ? (
@@ -126,8 +176,9 @@ export async function HeroSearchComponent({
                   newTab={primaryLink.openInNew}
                   variant="primary"
                   size="lg"
+                  builderNodeId={nodeIdsByRole?.primaryCta}
                 >
-                  {primaryCta.label}
+                  {renderInlineRich(primaryCta.label)}
                 </Cta>
               ) : null}
               {secondaryCta && secondaryLink ? (
@@ -136,8 +187,9 @@ export async function HeroSearchComponent({
                   newTab={secondaryLink.openInNew}
                   variant="text"
                   size="lg"
+                  builderNodeId={nodeIdsByRole?.secondaryCta}
                 >
-                  {secondaryCta.label}
+                  {renderInlineRich(secondaryCta.label)}
                 </Cta>
               ) : null}
             </div>

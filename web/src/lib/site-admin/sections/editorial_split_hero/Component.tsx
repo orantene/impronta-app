@@ -1,13 +1,43 @@
 import { presentationDataAttrs } from "../shared/presentation";
+import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import { Container, Cta, MediaFrame } from "../shared/section-primitives";
+import { renderInlineRich } from "../shared/rich-text";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
+
+function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.68rem",
+    md: "0.75rem",
+    lg: "0.85rem",
+    xl: "0.95rem",
+  }[size];
+}
+
+function headingSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "clamp(2.2rem, 4.8vw, 4.8rem)",
+    md: "clamp(2.8rem, 6vw, 6.2rem)",
+    lg: "clamp(3.3rem, 7vw, 7.4rem)",
+    xl: "clamp(3.8rem, 8vw, 8.6rem)",
+  }[size];
+}
+
+function paragraphSize(size: "sm" | "md" | "lg" | "xl"): string {
+  return {
+    sm: "0.95rem",
+    md: "1.08rem",
+    lg: "1.22rem",
+    xl: "1.38rem",
+  }[size];
+}
 
 export function EditorialSplitHeroComponent({
   props,
   tenantId,
   publicPathPrefix = "",
+  builderNodeBindings,
 }: SectionComponentProps<EditorialSplitHeroV1>) {
   const {
     eyebrow,
@@ -28,8 +58,10 @@ export function EditorialSplitHeroComponent({
     overlayStrength,
     mediaSide,
     mobileOrder,
+    nodePresentation,
     presentation,
   } = props;
+  const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
   // 6C — resolve CTA LinkRefs through the single source of truth
   // (robust whether props arrive as a LinkRef object or legacy string).
@@ -57,17 +89,44 @@ export function EditorialSplitHeroComponent({
         <div className="site-esh__grid">
           <div className="site-esh__copy">
             {eyebrow ? (
-              <p className="site-esh__eyebrow">{eyebrow}</p>
+              <p
+                className="site-esh__eyebrow"
+                data-builder-node-id={nodeIdsByRole?.subheadline}
+                style={nodePresentationInlineStyle(
+                  nodePresentation?.subheadline,
+                  eyebrowSize,
+                )}
+              >
+                {renderInlineRich(eyebrow)}
+              </p>
             ) : null}
             {headline ? (
-              <h2 className="site-esh__headline">
-                {headline}
+              <h2
+                className="site-esh__headline"
+                data-builder-node-id={nodeIdsByRole?.headline}
+                style={nodePresentationInlineStyle(
+                  nodePresentation?.headline,
+                  headingSize,
+                )}
+              >
+                {renderInlineRich(headline)}
                 {highlight ? (
-                  <span className="site-esh__hl"> {highlight}</span>
+                  <span className="site-esh__hl"> {renderInlineRich(highlight)}</span>
                 ) : null}
               </h2>
             ) : null}
-            {body ? <p className="site-esh__body">{body}</p> : null}
+            {body ? (
+              <p
+                className="site-esh__body"
+                data-builder-node-id={nodeIdsByRole?.copy}
+                style={nodePresentationInlineStyle(
+                  nodePresentation?.copy,
+                  paragraphSize,
+                )}
+              >
+                {renderInlineRich(body)}
+              </p>
+            ) : null}
             {primaryCta || secondaryCta ? (
               <div className="site-esh__ctas">
                 {primaryCta ? (
@@ -76,8 +135,9 @@ export function EditorialSplitHeroComponent({
                     newTab={primaryLink?.openInNew}
                     variant="primary"
                     size="lg"
+                    builderNodeId={nodeIdsByRole?.primaryCta}
                   >
-                    {primaryCta.label}
+                    {renderInlineRich(primaryCta.label)}
                   </Cta>
                 ) : null}
                 {secondaryCta ? (
@@ -86,8 +146,9 @@ export function EditorialSplitHeroComponent({
                     newTab={secondaryLink?.openInNew}
                     variant="text"
                     size="lg"
+                    builderNodeId={nodeIdsByRole?.secondaryCta}
                   >
-                    {secondaryCta.label}
+                    {renderInlineRich(secondaryCta.label)}
                   </Cta>
                 ) : null}
               </div>

@@ -86,6 +86,60 @@ const CASES: ReadonlyArray<BindingCase> = [
     componentPath: "src/lib/site-admin/sections/featured_talent/Component.tsx",
   },
   {
+    sectionTypeKey: "talent_type_grid",
+    props: {
+      eyebrow: "The roster",
+      headline: "Talent, by discipline",
+      subheadline: "Browse the talent categories available for your brief.",
+    },
+    expectedRoles: ["subheadline", "headline", "copy"],
+    componentPath: "src/lib/site-admin/sections/talent_type_grid/Component.tsx",
+  },
+  {
+    sectionTypeKey: "directory",
+    props: {
+      eyebrow: "Roster",
+      headline: "Available talent",
+      copy: "Search the directory by role, location, or fit.",
+    },
+    expectedRoles: ["subheadline", "headline", "copy"],
+    componentPath: "src/lib/site-admin/sections/directory/Component.tsx",
+  },
+  {
+    sectionTypeKey: "editorial_split_hero",
+    props: {
+      eyebrow: "Discover",
+      headline: "Premium talent across destination cities",
+      body: "Lead with campaign imagery, then route visitors into inquiry.",
+      primaryCta: { label: "Explore talent", href: "/directory" },
+      secondaryCta: { label: "Start a brief", href: "/inquiry" },
+    },
+    expectedRoles: ["subheadline", "headline", "copy", "primaryCta", "secondaryCta"],
+    componentPath: "src/lib/site-admin/sections/editorial_split_hero/Component.tsx",
+  },
+  {
+    sectionTypeKey: "hero_search",
+    props: {
+      eyebrow: "Find talent",
+      headline: "Search by role, city, or brief",
+      subheadline: "Agency-managed discovery with no direct contact.",
+      primaryCta: { label: "Browse talent", href: "/directory" },
+      secondaryCta: { label: "Send a brief", href: "/inquiry" },
+    },
+    expectedRoles: ["subheadline", "headline", "copy", "primaryCta", "secondaryCta"],
+    componentPath: "src/lib/site-admin/sections/hero_search/Component.tsx",
+  },
+  {
+    sectionTypeKey: "location_discovery",
+    props: {
+      eyebrow: "Markets",
+      headline: "Local faces, international reach",
+      subheadline: "Source talent by destination and production city.",
+    },
+    expectedRoles: ["subheadline", "headline", "copy"],
+    componentPath: "src/lib/site-admin/sections/location_discovery/Component.tsx",
+  },
+  {
     sectionTypeKey: "category_grid",
     props: {
       eyebrow: "Services",

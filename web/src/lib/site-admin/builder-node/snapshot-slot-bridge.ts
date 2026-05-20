@@ -184,6 +184,242 @@ function featuredTalentChildNodes(
   return children;
 }
 
+function talentTypeGridChildNodes(
+  sectionNodeId: string,
+  rawProps: Record<string, unknown> | undefined,
+): BuilderNode[] {
+  if (!rawProps) return [];
+  const children: BuilderNode[] = [];
+  const eyebrow = typeof rawProps.eyebrow === "string" ? rawProps.eyebrow.trim() : "";
+  if (eyebrow) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:subheadline`,
+      kind: "paragraph",
+      props: { text: eyebrow },
+    });
+  }
+  const headline = typeof rawProps.headline === "string" ? rawProps.headline.trim() : "";
+  if (headline) {
+    children.push({
+      id: `${sectionNodeId}:heading:headline`,
+      kind: "heading",
+      props: { text: headline, level: 2 },
+    });
+  }
+  const subheadline =
+    typeof rawProps.subheadline === "string" ? rawProps.subheadline.trim() : "";
+  if (subheadline) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:copy`,
+      kind: "paragraph",
+      props: { text: subheadline },
+    });
+  }
+  return children;
+}
+
+function directoryChildNodes(
+  sectionNodeId: string,
+  rawProps: Record<string, unknown> | undefined,
+): BuilderNode[] {
+  if (!rawProps) return [];
+  const children: BuilderNode[] = [];
+  const eyebrow = typeof rawProps.eyebrow === "string" ? rawProps.eyebrow.trim() : "";
+  if (eyebrow) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:subheadline`,
+      kind: "paragraph",
+      props: { text: eyebrow },
+    });
+  }
+  const headline = typeof rawProps.headline === "string" ? rawProps.headline.trim() : "";
+  if (headline) {
+    children.push({
+      id: `${sectionNodeId}:heading:headline`,
+      kind: "heading",
+      props: { text: headline, level: 2 },
+    });
+  }
+  const copy = typeof rawProps.copy === "string" ? rawProps.copy.trim() : "";
+  if (copy) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:copy`,
+      kind: "paragraph",
+      props: { text: copy },
+    });
+  }
+  return children;
+}
+
+function editorialSplitHeroChildNodes(
+  sectionNodeId: string,
+  rawProps: Record<string, unknown> | undefined,
+): BuilderNode[] {
+  if (!rawProps) return [];
+  const children: BuilderNode[] = [];
+  const eyebrow = typeof rawProps.eyebrow === "string" ? rawProps.eyebrow.trim() : "";
+  if (eyebrow) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:subheadline`,
+      kind: "paragraph",
+      props: { text: eyebrow },
+    });
+  }
+  const headline = typeof rawProps.headline === "string" ? rawProps.headline.trim() : "";
+  if (headline) {
+    children.push({
+      id: `${sectionNodeId}:heading:headline`,
+      kind: "heading",
+      props: { text: headline, level: 1 },
+    });
+  }
+  const body = typeof rawProps.body === "string" ? rawProps.body.trim() : "";
+  if (body) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:copy`,
+      kind: "paragraph",
+      props: { text: body },
+    });
+  }
+  const primaryCta =
+    rawProps.primaryCta && typeof rawProps.primaryCta === "object"
+      ? (rawProps.primaryCta as Record<string, unknown>)
+      : null;
+  const primaryLabel =
+    primaryCta && typeof primaryCta.label === "string" ? primaryCta.label.trim() : "";
+  const primaryHref =
+    primaryCta && typeof primaryCta.href === "string" ? primaryCta.href.trim() : "";
+  if (primaryLabel && primaryHref) {
+    children.push({
+      id: `${sectionNodeId}:button:primaryCta`,
+      kind: "button",
+      props: { label: primaryLabel, href: primaryHref, tone: "primary" },
+    });
+  }
+  const secondaryCta =
+    rawProps.secondaryCta && typeof rawProps.secondaryCta === "object"
+      ? (rawProps.secondaryCta as Record<string, unknown>)
+      : null;
+  const secondaryLabel =
+    secondaryCta && typeof secondaryCta.label === "string"
+      ? secondaryCta.label.trim()
+      : "";
+  const secondaryHref =
+    secondaryCta && typeof secondaryCta.href === "string"
+      ? secondaryCta.href.trim()
+      : "";
+  if (secondaryLabel && secondaryHref) {
+    children.push({
+      id: `${sectionNodeId}:button:secondaryCta`,
+      kind: "button",
+      props: { label: secondaryLabel, href: secondaryHref, tone: "secondary" },
+    });
+  }
+  return children;
+}
+
+function heroSearchChildNodes(
+  sectionNodeId: string,
+  rawProps: Record<string, unknown> | undefined,
+): BuilderNode[] {
+  if (!rawProps) return [];
+  const children: BuilderNode[] = [];
+  const eyebrow = typeof rawProps.eyebrow === "string" ? rawProps.eyebrow.trim() : "";
+  if (eyebrow) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:subheadline`,
+      kind: "paragraph",
+      props: { text: eyebrow },
+    });
+  }
+  const headline = typeof rawProps.headline === "string" ? rawProps.headline.trim() : "";
+  if (headline) {
+    children.push({
+      id: `${sectionNodeId}:heading:headline`,
+      kind: "heading",
+      props: { text: headline, level: 1 },
+    });
+  }
+  const subheadline =
+    typeof rawProps.subheadline === "string" ? rawProps.subheadline.trim() : "";
+  if (subheadline) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:copy`,
+      kind: "paragraph",
+      props: { text: subheadline },
+    });
+  }
+  const primaryCta =
+    rawProps.primaryCta && typeof rawProps.primaryCta === "object"
+      ? (rawProps.primaryCta as Record<string, unknown>)
+      : null;
+  const primaryLabel =
+    primaryCta && typeof primaryCta.label === "string" ? primaryCta.label.trim() : "";
+  const primaryHref =
+    primaryCta && typeof primaryCta.href === "string" ? primaryCta.href.trim() : "";
+  if (primaryLabel && primaryHref) {
+    children.push({
+      id: `${sectionNodeId}:button:primaryCta`,
+      kind: "button",
+      props: { label: primaryLabel, href: primaryHref, tone: "primary" },
+    });
+  }
+  const secondaryCta =
+    rawProps.secondaryCta && typeof rawProps.secondaryCta === "object"
+      ? (rawProps.secondaryCta as Record<string, unknown>)
+      : null;
+  const secondaryLabel =
+    secondaryCta && typeof secondaryCta.label === "string"
+      ? secondaryCta.label.trim()
+      : "";
+  const secondaryHref =
+    secondaryCta && typeof secondaryCta.href === "string"
+      ? secondaryCta.href.trim()
+      : "";
+  if (secondaryLabel && secondaryHref) {
+    children.push({
+      id: `${sectionNodeId}:button:secondaryCta`,
+      kind: "button",
+      props: { label: secondaryLabel, href: secondaryHref, tone: "secondary" },
+    });
+  }
+  return children;
+}
+
+function locationDiscoveryChildNodes(
+  sectionNodeId: string,
+  rawProps: Record<string, unknown> | undefined,
+): BuilderNode[] {
+  if (!rawProps) return [];
+  const children: BuilderNode[] = [];
+  const eyebrow = typeof rawProps.eyebrow === "string" ? rawProps.eyebrow.trim() : "";
+  if (eyebrow) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:subheadline`,
+      kind: "paragraph",
+      props: { text: eyebrow },
+    });
+  }
+  const headline = typeof rawProps.headline === "string" ? rawProps.headline.trim() : "";
+  if (headline) {
+    children.push({
+      id: `${sectionNodeId}:heading:headline`,
+      kind: "heading",
+      props: { text: headline, level: 2 },
+    });
+  }
+  const subheadline =
+    typeof rawProps.subheadline === "string" ? rawProps.subheadline.trim() : "";
+  if (subheadline) {
+    children.push({
+      id: `${sectionNodeId}:paragraph:copy`,
+      kind: "paragraph",
+      props: { text: subheadline },
+    });
+  }
+  return children;
+}
+
 function categoryGridChildNodes(
   sectionNodeId: string,
   rawProps: Record<string, unknown> | undefined,
@@ -1456,6 +1692,21 @@ export function deriveLegacySectionChildNodes(
   }
   if (slot.sectionTypeKey === "featured_talent") {
     return featuredTalentChildNodes(sectionNodeId, slot.props);
+  }
+  if (slot.sectionTypeKey === "talent_type_grid") {
+    return talentTypeGridChildNodes(sectionNodeId, slot.props);
+  }
+  if (slot.sectionTypeKey === "directory") {
+    return directoryChildNodes(sectionNodeId, slot.props);
+  }
+  if (slot.sectionTypeKey === "editorial_split_hero") {
+    return editorialSplitHeroChildNodes(sectionNodeId, slot.props);
+  }
+  if (slot.sectionTypeKey === "hero_search") {
+    return heroSearchChildNodes(sectionNodeId, slot.props);
+  }
+  if (slot.sectionTypeKey === "location_discovery") {
+    return locationDiscoveryChildNodes(sectionNodeId, slot.props);
   }
   if (slot.sectionTypeKey === "category_grid") {
     return categoryGridChildNodes(sectionNodeId, slot.props);

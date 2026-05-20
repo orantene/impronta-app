@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CSSProperties } from "react";
 
 export const nodePresentationValueSchema = z.object({
   align: z.enum(["left", "center", "right"]).optional(),
@@ -33,6 +34,9 @@ export type NodePresentationValue = z.infer<typeof nodePresentationValueSchema>;
 export type NodePresentation = z.infer<typeof nodePresentationSchema>;
 
 export type NodePresentationBreakpoint = "tablet" | "mobile";
+export type NodePresentationSizeMapper = (
+  size: NonNullable<NodePresentationValue["size"]>,
+) => string | undefined;
 
 interface ResponsiveRule {
   selector: string;
@@ -87,4 +91,54 @@ export function buildNodePresentationResponsiveCss(
   const mobileBlock = blockFor(scope, input.rules, "mobile");
   const css = [tabletBlock, mobileBlock].filter(Boolean).join("");
   return css.length > 0 ? css : null;
+}
+
+function toneColor(tone: NodePresentationValue["tone"]): string | undefined {
+  if (tone === "muted") {
+    return "var(--token-color-muted, var(--impronta-muted, #8f877c))";
+  }
+  if (tone === "strong") {
+    return "var(--token-color-text, var(--impronta-ink, currentColor))";
+  }
+  return undefined;
+}
+
+export function nodePresentationInlineStyle(
+  value: NodePresentationValue | null | undefined,
+  sizeMapper?: NodePresentationSizeMapper,
+): CSSProperties | undefined {
+  if (!value) return undefined;
+  const style: CSSProperties = {};
+  if (value.align) style.textAlign = value.align;
+  if (value.maxWidthPx !== undefined) style.maxWidth = `${value.maxWidthPx}px`;
+  if (value.marginTopPx !== undefined) style.marginTop = `${value.marginTopPx}px`;
+  if (value.marginBottomPx !== undefined) {
+    style.marginBottom = `${value.marginBottomPx}px`;
+  }
+  if (value.marginInlinePx !== undefined) {
+    style.marginInline = `${value.marginInlinePx}px`;
+  }
+  if (value.marginLeftPx !== undefined) style.marginLeft = `${value.marginLeftPx}px`;
+  if (value.marginRightPx !== undefined) {
+    style.marginRight = `${value.marginRightPx}px`;
+  }
+  if (value.paddingTopPx !== undefined) style.paddingTop = `${value.paddingTopPx}px`;
+  if (value.paddingBottomPx !== undefined) {
+    style.paddingBottom = `${value.paddingBottomPx}px`;
+  }
+  if (value.paddingInlinePx !== undefined) {
+    style.paddingInline = `${value.paddingInlinePx}px`;
+  }
+  if (value.paddingLeftPx !== undefined) {
+    style.paddingLeft = `${value.paddingLeftPx}px`;
+  }
+  if (value.paddingRightPx !== undefined) {
+    style.paddingRight = `${value.paddingRightPx}px`;
+  }
+  const size = value.size && sizeMapper ? sizeMapper(value.size) : undefined;
+  if (size) style.fontSize = size;
+  const color = toneColor(value.tone);
+  if (color) style.color = color;
+  if (value.visibility === "hidden") style.display = "none";
+  return Object.keys(style).length > 0 ? style : undefined;
 }

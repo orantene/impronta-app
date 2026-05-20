@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
+import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
 
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { resolveBuilderNodeRole } from "./role-bindings";
@@ -803,7 +804,7 @@ function renderBuilderNode(
             ...alignSelfStyle(node.props.style),
           }}
         >
-          {node.props.text}
+          {renderInlineRich(node.props.text)}
         </Tag>
       );
     }
@@ -823,7 +824,7 @@ function renderBuilderNode(
             ...alignSelfStyle(node.props.style),
           }}
         >
-          {node.props.text}
+          {renderInlineRich(node.props.text)}
         </p>
       );
     case "button":

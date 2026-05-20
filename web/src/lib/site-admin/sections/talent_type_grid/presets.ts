@@ -81,6 +81,8 @@ export const v11TalentTypeGridPreset = {
   cardRatio: "16/9",
   textPosition: "overlay-bottom",
   imageOverlayStrength: "strong",
+  cardTitleScale: "balanced",
+  cardCopyScale: "comfortable",
   presentation: {
     background: "espresso",
     paddingTop: "editorial",

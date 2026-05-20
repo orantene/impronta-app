@@ -144,6 +144,9 @@ export interface SectionHeadProps {
   eyebrowBuilderNodeId?: string;
   headlineBuilderNodeId?: string;
   introBuilderNodeId?: string;
+  eyebrowStyle?: CSSProperties;
+  headlineStyle?: CSSProperties;
+  introStyle?: CSSProperties;
 }
 
 export function SectionHead({
@@ -155,6 +158,9 @@ export function SectionHead({
   eyebrowBuilderNodeId,
   headlineBuilderNodeId,
   introBuilderNodeId,
+  eyebrowStyle,
+  headlineStyle,
+  introStyle,
 }: SectionHeadProps) {
   if (!eyebrow && !headline && !intro) return null;
   return (
@@ -162,7 +168,11 @@ export function SectionHead({
       className={`site-prim-head${align === "center" ? " site-prim-head--center" : ""}${className ? ` ${className}` : ""}`}
     >
       {eyebrow ? (
-        <span className="site-eyebrow" data-builder-node-id={eyebrowBuilderNodeId}>
+        <span
+          className="site-eyebrow"
+          data-builder-node-id={eyebrowBuilderNodeId}
+          style={eyebrowStyle}
+        >
           {eyebrow}
         </span>
       ) : null}
@@ -170,12 +180,17 @@ export function SectionHead({
         <h2
           className="site-prim-head__headline"
           data-builder-node-id={headlineBuilderNodeId}
+          style={headlineStyle}
         >
           {headline}
         </h2>
       ) : null}
       {intro ? (
-        <p className="site-prim-head__intro" data-builder-node-id={introBuilderNodeId}>
+        <p
+          className="site-prim-head__intro"
+          data-builder-node-id={introBuilderNodeId}
+          style={introStyle}
+        >
           {intro}
         </p>
       ) : null}
