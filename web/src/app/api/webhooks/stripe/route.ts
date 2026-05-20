@@ -109,7 +109,6 @@ export async function POST(req: NextRequest) {
         const payout = event.data.object as import("stripe").Stripe.Payout;
         const stripeAccountId = (event.account as string | undefined) ?? null;
         if (process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
           void improntaLog("webhooks_stripe.info", {
             message: `[stripe.connect] ${event.type} acct=${stripeAccountId ?? "?"} payout=${payout.id} amount=${payout.amount} ${payout.currency}`,
           });
@@ -199,7 +198,6 @@ export async function POST(req: NextRequest) {
         // — entitlements stay where they are. Log for audit traceability.
         const invoice = event.data.object as import("stripe").Stripe.Invoice;
         if (process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
           void improntaLog("webhooks_stripe.info", {
             message: `[stripe.subscription] invoice paid customer=${typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "?"} amount=${invoice.amount_paid} ${invoice.currency}`,
           });

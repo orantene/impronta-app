@@ -2735,7 +2735,6 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
   const addFiles = async (files: FileList | File[]) => {
     const arr = Array.from(files).slice(0, 12 - items.length);
     if (arr.length === 0) return;
-    // eslint-disable-next-line no-console
     void improntaLog("admin_drawer_shared.info", {
       message: "[PhotoGalleryPro] addFiles",
       count: arr.length,
@@ -2772,7 +2771,6 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
         fd.append("file", file);
         const meta = albumId ? { albumId } : {};
         const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", meta);
-        // eslint-disable-next-line no-console
         void improntaLog("admin_drawer_shared.info", {
           message: "[PhotoGalleryPro] upload result",
           fileName: file.name,
@@ -2801,7 +2799,6 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
           onChange(next);
         }
         toast(`Upload failed: ${message}`);
-        // eslint-disable-next-line no-console
         logServerError("photogallerypro_upload", err);
       }
     }));

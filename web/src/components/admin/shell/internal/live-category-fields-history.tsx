@@ -102,7 +102,6 @@ export function LiveCategoryFieldsHistoryModal({
         else { setError(res.error); setRows([]); }
       } catch (err) {
         if (cancelled) return;
-        // eslint-disable-next-line no-console
         logServerError("livecategoryfieldshistorymodal", err);
         setError(err instanceof Error ? err.message : "Failed to load history.");
         setRows([]);

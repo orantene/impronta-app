@@ -200,7 +200,6 @@ export default async function WorkspaceRosterTalentPage({
       return await fn();
     } catch (err) {
       logServerError(`roster/[id].${label}`, err);
-      // eslint-disable-next-line no-console
       void improntaLog("admin_roster.error", {
         message: `[talent-detail] ${label} threw:`,
         detail: err instanceof Error ? err.message : String(err),

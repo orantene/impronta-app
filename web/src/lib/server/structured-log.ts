@@ -34,5 +34,6 @@ export async function improntaLog(
     ts: new Date().toISOString(),
     ...fields,
   };
+  // eslint-disable-next-line no-console
   console.info(JSON.stringify(payload));
 }

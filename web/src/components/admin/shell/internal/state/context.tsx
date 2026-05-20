@@ -538,7 +538,6 @@ function runWithViewTransition(work: () => void): void {
     if (ranFallback) return;
     ranFallback = true;
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
       void improntaLog("admin_context.warn", {
         message: "[admin-shell] view-transition failed, falling back",
         error: String(err),

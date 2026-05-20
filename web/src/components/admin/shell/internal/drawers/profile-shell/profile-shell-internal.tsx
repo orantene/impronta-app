@@ -3444,7 +3444,6 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
       }
       onChange(next);
     } catch (err) {
-      // eslint-disable-next-line no-console
       logServerError("fileseditor_upload", err);
       const next = [...filesRef.current];
       const idx2 = next.findIndex(f => f.id === id);
@@ -5319,7 +5318,6 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
         onChange(null);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
       logServerError("helloreeleditor_upload", err);
       toast("Reel upload failed");
       onChange(null);
@@ -6019,7 +6017,6 @@ export function NewTalentDrawer() {
           const upRes = await actionUploadAndAssignMedia(fd, result.talentProfileId, "card");
           if (!upRes.ok) toast(`Photo upload failed: ${upRes.error}`, { tone: "error" });
         } catch (err) {
-          // eslint-disable-next-line no-console
           logServerError("newtalentdrawer_photo_upload", err);
           toast("Photo upload failed — talent created without photo", { tone: "error" });
         }
@@ -6238,7 +6235,6 @@ export function NewTalentDrawer() {
                   return;
                 }
                 if (res.failed > 0) {
-                  // eslint-disable-next-line no-console
                   void improntaLog("admin_profile_shell_internal.warn", {
                     message: "[bulk-add talent] failures:",
                     res: JSON.stringify(res.errors),

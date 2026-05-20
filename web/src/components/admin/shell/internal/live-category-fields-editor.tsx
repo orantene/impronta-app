@@ -998,7 +998,6 @@ export function LiveCategoryFieldsEditor({
           setVisibilityByDefId(vm);
         } else {
           // Non-fatal: editor still works, just starts blank.
-          // eslint-disable-next-line no-console
           void improntaLog("admin_live_category_fields_editor.warn", {
             message: "[LiveCategoryFieldsEditor] getTalentFieldValues:",
             valuesRes: valuesRes.error,
@@ -1006,7 +1005,6 @@ export function LiveCategoryFieldsEditor({
         }
       } catch (err) {
         if (cancelled) return;
-        // eslint-disable-next-line no-console
         logServerError("livecategoryfieldseditor", err);
         setError(err instanceof Error ? err.message : "Failed to load.");
         setAllFields([]);

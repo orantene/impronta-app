@@ -76,7 +76,6 @@ export function mapStripeStatus(stripeStatus: string): AllowedStatus {
   if (stripeStatus === "canceled") return "cancelled";
   // "unpaid" = all retries failed; treat as past_due for downgrade logic.
   if (stripeStatus === "unpaid") return "past_due";
-  // eslint-disable-next-line no-console
   void improntaLog("stripe_utils.warn", {
     message: `[stripe] unknown subscription status "${stripeStatus}" — defaulting to 'incomplete'`,
   });

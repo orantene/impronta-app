@@ -360,6 +360,23 @@ const eslintConfig = defineConfig([
       "ratchet/no-untenanted-from": "error",
     },
   },
+  // Q3 — Structured logger enforcement.
+  // All console.* call sites have been migrated to improntaLog / logServerError
+  // (q3/structured-logger). This rule prevents regressions. The two logger
+  // modules themselves carry inline eslint-disable-next-line comments.
+  // Do NOT regenerate eslint-suppressions.json locally — the integrator handles
+  // it on the combined tree at landing.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/**/*.test.{ts,tsx}",
+      "src/**/*.spec.{ts,tsx}",
+      "src/**/__tests__/**",
+    ],
+    rules: {
+      "no-console": "error",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

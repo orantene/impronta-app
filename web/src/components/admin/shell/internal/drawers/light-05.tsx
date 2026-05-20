@@ -314,7 +314,6 @@ export function IdentityDrawer() {
       queueRouterRefresh();
       closeDrawer();
     } catch (err) {
-      // eslint-disable-next-line no-console
       logServerError("updateworkspaceaccount", err);
       toast("Couldn't save. Try again.");
     } finally {
@@ -446,7 +445,6 @@ export function WorkspaceSettingsDrawer() {
       queueRouterRefresh();
       closeDrawer();
     } catch (err) {
-      // eslint-disable-next-line no-console
       logServerError("updateworkspacefields", err);
       toast("Couldn't save. Try again.");
     } finally {

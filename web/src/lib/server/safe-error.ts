@@ -40,6 +40,7 @@ function formatUnknownError(err: unknown): { line: string; stack?: string } {
 
 export function logServerError(context: string, err: unknown): void {
   const { line, stack } = formatUnknownError(err);
+  // eslint-disable-next-line no-console
   console.error(`[${context}]`, line, stack ?? "");
   if (process.env.NODE_ENV === "production") {
     void improntaLog("server_error", {

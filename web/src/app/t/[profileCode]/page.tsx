@@ -649,7 +649,6 @@ async function fetchPublicFieldValues(
   // Verification diff (Gap 2) — server-side, no UI change. Of the fields
   // that WERE public under Phase 1.5: how many are now hidden by tenant
   // privacy vs. orphaned type-specific, and what remains visible.
-  // eslint-disable-next-line no-console
   void improntaLog("t.info", {
     message: `[public-resolver-gate] talent=${talentProfileId} ` +
       `governance=${governanceLoaded} prevPublic=${diag.prevPublic} ` +
