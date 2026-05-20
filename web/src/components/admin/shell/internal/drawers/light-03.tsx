@@ -46,6 +46,15 @@ export function TalentRegistrationDrawer() {
   const [languages, setLanguages] = useState<ProfileLanguage[]>([]);
   // Skill IDs from SKILL_CATALOG (separate from Talent Types).
   const [skillIds, setSkillIds] = useState<Set<string>>(new Set());
+  // Q5: hoisted above the `if (!open) return null` early return at ~L76 so
+  // these two hooks are no longer called conditionally (rules-of-hooks).
+  // The 2026 done-celebration screen — replaces the bare toast on submit.
+  // Shows briefly: a soft confetti animation + "Visible to N {tenant}
+  // clients" reveal + a 3-step "what's next" list. Auto-closes after
+  // 4 seconds OR on tap. Mocked agency/client count is randomized per
+  // mount so each demo feels organic.
+  const [celebrating, setCelebrating] = useState(false);
+  const [reachCount] = useState(() => Math.floor(Math.random() * 18) + 6);
 
   // Architecture loop closed — wizard now writes to the same draft
   // store as QuickAdd. So when admin runs Approval queue → opens shell,
@@ -204,13 +213,8 @@ export function TalentRegistrationDrawer() {
   const cur = steps[step]!;
   const isLast = step === steps.length - 1;
 
-  // 2026 done-celebration screen — replaces the bare toast on submit.
-  // Shows briefly: a soft confetti animation + "Visible to N {tenant}
-  // clients" reveal + a 3-step "what's next" list. Auto-closes after
-  // 4 seconds OR on tap. Mocked agency/client count is randomized per
-  // mount so each demo feels organic.
-  const [celebrating, setCelebrating] = useState(false);
-  const [reachCount] = useState(() => Math.floor(Math.random() * 18) + 6);
+  // Q5: celebrating + reachCount useStates hoisted above the early return
+  // (see top of component) so rules-of-hooks doesn't fire.
   const finish = () => {
     setCelebrating(true);
     // Auto-dismiss after 4s. Talent can also tap to dismiss earlier.
