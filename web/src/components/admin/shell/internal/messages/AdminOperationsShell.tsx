@@ -57,7 +57,7 @@ export function AdminOperationsShell() {
   // pill on the conv they're currently viewing.
   useEffect(() => {
     if (initialId) markConvSeen(initialId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: initialId is derived before first render and should only mark seen once; markConvSeen is a stable external fn
   }, []);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<AdminFilter>("needs-me");

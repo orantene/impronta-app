@@ -39,7 +39,7 @@ export function TalentJobShell() {
   useEffect(() => {
     if (initialId) markConvSeen(initialId);
     // run once on mount with the initial id
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: initialId is stable for the life of this shell; markConvSeen is a stable external fn
   }, []);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<TalentFilter>("all");

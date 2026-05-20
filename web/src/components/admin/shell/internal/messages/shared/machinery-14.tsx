@@ -79,7 +79,7 @@ export function SubmitRateSheet({
       setAmount(suggestedAmount);
       setNotes(myRow?.notes ?? "");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reset form when sheet opens for same or different conv; initialUnit/initialUnits/suggestedAmount/myRow are stable initial values for this open cycle
   }, [open, conv.id]);
 
   // Live take-home preview. Mirrors the math the talent shell uses

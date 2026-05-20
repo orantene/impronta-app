@@ -625,7 +625,7 @@ export function LineupTabPanel({ onOpen }: { onOpen: () => void }) {
     // — avoids a flash of empty body on the user's first click.
     const t = setTimeout(onOpen, 16);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: auto-open drawer once on first paint; onOpen is a stable prop that should not re-trigger this
   }, []);
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24, fontFamily: FONTS.body, fontSize: 12.5, textAlign: "center" }} className="text-admin-ink-muted">
