@@ -333,12 +333,7 @@ export function TalentJobRow({
             }}>NEW</span>
           )}
           {yourRate && yourRate !== "—" && (
-            <span style={{
-              flexShrink: 0,
-              fontSize: 12.5, fontWeight: 700, color: COLORS.ink,
-              fontVariantNumeric: "tabular-nums",
-              letterSpacing: -0.1,
-            }}>{yourRate}</span>
+            <span style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: -0.1 }} className="text-admin-ink">{yourRate}</span>
           )}
         </div>
 
@@ -347,11 +342,7 @@ export function TalentJobRow({
             talent reads where the inquiry came from without opening
             the conv. */}
         {subtitleParts.length > 0 && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4,
-            minWidth: 0,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, lineHeight: 1.4, minWidth: 0 }} className="text-admin-ink-muted">
             <span style={{
               minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
               whiteSpace: "nowrap", flex: 1,
@@ -391,21 +382,15 @@ export function TalentJobRow({
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>
               {senderPrefix && (
-                <span style={{ color: COLORS.inkMuted, fontWeight: 600 }}>{senderPrefix}</span>
+                <span style={{ fontWeight: 600 }} className="text-admin-ink-muted">{senderPrefix}</span>
               )}
               {conv.lastMessage.preview}
             </span>
-            <span style={{ flexShrink: 0, fontSize: 10.5, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ flexShrink: 0, fontSize: 10.5, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {ageLbl}
             </span>
             {conv.unreadCount > 0 && (
-              <span style={{
-                flexShrink: 0,
-                minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box",
-                background: COLORS.accent, color: "#fff",
-                fontSize: 9.5, fontWeight: 700,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-              }}>{conv.unreadCount}</span>
+              <span style={{ flexShrink: 0, minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box", color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }} className="bg-admin-accent">{conv.unreadCount}</span>
             )}
           </div>
         )}
@@ -507,9 +492,9 @@ export function TalentJobInbox({
         minWidth: 0, maxWidth: "100%",
       }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, margin: 0 }}>My jobs</h3>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{conversations.length}</span>
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">My jobs</h3>
+          <div className="inline-flex items-center gap-1.5">
+            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{conversations.length}</span>
             {onCollapse && (
               <button
                 type="button"
@@ -595,10 +580,10 @@ export function TalentJobInbox({
                 <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
               {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4, maxWidth: 240 }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
               {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All jobs</strong> filter or clear your search to see everything.</>}
             </div>
             {search.trim() && (

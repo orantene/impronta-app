@@ -153,12 +153,12 @@ export function TalentBookingTab({
               <path d="M2.5 6.5h11M5 2v3M11 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{
               fontSize: 13, fontWeight: 700,
               color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success),
             }}>{days.headline}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {days.subhead}
             </div>
           </div>
@@ -171,11 +171,11 @@ export function TalentBookingTab({
           relationship context next to the job they're looking at. */}
       <div data-booking-card style={cardStyle}>
         <div data-booking-section-title style={sectionTitle}>The job</div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.35 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }} className="text-admin-ink">
           {inquiry.title}
         </div>
         {inquiry.client.name && (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
             For {inquiry.client.name}
           </div>
         )}
@@ -187,10 +187,7 @@ export function TalentBookingTab({
           if (!sourceMeta) return null;
           return (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-                textTransform: "uppercase", color: COLORS.inkDim,
-              }}>Came in via</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-dim">Came in via</span>
               <span
                 aria-label={`Source: ${sourceMeta.label}`}
                 title={sourceMeta.tooltip}
@@ -220,30 +217,19 @@ export function TalentBookingTab({
                   : null;
                 if (!detail || detail.toLowerCase() === sourceMeta.label.toLowerCase()) return null;
                 return (
-                  <span style={{
-                    fontSize: 11, color: COLORS.inkMuted,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    minWidth: 0,
-                  }}>{detail}</span>
+                  <span style={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }} className="text-admin-ink-muted">{detail}</span>
                 );
               })()}
             </div>
           );
         })()}
         {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
-          <div style={{ fontSize: 12.5, color: COLORS.ink, marginTop: 8, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.55 }} className="text-admin-ink">
             {inquiry.brief.summary}
           </div>
         )}
         {inquiry.brief.notes && (
-          <div style={{
-            fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55,
-            marginTop: 8,
-            padding: "8px 10px",
-            background: COLORS.surfaceAlt,
-            borderRadius: 8,
-            border: `1px solid ${COLORS.borderSoft}`,
-          }}>
+          <div style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}` }} className="text-admin-ink-muted bg-admin-surface-alt">
             {inquiry.brief.notes}
           </div>
         )}
@@ -253,31 +239,17 @@ export function TalentBookingTab({
             Surfaces here as a quoted strip so the talent reads the
             agency's perspective right next to the job context. */}
         {pinned.coordinatorNote && (
-          <div style={{
-            marginTop: 10,
-            display: "flex", gap: 9,
-            padding: "10px 12px",
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.18)`,
-            borderRadius: 10,
-          }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 9, padding: "10px 12px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10 }} className="bg-admin-indigo-soft">
             <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: COLORS.indigoDeep }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M3 3h3v3H4l-1 2v-2H3V3zm5 0h3v3H9l-1 2v-2H8V3z" fill="currentColor"/>
               </svg>
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
-                textTransform: "uppercase", color: COLORS.indigoDeep,
-                marginBottom: 2,
-              }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-indigo-deep">
                 {coord ? `${coord.name.split(" ")[0]}'s read` : "Coordinator's read"}
               </div>
-              <div style={{
-                fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
-                fontStyle: "italic",
-              }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{pinned.coordinatorNote}&quot;
               </div>
             </div>
@@ -306,26 +278,19 @@ export function TalentBookingTab({
           <div style={{
             display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
           }}>
-            <span style={{
-              fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-              color: COLORS.ink, fontVariantNumeric: "tabular-nums",
-              letterSpacing: -0.4, lineHeight: 1,
-            }}>
+            <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: -0.4, lineHeight: 1 }} className="text-admin-ink">
               {fmtMoney(histRow.costRate * histRow.units, histCurrency)}
             </span>
-            <span style={{ fontSize: 12, color: COLORS.inkMuted, fontWeight: 500 }}>
+            <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
               {histRow.units} × {UNIT_TYPE_LABEL[histRow.unitType]}
             </span>
           </div>
           {histRow.notes && (
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 6, fontStyle: "italic", lineHeight: 1.4 }}>
+            <div style={{ fontSize: 11.5, marginTop: 6, fontStyle: "italic", lineHeight: 1.4 }} className="text-admin-ink-muted">
               &quot;{histRow.notes}&quot;
             </div>
           )}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            marginTop: 8, fontSize: 11, color: COLORS.inkMuted,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 11 }} className="text-admin-ink-muted">
             <span aria-hidden style={{ color: COLORS.success }}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                 <circle cx="6" cy="6" r="5" fill="currentColor" opacity="0.18"/>
@@ -347,20 +312,17 @@ export function TalentBookingTab({
       }}>
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>When</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
           {pinned.callTime && (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
-              Call time · <span style={{ color: COLORS.ink, fontWeight: 600 }}>{pinned.callTime}</span>
+            <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
+              Call time · <span style={{ fontWeight: 600 }} className="text-admin-ink">{pinned.callTime}</span>
             </div>
           )}
           {pinned.schedule && (
-            <div style={{
-              fontSize: 11.5, color: COLORS.inkMuted, marginTop: 6,
-              lineHeight: 1.5, whiteSpace: "pre-line",
-            }}>
+            <div style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.5, whiteSpace: "pre-line" }} className="text-admin-ink-muted">
               {pinned.schedule}
             </div>
           )}
@@ -377,7 +339,7 @@ export function TalentBookingTab({
               />
             </div>
           ) : (
-            <div style={{ padding: "0 14px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+            <div style={{ padding: "0 14px 12px", fontSize: 12 }} className="text-admin-ink-muted">
               Location TBC.
             </div>
           )}
@@ -393,11 +355,11 @@ export function TalentBookingTab({
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>Transport</div>
           {pinned.transport ? (
-            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
               {pinned.transport}
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
               Coordinator hasn&apos;t shared transport yet.
             </div>
           )}
@@ -405,11 +367,11 @@ export function TalentBookingTab({
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>Lodging</div>
           {hotel ? (
-            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
               {hotel}
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
               No hotel needed for this job.
             </div>
           )}
@@ -439,7 +401,7 @@ export function TalentBookingTab({
                 />
               ))}
               {soloCoord && inquiry.talent.length === 0 && (
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "8px 0" }}>
+                <div style={{ fontSize: 12, padding: "8px 0" }} className="text-admin-ink-muted">
                   No talent on this job yet.
                 </div>
               )}
@@ -493,21 +455,14 @@ export function TalentBookingTab({
                   <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
                   <PresenceDot name={coord.name} />
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700, color: COLORS.ink,
-                    display: "flex", alignItems: "center", gap: 6,
-                    minWidth: 0,
-                  }}>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }} className="text-admin-ink">
                     <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {coord.name}
                     </span>
                     <CoordRoleBadge role={coord.role} />
                   </div>
-                  <div style={{
-                    fontSize: 11, color: COLORS.inkMuted,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  }}>
+                  <div style={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
                     {coord.role === "owner" ? "Workspace owner" : "Your coordinator"}
                   </div>
                 </div>

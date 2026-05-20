@@ -115,12 +115,9 @@ export function ReassignCoordinatorSheet({
           padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "flex-start", gap: 10,
         }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{
-              margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700,
-              color: COLORS.ink, letterSpacing: -0.2,
-            }}>{mode === "add_secondary" ? "Add coordinator" : "Reassign coordinator"}</h2>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
+          <div className="flex-1 min-w-0">
+            <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{mode === "add_secondary" ? "Add coordinator" : "Reassign coordinator"}</h2>
+            <div style={{ fontSize: 11.5, marginTop: 3 }} className="text-admin-ink-muted">
               {mode === "add_secondary"
                 ? `Add a secondary coordinator alongside ${currentCoordName}.`
                 : `Move this project from ${currentCoordName} to a teammate.`}
@@ -135,17 +132,14 @@ export function ReassignCoordinatorSheet({
         </div>
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }} className="text-admin-ink-muted">
               Pick the new coordinator
             </div>
             {loadingCoords && (
-              <div style={{ padding: "10px 12px", fontSize: 12, color: COLORS.inkMuted }}>Loading workspace…</div>
+              <div style={{ padding: "10px 12px", fontSize: 12 }} className="text-admin-ink-muted">Loading workspace…</div>
             )}
             {!loadingCoords && coords != null && coords.length === 0 && (
-              <div style={{
-                padding: "10px 12px", fontSize: 12, color: COLORS.inkMuted,
-                background: COLORS.surfaceAlt, borderRadius: 8,
-              }}>
+              <div style={{ padding: "10px 12px", fontSize: 12, borderRadius: 8 }} className="text-admin-ink-muted bg-admin-surface-alt">
                 No other workspace members can take over this inquiry yet. Invite a teammate from Settings → Team.
               </div>
             )}
@@ -170,9 +164,9 @@ export function ReassignCoordinatorSheet({
                       textAlign: "left", fontFamily: FONTS.body,
                     }}>
                     <Avatar size={32} tone="auto" hashSeed={c.displayName} initials={initials} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{c.displayName}</div>
-                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{meta}</div>
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{c.displayName}</div>
+                      <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{meta}</div>
                     </div>
                     {isPicked && (
                       <span aria-hidden style={{
@@ -190,7 +184,7 @@ export function ReassignCoordinatorSheet({
           </div>
           {mode === "swap" && (
             <div>
-              <label style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
+              <label style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }} className="text-admin-ink-muted">
                 Handoff note (required)
               </label>
               <textarea
@@ -208,7 +202,7 @@ export function ReassignCoordinatorSheet({
               />
             </div>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.ink, cursor: "pointer" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }} className="text-admin-ink">
             <input
               type="checkbox"
               checked={notifyOutgoing}

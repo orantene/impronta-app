@@ -254,23 +254,11 @@ export function CollapsedInboxRail({
           <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
-      <div style={{
-        writingMode: "vertical-rl", transform: "rotate(180deg)",
-        fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkMuted,
-        letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700,
-        marginTop: 6,
-      }}>
+      <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: FONTS.body, fontSize: 10, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700, marginTop: 6 }} className="text-admin-ink-muted">
         {count} jobs
       </div>
       {unreadCount > 0 && (
-        <span style={{
-          marginTop: 2,
-          minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999,
-          background: COLORS.accent, color: "#fff",
-          fontSize: 9.5, fontWeight: 700,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontFamily: FONTS.body,
-        }}>{unreadCount}</span>
+        <span style={{ marginTop: 2, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.body }} className="bg-admin-accent">{unreadCount}</span>
       )}
     </aside>
   );

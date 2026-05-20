@@ -2,11 +2,10 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
-import { COLORS, FONTS, TRANSITION, RADIUS } from "../../state";
+import { COLORS, FONTS, TRANSITION } from "../../state";
 import { Icon } from "../../primitives";
 import { disabledBtn } from "./machinery-13";
 import type { ChatSubThreadId, TabDef, ThreadTabId } from "./machinery-8";
-
 
 export function ThreadTabBar({
   tabs, activeId, onSelect,
@@ -429,18 +428,7 @@ export function LockedTabOverlay({
         </div>
       )}
       {/* Foreground card */}
-      <div style={{
-        position: "relative",
-        maxWidth: 380, margin: "32px auto 0",
-        background: "rgba(255,255,255,0.95)",
-        backdropFilter: "blur(8px)",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.md,
-        padding: 24,
-        boxShadow: "0 12px 32px rgba(11,11,13,0.10)",
-        textAlign: "center",
-        fontFamily: FONTS.body,
-      }}>
+      <div style={{ position: "relative", maxWidth: 380, margin: "32px auto 0", background: "rgba(255,255,255,0.95)", backdropFilter: "blur(8px)", border: `1px solid ${COLORS.borderSoft}`, padding: 24, boxShadow: "0 12px 32px rgba(11,11,13,0.10)", textAlign: "center", fontFamily: FONTS.body }} className="rounded-admin-md">
         <div aria-hidden style={{
           width: 44, height: 44, borderRadius: "50%",
           background: COLORS.surfaceAlt, color: COLORS.inkMuted,
@@ -452,19 +440,14 @@ export function LockedTabOverlay({
             <path d="M7 9V6.5a3 3 0 016 0V9" stroke="currentColor" strokeWidth="1.5"/>
           </svg>
         </div>
-        <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">
           {title}
         </div>
-        <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {subtitle}
         </div>
         {pending ? (
-          <div style={{
-            marginTop: 16, padding: "10px 14px",
-            background: COLORS.successSoft, color: COLORS.success,
-            borderRadius: 8, fontSize: 12.5, fontWeight: 600,
-            display: "inline-flex", alignItems: "center", gap: 6,
-          }}>
+          <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }} className="bg-admin-success-soft text-admin-success">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
             Request sent — coordinator will review
           </div>

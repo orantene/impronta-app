@@ -128,11 +128,11 @@ export function ClientProjectViewTab({
               <path d="M8 4.5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.coral }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-coral">
               Needs your decision
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
               {action.label}
             </div>
           </div>
@@ -180,11 +180,11 @@ export function ClientProjectViewTab({
               <path d="M2.5 6.5h11M5 2v3M11 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 700, color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success) }}>
               {days.headline}
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {days.subhead}
             </div>
           </div>
@@ -195,10 +195,10 @@ export function ClientProjectViewTab({
           what they commissioned, who's doing it, what stage it's at. */}
       <div data-booking-card style={cardStyle}>
         <div data-booking-section-title style={sectionTitle}>The project</div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.35 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }} className="text-admin-ink">
           {inquiry.title}
         </div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+        <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
           With {conv.agency} · {conv.leader.name} coordinating
         </div>
         {(() => {
@@ -206,10 +206,7 @@ export function ClientProjectViewTab({
           if (!sourceMeta) return null;
           return (
             <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-                textTransform: "uppercase", color: COLORS.inkDim,
-              }}>You sent this via</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-dim">You sent this via</span>
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "3px 9px", borderRadius: 999,
@@ -223,7 +220,7 @@ export function ClientProjectViewTab({
           );
         })()}
         {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
-          <div style={{ fontSize: 12.5, color: COLORS.ink, marginTop: 8, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.55 }} className="text-admin-ink">
             {inquiry.brief.summary}
           </div>
         )}
@@ -234,31 +231,17 @@ export function ClientProjectViewTab({
             coordinatorNote source so a coord writes once and both
             audiences see it (with appropriate framing). */}
         {conv.pinned?.coordinatorNote && coord && (
-          <div style={{
-            marginTop: 10,
-            display: "flex", gap: 9,
-            padding: "10px 12px",
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.18)`,
-            borderRadius: 10,
-          }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 9, padding: "10px 12px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10 }} className="bg-admin-indigo-soft">
             <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: COLORS.indigoDeep }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M3 3h3v3H4l-1 2v-2H3V3zm5 0h3v3H9l-1 2v-2H8V3z" fill="currentColor"/>
               </svg>
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
-                textTransform: "uppercase", color: COLORS.indigoDeep,
-                marginBottom: 2,
-              }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-indigo-deep">
                 {coord.name.split(" ")[0]}&apos;s note for you
               </div>
-              <div style={{
-                fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
-                fontStyle: "italic",
-              }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{conv.pinned.coordinatorNote}&quot;
               </div>
             </div>
@@ -271,13 +254,13 @@ export function ClientProjectViewTab({
       <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>When</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
           {pinned.callTime && (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
-              Call · <span style={{ color: COLORS.ink, fontWeight: 600 }}>{pinned.callTime}</span>
+            <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
+              Call · <span style={{ fontWeight: 600 }} className="text-admin-ink">{pinned.callTime}</span>
             </div>
           )}
         </div>
@@ -293,7 +276,7 @@ export function ClientProjectViewTab({
               />
             </div>
           ) : (
-            <div style={{ padding: "0 14px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+            <div style={{ padding: "0 14px 12px", fontSize: 12 }} className="text-admin-ink-muted">
               Location TBC.
             </div>
           )}
@@ -358,21 +341,14 @@ export function ClientProjectViewTab({
                   <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
                   <PresenceDot name={coord.name} />
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 13, fontWeight: 700, color: COLORS.ink,
-                    display: "flex", alignItems: "center", gap: 6,
-                    minWidth: 0,
-                  }}>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }} className="text-admin-ink">
                     <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {coord.name}
                     </span>
                     <CoordRoleBadge role={(coord as { role?: string }).role} />
                   </div>
-                  <div style={{
-                    fontSize: 11, color: COLORS.inkMuted,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  }}>
+                  <div style={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
                     {(coord as { role?: string }).role === "owner"
                       ? `Workspace owner · ${conv.agency}`
                       : `Coordinator · ${conv.agency}`}
@@ -432,7 +408,7 @@ export function ClientProjectViewTab({
           <div data-booking-card style={cardStyle}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
               <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
-              <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+              <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
                 {clientFiles.length} file{clientFiles.length === 1 ? "" : "s"}
               </span>
             </div>
@@ -459,12 +435,9 @@ export function ClientProjectViewTab({
                       <path d="M7 1v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
                     </svg>
                   </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: 12, fontWeight: 600, color: COLORS.ink,
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{f.name}</div>
-                    <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{f.name}</div>
+                    <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
                       {f.size} · added by {f.addedBy} · {f.addedAt}
                     </div>
                   </div>

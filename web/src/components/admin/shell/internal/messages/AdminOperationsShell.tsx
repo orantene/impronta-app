@@ -402,7 +402,7 @@ export function AdminInquiryRow({
             }}>NEW</span>
           )}
           {isFixtureInquiryId(inquiry.id) && <DemoBadge />}
-          <span style={{ flexShrink: 0, fontSize: 10.5, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ flexShrink: 0, fontSize: 10.5, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
             {ageLabel(inquiry.lastActivityHrs)}
           </span>
         </div>
@@ -412,11 +412,7 @@ export function AdminInquiryRow({
             INLINE in this row (rather than the old separate ops-meta
             row) so the row is no taller than the client's. */}
         {(subtitleParts.length > 0 || sourceMeta || lineupTotal > 0) && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4,
-            minWidth: 0,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, lineHeight: 1.4, minWidth: 0 }} className="text-admin-ink-muted">
             <span style={{
               minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
               whiteSpace: "nowrap", flex: 1,
@@ -483,13 +479,7 @@ export function AdminInquiryRow({
             {statusLine}
           </span>
           {totalUnread > 0 && (
-            <span style={{
-              flexShrink: 0,
-              minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box",
-              background: COLORS.accent, color: "#fff",
-              fontSize: 9.5, fontWeight: 700,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-            }}>{totalUnread}</span>
+            <span style={{ flexShrink: 0, minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box", color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }} className="bg-admin-accent">{totalUnread}</span>
           )}
         </div>
 

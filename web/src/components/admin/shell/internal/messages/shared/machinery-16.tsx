@@ -27,19 +27,12 @@ export function CrossThreadBridge({ who, clientName, stage }: { who: string; cli
     return `${who} is in conversation with ${clientName}.`;
   })();
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 8,
-      padding: "7px 11px",
-      background: "rgba(11,11,13,0.025)",
-      border: `1px dashed ${COLORS.borderSoft}`,
-      borderRadius: 8, fontFamily: FONTS.body,
-      fontSize: 11.25, color: COLORS.inkMuted, lineHeight: 1.45,
-    }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 11px", background: "rgba(11,11,13,0.025)", border: `1px dashed ${COLORS.borderSoft}`, borderRadius: 8, fontFamily: FONTS.body, fontSize: 11.25, lineHeight: 1.45 }} className="text-admin-ink-muted">
       <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0, opacity: 0.6 }}>
         <path d="M3 4h6M3 7h4M3 10h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
         <circle cx="11" cy="3" r="1" fill="currentColor"/>
       </svg>
-      <span><strong style={{ color: COLORS.ink, fontWeight: 600 }}>Client side</strong> · {summary}</span>
+      <span><strong style={{ fontWeight: 600 }} className="text-admin-ink">Client side</strong> · {summary}</span>
     </div>
   );
 }
@@ -128,8 +121,8 @@ export function ConversationTab({
         padding: "10px 14px 0",
         background: "#fff",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1 min-w-0">
             <TeamStrip
               lineup={inquiryForLineup.talent}
               canEdit={povCanEditLineup}
@@ -160,7 +153,7 @@ export function ConversationTab({
           </button>
         </div>
         {searchOpen && (
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <input
               type="text"
               autoFocus
@@ -177,7 +170,7 @@ export function ConversationTab({
               }}
             />
             {threadSearch.trim() && (
-              <div style={{ marginTop: 4, fontSize: 10.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+              <div style={{ marginTop: 4, fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                 {textMessages.length} match{textMessages.length === 1 ? "" : "es"} for &ldquo;{threadSearch}&rdquo;
               </div>
             )}
@@ -211,7 +204,7 @@ export function ConversationTab({
             ))}
           </div>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
         {textMessages.length === 0 ? (
           <ConversationEmptyState />
         ) : textMessages.map((m, idx) => {
@@ -263,8 +256,8 @@ export function ConversationTab({
                 fontSize: 13, lineHeight: 1.45,
               }}>
                 {!mine && (
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                    <span>{senderName}{roleLabel ? <span style={{ fontWeight: 500 }}> · {roleLabel}</span> : null}</span>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
+                    <span>{senderName}{roleLabel ? <span className="font-medium"> · {roleLabel}</span> : null}</span>
                     {m.sender === "workspace" && (
                       <span title="Workspace System User — the agency speaking, not an individual" style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
@@ -342,14 +335,7 @@ export function ConversationTab({
         borderTop: `1px solid ${COLORS.borderSoft}`,
       }}>
         {(conv.stage === "cancelled" || conv.stage === "past") ? (
-          <div style={{
-            padding: "10px 14px",
-            borderRadius: 999,
-            background: COLORS.surfaceAlt,
-            border: `1px solid ${COLORS.borderSoft}`,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
-          }}>
+          <div style={{ padding: "10px 14px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt text-admin-ink-muted">
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
               <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
@@ -398,10 +384,7 @@ export function ConversationTab({
 
 export function ConversationEmptyState() {
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-      padding: "32px 16px", color: COLORS.inkDim, fontFamily: FONTS.body, textAlign: "center",
-    }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "32px 16px", fontFamily: FONTS.body, textAlign: "center" }} className="text-admin-ink-dim">
       <span aria-hidden style={{
         width: 36, height: 36, borderRadius: "50%",
         background: COLORS.surfaceAlt, color: COLORS.inkMuted,
@@ -412,8 +395,8 @@ export function ConversationEmptyState() {
           <path d="M3 4h10c.6 0 1 .4 1 1v6c0 .6-.4 1-1 1H7l-3 2.5V12H3c-.6 0-1-.4-1-1V5c0-.6.4-1 1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
         </svg>
       </span>
-      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>No messages yet</div>
-      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, maxWidth: 240 }}>
+      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">No messages yet</div>
+      <div style={{ fontSize: 11.5, maxWidth: 240 }} className="text-admin-ink-muted">
         Start the conversation below — your message will go to the right people in this thread.
       </div>
     </div>
@@ -422,12 +405,8 @@ export function ConversationEmptyState() {
 
 export function TypingIndicator({ who }: { who: string }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 8,
-      padding: "4px 12px", color: COLORS.inkMuted,
-      fontFamily: FONTS.body, fontSize: 11, fontStyle: "italic",
-    }}>
-      <span style={{ display: "inline-flex", gap: 2 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", fontFamily: FONTS.body, fontSize: 11, fontStyle: "italic" }} className="text-admin-ink-muted">
+      <span className="inline-flex gap-0.5">
         {[0, 1, 2].map(i => (
           <span key={i} aria-hidden style={{
             width: 5, height: 5, borderRadius: "50%", background: COLORS.inkMuted,
@@ -564,7 +543,7 @@ export function DraftComposer({
           attribute the next send. Resets to "You" after each send. */}
       {wsAvailable && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body, marginRight: 2 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", fontFamily: FONTS.body, marginRight: 2 }} className="text-admin-ink-muted">
             Send as
           </span>
           <button type="button"

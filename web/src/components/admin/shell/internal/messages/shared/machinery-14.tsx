@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { loadInquiryAttachments, deleteInquiryAttachment, uploadInquiryAttachment, duplicateInquiryBooking, type InquiryAttachment } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { useAdminShell, FONTS, COLORS, RICH_INQUIRIES, RADIUS } from "../../state";
+import { useAdminShell, FONTS, COLORS, RICH_INQUIRIES } from "../../state";
 import { type Conversation } from "../../talent";
 import { BreakdownRow } from "../client-1";
 import { currentTalentId } from "../messages-shared";
@@ -11,7 +11,6 @@ import { UNIT_TYPE_LABEL, fmtMoney } from "./machinery-10";
 import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import { FilesTab } from "./machinery-15";
 import type { Offer, UnitType } from "./machinery-9";
-
 
 // ── SubmitRateSheet ──
 // Real submit-rate flow that ties to the inquiry's pricing. Replaces
@@ -137,15 +136,15 @@ export function SubmitRateSheet({
         }}
       >
         {/* Header — title + close */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
               {mode === "edit" ? "Edit your rate" : "Submit your rate"}
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginTop: 2, lineHeight: 1.25 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2, lineHeight: 1.25 }} className="text-admin-ink">
               {conv.client} · {conv.brief}
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {[conv.date, conv.location?.split(" · ")[0]].filter(Boolean).join(" · ")}
             </div>
           </div>
@@ -169,25 +168,18 @@ export function SubmitRateSheet({
             talent quotes against a known reference. Includes the
             client's note if they left one ("negotiable on usage", etc.). */}
         {budget && (
-          <div style={{
-            padding: "10px 12px", borderRadius: 10,
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.18)`,
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.indigoDeep }}>
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)` }} className="bg-admin-indigo-soft">
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-indigo-deep">
               Client budget cap
             </div>
-            <div style={{
-              fontSize: 16, fontWeight: 700, color: COLORS.ink, marginTop: 2,
-              fontVariantNumeric: "tabular-nums",
-            }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
               {fmtMoney(budget.amount, currency)}{" "}
-              <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.inkMuted }}>
+              <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
                 {UNIT_TYPE_LABEL[budget.unitType]}
               </span>
             </div>
             {budget.note && (
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4, fontStyle: "italic" }}>
+              <div style={{ fontSize: 11.5, marginTop: 4, fontStyle: "italic" }} className="text-admin-ink-muted">
                 &quot;{budget.note}&quot;
               </div>
             )}
@@ -198,11 +190,7 @@ export function SubmitRateSheet({
         {myRow?.role && (
           <div>
             <FieldLabel>Your role on this booking</FieldLabel>
-            <div style={{
-              padding: "9px 11px", borderRadius: 8,
-              background: COLORS.surfaceAlt,
-              fontSize: 13, color: COLORS.ink, fontWeight: 500,
-            }}>
+            <div style={{ padding: "9px 11px", borderRadius: 8, fontSize: 13, fontWeight: 500 }} className="bg-admin-surface-alt text-admin-ink">
               {myRow.role}
             </div>
           </div>
@@ -295,7 +283,7 @@ export function SubmitRateSheet({
                 }}
               >+</button>
             </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4, textAlign: "center" }}>
+            <div style={{ fontSize: 10.5, marginTop: 4, textAlign: "center" }} className="text-admin-ink-dim">
               × {UNIT_TYPE_LABEL[unitType]}
             </div>
           </div>
@@ -307,7 +295,7 @@ export function SubmitRateSheet({
               background: "#fff", paddingLeft: 12,
               transition: "border-color .12s",
             }}>
-              <span style={{ color: COLORS.inkMuted, fontSize: 14, fontWeight: 600 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink-muted">
                 {currency === "EUR" ? "€" : currency === "USD" ? "$" : "£"}
               </span>
               <input
@@ -324,7 +312,7 @@ export function SubmitRateSheet({
               />
             </div>
             {overBudget && budget && (
-              <div style={{ fontSize: 10.5, color: COLORS.amber, marginTop: 4, fontWeight: 600 }}>
+              <div style={{ fontSize: 10.5, marginTop: 4, fontWeight: 600 }} className="text-admin-amber">
                 ⚠ Over the client&apos;s cap by {fmtMoney(amount - budget.amount, currency)} — they may counter
               </div>
             )}
@@ -333,7 +321,7 @@ export function SubmitRateSheet({
 
         {/* Notes — optional usage / conditions */}
         <div>
-          <FieldLabel>Conditions <span style={{ fontWeight: 400, color: COLORS.inkMuted }}>(optional)</span></FieldLabel>
+          <FieldLabel>Conditions <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">(optional)</span></FieldLabel>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -352,17 +340,13 @@ export function SubmitRateSheet({
         {/* Live take-home breakdown — gross → fees → net. Always
             visible so the talent sees what they'll actually take home
             BEFORE they submit. */}
-        <div style={{
-          padding: "12px 14px", borderRadius: 10,
-          background: COLORS.surfaceAlt,
-          border: `1px solid ${COLORS.borderSoft}`,
-        }}>
+        <div style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
           <BreakdownRow label={`Gross · ${units} × ${UNIT_TYPE_LABEL[unitType]}`} value={fmtMoney(gross, currency)} muted />
           <BreakdownRow label="Agency commission · 15%" value={`–${fmtMoney(agencyFee, currency)}`} muted />
           <BreakdownRow label="Platform fee · 5%" value={`–${fmtMoney(platformFee, currency)}`} muted />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 0" }} />
           <BreakdownRow label="Your take-home" value={fmtMoney(takeHome, currency)} bold />
-          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 6 }}>
+          <div style={{ fontSize: 10.5, marginTop: 6 }} className="text-admin-ink-muted">
             Released 14 days after wrap, once the client invoice clears.
           </div>
         </div>
@@ -412,11 +396,7 @@ export function SubmitRateSheet({
 
 export function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted,
-      letterSpacing: 0.4, textTransform: "uppercase",
-      marginBottom: 6,
-    }}>
+    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
       {children}
     </div>
   );
@@ -425,7 +405,7 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
 export function RateField({ label, value, editable }: { label: string; value: string; editable?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkDim, marginBottom: 3 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-dim">
         {label}
       </div>
       <div style={{
@@ -518,16 +498,12 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   };
 
   return (
-    <div style={{
-      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md, padding: 12, marginBottom: 12,
-      fontFamily: FONTS.body, fontSize: 12,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+    <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: 12, marginBottom: 12, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
+      <div className="flex items-center gap-2 mb-2">
+        <span style={{ fontWeight: 700 }} className="text-admin-ink">
           Live · DB-backed ({files.length})
         </span>
-        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
           inquiry_attachments
         </span>
         <span style={{ flex: 1 }} />
@@ -578,9 +554,9 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
           {pending ? "Uploading…" : "Upload file"}
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {files.length === 0 && (
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, padding: "4px 0" }}>
+          <div style={{ fontSize: 11, padding: "4px 0" }} className="text-admin-ink-muted">
             No files yet — drop a brief, contract, polaroid, or call sheet.
           </div>
         )}
@@ -590,19 +566,14 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
             padding: "8px 10px", background: "#fff",
             border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
           }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
-                <span style={{ fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }} className="text-admin-ink">
                   {f.filename}
                 </span>
                 {/* Step 14 — attachment kind chip when the row has a tag. */}
                 {f.attachmentKind && (
-                  <span style={{
-                    flexShrink: 0,
-                    fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
-                    background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-                    letterSpacing: 0.3, textTransform: "uppercase",
-                  }}>
+                  <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.3, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">
                     {f.attachmentKind === "mood_board" ? "Mood" :
                      f.attachmentKind === "reference" ? "Ref" :
                      f.attachmentKind === "contract" ? "Contract" :
@@ -610,7 +581,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+              <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
                 {f.byteSize != null ? `${Math.round(f.byteSize / 1024)} KB · ` : ""}
                 {f.visibility}
                 {f.description ? ` · ${f.description}` : ""}
@@ -673,13 +644,8 @@ export function LiveBookingActions({
   };
 
   return (
-    <div style={{
-      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md, padding: 10, marginTop: 12,
-      display: "flex", alignItems: "center", gap: 10,
-      fontFamily: FONTS.body, fontSize: 12,
-    }}>
-      <span style={{ fontWeight: 700, color: COLORS.ink }}>Booking actions</span>
+    <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: 10, marginTop: 12, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
+      <span style={{ fontWeight: 700 }} className="text-admin-ink">Booking actions</span>
       <span style={{ flex: 1 }} />
       <button
         type="button"

@@ -40,20 +40,20 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* Your project */}
       <DetailSection title="Your project">
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.4 }}>{inquiry.title}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }} className="text-admin-ink">{inquiry.title}</div>
         {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
-          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>{inquiry.brief.summary}</div>
+          <div style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">{inquiry.brief.summary}</div>
         )}
       </DetailSection>
 
       {/* Your contact — single coordinator, not "Participants" */}
       {coord && (
         <DetailSection title="Your contact">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{coord.name}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>Your coordinator</div>
+            <div className="flex-1">
+              <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{coord.name}</div>
+              <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">Your coordinator</div>
             </div>
             <button type="button" disabled title="Use the Messages tab to contact this coordinator." style={disabledBtn({
               padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
@@ -129,17 +129,17 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
 
       {/* When + where, combined into one calm card */}
       <DetailSection title="When & where">
-        <div style={{ fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+        <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
         {(inquiry.location.city || inquiry.location.venue) && (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+          <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
             {[inquiry.location.venue, inquiry.location.city].filter(Boolean).join(" · ")}
           </div>
         )}
         {inquiry.location.mode === "tbc" && (
-          <div style={{ fontSize: 12, color: COLORS.inkDim, marginTop: 4, fontStyle: "italic" }}>Location TBC</div>
+          <div style={{ fontSize: 12, marginTop: 4, fontStyle: "italic" }} className="text-admin-ink-dim">Location TBC</div>
         )}
       </DetailSection>
     </div>
@@ -179,11 +179,8 @@ export function ClientTalentCard({
       fontFamily: FONTS.body,
     }}>
       <Avatar size={36} tone="auto" hashSeed={talent.name} initials={talent.initials} photoUrl={talent.photoUrl} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 13, fontWeight: 700, color: COLORS.ink,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>{talent.name}</div>
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{talent.name}</div>
         <div style={{
           marginTop: 3,
           display: "inline-flex", alignItems: "center", gap: 5,
@@ -233,9 +230,9 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* The job */}
       <DetailSection title="The job">
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.4 }}>{inquiry.title}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }} className="text-admin-ink">{inquiry.title}</div>
         {inquiry.client.name && (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>For {inquiry.client.name}</div>
+          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">For {inquiry.client.name}</div>
         )}
       </DetailSection>
 
@@ -245,27 +242,22 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
       {(inquiry.brief.summary && inquiry.brief.summary !== inquiry.title) || inquiry.brief.notes ? (
         <DetailSection title="Brief">
           {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
-            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55 }}>{inquiry.brief.summary}</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">{inquiry.brief.summary}</div>
           )}
           {inquiry.brief.notes && (
-            <div style={{
-              fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55,
-              marginTop: inquiry.brief.summary ? 8 : 0,
-              padding: "8px 10px", background: COLORS.surfaceAlt,
-              borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
-            }}>{inquiry.brief.notes}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.55, marginTop: inquiry.brief.summary ? 8 : 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}` }} className="text-admin-ink-muted bg-admin-surface-alt">{inquiry.brief.notes}</div>
           )}
         </DetailSection>
       ) : null}
 
       {/* Schedule — talent's most-asked question */}
       <DetailSection title="Schedule">
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
         {inquiry.schedule.callTime && (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>Call time: {inquiry.schedule.callTime}</div>
+          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">Call time: {inquiry.schedule.callTime}</div>
         )}
       </DetailSection>
 
@@ -285,22 +277,19 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
       {/* Coordinator card */}
       {coord && (
         <DetailSection title="Your coordinator">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-2.5">
             <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
               <Avatar size={32} tone="auto" hashSeed={coord.name} initials={coord.initials} />
               <PresenceDot name={coord.name} size={8} />
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 13, fontWeight: 600, color: COLORS.ink,
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }} className="text-admin-ink">
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {coord.name}
                 </span>
                 <CoordRoleBadge role={coord.role} />
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted }}>{coord.role === "owner" ? "Workspace owner" : "Coordinator"}</div>
+              <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{coord.role === "owner" ? "Workspace owner" : "Coordinator"}</div>
             </div>
             <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
               padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 600,
@@ -362,7 +351,7 @@ export function RosterMemberRow({ talent, isMe, stagePast }: { talent: { talentI
       } : {}),
     }}>
       <Avatar size={26} tone="auto" hashSeed={talent.name} initials={talent.initials} photoUrl={talent.photoUrl} />
-      <span style={{ flex: 1, fontSize: 12.5, fontWeight: isMe ? 700 : 500, color: COLORS.ink, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <span style={{ flex: 1, fontSize: 12.5, fontWeight: isMe ? 700 : 500, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
         {talent.name}
         {isMe && (
           <span style={{
@@ -378,11 +367,7 @@ export function RosterMemberRow({ talent, isMe, stagePast }: { talent: { talentI
           stop being relevant once the job is wrapped) and surface a
           neutral "Worked together" cue instead. */}
       {stagePast ? (
-        <span style={{
-          fontSize: 9.5, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
-          background: "rgba(11,11,13,0.04)", color: COLORS.inkMuted,
-          textTransform: "uppercase", letterSpacing: 0.4, flexShrink: 0,
-        }}>Worked together</span>
+        <span style={{ fontSize: 9.5, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: "rgba(11,11,13,0.04)", textTransform: "uppercase", letterSpacing: 0.4, flexShrink: 0 }} className="text-admin-ink-muted">Worked together</span>
       ) : (
         <span style={{
           fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
@@ -460,13 +445,7 @@ export function LocationMapTile({
           position: "absolute", left: "50%", top: "50%",
           transform: "translate(-50%, -100%)",
         }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: "50%",
-            background: COLORS.accent, border: "3px solid #fff",
-            boxShadow: "0 4px 10px rgba(11,11,13,0.20), 0 0 0 4px rgba(91,107,160,0.18)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff",
-          }}>
+          <div style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid #fff", boxShadow: "0 4px 10px rgba(11,11,13,0.20), 0 0 0 4px rgba(91,107,160,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }} className="bg-admin-accent">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
               <path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5c0 3.4 4.5 8.5 4.5 8.5s4.5-5.1 4.5-8.5A4.5 4.5 0 0 0 8 1.5zm0 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
             </svg>
@@ -475,24 +454,15 @@ export function LocationMapTile({
       </div>
       {/* address block */}
       <div style={{ padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           {venue && (
-            <div style={{
-              fontSize: 13, fontWeight: 600, color: COLORS.ink,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>{venue}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{venue}</div>
           )}
           {(address || city) && (
-            <div style={{
-              fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>{[address, city].filter(Boolean).join(", ")}</div>
+            <div style={{ fontSize: 11.5, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">{[address, city].filter(Boolean).join(", ")}</div>
           )}
         </div>
-        <span style={{
-          flexShrink: 0, fontSize: 11, fontWeight: 600, color: COLORS.accent,
-          display: "inline-flex", alignItems: "center", gap: 3,
-        }}>
+        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }} className="text-admin-accent">
           Maps
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -531,9 +501,9 @@ export function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
         {inquiry.coordinators.map(c => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
             <Avatar size={28} tone="auto" hashSeed={c.name} initials={c.initials} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{c.name}</div>
-              <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+            <div className="flex-1">
+              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+              <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
                 {c.role === "owner" ? "Workspace owner · Coordinator" : "Coordinator"}
                 {c.alsoTalentId && " · Also booked as talent"}
               </div>
@@ -542,13 +512,13 @@ export function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
         ))}
         {inquiry.talent.length > 0 && (
           <>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkDim, marginTop: 8, marginBottom: 4 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 600, marginTop: 8, marginBottom: 4 }} className="text-admin-ink-dim">
               Talent
             </div>
             {inquiry.talent.map(t => (
               <div key={t.talentId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
                 <Avatar size={26} tone="auto" hashSeed={t.name} initials={t.initials} />
-                <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink }}>{t.name}</span>
+                <span style={{ flex: 1, fontSize: 12.5 }} className="text-admin-ink">{t.name}</span>
                 <span style={{
                   fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
                   background:
@@ -584,10 +554,7 @@ export function DetailSection({ title, children }: { title: string; children: Re
       padding: "12px 14px", borderRadius: 10,
       border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
     }}>
-      <h3 style={{
-        margin: "0 0 8px", fontFamily: FONTS.display,
-        fontSize: 12, fontWeight: 700,         color: COLORS.inkMuted,
-      }}>{title}</h3>
+      <h3 style={{ margin: "0 0 8px", fontFamily: FONTS.display, fontSize: 12, fontWeight: 700 }} className="text-admin-ink-muted">{title}</h3>
       {children}
     </section>
   );
@@ -600,8 +567,8 @@ export function DetailField({ label, value, multiline }: { label: string; value:
       padding: "5px 0",
       borderBottom: `1px dashed ${COLORS.borderSoft}`,
     }}>
-      <div style={{ fontSize: 11, color: COLORS.inkMuted, minWidth: 80, flexShrink: 0 }}>{label}</div>
-      <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, flex: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, minWidth: 80, flexShrink: 0 }} className="text-admin-ink-muted">{label}</div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, flex: 1 }} className="text-admin-ink">{value}</div>
     </div>
   );
 }
@@ -662,19 +629,15 @@ export function PageTopUtility({
         </button>
       )}
       {!back && (
-        <h1 style={{
-          margin: 0, flex: 1, minWidth: 0,
-          fontFamily: FONTS.display, fontSize: 18, fontWeight: 700,
-          color: COLORS.ink, letterSpacing: -0.2,
-        }}>{title}</h1>
+        <h1 style={{ margin: 0, flex: 1, minWidth: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{title}</h1>
       )}
       {back && (
-        <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }} className="text-admin-ink">
           {title}
         </span>
       )}
       {meta && (
-        <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 500 }}>{meta}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">{meta}</span>
       )}
       {action && (
         <button type="button" onClick={action.onClick} style={{

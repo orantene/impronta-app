@@ -9,7 +9,7 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { acceptInquiryInvitation, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
-import { useAdminShell, FONTS, COLORS, RADIUS } from "../state";
+import { useAdminShell, FONTS, COLORS } from "../state";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
 import { TakeHomeCard } from "./client-1";
@@ -32,8 +32,6 @@ import type { ChatSubThreadId, ThreadTabId } from "./shared/machinery-8";
 import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadTabBar, isTalentCoordOnOffer, talentCoordCombinedTotal } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 import { LineupTabPanel, TalentJobShellHeader } from "./talent-1";
-
-
 // ── Talent JOB DETAIL — the heart of the talent shell ──
 // Layout (top-down): unified header → tabs → conversation
 export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
@@ -164,14 +162,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
       />
 
       {/* TAB BAR — Conversation | Offer | Files | Details (no Client thread for talent) */}
-      <div style={{
-        background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.md, overflow: "hidden",
-        flex: 1, minHeight: 0,
-        display: "flex", flexDirection: "column",
-        // Anchor for the floating ChatSubToggleDropdown switch.
-        position: "relative",
-      }}>
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", // Anchor for the floating ChatSubToggleDropdown switch.
+        position: "relative" }} className="rounded-admin-md">
         <ThreadTabBar
           activeId={activeTab}
           onSelect={setActiveTab}
@@ -243,12 +235,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
                 />
               )}
               {showDm && (
-                <div style={{
-                  flex: 1, minHeight: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  padding: 28, textAlign: "center",
-                  fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
-                }}>
+                <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
                   Direct messages with your coordinator land here in a later slice.
                 </div>
               )}

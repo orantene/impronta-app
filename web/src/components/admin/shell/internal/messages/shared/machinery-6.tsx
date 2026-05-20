@@ -98,10 +98,10 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
         )}
       </DetailSection>
       <DetailSection title="Transport">
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "6px 0" }}>
+        <div style={{ fontSize: 12, padding: "6px 0" }} className="text-admin-ink-muted">
           Add transport, parking, or accommodation as needed.
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => comingSoon("Transport editor")}
@@ -167,9 +167,9 @@ export function PayoutReceiverPicker({
       display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
       fontFamily: FONTS.body, fontSize: 12,
     }}>
-      <span style={{ fontWeight: 700, color: COLORS.ink }}>Payout receiver</span>
+      <span style={{ fontWeight: 700 }} className="text-admin-ink">Payout receiver</span>
       {currentDisplayName && (
-        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>currently · {currentDisplayName}</span>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">currently · {currentDisplayName}</span>
       )}
       <span style={{ flex: 1 }} />
       <select
@@ -198,7 +198,7 @@ export function PayoutReceiverPicker({
         {pending ? "Saving…" : currentPayoutAccountId ? "Change" : "Set"}
       </button>
       {candidates != null && candidates.length === 0 && (
-        <div style={{ flexBasis: "100%", fontSize: 11, color: COLORS.coralDeep }}>
+        <div style={{ flexBasis: "100%", fontSize: 11 }} className="text-admin-coral-deep">
           No eligible payout accounts. Configure agency or talent payout accounts first.
         </div>
       )}
@@ -335,7 +335,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
           </div>
         )}
         {isAdmin && !txn && state?.bookingId && (
-          <div style={{ marginTop: 10 }}>
+          <div className="mt-2.5">
             <button
               type="button"
               disabled={pending}
@@ -344,7 +344,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
             >
               {pending ? "Creating…" : "Create transaction draft"}
             </button>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+            <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
               Drafts the booking transaction with platform fee from the workspace plan.
             </div>
           </div>
@@ -352,7 +352,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
       </DetailSection>
       {!isClient && (
         <DetailSection title="Payouts">
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "6px 0" }}>
+          <div style={{ fontSize: 12, padding: "6px 0" }} className="text-admin-ink-muted">
             {txStatus === "payout_sent"
               ? `Payout sent ${txn?.payoutCompletedAt ? `at ${new Date(txn.payoutCompletedAt).toLocaleString()}` : ""}`
               : txStatus === "payout_pending"
@@ -469,7 +469,7 @@ export function ShellNextActionBar({
       fontFamily: FONTS.body,
     }}>
       {hint && (
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: COLORS.inkMuted }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12 }} className="text-admin-ink-muted">
           {hint}
         </span>
       )}
@@ -631,15 +631,8 @@ export function CoordinatorNoteBubble({ who, note }: { who: string; note: string
       display: "flex", justifyContent: "center", padding: "4px 0 8px",
       fontFamily: FONTS.body,
     }}>
-      <div style={{
-        maxWidth: "92%", padding: "10px 14px", borderRadius: 12,
-        background: COLORS.royalSoft, border: `1px solid rgba(95,75,139,0.18)`,
-        color: COLORS.ink,
-      }}>
-        <div style={{
-          fontSize: 10.5, fontWeight: 700,           color: COLORS.royalDeep, marginBottom: 4,
-          display: "inline-flex", alignItems: "center", gap: 6,
-        }}>
+      <div style={{ maxWidth: "92%", padding: "10px 14px", borderRadius: 12, border: `1px solid rgba(95,75,139,0.18)` }} className="bg-admin-royal-soft text-admin-ink">
+        <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 4, display: "inline-flex", alignItems: "center", gap: 6 }} className="text-admin-royal-deep">
           <span aria-hidden style={{ display: "inline-flex" }}>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
               <path d="M2 2h6l2 2v6H2V2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
@@ -648,7 +641,7 @@ export function CoordinatorNoteBubble({ who, note }: { who: string; note: string
           </span>
           Note from {who}
         </div>
-        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: COLORS.ink, fontStyle: "italic" }}>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
           “{note}”
         </div>
       </div>
@@ -662,14 +655,10 @@ export function SystemEventBubble({ body, ts }: { body: string; ts: string }) {
       display: "flex", justifyContent: "center", padding: "6px 0",
       fontFamily: FONTS.body,
     }}>
-      <div style={{
-        maxWidth: "78%", padding: "6px 12px", borderRadius: 999,
-        background: "rgba(11,11,13,0.04)", border: `1px solid ${COLORS.borderSoft}`,
-        fontSize: 11, color: COLORS.inkMuted, textAlign: "center",
-      }}>
-        <span style={{ fontWeight: 500, color: COLORS.inkDim }}>● </span>
+      <div style={{ maxWidth: "78%", padding: "6px 12px", borderRadius: 999, background: "rgba(11,11,13,0.04)", border: `1px solid ${COLORS.borderSoft}`, fontSize: 11, textAlign: "center" }} className="text-admin-ink-muted">
+        <span style={{ fontWeight: 500 }} className="text-admin-ink-dim">● </span>
         {body}
-        <span style={{ marginLeft: 6, color: COLORS.inkDim }}>· {ts}</span>
+        <span style={{ marginLeft: 6 }} className="text-admin-ink-dim">· {ts}</span>
       </div>
     </div>
   );

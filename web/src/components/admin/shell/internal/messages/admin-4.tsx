@@ -161,7 +161,7 @@ export function AdminMessageStream({
         display: "flex", flexDirection: "column", gap: 10,
       }}>
         {allMessages.length === 0 ? (
-          <div style={{ fontSize: 12, color: COLORS.inkDim, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>
+          <div style={{ fontSize: 12, fontStyle: "italic", textAlign: "center", padding: "16px 0" }} className="text-admin-ink-dim">
             No messages in this thread yet.
           </div>
         ) : allMessages.map((m, idx) => {
@@ -302,8 +302,8 @@ export function AdminMessageStream({
                   fontSize: 13, lineHeight: 1.45,
                 }}>
                   {!mine && (
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                      <span>{m.senderName} <span style={{ fontWeight: 500 }}>· {m.senderRole}</span></span>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
+                      <span>{m.senderName} <span className="font-medium">· {m.senderRole}</span></span>
                       {m.senderRole === "workspace" && (
                         <span title="Workspace System User" style={{
                           display: "inline-flex", alignItems: "center", gap: 3,
@@ -355,14 +355,7 @@ export function AdminMessageStream({
         borderTop: `1px solid ${COLORS.borderSoft}`,
       }}>
         {closed ? (
-          <div style={{
-            padding: "10px 14px",
-            borderRadius: 999,
-            background: COLORS.surfaceAlt,
-            border: `1px solid ${COLORS.borderSoft}`,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
-          }}>
+          <div style={{ padding: "10px 14px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt text-admin-ink-muted">
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
               <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>

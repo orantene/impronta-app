@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
-import { useAdminShell, COLORS, RADIUS, FONTS, TRANSITION } from "../state";
+import { useAdminShell, COLORS, FONTS, TRANSITION } from "../state";
 import { type Conversation, type Participant } from "../talent";
 import { buildInquiryTabs, convToInquiry } from "./shared/machinery-1";
 import { getOffer } from "./shared/machinery-10";
@@ -15,7 +15,6 @@ import { DetailsPanel } from "./shared/machinery-7";
 import type { ThreadTabId } from "./shared/machinery-8";
 import { LockedTabOverlay, MOCK_FILES_FOR_CONV, ThreadTabBar } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
-
 
 // ── Client tabs block — Client thread (native) | Talent group (locked) | Files | Details ──
 export function ClientTabsBlock({
@@ -30,12 +29,7 @@ export function ClientTabsBlock({
   const fileCount = (MOCK_FILES_FOR_CONV[conv.id] ?? []).filter(f => f.thread === "client").length;
 
   return (
-    <div style={{
-      background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md, overflow: "hidden",
-      flex: 1, minHeight: 0,
-      display: "flex", flexDirection: "column",
-    }}>
+    <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }} className="rounded-admin-md">
       <ThreadTabBar
         activeId={activeTab}
         onSelect={setActiveTab}
@@ -70,7 +64,7 @@ export function ClientTabsBlock({
             disabledTitle="Share requests need a live coordinator workflow."
             ghostPreview={
               <>
-                <div style={{ marginBottom: 8 }}><strong>{conv.leader.name}:</strong> Lineup confirmed for May 6. Marta + Tomás locked, Zara on standby…</div>
+                <div className="mb-2"><strong>{conv.leader.name}:</strong> Lineup confirmed for May 6. Marta + Tomás locked, Zara on standby…</div>
                 {lineup[0] && <div style={{ marginBottom: 8, marginLeft: 24 }}><strong>{lineup[0].name}:</strong> All clear from me — happy to confirm.</div>}
                 {lineup[1] && <div style={{ marginBottom: 8, marginLeft: 24 }}><strong>{lineup[1].name}:</strong> Checking my schedule, back in an hour…</div>}
               </>
@@ -142,10 +136,10 @@ export function ClientTabsBlock({
 
 export function DetailBlock({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: RADIUS.md, padding: 14 }}>
+    <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 14 }} className="rounded-admin-md">
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
         {icon && <span aria-hidden style={{ color: COLORS.inkMuted, display: "inline-flex" }}>{icon}</span>}
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted }}>{label}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-ink-muted">{label}</span>
       </div>
       {children}
     </div>
@@ -155,8 +149,8 @@ export function DetailBlock({ label, icon, children }: { label: string; icon?: R
 export function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "4px 0", fontSize: 12.5 }}>
-      <span style={{ color: COLORS.inkMuted }}>{label}</span>
-      <span style={{ color: COLORS.ink, fontWeight: 600, textAlign: "right" }}>{value}</span>
+      <span className="text-admin-ink-muted">{label}</span>
+      <span style={{ fontWeight: 600, textAlign: "right" }} className="text-admin-ink">{value}</span>
     </div>
   );
 }
@@ -212,7 +206,7 @@ export function MiniComposer({ placeholder, onSend }: { placeholder: string; onS
 
 export function EmptyDetail({ label }: { label: string }) {
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-dim">
       {label}
     </div>
   );
@@ -234,16 +228,12 @@ export function TakeHomeCard({ takeHome, stage }: { takeHome: string; stage: str
   const fmt = (n: number) => `${currency}${Math.round(n).toLocaleString()}`;
 
   return (
-    <div style={{
-      background: COLORS.successSoft, border: `1px solid ${COLORS.success}30`,
-      borderRadius: RADIUS.md, padding: 16,
-      fontFamily: FONTS.body,
-    }}>
+    <div style={{ border: `1px solid ${COLORS.success}30`, padding: 16, fontFamily: FONTS.body }} className="bg-admin-success-soft rounded-admin-md">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.success }}>Your take-home</div>
-          <div style={{ fontFamily: FONTS.display, fontSize: 28, fontWeight: 700, color: COLORS.ink, marginTop: 2, letterSpacing: -0.5 }}>{takeHome}</div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-success">Your take-home</div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 28, fontWeight: 700, marginTop: 2, letterSpacing: -0.5 }} className="text-admin-ink">{takeHome}</div>
+          <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             {stage === "past" ? "Paid · invoice receipt available" : "Paid 14 days post-shoot"}
           </div>
         </div>
@@ -282,7 +272,7 @@ export function BreakdownRow({ label, value, muted, bold }: { label: string; val
   return (
     <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", fontSize: 12 }}>
       <span style={{ color: muted ? COLORS.inkMuted : COLORS.ink }}>{label}</span>
-      <span style={{ color: COLORS.ink, fontWeight: bold ? 700 : 500, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+      <span style={{ fontWeight: bold ? 700 : 500, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{value}</span>
     </div>
   );
 }

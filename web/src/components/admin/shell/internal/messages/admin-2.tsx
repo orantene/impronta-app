@@ -9,7 +9,7 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread } from "@/components/reservation-thread";
 import { markThreadRead } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
-import { useAdminShell, FONTS, COLORS, RADIUS, toInquiry, type RichInquiry } from "../state";
+import { useAdminShell, FONTS, COLORS, toInquiry, type RichInquiry } from "../state";
 import { Avatar } from "../primitives";
 import { type Conversation } from "../talent";
 import { StageTransitionMenu } from "./admin-1";
@@ -31,7 +31,6 @@ import { ChatSubToggleDropdown, MOCK_FILES_FOR_CONV, ThreadSearchTrigger, Thread
 import type { Offer } from "./shared/machinery-9";
 import { ShellHeader } from "./talent-1";
 import type { ShellHeaderInput } from "./talent-1";
-
 
 // Hero: status pill + project + brief + funnel
 // Operational block: lineup status + offer state + needs-me action card
@@ -169,7 +168,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         showCoordPill={false}
         onStatusClick={() => setStatusSheetOpen(true)}
         rightSlot={(
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="flex items-center gap-2">
             <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
             <ThreadSearchTrigger
               inquiryId={inquiry.id}
@@ -207,7 +206,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   color: COLORS.inkMuted,
                 }}
               >
-                <span style={{ display: "inline-flex" }}>
+                <span className="inline-flex">
                   {allTalents.slice(0, 5).map((t, idx) => {
                     const isAccepted = t.status === "accepted";
                     const isSuperseded = t.status === "superseded";
@@ -245,21 +244,14 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                     );
                   })}
                   {allTalents.length > 5 && (
-                    <span style={{
-                      marginLeft: -6, width: 22, height: 22,
-                      borderRadius: "50%",
-                      background: COLORS.surfaceAlt,
-                      border: `1.5px solid #fff`,
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, fontWeight: 700, color: COLORS.inkMuted,
-                    }}>+{allTalents.length - 5}</span>
+                    <span style={{ marginLeft: -6, width: 22, height: 22, borderRadius: "50%", border: `1.5px solid #fff`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }} className="bg-admin-surface-alt text-admin-ink-muted">+{allTalents.length - 5}</span>
                   )}
                 </span>
-                <span style={{ fontWeight: 600, color: COLORS.ink }}>
+                <span style={{ fontWeight: 600 }} className="text-admin-ink">
                   {lineupTotal} talent{lineupTotal === 1 ? "" : "s"}
                 </span>
                 {lineupTotal > 0 && (
-                  <span style={{ color: COLORS.inkDim }}>
+                  <span className="text-admin-ink-dim">
                     · {lineupAccepted}/{lineupTotal} accepted
                   </span>
                 )}
@@ -304,15 +296,9 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
       {/* TAB BAR — admin sees all 4 tabs unlocked. Lineup + Offer summaries
           live inside the Offer tab now (single source of truth). The hero
           stays slim: identity + brief + funnel only. */}
-      <div style={{
-        background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.md, overflow: "hidden",
-        flex: 1, minHeight: 0,
-        display: "flex", flexDirection: "column",
-        // Anchor for the floating ChatSubToggleDropdown (absolute,
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", // Anchor for the floating ChatSubToggleDropdown (absolute,
         // top:4 left:8 — see component).
-        position: "relative",
-      }}>
+        position: "relative" }} className="rounded-admin-md">
         <ThreadTabBar
           activeId={activeTab}
           onSelect={setActiveTab}
@@ -403,12 +389,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                 />
               )}
               {showDmStream && (
-                <div style={{
-                  flex: 1, minHeight: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  padding: 28, textAlign: "center",
-                  fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
-                }}>
+                <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
                   DM threads land here in a later slice. Pick a participant from
                   the Lineup tab to start a 1:1 conversation.
                 </div>

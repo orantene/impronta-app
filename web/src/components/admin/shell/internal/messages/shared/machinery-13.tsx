@@ -129,10 +129,7 @@ export function DealSummaryCard({
       boxSizing: "border-box",
       overflow: "hidden",
     }}>
-      <div style={{
-        fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
-        color: COLORS.inkMuted, textTransform: "uppercase",
-      }}>{hero.label}</div>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">{hero.label}</div>
       <div style={{
         marginTop: 4,
         display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap",
@@ -146,13 +143,13 @@ export function DealSummaryCard({
           {hero.value}
         </span>
         {hero.unit && (
-          <span style={{ fontSize: 12.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink-muted">
             {hero.unit}
           </span>
         )}
       </div>
       {hero.subtitle && (
-        <div style={{ marginTop: 6, fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.4 }}>
+        <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4 }} className="text-admin-ink-muted">
           {hero.subtitle}
         </div>
       )}
@@ -163,29 +160,18 @@ export function DealSummaryCard({
             height: 1, background: COLORS.borderSoft,
             margin: "14px 0 10px",
           }} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {contextRows.map((row, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "baseline",
                 justifyContent: "space-between", gap: 12,
                 fontSize: 12.5,
               }}>
-                <span style={{
-                  color: COLORS.inkMuted, fontWeight: 500,
-                  flexShrink: 0,
-                }} title={row.tooltip}>
+                <span style={{ fontWeight: 500, flexShrink: 0, }} title={row.tooltip}>
                   {row.label}
                 </span>
                 <span style={{
-                  color: COLORS.ink,
-                  fontWeight: row.emphasis ? 700 : 600,
-                  fontVariantNumeric: "tabular-nums",
-                  textAlign: "right",
-                  minWidth: 0,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}>
+                  color: COLORS.ink, fontWeight: row.emphasis ? 700 : 600, fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
                   {row.value}
                 </span>
               </div>
@@ -214,11 +200,7 @@ export function DealSummaryCard({
               </button>
             )}
             {offer.clientBudget?.note && (
-              <div style={{
-                marginTop: 4,
-                fontSize: 11, color: COLORS.inkDim, fontStyle: "italic",
-                lineHeight: 1.4,
-              }}>
+              <div style={{ marginTop: 4, fontSize: 11, fontStyle: "italic", lineHeight: 1.4 }} className="text-admin-ink-dim">
                 &ldquo;{offer.clientBudget.note}&rdquo;
               </div>
             )}
@@ -243,17 +225,17 @@ export function SummaryTile({
       border: `1px solid ${COLORS.border}`, background: "#fff",
       position: "relative",
     }}>
-      <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkDim }}>
+      <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-dim">
         {label}
       </div>
       <div style={{ marginTop: 4, fontSize: 17, fontWeight: 700, color: primaryColor, fontFamily: FONTS.display }}>
         {primary}
       </div>
       {secondary && (
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{secondary}</div>
+        <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{secondary}</div>
       )}
       {note && (
-        <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 6, fontStyle: "italic" }}>“{note}”</div>
+        <div style={{ fontSize: 11, marginTop: 6, fontStyle: "italic" }} className="text-admin-ink-dim">“{note}”</div>
       )}
       {editable && onEdit && (
         <button type="button" onClick={onEdit} aria-label="Edit"
@@ -284,9 +266,9 @@ export function ParticipantRow({
       border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
     }}>
       <Avatar size={28} tone="auto" hashSeed={name} initials={initials} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{name}</div>
-        {note && <div style={{ fontSize: 11, color: COLORS.inkMuted }}>{note}</div>}
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{name}</div>
+        {note && <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{note}</div>}
       </div>
       <span style={{
         fontSize: 9.5, fontWeight: 700,         padding: "2px 8px", borderRadius: 999, background: palette.bg, color: palette.fg,
@@ -308,8 +290,8 @@ export function TimelineRow({ event, last }: { event: TimelineEvent; last: boole
         {!last && <span style={{ flex: 1, width: 1, background: COLORS.borderSoft, marginTop: 2 }} />}
       </div>
       <div style={{ flex: 1, paddingBottom: 6 }}>
-        <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>{event.body}</div>
-        <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{event.actor} · {event.ts}</div>
+        <div style={{ fontSize: 12.5, lineHeight: 1.4 }} className="text-admin-ink">{event.body}</div>
+        <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{event.actor} · {event.ts}</div>
       </div>
     </div>
   );
@@ -381,7 +363,7 @@ export function dashedBtn(_label: string): React.CSSProperties {
 export function TotalCell({ label, value, accent, tone }: { label: string; value: string; accent?: boolean; tone?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkDim }}>
+      <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-dim">
         {label}
       </div>
       <div style={{
@@ -432,11 +414,11 @@ export function LineupRowCard({
       border: `1px solid ${COLORS.border}`, borderRadius: 10, background: "#fff",
       padding: "12px 14px",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="flex items-center gap-2.5">
         <Avatar size={32} tone="auto" hashSeed={row.talentName} initials={row.initials} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span style={{ fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">
               {pov.kind === "talent" && !pov.isCoordinator && !isMine ? "Hidden talent" : row.talentName}
             </span>
             {offer.coordinators.some(c => c.alsoTalentId === row.talentId) && (
@@ -446,12 +428,10 @@ export function LineupRowCard({
               }}>Coord</span>
             )}
             {isMine && (
-              <span style={{
-                fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-                background: COLORS.accentSoft, color: COLORS.accentDeep,               }}>You</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-accent-soft text-admin-accent-deep">You</span>
             )}
           </div>
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 1 }}>{row.role}</div>
+          <div style={{ fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">{row.role}</div>
         </div>
         <span style={{
           fontSize: 10.5, fontWeight: 700,           padding: "2px 8px", borderRadius: 999,
@@ -473,22 +453,22 @@ export function LineupRowCard({
       {/* Subtotals */}
       <div style={{ marginTop: 8, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: 11.5 }}>
         {showCost && (
-          <span style={{ color: COLORS.inkMuted }}>
-            Cost <strong style={{ color: COLORS.ink, marginLeft: 4 }}>{fmtMoney(subCost, (offer.clientBudget?.currency ?? "EUR"))}</strong>
+          <span className="text-admin-ink-muted">
+            Cost <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subCost, (offer.clientBudget?.currency ?? "EUR"))}</strong>
           </span>
         )}
         {showRevenue && (
-          <span style={{ color: COLORS.inkMuted }}>
-            {pov.kind === "client" ? "Subtotal" : "Revenue"} <strong style={{ color: COLORS.ink, marginLeft: 4 }}>{fmtMoney(subRevenue, (offer.clientBudget?.currency ?? "EUR"))}</strong>
+          <span className="text-admin-ink-muted">
+            {pov.kind === "client" ? "Subtotal" : "Revenue"} <strong style={{ marginLeft: 4 }} className="text-admin-ink">{fmtMoney(subRevenue, (offer.clientBudget?.currency ?? "EUR"))}</strong>
           </span>
         )}
         {showMargin && (
-          <span style={{ color: COLORS.inkMuted }}>
-            Margin <strong style={{ color: COLORS.success, marginLeft: 4 }}>{fmtMoney(subMargin, (offer.clientBudget?.currency ?? "EUR"))}</strong>
+          <span className="text-admin-ink-muted">
+            Margin <strong style={{ marginLeft: 4 }} className="text-admin-success">{fmtMoney(subMargin, (offer.clientBudget?.currency ?? "EUR"))}</strong>
           </span>
         )}
         {row.notes && (
-          <span style={{ color: COLORS.inkDim, fontStyle: "italic", flex: "1 1 100%", marginTop: 4 }}>
+          <span style={{ fontStyle: "italic", flex: "1 1 100%", marginTop: 4 }} className="text-admin-ink-dim">
             “{row.notes}”
           </span>
         )}
@@ -553,7 +533,7 @@ export function LineupRowCard({
             </button>
           )}
           {row.status === "approved" && (
-            <span style={{ fontSize: 11.5, color: COLORS.successDeep }}>✓ You&apos;re booked at this rate.</span>
+            <span style={{ fontSize: 11.5 }} className="text-admin-success-deep">✓ You&apos;re booked at this rate.</span>
           )}
         </div>
       )}

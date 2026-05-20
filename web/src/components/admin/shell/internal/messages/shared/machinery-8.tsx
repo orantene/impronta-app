@@ -21,12 +21,9 @@ export function PageTopCollection({
       display: "flex", alignItems: "baseline", gap: 8,
       padding: "10px 0 8px", fontFamily: FONTS.body,
     }}>
-      <h1 style={{
-        margin: 0, fontFamily: FONTS.display, fontSize: 19, fontWeight: 700,
-        color: COLORS.ink, letterSpacing: -0.2,
-      }}>{title}</h1>
+      <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 19, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{title}</h1>
       {count !== undefined && (
-        <span style={{ fontSize: 12, color: COLORS.inkDim, fontWeight: 500 }}>
+        <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-dim">
           {count}
         </span>
       )}
@@ -75,17 +72,12 @@ export function PageTopThread({
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span style={{ display: "none" }}>{back.label}</span>
+          <span className="hidden">{back.label}</span>
         </button>
-        <span style={{ color: COLORS.inkDim, fontSize: 13 }}>{back.label}</span>
+        <span style={{ fontSize: 13 }} className="text-admin-ink-dim">{back.label}</span>
         <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 12 }}>·</span>
         {/* Title takes remaining width; truncates if too long */}
-        <h1 style={{
-          margin: 0, flex: 1, minWidth: 0,
-          fontFamily: FONTS.display, fontSize: 18, fontWeight: 700,
-          color: COLORS.ink, letterSpacing: -0.25, lineHeight: 1.2,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>{title}</h1>
+        <h1 style={{ margin: 0, flex: 1, minWidth: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, letterSpacing: -0.25, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{title}</h1>
         {statusChip && (
           <span style={{
             fontSize: 10.5, fontWeight: 600,
@@ -96,11 +88,8 @@ export function PageTopThread({
         )}
       </div>
       {meta && (
-        <div style={{
-          fontSize: 12, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.4,
-          // Indent so it lines up under the title, not under the back-arrow.
-          paddingLeft: 0,
-        }}>{meta}</div>
+        <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.4, // Indent so it lines up under the title, not under the back-arrow.
+          paddingLeft: 0 }} className="text-admin-ink-muted">{meta}</div>
       )}
     </header>
   );
@@ -292,11 +281,11 @@ export function InquiryComposer({
           padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", gap: 10,
         }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted }}>
+          <div className="flex-1">
+            <div style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-ink-muted">
               {mode === "client" ? "New inquiry" : mode === "hub" ? "Hub inquiry" : "Manual inquiry"}
             </div>
-            <h2 style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, fontFamily: FONTS.display, color: COLORS.ink }}>
+            <h2 style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, fontFamily: FONTS.display }} className="text-admin-ink">
               What do you need?
             </h2>
           </div>
@@ -332,7 +321,7 @@ export function InquiryComposer({
             Picking "Mixed group" reveals a row-builder for "3 hosts +
             2 models + 1 DJ" style group inquiries. */}
         <ComposerSection title="1. What do you need" subtitle="Pick a category — or build a mixed group.">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {[
               { id: "models",        label: "Models",        emoji: "👤" },
               { id: "hosts",         label: "Hosts",         emoji: "🎤" },
@@ -400,7 +389,7 @@ export function InquiryComposer({
         {/* Talent */}
         <ComposerSection title="4. Who you want" subtitle={mode === "client" ? "Pick from the directory or leave blank — we'll suggest." : "Invite represented talent. Search by code or name."}>
           <ComposerInput placeholder="Search talent…" value={"" /* stub */} onChange={() => {}} />
-          <div style={{ marginTop: 8, fontSize: 11.5, color: COLORS.inkDim }}>
+          <div style={{ marginTop: 8, fontSize: 11.5 }} className="text-admin-ink-dim">
             {draft.talent.length === 0 ? "No talent added yet." : `${draft.talent.length} added`}
           </div>
         </ComposerSection>
@@ -411,7 +400,7 @@ export function InquiryComposer({
             placeholder={mode === "client" ? "e.g. 3 promo models for a beach club launch" : "Brief headline for triage"}
             value={draft.briefSummary} onChange={v => update("briefSummary", v)}
           />
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <ComposerTextarea
               placeholder="Notes — timing, dress code, languages, deliverables…"
               value={draft.briefNotes} onChange={v => update("briefNotes", v)}
@@ -449,9 +438,7 @@ export function InquiryComposer({
               ]}
             />
           </div>
-          <label style={{
-            display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12, color: COLORS.inkMuted, cursor: "pointer",
-          }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 12, cursor: "pointer" }} className="text-admin-ink-muted">
             <input type="checkbox" checked={draft.budgetPerPerson} onChange={e => update("budgetPerPerson", e.target.checked)} />
             Budget is per talent (not group total)
           </label>
@@ -534,21 +521,16 @@ export function MixedGroupBuilder({
         marginBottom: 10, gap: 8,
       }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.indigoDeep }}>
+          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-indigo-deep">
             Mixed group
           </div>
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+          <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
             One inquiry · multiple categories. Coordinator routes each category to the right talent.
           </div>
         </div>
-        <span style={{
-          fontSize: 11, fontWeight: 600,
-          padding: "3px 9px", borderRadius: 999,
-          background: "#fff", color: COLORS.indigoDeep,
-          fontVariantNumeric: "tabular-nums",
-        }}>{total} talent</span>
+        <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 999, background: "#fff", fontVariantNumeric: "tabular-nums" }} className="text-admin-indigo-deep">{total} talent</span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {rows.map((r) => (
           <div key={r.id} style={{
             display: "flex", alignItems: "center", gap: 8,
@@ -602,9 +584,9 @@ export function ComposerSection({ title, subtitle, children }: { title: string; 
       padding: "12px 14px", borderRadius: 10,
       border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
     }}>
-      <div style={{ marginBottom: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>{title}</h3>
-        {subtitle && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4 }}>{subtitle}</p>}
+      <div className="mb-2.5">
+        <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">{title}</h3>
+        {subtitle && <p style={{ margin: "2px 0 0", fontSize: 11.5, lineHeight: 1.4 }} className="text-admin-ink-muted">{subtitle}</p>}
       </div>
       {children}
     </section>

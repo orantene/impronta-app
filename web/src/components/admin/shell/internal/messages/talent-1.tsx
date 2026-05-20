@@ -124,27 +124,17 @@ export function TalentJobShellHeader({
           </svg>
         </button>
         <div data-tulala-header-meta style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{
-            margin: 0,
-            fontFamily: FONTS.display, fontSize: 17, fontWeight: 700,
-            color: COLORS.ink, letterSpacing: -0.25, lineHeight: 1.25,
-            display: "flex", alignItems: "center", gap: 8,
-            whiteSpace: "nowrap", overflow: "hidden",
-          }}>
+          <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, letterSpacing: -0.25, lineHeight: 1.25, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink">
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-              {conv.client} <span style={{ fontWeight: 500, color: COLORS.inkMuted }}>· {conv.brief}</span>
+              {conv.client} <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">· {conv.brief}</span>
             </span>
             {conv.clientTrust && conv.clientTrust !== "basic" && (
-              <span style={{ flexShrink: 0 }}>
+              <span className="shrink-0">
                 <ClientTrustChip level={conv.clientTrust} compact />
               </span>
             )}
           </h1>
-          <div style={{
-            fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3,
-            display: "flex", alignItems: "center", gap: 8,
-            whiteSpace: "nowrap", overflow: "hidden",
-          }}>
+          <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink-muted">
             <span style={{
               minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
             }}>{metaLine}</span>
@@ -185,13 +175,7 @@ export function TalentJobShellHeader({
             take-home slot so the header isn't naked and the user
             instantly reads the closure reason. */}
         {!hasRate && conv.stage === "cancelled" && conv.outcome && (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            padding: "5px 10px", borderRadius: 999,
-            background: "rgba(11,11,13,0.05)",
-            color: COLORS.inkMuted,
-            fontSize: 11, fontWeight: 600, fontFamily: FONTS.body,
-          }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: "rgba(11,11,13,0.05)", fontSize: 11, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             <span aria-hidden style={{ fontSize: 11 }}>
               {conv.outcome === "client_cancelled" ? "🚫"
                 : conv.outcome === "client_rejected" ? "✕"
@@ -206,7 +190,7 @@ export function TalentJobShellHeader({
           </span>
         )}
         {hasRate && (
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <button
               type="button"
               onClick={() => setBreakdownOpen(v => !v)}
@@ -258,7 +242,7 @@ export function TalentJobShellHeader({
                 <BreakdownRow label="Platform fee (5%)"  value={`–${fmt(platformFee)}`} muted />
                 <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 0" }} />
                 <BreakdownRow label="Your take-home" value={yourRate} bold />
-                <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 8 }}>
+                <div style={{ fontSize: 10.5, marginTop: 8 }} className="text-admin-ink-muted">
                   {conv.stage === "past" ? "Paid · receipt available" : "Paid 14 days post-shoot"}
                 </div>
               </div>
@@ -398,26 +382,17 @@ export function ShellHeader({
           </svg>
         </button>
         <div data-tulala-header-meta style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{
-            margin: 0, fontFamily: FONTS.display, fontSize: 17, fontWeight: 700,
-            color: COLORS.ink, letterSpacing: -0.25, lineHeight: 1.25,
-            display: "flex", alignItems: "center", gap: 8,
-            whiteSpace: "nowrap", overflow: "hidden",
-          }}>
+          <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, letterSpacing: -0.25, lineHeight: 1.25, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink">
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-              {conv.client} <span style={{ fontWeight: 500, color: COLORS.inkMuted }}>· {conv.brief}</span>
+              {conv.client} <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">· {conv.brief}</span>
             </span>
             {conv.clientTrust && conv.clientTrust !== "basic" && (
-              <span style={{ flexShrink: 0 }}>
+              <span className="shrink-0">
                 <ClientTrustChip level={conv.clientTrust} compact />
               </span>
             )}
           </h1>
-          <div style={{
-            fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3,
-            display: "flex", alignItems: "center", gap: 8,
-            whiteSpace: "nowrap", overflow: "hidden",
-          }}>
+          <div style={{ fontSize: 11.5, marginTop: 3, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink-muted">
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine}</span>
             {sourceMeta && (
               <span aria-label={`Source: ${sourceMeta.label}`} title={sourceMeta.tooltip} style={{
@@ -493,13 +468,7 @@ export function ShellHeader({
           chrome on every thread. JobStageFunnel function remains in use
           by inbox-row + other compact contexts. */}
       {metaExtras && (
-        <div style={{
-          paddingTop: 8,
-          borderTop: `1px solid ${COLORS.borderSoft}`,
-          display: "flex", alignItems: "center", gap: 10,
-          fontSize: 11.5, color: COLORS.inkMuted,
-          flexWrap: "wrap",
-        }}>
+        <div style={{ paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, flexWrap: "wrap" }} className="text-admin-ink-muted">
           {metaExtras}
         </div>
       )}
@@ -659,7 +628,7 @@ export function LineupTabPanel({ onOpen }: { onOpen: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24, fontFamily: FONTS.body, color: COLORS.inkMuted, fontSize: 12.5, textAlign: "center" }}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24, fontFamily: FONTS.body, fontSize: 12.5, textAlign: "center" }} className="text-admin-ink-muted">
       Opening the lineup —
       <button
         type="button"

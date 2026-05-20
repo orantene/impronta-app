@@ -116,12 +116,8 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
       fontFamily: FONTS.body,
     }}>
       {fileVisual(f.name)}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 6,
-          fontSize: 13, fontWeight: 600, color: COLORS.ink,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>
+      <div className="flex-1 min-w-0">
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
           {showThreadChip && (
             <span style={{
@@ -133,7 +129,7 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
             }}>{f.thread === "client" ? "Client" : "Team"}</span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+        <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
           {f.size} · {f.addedBy} · {f.addedAt}
         </div>
       </div>
@@ -152,11 +148,7 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
   // when BOTH threads have content. Single-thread views skip the
   // eyebrow (no need to disambiguate when there's one group).
   const groupTitle = (label: string) => (
-    <div style={{
-      fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-      textTransform: "uppercase", color: COLORS.inkMuted,
-      marginTop: 8, marginBottom: 2,
-    }}>{label}</div>
+    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginTop: 8, marginBottom: 2 }} className="text-admin-ink-muted">{label}</div>
   );
 
   const showGroupHeaders = povCanSeeTalentFiles && sortedClient.length > 0 && sortedTalent.length > 0;
@@ -201,13 +193,13 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
           <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
         </svg>
         {talentUploadPending ? "Uploading…" : "Add file"}
-        <span style={{ marginLeft: 8, color: COLORS.inkMuted, fontWeight: 400, fontSize: 11 }}>
+        <span style={{ marginLeft: 8, fontWeight: 400, fontSize: 11 }} className="text-admin-ink-muted">
           polaroids, signed contracts, references
         </span>
       </button>
 
       {visible.length === 0 ? (
-        <div style={{ padding: "24px 12px", textAlign: "center", color: COLORS.inkDim, fontSize: 12, fontFamily: FONTS.body }}>
+        <div style={{ padding: "24px 12px", textAlign: "center", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">
           No files attached yet · drop one above to share with the team.
         </div>
       ) : (
@@ -249,8 +241,7 @@ export function DaySeparator({ label }: { label: string }) {
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0" }}>
       <span style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
       <span style={{
-        fontSize: 10.5, fontWeight: 600,         color: COLORS.inkDim, padding: "2px 8px",
-      }}>{label}</span>
+        fontSize: 10.5, fontWeight: 600, padding: "2px 8px" }} className="text-admin-ink-dim">{label}</span>
       <span style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
     </div>
   );
@@ -368,15 +359,7 @@ export function TeamStrip({
           );
         })}
         {overflow > 0 && (
-          <span style={{
-            marginLeft: -10,
-            width: 28, height: 28, borderRadius: "50%",
-            background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 10.5, fontWeight: 700,
-            boxShadow: "0 0 0 2px #fff, 0 0 0 3px rgba(11,11,13,0.10)",
-            fontFamily: FONTS.body,
-          }}>+{overflow}</span>
+          <span style={{ marginLeft: -10, width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700, boxShadow: "0 0 0 2px #fff, 0 0 0 3px rgba(11,11,13,0.10)", fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">+{overflow}</span>
         )}
       </div>
       {/* Tight summary — single line. Smart copy per cardinality:
@@ -384,16 +367,9 @@ export function TeamStrip({
           - solo + other  → name only
           - group         → "X/Y"
           + Locked pill when fully confirmed (group only). */}
-      <div style={{
-        flex: 1, minWidth: 0,
-        display: "inline-flex", alignItems: "center", gap: 6,
-        flexWrap: "nowrap",
-        fontSize: 12, color: COLORS.ink, fontWeight: 600,
-        letterSpacing: -0.05,
-        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      }}>
+      <div style={{ flex: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "nowrap", fontSize: 12, fontWeight: 600, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
         {isSolo ? (
-          <span style={{ fontWeight: 700, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
             {soloIsMe ? "Just you" : (lineup[0]?.name ?? "")}
           </span>
         ) : (
@@ -401,22 +377,13 @@ export function TeamStrip({
             <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
               {accepted}/{lineup.length}
             </span>
-            <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}>
+            <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">
               on the lineup
             </span>
           </>
         )}
         {allConfirmed && lineup.length > 1 && (
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 3,
-            fontSize: 9.5, fontWeight: 700,
-            color: COLORS.success,
-            padding: "1px 6px", borderRadius: 999,
-            background: "#fff",
-            textTransform: "uppercase", letterSpacing: 0.4,
-            border: `1px solid ${COLORS.success}30`,
-            flexShrink: 0,
-          }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "#fff", textTransform: "uppercase", letterSpacing: 0.4, border: `1px solid ${COLORS.success}30`, flexShrink: 0 }} className="text-admin-success">
             <svg width="7" height="7" viewBox="0 0 8 8" fill="none">
               <path d="M1.5 4.2l1.7 1.6L6.5 2.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -645,9 +612,9 @@ export function ActionPinShell({
         background: "rgba(255,255,255,0.6)",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
       }}>{icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{ fontSize: 12.5, fontWeight: 700, color: palette.fg, lineHeight: 1.3 }}>{title}</div>
-        <div style={{ fontSize: 11.5, color: COLORS.ink, marginTop: 2, lineHeight: 1.45 }}>{body}</div>
+        <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink">{body}</div>
         {(primary || secondary) && (
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             {primary && (() => {

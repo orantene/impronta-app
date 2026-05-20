@@ -110,9 +110,9 @@ export function AdminInboxList({
         minWidth: 0, maxWidth: "100%",
       }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
-          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, margin: 0 }}>Inbox</h3>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">Inbox</h3>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
             {/* Bulk-select toggle — admin+ only. Visible chevron pill
                 so the affordance reads as "switch into bulk mode" not
                 some hidden gesture. */}
@@ -195,10 +195,10 @@ export function AdminInboxList({
                 <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
               {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No inquiries yet"}
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4, maxWidth: 240 }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
               {search.trim() ? "Try a different keyword, or clear the search." : "Inquiries from clients appear here. Share your roster page to get the first one in."}
             </div>
             {search.trim() && (
@@ -230,7 +230,7 @@ export function AdminInboxList({
                     aria-label={`Select ${i.clientName}`}
                     style={{ width: 14, height: 14, cursor: "pointer", flexShrink: 0 }}
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <AdminInquiryRow inquiry={i} active={false} onClick={() => toggleSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
                   </div>
                 </div>
@@ -246,15 +246,8 @@ export function AdminInboxList({
           are coord+. All resolve to a toast in the prototype but the
           underlying selectedIds set is real. */}
       {bulkMode && selectedIds.size > 0 && (
-        <div style={{
-          flexShrink: 0,
-          padding: "10px 14px",
-          background: COLORS.fill, color: "#fff",
-          borderTop: `1px solid ${COLORS.borderSoft}`,
-          display: "flex", alignItems: "center", gap: 10,
-          fontFamily: FONTS.body, fontSize: 12,
-        }}>
-          <span style={{ fontWeight: 700 }}>
+        <div style={{ flexShrink: 0, padding: "10px 14px", color: "#fff", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-fill">
+          <span className="font-bold">
             {selectedIds.size} selected
           </span>
           <span style={{ flex: 1 }} />
@@ -402,7 +395,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         disabled={pending}

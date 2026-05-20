@@ -7,7 +7,7 @@ import { loadCurrentTalentPayoutSnapshot, type TalentPayoutSnapshot } from "@/li
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
 import { sendOfferAction, approveOfferAction, rejectOfferAction, counterOfferAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { useAdminShell, COLORS, RADIUS, FONTS } from "../../state";
+import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from "../conversation-stash";
 import { STAGE_LABEL, fmtMoney, getOffer, nextActionFor, rowSubtotal } from "./machinery-10";
@@ -16,7 +16,6 @@ import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
 import { DealSummaryCard, LineupRowCard, ParticipantRow, TimelineRow, dashedBtn, disabledBtn, ghostBtn, primaryBtn } from "./machinery-13";
 import { SubmitRateSheet } from "./machinery-14";
 import type { Offer } from "./machinery-9";
-
 
 /**
  * Live status banner shown above the (mock) OfferTab body when a real
@@ -51,15 +50,10 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
     });
 
   return (
-    <div style={{
-      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md, padding: "10px 12px",
-      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-      fontFamily: FONTS.body, fontSize: 12,
-    }}>
-      <span style={{ fontWeight: 700, color: COLORS.ink }}>Live · DB-backed</span>
-      <span style={{ color: COLORS.inkMuted }}>Offer status: <strong>{status}</strong></span>
-      <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>{offerId.slice(0, 8)}…</span>
+    <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
+      <span style={{ fontWeight: 700 }} className="text-admin-ink">Live · DB-backed</span>
+      <span className="text-admin-ink-muted">Offer status: <strong>{status}</strong></span>
+      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{offerId.slice(0, 8)}…</span>
       <span style={{ flex: 1 }} />
       {isAdmin && status === "draft" && (
         <button type="button" disabled={pending}
@@ -167,18 +161,14 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               pendingPayouts={talentPayout.pendingPayouts}
             />
           )}
-          <div style={{
-            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: RADIUS.md, padding: 16,
-            display: "flex", flexDirection: "column", gap: 10,
-          }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>Submit your rate</div>
-            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }} className="rounded-admin-md">
+            <div style={{ fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">Submit your rate</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               The coordinator is waiting on your number. You&apos;ll see the agency
               fee + platform fee deducted before take-home — quote what you
               actually need to walk out with, plus a small margin for usage.
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="flex gap-2">
               <button
                 type="button"
                 disabled
@@ -193,7 +183,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       );
     }
     return (
-      <div style={{ padding: 24, textAlign: "center", color: COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13 }}>
+      <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-dim">
         No offer yet for this inquiry.
         {isAdmin && <CreateOfferButton inquiryId={conv.id} />}
       </div>
@@ -223,7 +213,6 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       ? `${next.cta} needs a live workflow before it can run here.`
       : undefined;
 
-
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <LiveOfferPanel inquiryId={conv.id} pov={pov} />
@@ -238,7 +227,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           fontSize: 10.5, fontWeight: 700,           padding: "3px 9px", borderRadius: 999, background: stage.bg, color: stage.tone, flexShrink: 0,
         }}>{stageLabel}</span>
         {offer.expiresInHours !== undefined && offer.stage !== "accepted" && offer.stage !== "rejected" && offer.stage !== "expired" && (
-          <span style={{ fontSize: 11, color: COLORS.coral, fontWeight: 600 }}>
+          <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-coral">
             ⏱ {offer.expiresInHours}h
           </span>
         )}
@@ -314,7 +303,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
       {/* ── B. Participants ──────────────────────────────────── */}
       <SectionHeader title="Who's running this" subtitle={isClient ? "Your point of contact." : `${offer.coordinators.length} coordinator${offer.coordinators.length === 1 ? "" : "s"} · ${offer.rows.length} talent${offer.rows.length === 1 ? "" : "s"}`} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {offer.coordinators.map(c => (
           <ParticipantRow
             key={c.id}
@@ -348,7 +337,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               : "Per-talent rates. Each talent sets their own — only coordinators see the full lineup."
         }
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {visibleRows.map(r => (
           <LineupRowCard
             key={r.id} row={r} offer={offer} pov={pov}
@@ -380,14 +369,14 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
       {/* ── Agency fee — admin/coordinator only ──────────────── */}
       {canSeeFullCommerce && (
-        <div style={{ padding: "12px 14px", borderRadius: 10, background: COLORS.surfaceAlt, fontSize: 12.5 }}>
+        <div style={{ padding: "12px 14px", borderRadius: 10, fontSize: 12.5 }} className="bg-admin-surface-alt">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ color: COLORS.inkMuted }}>Agency fee</span>
-            <span style={{ fontWeight: 600, color: COLORS.ink }}>{fmtMoney(offer.agencyFee, currency)}</span>
+            <span className="text-admin-ink-muted">Agency fee</span>
+            <span style={{ fontWeight: 600 }} className="text-admin-ink">{fmtMoney(offer.agencyFee, currency)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ color: COLORS.inkMuted }}>Coordinator share ({offer.coordinatorPct}% of fee)</span>
-            <span style={{ fontWeight: 600, color: COLORS.ink }}>{fmtMoney(offer.agencyFee * offer.coordinatorPct / 100, currency)}</span>
+            <span className="text-admin-ink-muted">Coordinator share ({offer.coordinatorPct}% of fee)</span>
+            <span style={{ fontWeight: 600 }} className="text-admin-ink">{fmtMoney(offer.agencyFee * offer.coordinatorPct / 100, currency)}</span>
           </div>
         </div>
       )}
@@ -406,25 +395,25 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
             display: "flex", flexDirection: "column", gap: 8,
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: COLORS.inkMuted }}>Talent fees ({offer.rows.length} {offer.rows.length === 1 ? "talent" : "talent"})</span>
-              <span style={{ fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>
+              <span className="text-admin-ink-muted">Talent fees ({offer.rows.length} {offer.rows.length === 1 ? "talent" : "talent"})</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
                 {fmtMoney(offer.rows.reduce((s, r) => s + rowSubtotal(r, "client"), 0), currency)}
               </span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: COLORS.inkMuted }}>Agency service fee</span>
-              <span style={{ fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>
+              <span className="text-admin-ink-muted">Agency service fee</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
                 {fmtMoney(offer.agencyFee, currency)}
               </span>
             </div>
             <div style={{ height: 1, background: COLORS.borderSoft, margin: "2px 0" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: COLORS.ink, fontWeight: 600 }}>Total</span>
-              <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, color: COLORS.accent, fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontWeight: 600 }} className="text-admin-ink">Total</span>
+              <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, fontVariantNumeric: "tabular-nums" }} className="text-admin-accent">
                 {fmtMoney(totalRevenue, currency)}
               </span>
             </div>
-            <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-dim">
               Includes coordination, scheduling, contract handling, and post-shoot support. Tax/VAT shown on final invoice.
             </div>
           </div>
@@ -441,12 +430,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
       {/* Privacy footer for non-coordinator talent */}
       {isTalent && !pov.isCoordinator && (
-        <div style={{
-          padding: "10px 12px", borderRadius: 8,
-          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-          fontSize: 11.5, lineHeight: 1.5,
-          display: "flex", gap: 8, alignItems: "flex-start",
-        }}>
+        <div style={{ padding: "10px 12px", borderRadius: 8, fontSize: 11.5, lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }} className="bg-admin-indigo-soft text-admin-indigo-deep">
           <span aria-hidden style={{ flexShrink: 0, marginTop: 1 }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
@@ -503,7 +487,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
 
 export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div style={{ marginTop: 4 }}>
+    <div className="mt-1">
       <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 14.5, fontWeight: 700, color: COLORS.ink }}
         dangerouslySetInnerHTML={{ __html: title }}
       />

@@ -112,13 +112,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   const overflowCount = Math.max(0, lineup.length - MAX_AVATARS);
 
   return (
-    <div style={{
-      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md, padding: expanded ? 12 : "6px 10px",
-      marginBottom: 10,
-      fontFamily: FONTS.body, fontSize: 12,
-      transition: "padding 0.12s ease",
-    }}>
+    <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: expanded ? 12 : "6px 10px", marginBottom: 10, fontFamily: FONTS.body, fontSize: 12, transition: "padding 0.12s ease" }} className="bg-admin-surface-alt rounded-admin-md">
       {/* Compact strip — always visible. Clickable to expand the panel. */}
       <button
         type="button"
@@ -133,12 +127,12 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
           fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink,
         }}
       >
-        <span style={{ fontWeight: 700, color: COLORS.ink, whiteSpace: "nowrap" }}>
+        <span style={{ fontWeight: 700, whiteSpace: "nowrap" }} className="text-admin-ink">
           Lineup
         </span>
         {/* Overlapping avatar stack */}
         {lineup.length === 0 ? (
-          <span style={{ color: COLORS.inkMuted, fontSize: 11, fontStyle: "italic" }}>
+          <span style={{ fontSize: 11, fontStyle: "italic" }} className="text-admin-ink-muted">
             empty — add talent to start
           </span>
         ) : (
@@ -170,22 +164,12 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
               </span>
             ))}
             {overflowCount > 0 && (
-              <span
-                style={{
-                  marginLeft: -6,
-                  width: 22, height: 22,
-                  borderRadius: "50%",
-                  background: COLORS.surfaceAlt,
-                  border: `1.5px solid ${COLORS.surfaceAlt}`,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 700, color: COLORS.inkMuted,
-                }}
+              <span style={{ marginLeft: -6, width: 22, height: 22, borderRadius: "50%", border: `1.5px solid ${COLORS.surfaceAlt}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, }}
                 title={`+${overflowCount} more`}
               >+{overflowCount}</span>
             )}
             <span style={{
-              marginLeft: 8, fontSize: 11, color: COLORS.inkMuted, fontWeight: 600,
-            }}>
+              marginLeft: 8, fontSize: 11, color: COLORS.inkMuted, fontWeight: 600, }} className="bg-admin-surface-alt text-admin-ink-muted">
               {lineup.length} talent{lineup.length === 1 ? "" : "s"}
             </span>
           </span>
@@ -200,7 +184,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
             display: "inline-block", width: 12,
           }}
         >▸</span>
-        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
           {expanded ? "Hide" : "Manage"}
         </span>
       </button>
@@ -209,8 +193,8 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
           mounts when the user opens the panel. */}
       {expanded && (
         <div id={`lineup-panel-${inquiryId}`} style={{ marginTop: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
               inquiry_participants · drag to reorder
             </span>
             <span style={{ flex: 1 }} />
@@ -261,11 +245,11 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
                 color: COLORS.inkDim, fontSize: 12, fontWeight: 700,
                 cursor: "grab", userSelect: "none",
               }}>⋮⋮</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: COLORS.ink }}>
+              <div className="flex-1 min-w-0">
+                <div style={{ fontWeight: 600 }} className="text-admin-ink">
                   {p.talentDisplayName ?? "(unnamed talent)"}
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
                   {p.status}{p.invitedAt ? ` · invited ${new Date(p.invitedAt).toLocaleDateString()}` : ""}
                 </div>
               </div>
@@ -304,7 +288,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
           />
           <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
             {pickerCandidates.length === 0 && (
-              <div style={{ fontSize: 11, color: COLORS.inkMuted, padding: "6px 4px" }}>
+              <div style={{ fontSize: 11, padding: "6px 4px" }} className="text-admin-ink-muted">
                 {pickerSearch.trim() ? "No matches in roster." : "All roster talent are already on this lineup."}
               </div>
             )}
@@ -326,7 +310,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
               >
                 <span style={{ flex: 1, fontWeight: 600 }}>{cand.name}</span>
-                <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>{cand.city ?? ""}</span>
+                <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{cand.city ?? ""}</span>
               </button>
             ))}
           </div>
@@ -482,14 +466,9 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
 
   if (collapsed) {
     return (
-      <div style={{
-        background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.md, padding: "8px 12px",
-        display: "flex", alignItems: "center", gap: 10,
-        fontFamily: FONTS.body, fontSize: 12,
-      }}>
-        <span style={{ fontWeight: 700, color: COLORS.ink }}>Draft editor</span>
-        <span style={{ color: COLORS.inkMuted }}>
+      <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
+        <span style={{ fontWeight: 700 }} className="text-admin-ink">Draft editor</span>
+        <span className="text-admin-ink-muted">
           {snapshot.lineItems.length} line item{snapshot.lineItems.length === 1 ? "" : "s"}
           {" · "}
           total {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(snapshot.totalClientPrice)}
@@ -507,13 +486,13 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
       display: "flex", flexDirection: "column", gap: 8,
       fontFamily: FONTS.body, fontSize: 12,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontWeight: 700, color: COLORS.ink }}>Draft editor</span>
-        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>inquiry_offer_line_items</span>
+      <div className="flex items-center gap-2">
+        <span style={{ fontWeight: 700 }} className="text-admin-ink">Draft editor</span>
+        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">inquiry_offer_line_items</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>Collapse</button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
           <div key={li.id} style={{
             background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
@@ -592,15 +571,15 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>+ Add line item</button>
         <span style={{ flex: 1 }} />
-        <label style={{ fontSize: 11, color: COLORS.inkMuted }}>Total</label>
+        <label style={{ fontSize: 11 }} className="text-admin-ink-muted">Total</label>
         <input type="number" min={0} step="100" value={snapshot.totalClientPrice}
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, totalClientPrice: parseFloat(e.target.value) || 0 })}
           style={{ width: 90, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
         />
-        <label style={{ fontSize: 11, color: COLORS.inkMuted }}>Fee</label>
+        <label style={{ fontSize: 11 }} className="text-admin-ink-muted">Fee</label>
         <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
           style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
@@ -622,7 +601,7 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
-    <div style={{ marginTop: 12 }}>
+    <div className="mt-3">
       <button
         type="button"
         disabled={pending}

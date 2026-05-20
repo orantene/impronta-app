@@ -167,14 +167,14 @@ export function AdminBookingTab({
               <path d="M8 4.5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: heroPalette.fg }}>
               Your move
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">
               {adminAction.label}
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {adminAction.sub}
             </div>
           </div>
@@ -210,11 +210,11 @@ export function AdminBookingTab({
               <path d="M2.5 6.5h11M5 2v3M11 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 700, color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success) }}>
               {days.headline}
             </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
               {days.subhead}
             </div>
           </div>
@@ -228,7 +228,7 @@ export function AdminBookingTab({
           talent), not structure. */}
       <div data-booking-card style={cardStyle}>
         <div data-booking-section-title style={sectionTitle}>The project</div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.35 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }} className="text-admin-ink">
           {inquiry.title}
         </div>
         {/* Slice 3 (Messages consolidation): identity line below the
@@ -237,7 +237,7 @@ export function AdminBookingTab({
             (summary + notes + coord read) stays here — it's the
             project-detail surface, not the identity surface. */}
         {!inquiry.client.name && !coord && (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">
             (no client or coordinator linked yet)
           </div>
         )}
@@ -246,16 +246,12 @@ export function AdminBookingTab({
             source-of-truth display; if the user wants to dig into
             source detail, the header chip is already there. */}
         {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
-          <div style={{ fontSize: 12.5, color: COLORS.ink, marginTop: 8, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.55 }} className="text-admin-ink">
             {inquiry.brief.summary}
           </div>
         )}
         {inquiry.brief.notes && (
-          <div style={{
-            fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55, marginTop: 8,
-            padding: "8px 10px", background: COLORS.surfaceAlt,
-            borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
-          }}>{inquiry.brief.notes}</div>
+          <div style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}` }} className="text-admin-ink-muted bg-admin-surface-alt">{inquiry.brief.notes}</div>
         )}
         {/* Coord-team read — admin counterpart of talent's "Sara's
             read" block. Same indigo quote silhouette so the two
@@ -263,31 +259,17 @@ export function AdminBookingTab({
             coordinatorNote source so a coord's framing is visible to
             their team without writing it twice. */}
         {conv.pinned?.coordinatorNote && coord && (
-          <div style={{
-            marginTop: 10,
-            display: "flex", gap: 9,
-            padding: "10px 12px",
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.18)`,
-            borderRadius: 10,
-          }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 9, padding: "10px 12px", border: `1px solid rgba(91,107,160,0.18)`, borderRadius: 10 }} className="bg-admin-indigo-soft">
             <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: COLORS.indigoDeep }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M3 3h3v3H4l-1 2v-2H3V3zm5 0h3v3H9l-1 2v-2H8V3z" fill="currentColor"/>
               </svg>
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
-                textTransform: "uppercase", color: COLORS.indigoDeep,
-                marginBottom: 2,
-              }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-indigo-deep">
                 {coord.name.split(" ")[0]}&apos;s read
               </div>
-              <div style={{
-                fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
-                fontStyle: "italic",
-              }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: "italic" }} className="text-admin-ink">
                 &quot;{conv.pinned.coordinatorNote}&quot;
               </div>
             </div>
@@ -299,13 +281,13 @@ export function AdminBookingTab({
       <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>When</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
           {inquiry.schedule.callTime && (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
-              Call · <span style={{ color: COLORS.ink, fontWeight: 600 }}>{inquiry.schedule.callTime}</span>
+            <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
+              Call · <span style={{ fontWeight: 600 }} className="text-admin-ink">{inquiry.schedule.callTime}</span>
             </div>
           )}
         </div>
@@ -321,7 +303,7 @@ export function AdminBookingTab({
               />
             </div>
           ) : (
-            <div style={{ padding: "0 14px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+            <div style={{ padding: "0 14px 12px", fontSize: 12 }} className="text-admin-ink-muted">
               Location TBC.
             </div>
           )}
@@ -345,7 +327,7 @@ export function AdminBookingTab({
         <div data-booking-card style={cardStyle}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
             <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
-            <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+            <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
               {allFiles.length} file{allFiles.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -372,12 +354,9 @@ export function AdminBookingTab({
                     <path d="M7 1v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
                   </svg>
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 12, fontWeight: 600, color: COLORS.ink,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  }}>{f.name}</div>
-                  <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{f.name}</div>
+                  <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
                     {f.thread === "client" ? "Client thread" : "Talent thread"} · {f.size} · added by {f.addedBy} · {f.addedAt}
                   </div>
                 </div>
@@ -410,11 +389,11 @@ export function AdminBookingTab({
         <div data-booking-card style={cardStyle}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
             <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Last activity</div>
-            <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+            <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
               {inquiry.timeline.length} event{inquiry.timeline.length === 1 ? "" : "s"}
             </span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {/* Most recent first — the timeline is stored chronologically,
                 so we slice from the end. */}
             {[...inquiry.timeline].slice(-6).reverse().map((ev) => {
@@ -432,13 +411,13 @@ export function AdminBookingTab({
                     width: 6, height: 6, borderRadius: "50%",
                     background: toneColor,
                   }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: COLORS.ink }}>
-                      <span style={{ fontWeight: 600 }}>{ev.actor}</span>
-                      <span style={{ color: COLORS.inkMuted }}> · </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-admin-ink">
+                      <span className="font-semibold">{ev.actor}</span>
+                      <span className="text-admin-ink-muted"> · </span>
                       <span>{ev.body}</span>
                     </div>
-                    <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 1 }}>
+                    <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-dim">
                       {ev.ts}
                     </div>
                   </div>
@@ -447,10 +426,7 @@ export function AdminBookingTab({
             })}
           </div>
           {inquiry.timeline.length > 6 && (
-            <div style={{
-              marginTop: 8, fontSize: 11, color: COLORS.inkMuted,
-              textAlign: "center", fontStyle: "italic",
-            }}>
+            <div style={{ marginTop: 8, fontSize: 11, textAlign: "center", fontStyle: "italic" }} className="text-admin-ink-muted">
               + {inquiry.timeline.length - 6} earlier event{inquiry.timeline.length - 6 === 1 ? "" : "s"}
             </div>
           )}
@@ -508,9 +484,9 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
           borderRadius: 10,
         }}>
           <span aria-hidden style={{ fontSize: 16 }}>{days.urgent ? "⏱" : "📅"}</span>
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 700, color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success) }}>{days.headline}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{days.subhead}</div>
+            <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{days.subhead}</div>
           </div>
         </div>
       )}
@@ -518,12 +494,12 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
       {/* Schedule — call time + wrap time, the questions a working
           talent asks first. */}
       <DetailSection title="Schedule">
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
         {pinned.schedule && (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+          <div style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5, whiteSpace: "pre-line" }} className="text-admin-ink-muted">
             {pinned.schedule}
           </div>
         )}
@@ -549,11 +525,11 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
           talent-specific pinned data (set by coordinator). */}
       <DetailSection title="Transport">
         {pinned.transport ? (
-          <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
             {pinned.transport}
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
             Coordinator hasn&apos;t shared transport details yet.
           </div>
         )}
@@ -562,7 +538,7 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
       {/* Hotel/lodging — if mentioned in pinned data. */}
       {(pinned as { hotel?: string }).hotel && (
         <DetailSection title="Lodging">
-          <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
             {(pinned as { hotel?: string }).hotel}
           </div>
         </DetailSection>
@@ -621,10 +597,10 @@ export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourR
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, color: isPast ? COLORS.inkMuted : (COLORS.successDeep ?? COLORS.success), textTransform: "uppercase" }}>
           {isPast ? "Paid" : "Your take-home"}
         </div>
-        <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 700, color: COLORS.ink, marginTop: 4, letterSpacing: -0.4 }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 700, marginTop: 4, letterSpacing: -0.4 }} className="text-admin-ink">
           {yourRate}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+        <div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
           {isPast ? "Receipt available below." : "Released 14 days after wrap, once the client invoice clears."}
         </div>
       </div>
@@ -650,9 +626,9 @@ export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourR
               <path d="M2 7h12" stroke="currentColor" strokeWidth="1.4"/>
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Bank transfer · ES•••• 4421</div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>Default · added Mar 2024</div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">Bank transfer · ES•••• 4421</div>
+            <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Default · added Mar 2024</div>
           </div>
           <button type="button" onClick={() => toast("Change payment method")} style={{
             padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 600,
@@ -705,9 +681,9 @@ export function PaymentStep({ done, label, detail }: { done?: boolean; label: st
           </svg>
         )}
       </span>
-      <div style={{ flex: 1 }}>
+      <div className="flex-1">
         <div style={{ fontSize: 12.5, fontWeight: 600, color: done ? COLORS.ink : COLORS.inkMuted }}>{label}</div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{detail}</div>
+        <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{detail}</div>
       </div>
     </div>
   );

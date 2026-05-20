@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { COLORS, useAdminShell, FONTS, ROSTER_AGENCY, ROSTER_FREE, RADIUS, TRANSITION } from "../../state";
+import { COLORS, useAdminShell, FONTS, ROSTER_AGENCY, ROSTER_FREE, TRANSITION } from "../../state";
 import { Avatar, ClientTrustBadge, TrustBadgeGroup, Icon } from "../../primitives";
 import { type Participant } from "../../talent";
 import { archiveInquiry, isManualUnread, isPinned, toggleManualUnread, togglePin, useFlagsSubscription } from "../conversation-stash";
 import { AdminBookingTab } from "./machinery-5";
 import type { Offer } from "./machinery-9";
-
 
 // ════════════════════════════════════════════════════════════════════
 // SYSTEM USER (workspace identity) — Phase 1 of the System User direction
@@ -318,29 +317,29 @@ export function CoordAvatarPopover({
           fontFamily: FONTS.body, color: COLORS.ink,
           textAlign: "left",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div className="flex items-center gap-2 mb-2">
             <Avatar size={32} tone="ink" hashSeed={name} initials={initials} photoUrl={photoUrl} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div className="flex-1 min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
                 {name}
               </div>
-              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
+              <div style={{ fontSize: 10.5, textTransform: "capitalize" }} className="text-admin-ink-muted">
                 {role === "owner" ? "Workspace owner" : role || "Coordinator"}
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: COLORS.inkMuted, marginBottom: withWorkload ? 6 : 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, marginBottom: withWorkload ? 6 : 10 }} className="text-admin-ink-muted">
             <span aria-hidden style={{
               width: 7, height: 7, borderRadius: "50%",
               background: presencePalette.color,
             }} />
-            <span style={{ fontWeight: 600, color: COLORS.ink }}>{presencePalette.label}</span>
+            <span style={{ fontWeight: 600 }} className="text-admin-ink">{presencePalette.label}</span>
             <span aria-hidden style={{ opacity: 0.4 }}>·</span>
             <span>last seen {presence === "online" ? "now" : presence === "away" ? "12m ago" : "2h ago"}</span>
           </div>
           {withWorkload && (
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10 }}>
-              <strong style={{ color: COLORS.ink, fontWeight: 600 }}>{workload}</strong> active project{workload === 1 ? "" : "s"}
+            <div style={{ fontSize: 11, marginBottom: 10 }} className="text-admin-ink-muted">
+              <strong style={{ fontWeight: 600 }} className="text-admin-ink">{workload}</strong> active project{workload === 1 ? "" : "s"}
               {" · "}
               {workload >= 10 ? "heavy load" : workload >= 6 ? "balanced load" : "light load"}
             </div>
@@ -408,16 +407,14 @@ export function FirstConvBanner({
           <path d="M7 1.5l1.7 3.6 3.8.5-2.8 2.6.7 3.8L7 10.2 3.6 12l.7-3.8L1.5 5.6l3.8-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
         </svg>
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
           textTransform: "uppercase", color: COLORS.successDeep ?? COLORS.success,
         }}>
           First time with {clientName}
         </div>
-        <div style={{
-          fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5,
-        }}>
+        <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {hint}
         </div>
       </div>
@@ -539,22 +536,11 @@ export function ParticipantTrustStrip({
   if (!showTalent && !showClient) return null;
 
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 14,
-      padding: "8px 12px",
-      background: "#fff",
-      border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md,
-      fontFamily: FONTS.body, fontSize: 11,
-      flexWrap: "wrap",
-    }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "8px 12px", background: "#fff", border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11, flexWrap: "wrap" }} className="rounded-admin-md">
       {showTalent && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
-            color: COLORS.inkMuted, textTransform: "uppercase",
-          }}>Talent</span>
-          <span style={{ fontSize: 12, color: COLORS.ink, fontWeight: 600 }}>{talentName}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Talent</span>
+          <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{talentName}</span>
           <TrustBadgeGroup trust={talentTrust!} surface="chat_header" size="sm" max={3} />
         </div>
       )}
@@ -563,11 +549,8 @@ export function ParticipantTrustStrip({
       )}
       {showClient && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{
-            fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
-            color: COLORS.inkMuted, textTransform: "uppercase",
-          }}>Client</span>
-          <span style={{ fontSize: 12, color: COLORS.ink, fontWeight: 600 }}>{clientName}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Client</span>
+          <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{clientName}</span>
           <TrustBadgeGroup trust={clientTrust!} surface="chat_header" size="sm" max={3} />
         </div>
       )}
@@ -634,7 +617,7 @@ export function StageProgress({ currentStage }: { currentStage: string }) {
 
 export function SearchPill({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <input
         type="text"
         value={value}
