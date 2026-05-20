@@ -303,7 +303,26 @@ export default async function PlatformTenantDetailPage({
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+            <Link
+              href={`/platform/admin/tenants/${tenant.id}/catalog`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "7px 12px",
+                borderRadius: 8,
+                background: "rgba(93,211,160,0.08)",
+                border: "1px solid rgba(93,211,160,0.25)",
+                color: HQ.green,
+                fontSize: 12.5,
+                fontWeight: 500,
+                fontFamily: F,
+                textDecoration: "none",
+              }}
+            >
+              Catalog →
+            </Link>
             {tenant.primaryDomain && (
               <a
                 href={`https://${tenant.primaryDomain}`}
