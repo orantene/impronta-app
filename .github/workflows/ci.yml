@@ -63,11 +63,11 @@ jobs:
       run:
         working-directory: web
     env:
-      # ── BASE TRIPWIRES (origin/phase-1 @ c4f833937) ────────────────────
+      # ── BASE TRIPWIRES (lowered per landing — see per-line note) ──────
       # Bumping any of these requires a PR that demonstrably reduces the
       # underlying count first; never raise to silence a regression.
-      TSC_BASE: 4               # drawers.tsx relocated errors; see Phase 1d landing report (3db9a2922)
-      SUPPRESSIONS_BASE: 14699  # sum of eslint-suppressions.json `count` fields
+      TSC_BASE: 4              # drawers.tsx relocated errors; see Phase 1d landing report (3db9a2922)
+      SUPPRESSIONS_BASE: 9519  # was 14699 @ c4f833937; lowered after Q1 (0aacfc5d2) cleared 5180 stale entries (296 in-scope fixes + 4884 orphaned post-decomp suppressions). Integrator-verified zero new-pair absorption, zero increased counts.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
