@@ -117,20 +117,11 @@ export function WorkPage() {
           }}
         >
           <div>
-            <h2
-              style={{
-                fontFamily: FONTS.display,
-                fontSize: 20,
-                fontWeight: 500,
-                color: COLORS.ink,
-                margin: 0,
-                letterSpacing: -0.2,
-              }}
-            >
+            <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
               Active pipeline
             </h2>
             {(search.trim() || sourceFilter !== "all" || sort !== "newest") && (
-              <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
                 {filteredInquiries.length} {filteredInquiries.length === 1 ? "result" : "results"}
                 {search.trim() && ` for "${search.trim()}"`}
               </div>
@@ -224,22 +215,7 @@ export function WorkPage() {
             />
           )}
           {filteredInquiries.length > 0 && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0,1.4fr) minmax(0,2fr) 110px 110px 70px",
-                gap: 14,
-                padding: "9px 18px",
-                background: "rgba(11,11,13,0.02)",
-                borderBottom: `1px solid ${COLORS.borderSoft}`,
-                fontFamily: FONTS.body,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: 1,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,2fr) 110px 110px 70px", gap: 14, padding: "9px 18px", background: "rgba(11,11,13,0.02)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }} className="text-admin-ink-muted">
               <span>Client · brief</span>
               <span>Talent</span>
               <span>Stage</span>
@@ -279,28 +255,28 @@ export function WorkPage() {
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <div style={{ minWidth: 0 }}>
+              <div className="min-w-0">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.05 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.05 }} className="text-admin-ink">
                     {iq.client}
                   </span>
                   {rich && <ClientTrustChip level={rich.clientTrust} compact />}
                   {iq.source && <SourceChip source={iq.source as RichInquiry["source"]} />}
                 </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                   {iq.brief}
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">
                 {talentList || "—"}
               </div>
               <div>
                 <StageBadge stage={iq.stage} />
               </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+              <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
                 {(iq.amount as string | null) ?? "—"}
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div className="flex justify-end">
                 <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
               </div>
             </button>
@@ -479,25 +455,10 @@ export function FreeValuePanel() {
         }}
       >
         <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-                            color: COLORS.inkMuted,
-              marginBottom: 4,
-            }}
-          >
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink-muted">
             Today on Free
           </div>
-          <div
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 500,
-              letterSpacing: -0.1,
-              color: COLORS.ink,
-            }}
-          >
+          <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.1 }} className="text-admin-ink">
             What works right now
           </div>
         </div>
@@ -520,26 +481,14 @@ export function FreeValuePanel() {
                 borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
               }}
             >
-              <span
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 999,
-                  background: COLORS.green,
-                  color: "#fff",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
+              <span style={{ width: 18, height: 18, borderRadius: 999, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-green">
                 <Icon name="check" size={11} stroke={2.5} color="#fff" />
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              <div className="flex-1 min-w-0">
+                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                   {v.label}
                 </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                   {v.detail}
                 </div>
               </div>
@@ -588,7 +537,7 @@ export function FreeValuePanel() {
           borderTop: `1px solid ${COLORS.borderSoft}`,
         }}
       >
-        <span style={{ fontSize: 12, color: COLORS.inkMuted, flex: 1 }}>
+        <span style={{ fontSize: 12, flex: 1 }} className="text-admin-ink-muted">
           Caps are soft. We&apos;ll nudge before you run out — never block mid-conversation.
         </span>
         <SecondaryButton onClick={() => setPage("talent")}>Open roster</SecondaryButton>

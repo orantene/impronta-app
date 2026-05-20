@@ -232,11 +232,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
             >
               <Icon name="search" size={12} stroke={1.7} />
               <span>{copy.t("Search")}</span>
-              <span style={{
-                marginLeft: 4, padding: "1px 5px", borderRadius: 4,
-                background: "rgba(11,11,13,0.06)",
-                fontSize: 9.5, fontFamily: FONTS.mono, color: COLORS.inkMuted,
-              }}>⌘K</span>
+              <span style={{ marginLeft: 4, padding: "1px 5px", borderRadius: 4, background: "rgba(11,11,13,0.06)", fontSize: 9.5, fontFamily: FONTS.mono }} className="text-admin-ink-muted">⌘K</span>
             </button>
           )}
           <Popover content={copy.t("Workspace settings")}>
@@ -586,7 +582,7 @@ function QuickCreateMenu() {
               >
                 <Icon name={it.id === "new-booking" ? "calendar" : it.id === "new-talent" ? "user" : it.id === "new-client" ? "team" : "plus"} size={13} stroke={1.7} />
               </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="flex-1 min-w-0">
                 <span style={{ display: "block", fontSize: 13, fontWeight: 500 }}>
                   {copy.t(it.label)}
                 </span>

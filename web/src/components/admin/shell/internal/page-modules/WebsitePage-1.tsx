@@ -301,18 +301,18 @@ export function WebsitePage() {
         subtitle={`${w.domain.primaryDomain} · pages, posts, redirects, code, tracking, SEO`}
         actions={
           <>
-            {!canEdit && <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Read-only</span>}
+            {!canEdit && <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Read-only</span>}
             <SecondaryButton
               size="sm"
               disabled={!liveOrigin}
               onClick={() => liveOrigin && window.open(liveOrigin, "_blank", "noopener,noreferrer")}
             >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="inline-flex items-center gap-1.5">
                 <Icon name="external" size={12} stroke={1.7} /> View live
               </span>
             </SecondaryButton>
             <SecondaryButton size="sm" disabled={!liveOrigin} onClick={openHomepageEditor}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="inline-flex items-center gap-1.5">
                 <Icon name="pencil" size={12} stroke={1.7} /> Edit homepage
               </span>
             </SecondaryButton>
@@ -322,7 +322,7 @@ export function WebsitePage() {
                 disabled={!liveOrigin || isCreatingPage}
                 onClick={handleAddPage}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span className="inline-flex items-center gap-1.5">
                   <Icon name="plus" size={12} stroke={1.7} /> Add page
                 </span>
               </PrimaryButton>
@@ -366,11 +366,11 @@ export function WebsitePage() {
       {(w.maintenance.enabled || w.announcement.enabled) && (
         <section style={{ marginBottom: 18, display: "flex", flexDirection: "column", gap: 8 }}>
           {w.maintenance.enabled && (
-            <div style={{ padding: "12px 16px", borderRadius: 12, background: COLORS.amberSoft, border: `1px solid ${COLORS.amberDeep}33`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body }}>
+            <div style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${COLORS.amberDeep}33`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body }} className="bg-admin-amber-soft">
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.amberDeep, flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.amberDeep }}>Maintenance mode active</div>
-                <div style={{ fontSize: 13, color: COLORS.ink, marginTop: 2 }}>{w.maintenance.message}</div>
+              <div className="flex-1 min-w-0">
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-amber-deep">Maintenance mode active</div>
+                <div style={{ fontSize: 13, marginTop: 2 }} className="text-admin-ink">{w.maintenance.message}</div>
               </div>
               <button type="button" onClick={() => { try { navigator.clipboard.writeText(w.maintenance.bypassToken); } catch {} toast("Bypass token copied"); }}
                 style={{ fontSize: 11, padding: "5px 10px", borderRadius: 7, border: `1px solid ${COLORS.amberDeep}55`, background: "#fff", color: COLORS.amberDeep, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body, flexShrink: 0 }}>Copy bypass</button>
@@ -388,13 +388,13 @@ export function WebsitePage() {
       {/* Pages — visual card grid (the hero asset, not a table) */}
       <section style={{ marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Pages</h2>
-          <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Pages</h2>
+          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
             {totals.publishedPages} live · {totals.draftPages} draft · {totals.scheduledPages} scheduled
             {totals.archivedPages > 0 ? ` · ${totals.archivedPages} archived` : ""}
           </span>
         </div>
-        <p style={{ margin: "0 0 12px", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.45 }}>
+        <p style={{ margin: "0 0 12px", fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.45 }} className="text-admin-ink-muted">
           Click a page to open the visual editor on your live site (<span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>?edit=1</span>
           ). Hits below are placeholder until analytics bridge to this surface.
         </p>
@@ -459,11 +459,11 @@ export function WebsitePage() {
         {/* Posts column */}
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600, color: COLORS.ink }}>
-              Posts <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, marginLeft: 6 }}>{w.posts.length}</span>
+            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
+              Posts <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{w.posts.length}</span>
             </h3>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {w.posts.length === 0 ? (
               <EmptyState icon="info" title="No posts" body="Blog posts will list here when present." compact />
             ) : (
@@ -499,16 +499,16 @@ export function WebsitePage() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
+                  <div className="min-w-0">
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <PageStatusChip status={p.status} />
-                      <span style={{ fontSize: 11, color: COLORS.inkDim }}>{p.author}</span>
+                      <span style={{ fontSize: 11 }} className="text-admin-ink-dim">{p.author}</span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{p.tags.join(" · ")}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{p.title}</div>
+                    <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{p.tags.join(" · ")}</div>
                   </div>
-                  <div style={{ textAlign: "right", color: COLORS.inkMuted }}>
-                    <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{(p.hits7d ?? 0).toLocaleString()}</div>
+                  <div style={{ textAlign: "right" }} className="text-admin-ink-muted">
+                    <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{(p.hits7d ?? 0).toLocaleString()}</div>
                     <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>hits 7d</div>
                   </div>
                 </button>
@@ -520,25 +520,25 @@ export function WebsitePage() {
         {/* Redirects column */}
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600, color: COLORS.ink }}>
-              Redirects <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, marginLeft: 6 }}>{totals.activeRedirects}/{w.redirects.length}</span>
+            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
+              Redirects <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{totals.activeRedirects}/{w.redirects.length}</span>
             </h3>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {w.redirects.length === 0 ? (
               <EmptyState icon="info" title="No redirects" body="URL redirects will appear here when configured." compact />
             ) : (
               w.redirects.map(r => (
               <div key={r.id} style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: r.active ? "#fff" : COLORS.surfaceAlt, opacity: r.active ? 1 : 0.7 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: COLORS.indigoSoft, color: COLORS.indigoDeep, fontFamily: "ui-monospace, monospace" }}>{r.statusCode}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>{r.match}</span>
-                  <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: 11, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>{(r.hits7d ?? 0).toLocaleString()} hits</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, fontFamily: "ui-monospace, monospace" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{r.statusCode}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }} className="text-admin-ink-muted">{r.match}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: 11, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">{(r.hits7d ?? 0).toLocaleString()} hits</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
-                  <span style={{ color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>{r.from}</span>
-                  <span style={{ color: COLORS.inkDim, flexShrink: 0 }}>→</span>
-                  <span style={{ color: COLORS.indigoDeep, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>{r.to}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }} className="text-admin-ink">{r.from}</span>
+                  <span style={{ flexShrink: 0 }} className="text-admin-ink-dim">→</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }} className="text-admin-indigo-deep">{r.to}</span>
                 </div>
               </div>
               ))
@@ -550,17 +550,17 @@ export function WebsitePage() {
       {/* Configuration — single 3-column card combining Domain / SEO / Tracking */}
       <section style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Configuration</h2>
-          <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Domain · SEO · Tracking</span>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Configuration</h2>
+          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">Domain · SEO · Tracking</span>
         </div>
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
           {/* Domain */}
           <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted }}>Domain</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">Domain</span>
               {canEdit && <button type="button" onClick={() => openDrawer("domain")} style={{ fontSize: 11, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>Manage →</button>}
             </div>
-            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.3, wordBreak: "break-all", marginBottom: 12 }}>{w.domain.primaryDomain}</div>
+            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.3, wordBreak: "break-all", marginBottom: 12 }} className="text-admin-ink">{w.domain.primaryDomain}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               <ConfigStatusRow label="DNS" status={w.domain.status === "verified" ? "ok" : "warn"} value={w.domain.status === "verified" ? "Verified" : "Pending"} />
               <ConfigStatusRow label="SSL" status={w.domain.sslStatus === "active" ? "ok" : "warn"} value={w.domain.sslStatus === "active" ? `Active · renews ${w.domain.sslExpiresOn ?? "—"}` : w.domain.sslStatus} />
@@ -571,25 +571,25 @@ export function WebsitePage() {
           {/* SEO */}
           <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted }}>SEO defaults</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">SEO defaults</span>
               <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: w.seo.robotsMode === "indexable" ? COLORS.successSoft : COLORS.amberSoft, color: w.seo.robotsMode === "indexable" ? COLORS.successDeep : COLORS.amberDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>{w.seo.robotsMode === "indexable" ? "Indexable" : "No-index"}</span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4, lineHeight: 1.3 }}>{w.seo.siteTitle}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.45 }}>{w.seo.description}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }} className="text-admin-ink">{w.seo.siteTitle}</div>
+            <div style={{ fontSize: 11.5, marginBottom: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{w.seo.description}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: COLORS.inkMuted }}>Title template</span><span style={{ fontFamily: "ui-monospace, monospace", color: COLORS.ink, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{w.seo.titleTemplate}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: COLORS.inkMuted }}>Sitemap</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? "Enabled" : "Disabled"}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: COLORS.inkMuted }}>Canonical</span><span style={{ fontFamily: "ui-monospace, monospace", color: COLORS.ink, fontSize: 11 }}>{w.seo.canonicalDomain}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">Title template</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} className="text-admin-ink">{w.seo.titleTemplate}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">Sitemap</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? "Enabled" : "Disabled"}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">Canonical</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }} className="text-admin-ink">{w.seo.canonicalDomain}</span></div>
             </div>
           </div>
 
           {/* Tracking — chip cluster */}
           <div style={{ padding: 18, fontFamily: FONTS.body }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted }}>Tracking</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: COLORS.indigoSoft, color: COLORS.indigoDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>Consent: {w.tracking.cookieConsent}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">Tracking</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">Consent: {w.tracking.cookieConsent}</span>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {[
                 { label: "GA4", value: w.tracking.ga4MeasurementId },
                 { label: "Plausible", value: w.tracking.plausibleDomain },

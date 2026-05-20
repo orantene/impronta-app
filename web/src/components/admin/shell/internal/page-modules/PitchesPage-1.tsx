@@ -113,7 +113,7 @@ export function PitchesPage() {
           <div style={{ padding: "44px 24px", textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>📨</div>
             <H3>No pitches yet</H3>
-            <p style={{ marginTop: 8, fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 380, marginInline: "auto" }}>
+            <p style={{ marginTop: 8, fontSize: 13.5, lineHeight: 1.5, maxWidth: 380, marginInline: "auto" }} className="text-admin-ink-muted">
               Curate a talent suggestion, attach a brief, and send a mobile-friendly
               link your client can review and convert into a booking inquiry.
             </p>
@@ -168,7 +168,7 @@ export function PitchesPage() {
                 <div>Talents</div>
                 <div>Sent</div>
                 <div>Last view</div>
-                <div style={{ textAlign: "right" }}>Action</div>
+                <div className="text-right">Action</div>
               </div>
               {effectivePitches.map((p, idx) => (
                 <PitchRow
@@ -229,7 +229,7 @@ function StatTile({ label, value, accent }: { label: string; value: number; acce
         padding: "10px 12px",
       }}
     >
-      <div style={{ fontSize: 10, letterSpacing: 0.5, fontWeight: 600, textTransform: "uppercase", color: COLORS.inkMuted }}>
+      <div style={{ fontSize: 10, letterSpacing: 0.5, fontWeight: 600, textTransform: "uppercase" }} className="text-admin-ink-muted">
         {label}
       </div>
       <div style={{ marginTop: 2, fontSize: 22, fontWeight: 700, color: accent ? "#0F4F3E" : COLORS.ink, fontVariantNumeric: "tabular-nums" }}>
@@ -287,12 +287,12 @@ function PitchRow({
         outline: "none",
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div className="min-w-0">
         <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {row.recipientName}
         </div>
         {row.recipientCompany ? (
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div style={{ fontSize: 12, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
             {row.recipientCompany}
           </div>
         ) : null}
@@ -300,16 +300,16 @@ function PitchRow({
       <div>
         <StatusPill tone={palette.tone} label={palette.label} capitalize />
       </div>
-      <div style={{ color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+      <div style={{ fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
         {row.talentCount}
         {row.removedCount > 0 ? (
-          <span style={{ color: COLORS.inkDim, fontSize: 12, marginLeft: 4 }} title="Removed by client">
+          <span style={{ fontSize: 12, marginLeft: 4 }} title="Removed by client">
             (−{row.removedCount})
           </span>
         ) : null}
       </div>
-      <div style={{ color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>{sentLabel}</div>
-      <div style={{ color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>{lastViewLabel}</div>
+      <div style={{ color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-dim">{sentLabel}</div>
+      <div style={{ fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">{lastViewLabel}</div>
       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
         {row.convertedInquiryId ? (
           <Link

@@ -197,22 +197,8 @@ export function MobileBottomNav() {
                 setMoreOpen(false);
               }}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                width: "100%",
-                padding: "14px 18px",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                fontSize: 15,
-                fontWeight: 500,
-                color: COLORS.ink,
-                textAlign: "left",
-              }}
-            >
-              <span style={{ display: "inline-flex", color: COLORS.inkMuted }}>
+                display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "14px 18px", background: "transparent", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 15, fontWeight: 500, textAlign: "left" }} className="text-admin-ink">
+              <span style={{ display: "inline-flex" }} className="text-admin-ink-muted">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M3 4.5h10v6.5l-3 .5-2 2-2-2H3v-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>

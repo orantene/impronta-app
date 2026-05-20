@@ -176,18 +176,7 @@ function UpgradeCelebration() {
         >
           Welcome to {PLAN_META[tier].label}
         </div>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: FONTS.display,
-            fontSize: 22,
-            fontWeight: 600,
-            color: COLORS.ink,
-            letterSpacing: -0.3,
-            lineHeight: 1.2,
-            marginBottom: 12,
-          }}
-        >
+        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, letterSpacing: -0.3, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
           {items.length} things unlocked.
         </h2>
         <div
@@ -236,7 +225,7 @@ function UpgradeCelebration() {
         >
           Take me in
         </button>
-        <div style={{ marginTop: 8, fontSize: 10.5, color: COLORS.inkDim }}>
+        <div style={{ marginTop: 8, fontSize: 10.5 }} className="text-admin-ink-dim">
           Tap anywhere to dismiss · auto-closes in 6s
         </div>
       </div>

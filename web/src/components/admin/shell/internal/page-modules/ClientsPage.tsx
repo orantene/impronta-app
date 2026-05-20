@@ -222,22 +222,7 @@ export function ClientsPage() {
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px",
-            gap: 14,
-            padding: "9px 18px",
-            background: COLORS.surfaceAlt,
-            borderBottom: `1px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px", gap: 14, padding: "9px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }} className="bg-admin-surface-alt text-admin-ink-muted">
           <span>Client</span>
           <span>Bookings</span>
           <span>Status</span>
@@ -282,12 +267,12 @@ export function ClientsPage() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <Avatar initials={client.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()} size={32} tone="auto" hashSeed={client.name} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{client.name}</div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{client.contact}</div>
+              <div className="min-w-0">
+                <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{client.name}</div>
+                <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{client.contact}</div>
               </div>
             </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
               {client.bookingsYTD} bookings YTD
             </div>
             <div>
@@ -297,10 +282,10 @@ export function ClientsPage() {
               {client.trust ? (
                 <ClientTrustChip level={client.trust} compact />
               ) : (
-                <span style={{ fontSize: 11, color: COLORS.inkDim }}>—</span>
+                <span style={{ fontSize: 11 }} className="text-admin-ink-dim">—</span>
               )}
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="flex justify-end">
               <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
             </div>
           </button>

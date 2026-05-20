@@ -281,20 +281,7 @@ export function TulalaIdentityBar() {
               maxWidth: 220,
             }}
           >
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              fontWeight: 500,
-              color: COLORS.ink,
-              letterSpacing: -0.05,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              lineHeight: 1.15,
-            }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.15 }} className="text-admin-ink">
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{actingLabel}</span>
               {inWorkspace && (
                 <span
@@ -502,11 +489,11 @@ function AccountMenuTrigger({
               marginBottom: 4,
             }}
           >
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 2 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-ink-muted">
               {copy.t("Signed in as")}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{userName}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{bridgeSessionIdentity?.email ?? ""}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{userName}</div>
+            <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{bridgeSessionIdentity?.email ?? ""}</div>
             {/* Tenant meta — plan / role, shown on mobile where the identity
                 bar chips are hidden (#2) */}
             {state.surface === "workspace" && (
@@ -524,11 +511,11 @@ function AccountMenuTrigger({
                   gap: 6,
                 }}
               >
-                <span style={{ textTransform: "capitalize" }}>{copy.t(PLAN_META[state.plan].label)}</span>
-                <span style={{ color: COLORS.inkMuted }}>·</span>
-                <span style={{ textTransform: "capitalize" }}>{copy.t(state.entityType)}</span>
-                <span style={{ color: COLORS.inkMuted }}>·</span>
-                <span style={{ textTransform: "capitalize" }}>{copy.t(state.role)}</span>
+                <span className="capitalize">{copy.t(PLAN_META[state.plan].label)}</span>
+                <span className="text-admin-ink-muted">·</span>
+                <span className="capitalize">{copy.t(state.entityType)}</span>
+                <span className="text-admin-ink-muted">·</span>
+                <span className="capitalize">{copy.t(state.role)}</span>
               </div>
             )}
           </div>
@@ -555,8 +542,8 @@ function AccountMenuTrigger({
             fontFamily: FONTS.body,
           }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{copy.t("Language")}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{copy.t("Dashboard display language")}</div>
+              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{copy.t("Language")}</div>
+              <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{copy.t("Dashboard display language")}</div>
             </div>
             <DashboardLocaleToggle variant="prototype" />
           </div>

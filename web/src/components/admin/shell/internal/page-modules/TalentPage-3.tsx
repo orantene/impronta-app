@@ -99,7 +99,7 @@ export function RosterList({
       >
         {onSelect && <span style={{ width: 18, flexShrink: 0 }} />}
         <span style={{ width: 36, flexShrink: 0 }} />
-        <span style={{ flex: 1, minWidth: 0 }}>{t("admin.roster.row.colName")}</span>
+        <span className="flex-1 min-w-0">{t("admin.roster.row.colName")}</span>
         <span data-rl-completeness style={{ width: 56, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colProfile")}</span>
         <span data-rl-lastactive style={{ width: 60, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colActive")}</span>
         <span style={{ width: 84, flexShrink: 0 }}>{t("admin.roster.row.colState")}</span>
@@ -210,44 +210,19 @@ function RosterRow({
       )}
 
       {/* Avatar */}
-      <span
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          background: profile.thumb
+      <span style={{ width: 36, height: 36, borderRadius: "50%", background: profile.thumb
             ? `url(${profile.thumb}) center/cover`
-            : COLORS.surfaceAlt,
-          flexShrink: 0,
-        }}
+            : COLORS.surfaceAlt, flexShrink: 0, }}
       />
 
       {/* Name + type */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: COLORS.ink,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+            fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {profile.name}
         </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            marginTop: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-          }}
-        >
+        <div style={{ fontSize: 11.5, marginTop: 1, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink-muted">
           {typeMeta && (
             <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
               {typeMeta.emoji}
@@ -255,8 +230,8 @@ function RosterRow({
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
             {typeMeta?.label ?? profile.primaryType ?? t("admin.roster.row.noType")}
-            {typeMeta?.specialty && <span style={{ color: COLORS.inkDim }}>{" · "}{typeMeta.specialty}</span>}
-            {profile.city && <span style={{ color: COLORS.inkDim }}>{" · "}{profile.city}</span>}
+            {typeMeta?.specialty && <span className="text-admin-ink-dim">{" · "}{typeMeta.specialty}</span>}
+            {profile.city && <span className="text-admin-ink-dim">{" · "}{profile.city}</span>}
           </span>
         </div>
       </div>
@@ -264,16 +239,11 @@ function RosterRow({
       {/* Completeness (non-published) */}
       {profile.state !== "published" && profile.completeness !== undefined && (
         <div style={{ width: 56, flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: COLORS.inkMuted, fontWeight: 600, marginBottom: 2, textAlign: "right" }}>
+          <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 2, textAlign: "right" }} className="text-admin-ink-muted">
             {profile.completeness}%
           </div>
           <div style={{ height: 3, background: "rgba(11,11,13,0.06)", borderRadius: 999, overflow: "hidden" }}>
-            <div
-              style={{
-                width: `${profile.completeness}%`,
-                height: "100%",
-                background: COLORS.indigoDeep,
-              }}
+            <div style={{ width: `${profile.completeness}%`, height: "100%", background: COLORS.indigoDeep, }}
             />
           </div>
         </div>
@@ -283,13 +253,7 @@ function RosterRow({
       {profile.lastActive && (
         <div
           style={{
-            fontSize: 11,
-            color: COLORS.inkMuted,
-            width: 60,
-            textAlign: "right",
-            flexShrink: 0,
-          }}
-        >
+            fontSize: 11, width: 60, textAlign: "right", flexShrink: 0 }} className="text-admin-ink-muted">
           {profile.lastActive}
         </div>
       )}
@@ -347,19 +311,10 @@ export function RosterEmptyState({
       }}
     >
       <div style={{ fontSize: 32, marginBottom: 10 }}>{searching ? "🔍" : "✨"}</div>
-      <div
-        style={{
-          fontFamily: FONTS.display,
-          fontSize: 17,
-          fontWeight: 500,
-          color: COLORS.ink,
-          letterSpacing: -0.2,
-          marginBottom: 4,
-        }}
-      >
+      <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 500, letterSpacing: -0.2, marginBottom: 4 }} className="text-admin-ink">
         {searching ? `${t("admin.roster.empty.noMatchesPrefix")} "${query}"` : t("admin.roster.empty.emptyTitle")}
       </div>
-      <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12.5, marginBottom: 16, lineHeight: 1.5 }} className="text-admin-ink-muted">
         {searching
           ? t("admin.roster.empty.searchHint")
           : t("admin.roster.empty.emptyHint")}

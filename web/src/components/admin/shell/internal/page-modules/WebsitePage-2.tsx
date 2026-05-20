@@ -38,33 +38,33 @@ export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRo
     >
       {/* Faux browser chrome / preview band */}
       <div style={{ height: 70, background: `linear-gradient(135deg, ${COLORS.surfaceAlt} 0%, #fff 100%)`, borderBottom: `1px solid ${COLORS.borderSoft}`, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="flex gap-1">
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FEBC2E" }} />
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
         </div>
-        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", fontFamily: "ui-monospace, monospace", fontSize: 10.5, color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.slug}</div>
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", fontFamily: "ui-monospace, monospace", fontSize: 10.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{page.slug}</div>
       </div>
       {/* Body */}
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1, lineHeight: 1.25, flex: 1, minWidth: 0 }}>{page.title}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.1, lineHeight: 1.25, flex: 1, minWidth: 0 }} className="text-admin-ink">{page.title}</div>
           <PageStatusChip status={page.status} />
         </div>
         {/* Inline bar — hits relative to top page */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>Hits 7d</span>
-            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{hits.toLocaleString()}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">Hits 7d</span>
+            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{hits.toLocaleString()}</span>
           </div>
-          <div style={{ height: 4, borderRadius: 999, background: COLORS.surfaceAlt, overflow: "hidden" }}>
+          <div style={{ height: 4, borderRadius: 999, overflow: "hidden" }} className="bg-admin-surface-alt">
             <div style={{ width: `${fillPct}%`, height: "100%", background: isLive ? COLORS.indigoDeep : COLORS.inkDim, borderRadius: 999, transition: "width 200ms ease" }} />
           </div>
         </div>
-        <div aria-hidden style={{ fontSize: 10, fontWeight: 600, color: COLORS.indigoDeep, letterSpacing: 0.02 }}>
+        <div aria-hidden style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.02 }} className="text-admin-indigo-deep">
           Visual editor →
         </div>
-        <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.inkMuted }}>
+        <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11 }} className="text-admin-ink-muted">
           <span>by {page.lastEditedBy}</span>
           <span>{page.updatedAt}</span>
         </div>
@@ -79,7 +79,7 @@ export function ConfigStatusRow({ label, status, value }: { label: string; statu
     <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontFamily: FONTS.body }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
       <span style={{ color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", fontSize: 10.5, minWidth: 60 }}>{label}</span>
-      <span style={{ color: COLORS.ink, fontWeight: 500, marginLeft: "auto", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
+      <span style={{ fontWeight: 500, marginLeft: "auto", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{value}</span>
     </div>
   );
 }
@@ -112,11 +112,11 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
     const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
     return (
       <div style={{ padding: 14, borderRadius: 10, background: accent ? COLORS.accentSoft : "#fff", border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}` }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>{label}</div>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-muted">{label}</div>
         <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
         <div style={{ fontSize: 11, color, marginTop: 2 }}>
           {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
-          <span style={{ color: COLORS.inkDim, marginLeft: 4 }}>vs {typeof prior === "number" && prior > 1000 && label === "Booking revenue" ? fmtMoney(prior) : prior.toLocaleString()}</span>
+          <span style={{ marginLeft: 4 }} className="text-admin-ink-dim">vs {typeof prior === "number" && prior > 1000 && label === "Booking revenue" ? fmtMoney(prior) : prior.toLocaleString()}</span>
         </div>
       </div>
     );
@@ -125,9 +125,9 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Performance</h2>
-        <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>vs prior {period}</span>
-        <div style={{ marginLeft: "auto", display: "inline-flex", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }}>
+        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Performance</h2>
+        <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">vs prior {period}</span>
+        <div style={{ marginLeft: "auto", display: "inline-flex", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
           {(["7d", "30d"] as const).map(p => {
             const active = p === period;
             return (
@@ -146,13 +146,13 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
         </div>
 
         {/* Funnel strip */}
-        <div style={{ background: COLORS.indigoSoft, border: "1px solid rgba(91,107,160,0.18)", borderRadius: 10, padding: "14px 16px", display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 12 }}>
+        <div style={{ border: "1px solid rgba(91,107,160,0.18)", borderRadius: 10, padding: "14px 16px", display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 12 }} className="bg-admin-indigo-soft">
           <FunnelStep label="Visits"     value={m.visits.toLocaleString()} />
           <FunnelArrow rate={v2i} caption="visit → inquiry" />
           <FunnelStep label="Inquiries"  value={m.inquiries.toLocaleString()} />
           <FunnelArrow rate={i2b} caption="inquiry → booking" />
           <FunnelStep label="Bookings"   value={m.bookings.toLocaleString()} />
-          <div style={{ gridColumn: "1 / -1", paddingTop: 10, marginTop: 4, borderTop: "1px solid rgba(91,107,160,0.18)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, color: COLORS.indigoDeep, fontFamily: FONTS.body }}>
+          <div style={{ gridColumn: "1 / -1", paddingTop: 10, marginTop: 4, borderTop: "1px solid rgba(91,107,160,0.18)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-indigo-deep">
             <span style={{ fontWeight: 600, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.6 }}>Overall conversion</span>
             <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, fontSize: 13 }}>{overallConv.toFixed(2)}%
               <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>({m.bookings} of {m.visits.toLocaleString()})</span>
@@ -163,8 +163,8 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
         {/* Top performers — Pages | Talent switcher */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>Top performers</div>
-            <div style={{ display: "inline-flex", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-ink-muted">Top performers</div>
+            <div style={{ display: "inline-flex", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
               {(["pages", "talent"] as const).map(v => {
                 const active = topView === v;
                 return (
@@ -176,19 +176,19 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
 
           {topView === "pages" && topPages.length > 0 && (
             <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "8px 14px", background: COLORS.surfaceAlt, borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">
                 <div>Page</div>
-                <div style={{ textAlign: "right" }}>Visits</div>
-                <div style={{ textAlign: "right" }}>Inquiries</div>
-                <div style={{ textAlign: "right" }}>Bookings</div>
-                <div style={{ textAlign: "right" }}>Conv. rate</div>
+                <div className="text-right">Visits</div>
+                <div className="text-right">Inquiries</div>
+                <div className="text-right">Bookings</div>
+                <div className="text-right">Conv. rate</div>
               </div>
               {topPages.map((p, i) => {
                 const conv = p.visits > 0 ? (p.bookings / p.visits) * 100 : 0;
                 const tone = (overallConv > 0 && conv >= overallConv) ? COLORS.successDeep : conv > 0 ? COLORS.indigoDeep : COLORS.inkDim;
                 return (
                   <div key={p.pageId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
-                    <span style={{ fontWeight: 600 }}>{p.title}</span>
+                    <span className="font-semibold">{p.title}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.visits.toLocaleString()}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.inquiries}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.bookings}</span>
@@ -201,28 +201,28 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
 
           {topView === "talent" && topTalent.length > 0 && (
             <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "8px 14px", background: COLORS.surfaceAlt, borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">
                 <div>Talent</div>
-                <div style={{ textAlign: "right" }}>Visits</div>
-                <div style={{ textAlign: "right" }}>Inquiries</div>
-                <div style={{ textAlign: "right" }}>Bookings</div>
-                <div style={{ textAlign: "right" }}>Revenue</div>
-                <div style={{ textAlign: "right" }}>Top page</div>
+                <div className="text-right">Visits</div>
+                <div className="text-right">Inquiries</div>
+                <div className="text-right">Bookings</div>
+                <div className="text-right">Revenue</div>
+                <div className="text-right">Top page</div>
               </div>
               {topTalent.map((t, i) => {
                 const conv = t.visits > 0 ? (t.bookings / t.visits) * 100 : 0;
                 const tone = (overallConv > 0 && conv >= overallConv) ? COLORS.successDeep : t.revenue > 0 ? COLORS.indigoDeep : COLORS.inkDim;
                 return (
                   <div key={t.talentId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
-                    <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span style={{ fontWeight: 600 }}>{t.talentName}</span>
-                      <span style={{ fontSize: 11, color: COLORS.inkDim }}>{conv > 0 ? `${conv.toFixed(2)}% conv` : "no bookings"}</span>
+                    <span className="flex flex-col gap-0.5">
+                      <span className="font-semibold">{t.talentName}</span>
+                      <span style={{ fontSize: 11 }} className="text-admin-ink-dim">{conv > 0 ? `${conv.toFixed(2)}% conv` : "no bookings"}</span>
                     </span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.visits.toLocaleString()}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.inquiries}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.bookings}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tone }}>{fmtMoney(t.revenue)}</span>
-                    <span style={{ textAlign: "right", fontSize: 12, color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.topPageTitle}</span>
+                    <span style={{ textAlign: "right", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{t.topPageTitle}</span>
                   </div>
                 );
               })}
@@ -236,17 +236,17 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
 
 function FunnelStep({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.indigoDeep, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
-      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.indigoDeep, opacity: 0.7 }}>{label}</div>
+    <div className="text-center">
+      <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }} className="text-admin-indigo-deep">{value}</div>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", opacity: 0.7 }} className="text-admin-indigo-deep">{label}</div>
     </div>
   );
 }
 function FunnelArrow({ rate, caption }: { rate: number; caption: string }) {
   return (
-    <div style={{ textAlign: "center", color: COLORS.indigoDeep }}>
+    <div style={{ textAlign: "center" }} className="text-admin-indigo-deep">
       <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600 }}>{rate.toFixed(2)}%</div>
-      <div style={{ fontSize: 10, color: COLORS.indigoDeep, opacity: 0.7 }}>{caption}</div>
+      <div style={{ fontSize: 10, opacity: 0.7 }} className="text-admin-indigo-deep">{caption}</div>
     </div>
   );
 }

@@ -272,7 +272,7 @@ export function UnifiedInboxPage() {
       </div>
 
       {matched.length > 0 && (filter !== "needs-me" || search.trim() || sort !== "recent") && (
-        <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginBottom: 8 }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 8 }} className="text-admin-ink-muted">
           Showing {matched.length} {matched.length === 1 ? "thread" : "threads"}
           {search.trim() && ` matching "${search.trim()}"`}
         </div>
@@ -332,9 +332,9 @@ export function UnifiedInboxPage() {
                     size={32}
                     tone="auto"
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
                         {inq.clientName}
                       </span>
                       <ClientTrustChip level={inq.clientTrust} compact />
@@ -370,28 +370,10 @@ export function UnifiedInboxPage() {
                         </span>
                       )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        color: COLORS.inkMuted,
-                        marginTop: 2,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <div style={{ fontSize: 12.5, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">
                       {inq.brief}
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        marginTop: 6,
-                        fontSize: 11,
-                        color: COLORS.inkDim,
-                        alignItems: "center",
-                      }}
-                    >
+                    <div style={{ display: "flex", gap: 8, marginTop: 6, fontSize: 11, alignItems: "center" }} className="text-admin-ink-dim">
                       <span>{INQUIRY_STAGE_META[inq.stage].label}</span>
                       <Bullet />
                       <span>
@@ -526,7 +508,7 @@ function InboxPipelineView({
               background: "#fff",
             }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>{col.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">{col.label}</span>
               <span style={{
                 marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#fff",
                 background: col.color, borderRadius: 999,
@@ -537,7 +519,7 @@ function InboxPipelineView({
             {/* Cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8 }}>
               {colInqs.length === 0 ? (
-                <div style={{ padding: "12px 8px", textAlign: "center", fontSize: 11.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+                <div style={{ padding: "12px 8px", textAlign: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
                   All clear
                 </div>
               ) : (
@@ -557,19 +539,16 @@ function InboxPipelineView({
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
                         {inq.clientName}
                       </span>
                       {isFixtureInquiryId(inq.id) && <FixtureBadge compact />}
                     </div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontSize: 11, marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
                       {inq.brief}
                     </div>
                     {inq.unreadGroup > 0 && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, color: "#fff",
-                        background: COLORS.accent, borderRadius: 999, padding: "1px 5px",
-                      }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", borderRadius: 999, padding: "1px 5px" }} className="bg-admin-accent">
                         {inq.unreadGroup} new
                       </span>
                     )}

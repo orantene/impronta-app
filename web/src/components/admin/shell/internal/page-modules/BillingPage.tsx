@@ -33,7 +33,7 @@ export function TierSection({
   };
   const p = palette[tone];
   return (
-    <section style={{ marginBottom: 28 }}>
+    <section className="mb-7">
       <div
         style={{
           display: "flex",
@@ -64,26 +64,11 @@ export function TierSection({
         </span>
         <h2
           style={{
-            fontFamily: FONTS.display,
-            fontSize: 19,
-            fontWeight: 500,
-            letterSpacing: -0.2,
-            color: COLORS.ink,
-            margin: 0,
-          }}
-        >
+            fontFamily: FONTS.display, fontSize: 19, fontWeight: 500, letterSpacing: -0.2, margin: 0 }} className="text-admin-ink">
           {title}
         </h2>
         {subtitle && (
-          <span
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
+          <span style={{ fontFamily: FONTS.body, fontSize: 12.5, flex: 1, minWidth: 0 }} className="text-admin-ink-muted">
             {subtitle}
           </span>
         )}
@@ -392,26 +377,14 @@ function BillingActivityTable() {
       }}
     >
       {/* Header row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
-          padding: "10px 16px",
-          background: COLORS.surfaceAlt,
-          borderBottom: `1px solid ${COLORS.borderSoft}`,
-          fontFamily: FONTS.body,
-          fontSize: 11,
-                    color: COLORS.inkMuted,
-          fontWeight: 600,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr", padding: "10px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="bg-admin-surface-alt text-admin-ink-muted">
         <span>Booking</span>
         <span>Client · brief</span>
-        <span style={{ textAlign: "right" }}>Total</span>
-        <span style={{ textAlign: "right" }}>Net payout</span>
+        <span className="text-right">Total</span>
+        <span className="text-right">Net payout</span>
         <span>Receiver</span>
         <span>Status</span>
-        <span style={{ textAlign: "right" }}>Date</span>
+        <span className="text-right">Date</span>
       </div>
       {WORKSPACE_PAYMENTS.map((row) => {
         const [hovered, setHovered] = useState(false);
@@ -440,25 +413,25 @@ function BillingActivityTable() {
               transition: `background ${TRANSITION.micro}`,
             }}
           >
-            <div style={{ fontWeight: 600 }}>{row.ref}</div>
+            <div className="font-semibold">{row.ref}</div>
             <div>
-              <div style={{ color: COLORS.ink }}>{row.client}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{row.brief}</div>
+              <div className="text-admin-ink">{row.client}</div>
+              <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{row.brief}</div>
             </div>
             <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</div>
-            <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: COLORS.inkMuted }}>
+            <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {row.netPayout}
-              <div style={{ fontSize: 11, color: COLORS.inkDim }}>fee {row.fee}</div>
+              <div style={{ fontSize: 11 }} className="text-admin-ink-dim">fee {row.fee}</div>
             </div>
-            <div style={{ color: COLORS.inkMuted }}>{row.receiverName}</div>
+            <div className="text-admin-ink-muted">{row.receiverName}</div>
             <div>
               <PaymentStatusChip status={row.status} />
             </div>
             <div style={{ textAlign: "right", fontSize: 12 }}>
               {hovered ? (
-                <span style={{ color: COLORS.accent, fontWeight: 600, fontSize: 11 }}>Details →</span>
+                <span style={{ fontWeight: 600, fontSize: 11 }} className="text-admin-accent">Details →</span>
               ) : (
-                <span style={{ color: COLORS.inkMuted }}>{row.date}</span>
+                <span className="text-admin-ink-muted">{row.date}</span>
               )}
             </div>
           </button>
@@ -523,21 +496,12 @@ export function AutoAckSettingsRow() {
   if (loading) return null;
 
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.md,
-        padding: "14px 16px",
-        marginBottom: 8,
-        fontFamily: FONTS.body,
-      }}
-    >
+    <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: "14px 16px", marginBottom: 8, fontFamily: FONTS.body }} className="rounded-admin-md">
       {/* Toggle row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 10 : 0 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Auto-acknowledgement</div>
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Auto-acknowledgement</div>
+          <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
             Instant reply to clients when a new inquiry is submitted.
           </div>
         </div>
@@ -635,21 +599,16 @@ type SettingsSection = typeof SETTINGS_SECTIONS[number]["id"];
 
 function SettingsSectionHeader({ title, desc }: { title: string; desc: string }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 3 }}>{title}</div>
-      <div style={{ fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body }}>{desc}</div>
+    <div className="mb-4">
+      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONTS.body, marginBottom: 3 }} className="text-admin-ink">{title}</div>
+      <div style={{ fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">{desc}</div>
     </div>
   );
 }
 
 export function LockedPill({ plan }: { plan: Plan }) {
   return (
-    <span style={{
-      fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
-      background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-      border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body,
-      textTransform: "capitalize",
-    }}>
+    <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, textTransform: "capitalize" }} className="bg-admin-surface-alt text-admin-ink-muted">
       {plan}+
     </span>
   );

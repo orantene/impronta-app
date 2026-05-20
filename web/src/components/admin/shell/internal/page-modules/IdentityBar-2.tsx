@@ -50,7 +50,7 @@ export function AccountMenuItem({
         {copy.t(label)}
       </span>
       {sub && (
-        <span style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+        <span style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
           {copy.t(sub)}
         </span>
       )}

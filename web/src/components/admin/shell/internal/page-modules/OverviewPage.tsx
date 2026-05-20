@@ -178,10 +178,7 @@ export function OverviewPage() {
           display: "flex", alignItems: "center", gap: 8, padding: "0 4px 10px",
         }}>
           <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.indigo }} />
-          <h2 style={{
-            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-            color: COLORS.ink, margin: 0, letterSpacing: -0.1,
-          }}>Analytics</h2>
+          <h2 style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">Analytics</h2>
         </div>
         <Grid cols="4">
           <SecondaryCard
@@ -212,7 +209,7 @@ export function OverviewPage() {
       </div>
 
       {/* WS-20 — Operations entry points */}
-      <div style={{ marginTop: 20 }}>
+      <div className="mt-5">
         <div
           style={{
             display: "flex",
@@ -221,16 +218,7 @@ export function OverviewPage() {
             marginBottom: 10,
           }}
         >
-          <h2
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 500,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.2,
-            }}
-          >
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
             Operations
           </h2>
         </div>
@@ -286,12 +274,12 @@ export function OverviewPage() {
             fontFamily: FONTS.body, transition: TRANSITION.sm,
           }}
         >
-          <div style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: COLORS.indigoSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="rounded-admin-md bg-admin-indigo-soft">
             <Icon name="bolt" size={18} color={COLORS.indigo} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>Operations</div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Analytics, queues, automations, comms.</div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">Operations</div>
+            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Analytics, queues, automations, comms.</div>
           </div>
           <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
         </button>
@@ -305,12 +293,12 @@ export function OverviewPage() {
             fontFamily: FONTS.body, transition: TRANSITION.sm,
           }}
         >
-          <div style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: COLORS.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="rounded-admin-md bg-admin-accent-soft">
             <Icon name="team" size={18} color={COLORS.accent} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>Production</div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Casting, crew, on-set, rights & safety.</div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">Production</div>
+            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Casting, crew, on-set, rights & safety.</div>
           </div>
           <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
         </button>
@@ -387,7 +375,7 @@ export function OverviewPage() {
       )}
 
       {/* Tenant activity feed (#32) — recent workspace events */}
-      <div style={{ marginTop: 28 }}>
+      <div className="mt-7">
         <div
           style={{
             display: "flex",
@@ -396,19 +384,10 @@ export function OverviewPage() {
             marginBottom: 4,
           }}
         >
-          <h2
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 500,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.2,
-            }}
-          >
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
             Recent activity
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => openDrawer("ai-weekly-digest")}
@@ -497,13 +476,7 @@ function OverviewFree() {
         title="You're already live."
         subtitle="Five steps to your first booking. About 10 minutes total."
         actions={
-          <span
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-            }}
-          >
+          <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
             {completedCount} of {totalTasks} steps · ~10 min total
           </span>
         }
@@ -528,10 +501,10 @@ function OverviewFree() {
             marginBottom: 8,
           }}
         >
-          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, letterSpacing: 0.3, textTransform: "uppercase" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink">
             First 10 minutes
           </span>
-          <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
             {progressPct}% complete
           </span>
         </div>
@@ -543,13 +516,7 @@ function OverviewFree() {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              width: `${progressPct}%`,
-              height: "100%",
-              background: COLORS.fill,
-              transition: "width .25s ease",
-            }}
+          <div style={{ width: `${progressPct}%`, height: "100%", transition: "width .25s ease", }}
           />
         </div>
       </div>
@@ -558,7 +525,7 @@ function OverviewFree() {
         title="Your activation arc"
         subtitle="All five are reversible — skip what you don't need."
       >
-        <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-fill">
           {ACTIVATION_TASKS.map((task, idx) => {
             const done = isDone(task.id);
             return (
@@ -618,45 +585,23 @@ function OverviewFree() {
                   >
                     {done && <Icon name="check" size={13} stroke={2.5} color="#fff" />}
                     {!done && (
-                      <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
                         {idx + 1}
                       </span>
                     )}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13.5,
-                        color: COLORS.ink,
-                        fontWeight: 500,
-                        textDecoration: done ? "line-through" : "none",
-                        opacity: done ? 0.55 : 1,
-                      }}
-                    >
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontSize: 13.5, fontWeight: 500, textDecoration: done ? "line-through" : "none", opacity: done ? 0.55 : 1 }} className="text-admin-ink">
                       {task.label}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11.5,
-                        color: COLORS.inkMuted,
-                        marginTop: 1,
-                        opacity: done ? 0.55 : 1,
-                      }}
-                    >
+                    <div style={{ fontSize: 11.5, marginTop: 1, opacity: done ? 0.55 : 1 }} className="text-admin-ink-muted">
                       {done && autoComplete[task.id] && !state.completedTasks.has(task.id)
                         ? "Auto-detected — already done."
                         : task.hint}
                     </div>
                   </div>
                   {!done && (
-                    <span
-                      style={{
-                        fontSize: 10.5,
-                        color: COLORS.inkDim,
-                        fontFamily: FONTS.body,
-                        letterSpacing: 0.3,
-                      }}
-                    >
+                    <span style={{ fontSize: 10.5, fontFamily: FONTS.body, letterSpacing: 0.3 }} className="text-admin-ink-dim">
                       {task.est}
                     </span>
                   )}

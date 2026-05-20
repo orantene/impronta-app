@@ -49,12 +49,9 @@ export function WorkspaceStatStrip({ items }: {
           {it.demo && <DemoBadge />}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: it.tone }} />
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">{it.label}</span>
           </div>
-          <div style={{
-            fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-            color: COLORS.ink, lineHeight: 1, fontVariantNumeric: "tabular-nums",
-          }}>{it.value}</div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{it.value}</div>
         </button>
       ))}
     </div>
@@ -145,7 +142,7 @@ export function PageHeader({
         marginBottom: 14,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         {/* Legacy back button (rare — kept for screens that pass onBack) */}
         {onBack && (
           <button
@@ -192,16 +189,7 @@ export function PageHeader({
           {title}
         </h1>
         {subtitle && (
-          <p
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              color: COLORS.inkMuted,
-              margin: "4px 0 0",
-              lineHeight: 1.5,
-              maxWidth: 640,
-            }}
-          >
+          <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.5, maxWidth: 640 }} className="text-admin-ink-muted">
             {subtitle}
           </p>
         )}
@@ -318,33 +306,14 @@ export function TodaysFocusCard({
       >
         <Icon name="bolt" size={17} stroke={1.7} color={COLORS.accent} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: 0.7,
-            textTransform: "uppercase",
-            color: COLORS.accent,
-            marginBottom: 3,
-          }}
-        >
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-accent">
           Today&apos;s focus
         </div>
-        <h2
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 18,
-            fontWeight: 500,
-            color: COLORS.ink,
-            margin: 0,
-            letterSpacing: -0.2,
-            lineHeight: 1.3,
-          }}
-        >
+        <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.3 }} className="text-admin-ink">
           {title}
         </h2>
-        <p style={{ fontSize: 12.5, color: COLORS.inkMuted, margin: "4px 0 0", lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12.5, margin: "4px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
           {body}
           {nextBookingLabel && <span> · {nextBookingLabel}.</span>}
         </p>

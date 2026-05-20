@@ -55,7 +55,7 @@ export function PitchDetailDrawerInline({
   return (
     <DrawerShell open onClose={onClose} title="Pitch detail" defaultSize="half" width={580}>
       {loading ? (
-        <p style={{ color: COLORS.inkMuted, fontSize: 13 }}>Loading…</p>
+        <p style={{ fontSize: 13 }} className="text-admin-ink-muted">Loading…</p>
       ) : error ? (
         <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>
       ) : detail ? (
@@ -123,19 +123,19 @@ function PitchDetailRecipient({ detail }: { detail: PitchDetail }) {
   return (
     <div>
       <Eyebrow>Recipient</Eyebrow>
-      <div style={{ marginTop: 4, fontSize: 16, fontWeight: 600, color: COLORS.ink }}>{name}</div>
-      {company ? <div style={{ fontSize: 13, color: COLORS.inkMuted, marginTop: 2 }}>{company}</div> : null}
+      <div style={{ marginTop: 4, fontSize: 16, fontWeight: 600 }} className="text-admin-ink">{name}</div>
+      {company ? <div style={{ fontSize: 13, marginTop: 2 }} className="text-admin-ink-muted">{company}</div> : null}
       {(phone || email) && (
-        <div style={{ marginTop: 6, fontSize: 12, color: COLORS.inkMuted }}>
+        <div style={{ marginTop: 6, fontSize: 12 }} className="text-admin-ink-muted">
           {[email, phone].filter(Boolean).join(" · ")}
         </div>
       )}
-      <div style={{ marginTop: 10, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: COLORS.inkMuted }}>
-        <span>Status: <strong style={{ color: COLORS.ink }}>{PITCH_STATUS_TONE[detail.pitch.status].label}</strong></span>
-        <span>Created: <strong style={{ color: COLORS.ink }}>{fmtPitchDate(detail.pitch.created_at)}</strong></span>
-        {detail.pitch.sent_at ? <span>Sent: <strong style={{ color: COLORS.ink }}>{fmtPitchDate(detail.pitch.sent_at)}</strong></span> : null}
-        {detail.pitch.expires_at ? <span>Expires: <strong style={{ color: COLORS.ink }}>{fmtPitchDate(detail.pitch.expires_at)}</strong></span> : null}
-        {detail.pitch.view_count > 0 ? <span>Views: <strong style={{ color: COLORS.ink }}>{detail.pitch.view_count}</strong></span> : null}
+      <div style={{ marginTop: 10, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12 }} className="text-admin-ink-muted">
+        <span>Status: <strong className="text-admin-ink">{PITCH_STATUS_TONE[detail.pitch.status].label}</strong></span>
+        <span>Created: <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.created_at)}</strong></span>
+        {detail.pitch.sent_at ? <span>Sent: <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.sent_at)}</strong></span> : null}
+        {detail.pitch.expires_at ? <span>Expires: <strong className="text-admin-ink">{fmtPitchDate(detail.pitch.expires_at)}</strong></span> : null}
+        {detail.pitch.view_count > 0 ? <span>Views: <strong className="text-admin-ink">{detail.pitch.view_count}</strong></span> : null}
       </div>
     </div>
   );
@@ -143,9 +143,9 @@ function PitchDetailRecipient({ detail }: { detail: PitchDetail }) {
 
 function PitchDetailNote({ note }: { note: string }) {
   return (
-    <div style={{ background: COLORS.fill, border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: "12px 14px" }}>
+    <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: "12px 14px" }} className="bg-admin-fill">
       <Eyebrow>Personal note</Eyebrow>
-      <p style={{ margin: "6px 0 0", fontSize: 13, color: COLORS.ink, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{note}</p>
+      <p style={{ margin: "6px 0 0", fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.5 }} className="text-admin-ink">{note}</p>
     </div>
   );
 }
@@ -161,19 +161,19 @@ function PitchDetailBrief({ detail }: { detail: PitchDetail }) {
       <Eyebrow>Brief</Eyebrow>
       <dl style={{ margin: "6px 0 0", fontSize: 13, color: COLORS.ink, display: "flex", flexDirection: "column", gap: 4 }}>
         {date ? (
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="flex gap-3">
             <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>Date</dt>
             <dd style={{ margin: 0 }}>{date}</dd>
           </div>
         ) : null}
         {loc ? (
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="flex gap-3">
             <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>Location</dt>
             <dd style={{ margin: 0 }}>{loc}</dd>
           </div>
         ) : null}
         {rate ? (
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="flex gap-3">
             <dt style={{ width: 80, color: COLORS.inkMuted, flexShrink: 0 }}>Rate</dt>
             <dd style={{ margin: 0 }}>{rate}</dd>
           </div>
@@ -208,18 +208,18 @@ function PitchDetailTalents({ detail }: { detail: PitchDetail }) {
               opacity: t.removedByClientAt ? 0.6 : 1,
             }}
           >
-            <span style={{ width: 22, color: COLORS.inkDim, fontVariantNumeric: "tabular-nums" }}>{t.position + 1}.</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>
+            <span style={{ width: 22, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-dim">{t.position + 1}.</span>
+            <div className="flex-1">
+              <div className="font-semibold">
                 {t.displayName}
                 {t.removedByClientAt ? (
-                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: COLORS.inkMuted }}>
+                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">
                     removed {fmtPitchDate(t.removedByClientAt)}
                   </span>
                 ) : null}
               </div>
               {t.adminNote ? (
-                <div style={{ marginTop: 3, fontSize: 12, color: COLORS.inkMuted, fontStyle: "italic" }}>
+                <div style={{ marginTop: 3, fontSize: 12, fontStyle: "italic" }} className="text-admin-ink-muted">
                   &ldquo;{t.adminNote}&rdquo;
                 </div>
               ) : null}
@@ -301,7 +301,7 @@ function PitchDetailActions({
             </button>
 
             {link ? (
-              <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, padding: "10px 12px", background: COLORS.fill }}>
+              <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, padding: "10px 12px" }} className="bg-admin-fill">
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input
                     readOnly
@@ -385,7 +385,7 @@ function PitchDetailActions({
                     </a>
                   ) : null}
                 </div>
-                <div style={{ marginTop: 8, fontSize: 11, color: COLORS.inkDim }}>
+                <div style={{ marginTop: 8, fontSize: 11 }} className="text-admin-ink-dim">
                   Link valid until {fmtPitchDate(link.expiresAt)}.
                 </div>
               </div>
@@ -394,11 +394,11 @@ function PitchDetailActions({
 
             {confirmCancel ? (
               <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, padding: "10px 12px", background: "#fff" }}>
-                <p style={{ margin: 0, fontSize: 12.5, color: COLORS.ink, fontWeight: 600 }}>Cancel this pitch?</p>
-                <p style={{ margin: "4px 0 8px", fontSize: 12, color: COLORS.inkMuted }}>
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">Cancel this pitch?</p>
+                <p style={{ margin: "4px 0 8px", fontSize: 12 }} className="text-admin-ink-muted">
                   The share link is invalidated immediately. This can&apos;t be undone.
                 </p>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={onCancel}
@@ -451,7 +451,7 @@ function PitchDetailTimeline({ detail }: { detail: PitchDetail }) {
     return (
       <div>
         <Eyebrow>Timeline</Eyebrow>
-        <p style={{ marginTop: 8, fontSize: 12, color: COLORS.inkMuted }}>No events recorded.</p>
+        <p style={{ marginTop: 8, fontSize: 12 }} className="text-admin-ink-muted">No events recorded.</p>
       </div>
     );
   }
@@ -502,11 +502,11 @@ function PitchDetailTimeline({ detail }: { detail: PitchDetail }) {
                         : "rgba(11,11,13,0.4)",
               }}
             />
-            <div style={{ color: COLORS.ink, fontWeight: 600 }}>
+            <div style={{ fontWeight: 600 }} className="text-admin-ink">
               {labels[e.event_type] ?? e.event_type}
-              <span style={{ marginLeft: 8, color: COLORS.inkDim, fontWeight: 400 }}>{e.actor_role}</span>
+              <span style={{ marginLeft: 8, fontWeight: 400 }} className="text-admin-ink-dim">{e.actor_role}</span>
             </div>
-            <div style={{ color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+            <div style={{ fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {new Date(e.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
             </div>
           </li>

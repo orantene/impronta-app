@@ -11,11 +11,11 @@ function SiteSubSection({ title, count, sub, actionLabel, onAction, children }: 
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-        <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>{title}</h3>
+        <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, letterSpacing: -0.1 }} className="text-admin-ink">{title}</h3>
         {typeof count === "number" && (
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>{count}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">{count}</span>
         )}
-        {sub && <span style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>{sub}</span>}
+        {sub && <span style={{ fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">{sub}</span>}
         {actionLabel && (
           <button type="button" onClick={onAction} style={{ marginLeft: "auto", padding: "5px 11px", borderRadius: 7, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: FONTS.body }}>{actionLabel}</button>
         )}
@@ -28,7 +28,7 @@ function SiteSubSection({ title, count, sub, actionLabel, onAction, children }: 
 function SiteTable({ headers, children }: { headers: string[]; children: ReactNode }) {
   return (
     <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden", background: "#fff" }}>
-      <div style={{ display: "grid", gridTemplateColumns: `2fr ${headers.slice(1).map(() => "1fr").join(" ")}`, padding: "8px 14px", background: COLORS.surfaceAlt, borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+      <div style={{ display: "grid", gridTemplateColumns: `2fr ${headers.slice(1).map(() => "1fr").join(" ")}`, padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">
         {headers.map(h => <div key={h}>{h}</div>)}
       </div>
       {children}
@@ -82,8 +82,8 @@ function SiteInfoCard({ label, value, status, sub, mono }: { label: string; valu
         {dot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot }} />}
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>{label}</div>
       </div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, fontFamily: mono ? "ui-monospace, monospace" : FONTS.body, overflow: "hidden", textOverflow: "ellipsis" }}>{value || "—"}</div>
-      {sub && <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontSize: 13, fontWeight: 500, fontFamily: mono ? "ui-monospace, monospace" : FONTS.body, overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{value || "—"}</div>
+      {sub && <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{sub}</div>}
     </div>
   );
 }
@@ -93,8 +93,8 @@ function SiteTrackingCell({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ padding: "10px 12px", borderRadius: 8, background: active ? COLORS.successSoft : "#fff", border: `1px solid ${active ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, fontFamily: FONTS.body }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
-        {active && <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.successDeep }}>Active</span>}
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }} className="text-admin-ink-muted">{label}</span>
+        {active && <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-success-deep">Active</span>}
       </div>
       <div style={{ fontSize: 12, color: active ? COLORS.successDeep : COLORS.inkDim, fontFamily: "ui-monospace, monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{value || "Not configured"}</div>
     </div>
@@ -118,7 +118,7 @@ export function SitePage() {
           <>
             {!canEdit && <ReadOnlyChip />}
             <SecondaryButton size="sm" onClick={() => openDrawer("seo")}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="inline-flex items-center gap-1.5">
                 <Icon name="external" size={12} stroke={1.7} />
                 Open subdomain
               </span>
@@ -432,55 +432,24 @@ function SiteSetupBanner() {
         gap: 18,
       }}
     >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 11,
-          background: "rgba(15,79,62,0.16)",
-          color: COLORS.accentDeep,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ width: 44, height: 44, borderRadius: 11, background: "rgba(15,79,62,0.16)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="text-admin-accent-deep">
         <Icon name="sparkle" size={20} stroke={1.8} />
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ marginBottom: 4 }}>
+      <div className="flex-1 min-w-0">
+        <div className="mb-1">
           <CapsLabel color={COLORS.accentDeep} style={{ letterSpacing: 1.6 }}>
             Site setup · the unified walkthrough
           </CapsLabel>
         </div>
-        <h2
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 22,
-            fontWeight: 500,
-            letterSpacing: -0.3,
-            color: COLORS.ink,
-            margin: 0,
-            lineHeight: 1.25,
-          }}
-        >
+        <h2 style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3, margin: 0, lineHeight: 1.25 }} className="text-admin-ink">
           Get your site live in six steps
         </h2>
-        <p
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.inkMuted,
-            margin: "4px 0 0",
-            lineHeight: 1.55,
-            maxWidth: 720,
-          }}
-        >
+        <p style={{ fontFamily: FONTS.body, fontSize: 13, margin: "4px 0 0", lineHeight: 1.55, maxWidth: 720 }} className="text-admin-ink-muted">
           Homepage, pages, posts, navigation, theme, SEO — every Agency card walked through with real status and one click to apply.
         </p>
       </div>
       <PrimaryButton onClick={() => openDrawer("site-setup")}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <span className="inline-flex items-center gap-1.5">
           Open setup
           <Icon name="arrow-right" size={13} stroke={1.8} />
         </span>

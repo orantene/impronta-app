@@ -17,11 +17,11 @@ import { Grid, PageHeader } from "./pages-shared";
 function PageSection({ tone, title, desc, children }: { tone: string; label?: string; title: string; desc: string; children: ReactNode }) {
   return (
     <section style={{ marginTop: 18 }}>
-      <header style={{ marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <header className="mb-2.5">
+        <div className="flex items-center gap-2">
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: tone, flexShrink: 0 }} />
-          <h2 style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700, color: COLORS.ink, margin: 0, letterSpacing: -0.1 }}>{title}</h2>
-          <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginLeft: 4 }}>{desc}</span>
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">{title}</h2>
+          <span style={{ fontFamily: FONTS.body, fontSize: 12, marginLeft: 4 }} className="text-admin-ink-muted">{desc}</span>
         </div>
       </header>
       {children}
@@ -68,9 +68,9 @@ function ToolRow({ tone, icon, title, desc, onClick }: { tone: string; icon: Rea
       }}>
         {icon}
       </div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3, letterSpacing: -0.05 }}>{title}</div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, letterSpacing: -0.05 }} className="text-admin-ink">{title}</div>
+        <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">{desc}</div>
       </div>
       {/* Right chevron — indicates "opens" rather than "expands" */}
       <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkDim }}>
@@ -193,7 +193,7 @@ export function ProductionPage() {
           <SecondaryCard title="Call sheet" description="Live production roster with status." affordance="Open" onClick={() => openDrawer("call-sheet")} />
           <SecondaryCard title="On-set check-in" description="Mark talent and crew as arrived." affordance="Open" onClick={() => openDrawer("onset-checkin")} />
         </Grid>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           <Grid cols="3">
             <SecondaryCard title="Locations" description="Studios, venues, and outdoor locations." affordance="Open" onClick={() => openDrawer("locations-drawer")} />
             <SecondaryCard title="Brief builder" description="Author shot lists and creative briefs." affordance="Open" onClick={() => openDrawer("brief-builder")} />

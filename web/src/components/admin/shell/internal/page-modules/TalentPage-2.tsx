@@ -65,7 +65,7 @@ export function SortButton({
   }[sort];
   const arrow = sortDir === "asc" ? " ↑" : " ↓";
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -123,7 +123,7 @@ export function SortButton({
                   }}
                 >
                   {labels[s]}
-                  {s === sort && <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11 }}>{sortDir === "asc" ? "↑" : "↓"}</span>}
+                  {s === sort && <span style={{ marginLeft: "auto", fontSize: 11 }} className="text-admin-ink-muted">{sortDir === "asc" ? "↑" : "↓"}</span>}
                 </button>
               );
             })}
@@ -206,7 +206,7 @@ export function RosterMoreMenu({
 }) {
   const { t } = useAdminShell();
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={onToggle}
@@ -404,17 +404,7 @@ function RosterCard({
       }}
     >
       {/* Photo */}
-      <div
-        style={{
-          position: "relative",
-          aspectRatio: "4 / 5",
-          background: COLORS.surfaceAlt,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
+      <div style={{ position: "relative", aspectRatio: "4 / 5", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }} className="bg-admin-surface-alt">
         {profile.thumb && !photoFailed && (
           <Image
             src={profile.thumb}
@@ -540,24 +530,7 @@ function RosterCard({
         )}
 
         {/* Availability + state dots, top-right */}
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 8px",
-            borderRadius: 999,
-            background: "rgba(255,255,255,0.92)",
-            backdropFilter: "blur(6px)",
-            boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
-            fontSize: 10,
-            fontWeight: 600,
-            color: COLORS.ink,
-          }}
-        >
+        <div style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)", boxShadow: "0 1px 4px rgba(11,11,13,0.10)", fontSize: 10, fontWeight: 600 }} className="text-admin-ink">
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
           <span>{rosterWorkflowStateLabel(t, profile.state)}</span>
         </div>
@@ -642,22 +615,7 @@ function RosterCard({
           }}
         >
           {profile.state === "published" && profile.availability && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.92)",
-                backdropFilter: "blur(6px)",
-                boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
-                fontSize: 10,
-                fontWeight: 600,
-                color: COLORS.ink,
-                textTransform: "capitalize",
-              }}
-            >
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)", boxShadow: "0 1px 4px rgba(11,11,13,0.10)", fontSize: 10, fontWeight: 600, textTransform: "capitalize" }} className="text-admin-ink">
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: availDot }} />
               {profile.availability}
             </div>
@@ -687,17 +645,7 @@ function RosterCard({
 
       {/* Card body — name + type + city, hairlined */}
       <div style={{ padding: "10px 12px 12px" }}>
-        <div
-          style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: COLORS.ink,
-            letterSpacing: -0.1,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {profile.name}
         </div>
         <div
@@ -721,20 +669,14 @@ function RosterCard({
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
             {typeMeta?.label ?? profile.primaryType ?? t("admin.roster.card.noTypeSet")}
             {typeMeta?.specialty && (
-              <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}>
+              <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">
                 {" · "}{typeMeta.specialty}
               </span>
             )}
           </span>
         </div>
         {profile.city && (
-          <div
-            style={{
-              fontSize: 11,
-              color: COLORS.inkMuted,
-              marginTop: 1,
-            }}
-          >
+          <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
             📍 {profile.city}
             {profile.lastActive && profile.lastActive !== "—"
               ? fillAdminTpl(t("admin.roster.card.activeLine"), { when: profile.lastActive })

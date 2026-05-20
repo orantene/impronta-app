@@ -226,7 +226,7 @@ function SegmentedControl({
   onChange: (v: string) => void;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="flex items-center gap-1.5">
       <span
         style={{
           fontSize: 9.5,

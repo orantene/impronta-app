@@ -119,7 +119,7 @@ export function CalendarPage() {
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{monthLabel}</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">{monthLabel}</div>
             {/* Timezone display (#11) */}
             <div
               title="All times are local to the talent's shoot location. Adjust in Settings → Time zones."
@@ -139,7 +139,7 @@ export function CalendarPage() {
                 .find((p) => p.type === "timeZoneName")?.value ?? "local"}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 4 }}>
+          <div className="flex gap-1">
             <CalendarNavBtn label="prev" onClick={goToPrev} />
             <CalendarNavBtn label="Today" onClick={goToToday} disabled={isCurrentMonth} />
             <CalendarNavBtn label="next" onClick={goToNext} />
@@ -288,7 +288,7 @@ export function CalendarPage() {
                   </button>
                 ))}
                 {dayEvents.length > 2 && (
-                  <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 600 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600 }} className="text-admin-accent">
                     +{dayEvents.length - 2} more
                   </span>
                 )}

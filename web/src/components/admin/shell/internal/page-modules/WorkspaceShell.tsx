@@ -79,7 +79,7 @@ export function WorkspaceShell() {
       {state.workspaceLayout === "sidebar" ? (
         <WorkspaceSidebarShell />
       ) : (
-        <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 56px - 50px)" }}>
+        <div style={{ minHeight: "calc(100vh - 56px - 56px - 50px)" }} className="bg-admin-surface">
           <WorkspaceTopbar onOpenSearch={openPalette} />
           <main
             data-tulala-surface-main
@@ -169,11 +169,11 @@ function WorkspaceSidebarShell() {
           onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
         >
           <Avatar initials={effectiveTenant.name.slice(0, 2).toUpperCase()} size={26} tone="ink" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">
               {effectiveTenant.name}
             </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
+            <div style={{ fontSize: 10.5, textTransform: "capitalize" }} className="text-admin-ink-muted">
               {state.plan} · {state.entityType}
             </div>
           </div>
@@ -242,22 +242,9 @@ function WorkspaceSidebarShell() {
           type="button"
           onClick={() => setWorkspaceLayout("topbar")}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "7px 10px",
-            background: "transparent",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 7,
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-            transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
-          }}
+            display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 7, cursor: "pointer", fontFamily: FONTS.body, fontSize: 11.5, transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`, }}
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
-        >
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }} className="text-admin-ink-muted">
           <Icon name="arrow-right" size={11} stroke={1.8} />
           Topbar layout
         </button>

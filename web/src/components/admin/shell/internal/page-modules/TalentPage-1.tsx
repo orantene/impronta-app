@@ -419,19 +419,7 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
       ? fillAdminTpl(t("admin.roster.list.pendingWaitingSingular"), { count: String(count) })
       : fillAdminTpl(t("admin.roster.list.pendingWaitingPlural"), { count: String(count) });
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "10px 14px",
-        marginBottom: 14,
-        borderRadius: 12,
-        background: COLORS.amberSoft,
-        border: `1px solid rgba(82,96,109,0.18)`,
-        fontFamily: FONTS.body,
-      }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", marginBottom: 14, borderRadius: 12, border: `1px solid rgba(82,96,109,0.18)`, fontFamily: FONTS.body }} className="bg-admin-amber-soft">
       <span
         style={{
           width: 32,
@@ -447,11 +435,11 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
       >
         🔍
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.amberDeep }}>
+      <div className="flex-1 min-w-0">
+        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-amber-deep">
           {pendingTitle}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+        <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
           {t("admin.roster.list.pendingHint")}
         </div>
       </div>
@@ -495,7 +483,7 @@ function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
       }}
     >
       <span style={{ fontSize: 13 }}>👤</span>
-      <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: COLORS.inkMuted }}>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 12 }} className="text-admin-ink-muted">
         {t("admin.roster.list.selfRowText")}
       </div>
       <button
@@ -576,15 +564,9 @@ function RosterStatusStrip({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: it.tone,
-                }}
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone, }}
               />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">{it.label}</span>
             </div>
             <div
               style={{
@@ -722,7 +704,7 @@ function RosterFilterBar({
       <div style={{ flex: 1 }} />
 
       {/* Result count */}
-      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">
         {resultLabel}
       </div>
 
