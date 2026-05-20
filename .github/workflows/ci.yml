@@ -73,7 +73,7 @@ jobs:
       # the array element shapes to AdminShellIconName / DrawerId | null. Count
       # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
       TSC_BASE: 0              # was 4 (the PM2 profile-shell-internal ResolvedField baseline); LOWERED to 0 after integration's field-engine refactor moved ResolvedField + added has_value? + tenant_override? optional fields, AND profile-shell-internal.tsx decomp (Phase 1f) shipped clean. Codebase is now tsc-zero.
-      SUPPRESSIONS_BASE: 7865  # was 7867 post-Q5; LOWERED -2 after integration regen + Phase 1f decomp (572 entries redistributed across 12 new profile-shell-modules but net 7865 because some inline-style entries on the decomposed code were cleaned in the move).
+      SUPPRESSIONS_BASE: 7851  # was 7865; LOWERED -14 after Wave 4 Task B migrated 14 integration-era console.* calls to improntaLog/logServerError (resolve-talent-fields 7 + legacy-mirror 4 + engine-audit 3). no-console suppressions now 0; entire family clean (after Q3 + Q3-followup).
     steps:
       - name: Checkout
         uses: actions/checkout@v4

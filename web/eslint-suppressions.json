@@ -1360,14 +1360,6 @@
   "src/lib/field-engine/resolve-talent-fields.ts": {
     "max-lines": {
       "count": 1
-    },
-    "no-console": {
-      "count": 7
-    }
-  },
-  "src/lib/fields/legacy-mirror.ts": {
-    "no-console": {
-      "count": 4
     }
   },
   "src/lib/inquiry/inquiry-engine-offers.ts": {
@@ -1591,9 +1583,6 @@
     }
   },
   "src/lib/server-actions/engine-audit.ts": {
-    "no-console": {
-      "count": 3
-    },
     "ratchet/no-untenanted-from": {
       "count": 1
     }
