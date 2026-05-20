@@ -21,6 +21,33 @@ import {
   effectiveFieldVisibility,
   visibilityToOverrideColumns,
 } from "@/lib/field-engine/effective-visibility";
+import { logEngineAudit } from "./engine-audit";
+
+// ── Phase 7a — audit helpers ────────────────────────────────────────────
+// Tiny shaping helpers so the before/after snapshots stored in
+// engine_audit_log are readable and stable across operations. Keep these
+// in this file (not in engine-audit.ts) — they're tied to *this* table's
+// column set, not to the audit log itself.
+
+type FieldOverrideSnapshot = {
+  enabled_override: boolean | null;
+  required_override: boolean | null;
+  show_in_public_override: boolean | null;
+  admin_only_override: boolean | null;
+  default_visibility_override: string[] | null;
+  custom_label: string | null;
+  custom_helper: string | null;
+};
+
+type GroupOverrideSnapshot = {
+  is_enabled: boolean | null;
+  custom_label: string | null;
+};
+
+const FIELD_OVERRIDE_COLS =
+  "enabled_override, required_override, show_in_public_override, admin_only_override, default_visibility_override, custom_label, custom_helper";
+
+const GROUP_OVERRIDE_COLS = "is_enabled, custom_label";
 
 // Same string the resolver's unstable_cache is tagged with
 // (admin-taxonomy.ts CACHE_TAG_FIELD_CATALOG). Phase 1b exports the
@@ -219,7 +246,7 @@ export async function setWorkspaceFieldVisibility(
   // field being raised to public.
   const { data: def, error: defErr } = await supabase
     .from("profile_field_definitions")
-    .select("id, admin_only, is_sensitive")
+    .select("id, field_key, admin_only, is_sensitive")
     .eq("id", field_definition_id)
     .maybeSingle();
   if (defErr || !def) {
@@ -235,6 +262,15 @@ export async function setWorkspaceFieldVisibility(
       error: "This field is platform-restricted and cannot be made public.",
     };
   }
+
+  // Phase 7a: capture before-snapshot for audit. Null when no override
+  // existed yet (the resolver treats that as platform-default).
+  const { data: beforeRow } = await supabase
+    .from("workspace_profile_field_settings")
+    .select(FIELD_OVERRIDE_COLS)
+    .eq("tenant_id", tenantId)
+    .eq("field_definition_id", field_definition_id)
+    .maybeSingle();
 
   const cols = visibilityToOverrideColumns(visibility as FieldVisibility);
   const { error } = await supabase
@@ -260,6 +296,23 @@ export async function setWorkspaceFieldVisibility(
     return { ok: false, error: "Couldn't save the field setting." };
   }
   bustFieldCatalog(tenantId);
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user?.id ?? null,
+    actorRole: "agency_admin",
+    surface: "field-privacy",
+    subjectKind: "field",
+    subjectId: field_definition_id,
+    subjectKey: (def as { field_key?: string }).field_key ?? null,
+    operation: "set",
+    beforeValue: (beforeRow as FieldOverrideSnapshot | null) ?? null,
+    afterValue: {
+      show_in_public_override: cols.show_in_public_override,
+      admin_only_override: cols.admin_only_override,
+      default_visibility_override: cols.default_visibility_override,
+      visibility,
+    },
+  });
   return { ok: true };
 }
 
@@ -272,7 +325,23 @@ export async function resetWorkspaceFieldVisibility(
 
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
+
+  // Phase 7a: snapshot before-state (and resolve field_key for the
+  // audit row's human-readable handle) before we delete the override.
+  const [beforeRowR, defR] = await Promise.all([
+    supabase
+      .from("workspace_profile_field_settings")
+      .select(FIELD_OVERRIDE_COLS)
+      .eq("tenant_id", tenantId)
+      .eq("field_definition_id", parsed.data.field_definition_id)
+      .maybeSingle(),
+    supabase
+      .from("profile_field_definitions")
+      .select("field_key")
+      .eq("id", parsed.data.field_definition_id)
+      .maybeSingle(),
+  ]);
 
   const { error } = await supabase
     .from("workspace_profile_field_settings")
@@ -288,6 +357,18 @@ export async function resetWorkspaceFieldVisibility(
     return { ok: false, error: "Couldn't reset the field setting." };
   }
   bustFieldCatalog(tenantId);
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user?.id ?? null,
+    actorRole: "agency_admin",
+    surface: "reset",
+    subjectKind: "field",
+    subjectId: parsed.data.field_definition_id,
+    subjectKey: (defR.data as { field_key?: string } | null)?.field_key ?? null,
+    operation: "reset",
+    beforeValue: (beforeRowR.data as FieldOverrideSnapshot | null) ?? null,
+    afterValue: null,
+  });
   return { ok: true };
 }
 
@@ -450,6 +531,21 @@ export async function setWorkspaceFieldCatalog(
     row.custom_helper = helper && helper.trim() ? helper.trim() : null;
   }
 
+  // Phase 7a: capture before-state + field_key for audit.
+  const [beforeRowR, defR] = await Promise.all([
+    supabase
+      .from("workspace_profile_field_settings")
+      .select(FIELD_OVERRIDE_COLS)
+      .eq("tenant_id", tenantId)
+      .eq("field_definition_id", field_definition_id)
+      .maybeSingle(),
+    supabase
+      .from("profile_field_definitions")
+      .select("field_key")
+      .eq("id", field_definition_id)
+      .maybeSingle(),
+  ]);
+
   const { error } = await supabase
     .from("workspace_profile_field_settings")
     .upsert(row, { onConflict: "tenant_id,field_definition_id" });
@@ -461,6 +557,40 @@ export async function setWorkspaceFieldCatalog(
     return { ok: false, error: "Couldn't save the field." };
   }
   bustFieldCatalog(tenantId);
+
+  // Pick the audited operation: enable/disable when only the toggle
+  // moved, otherwise generic 'set'.
+  const onlyEnableToggle =
+    enabled !== undefined &&
+    required === undefined &&
+    custom_label === undefined &&
+    helper === undefined;
+  const operation: "set" | "enable" | "disable" = onlyEnableToggle
+    ? enabled
+      ? "enable"
+      : "disable"
+    : "set";
+
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user?.id ?? null,
+    actorRole: "agency_admin",
+    surface: "field-catalog",
+    subjectKind: "field",
+    subjectId: field_definition_id,
+    subjectKey: (defR.data as { field_key?: string } | null)?.field_key ?? null,
+    operation,
+    beforeValue: (beforeRowR.data as FieldOverrideSnapshot | null) ?? null,
+    // Only echo the writer's intent (the columns we actually set), so a
+    // reader can diff cleanly against `beforeValue`. Don't re-query the
+    // row — the upsert just succeeded.
+    afterValue: {
+      enabled_override: enabled,
+      required_override: required,
+      custom_label: row.custom_label,
+      custom_helper: row.custom_helper,
+    },
+  });
   return { ok: true };
 }
 
@@ -474,7 +604,7 @@ export async function setWorkspaceFieldGroup(
 
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId } = auth;
+  const { supabase, tenantId, user } = auth;
 
   const row: Record<string, unknown> = {
     tenant_id: tenantId,
@@ -485,6 +615,21 @@ export async function setWorkspaceFieldGroup(
   if (custom_label !== undefined) {
     row.custom_label = custom_label && custom_label.trim() ? custom_label.trim() : null;
   }
+
+  // Phase 7a: capture before-state + group slug for audit.
+  const [beforeRowR, groupR] = await Promise.all([
+    supabase
+      .from("workspace_field_group_settings")
+      .select(GROUP_OVERRIDE_COLS)
+      .eq("tenant_id", tenantId)
+      .eq("field_group_id", field_group_id)
+      .maybeSingle(),
+    supabase
+      .from("profile_field_groups")
+      .select("slug")
+      .eq("id", field_group_id)
+      .maybeSingle(),
+  ]);
 
   const { error } = await supabase
     .from("workspace_field_group_settings")
@@ -497,5 +642,29 @@ export async function setWorkspaceFieldGroup(
     return { ok: false, error: "Couldn't save the group." };
   }
   bustFieldCatalog(tenantId);
+
+  const onlyEnableToggle =
+    is_enabled !== undefined && custom_label === undefined;
+  const operation: "set" | "enable" | "disable" = onlyEnableToggle
+    ? is_enabled
+      ? "enable"
+      : "disable"
+    : "set";
+
+  await logEngineAudit({
+    tenantId,
+    actorUserId: user?.id ?? null,
+    actorRole: "agency_admin",
+    surface: "field-group",
+    subjectKind: "group",
+    subjectId: field_group_id,
+    subjectKey: (groupR.data as { slug?: string } | null)?.slug ?? null,
+    operation,
+    beforeValue: (beforeRowR.data as GroupOverrideSnapshot | null) ?? null,
+    afterValue: {
+      is_enabled,
+      custom_label: row.custom_label,
+    },
+  });
   return { ok: true };
 }
