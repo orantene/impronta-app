@@ -157,7 +157,7 @@ export function PhotoLightbox({
   useEffect(() => {
     const idx = allAssets.findIndex((a) => a.id === asset.id);
     if (idx >= 0 && idx !== currentIdx) setCurrentIdx(idx);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: sync only on external asset.id change; currentIdx is read (not a trigger) to avoid re-entrancy; allAssets is the search space
   }, [asset.id]);
   // Keep current index safe across allAssets shrinking (e.g. after delete).
   const safeIdx = Math.max(0, Math.min(allAssets.length - 1, currentIdx));
@@ -187,7 +187,7 @@ export function PhotoLightbox({
   // each time, but its id is stable, so this only fires on real navigation.
   useEffect(() => {
     if (current.id !== asset.id) onNavigate(current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: depend on id strings not object references; current object is derived in render so referential equality would fire every render
   }, [current.id, asset.id, onNavigate]);
 
   const go = useCallback((delta: number) => {
