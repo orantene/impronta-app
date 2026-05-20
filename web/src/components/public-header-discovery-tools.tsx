@@ -1,5 +1,3 @@
-"use client";
-
 import { DirectoryDiscoveryHeaderActions } from "@/components/directory/directory-discovery-header-actions";
 import type { DirectoryDiscoveryHeaderCopy } from "@/components/directory/directory-discovery-header-actions";
 import { SavedEntryButton } from "@/components/directory/saved-entry-button";
