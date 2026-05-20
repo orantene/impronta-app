@@ -386,6 +386,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // CommonJS preload; must use require() before ESM loads
     "scripts/eslint-node-polyfill.cjs",
+    // T2b Phase A — auto-generated Supabase types (~12k LOC). Ignored so
+    // it does not need a `max-lines` suppression and does not contribute
+    // to the suppressions baseline. Regenerate via the command documented
+    // in the file's header. See web/src/lib/supabase/database.types.ts.
+    "src/lib/supabase/database.types.ts",
   ]),
 ]);
 

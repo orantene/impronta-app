@@ -41,10 +41,15 @@ type InsertBuilder = ReturnType<FromBuilder["insert"]>;
 type UpsertBuilder = ReturnType<FromBuilder["upsert"]>;
 
 /**
- * Write payload — one row or many. The app-wide client is loosely typed
- * (no generated `Database`), so a row is an open record. Declared explicitly
- * because `Parameters<…["insert"]>` collapses postgrest's overloads to the
- * array form and would reject a single-object payload at call sites.
+ * Write payload — one row or many. The app-wide Supabase clients are still
+ * constructed untyped at this helper's boundary; the generated `Database`
+ * type lives at `@/lib/supabase/database.types` (T2b/Phase A — 2026-05-19)
+ * but is not yet threaded through `createClient(...)` everywhere, so per-
+ * callsite migrations (Phase C onward) opt in via direct row-type imports
+ * rather than retyping the helper API. A row therefore remains an open
+ * record at this boundary. Declared explicitly because
+ * `Parameters<…["insert"]>` collapses postgrest's overloads to the array
+ * form and would reject a single-object payload at call sites.
  */
 type WriteRow = Record<string, unknown>;
 type WriteValues = WriteRow | WriteRow[];
