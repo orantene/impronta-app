@@ -18,6 +18,9 @@
 // be deleted alongside its call sites.
 // ============================================================================
 
+import { improntaLog } from "@/lib/server/structured-log";
+import { logServerError } from "@/lib/server/safe-error";
+
 // Reverse map of the migration's KEY_BRIDGE (new field_key → old key).
 // Only includes keys whose old equivalent existed; new-only keys have no
 // mirror. When the OLD tables are dropped (Phase 5 cutover), this map
@@ -144,8 +147,10 @@ export async function mirrorWriteToCanonical(
       .eq("field_key", newKey)
       .maybeSingle();
     if (defErr) {
-       
-      console.warn("[mirrorWriteToCanonical] def lookup failed", { newKey, error: defErr });
+      void improntaLog("legacy_mirror.def_lookup_failed", {
+        newKey,
+        error_message: defErr.message ?? String(defErr),
+      });
       return;
     }
     if (!newDef) return;
@@ -158,8 +163,10 @@ export async function mirrorWriteToCanonical(
         .eq("talent_profile_id", talentProfileId)
         .eq("field_definition_id", fieldDefinitionId);
       if (delErr) {
-         
-        console.warn("[mirrorWriteToCanonical] delete failed", { newKey, error: delErr });
+        void improntaLog("legacy_mirror.delete_failed", {
+          newKey,
+          error_message: delErr.message ?? String(delErr),
+        });
       }
       return;
     }
@@ -192,11 +199,12 @@ export async function mirrorWriteToCanonical(
         { onConflict: "talent_profile_id,field_definition_id" },
       );
     if (upErr) {
-       
-      console.warn("[mirrorWriteToCanonical] upsert failed", { newKey, error: upErr });
+      void improntaLog("legacy_mirror.upsert_failed", {
+        newKey,
+        error_message: upErr.message ?? String(upErr),
+      });
     }
   } catch (err) {
-     
-    console.warn("[mirrorWriteToCanonical] unexpected error", { legacyKey, err });
+    logServerError(`legacy_mirror.unexpected[${legacyKey}]`, err);
   }
 }

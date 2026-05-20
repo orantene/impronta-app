@@ -41,6 +41,7 @@ import {
 } from "@/lib/field-engine/cache-tags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 /** ViewerRole accepted by the resolver. Authoritative union lives in
  *  `effective-visibility.ts`; we accept the staff + talent subset here
@@ -225,13 +226,14 @@ async function loadTenantFieldCatalogUncached(
   // Runs only on a CACHE MISS (unstable_cache skips the body on a hit).
   _metrics.catalog_misses++;
   const t0 = Date.now();
-  console.info(`[field-catalog] MISS (querying db) tenant=${tenantId}`);
+  void improntaLog("field_catalog.miss", { tenantId });
   const svc = createServiceRoleClient();
   if (!svc) {
     _metrics.catalog_errors++;
-    console.warn(
-      `[field-catalog] no service client — FALLBACK to inline queries tenant=${tenantId}`,
-    );
+    void improntaLog("field_catalog.warn", {
+      message: "no service client — FALLBACK to inline queries",
+      tenantId,
+    });
     return null; // unconfigured → caller falls back to inline queries
   }
   void t0;
@@ -259,11 +261,12 @@ async function loadTenantFieldCatalogUncached(
     // Hard catalog tables failed → signal fallback (don't cache a bad set).
     return null;
   }
-  console.info(
-    `[field-catalog] MISS resolved tenant=${tenantId} duration=${
-      Date.now() - t0
-    }ms defs=${defsR.data?.length ?? 0} recs=${recsR.data?.length ?? 0}`,
-  );
+  void improntaLog("field_catalog.miss_resolved", {
+    tenantId,
+    duration_ms: Date.now() - t0,
+    defs_count: defsR.data?.length ?? 0,
+    recs_count: recsR.data?.length ?? 0,
+  });
   return {
     defs: (defsR.data ?? []) as FieldDefRow[],
     groupRows: (groupsR.data ?? []) as TenantFieldCatalog["groupRows"],
@@ -280,7 +283,7 @@ async function loadTenantFieldCatalogUncached(
 async function getCachedTenantFieldCatalog(
   tenantId: string,
 ): Promise<TenantFieldCatalog | null> {
-  console.info(`[field-catalog] request tenant=${tenantId}`);
+  void improntaLog("field_catalog.request", { tenantId });
   // Detect hit vs miss: if the miss counter advances during the await, the
   // inner function ran (miss); otherwise unstable_cache served from memory.
   const missesBefore = _metrics.catalog_misses;
@@ -346,12 +349,14 @@ export async function resolveTalentFields(
     .maybeSingle();
 
   if (rosterErr || !rosterRow) {
-    try {
-      console.info(
-        `[engine.resolver] tenant=${tenantId} talent=${talentProfileId}` +
-          ` cache_hit=false ms=${Date.now() - _t0} fields=0 err=not_on_roster`,
-      );
-    } catch { /* telemetry must never block */ }
+    void improntaLog("engine_resolver.result", {
+      tenantId,
+      talentProfileId,
+      cache_hit: false,
+      duration_ms: Date.now() - _t0,
+      fields_count: 0,
+      error: "not_on_roster",
+    });
     return { ok: false, error: "Talent is not on this tenant's roster." };
   }
 
@@ -380,12 +385,14 @@ export async function resolveTalentFields(
 
   if (assignErr) {
     logServerError("resolveTalentFields.assigns", assignErr);
-    try {
-      console.info(
-        `[engine.resolver] tenant=${tenantId} talent=${talentProfileId}` +
-          ` cache_hit=false ms=${Date.now() - _t0} fields=0 err=assign_query`,
-      );
-    } catch { /* telemetry must never block */ }
+    void improntaLog("engine_resolver.result", {
+      tenantId,
+      talentProfileId,
+      cache_hit: false,
+      duration_ms: Date.now() - _t0,
+      fields_count: 0,
+      error: "assign_query",
+    });
     return { ok: false, error: CLIENT_ERROR.generic };
   }
 
@@ -813,14 +820,13 @@ export async function resolveTalentFields(
   }
   resolvedGroups.sort((a, b) => a.display_order - b.display_order);
 
-  try {
-    console.info(
-      `[engine.resolver] tenant=${tenantId} talent=${talentProfileId}` +
-        ` cache_hit=${_catalogHit} ms=${Date.now() - _t0} fields=${resolved.length}`,
-    );
-  } catch {
-    // telemetry must never block the resolver
-  }
+  void improntaLog("engine_resolver.result", {
+    tenantId,
+    talentProfileId,
+    cache_hit: _catalogHit,
+    duration_ms: Date.now() - _t0,
+    fields_count: resolved.length,
+  });
 
   return { ok: true, fields: resolved, groups: resolvedGroups };
 }

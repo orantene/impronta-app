@@ -20,6 +20,8 @@
 //     determinism inside server actions; the cost is one cheap insert).
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 
 export type EngineAuditSurface =
   | "field-privacy"
@@ -62,7 +64,9 @@ export async function logEngineAudit(input: LogEngineAuditInput): Promise<void> 
     if (!svc) {
       // Local/dev without SUPABASE_SERVICE_ROLE_KEY — silently skip;
       // audit is not security-critical for correctness of the write.
-      console.warn("[engine-audit] service-role client unavailable; skipping log");
+      void improntaLog("engine_audit.warn", {
+        message: "service-role client unavailable; skipping log",
+      });
       return;
     }
     const { error } = await svc.from("engine_audit_log").insert({
@@ -78,7 +82,8 @@ export async function logEngineAudit(input: LogEngineAuditInput): Promise<void> 
       after_value: input.afterValue ?? null,
     });
     if (error) {
-      console.error("[engine-audit] insert failed:", error.message, {
+      void improntaLog("engine_audit.insert_failed", {
+        error_message: error.message,
         surface: input.surface,
         subjectKind: input.subjectKind,
         operation: input.operation,
@@ -87,6 +92,6 @@ export async function logEngineAudit(input: LogEngineAuditInput): Promise<void> 
   } catch (err) {
     // Defensive — never re-throw. The user's save has already
     // succeeded by the time we get here.
-    console.error("[engine-audit] unexpected:", err);
+    logServerError("engine_audit.unexpected", err);
   }
 }
