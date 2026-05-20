@@ -30,6 +30,7 @@
  * tenant-scoped public RPC) rather than adding a parallel surface.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 
@@ -81,7 +82,8 @@ export async function loadSectionByIdForStaff(
     .eq("id", sectionId)
     .maybeSingle<SectionRow>();
   if (error) {
-    console.warn("[site-admin/sections-reads] staff section load failed", {
+    void improntaLog("site_admin_sections_reads.warn", {
+      message: "[site-admin/sections-reads] staff section load failed",
       tenantId,
       sectionId,
       error: error.message,
@@ -129,10 +131,12 @@ async function loadCachedSectionRow(
         .eq("id", sectionId)
         .maybeSingle<SectionRow>();
       if (error) {
-        console.warn(
-          "[site-admin/sections-reads] cached section load failed",
-          { tenantId, sectionId, error: error.message },
-        );
+        void improntaLog("site_admin_sections_reads.warn", {
+          message: "[site-admin/sections-reads] cached section load failed",
+          tenantId,
+          sectionId,
+          error: error.message,
+        });
         return null;
       }
       return data ?? null;
@@ -182,7 +186,8 @@ export async function listSectionsForStaff(
     .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
   if (error) {
-    console.warn("[site-admin/sections-reads] staff list failed", {
+    void improntaLog("site_admin_sections_reads.warn", {
+      message: "[site-admin/sections-reads] staff list failed",
       tenantId,
       error: error.message,
     });
@@ -204,7 +209,8 @@ export async function listSectionsByIdsForStaff(
     .eq("tenant_id", tenantId)
     .in("id", ids);
   if (error) {
-    console.warn("[site-admin/sections-reads] staff list-by-ids failed", {
+    void improntaLog("site_admin_sections_reads.warn", {
+      message: "[site-admin/sections-reads] staff list-by-ids failed",
       tenantId,
       count: ids.length,
       error: error.message,
@@ -311,7 +317,8 @@ export async function loadSectionUsageForStaff(
     .eq("tenant_id", tenantId)
     .eq("section_id", sectionId);
   if (error) {
-    console.warn("[site-admin/sections-reads] staff usage failed", {
+    void improntaLog("site_admin_sections_reads.warn", {
+      message: "[site-admin/sections-reads] staff usage failed",
       tenantId,
       sectionId,
       error: error.message,
@@ -369,7 +376,8 @@ async function fetchSectionUsageMap(
     )
     .eq("tenant_id", tenantId);
   if (error) {
-    console.warn("[site-admin/sections-reads] staff usage map failed", {
+    void improntaLog("site_admin_sections_reads.warn", {
+      message: "[site-admin/sections-reads] staff usage map failed",
       tenantId,
       error: error.message,
     });
@@ -475,7 +483,8 @@ export async function loadSectionRevisionsForStaff(
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
-    console.warn("[site-admin/sections-reads] staff revisions failed", {
+    void improntaLog("site_admin_sections_reads.warn", {
+      message: "[site-admin/sections-reads] staff revisions failed",
       tenantId,
       sectionId,
       error: error.message,

@@ -35,6 +35,7 @@
  *     of defence (broken media refs → MEDIA_REF_BROKEN).
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
@@ -193,7 +194,8 @@ async function insertSectionRevision(
     created_by: params.actorProfileId,
   });
   if (error) {
-    console.warn("[site-admin/sections] revision insert failed", {
+    void improntaLog("site_admin_sections.warn", {
+      message: "[site-admin/sections] revision insert failed",
       tenantId: params.tenantId,
       sectionId: params.sectionId,
       kind: params.kind,

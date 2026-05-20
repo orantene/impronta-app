@@ -17,6 +17,7 @@
  * No UI concerns. Returns a `Phase5Result`.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID, createHash } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -238,7 +239,8 @@ export async function saveIdentity(
         created_by: actorProfileId,
       });
     if (error) {
-      console.warn("[site-admin/identity] revision insert failed", {
+      void improntaLog("site_admin_identity.warn", {
+        message: "[site-admin/identity] revision insert failed",
         tenantId,
         version: nextVersion,
         error: error.message,

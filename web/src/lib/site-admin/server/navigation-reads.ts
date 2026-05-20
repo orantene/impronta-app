@@ -12,6 +12,7 @@
  * non-request contexts (tests, GC jobs) without relying on `headers()`.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -74,7 +75,8 @@ export function loadPublicNavigationMenu(
         })
         .maybeSingle<NavMenuRow>();
       if (error) {
-        console.warn("[site-admin/navigation-reads] public menu load failed", {
+        void improntaLog("site_admin_navigation_reads.warn", {
+          message: "[site-admin/navigation-reads] public menu load failed",
           tenantId,
           zone,
           locale,
@@ -108,7 +110,8 @@ export async function loadDraftNavigationItems(
     .eq("locale", locale)
     .order("sort_order", { ascending: true });
   if (error) {
-    console.warn("[site-admin/navigation-reads] staff draft load failed", {
+    void improntaLog("site_admin_navigation_reads.warn", {
+      message: "[site-admin/navigation-reads] staff draft load failed",
       tenantId,
       zone,
       locale,
@@ -138,7 +141,8 @@ export async function loadMenuForStaff(
     .eq("locale", locale)
     .maybeSingle<NavMenuRow>();
   if (error) {
-    console.warn("[site-admin/navigation-reads] staff menu load failed", {
+    void improntaLog("site_admin_navigation_reads.warn", {
+      message: "[site-admin/navigation-reads] staff menu load failed",
       tenantId,
       zone,
       locale,

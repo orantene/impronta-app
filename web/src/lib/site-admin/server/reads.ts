@@ -16,6 +16,7 @@
  * tenantId is the only per-request input.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -100,7 +101,8 @@ export function loadPublicIdentity(
         .eq("tenant_id", tenantId)
         .maybeSingle<IdentityRow>();
       if (error) {
-        console.warn("[site-admin/reads] identity load failed", {
+        void improntaLog("site_admin_reads.warn", {
+          message: "[site-admin/reads] identity load failed",
           tenantId,
           error: error.message,
         });
@@ -135,7 +137,8 @@ export function loadPublicBranding(
         .eq("tenant_id", tenantId)
         .maybeSingle<BrandingRow>();
       if (error) {
-        console.warn("[site-admin/reads] branding load failed", {
+        void improntaLog("site_admin_reads.warn", {
+          message: "[site-admin/reads] branding load failed",
           tenantId,
           error: error.message,
         });
@@ -165,7 +168,8 @@ export async function loadIdentityForStaff(
     .eq("tenant_id", tenantId)
     .maybeSingle<IdentityRow>();
   if (error) {
-    console.warn("[site-admin/reads] staff identity load failed", {
+    void improntaLog("site_admin_reads.warn", {
+      message: "[site-admin/reads] staff identity load failed",
       tenantId,
       error: error.message,
     });
@@ -184,7 +188,8 @@ export async function loadBrandingForStaff(
     .eq("tenant_id", tenantId)
     .maybeSingle<BrandingRow>();
   if (error) {
-    console.warn("[site-admin/reads] staff branding load failed", {
+    void improntaLog("site_admin_reads.warn", {
+      message: "[site-admin/reads] staff branding load failed",
       tenantId,
       error: error.message,
     });

@@ -55,6 +55,7 @@
  *     them empty.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
 import { revalidateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
@@ -257,7 +258,8 @@ async function insertHomepageRevision(
     created_by: params.actorProfileId,
   });
   if (error) {
-    console.warn("[site-admin/homepage] revision insert failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] revision insert failed",
       tenantId: params.tenantId,
       pageId: params.pageId,
       kind: params.kind,
@@ -323,7 +325,8 @@ async function loadSectionFactsBulk(
     .eq("tenant_id", tenantId)
     .in("id", Array.from(new Set(sectionIds)));
   if (error) {
-    console.warn("[site-admin/homepage] section facts load failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] section facts load failed",
       tenantId,
       count: sectionIds.length,
       error: error.message,
@@ -542,7 +545,8 @@ export async function loadHomepageForStaff(
     .eq("system_template_key", "homepage")
     .maybeSingle<PageRow>();
   if (pageErr) {
-    console.warn("[site-admin/homepage] staff page load failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] staff page load failed",
       tenantId,
       locale,
       error: pageErr.message,
@@ -559,7 +563,8 @@ export async function loadHomepageForStaff(
     .order("slot_key", { ascending: true })
     .order("sort_order", { ascending: true });
   if (slotErr) {
-    console.warn("[site-admin/homepage] staff slots load failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] staff slots load failed",
       tenantId,
       pageId: page.id,
       error: slotErr.message,
@@ -753,7 +758,8 @@ export async function saveHomepageDraftComposition(
     .eq("page_id", beforeRow.id)
     .eq("is_draft", true);
   if (delErr) {
-    console.warn("[site-admin/homepage] draft rows clear failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] draft rows clear failed",
       tenantId,
       pageId: beforeRow.id,
       error: delErr.message,
@@ -791,7 +797,8 @@ export async function saveHomepageDraftComposition(
       .from("cms_page_sections")
       .insert(rowsToInsert);
     if (insErr) {
-      console.warn("[site-admin/homepage] draft rows insert failed", {
+      void improntaLog("site_admin_homepage.warn", {
+        message: "[site-admin/homepage] draft rows insert failed",
         tenantId,
         pageId: beforeRow.id,
         count: rowsToInsert.length,
@@ -1100,7 +1107,8 @@ export async function publishHomepage(
     .eq("page_id", beforeRow.id)
     .eq("is_draft", false);
   if (delLiveErr) {
-    console.warn("[site-admin/homepage] live rows clear failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] live rows clear failed",
       tenantId,
       pageId: beforeRow.id,
       error: delLiveErr.message,
@@ -1121,7 +1129,8 @@ export async function publishHomepage(
       .from("cms_page_sections")
       .insert(liveRows);
     if (insLiveErr) {
-      console.warn("[site-admin/homepage] live rows insert failed", {
+      void improntaLog("site_admin_homepage.warn", {
+        message: "[site-admin/homepage] live rows insert failed",
         tenantId,
         pageId: beforeRow.id,
         count: liveRows.length,
@@ -1310,7 +1319,8 @@ export async function restoreHomepageRevision(
     .eq("page_id", beforeRow.id)
     .eq("is_draft", true);
   if (delErr) {
-    console.warn("[site-admin/homepage] rollback draft clear failed", {
+    void improntaLog("site_admin_homepage.warn", {
+      message: "[site-admin/homepage] rollback draft clear failed",
       tenantId,
       pageId: beforeRow.id,
       error: delErr.message,
@@ -1329,7 +1339,8 @@ export async function restoreHomepageRevision(
       .from("cms_page_sections")
       .insert(rows);
     if (insErr) {
-      console.warn("[site-admin/homepage] rollback draft insert failed", {
+      void improntaLog("site_admin_homepage.warn", {
+        message: "[site-admin/homepage] rollback draft insert failed",
         tenantId,
         pageId: beforeRow.id,
         count: rows.length,

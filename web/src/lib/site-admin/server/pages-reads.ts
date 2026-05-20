@@ -18,6 +18,7 @@
  * non-request contexts.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -98,7 +99,8 @@ export function loadPublicPageBySlug(
         .eq("slug", slug)
         .maybeSingle<PageRow>();
       if (error) {
-        console.warn("[site-admin/pages-reads] public page load failed", {
+        void improntaLog("site_admin_pages_reads.warn", {
+          message: "[site-admin/pages-reads] public page load failed",
           tenantId,
           locale,
           slug,
@@ -140,7 +142,8 @@ export function loadPublicPagesList(
         .select(PAGE_SELECT)
         .order("updated_at", { ascending: false });
       if (error) {
-        console.warn("[site-admin/pages-reads] public list load failed", {
+        void improntaLog("site_admin_pages_reads.warn", {
+          message: "[site-admin/pages-reads] public list load failed",
           tenantId,
           error: error.message,
         });
@@ -171,7 +174,8 @@ export async function loadPageByIdForStaff(
     .eq("id", pageId)
     .maybeSingle<PageRow>();
   if (error) {
-    console.warn("[site-admin/pages-reads] staff page load failed", {
+    void improntaLog("site_admin_pages_reads.warn", {
+      message: "[site-admin/pages-reads] staff page load failed",
       tenantId,
       pageId,
       error: error.message,
@@ -202,7 +206,8 @@ export async function listPagesForStaff(
     .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
   if (error) {
-    console.warn("[site-admin/pages-reads] staff list failed", {
+    void improntaLog("site_admin_pages_reads.warn", {
+      message: "[site-admin/pages-reads] staff list failed",
       tenantId,
       error: error.message,
     });
@@ -230,7 +235,8 @@ export async function loadPageRevisionsForStaff(
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
-    console.warn("[site-admin/pages-reads] staff revisions failed", {
+    void improntaLog("site_admin_pages_reads.warn", {
+      message: "[site-admin/pages-reads] staff revisions failed",
       tenantId,
       pageId,
       error: error.message,

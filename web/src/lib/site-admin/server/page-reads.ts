@@ -24,6 +24,7 @@
  * the navigator updated but the server-rendered canvas did not.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
 import type { Locale as I18nLocale } from "@/i18n/config";
@@ -98,7 +99,8 @@ export function loadPublicPage(
         .eq("slug", slug)
         .maybeSingle<Row>();
       if (error) {
-        console.warn("[site-admin/page-reads] public page load failed", {
+        void improntaLog("site_admin_page_reads.warn", {
+          message: "[site-admin/page-reads] public page load failed",
           tenantId,
           locale,
           slug,

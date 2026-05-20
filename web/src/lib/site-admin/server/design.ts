@@ -38,6 +38,7 @@
  *     cross-editor collisions elsewhere in Phase 5.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -148,7 +149,8 @@ async function loadRow(
     .eq("tenant_id", tenantId)
     .maybeSingle<DesignBrandingRow>();
   if (error) {
-    console.warn("[site-admin/design] row load failed", {
+    void improntaLog("site_admin_design.warn", {
+      message: "[site-admin/design] row load failed",
       tenantId,
       error: error.message,
     });
@@ -175,7 +177,8 @@ async function insertDesignRevision(
     created_by: params.actorProfileId,
   });
   if (error) {
-    console.warn("[site-admin/design] revision insert failed", {
+    void improntaLog("site_admin_design.warn", {
+      message: "[site-admin/design] revision insert failed",
       tenantId: params.tenantId,
       kind: params.kind,
       version: params.version,
@@ -467,14 +470,12 @@ export async function restoreDesignRevision(
   const gate = validateThemePatch(source);
   const rebuiltDraft = gate.ok ? gate.normalized : {};
   if (!gate.ok) {
-    console.warn(
-      "[site-admin/design] restore dropped unknown/non-configurable tokens",
-      {
-        tenantId,
-        revisionId: values.revisionId,
-        dropped: gate.rejected,
-      },
-    );
+    void improntaLog("site_admin_design.warn", {
+      message: "[site-admin/design] restore dropped unknown/non-configurable tokens",
+      tenantId,
+      revisionId: values.revisionId,
+      dropped: gate.rejected.join(", "),
+    });
   }
 
   const nextVersion = beforeRow.version + 1;
@@ -696,7 +697,8 @@ export async function loadDesignRevisionsForStaff(
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
-    console.warn("[site-admin/design] staff revisions failed", {
+    void improntaLog("site_admin_design.warn", {
+      message: "[site-admin/design] staff revisions failed",
       tenantId,
       error: error.message,
     });

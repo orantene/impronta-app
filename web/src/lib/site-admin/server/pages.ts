@@ -32,6 +32,7 @@
  *     surfaced as `RESERVED_SLUG`.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
@@ -245,7 +246,8 @@ async function insertPageRevision(
     created_by: params.actorProfileId,
   });
   if (error) {
-    console.warn("[site-admin/pages] revision insert failed", {
+    void improntaLog("site_admin_pages.warn", {
+      message: "[site-admin/pages] revision insert failed",
       tenantId: params.tenantId,
       pageId: params.pageId,
       kind: params.kind,

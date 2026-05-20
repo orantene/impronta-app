@@ -14,6 +14,7 @@
  *   newest-first, capped at `limit` (default 50 — guardrail §5).
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -172,7 +173,8 @@ export function loadPublicHomepage(
         .eq("system_template_key", "homepage")
         .maybeSingle<PublicRow>();
       if (error) {
-        console.warn("[site-admin/homepage-reads] public load failed", {
+        void improntaLog("site_admin_homepage_reads.warn", {
+          message: "[site-admin/homepage-reads] public load failed",
           tenantId,
           locale,
           error: error.message,
@@ -510,7 +512,8 @@ export async function loadHomepageRevisionsForStaff(
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
-    console.warn("[site-admin/homepage-reads] staff revisions failed", {
+    void improntaLog("site_admin_homepage_reads.warn", {
+      message: "[site-admin/homepage-reads] staff revisions failed",
       tenantId,
       pageId,
       error: error.message,

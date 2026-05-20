@@ -13,6 +13,7 @@
  * INSERT path here — first edit arrives at version 1 already.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -193,7 +194,8 @@ export async function saveBranding(
         created_by: actorProfileId,
       });
     if (error) {
-      console.warn("[site-admin/branding] revision insert failed", {
+      void improntaLog("site_admin_branding.warn", {
+        message: "[site-admin/branding] revision insert failed",
         tenantId,
         version: nextVersion,
         error: error.message,

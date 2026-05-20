@@ -18,6 +18,7 @@
  * adds a second layer (is_staff_of_tenant).
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -433,7 +434,8 @@ export async function publishNavigationMenu(
       created_by: actorProfileId,
     });
     if (error) {
-      console.warn("[site-admin/navigation] revision insert failed", {
+      void improntaLog("site_admin_navigation.warn", {
+        message: "[site-admin/navigation] revision insert failed",
         tenantId,
         zone: values.zone,
         locale: values.locale,

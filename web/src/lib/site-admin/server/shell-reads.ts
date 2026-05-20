@@ -22,6 +22,7 @@
  * for backfill and removal sequencing.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
 import type { Locale } from "@/i18n/config";
@@ -69,7 +70,8 @@ export function loadPublishedShell(
         .eq("system_template_key", "site_shell")
         .maybeSingle<ShellRow>();
       if (error) {
-        console.warn("[site-admin/shell-reads] shell load failed", {
+        void improntaLog("site_admin_shell_reads.warn", {
+          message: "[site-admin/shell-reads] shell load failed",
           tenantId,
           locale,
           error: error.message,
