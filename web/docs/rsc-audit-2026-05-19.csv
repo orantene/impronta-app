@@ -1,0 +1,589 @@
+file_path,class,loc,interactivity_signals,estimated_effort_hours,notes
+web/src/app/(auth)/forgot-password/forgot-password-form.tsx,C,51,react:useActionState | jsx-nodes:9,0.00,react-hooks=useActionState
+web/src/app/(auth)/login/login-form.tsx,C,138,"react:useActionState,useEffect,useState | events:1 | browser:localStorage,window | jsx-nodes:20",0.00,"react-hooks=useActionState,useEffect,useState; browser=localStorage,window"
+web/src/app/(auth)/register/register-form.tsx,C,78,react:useActionState | jsx-nodes:14,0.00,react-hooks=useActionState
+web/src/app/(auth)/update-password/update-password-form.tsx,C,57,react:useActionState | jsx-nodes:9,0.00,react-hooks=useActionState
+web/src/app/(public)/directory/cart/inquiry-form.tsx,C,191,"custom-hooks:useCartSearchContext,usePublicDiscoveryState | jsx-nodes:4",0.00,"custom-hooks=useCartSearchContext,usePublicDiscoveryState"
+web/src/app/(workspace)/[tenantSlug]/_ParticipantThreadShell.tsx,C,317,"react:useEffect,useRef,useState,useTransition | events:3 | jsx-nodes:20",0.00,heavy state (4 useState)
+web/src/app/(workspace)/[tenantSlug]/admin/_page-route-syncer.tsx,C,32,react:useEffect | custom-hooks:useAdminShell | jsx-nodes:0,0.00,react-hooks=useEffect; custom-hooks=useAdminShell
+web/src/app/(workspace)/[tenantSlug]/admin/account/BillingActionButtons.tsx,C,201,nav:useRouter | events:2 | browser:window | jsx-nodes:11,0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/admin/account/CurrencyPicker.tsx,B,124,events:1 | jsx-nodes:12,5.24,static JSX wrapper with 1 small handler(s) (density 0.08)
+web/src/app/(workspace)/[tenantSlug]/admin/bookings/[id]/call-sheet/_editor.tsx,C,430,"react:useState,useTransition | nav:useRouter | events:30 | jsx-nodes:86",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/admin/discover-inquiries/AdminDiscoverInquiriesShell.tsx,A,219,jsx-nodes:27,0.25,pure presentational
+web/src/app/(workspace)/[tenantSlug]/admin/payouts/payouts-actions-client.tsx,C,172,"react:useState,useTransition | nav:useRouter | events:10 | browser:window | jsx-nodes:11",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/admin/roster/[id]/CompletenessDial.tsx,B,266,events:1 | jsx-nodes:32,6.66,static JSX wrapper with 1 small handler(s) (density 0.03)
+web/src/app/(workspace)/[tenantSlug]/admin/roster/[id]/EditorSections.tsx,C,1080,nav:useRouter | events:30 | jsx-nodes:113,0.00,heavy state (22 useState)
+web/src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx,C,1101,"react:useActionState,useEffect,useRef,useState | nav:useRouter | events:1 | browser:document | jsx-nodes:19",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/admin/roster/[id]/WorkflowPipe.tsx,A,251,jsx-nodes:22,0.25,pure presentational
+web/src/app/(workspace)/[tenantSlug]/admin/roster/[id]/curated-city-field.tsx,C,148,"react:useEffect,useRef,useState | events:8 | browser:document | jsx-nodes:12",0.00,heavy state (4 useState)
+web/src/app/(workspace)/[tenantSlug]/admin/roster/new/NewRosterTalentForm.tsx,C,326,"react:useActionState,useState | events:4 | jsx-nodes:60",0.00,"react-hooks=useActionState,useState"
+web/src/app/(workspace)/[tenantSlug]/admin/site/CopyUrlButton.tsx,C,55,"react:useState | events:1 | browser:document,navigator | jsx-nodes:1",0.00,"react-hooks=useState; browser=document,navigator"
+web/src/app/(workspace)/[tenantSlug]/client/_components/NewInquiryButton.tsx,C,204,react:useState | events:2 | jsx-nodes:6,0.00,react-hooks=useState
+web/src/app/(workspace)/[tenantSlug]/client/_keyboard-shortcuts.tsx,C,244,"react:useEffect,useState | nav:useRouter | events:4 | browser:document | jsx-nodes:13",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/client/client-topbar.tsx,C,171,"react:useEffect,useState | nav:usePathname | jsx-nodes:6",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/client/discover/DiscoverShell.tsx,C,1469,"react:useEffect,useState,useTransition | nav:usePathname,useRouter,useSearchParams | events:40 | browser:document | jsx-nodes:120",0.00,heavy state (21 useState)
+web/src/app/(workspace)/[tenantSlug]/client/discover/map/DiscoverMapShell.tsx,C,379,react:useState | events:5 | jsx-nodes:32,0.00,react-hooks=useState
+web/src/app/(workspace)/[tenantSlug]/client/favorites/FavoritesShell.tsx,C,205,react:useState | events:2 | jsx-nodes:18,0.00,react-hooks=useState
+web/src/app/(workspace)/[tenantSlug]/client/inquiries/new/new-inquiry-form.tsx,C,141,"react:useActionState,useEffect,useRef | custom-hooks:useFormPersistence | events:1 | jsx-nodes:4",0.00,"react-hooks=useActionState,useEffect,useRef; custom-hooks=useFormPersistence"
+web/src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx,C,2589,"react:useEffect,useRef,useState,useTransition | nav:useRouter | events:58 | browser:document,requestAnimationFrame,window | jsx-nodes:222",0.00,heavy state (23 useState)
+web/src/app/(workspace)/[tenantSlug]/client/messages/DetailsTab.tsx,C,718,"react:useState,useTransition | events:1 | browser:window | jsx-nodes:99",0.00,"react-hooks=useState,useTransition; browser=window"
+web/src/app/(workspace)/[tenantSlug]/client/messages/NewInquiryDrawer.tsx,C,145,"react:useEffect | events:4 | browser:document,window | jsx-nodes:12",0.00,"react-hooks=useEffect; browser=document,window"
+web/src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx,C,868,"react:useActionState,useEffect,useState,useTransition | events:20 | browser:document,window | jsx-nodes:110",0.00,heavy state (3 useState)
+web/src/app/(workspace)/[tenantSlug]/client/settings/ClientTrustShell.tsx,C,414,events:3 | browser:window | jsx-nodes:43,0.00,heavy state (3 useState)
+web/src/app/(workspace)/[tenantSlug]/client/settings/NotificationPrefsPanel.tsx,C,202,"react:useState,useTransition | events:3 | jsx-nodes:22",0.00,"react-hooks=useState,useTransition"
+web/src/app/(workspace)/[tenantSlug]/client/shortlists/ShortlistsShell.tsx,C,783,"react:useEffect,useState | events:12 | browser:document,navigator | jsx-nodes:77",0.00,heavy state (10 useState)
+web/src/app/(workspace)/[tenantSlug]/client/today/_components/CallSheetDrawer.tsx,C,358,"react:useEffect | events:4 | browser:document,window | jsx-nodes:36",0.00,"react-hooks=useEffect; browser=document,window"
+web/src/app/(workspace)/[tenantSlug]/client/today/_components/TodayPriorityCard.tsx,C,278,react:useState | events:4 | jsx-nodes:27,0.00,react-hooks=useState
+web/src/app/(workspace)/[tenantSlug]/talent/_talent-page-route-syncer.tsx,C,32,react:useEffect | custom-hooks:useAdminShell | jsx-nodes:0,0.00,react-hooks=useEffect; custom-hooks=useAdminShell
+web/src/app/(workspace)/[tenantSlug]/talent/inbox/InboxShell.tsx,C,284,react:useState | events:1 | jsx-nodes:7,0.00,react-hooks=useState
+web/src/app/(workspace)/[tenantSlug]/talent/inbox/[id]/_pin-then-redirect.tsx,C,47,react:useEffect | nav:useRouter | jsx-nodes:1,0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/app/(workspace)/[tenantSlug]/talent/profile/fields/talent-self-fields-editor.tsx,A,36,jsx-nodes:1,0.25,pure presentational
+web/src/app/(workspace)/[tenantSlug]/talent/settings/ContactPrefsShell.tsx,C,267,"react:useState,useTransition | events:2 | jsx-nodes:17",0.00,heavy state (3 useState)
+web/src/app/(workspace)/[tenantSlug]/talent/settings/TalentSubscriptionShell.tsx,B,400,events:2 | browser:window | jsx-nodes:35,8.00,static JSX wrapper with 2 small handler(s) (density 0.06)
+web/src/app/(workspace)/[tenantSlug]/talent/settings/payouts/PayoutsShell.tsx,C,221,"react:useState,useTransition | events:1 | browser:window | jsx-nodes:22",0.00,"react-hooks=useState,useTransition; browser=window"
+web/src/app/(workspace)/[tenantSlug]/talent/talent-topbar.tsx,B,137,nav:usePathname | jsx-nodes:8,5.37,uses pathname for active-link only — wrap nav strip as island
+web/src/app/(workspace)/platform/admin/billing/discount-codes/DiscountCodeShell.tsx,C,469,events:13 | jsx-nodes:47,0.00,heavy state (11 useState)
+web/src/app/(workspace)/platform/admin/platform-topbar.tsx,B,181,nav:usePathname | jsx-nodes:9,5.81,uses pathname for active-link only — wrap nav strip as island
+web/src/app/__phase-c-harness/HarnessClient.tsx,C,83,react:useState | events:1 | jsx-nodes:17,0.00,react-hooks=useState
+web/src/app/error.tsx,C,182,"react:useEffect,useState | events:1 | browser:window | jsx-nodes:10",0.00,"react-hooks=useEffect,useState; browser=window"
+web/src/app/onboarding/talent-location/talent-location-onboarding-form.tsx,C,185,"react:useActionState,useEffect,useRef | custom-hooks:useFormPersistence | jsx-nodes:43",0.00,"react-hooks=useActionState,useEffect,useRef; custom-hooks=useFormPersistence"
+web/src/app/share/pitch/[token]/_pitch-landing.tsx,C,739,"react:useEffect,useRef,useState | events:14 | jsx-nodes:127",0.00,heavy state (9 useState)
+web/src/app/t/[profileCode]/talent-profile-inquire-button.tsx,C,188,"react:useEffect,useState,useTransition | events:3 | jsx-nodes:7",0.00,"react-hooks=useEffect,useState,useTransition"
+web/src/components/account-menu.tsx,C,108,"react:useEffect,useRef,useState | events:3 | browser:document,window | jsx-nodes:17",0.00,"react-hooks=useEffect,useRef,useState; browser=document,window"
+web/src/components/admin/account/account-drawer-content.tsx,C,354,"custom-hooks:useAdminWorkspace,useUpgradeModal | events:4 | jsx-nodes:91",0.00,"custom-hooks=useAdminWorkspace,useUpgradeModal"
+web/src/components/admin/account/account-shell.tsx,C,280,custom-hooks:useAdminWorkspace | events:8 | jsx-nodes:37,0.00,custom-hooks=useAdminWorkspace
+web/src/components/admin/admin-analytics-subnav.tsx,C,32,nav:usePathname | jsx-nodes:1,0.00,nav-hooks=usePathname
+web/src/components/admin/admin-booking-list-row-quick-actions.tsx,C,98,react:useActionState | custom-hooks:useQueuedRouterRefresh | events:1 | jsx-nodes:17,0.00,react-hooks=useActionState; custom-hooks=useQueuedRouterRefresh
+web/src/components/admin/admin-booking-peek-sheet.tsx,C,238,"react:useActionState | custom-hooks:useAdminPanelState,useQueuedRouterRefresh | events:6 | jsx-nodes:59",0.00,"react-hooks=useActionState; custom-hooks=useAdminPanelState,useQueuedRouterRefresh"
+web/src/components/admin/admin-client-inquiries-panel.tsx,C,246,"react:useEffect,useState | events:5 | jsx-nodes:24",0.00,"react-hooks=useEffect,useState"
+web/src/components/admin/admin-client-search-picker.tsx,C,161,"react:useEffect,useState | events:3 | browser:window | jsx-nodes:23",0.00,heavy state (5 useState)
+web/src/components/admin/admin-collapsible-section.tsx,C,62,react:useState | events:1 | jsx-nodes:4,0.00,react-hooks=useState
+web/src/components/admin/admin-command-palette.tsx,C,516,"react:useEffect,useState | nav:useRouter | events:8 | browser:window | jsx-nodes:81",0.00,heavy state (4 useState)
+web/src/components/admin/admin-commercial-list-intake.tsx,C,87,react:useState | events:4 | jsx-nodes:8,0.00,react-hooks=useState
+web/src/components/admin/admin-commercial-reassign.tsx,C,600,"react:useActionState,useState | custom-hooks:useQueuedRouterRefresh | events:22 | jsx-nodes:176",0.00,heavy state (4 useState)
+web/src/components/admin/admin-copy-entity-id-button.tsx,C,36,"react:useState | events:1 | browser:navigator,window | jsx-nodes:1",0.00,"react-hooks=useState; browser=navigator,window"
+web/src/components/admin/admin-filter-bar.tsx,C,76,react:useState | events:1 | jsx-nodes:7,0.00,react-hooks=useState
+web/src/components/admin/admin-inline-commercial-sheets.tsx,C,99,react:useState | events:6 | jsx-nodes:13,0.00,heavy state (3 useState)
+web/src/components/admin/admin-inquiry-list-row-actions.tsx,C,102,react:useActionState | custom-hooks:useQueuedRouterRefresh | events:1 | jsx-nodes:16,0.00,react-hooks=useActionState; custom-hooks=useQueuedRouterRefresh
+web/src/components/admin/admin-inquiry-peek-sheet.tsx,C,222,custom-hooks:useAdminPanelState | events:7 | jsx-nodes:56,0.00,custom-hooks=useAdminPanelState
+web/src/components/admin/admin-list-row-tools.tsx,C,205,"react:useState | events:5 | browser:navigator,window | jsx-nodes:61",0.00,heavy state (3 useState)
+web/src/components/admin/admin-new-inquiry-sheet.tsx,C,552,"react:useActionState,useEffect,useRef,useState | custom-hooks:useLiveTaxonomy,useQueuedRouterRefresh | events:20 | jsx-nodes:119",0.00,heavy state (14 useState)
+web/src/components/admin/admin-page-tabs.tsx,A,52,jsx-nodes:3,0.25,pure presentational
+web/src/components/admin/admin-pulse-strip.tsx,A,129,jsx-nodes:9,0.25,pure presentational
+web/src/components/admin/admin-responsive-table.tsx,C,209,react:useState | events:6 | jsx-nodes:30,0.00,react-hooks=useState
+web/src/components/admin/admin-shell-top-bar.tsx,C,558,"nav:usePathname | custom-hooks:useAdminWorkspace,useShortcutsDrawerHotkey,useUpgradeModal | events:7 | jsx-nodes:76",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/admin/admin-shortcuts-drawer.tsx,C,163,custom-hooks:useShortcutsDrawerHotkey | events:1 | browser:window | jsx-nodes:12,0.00,custom-hooks=useShortcutsDrawerHotkey; browser=window
+web/src/components/admin/admin-talent-help-popover.tsx,A,42,jsx-nodes:10,0.25,pure presentational
+web/src/components/admin/admin-talent-review-sections.tsx,C,750,react:useState | nav:useRouter | events:8 | jsx-nodes:114,0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/admin/admin-top-bar.tsx,C,63,nav:usePathname | jsx-nodes:3,0.00,nav-hooks=usePathname
+web/src/components/admin/admin-workspace-summary-drawer.tsx,C,165,custom-hooks:useAdminWorkspace | events:5 | jsx-nodes:31,0.00,custom-hooks=useAdminWorkspace
+web/src/components/admin/agency-switcher.tsx,C,133,react:useState | events:2 | jsx-nodes:24,0.00,react-hooks=useState
+web/src/components/admin/booking-header-manager-select.tsx,C,60,react:useActionState | custom-hooks:useQueuedRouterRefresh | events:1 | jsx-nodes:8,0.00,react-hooks=useActionState; custom-hooks=useQueuedRouterRefresh
+web/src/components/admin/call-sheet-editor/CallSheetEditorSheet.tsx,C,293,"react:useState,useTransition | events:9 | jsx-nodes:21",0.00,"react-hooks=useState,useTransition"
+web/src/components/admin/client-location-places-search.tsx,C,212,"react:useEffect,useRef,useState | events:5 | browser:document | jsx-nodes:21",0.00,heavy state (6 useState)
+web/src/components/admin/create-client-account-sheet.tsx,C,184,"react:useEffect,useState | nav:useRouter | custom-hooks:useQueuedRouterRefresh | libs:sonner | events:8 | jsx-nodes:19",0.00,client-only library: sonner
+web/src/components/admin/create-client-contact-sheet.tsx,C,117,"react:useEffect,useState | custom-hooks:useQueuedRouterRefresh | libs:sonner | events:4 | jsx-nodes:6",0.00,client-only library: sonner
+web/src/components/admin/drawer/drawer-item-row.tsx,B,197,events:2 | jsx-nodes:19,5.97,static JSX wrapper with 2 small handler(s) (density 0.11)
+web/src/components/admin/drawer/drawer-pieces.tsx,C,427,events:9 | jsx-nodes:53,0.00,events=9
+web/src/components/admin/drawer/drawer-shell.tsx,C,185,custom-hooks:useDashboardPortalThemeClass | events:1 | browser:document | jsx-nodes:19,0.00,custom-hooks=useDashboardPortalThemeClass; browser=document
+web/src/components/admin/drawer/use-url-drawer.ts,C,48,"nav:usePathname,useRouter,useSearchParams | jsx-nodes:1",0.00,"nav-hooks=usePathname,useRouter,useSearchParams"
+web/src/components/admin/forms/add-contact-form.tsx,C,133,"react:useActionState,useEffect,useRef | jsx-nodes:34",0.00,"react-hooks=useActionState,useEffect,useRef"
+web/src/components/admin/forms/admin-new-client-sheet.tsx,C,171,"react:useActionState,useEffect,useState | events:4 | jsx-nodes:45",0.00,"react-hooks=useActionState,useEffect,useState"
+web/src/components/admin/forms/manual-booking-form.tsx,C,212,"react:useRef,useState | events:3 | jsx-nodes:76",0.00,"react-hooks=useRef,useState"
+web/src/components/admin/forms/new-account-form.tsx,C,259,"react:useActionState,useEffect,useRef,useState | events:8 | jsx-nodes:35",0.00,heavy state (13 useState)
+web/src/components/admin/inquiry-peek-drawer.tsx,B,542,events:3 | jsx-nodes:64,9.42,thin interactivity over static shell
+web/src/components/admin/inquiry-talent-editor.tsx,C,484,"react:useActionState,useState,useTransition | custom-hooks:useQueuedRouterRefresh | libs:sonner | events:13 | jsx-nodes:110",0.00,client-only library: sonner
+web/src/components/admin/inspector/admin-contextual-inspector.tsx,B,69,"nav:usePathname,useSearchParams | jsx-nodes:13",4.69,uses pathname for active-link only — wrap nav strip as island
+web/src/components/admin/inspector/inspector-job-section.tsx,C,111,"react:useEffect,useState | events:1 | browser:localStorage | jsx-nodes:11",0.00,"react-hooks=useEffect,useState; browser=localStorage"
+web/src/components/admin/inspector/modules/ai-search-inspector.tsx,C,120,react:useState | events:2 | jsx-nodes:24,0.00,heavy state (4 useState)
+web/src/components/admin/inspector/modules/bookings-inspector.tsx,C,216,"react:useEffect,useState | jsx-nodes:41",0.00,heavy state (3 useState)
+web/src/components/admin/inspector/modules/cms-inspector.tsx,C,166,"react:useEffect,useState | jsx-nodes:20",0.00,"react-hooks=useEffect,useState"
+web/src/components/admin/inspector/modules/default-inspector.tsx,A,27,jsx-nodes:1,0.25,pure presentational
+web/src/components/admin/inspector/modules/inquiries-inspector.tsx,C,378,"react:useEffect,useState | events:2 | browser:document | jsx-nodes:61",0.00,heavy state (11 useState)
+web/src/components/admin/inspector/modules/talent-inspector.tsx,C,232,"react:useEffect,useState | custom-hooks:useTalentInspectorPayload | jsx-nodes:48",0.00,"react-hooks=useEffect,useState; custom-hooks=useTalentInspectorPayload"
+web/src/components/admin/profile-settings/profile-shell.tsx,C,598,events:5 | jsx-nodes:113,0.00,heavy state (3 useState)
+web/src/components/admin/setup/setup-kit-card.tsx,A,135,jsx-nodes:14,0.25,pure presentational
+web/src/components/admin/shell/admin-shell-client.tsx,C,2488,"react:useEffect,useRef,useState | nav:usePathname | custom-hooks:useAdminShell,useDashboardText,useDevControlBar,useInquiryRealtime | events:25 | browser:document,requestAnimationFrame,window | jsx-nodes:114",0.00,heavy state (10 useState)
+web/src/components/admin/shell/admin-shell.tsx,C,933,"react:useEffect,useLayoutEffect,useState | nav:usePathname,useSearchParams | events:16 | browser:localStorage | jsx-nodes:122",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/admin-tour.tsx,A,73,jsx-nodes:1,0.25,admin-shell
+web/src/components/admin/shell/internal/client.tsx,C,3772,"custom-hooks:useAdminShell | events:93 | browser:sessionStorage,window | jsx-nodes:407",0.00,heavy state (14 useState)
+web/src/components/admin/shell/internal/context-add-search.tsx,C,353,"react:useEffect,useRef,useState | custom-hooks:useDashboardText | events:6 | jsx-nodes:23",0.00,heavy state (6 useState)
+web/src/components/admin/shell/internal/context-slot-panel.tsx,C,497,"react:useEffect,useRef,useState | custom-hooks:useDashboardText | events:4 | jsx-nodes:24",0.00,heavy state (5 useState)
+web/src/components/admin/shell/internal/dashboard-i18n.ts,C,558,"custom-hooks:useDashboardLocale,useDashboardText | jsx-nodes:1",0.00,"custom-hooks=useDashboardLocale,useDashboardText"
+web/src/components/admin/shell/internal/drawers/UpgradeModal.tsx,C,247,nav:useRouter | custom-hooks:useAdminShell | events:6 | jsx-nodes:30,0.00,nav-hooks=useRouter; custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/drawers/drawer-shared.tsx,C,5278,"nav:useRouter | custom-hooks:useAdminShell,useWorkspaceFieldOverrideSubscription | events:89 | jsx-nodes:344",0.00,heavy state (27 useState)
+web/src/components/admin/shell/internal/drawers/light-01.tsx,C,695,"nav:useRouter | custom-hooks:useAdminShell,useQueuedRouterRefresh | events:24 | jsx-nodes:111",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/drawers/light-02.tsx,C,353,"nav:useRouter | custom-hooks:useAdminShell | events:8 | browser:navigator,window | jsx-nodes:44",0.00,heavy state (6 useState)
+web/src/components/admin/shell/internal/drawers/light-03.tsx,C,686,nav:useRouter | custom-hooks:useAdminShell | events:17 | jsx-nodes:103,0.00,heavy state (12 useState)
+web/src/components/admin/shell/internal/drawers/light-04.tsx,C,646,"nav:useRouter | custom-hooks:useAdminShell,useQueuedRouterRefresh | events:43 | browser:FileReader | jsx-nodes:122",0.00,heavy state (16 useState)
+web/src/components/admin/shell/internal/drawers/light-05.tsx,C,757,"nav:useRouter | custom-hooks:useAdminShell,useQueuedRouterRefresh,useSaveAndClose | events:30 | browser:navigator | jsx-nodes:117",0.00,heavy state (14 useState)
+web/src/components/admin/shell/internal/drawers/light-06.tsx,C,783,"nav:useRouter | custom-hooks:useAdminShell,useQueuedRouterRefresh,useSaveAndClose | events:33 | jsx-nodes:103",0.00,heavy state (11 useState)
+web/src/components/admin/shell/internal/drawers/light-07.tsx,C,752,nav:useRouter | custom-hooks:useAdminShell | events:25 | jsx-nodes:87,0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/drawers/light-08.tsx,C,449,"nav:useRouter | custom-hooks:useAdminShell,useQueuedRouterRefresh | events:25 | jsx-nodes:65",0.00,heavy state (11 useState)
+web/src/components/admin/shell/internal/drawers/light-09.tsx,C,397,nav:useRouter | custom-hooks:useAdminShell | events:12 | jsx-nodes:54,0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/drawers/light-10.tsx,C,678,nav:useRouter | custom-hooks:useAdminShell | events:24 | jsx-nodes:86,0.00,heavy state (13 useState)
+web/src/components/admin/shell/internal/drawers/light-11.tsx,C,703,nav:useRouter | custom-hooks:useAdminShell | events:29 | browser:window | jsx-nodes:128,0.00,heavy state (10 useState)
+web/src/components/admin/shell/internal/drawers/light-12.tsx,C,768,nav:useRouter | custom-hooks:useAdminShell | events:17 | jsx-nodes:77,0.00,heavy state (6 useState)
+web/src/components/admin/shell/internal/drawers/light-13.tsx,C,770,nav:useRouter | custom-hooks:useAdminShell | events:45 | jsx-nodes:123,0.00,heavy state (14 useState)
+web/src/components/admin/shell/internal/drawers/light-14.tsx,C,776,"nav:useRouter | custom-hooks:useAdminShell,useQueuedRouterRefresh,useSaveAndClose | events:41 | jsx-nodes:109",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/drawers/light-15.tsx,C,728,nav:useRouter | custom-hooks:useAdminShell | events:42 | jsx-nodes:184,0.00,heavy state (8 useState)
+web/src/components/admin/shell/internal/drawers/light-16.tsx,C,761,nav:useRouter | custom-hooks:useAdminShell | events:25 | jsx-nodes:141,0.00,heavy state (8 useState)
+web/src/components/admin/shell/internal/drawers/light-17.tsx,C,756,nav:useRouter | custom-hooks:useAdminShell | events:29 | jsx-nodes:120,0.00,heavy state (11 useState)
+web/src/components/admin/shell/internal/drawers/light-18.tsx,C,730,"nav:useRouter | custom-hooks:useAdminShell,useSaveAndClose | events:31 | jsx-nodes:117",0.00,heavy state (16 useState)
+web/src/components/admin/shell/internal/drawers/light-19.tsx,C,718,nav:useRouter | custom-hooks:useAdminShell | jsx-nodes:3,0.00,nav-hooks=useRouter; custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/drawers/light-20.tsx,C,706,nav:useRouter | custom-hooks:useAdminShell | events:40 | browser:navigator | jsx-nodes:167,0.00,heavy state (17 useState)
+web/src/components/admin/shell/internal/drawers/light-21.tsx,C,760,nav:useRouter | custom-hooks:useAdminShell | events:45 | jsx-nodes:218,0.00,heavy state (21 useState)
+web/src/components/admin/shell/internal/drawers/light-22.tsx,C,591,nav:useRouter | custom-hooks:useAdminShell | events:32 | jsx-nodes:174,0.00,heavy state (13 useState)
+web/src/components/admin/shell/internal/drawers/light-23.tsx,C,532,nav:useRouter | custom-hooks:useAdminShell | events:20 | jsx-nodes:109,0.00,heavy state (9 useState)
+web/src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx,C,3718,"nav:useRouter | custom-hooks:useAdminShell,useDashboardText,useLiveTaxonomy,useQueuedRouterRefresh | events:69 | browser:document,localStorage,window | jsx-nodes:190",0.00,heavy state (28 useState)
+web/src/components/admin/shell/internal/drawers/profile-shell/profile-shell-internal.tsx,C,7521,"nav:useRouter | custom-hooks:useAdminShell,useDashboardText | events:55 | browser:navigator | jsx-nodes:285",0.00,heavy state (14 useState)
+web/src/components/admin/shell/internal/drawers.tsx,C,626,custom-hooks:useAdminShell | events:1 | jsx-nodes:237,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/guided-tour.tsx,C,253,"react:useEffect,useRef,useState | events:3 | browser:document,localStorage,sessionStorage,window | jsx-nodes:23",0.00,"react-hooks=useEffect,useRef,useState; browser=document,localStorage,sessionStorage,window"
+web/src/components/admin/shell/internal/help.tsx,C,3181,"react:useEffect,useState | custom-hooks:useAdminShell | events:18 | browser:localStorage,window | jsx-nodes:49",0.00,large file (3181 LOC) — too coarse for island extraction
+web/src/components/admin/shell/internal/language-add-search.tsx,C,250,react:useState | custom-hooks:useDashboardText | events:6 | jsx-nodes:17,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/language-slot-panel.tsx,C,464,"react:useEffect,useRef,useState | custom-hooks:useDashboardText | events:6 | jsx-nodes:22",0.00,heavy state (5 useState)
+web/src/components/admin/shell/internal/live-category-fields-editor.tsx,C,1340,"react:useEffect,useRef,useState | custom-hooks:useDrawerWidth | events:30 | browser:ResizeObserver,requestAnimationFrame | jsx-nodes:90",0.00,heavy state (12 useState)
+web/src/components/admin/shell/internal/live-category-fields-history.tsx,C,242,"react:useEffect,useState | events:3 | jsx-nodes:29",0.00,"react-hooks=useEffect,useState"
+web/src/components/admin/shell/internal/location-slot-panel.tsx,C,404,"react:useEffect,useRef,useState | custom-hooks:useDashboardText | events:17 | browser:document | jsx-nodes:35",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/media-page.tsx,C,2588,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useQueuedRouterRefresh | events:77 | browser:IntersectionObserver,localStorage,matchMedia,navigator,window | jsx-nodes:288",0.00,heavy state (60 useState)
+web/src/components/admin/shell/internal/messages/AdminOperationsShell.tsx,C,524,"custom-hooks:useAdminShell,useScrollIntoViewWhenActive,useSeenSubscription | events:6 | jsx-nodes:37",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/messages/ClientProjectShell.tsx,C,703,"nav:useRouter | custom-hooks:useAdminShell,useFlagsSubscription,useScrollIntoViewWhenActive,useSeenSubscription | events:12 | browser:window | jsx-nodes:63",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/messages/TalentJobShell.tsx,C,624,"custom-hooks:useFlagsSubscription,useResizableInboxLayout,useScrollIntoViewWhenActive,useSeenSubscription,useTalentConversations | events:14 | jsx-nodes:64",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/messages/admin-1.tsx,C,454,"react:useState,useTransition | nav:useRouter | custom-hooks:useAdminShell,useFlagsSubscription,useHandoffSubscription | events:14 | jsx-nodes:49",0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/messages/admin-2.tsx,C,540,nav:useSearchParams | custom-hooks:useAdminShell | events:12 | jsx-nodes:42,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/messages/admin-3.tsx,C,395,"nav:useRouter | custom-hooks:useAdminShell,usePlanTierFromShell,useStageTransitionMenuForReservation | events:5 | jsx-nodes:41",0.00,"nav-hooks=useRouter; custom-hooks=useAdminShell,usePlanTierFromShell,useStageTransitionMenuForReservation"
+web/src/components/admin/shell/internal/messages/admin-4.tsx,C,415,"custom-hooks:useAdminShell,useMessageStashSubscription | events:7 | jsx-nodes:45",0.00,"custom-hooks=useAdminShell,useMessageStashSubscription"
+web/src/components/admin/shell/internal/messages/client-1.tsx,C,289,custom-hooks:useAdminShell | events:8 | jsx-nodes:62,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/messages/messages-shared.tsx,C,108,"custom-hooks:useScrollIntoViewWhenActive | browser:cancelAnimationFrame,requestAnimationFrame | jsx-nodes:7",0.00,"custom-hooks=useScrollIntoViewWhenActive; browser=cancelAnimationFrame,requestAnimationFrame"
+web/src/components/admin/shell/internal/messages/shared/inbox-identity-1.tsx,C,685,"custom-hooks:useAdminShell,useFlagsSubscription,usePresence | events:12 | jsx-nodes:68",0.00,"custom-hooks=useAdminShell,useFlagsSubscription,usePresence"
+web/src/components/admin/shell/internal/messages/shared/inbox-identity-2.tsx,C,51,events:1 | jsx-nodes:4,0.00,events=1
+web/src/components/admin/shell/internal/messages/shared/inbox-layout-1.tsx,C,278,"custom-hooks:useResizableInboxLayout | events:6 | browser:document,localStorage,window | jsx-nodes:20",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-1.tsx,A,259,jsx-nodes:1,0.25,admin-shell
+web/src/components/admin/shell/internal/messages/shared/machinery-10.tsx,C,587,"react:useEffect,useState | custom-hooks:useAdminShell,useLiveLineupOverride | jsx-nodes:5",0.00,"react-hooks=useEffect,useState; custom-hooks=useAdminShell,useLiveLineupOverride"
+web/src/components/admin/shell/internal/messages/shared/machinery-11.tsx,C,641,nav:useRouter | custom-hooks:useAdminShell | events:24 | jsx-nodes:78,0.00,heavy state (9 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-12.tsx,C,518,"react:useEffect,useState,useTransition | nav:useRouter | custom-hooks:useAdminShell,useRowOverrideSubscription | events:10 | browser:window | jsx-nodes:71",0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-13.tsx,C,572,events:6 | jsx-nodes:69,0.00,events=6
+web/src/components/admin/shell/internal/messages/shared/machinery-14.tsx,C,695,nav:useRouter | custom-hooks:useAdminShell | events:17 | jsx-nodes:91,0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-15.tsx,C,695,nav:useRouter | custom-hooks:useAdminShell | events:11 | browser:window | jsx-nodes:73,0.00,nav-hooks=useRouter; custom-hooks=useAdminShell; browser=window
+web/src/components/admin/shell/internal/messages/shared/machinery-16.tsx,C,678,"custom-hooks:useAdminShell,useMessageStashSubscription | events:13 | jsx-nodes:96",0.00,heavy state (6 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-2.tsx,C,565,custom-hooks:useAdminShell | events:4 | jsx-nodes:87,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/messages/shared/machinery-3.tsx,C,519,"custom-hooks:useAdminShell,useNotesSubscription,useOfferStashSubscription | events:9 | jsx-nodes:89",0.00,"custom-hooks=useAdminShell,useNotesSubscription,useOfferStashSubscription"
+web/src/components/admin/shell/internal/messages/shared/machinery-4.tsx,C,408,"react:useEffect,useState | nav:useRouter | custom-hooks:useAdminShell | events:13 | jsx-nodes:43",0.00,heavy state (9 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-5.tsx,C,715,"custom-hooks:useAdminShell,useLiveLineupOverride,useNotesSubscription,useOfferStashSubscription | events:8 | jsx-nodes:126",0.00,"custom-hooks=useAdminShell,useLiveLineupOverride,useNotesSubscription,useOfferStashSubscription"
+web/src/components/admin/shell/internal/messages/shared/machinery-6.tsx,C,698,custom-hooks:useAdminShell | events:21 | jsx-nodes:77,0.00,heavy state (6 useState)
+web/src/components/admin/shell/internal/messages/shared/machinery-7.tsx,C,689,custom-hooks:useAdminShell | events:10 | jsx-nodes:124,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/messages/shared/machinery-8.tsx,C,677,nav:useRouter | custom-hooks:useAdminShell | events:29 | jsx-nodes:85,0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/admin/shell/internal/messages/shared/machinery-9.tsx,C,682,events:10 | jsx-nodes:74,0.00,events=10
+web/src/components/admin/shell/internal/messages/talent-1.tsx,C,678,events:10 | jsx-nodes:95,0.00,events=10
+web/src/components/admin/shell/internal/messages/talent-2.tsx,C,676,"nav:useRouter,useSearchParams | custom-hooks:useAdminShell | events:12 | jsx-nodes:45",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/messages.tsx,A,74,jsx-nodes:3,0.25,admin-shell
+web/src/components/admin/shell/internal/metrics-ribbon.tsx,A,186,jsx-nodes:8,0.25,admin-shell
+web/src/components/admin/shell/internal/modern-features.tsx,C,457,"react:useEffect,useRef,useState | events:3 | browser:cancelAnimationFrame,localStorage,navigator,requestAnimationFrame,window | jsx-nodes:28",0.00,heavy state (5 useState)
+web/src/components/admin/shell/internal/notifications-hub.tsx,C,504,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useDashboardText | events:16 | browser:localStorage,window | jsx-nodes:42",0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/page-modules/BillingPage.tsx,C,657,"react:useEffect,useState,useTransition | custom-hooks:useAdminShell | events:20 | browser:document | jsx-nodes:84",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/page-modules/CalendarPage.tsx,C,346,"react:useState,useTransition | nav:useRouter | custom-hooks:useAdminShell | events:16 | jsx-nodes:26",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/admin/shell/internal/page-modules/ClientsPage.tsx,C,344,react:useState | custom-hooks:useAdminShell | events:16 | jsx-nodes:52,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/page-modules/ControlBar.tsx,C,358,"react:useEffect,useState | custom-hooks:useAdminShell | events:13 | browser:localStorage,window | jsx-nodes:24",0.00,"react-hooks=useEffect,useState; custom-hooks=useAdminShell; browser=localStorage,window"
+web/src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx,C,609,"react:useEffect,useState | custom-hooks:useAdminShell,useDashboardText | events:19 | browser:document | jsx-nodes:66",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx,C,395,"react:useEffect,useState | custom-hooks:useDashboardText | events:13 | browser:document,window | jsx-nodes:17",0.00,"react-hooks=useEffect,useState; custom-hooks=useDashboardText; browser=document,window"
+web/src/components/admin/shell/internal/page-modules/InboxPage.tsx,C,621,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useKeyboardListNav,useQuickCreateActionsFiltered | events:19 | jsx-nodes:59",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/page-modules/MobileBottomNav.tsx,C,376,"react:useRef,useState | custom-hooks:useAdminShell,useDashboardText,useRovingTabindex | events:5 | browser:window | jsx-nodes:32",0.00,"react-hooks=useRef,useState; custom-hooks=useAdminShell,useDashboardText,useRovingTabindex; browser=window"
+web/src/components/admin/shell/internal/page-modules/OperationsPage.tsx,C,224,custom-hooks:useAdminShell | events:39 | jsx-nodes:149,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/page-modules/OverviewPage.tsx,C,774,custom-hooks:useAdminShell | events:38 | jsx-nodes:109,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx,C,419,react:useState | nav:useRouter | custom-hooks:useAdminShell | events:15 | jsx-nodes:50,0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/page-modules/PitchesPage-2.tsx,C,518,"react:useEffect,useState | events:12 | browser:navigator | jsx-nodes:88",0.00,heavy state (9 useState)
+web/src/components/admin/shell/internal/page-modules/SitePage.tsx,C,491,custom-hooks:useAdminShell | events:38 | jsx-nodes:72,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/page-modules/SurfaceRouter.tsx,C,259,"react:useEffect,useRef,useState | custom-hooks:useAdminShell | events:3 | browser:sessionStorage,window | jsx-nodes:24",0.00,"react-hooks=useEffect,useRef,useState; custom-hooks=useAdminShell; browser=sessionStorage,window"
+web/src/components/admin/shell/internal/page-modules/TalentPage-1.tsx,C,783,react:useState | nav:useRouter | custom-hooks:useAdminShell | events:42 | jsx-nodes:51,0.00,heavy state (10 useState)
+web/src/components/admin/shell/internal/page-modules/TalentPage-2.tsx,C,752,react:useState | custom-hooks:useAdminShell | events:18 | jsx-nodes:63,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/page-modules/TalentPage-3.tsx,C,562,react:useState | custom-hooks:useAdminShell | events:15 | jsx-nodes:52,0.00,react-hooks=useState; custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx,C,617,"react:useEffect,useState,useTransition | nav:useRouter | jsx-nodes:1",0.00,"react-hooks=useEffect,useState,useTransition; nav-hooks=useRouter"
+web/src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx,C,253,react:useState | events:5 | jsx-nodes:97,0.00,react-hooks=useState
+web/src/components/admin/shell/internal/page-modules/WorkPage.tsx,C,600,react:useState | custom-hooks:useAdminShell | events:17 | jsx-nodes:75,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/page-modules/WorkspacePageView.tsx,C,839,"react:useEffect,useState | custom-hooks:useAdminShell | events:47 | jsx-nodes:269",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx,C,352,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useKeyboardLayer,useRovingTabindex | events:13 | browser:window | jsx-nodes:42",0.00,"react-hooks=useEffect,useRef,useState; custom-hooks=useAdminShell,useKeyboardLayer,useRovingTabindex; browser=window"
+web/src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx,C,657,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useDashboardText,useQuickCreateActionsFiltered,useQuickCreateItems,useRovingTabindex | events:18 | browser:window | jsx-nodes:46",0.00,"react-hooks=useEffect,useRef,useState; custom-hooks=useAdminShell,useDashboardText,useQuickCreateActionsFiltered,useQuickCreateItems,...; browser=window"
+web/src/components/admin/shell/internal/page-modules/pages-dynamic.tsx,A,9,jsx-nodes:0,0.25,admin-shell; no JSX — pure module export
+web/src/components/admin/shell/internal/page-modules/pages-shared.tsx,C,360,events:7 | jsx-nodes:29,0.00,events=7
+web/src/components/admin/shell/internal/pages.tsx,A,17,jsx-nodes:0,0.25,admin-shell; no JSX — pure module export
+web/src/components/admin/shell/internal/palette.tsx,C,580,"react:useEffect,useRef,useState | custom-hooks:useAdminShell | events:8 | browser:localStorage,navigator,requestAnimationFrame,window | jsx-nodes:30",0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/phase7-drawers.tsx,C,687,events:14 | jsx-nodes:72,0.00,heavy state (13 useState)
+web/src/components/admin/shell/internal/pitch-compose.tsx,C,1487,"react:useRef,useState | libs:@dnd-kit/core,@dnd-kit/sortable,@dnd-kit/utilities | events:3 | jsx-nodes:15",0.00,"client-only library: @dnd-kit/core,@dnd-kit/sortable,@dnd-kit/utilities"
+web/src/components/admin/shell/internal/platform.tsx,C,2385,"react:useEffect,useState | custom-hooks:useAdminShell | events:88 | browser:window | jsx-nodes:359",0.00,large file (2385 LOC) — too coarse for island extraction
+web/src/components/admin/shell/internal/primitives.tsx,C,8856,"react:useContext,useEffect,useRef,useState | react-primitives:createContext | custom-hooks:useAdminShell,useDashboardText,useFab,useFeatureFlag,useOnlineStatus,useReducedMotion,useRovingTabindex,useStaleDetection,useViewport,useWorkspaceFieldOverrideSubscription | events:197 | browser:MutationObserver,cancelAnimationFrame,document,localStorage,matchMedia,navigator,requestAnimationFrame,window | jsx-nodes:699",0.00,heavy state (38 useState)
+web/src/components/admin/shell/internal/profile-store.ts,C,231,"react:useEffect,useState,useSyncExternalStore | custom-hooks:useProfileDraft | browser:navigator,sessionStorage,window | jsx-nodes:6",0.00,"react-hooks=useEffect,useState,useSyncExternalStore; custom-hooks=useProfileDraft; browser=navigator,sessionStorage,window"
+web/src/components/admin/shell/internal/skill-add-search.tsx,C,745,"react:useEffect,useRef,useState | custom-hooks:useDashboardText | events:17 | browser:window | jsx-nodes:55",0.00,heavy state (15 useState)
+web/src/components/admin/shell/internal/skill-aspirations.tsx,C,468,"react:useEffect,useState | custom-hooks:useDashboardText | events:12 | jsx-nodes:31",0.00,heavy state (10 useState)
+web/src/components/admin/shell/internal/skill-discovery-panel.tsx,C,477,custom-hooks:useAdminShell | events:10 | jsx-nodes:41,0.00,heavy state (11 useState)
+web/src/components/admin/shell/internal/skill-freshness-banner.tsx,C,532,events:6 | jsx-nodes:28,0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/skill-hints-banner.tsx,C,360,events:4 | jsx-nodes:20,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/skill-overrides-panel.tsx,C,678,events:9 | jsx-nodes:43,0.00,heavy state (9 useState)
+web/src/components/admin/shell/internal/skill-proficiency.tsx,C,209,react:useState | custom-hooks:useDashboardText | events:3 | jsx-nodes:10,0.00,react-hooks=useState; custom-hooks=useDashboardText
+web/src/components/admin/shell/internal/skill-row.tsx,C,355,custom-hooks:useDashboardText | events:11 | jsx-nodes:25,0.00,custom-hooks=useDashboardText
+web/src/components/admin/shell/internal/skill-slot-panel.tsx,C,772,"react:useEffect,useRef,useState | custom-hooks:useDashboardText | events:17 | jsx-nodes:24",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/skill-verify-dialog.tsx,C,265,react:useState | custom-hooks:useDashboardText | events:7 | jsx-nodes:22,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/state/context.tsx,C,1847,"react:useContext,useEffect,useRef,useState | react-primitives:createContext | nav:useRouter | custom-hooks:useAdminShell | browser:document,localStorage,matchMedia,window | jsx-nodes:39",0.00,heavy state (12 useState)
+web/src/components/admin/shell/internal/state/drawer-ids.ts,A,311,jsx-nodes:1,0.25,admin-shell
+web/src/components/admin/shell/internal/state/fixtures.ts,C,4789,"react:useEffect,useState | custom-hooks:usePendingReviewSubscription,useProfileOverrideSubscription | jsx-nodes:12",0.00,large file (4789 LOC) — too coarse for island extraction
+web/src/components/admin/shell/internal/state/types.ts,A,2594,jsx-nodes:9,0.25,admin-shell
+web/src/components/admin/shell/internal/state.tsx,A,31,jsx-nodes:0,0.25,admin-shell; no JSX — pure module export
+web/src/components/admin/shell/internal/talent/pages/ActivityPage.tsx,C,669,react:useState | custom-hooks:useAdminShell | events:11 | jsx-nodes:68,0.00,heavy state (5 useState)
+web/src/components/admin/shell/internal/talent/pages/AgenciesPage.tsx,C,186,custom-hooks:useAdminShell | events:3 | jsx-nodes:24,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/pages/CalendarPage.tsx,C,758,"react:useState,useTransition | nav:useRouter | custom-hooks:useAdminShell,useTalentConversations | events:19 | jsx-nodes:53",0.00,heavy state (9 useState)
+web/src/components/admin/shell/internal/talent/pages/InboxPage.tsx,C,303,react:useState | custom-hooks:useAdminShell | events:9 | jsx-nodes:20,0.00,heavy state (5 useState)
+web/src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx,C,342,"react:useState | custom-hooks:useAdminShell,usePendingReviewSubscription,useProfileOverrideSubscription | events:6 | browser:window | jsx-nodes:41",0.00,"react-hooks=useState; custom-hooks=useAdminShell,usePendingReviewSubscription,useProfileOverrideSubscription; browser=window"
+web/src/components/admin/shell/internal/talent/pages/PublicPageEditor.tsx,C,332,react:useState | custom-hooks:useAdminShell | events:5 | jsx-nodes:52,0.00,react-hooks=useState; custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/pages/ReachPage.tsx,C,354,react:useState | custom-hooks:useAdminShell | events:18 | jsx-nodes:38,0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/talent/pages/SettingsPage.tsx,C,255,custom-hooks:useAdminShell | events:18 | jsx-nodes:47,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/pages/TodayPage.tsx,C,478,"react:useState | custom-hooks:useAdminShell,useTalentConversations | events:23 | jsx-nodes:32",0.00,"react-hooks=useState; custom-hooks=useAdminShell,useTalentConversations"
+web/src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx,C,602,"react:useEffect,useRef,useState | events:29 | browser:cancelAnimationFrame,document,navigator,requestAnimationFrame,window | jsx-nodes:56",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/talent/pages/messages/Bubbles2.tsx,C,498,react:useState | jsx-nodes:15,0.00,react-hooks=useState
+web/src/components/admin/shell/internal/talent/pages/messages/Composer.tsx,C,419,react:useState | events:14 | jsx-nodes:29,0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/talent/pages/messages/MessagesPage.tsx,C,520,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useKeyboardInset | events:24 | browser:document,window | jsx-nodes:45",0.00,heavy state (7 useState)
+web/src/components/admin/shell/internal/talent/pages/messages/ThreadParts.tsx,C,503,react:useState | events:5 | jsx-nodes:39,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/talent/pages/messages/ThreadSidebar.tsx,C,592,"react:useEffect,useRef,useState | custom-hooks:useAdminShell | events:17 | browser:document,window | jsx-nodes:44",0.00,"react-hooks=useEffect,useRef,useState; custom-hooks=useAdminShell; browser=document,window"
+web/src/components/admin/shell/internal/talent/shared/calendar-1.tsx,C,598,custom-hooks:useAdminShell | events:3 | jsx-nodes:60,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/shared/calendar-2.tsx,C,571,custom-hooks:useAdminShell | events:12 | jsx-nodes:46,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/shared/calendar-3.tsx,C,593,events:12 | jsx-nodes:49,0.00,events=12
+web/src/components/admin/shell/internal/talent/shared/calendar-4.tsx,C,319,react:useState | events:4 | jsx-nodes:32,0.00,react-hooks=useState
+web/src/components/admin/shell/internal/talent/shared/client-conversations-1.tsx,A,365,jsx-nodes:1,0.25,admin-shell
+web/src/components/admin/shell/internal/talent/shared/client-conversations-2.tsx,A,284,jsx-nodes:1,0.25,admin-shell
+web/src/components/admin/shell/internal/talent/shared/client-threads-1.tsx,C,545,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useIsPhone,useKeyboardInset,useTalentConversations | events:15 | browser:document,matchMedia,window | jsx-nodes:40",0.00,heavy state (4 useState)
+web/src/components/admin/shell/internal/talent/shared/client-threads-2.tsx,C,612,react:useState | custom-hooks:useAdminShell | events:13 | jsx-nodes:64,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/talent/shared/conversation-adapter-1.tsx,C,300,"custom-hooks:useAdminShell,useTalentConversations | events:4 | jsx-nodes:25",0.00,"custom-hooks=useAdminShell,useTalentConversations"
+web/src/components/admin/shell/internal/talent/shared/conversations-1.tsx,A,523,jsx-nodes:0,0.25,admin-shell; no JSX — pure module export
+web/src/components/admin/shell/internal/talent/shared/earnings-tile-1.tsx,C,252,react:useState | custom-hooks:useTalentConversations | events:3 | jsx-nodes:35,0.00,react-hooks=useState; custom-hooks=useTalentConversations
+web/src/components/admin/shell/internal/talent/shared/inquiry-bridge-1.tsx,C,46,events:1 | jsx-nodes:0,0.00,events=1
+web/src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx,A,93,jsx-nodes:9,0.25,admin-shell
+web/src/components/admin/shell/internal/talent/shared/profile-1.tsx,C,272,react:useState | events:2 | jsx-nodes:23,0.00,react-hooks=useState
+web/src/components/admin/shell/internal/talent/shared/profile-sections-1.tsx,C,503,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useProfileOverrideSubscription | events:6 | jsx-nodes:57",0.00,"react-hooks=useEffect,useRef,useState; custom-hooks=useAdminShell,useProfileOverrideSubscription"
+web/src/components/admin/shell/internal/talent/shared/profile-sections-2.tsx,C,587,custom-hooks:useAdminShell | events:9 | jsx-nodes:71,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/shared/profile-sections-3.tsx,A,140,jsx-nodes:14,0.25,admin-shell
+web/src/components/admin/shell/internal/talent/shared/settings-1.tsx,C,150,custom-hooks:useAdminShell | events:3 | jsx-nodes:12,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/shared/today-1.tsx,C,600,custom-hooks:useAdminShell | events:11 | jsx-nodes:49,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/shared/today-2.tsx,C,593,react:useState | events:17 | jsx-nodes:40,0.00,react-hooks=useState
+web/src/components/admin/shell/internal/talent/shared/today-3.tsx,C,610,react:useState | custom-hooks:useAdminShell | events:15 | jsx-nodes:53,0.00,heavy state (3 useState)
+web/src/components/admin/shell/internal/talent/shared/today-4.tsx,C,81,custom-hooks:useAdminShell | events:3 | jsx-nodes:12,0.00,custom-hooks=useAdminShell
+web/src/components/admin/shell/internal/talent/shared/week-rhythm-1.tsx,C,206,"custom-hooks:useAdminShell,useTalentConversations | events:1 | jsx-nodes:15",0.00,"custom-hooks=useAdminShell,useTalentConversations"
+web/src/components/admin/shell/internal/talent-drawers.tsx,C,7001,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useDashboardText | events:189 | browser:navigator | jsx-nodes:826",0.00,heavy state (56 useState)
+web/src/components/admin/shell/internal/talent.tsx,C,276,"react:useRef | custom-hooks:useAdminShell,useRovingTabindex | events:3 | jsx-nodes:12",0.00,"react-hooks=useRef; custom-hooks=useAdminShell,useRovingTabindex"
+web/src/components/admin/shell/internal/use-taxonomy.ts,C,265,"react:useEffect,useState | custom-hooks:useLiveTaxonomy | jsx-nodes:4",0.00,"react-hooks=useEffect,useState; custom-hooks=useLiveTaxonomy"
+web/src/components/admin/shell/internal/wave2.tsx,C,4986,"custom-hooks:useAdminShell | events:88 | browser:document,localStorage,navigator,window | jsx-nodes:389",0.00,heavy state (38 useState)
+web/src/components/admin/shell/internal/workspace.tsx,C,3839,"react:useEffect,useRef,useState | custom-hooks:useAdminShell,useKeyboardLayer,useViewport | events:62 | browser:localStorage,matchMedia,window | jsx-nodes:445",0.00,heavy state (27 useState)
+web/src/components/admin/site-control-center/global-upgrade-modal.tsx,C,57,"custom-hooks:useAdminWorkspace,useQueuedRouterRefresh,useUpgradeModal | libs:sonner | events:2 | jsx-nodes:1",0.00,client-only library: sonner
+web/src/components/admin/site-control-center/plan-tier-toggle.tsx,C,71,nav:useSearchParams | jsx-nodes:4,0.00,nav-hooks=useSearchParams
+web/src/components/admin/site-control-center/site-card.tsx,B,117,events:1 | jsx-nodes:11,5.17,static JSX wrapper with 1 small handler(s) (density 0.09)
+web/src/components/admin/site-control-center/site-drawer-content.tsx,C,480,events:4 | jsx-nodes:147,0.00,events=4
+web/src/components/admin/site-control-center/site-shell.tsx,C,359,custom-hooks:useUpgradeModal | events:4 | jsx-nodes:33,0.00,heavy state (3 useState)
+web/src/components/admin/site-control-center/upgrade-context.tsx,C,45,custom-hooks:useUpgradeModal | jsx-nodes:2,0.00,custom-hooks=useUpgradeModal
+web/src/components/admin/site-control-center/upgrade-modal.tsx,C,422,events:4 | browser:window | jsx-nodes:43,0.00,events=4; browser=window
+web/src/components/admin/site-settings-section-nav.tsx,C,87,nav:usePathname | jsx-nodes:1,0.00,nav-hooks=usePathname
+web/src/components/admin/workspace-context.tsx,C,63,"custom-hooks:useAdminWorkspace,useWorkspacePlan | jsx-nodes:2",0.00,"custom-hooks=useAdminWorkspace,useWorkspacePlan"
+web/src/components/ai/ai-action-button.tsx,A,23,jsx-nodes:3,0.25,pure presentational
+web/src/components/ai/ai-compare-table.tsx,A,42,jsx-nodes:9,0.25,pure presentational
+web/src/components/ai/ai-drawer.tsx,B,43,events:1 | jsx-nodes:6,4.43,static JSX wrapper with 1 small handler(s) (density 0.17)
+web/src/components/ai/ai-empty-state.tsx,A,33,jsx-nodes:3,0.25,pure presentational
+web/src/components/ai/ai-error-boundary.tsx,A,46,jsx-nodes:2,0.25,pure presentational
+web/src/components/ai/ai-inline-assistant.tsx,C,47,react:useState | events:1 | jsx-nodes:6,0.00,react-hooks=useState
+web/src/components/ai/ai-loading.tsx,A,41,jsx-nodes:5,0.25,pure presentational
+web/src/components/ai/ai-match-explanation.tsx,A,42,jsx-nodes:4,0.25,pure presentational
+web/src/components/ai/ai-panel.tsx,A,51,jsx-nodes:4,0.25,pure presentational
+web/src/components/ai/ai-suggestion-chips.tsx,C,41,events:1 | jsx-nodes:2,0.00,events=1
+web/src/components/ai/ai-workspace-card.tsx,A,50,jsx-nodes:5,0.25,pure presentational
+web/src/components/analytics/analytics-consent-banner.tsx,C,133,"react:useEffect,useState | nav:usePathname | events:3 | browser:localStorage,sessionStorage,window | jsx-nodes:9",0.00,heavy state (3 useState)
+web/src/components/analytics/client-speed-insights.tsx,C,20,"react:useEffect,useState | jsx-nodes:1",0.00,"react-hooks=useEffect,useState"
+web/src/components/analytics/directory-analytics-mount.tsx,C,23,react:useEffect | jsx-nodes:0,0.00,react-hooks=useEffect
+web/src/components/analytics/profile-view-analytics.tsx,C,26,react:useEffect | jsx-nodes:0,0.00,react-hooks=useEffect
+web/src/components/auth/google-auth-button.tsx,C,144,"react:useEffect,useRef,useState | nav:useRouter | events:1 | browser:window | jsx-nodes:7",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/chat-cards/ChatCard.tsx,C,425,events:6 | jsx-nodes:35,0.00,events=6
+web/src/components/chat-cards/PayNowSheet.tsx,C,165,"react:useState,useTransition | events:3 | browser:window | jsx-nodes:13",0.00,"react-hooks=useState,useTransition; browser=window"
+web/src/components/chat-interactions/MessageReactions.tsx,C,245,react:useState | events:11 | jsx-nodes:17,0.00,react-hooks=useState
+web/src/components/chat-interactions/OverflowMenu.tsx,C,199,"react:useEffect,useRef,useState | events:6 | browser:document | jsx-nodes:14",0.00,"react-hooks=useEffect,useRef,useState; browser=document"
+web/src/components/chat-interactions/ReplyToMessage.tsx,C,296,events:8 | jsx-nodes:32,0.00,events=8
+web/src/components/chat-interactions/StarButton.tsx,C,102,"react:useState,useTransition | events:3 | jsx-nodes:3",0.00,"react-hooks=useState,useTransition"
+web/src/components/client/merge-guest-favorites.tsx,C,24,"react:useEffect,useRef | nav:useRouter | jsx-nodes:0",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/cms/cms-page-revisions-panel.tsx,C,107,"react:useState,useTransition | events:1 | jsx-nodes:13",0.00,"react-hooks=useState,useTransition"
+web/src/components/cms/cms-post-revisions-panel.tsx,C,107,"react:useState,useTransition | events:1 | jsx-nodes:13",0.00,"react-hooks=useState,useTransition"
+web/src/components/coord-request/CoordRequestSheet.tsx,C,235,"react:useState,useTransition | events:6 | jsx-nodes:14",0.00,heavy state (3 useState)
+web/src/components/csp-violation-reporter.tsx,C,34,react:useEffect | browser:document | jsx-nodes:0,0.00,react-hooks=useEffect; browser=document
+web/src/components/dashboard/dashboard-edit-panel.tsx,C,156,custom-hooks:useDashboardPortalThemeClass | events:1 | browser:document | jsx-nodes:16,0.00,custom-hooks=useDashboardPortalThemeClass; browser=document
+web/src/components/dashboard/dashboard-mobile-menu.tsx,A,130,jsx-nodes:29,0.25,pure presentational
+web/src/components/dashboard/dashboard-nav-links.tsx,C,318,"react:useLayoutEffect,useRef | nav:usePathname,useSearchParams | jsx-nodes:47",0.00,useReducer/useLayoutEffect — stateful boundary
+web/src/components/dashboard/dashboard-segmented-nav.tsx,A,46,jsx-nodes:3,0.25,pure presentational
+web/src/components/dashboard-locale-toggle.tsx,C,101,"react:useEffect,useState | events:2 | browser:document,window | jsx-nodes:5",0.00,"react-hooks=useEffect,useState; browser=document,window"
+web/src/components/details-tab/DetailsTab.tsx,C,900,react:useState | jsx-nodes:58,0.00,react-hooks=useState
+web/src/components/details-tab/DetailsTabContainer.tsx,C,61,"react:useEffect,useState | jsx-nodes:4",0.00,heavy state (3 useState)
+web/src/components/directory/directory-ai-strip.tsx,A,23,jsx-nodes:3,0.25,pure presentational
+web/src/components/directory/directory-discovery-header-actions.tsx,C,114,"react:useEffect,useState | custom-hooks:useDirectoryInquiryModal,usePublicDiscoveryState | events:2 | browser:window | jsx-nodes:14",0.00,"react-hooks=useEffect,useState; custom-hooks=useDirectoryInquiryModal,usePublicDiscoveryState; browser=window"
+web/src/components/directory/directory-filters-sidebar.tsx,C,1601,"react:useEffect,useRef,useState,useTransition | nav:usePathname,useRouter,useSearchParams | custom-hooks:useReducedMotion | libs:framer-motion | events:32 | browser:document,window | jsx-nodes:145",0.00,client-only library: framer-motion
+web/src/components/directory/directory-infinite.tsx,C,642,"react:useEffect,useRef,useState,useSyncExternalStore,useTransition | nav:usePathname | custom-hooks:useDirectoryMatchFitOptional,useInfiniteQuery,usePublicDiscoveryState | events:6 | browser:IntersectionObserver,window | jsx-nodes:43",0.00,heavy state (4 useState)
+web/src/components/directory/directory-inquiry-actions.tsx,C,256,"react:useEffect,useState,useTransition | nav:usePathname,useRouter | custom-hooks:useOptionalDirectoryInquiryModal,usePublicDiscoveryState | events:3 | jsx-nodes:6",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/directory/directory-inquiry-modal-context.tsx,C,89,"react:useContext,useState | react-primitives:createContext | custom-hooks:useDirectoryInquiryModal,useOptionalDirectoryInquiryModal | jsx-nodes:4",0.00,heavy state (3 useState)
+web/src/components/directory/directory-inquiry-sheet.tsx,C,230,"react:useEffect,useState | custom-hooks:useDirectoryInquiryModal,usePublicDiscoveryState | events:1 | jsx-nodes:38",0.00,"react-hooks=useEffect,useState; custom-hooks=useDirectoryInquiryModal,usePublicDiscoveryState"
+web/src/components/directory/directory-inquiry-success-panel.tsx,A,72,jsx-nodes:14,0.25,pure presentational
+web/src/components/directory/directory-inquiry-url-sync.tsx,C,37,"react:useEffect,useRef | nav:usePathname,useRouter,useSearchParams | custom-hooks:useDirectoryInquiryModal | jsx-nodes:0",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/directory/directory-match-fit-context.tsx,C,44,"react:useContext,useState | react-primitives:createContext | custom-hooks:useDirectoryMatchFitOptional | jsx-nodes:3",0.00,consumes React Context
+web/src/components/directory/directory-mobile-filters.tsx,C,80,react:useState | events:1 | jsx-nodes:10,0.00,react-hooks=useState
+web/src/components/directory/directory-refine-suggestions.tsx,C,158,"react:useEffect,useRef,useState,useTransition | nav:usePathname,useRouter,useSearchParams | custom-hooks:useDirectoryMatchFitOptional | events:2 | browser:window | jsx-nodes:8",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/directory/directory-results-toolbar.tsx,B,96,"react:useTransition | nav:usePathname,useRouter,useSearchParams | events:2 | jsx-nodes:11",4.96,useTransition + small actions — wrap actions as island
+web/src/components/directory/directory-sort.tsx,C,67,"react:useTransition | nav:usePathname,useRouter,useSearchParams | events:1 | jsx-nodes:3",0.00,"react-hooks=useTransition; nav-hooks=usePathname,useRouter,useSearchParams"
+web/src/components/directory/directory-talent-type-bar.tsx,C,108,"react:useTransition | nav:usePathname,useRouter,useSearchParams | events:2 | jsx-nodes:3",0.00,"react-hooks=useTransition; nav-hooks=usePathname,useRouter,useSearchParams"
+web/src/components/directory/directory-taxonomy-bar.tsx,C,94,"react:useTransition | nav:usePathname,useRouter,useSearchParams | events:2 | jsx-nodes:5",0.00,"react-hooks=useTransition; nav-hooks=usePathname,useRouter,useSearchParams"
+web/src/components/directory/directory-understanding-strip.tsx,A,78,jsx-nodes:6,0.25,pure presentational
+web/src/components/directory/inquiry-ai-strip.tsx,A,18,jsx-nodes:3,0.25,pure presentational
+web/src/components/directory/inquiry-draft-assistant.tsx,C,154,react:useState | events:2 | browser:document | jsx-nodes:11,0.00,react-hooks=useState; browser=document
+web/src/components/directory/inquiry-talent-quick-add.tsx,C,167,"react:useEffect,useState,useTransition | custom-hooks:usePublicDiscoveryState | events:2 | browser:window | jsx-nodes:16",0.00,heavy state (4 useState)
+web/src/components/directory/portfolio-gallery-lightbox.tsx,C,266,"react:useEffect,useRef,useState | events:9 | browser:document,window | jsx-nodes:21",0.00,"react-hooks=useEffect,useRef,useState; browser=document,window"
+web/src/components/directory/profile-ai-strip.tsx,A,18,jsx-nodes:3,0.25,pure presentational
+web/src/components/directory/profile-discovery-cta.tsx,B,117,nav:usePathname | jsx-nodes:8,5.17,uses pathname for active-link only — wrap nav strip as island
+web/src/components/directory/public-discovery-state.tsx,C,226,"react:useContext,useEffect,useState | react-primitives:createContext | custom-hooks:usePublicDiscoveryState | browser:localStorage,sessionStorage,window | jsx-nodes:7",0.00,heavy state (3 useState)
+web/src/components/directory/public-flash-host.tsx,C,59,react:useEffect | custom-hooks:usePublicDiscoveryState | events:1 | browser:window | jsx-nodes:7,0.00,react-hooks=useEffect; custom-hooks=usePublicDiscoveryState; browser=window
+web/src/components/directory/query-provider.tsx,C,27,react:useState | jsx-nodes:1,0.00,react-hooks=useState
+web/src/components/directory/saved-entry-button.tsx,C,50,"react:useEffect,useState | custom-hooks:usePublicDiscoveryState | jsx-nodes:4",0.00,"react-hooks=useEffect,useState; custom-hooks=usePublicDiscoveryState"
+web/src/components/directory/saved-talent-cart-list.tsx,C,76,react:useTransition | custom-hooks:usePublicDiscoveryState | events:1 | jsx-nodes:9,0.00,react-hooks=useTransition; custom-hooks=usePublicDiscoveryState
+web/src/components/directory/share-profile-menu.tsx,C,183,"react:useEffect,useState | jsx-nodes:0",0.00,"react-hooks=useEffect,useState"
+web/src/components/directory/talent-card-ai-match-drawer.tsx,C,89,react:useState | events:2 | jsx-nodes:7,0.00,react-hooks=useState
+web/src/components/directory/talent-card.tsx,C,431,"react:useEffect,useState | nav:usePathname | custom-hooks:usePublicDiscoveryState | events:3 | browser:navigator | jsx-nodes:48",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/directory/talent-directory-list-row.tsx,C,169,nav:usePathname | events:2 | jsx-nodes:23,0.00,nav-hooks=usePathname; events=2
+web/src/components/docs/docs-search-bar.tsx,C,83,events:2 | jsx-nodes:8,0.00,events=2
+web/src/components/docs/docs-sidebar-nav.tsx,A,66,jsx-nodes:9,0.25,pure presentational
+web/src/components/docs/docs-table.tsx,C,124,react:useState | events:1 | jsx-nodes:17,0.00,react-hooks=useState
+web/src/components/edit-chrome/BrandKitImport.tsx,C,209,"react:useState,useTransition | events:2 | jsx-nodes:14",0.00,heavy state (5 useState)
+web/src/components/edit-chrome/ContrastChecker.tsx,A,152,jsx-nodes:17,0.25,edit-chrome
+web/src/components/edit-chrome/GoogleFontPicker.tsx,C,249,"react:useEffect,useState | events:5 | browser:document | jsx-nodes:18",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/MeshGradientGenerator.tsx,C,140,react:useState | events:8 | jsx-nodes:30,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/PagesComposerList.tsx,C,146,"react:useEffect,useState,useTransition | events:1 | jsx-nodes:20",0.00,heavy state (3 useState)
+web/src/components/edit-chrome/PublishPreflight.tsx,C,268,"react:useEffect,useState | events:2 | jsx-nodes:35",0.00,heavy state (3 useState)
+web/src/components/edit-chrome/WorkspaceTemplateGallery.tsx,C,1140,"react:useEffect,useState,useTransition | custom-hooks:useEditContext | events:30 | browser:document,window | jsx-nodes:158",0.00,heavy state (14 useState)
+web/src/components/edit-chrome/assets-drawer.tsx,C,1056,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:7 | browser:navigator | jsx-nodes:57",0.00,heavy state (12 useState)
+web/src/components/edit-chrome/canvas-link-interceptor.tsx,C,123,"react:useEffect,useRef,useState | browser:document | jsx-nodes:7",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/command-palette.tsx,C,1099,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:9 | browser:document | jsx-nodes:58",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/comments-drawer.tsx,C,1089,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:27 | jsx-nodes:67",0.00,heavy state (15 useState)
+web/src/components/edit-chrome/composition-inserter.tsx,A,21,jsx-nodes:0,0.25,edit-chrome; no JSX — pure module export
+web/src/components/edit-chrome/composition-library.tsx,C,3366,"react:useEffect,useRef,useState | custom-hooks:useEditContext,useViewportMode | events:74 | browser:document,matchMedia,window | jsx-nodes:393",0.00,heavy state (21 useState)
+web/src/components/edit-chrome/copy-share-preview-link.ts,C,37,"browser:navigator,window | jsx-nodes:1",0.00,"browser=navigator,window"
+web/src/components/edit-chrome/edit-chrome.tsx,C,178,nav:useSearchParams | jsx-nodes:6,0.00,nav-hooks=useSearchParams
+web/src/components/edit-chrome/edit-context.tsx,C,4551,"react:useContext,useEffect,useRef,useState | react-primitives:createContext | nav:useRouter | custom-hooks:useEditContext,useMaybeEditContext | events:3 | browser:document,localStorage,requestAnimationFrame,sessionStorage,window | jsx-nodes:116",0.00,heavy state (46 useState)
+web/src/components/edit-chrome/edit-error-boundary.tsx,C,102,events:2 | browser:window | jsx-nodes:8,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/edit-pill.tsx,C,208,"react:useActionState,useEffect,useRef | nav:useRouter | react-dom:useFormStatus | browser:window | jsx-nodes:16",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/edit-shell.tsx,C,1395,"react:useEffect,useRef,useState | nav:usePathname,useRouter,useSearchParams | custom-hooks:useEditContext | events:18 | browser:sessionStorage,window | jsx-nodes:77",0.00,heavy state (3 useState)
+web/src/components/edit-chrome/element-library-insert-picker.tsx,C,286,react:useState | events:3 | jsx-nodes:14,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/empty-canvas-starter.tsx,C,1599,"react:useActionState,useEffect,useRef,useState,useTransition | nav:useRouter | custom-hooks:useMaybeEditContext | events:30 | browser:document,window | jsx-nodes:206",0.00,heavy state (16 useState)
+web/src/components/edit-chrome/iframe-bridge.tsx,C,411,"react:useEffect,useRef | custom-hooks:useEditContext | browser:document,window | jsx-nodes:6",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/iframe-child.tsx,C,128,custom-hooks:useEditContext | jsx-nodes:10,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inline-editor.tsx,C,589,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:5 | browser:document,window | jsx-nodes:14",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/inspector-dock.tsx,C,1286,"react:useEffect,useRef,useState,useTransition | custom-hooks:useEditContext | events:12 | browser:window | jsx-nodes:115",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/inspectors/AiRewriteButton.tsx,C,174,"react:useState,useTransition | events:8 | jsx-nodes:22",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/inspectors/AiTranslateSectionButton.tsx,C,186,"react:useState,useTransition | events:7 | jsx-nodes:35",0.00,heavy state (5 useState)
+web/src/components/edit-chrome/inspectors/HeadingLintBadge.tsx,C,99,react:useState | events:2 | jsx-nodes:10,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/SectionA11yWarning.tsx,A,192,jsx-nodes:19,0.25,edit-chrome
+web/src/components/edit-chrome/inspectors/builder-node-content.tsx,C,1634,"react:useEffect,useState | custom-hooks:useEditContext | events:6 | browser:window | jsx-nodes:34",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/category-grid-content.tsx,C,523,"react:useEffect,useRef,useState | events:15 | jsx-nodes:52",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/content-dispatch.tsx,C,110,custom-hooks:useEditContext | events:2 | jsx-nodes:9,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/cta-banner-content.tsx,C,385,"react:useEffect,useRef | events:12 | jsx-nodes:73",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/data-panel.tsx,C,335,"react:useEffect,useState | custom-hooks:useEditContext | events:6 | jsx-nodes:48",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/featured-talent-content.tsx,C,673,"react:useEffect,useRef,useState | events:18 | jsx-nodes:109",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/inspectors/gallery-strip-content.tsx,C,455,"react:useEffect,useRef,useState | events:15 | jsx-nodes:69",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/generic-content.tsx,C,66,events:1 | jsx-nodes:7,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/hero-content.tsx,C,367,"react:useEffect,useRef,useState | events:13 | jsx-nodes:57",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/kit/category-icon-glyph.tsx,A,218,jsx-nodes:59,0.25,edit-chrome
+web/src/components/edit-chrome/inspectors/kit/cta-duo-editor.tsx,C,182,react:useState | events:4 | jsx-nodes:13,0.00,heavy state (3 useState)
+web/src/components/edit-chrome/inspectors/kit/draggable-list.tsx,C,171,"react:useEffect,useRef,useState | browser:window | jsx-nodes:12",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/kit/inspector-group.tsx,C,124,"react:useEffect,useState | events:1 | browser:sessionStorage,window | jsx-nodes:13",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/kit/inspector-item-row.tsx,C,121,events:1 | jsx-nodes:18,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/kit/media-picker-button.tsx,C,132,react:useState | events:2 | jsx-nodes:13,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/kit/panel-save-chip.tsx,C,74,"react:useEffect,useRef,useState | jsx-nodes:8",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/kit/talent-picker.tsx,C,437,"react:useEffect,useState | events:10 | browser:window | jsx-nodes:60",0.00,heavy state (7 useState)
+web/src/components/edit-chrome/inspectors/kit/visual-chip-group.tsx,C,109,events:2 | jsx-nodes:12,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/layout-panel.tsx,C,2425,"react:useEffect,useState | custom-hooks:useEditContext | events:76 | jsx-nodes:368",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/motion-panel.tsx,C,546,"react:useEffect,useRef,useState | events:11 | jsx-nodes:114",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/responsive-panel.tsx,C,851,custom-hooks:useEditContext | events:16 | jsx-nodes:99,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx,C,950,"react:useEffect,useRef,useState,useTransition | custom-hooks:useEditContext | events:6 | browser:document | jsx-nodes:50",0.00,heavy state (6 useState)
+web/src/components/edit-chrome/inspectors/site-header/shared/ColorRow.tsx,C,123,"react:useEffect,useState | events:5 | browser:document | jsx-nodes:10",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/tab-helpers.tsx,A,41,jsx-nodes:0,0.25,edit-chrome; no JSX — pure module export
+web/src/components/edit-chrome/inspectors/site-header/tabs/BehaviorTab.tsx,C,133,events:5 | jsx-nodes:13,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/tabs/BrandTab.tsx,C,481,"react:useEffect,useState | custom-hooks:useEditContext | events:2 | jsx-nodes:9",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/tabs/LayoutTab.tsx,C,648,events:21 | jsx-nodes:101,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/tabs/MobileTab.tsx,C,176,events:3 | jsx-nodes:10,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/tabs/NavigationTab.tsx,C,419,react:useState | events:8 | browser:document | jsx-nodes:16,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/site-header/tabs/StyleTab.tsx,C,273,"react:useEffect,useState | custom-hooks:useEditContext | events:11 | browser:document | jsx-nodes:32",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/style-panel.tsx,C,4704,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:89 | browser:localStorage,navigator,window | jsx-nodes:349",0.00,heavy state (10 useState)
+web/src/components/edit-chrome/inspectors/testimonials-trio-content.tsx,C,543,"react:useEffect,useRef,useState | events:11 | jsx-nodes:96",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/inspectors/trust-strip-content.tsx,C,410,"react:useEffect,useRef | events:15 | jsx-nodes:49",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/card.tsx,C,260,events:3 | jsx-nodes:9,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/color-picker.tsx,C,466,"react:useEffect,useRef,useState | events:6 | browser:document,localStorage,window | jsx-nodes:23",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/kit/drawer.tsx,C,553,"react:useEffect,useRef | events:12 | browser:document,window | jsx-nodes:36",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/field.tsx,A,204,jsx-nodes:7,0.25,edit-chrome
+web/src/components/edit-chrome/kit/kbd.tsx,A,95,jsx-nodes:8,0.25,edit-chrome
+web/src/components/edit-chrome/kit/number-unit.tsx,C,348,"react:useEffect,useRef,useState | events:10 | browser:document | jsx-nodes:10",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/savechip.tsx,A,120,jsx-nodes:3,0.25,edit-chrome
+web/src/components/edit-chrome/kit/segmented.tsx,C,117,events:1 | jsx-nodes:10,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/stepper.tsx,C,189,events:9 | jsx-nodes:5,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/swatch.tsx,C,200,react:useState | events:8 | jsx-nodes:9,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/kit/toggle.tsx,C,129,events:3 | jsx-nodes:8,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/media-picker-dialog.tsx,C,214,"react:useEffect,useRef,useState | events:5 | browser:document | jsx-nodes:21",0.00,heavy state (5 useState)
+web/src/components/edit-chrome/navigator-panel.tsx,C,3660,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:108 | browser:MutationObserver,document,localStorage,window | jsx-nodes:195",0.00,heavy state (20 useState)
+web/src/components/edit-chrome/page-settings-drawer.tsx,C,953,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:8 | browser:window | jsx-nodes:93",0.00,heavy state (5 useState)
+web/src/components/edit-chrome/preview-pill.tsx,C,689,"react:useEffect,useState | nav:useRouter,useSearchParams | events:15 | browser:document,navigator,window | jsx-nodes:63",0.00,heavy state (7 useState)
+web/src/components/edit-chrome/publish-drawer.tsx,C,1614,"react:useEffect,useState | custom-hooks:useEditContext | events:16 | browser:window | jsx-nodes:157",0.00,heavy state (11 useState)
+web/src/components/edit-chrome/revisions-drawer.tsx,C,590,"react:useEffect,useState | custom-hooks:useEditContext | events:7 | jsx-nodes:59",0.00,heavy state (6 useState)
+web/src/components/edit-chrome/rich-editor/CanvasEditOverlay.tsx,C,267,"react:useEffect,useLayoutEffect,useRef,useState | events:3 | browser:cancelAnimationFrame,document,requestAnimationFrame,window | jsx-nodes:12",0.00,useReducer/useLayoutEffect — stateful boundary
+web/src/components/edit-chrome/rich-editor/RichEditor.tsx,C,175,react:useState | events:5 | jsx-nodes:13,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/rich-editor/plugins/FormatPlugin.tsx,C,50,react:useEffect | custom-hooks:useLexicalComposerContext | jsx-nodes:1,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/rich-editor/plugins/KeyboardShortcutsPlugin.tsx,C,81,react:useEffect | custom-hooks:useLexicalComposerContext | browser:window | jsx-nodes:0,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/rich-editor/plugins/LinkPickerPopover.tsx,C,139,"react:useEffect,useRef,useState | custom-hooks:useLexicalComposerContext | events:5 | browser:document,window | jsx-nodes:10",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/rich-editor/plugins/SerializePlugin.tsx,C,70,"react:useEffect,useRef | custom-hooks:useLexicalComposerContext | jsx-nodes:1",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/rich-editor/plugins/SingleLinePlugin.tsx,C,61,react:useEffect | custom-hooks:useLexicalComposerContext | jsx-nodes:0,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/rich-editor/plugins/ToolbarPlugin.tsx,C,239,"react:useEffect,useState | custom-hooks:useLexicalComposerContext | events:6 | browser:document,window | jsx-nodes:22",0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/schedule-drawer.tsx,C,415,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:6 | jsx-nodes:26",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/section-picker-popover.tsx,C,578,"react:useEffect,useLayoutEffect,useRef,useState | custom-hooks:useEditContext | events:9 | browser:document,window | jsx-nodes:36",0.00,heavy state (4 useState)
+web/src/components/edit-chrome/selection-layer.tsx,C,3634,"react:useEffect,useLayoutEffect,useRef,useState | custom-hooks:useEditContext | events:108 | browser:cancelAnimationFrame,document,matchMedia,requestAnimationFrame,window | jsx-nodes:240",0.00,heavy state (15 useState)
+web/src/components/edit-chrome/shortcut-overlay.tsx,C,303,react:useEffect | custom-hooks:useEditContext | events:3 | browser:window | jsx-nodes:28,0.00,edit-chrome live-editor island (F5 territory)
+web/src/components/edit-chrome/starter-template-gallery-overlay.tsx,C,173,"react:useActionState,useEffect,useState | custom-hooks:useEditContext | events:4 | jsx-nodes:11",0.00,heavy state (8 useState)
+web/src/components/edit-chrome/starter-wireframes.tsx,A,398,jsx-nodes:139,0.25,edit-chrome
+web/src/components/edit-chrome/theme-drawer.tsx,C,1388,"react:useEffect,useRef,useState | custom-hooks:useEditContext | events:25 | browser:navigator | jsx-nodes:155",0.00,heavy state (9 useState)
+web/src/components/edit-chrome/topbar.tsx,C,2234,"react:useEffect,useRef,useState,useTransition | nav:usePathname,useRouter | react-dom:useFormStatus | custom-hooks:useMaybeEditContext | events:64 | browser:document,navigator,window | jsx-nodes:232",0.00,heavy state (13 useState)
+web/src/components/fields/FieldEditor.tsx,C,770,"react:useEffect,useRef,useState | events:24 | browser:document | jsx-nodes:60",0.00,heavy state (7 useState)
+web/src/components/home/best-for-section.tsx,C,90,react:useState | nav:usePathname | events:1 | jsx-nodes:12,0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/home/hero-search.tsx,C,381,"react:useEffect,useRef,useState,useTransition | nav:usePathname,useRouter,useSearchParams | custom-hooks:usePublicDiscoveryState | libs:framer-motion | events:3 | browser:document | jsx-nodes:13",0.00,client-only library: framer-motion
+web/src/components/home/location-map-lazy.tsx,A,26,jsx-nodes:2,0.25,pure presentational
+web/src/components/home/location-map-pin-preview.tsx,C,111,custom-hooks:useReducedMotion | libs:framer-motion | jsx-nodes:9,0.00,client-only library: framer-motion
+web/src/components/home/location-map.tsx,C,511,"react:useEffect,useRef,useState | custom-hooks:useApiIsLoaded,useApiLoadingStatus,useMap | libs:framer-motion | events:11 | browser:window | jsx-nodes:24",0.00,client-only library: framer-motion
+web/src/components/home-hero.tsx,C,50,nav:usePathname | libs:framer-motion | jsx-nodes:12,0.00,client-only library: framer-motion
+web/src/components/hybrid-identity/HybridModeSwitcher.tsx,A,124,jsx-nodes:4,0.25,pure presentational
+web/src/components/inquiry/InquiryDrawer.tsx,C,1294,"react:useActionState,useEffect,useRef,useState,useTransition | events:60 | browser:document,window | jsx-nodes:197",0.00,heavy state (5 useState)
+web/src/components/inquiry/inquiry-message-thread.tsx,C,169,"react:useEffect,useState,useTransition | nav:useRouter | libs:sonner | events:3 | jsx-nodes:20",0.00,client-only library: sonner
+web/src/components/inquiry/inquiry-tab-error-boundary.tsx,C,44,events:1 | jsx-nodes:4,0.00,events=1
+web/src/components/inquiry-cart/InquiryAttachmentsUploader.tsx,C,802,"react:useEffect,useRef,useState,useTransition | events:14 | browser:sessionStorage,window | jsx-nodes:44",0.00,heavy state (5 useState)
+web/src/components/inquiry-cart/InquiryCartForm.tsx,C,763,"react:useActionState,useEffect,useRef | react-dom:useFormStatus | events:3 | browser:window | jsx-nodes:70",0.00,"react-hooks=useActionState,useEffect,useRef; dom-hooks=useFormStatus; browser=window"
+web/src/components/location/canonical-location-fieldset.tsx,C,356,"react:useEffect,useState | custom-hooks:useDebouncedValue | events:10 | browser:window | jsx-nodes:44",0.00,heavy state (11 useState)
+web/src/components/location/nationality-picker.tsx,C,179,"react:useEffect,useState | custom-hooks:useDebouncedValue | events:5 | browser:window | jsx-nodes:16",0.00,heavy state (6 useState)
+web/src/components/marketing/analytics-tracker.tsx,C,56,"react:useEffect,useRef | browser:IntersectionObserver | jsx-nodes:5",0.00,"react-hooks=useEffect,useRef; browser=IntersectionObserver"
+web/src/components/marketing/cta-link.tsx,B,140,events:2 | jsx-nodes:11,5.40,static JSX wrapper with 2 small handler(s) (density 0.18)
+web/src/components/marketing/faq-section.tsx,C,190,react:useState | events:1 | jsx-nodes:21,0.00,react-hooks=useState
+web/src/components/marketing/get-started-form.tsx,C,699,"react:useActionState,useEffect,useRef,useState,useTransition | events:6 | browser:document,window | jsx-nodes:84",0.00,heavy state (6 useState)
+web/src/components/marketing/header.tsx,C,272,"react:useEffect,useState | nav:usePathname | events:2 | browser:document,window | jsx-nodes:33",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/media/photo-lightbox.tsx,C,584,"events:18 | browser:matchMedia,navigator,window | jsx-nodes:47",0.00,heavy state (8 useState)
+web/src/components/messages-status-sheet/StatusSheet.tsx,B,399,events:2 | jsx-nodes:35,7.99,static JSX wrapper with 2 small handler(s) (density 0.06)
+web/src/components/pitch-origin/PitchOriginCard.tsx,A,123,jsx-nodes:14,0.25,pure presentational
+web/src/components/profile/basic-info-extra-scalar-fields.tsx,C,252,"react:useActionState,useEffect | libs:sonner | events:1 | jsx-nodes:49",0.00,client-only library: sonner
+web/src/components/public-header-discovery-tools.tsx,A,46,jsx-nodes:2,0.25,pure presentational
+web/src/components/public-header-mobile-menu.tsx,C,257,"react:useEffect,useState | events:5 | browser:document,window | jsx-nodes:26",0.00,"react-hooks=useEffect,useState; browser=document,window"
+web/src/components/public-header-over-hero-sensor.tsx,C,71,"react:useEffect | browser:document,window | jsx-nodes:1",0.00,"react-hooks=useEffect; browser=document,window"
+web/src/components/public-language-toggle.tsx,C,68,nav:useSearchParams | jsx-nodes:4,0.00,nav-hooks=useSearchParams
+web/src/components/reservation-thread/ActionRow.tsx,C,105,react:useState | events:1 | jsx-nodes:6,0.00,react-hooks=useState
+web/src/components/reservation-thread/Header.tsx,C,263,"react:useEffect,useRef,useState | events:4 | browser:document | jsx-nodes:23",0.00,"react-hooks=useEffect,useRef,useState; browser=document"
+web/src/components/reservation-thread/Pill.tsx,B,199,events:1 | jsx-nodes:8,5.99,static JSX wrapper with 1 small handler(s) (density 0.12)
+web/src/components/reservation-thread/QuickStrip.tsx,C,77,events:1 | jsx-nodes:4,0.00,events=1
+web/src/components/reservation-thread/ReservationThread.tsx,C,114,"react:useEffect,useState | events:2 | jsx-nodes:8",0.00,"react-hooks=useEffect,useState"
+web/src/components/reservation-thread/Sheet.tsx,C,297,"react:useEffect,useRef,useState | events:9 | browser:document,window | jsx-nodes:16",0.00,"react-hooks=useEffect,useRef,useState; browser=document,window"
+web/src/components/reservation-thread/SheetHost.tsx,C,44,"react:useEffect,useState | custom-hooks:useSheetState | events:1 | jsx-nodes:4",0.00,"react-hooks=useEffect,useState; custom-hooks=useSheetState"
+web/src/components/reservation-thread/adapters/AdminThreadAdapter.tsx,C,454,"react:useEffect,useState | nav:useRouter | browser:window | jsx-nodes:51",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/reservation-thread/adapters/ClientThreadAdapter.tsx,C,929,"react:useEffect,useState,useTransition | nav:useRouter | events:8 | jsx-nodes:75",0.00,heavy state (4 useState)
+web/src/components/scroll-reveal.tsx,C,70,"react:useEffect | browser:IntersectionObserver,MutationObserver,document,matchMedia,window | jsx-nodes:1",0.00,"react-hooks=useEffect; browser=IntersectionObserver,MutationObserver,document,matchMedia,window"
+web/src/components/shared/ThreadShell.tsx,C,746,react:useState | events:13 | jsx-nodes:40,0.00,react-hooks=useState
+web/src/components/site-chrome/FocusOrderOverlay.tsx,C,183,"react:useEffect,useRef,useState | events:3 | browser:MutationObserver,cancelAnimationFrame,document,requestAnimationFrame,window | jsx-nodes:5",0.00,"react-hooks=useEffect,useRef,useState; browser=MutationObserver,cancelAnimationFrame,document,requestAnimationFrame,window"
+web/src/components/site-chrome/SiteDarkModeSwitcher.tsx,C,94,"react:useEffect,useState | events:1 | browser:document,localStorage,window | jsx-nodes:2",0.00,"react-hooks=useEffect,useState; browser=document,localStorage,window"
+web/src/components/talent/create-my-talent-profile-dialog.tsx,C,211,nav:useRouter | events:3 | jsx-nodes:29,0.00,heavy state (4 useState)
+web/src/components/talent/media-gallery-drawer.tsx,C,1266,"custom-hooks:useSensor,useSensors | libs:@dnd-kit/core,@dnd-kit/sortable,@dnd-kit/utilities | events:3 | jsx-nodes:21",0.00,"client-only library: @dnd-kit/core,@dnd-kit/sortable,@dnd-kit/utilities"
+web/src/components/talent/photo-cropper-dialog.tsx,C,431,events:10 | browser:document | jsx-nodes:33,0.00,heavy state (6 useState)
+web/src/components/talent/save-state-pill.tsx,C,76,"react:useEffect,useRef,useState | events:2 | browser:document,window | jsx-nodes:5",0.00,"react-hooks=useEffect,useRef,useState; browser=document,window"
+web/src/components/talent/start-free-workspace-dialog.tsx,C,231,nav:useRouter | events:5 | jsx-nodes:32,0.00,heavy state (5 useState)
+web/src/components/talent/talent-bottom-tab-bar.tsx,C,70,"react:useEffect | nav:usePathname,useRouter | jsx-nodes:6",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/components/talent/talent-edit-panel.tsx,B,135,events:1 | jsx-nodes:16,5.35,static JSX wrapper with 1 small handler(s) (density 0.06)
+web/src/components/talent/talent-profile-roadmap-ui.tsx,B,161,events:1 | jsx-nodes:18,5.61,static JSX wrapper with 1 small handler(s) (density 0.06)
+web/src/components/talent/talent-status-banner.tsx,A,139,jsx-nodes:15,0.25,pure presentational
+web/src/components/talent/workspace-not-available-screen.tsx,C,74,events:2 | jsx-nodes:9,0.00,events=2
+web/src/components/talent-payouts/PayoutNudgeCard.tsx,A,121,jsx-nodes:10,0.25,pure presentational
+web/src/components/thread-search/ThreadSearch.tsx,C,258,"react:useEffect,useRef,useState | events:6 | browser:window | jsx-nodes:25",0.00,"react-hooks=useEffect,useRef,useState; browser=window"
+web/src/components/translation-center/translation-center-queue.tsx,C,276,"react:useEffect,useState,useTransition | nav:useRouter | libs:sonner | events:6 | jsx-nodes:52",0.00,client-only library: sonner
+web/src/components/trust-badge.tsx,A,131,jsx-nodes:3,0.25,pure presentational
+web/src/components/ui/avatar-upload-button.tsx,C,97,"react:useRef,useState,useTransition | events:2 | jsx-nodes:14",0.00,"react-hooks=useRef,useState,useTransition"
+web/src/components/ui/command.tsx,A,94,jsx-nodes:20,0.25,pure presentational
+web/src/components/ui/drawer.tsx,A,23,jsx-nodes:0,0.25,no JSX — pure module export
+web/src/components/ui/filter-chips.tsx,C,73,events:1 | jsx-nodes:3,0.00,events=1
+web/src/components/ui/help-tip.tsx,C,66,"react:useRef,useState | events:4 | jsx-nodes:5",0.00,"react-hooks=useRef,useState"
+web/src/components/ui/info-tip.tsx,C,114,"react:useEffect,useRef,useState | events:5 | browser:document | jsx-nodes:8",0.00,"react-hooks=useEffect,useRef,useState; browser=document"
+web/src/components/ui/inline-toolbar.tsx,A,24,jsx-nodes:1,0.25,pure presentational
+web/src/components/ui/popover.tsx,A,31,jsx-nodes:4,0.25,pure presentational
+web/src/components/ui/resizable-drawer.tsx,C,348,"react:useEffect,useRef,useState | events:12 | browser:window | jsx-nodes:40",0.00,heavy state (3 useState)
+web/src/components/ui/sheet.tsx,A,138,jsx-nodes:22,0.25,pure presentational
+web/src/components/ui/switch.tsx,A,34,jsx-nodes:4,0.25,pure presentational
+web/src/components/web-vitals-reporter.tsx,C,31,next:useReportWebVitals | jsx-nodes:0,0.00,next-hooks=useReportWebVitals
+web/src/hooks/use-admin-panel-state.ts,C,55,"nav:useRouter,useSearchParams | custom-hooks:useAdminPanelState | jsx-nodes:1",0.00,"nav-hooks=useRouter,useSearchParams; custom-hooks=useAdminPanelState"
+web/src/hooks/use-inquiry-realtime.ts,C,92,react:useEffect | nav:useRouter | custom-hooks:useInquiryRealtime | jsx-nodes:1,0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/hooks/use-prefers-reduced-motion.ts,C,21,"react:useEffect,useState | custom-hooks:usePrefersReducedMotion | events:1 | browser:matchMedia,window | jsx-nodes:0",0.00,hook file — client by nature
+web/src/i18n/use-dashboard-locale.ts,C,13,"react:useEffect,useState | custom-hooks:useDashboardLocale | browser:document | jsx-nodes:0",0.00,hook file — client by nature
+web/src/i18n/use-t.ts,C,8,custom-hooks:useDashboardLocale | jsx-nodes:0,0.00,hook file — client by nature
+web/src/lib/analytics/track-client.ts,C,36,"browser:document,window | jsx-nodes:0",0.00,"browser=document,window"
+web/src/lib/site-admin/builder-node/carousel.tsx,C,93,react:useRef | events:3 | jsx-nodes:7,0.00,react-hooks=useRef
+web/src/lib/site-admin/sections/anchor_nav/Editor.tsx,C,59,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/before_after/Editor.tsx,C,47,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/blank_section/Editor.tsx,C,29,events:1 | jsx-nodes:4,0.00,events=1
+web/src/lib/site-admin/sections/blog_detail/Editor.tsx,C,43,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/blog_index/Editor.tsx,C,45,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/booking_widget/Editor.tsx,C,46,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/category_grid/Editor.tsx,C,264,events:16 | jsx-nodes:41,0.00,events=16
+web/src/lib/site-admin/sections/code_embed/Editor.tsx,C,43,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/code_snippet/Editor.tsx,C,27,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/comparison_table/Editor.tsx,C,64,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/contact_form/Editor.tsx,C,54,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/content_tabs/Editor.tsx,C,48,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/cta_banner/Editor.tsx,C,278,events:12 | jsx-nodes:45,0.00,events=12
+web/src/lib/site-admin/sections/destinations_mosaic/Editor.tsx,C,127,events:14 | jsx-nodes:33,0.00,events=14
+web/src/lib/site-admin/sections/donation_form/Editor.tsx,C,29,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/editorial_split_hero/Editor.tsx,C,263,events:10 | jsx-nodes:48,0.00,events=10
+web/src/lib/site-admin/sections/event_listing/Editor.tsx,C,27,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/faq_accordion/Editor.tsx,C,49,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/featured_talent/Editor.tsx,C,489,"react:useRef,useState | events:24 | jsx-nodes:96",0.00,heavy state (4 useState)
+web/src/lib/site-admin/sections/gallery_strip/Editor.tsx,C,154,events:11 | jsx-nodes:32,0.00,events=11
+web/src/lib/site-admin/sections/hero/Editor.tsx,C,591,react:useState | events:16 | jsx-nodes:84,0.00,react-hooks=useState
+web/src/lib/site-admin/sections/hero_search/Editor.tsx,C,301,events:20 | jsx-nodes:74,0.00,events=20
+web/src/lib/site-admin/sections/hero_split/Editor.tsx,C,44,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/image_copy_alternating/Editor.tsx,C,230,events:17 | jsx-nodes:53,0.00,events=17
+web/src/lib/site-admin/sections/image_orbit/Editor.tsx,C,29,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/location_discovery/Editor.tsx,C,253,events:18 | jsx-nodes:56,0.00,events=18
+web/src/lib/site-admin/sections/logo_cloud/Editor.tsx,C,29,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/lookbook/Editor.tsx,C,29,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/lottie/Editor.tsx,C,47,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/magazine_layout/Editor.tsx,C,50,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/map_overlay/Editor.tsx,C,30,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/marquee/Editor.tsx,C,51,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/masonry/Editor.tsx,C,42,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/press_strip/Editor.tsx,C,46,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/pricing_grid/Editor.tsx,C,48,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/process_steps/Editor.tsx,C,50,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/scroll_carousel/Editor.tsx,C,46,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/shared/AltTextField.tsx,C,131,"react:useState,useTransition | events:3 | jsx-nodes:13",0.00,"react-hooks=useState,useTransition"
+web/src/lib/site-admin/sections/shared/BlueprintPicker.tsx,C,72,react:useState | events:1 | jsx-nodes:14,0.00,react-hooks=useState
+web/src/lib/site-admin/sections/shared/LinkPicker.tsx,C,371,"react:useEffect,useState | events:6 | jsx-nodes:17",0.00,heavy state (6 useState)
+web/src/lib/site-admin/sections/shared/LocalizedTextInput.tsx,C,194,react:useState | events:5 | jsx-nodes:17,0.00,react-hooks=useState
+web/src/lib/site-admin/sections/shared/MediaPicker.tsx,C,374,"react:useEffect,useRef,useState | events:8 | browser:document | jsx-nodes:36",0.00,heavy state (7 useState)
+web/src/lib/site-admin/sections/shared/PresentationPanel.tsx,B,97,events:1 | jsx-nodes:14,4.97,static JSX wrapper with 1 small handler(s) (density 0.07)
+web/src/lib/site-admin/sections/shared/VariantPicker.tsx,C,547,react:useState | events:3 | jsx-nodes:128,0.00,react-hooks=useState
+web/src/lib/site-admin/sections/shared/ZodSchemaForm.tsx,C,584,events:4 | jsx-nodes:23,0.00,events=4
+web/src/lib/site-admin/sections/site_footer/Editor.tsx,C,44,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/site_header/Editor.tsx,C,62,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/site_header/EditorialSplitActions.tsx,C,264,"react:useEffect,useState | nav:usePathname | events:7 | browser:document,window | jsx-nodes:29",0.00,navigation hook + state/effect — route-aware interactive shell
+web/src/lib/site-admin/sections/split_screen/Editor.tsx,C,235,events:13 | jsx-nodes:44,0.00,events=13
+web/src/lib/site-admin/sections/stats/Editor.tsx,C,48,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/sticky_scroll/Editor.tsx,C,51,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/site-admin/sections/talent_type_grid/Editor.tsx,C,373,events:26 | jsx-nodes:91,0.00,events=26
+web/src/lib/site-admin/sections/team_grid/Editor.tsx,C,49,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/testimonials_trio/Editor.tsx,C,156,events:12 | jsx-nodes:42,0.00,events=12
+web/src/lib/site-admin/sections/timeline/Editor.tsx,C,48,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/trust_strip/Editor.tsx,C,223,events:12 | jsx-nodes:38,0.00,events=12
+web/src/lib/site-admin/sections/values_trio/Editor.tsx,C,48,events:2 | jsx-nodes:5,0.00,events=2
+web/src/lib/site-admin/sections/video_reel/Editor.tsx,C,33,events:1 | jsx-nodes:2,0.00,events=1
+web/src/lib/ui/a11y-icon-button.tsx,C,68,react-primitives:forwardRef | jsx-nodes:4,0.00,react-primitives=forwardRef
+web/src/lib/ui/cancel-flow.tsx,C,367,react:useState | events:12 | jsx-nodes:40,0.00,heavy state (5 useState)
+web/src/lib/ui/disabled-reason.tsx,A,68,jsx-nodes:1,0.25,pure presentational
+web/src/lib/ui/hover-actions.tsx,A,68,jsx-nodes:1,0.25,pure presentational
+web/src/lib/ui/plan-compare.tsx,B,320,events:1 | jsx-nodes:19,7.20,static JSX wrapper with 1 small handler(s) (density 0.05)
+web/src/lib/ui/save-state-indicator.tsx,C,150,"react:useEffect,useState | events:1 | jsx-nodes:9",0.00,"react-hooks=useEffect,useState"
+web/src/lib/ui/talent-status-chip.tsx,A,147,jsx-nodes:3,0.25,pure presentational
+web/src/lib/ui/use-form-persistence.ts,C,127,"react:useEffect,useRef | custom-hooks:useFormPersistence | events:1 | browser:localStorage,window | jsx-nodes:1",0.00,"react-hooks=useEffect,useRef; custom-hooks=useFormPersistence; browser=localStorage,window"
+web/src/lib/ui/use-optimistic-mutation.ts,C,102,"react:useRef,useState | jsx-nodes:9",0.00,heavy state (3 useState)
+web/src/lib/ui/use-queued-router-refresh.ts,C,50,"react:useRef | nav:useRouter | custom-hooks:useQueuedRouterRefresh | browser:requestAnimationFrame,window | jsx-nodes:0",0.00,hook file — client by nature
+web/src/lib/ui/use-relative-time.ts,C,51,"react:useEffect,useState | custom-hooks:useRelativeTime | jsx-nodes:1",0.00,"react-hooks=useEffect,useState; custom-hooks=useRelativeTime"
+web/src/lib/ui/use-unsaved-changes-guard.ts,C,50,react:useEffect | custom-hooks:useUnsavedChangesGuard | browser:window | jsx-nodes:0,0.00,hook file — client by nature

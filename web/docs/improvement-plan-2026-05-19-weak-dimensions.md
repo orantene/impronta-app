@@ -161,34 +161,53 @@ shipped.
 
 ### Plan (the deferred Tier-3, scoped into landable phases)
 
-**Phase F1 — RSC audit + classifier (~1 week)**
-Build a static-analysis script that classifies every `"use client"` file:
-- **Class A — server-renderable today**: no `useState`/`useEffect`/event
-  handlers/refs/`useRouter`/etc. These can flip immediately. (Expected:
-  80–150 files.)
-- **Class B — interactive but extractable**: small interactivity islands
-  inside otherwise-static content. The parent is server, the island stays
-  client.
-- **Class C — necessarily client**: real interactive surfaces
-  (edit-chrome's drag/drop, drawers, live previews). Keep client.
+**Phase F1 — RSC audit + classifier (~1 week)** — ✅ **LANDED 2026-05-19**
+Built a static-analysis script that classifies every `"use client"`
+file. Source: `web/scripts/rsc-audit.py`. Output: `web/docs/rsc-audit-
+2026-05-19.csv` + `web/docs/rsc-audit-2026-05-19.md`.
 
-Deliverable: a CSV `rsc-audit.csv` with file + class + estimated effort,
-committed for transparency.
+**Measured counts (replace the prior estimates):**
 
-**Phase F2 — Class A migration (~2–3 weeks)**
-- Remove `"use client"` from Class A files. Each batch: 10–20 files.
-- Run the full app in dev + a smoke test per batch. Visual parity
+| Class | Files | LOC | Notes |
+|-------|------:|----:|-------|
+| **A — server-renderable today** | **63** | 9,407 | smaller than the 80–150 estimate — see "what we learned" below |
+| **B — interactive island extractable** | **19** | 3,740 | conservative bucket; F4 will surface more |
+| **C — necessarily client** | **506** | 256,254 | 167 heavy-state, 51 edit-chrome, 14 client-lib (framer-motion / recharts / sonner / dnd-kit) |
+| Unsure | 0 | 0 | every file classified |
+| **Total** | **588** | 269,401 | matches the dimension-3 baseline |
+
+**What we learned (vs. the 80–150 estimate):**
+
+The codebase has wired interactivity more aggressively than the audit
+assumed. Most admin/talent shell files carry ≥3 `useState` calls or
+pair `useRouter` with an effect — the conservative rules push these
+straight to Class C. A meaningful subset of Class C will become Class
+B once F4 lifts server-derivable state out of them; re-run the
+classifier after F4 to refresh the CSV.
+
+**Phase F2 — Class A migration (~0.5 dev-week, was 2–3 weeks)**
+- Remove `"use client"` from **63 Class A files**.
+- Each batch: 10–20 files. Full-app dev smoke per batch; visual parity
   required.
-- Net: drop ~100 `"use client"` directives (from 588 → ~488).
+- Estimated effort: ~21h total (15.8h mechanical + 5h QA across 6
+  batches). The 2–3 week budget in the original plan was sized for
+  100+ files; absorb the headroom into F3 or pull F3's start date in.
+- Net: drop 63 `"use client"` directives (from 588 → 525).
 
-**Phase F3 — Class B island extraction (~4–6 weeks)**
-- Per file: identify the interactive piece, extract to a
-  `*.client.tsx`, render it as a child of the now-server parent.
-- Marketing pages → mostly Class B (interactive nav + content static).
-- Admin shell `wave2.tsx` / `workspace.tsx` / `client.tsx` / `help.tsx`
-  → mostly Class B (rendering server data + small action menus).
-- Net: ~150 more files lose `"use client"` at the parent level (588 →
-  ~340).
+**Phase F3 — Class B island extraction (~3.3 dev-weeks, was 4–6 weeks)**
+- **19 Class B files**, mean effort 6h each. Per file: identify the
+  interactive piece, extract to a `*.client.tsx`, render it as a child
+  of the now-server parent.
+- Estimated effort: ~131h total (114h extraction + 8h pattern template
+  + 9.5h per-extraction QA).
+- Top targets: `inquiry-peek-drawer.tsx` (542 LOC, two close
+  handlers), `TalentSubscriptionShell.tsx` (400 LOC, two plan-select
+  CTAs), `StatusSheet.tsx`, `plan-compare.tsx`, the platform/talent
+  `*-topbar.tsx` files (pathname-only active-link strips), and
+  `cta-link.tsx` for the marketing analytics wrap.
+- Net: 19 more parents flip to server (588 → 506 directives). The
+  bigger F3 win materialises after F4 reclassifies the
+  state-hoisted-out files.
 
 **Phase F4 — state-management hoisting (~2 weeks)**
 - The `state.tsx` slices (1b) are client-side stores. Audit which slices
