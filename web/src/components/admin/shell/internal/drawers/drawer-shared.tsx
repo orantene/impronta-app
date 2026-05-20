@@ -2590,8 +2590,12 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
   const [editIdx, setEditIdx] = useState<number | null>(null);
   // Refs to the latest items so async upload completions can patch the
   // right index even when several files are uploading in parallel.
+  // Q5: ref writes happen in an effect (not in render body) per
+  // react-hooks/refs.
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  });
   const [videoUrlInput, setVideoUrlInput] = useState("");
   const [videoUrlError, setVideoUrlError] = useState<string | null>(null);
   const addVideoUrl = () => {
@@ -4047,7 +4051,10 @@ export function InstagramVerificationInstructions({
   onChangeEvidenceNote: (v: string) => void;
 }) {
   // Show a placeholder code preview — real code is generated on submit.
-  const previewCode = "TUL-" + Math.floor(1000 + Math.random() * 9000);
+  // Q5: stabilize the random preview to one value per mount via useState's
+  // lazy initializer (the render-body Math.random() call tripped
+  // react-hooks/purity, and re-rolling on every render would flicker).
+  const [previewCode] = useState(() => "TUL-" + Math.floor(1000 + Math.random() * 9000));
   return (
     <div onClick={onCancel} style={{
       position: "fixed", inset: 0, zIndex: 220,
