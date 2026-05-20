@@ -74,7 +74,7 @@ export async function loadPlatformTenants(): Promise<PlatformTenantRow[]> {
       id,
       display_name,
       slug,
-      entity_type,
+      kind,
       plan_tier,
       talent_seat_limit,
       status,
@@ -109,7 +109,7 @@ export async function loadPlatformTenants(): Promise<PlatformTenantRow[]> {
     id: string;
     display_name: string;
     slug: string;
-    entity_type: string | null;
+    kind: string | null;
     plan_tier: string | null;
     talent_seat_limit: number | null;
     status: string | null;
@@ -118,7 +118,7 @@ export async function loadPlatformTenants(): Promise<PlatformTenantRow[]> {
     id: r.id,
     name: r.display_name ?? r.slug,
     slug: r.slug,
-    entityType: r.entity_type ?? "agency",
+    entityType: r.kind ?? "agency",
     plan: r.plan_tier ?? "free",
     seats: r.talent_seat_limit,
     talentCount: talentCounts[r.id] ?? 0,
@@ -250,7 +250,7 @@ export async function loadRecentSignups(limit = 5): Promise<PlatformTenantRow[]>
 
   const { data, error } = await sb
     .from("agencies")
-    .select("id, display_name, slug, entity_type, plan_tier, talent_seat_limit, status, created_at")
+    .select("id, display_name, slug, kind, plan_tier, talent_seat_limit, status, created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -260,7 +260,7 @@ export async function loadRecentSignups(limit = 5): Promise<PlatformTenantRow[]>
     id: string;
     display_name: string;
     slug: string;
-    entity_type: string | null;
+    kind: string | null;
     plan_tier: string | null;
     talent_seat_limit: number | null;
     status: string | null;
@@ -269,7 +269,7 @@ export async function loadRecentSignups(limit = 5): Promise<PlatformTenantRow[]>
     id: r.id,
     name: r.display_name ?? r.slug,
     slug: r.slug,
-    entityType: r.entity_type ?? "agency",
+    entityType: r.kind ?? "agency",
     plan: r.plan_tier ?? "free",
     seats: r.talent_seat_limit,
     talentCount: 0,
@@ -332,7 +332,7 @@ export async function loadPlatformTenantDetail(
       id,
       display_name,
       slug,
-      entity_type,
+      kind,
       plan_tier,
       talent_seat_limit,
       status,
@@ -486,7 +486,7 @@ export async function loadPlatformTenantDetail(
     id: agency.id,
     name: agency.display_name ?? agency.slug,
     slug: agency.slug,
-    entityType: agency.entity_type ?? "agency",
+    entityType: agency.kind ?? "agency",
     plan: agency.plan_tier ?? "free",
     seats: agency.talent_seat_limit ?? null,
     status: agency.status ?? "active",
@@ -648,12 +648,12 @@ export async function loadPlatformNetworkStats(): Promise<PlatformNetworkStats> 
         .from("agencies")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
-        .neq("entity_type", "hub"),
+        .neq("kind", "hub"),
       sb
         .from("agencies")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
-        .eq("entity_type", "hub"),
+        .eq("kind", "hub"),
     ]);
 
   return {

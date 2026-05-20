@@ -109,11 +109,18 @@ type OverrideRow = {
   show_in_public_override: boolean | null;
   admin_only_override: boolean | null;
 };
+// Raw row shape from the agencies table query. `kind` is the actual column
+// (organization_kind enum: 'agency' | 'hub' | …); a pre-Phase-9A version of
+// this loader queried a non-existent `entity_type` column and silently
+// errored, leaving every workspace as the fallback row. We query `kind` and
+// surface it on the public `FieldDetailWorkspace.entity_type` field — the
+// field name stays the same so downstream consumers (page, export) don't
+// have to change.
 type AgencyRow = {
   id: string;
   display_name: string | null;
   slug: string | null;
-  entity_type: string | null;
+  kind: string | null;
   plan_tier: string | null;
   status: string | null;
 };
@@ -225,10 +232,15 @@ export async function loadPlatformCatalogFieldDetail(
     ];
     const byId = new Map<string, AgencyRow>();
     if (allTenantIds.length > 0) {
-      const { data: agenciesData } = await sb
+      const { data: agenciesData, error: agenciesErr } = await sb
         .from("agencies")
-        .select("id, display_name, slug, entity_type, plan_tier, status")
+        .select("id, display_name, slug, kind, plan_tier, status")
         .in("id", allTenantIds);
+      if (agenciesErr) {
+        // eslint-disable-next-line no-console
+        console.error("[catalog-field-detail] agency lookup:", agenciesErr.message);
+        // Continue with empty byId — workspace rows will render UUID fallbacks.
+      }
       for (const a of (agenciesData ?? []) as AgencyRow[]) {
         byId.set(a.id, a);
       }
@@ -252,7 +264,7 @@ export async function loadPlatformCatalogFieldDetail(
         tenant_id: o.tenant_id,
         name: a?.display_name ?? a?.slug ?? o.tenant_id,
         slug: a?.slug ?? o.tenant_id,
-        entity_type: a?.entity_type ?? "—",
+        entity_type: a?.kind ?? "—",
         plan: a?.plan_tier ?? "free",
         status: a?.status ?? "unknown",
         enabled_override: o.enabled_override,
@@ -276,7 +288,7 @@ export async function loadPlatformCatalogFieldDetail(
         tenant_id: tenantId,
         name: a?.display_name ?? a?.slug ?? tenantId,
         slug: a?.slug ?? tenantId,
-        entity_type: a?.entity_type ?? "—",
+        entity_type: a?.kind ?? "—",
         plan: a?.plan_tier ?? "free",
         status: a?.status ?? "unknown",
         enabled_override: null,

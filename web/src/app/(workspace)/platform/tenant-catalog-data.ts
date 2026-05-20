@@ -145,10 +145,16 @@ export async function loadTenantCatalogPosture(
   if (!sb) return EMPTY;
 
   try {
-    // 1. Tenant header
+    // 1. Tenant header. NOTE: the real column on `agencies` is `kind`
+    // (organization_kind enum), not `entity_type` — an early version of this
+    // loader queried `entity_type` and the maybeSingle() failed with
+    // "column does not exist", which then 404'd the entire page via the
+    // page-level notFound() guard. We query `kind` and re-surface it on the
+    // public `entityType` field of the header so callers don't have to
+    // change their shape.
     const { data: agencyRow, error: agencyErr } = await sb
       .from("agencies")
-      .select("id, display_name, slug, entity_type, plan_tier, status")
+      .select("id, display_name, slug, kind, plan_tier, status")
       .eq("id", tenantId)
       .maybeSingle();
 
@@ -161,7 +167,7 @@ export async function loadTenantCatalogPosture(
       id: string;
       display_name: string | null;
       slug: string | null;
-      entity_type: string | null;
+      kind: string | null;
       plan_tier: string | null;
       status: string | null;
     };
@@ -420,7 +426,7 @@ export async function loadTenantCatalogPosture(
         id: ag.id,
         name: ag.display_name ?? ag.slug ?? ag.id,
         slug: ag.slug ?? ag.id,
-        entityType: ag.entity_type ?? "agency",
+        entityType: ag.kind ?? "agency",
         plan: ag.plan_tier ?? "free",
         status: ag.status ?? "active",
         totalTalents,
