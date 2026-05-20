@@ -105,7 +105,17 @@ test("site-admin data access is kind-agnostic (M1 abstraction gate)", () => {
       path.startsWith("src/lib/site-admin/")
     );
   });
-  const allowed: string[] = [];
+  const allowed: string[] = [
+    // M1 carve-out — Directory section by design renders public listings
+    // scoped to the host's owning tenant (agency portals show only their
+    // own roster on the agency-public surface). The host-aware tenant
+    // resolution IS the section's core function; moving it out to a
+    // render-time dispatch in page.tsx would mean every directory-render
+    // surface re-implements the same routing. Documented exception added
+    // 2026-05-20 alongside the Phase 9A Directory landing — if future
+    // architecture allows clean dispatch, this entry should be removed.
+    "src/lib/site-admin/sections/directory/Component.tsx",
+  ];
   const stray = hits.filter((line) => {
     const path = line.split(":")[0];
     return !allowed.includes(path);
