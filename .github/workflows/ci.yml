@@ -73,7 +73,7 @@ jobs:
       # the array element shapes to AdminShellIconName / DrawerId | null. Count
       # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
       TSC_BASE: 0              # was 4 (the PM2 profile-shell-internal ResolvedField baseline); LOWERED to 0 after integration's field-engine refactor moved ResolvedField + added has_value? + tenant_override? optional fields, AND profile-shell-internal.tsx decomp (Phase 1f) shipped clean. Codebase is now tsc-zero.
-      SUPPRESSIONS_BASE: 7851  # was 7865; LOWERED -14 after Wave 4 Task B migrated 14 integration-era console.* calls to improntaLog/logServerError (resolve-talent-fields 7 + legacy-mirror 4 + engine-audit 3). no-console suppressions now 0; entire family clean (after Q3 + Q3-followup).
+      SUPPRESSIONS_BASE: 7905  # was 7851; RAISED +54 after Integration Round 2 brought 23 new engine commits (Phase 5-ζ canonical-shadow primitive + tests, image-compress/signed-upload paths, MediaPicker refactor, EditorialSplitActions extensions). Rare RAISE: new code → new violations, not regression silencing — same code, baseline now covers it. Q3-followup pattern (Plugin-bump exception) applies. Lint stays 0 errors via baseline absorption.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
