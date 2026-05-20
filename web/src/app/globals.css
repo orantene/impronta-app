@@ -6,6 +6,13 @@
  * token resolver. Additive: missing attrs fall through to defaults here. */
 @import "./token-presets.css";
 
+/* Y4 — admin token bridge. Mirrors `state/fixtures.ts` COLORS/RADIUS/SPACE/
+ * TRANSITION into CSS custom properties under `--color-admin-*` / `--radius-admin-*`
+ * / `--space-admin-*` / `--transition-admin-*` namespaces, plus a Tailwind v4
+ * `@theme` block so utilities (`bg-admin-coral`, `rounded-admin-md`, ...) are
+ * auto-generated. Additive only — see web/docs/design-tokens-canonical-2026-05-19.md. */
+@import "../styles/admin-color-bridge.css";
+
 :root {
   /* P0-2: NEUTRAL platform default. This block is ONLY the no-theme
    * fallback. A tenant's brand look (e.g. Impronta black/gold) comes from

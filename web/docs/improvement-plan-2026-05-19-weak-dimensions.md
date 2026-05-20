@@ -260,12 +260,24 @@ The remaining inline styles after Y1+Y2 are mostly:
 - Off-grid one-offs that should be design-system primitives instead. Lift
   ~50 recurring patterns into shadcn/headless primitives.
 
-**Phase Y4 — design-token amendment to the plan (~2 days)**
-- Document the canonical token map (admin uses `--color-*` exposed from
-  `COLORS`, marketing uses `--tl-*`, storefront uses `--token-*` — and
-  the bridge between them).
-- Amend `remediation-plan-2026-05-19.md` §4 (Phase 3's premise was found
-  wrong on the original audit, see prior memory entry).
+**Phase Y4 — design-token amendment to the plan (~2 days) — LANDED 2026-05-19**
+- Canonical token map: see [`design-tokens-canonical-2026-05-19.md`](./design-tokens-canonical-2026-05-19.md)
+  for the binding mapping of all 41 `COLORS.*` + 4 `RADIUS.*` + 4 `SPACE.*` +
+  5 `TRANSITION.*` admin tokens to their canonical CSS-custom-property names
+  (`--color-admin-*` / `--radius-admin-*` / `--space-admin-*` /
+  `--transition-admin-*`), the Tailwind v4 utilities they auto-generate
+  (`bg-admin-coral`, `rounded-admin-md`, …), and the cross-references to
+  storefront `--token-color-*` and marketing `--tl-*` (which intentionally
+  keep separate prefixes — multi-surface brand independence, not drift).
+- Admin bridge file: `web/src/styles/admin-color-bridge.css` (imported once
+  via `globals.css`). Additive only; zero pixel changes; visual parity is
+  the gate. Y2 colour-class codemod is now unblocked.
+- Naming deviation from the original sketch: admin tokens use
+  `--color-admin-*` (not the bare `--color-*` the sketch proposed) because
+  the bare names collide with shadcn's `@theme inline` entries
+  (`--color-accent`, `--color-card`, `--color-border`) already in
+  `globals.css`. The infix preserves four independent surfaces. See §2 of
+  the canonical doc for the rationale.
 
 ### Score math
 Y1: +12 (the bulk — codemod replay across the app). Y2: +18 (the

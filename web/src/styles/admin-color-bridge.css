@@ -1,0 +1,205 @@
+/*
+ * Admin Token Bridge — Y4 (remediation §Phase Y4 / improvement plan §Y4)
+ *
+ * Single source of truth that bridges the admin shell's JS token objects
+ * (COLORS / RADIUS / SPACE / TRANSITION at `state/fixtures.ts`) to:
+ *
+ *   1. Raw CSS custom properties on :root — so anything reading
+ *      `var(--color-admin-coral)` resolves to the same hex as
+ *      `COLORS.coral`. Required for inline styles that already use
+ *      `var(...)` and for the upcoming Y2 codemod that will rewrite
+ *      `style={{ color: COLORS.coral }}` → `className="text-admin-coral"`
+ *      without changing rendered pixels.
+ *
+ *   2. Tailwind v4 `@theme` namespace — the same values exposed under
+ *      `--color-admin-*` / `--radius-admin-*` automatically generate
+ *      utility classes (`bg-admin-coral`, `text-admin-coral`,
+ *      `border-admin-border-strong`, `rounded-admin-md`, etc.) that the
+ *      Y2 codemod can swap into source files.
+ *
+ * Why the `admin-` infix (vs. the bare `--color-coral` in the original
+ * Y4 brief): the existing `@theme inline` block in `globals.css` already
+ * binds `--color-accent`, `--color-card`, `--color-border`, `--radius-sm`,
+ * `--radius-md`, `--radius-lg` to the shadcn neutral semantic system.
+ * Putting admin values under those same names would silently overwrite the
+ * shadcn pointers (because the admin palette uses forest `#0F4F3E` for
+ * `accent`, white `#FFFFFF` for `card`, etc., NOT the shadcn neutrals).
+ * The infix preserves three independent surfaces: shadcn `--color-*`,
+ * storefront `--token-color-*`, marketing `--tl-*`, admin `--color-admin-*`.
+ * See `web/docs/design-tokens-canonical-2026-05-19.md` for the full map +
+ * rationale.
+ *
+ * Additive-only: this file does NOT change any COLORS value, does NOT
+ * touch storefront or marketing tokens, does NOT redefine any pre-existing
+ * Tailwind utility. Visual parity is the gate; new utilities appear, no
+ * pixel renders differently.
+ *
+ * Imported once at app root via `globals.css` (`@import "../styles/admin-color-bridge.css";`).
+ */
+
+:root {
+  /* ── Admin surfaces ─────────────────────────────────────────────── */
+  --color-admin-surface: #FAFAF7;
+  --color-admin-surface-alt: #F2F2EE;
+  --color-admin-card: #FFFFFF;
+
+  /* ── Admin ink (body text) ─────────────────────────────────────── */
+  --color-admin-ink: #0B0B0D;
+  --color-admin-ink-muted: rgba(11, 11, 13, 0.72);
+  --color-admin-ink-dim: rgba(11, 11, 13, 0.38);
+
+  /* ── Admin borders ─────────────────────────────────────────────── */
+  --color-admin-border: rgba(24, 24, 27, 0.10);
+  --color-admin-border-soft: rgba(24, 24, 27, 0.06);
+  --color-admin-border-strong: rgba(24, 24, 27, 0.20);
+
+  /* ── Accent — deep forest (primary CTA, focus, "trusted" tier) ──
+   * Replaces the old brass-gold the user flagged as off-brand
+   * (see feedback_admin_aesthetics.md). */
+  --color-admin-accent: #0F4F3E;
+  --color-admin-accent-deep: #093328;
+  --color-admin-accent-soft: rgba(15, 79, 62, 0.10);
+
+  /* ── Status hues ───────────────────────────────────────────────── */
+  --color-admin-green: #2E7D5B;
+  /* `amber` is a muted slate — was warm gold (#C68A1E) but caused gold/rust
+   * drift; renamed semantic in source ("caution") but kept the alias. */
+  --color-admin-amber: #52606D;
+  --color-admin-amber-soft: rgba(82, 96, 109, 0.10);
+  --color-admin-amber-deep: #3A4651;
+  --color-admin-red: #B0303A;
+  --color-admin-coral: #C26A45;
+  --color-admin-coral-soft: rgba(194, 106, 69, 0.10);
+  --color-admin-coral-deep: #7A4128;
+  --color-admin-indigo: #5B6BA0;
+  --color-admin-indigo-soft: rgba(91, 107, 160, 0.10);
+  --color-admin-indigo-deep: #3F4870;
+
+  /* ── Semantic system (additive, see source comments + color-system docs) ──
+   * `brand` aliases `accent`, `success` aliases `green`, `critical` aliases
+   * `red`. Same hex, semantic name — callers express intent at the use site. */
+  --color-admin-brand: #0F4F3E;
+  --color-admin-brand-soft: rgba(15, 79, 62, 0.10);
+  --color-admin-brand-deep: #093328;
+
+  --color-admin-success: #2E7D5B;
+  --color-admin-success-soft: rgba(46, 125, 91, 0.10);
+  --color-admin-success-deep: #1F5D43;
+
+  --color-admin-critical: #B0303A;
+  --color-admin-critical-soft: rgba(176, 48, 58, 0.10);
+  --color-admin-critical-deep: #7E1F26;
+
+  /* Royal — premium / paid / AI assist / unlock. Distinct from indigo (info). */
+  --color-admin-royal: #5F4B8B;
+  --color-admin-royal-soft: rgba(95, 75, 139, 0.10);
+  --color-admin-royal-deep: #3D2F61;
+
+  /* Fill — soft modern slate, replaces "ink-as-fill" pattern that read aggressive. */
+  --color-admin-fill: #4D4855;
+  --color-admin-fill-soft: rgba(77, 72, 85, 0.10);
+  --color-admin-fill-deep: #33303A;
+
+  --color-admin-navy-bg: #0B0B0D;
+
+  /* ── Elevation (box-shadow strings, not colors — own namespace) ─── */
+  --shadow-admin-rest: 0 1px 2px rgba(11, 11, 13, 0.04);
+  --shadow-admin-hover: 0 6px 18px rgba(11, 11, 13, 0.08);
+
+  /* ── Radius scale (matches RADIUS in fixtures.ts) ──────────────── */
+  --radius-admin-sm: 7px;   /* chips, inline pills, small inputs */
+  --radius-admin-md: 10px;  /* buttons, dense cards */
+  --radius-admin-lg: 12px;  /* cards, modals */
+  --radius-admin-xl: 16px;  /* hero / spotlight cards */
+
+  /* ── Vertical-rhythm spacing scale (matches SPACE in fixtures.ts) ─
+   * Not added to Tailwind's spacing namespace because Tailwind v4 expects
+   * a numeric/scale-based spacing system; these are NAMED rhythm slots
+   * deliberately disjoint from the 4px grid. Use via
+   * `gap-[var(--space-admin-block)]` or read directly from JS. */
+  --space-admin-tight: 8px;
+  --space-admin-block: 12px;
+  --space-admin-group: 24px;
+  --space-admin-section: 32px;
+
+  /* ── Transition scale (matches TRANSITION in fixtures.ts) ───────── */
+  --transition-admin-micro: 0.12s;
+  --transition-admin-sm: 0.15s ease;
+  --transition-admin-md: 0.18s ease;
+  --transition-admin-layout: 0.22s ease-out;
+  --transition-admin-drawer: 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+ * Tailwind v4 theme extension — multiple `@theme` blocks across imported
+ * CSS files are merged. These declarations expose the admin tokens under
+ * the v4 theme namespaces so utility classes are auto-generated:
+ *
+ *   --color-admin-*  → bg-admin-*, text-admin-*, border-admin-*, ring-admin-*, divide-admin-*
+ *   --shadow-admin-* → shadow-admin-*
+ *   --radius-admin-* → rounded-admin-*
+ *
+ * `inline` form mirrors the existing `globals.css` `@theme inline` pattern:
+ * the generated utility serialises `var(--color-admin-coral)` rather than
+ * the hex literal, so per-tenant / per-mode overrides in `:root` would
+ * propagate if we ever introduce them (future-proofing without cost).
+ */
+@theme inline {
+  --color-admin-surface: var(--color-admin-surface);
+  --color-admin-surface-alt: var(--color-admin-surface-alt);
+  --color-admin-card: var(--color-admin-card);
+
+  --color-admin-ink: var(--color-admin-ink);
+  --color-admin-ink-muted: var(--color-admin-ink-muted);
+  --color-admin-ink-dim: var(--color-admin-ink-dim);
+
+  --color-admin-border: var(--color-admin-border);
+  --color-admin-border-soft: var(--color-admin-border-soft);
+  --color-admin-border-strong: var(--color-admin-border-strong);
+
+  --color-admin-accent: var(--color-admin-accent);
+  --color-admin-accent-deep: var(--color-admin-accent-deep);
+  --color-admin-accent-soft: var(--color-admin-accent-soft);
+
+  --color-admin-green: var(--color-admin-green);
+  --color-admin-amber: var(--color-admin-amber);
+  --color-admin-amber-soft: var(--color-admin-amber-soft);
+  --color-admin-amber-deep: var(--color-admin-amber-deep);
+  --color-admin-red: var(--color-admin-red);
+  --color-admin-coral: var(--color-admin-coral);
+  --color-admin-coral-soft: var(--color-admin-coral-soft);
+  --color-admin-coral-deep: var(--color-admin-coral-deep);
+  --color-admin-indigo: var(--color-admin-indigo);
+  --color-admin-indigo-soft: var(--color-admin-indigo-soft);
+  --color-admin-indigo-deep: var(--color-admin-indigo-deep);
+
+  --color-admin-brand: var(--color-admin-brand);
+  --color-admin-brand-soft: var(--color-admin-brand-soft);
+  --color-admin-brand-deep: var(--color-admin-brand-deep);
+
+  --color-admin-success: var(--color-admin-success);
+  --color-admin-success-soft: var(--color-admin-success-soft);
+  --color-admin-success-deep: var(--color-admin-success-deep);
+
+  --color-admin-critical: var(--color-admin-critical);
+  --color-admin-critical-soft: var(--color-admin-critical-soft);
+  --color-admin-critical-deep: var(--color-admin-critical-deep);
+
+  --color-admin-royal: var(--color-admin-royal);
+  --color-admin-royal-soft: var(--color-admin-royal-soft);
+  --color-admin-royal-deep: var(--color-admin-royal-deep);
+
+  --color-admin-fill: var(--color-admin-fill);
+  --color-admin-fill-soft: var(--color-admin-fill-soft);
+  --color-admin-fill-deep: var(--color-admin-fill-deep);
+
+  --color-admin-navy-bg: var(--color-admin-navy-bg);
+
+  --shadow-admin-rest: var(--shadow-admin-rest);
+  --shadow-admin-hover: var(--shadow-admin-hover);
+
+  --radius-admin-sm: var(--radius-admin-sm);
+  --radius-admin-md: var(--radius-admin-md);
+  --radius-admin-lg: var(--radius-admin-lg);
+  --radius-admin-xl: var(--radius-admin-xl);
+}
