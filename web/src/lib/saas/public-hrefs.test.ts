@@ -33,7 +33,11 @@ test("prefixPublicHrefsDeep prefixes configured CTA/link fields only", () => {
     imageUrl: "/media/hero.jpg",
     nested: {
       ctaHref: "/directory",
-      rsvpUrl: "/join",
+      // NOTE: use a non-auth path (e.g., /rsvp/event-123) — Phase 6C added an
+      // isPlatformAuthPath bypass that skips prefixing for /login, /register,
+      // /join, etc. (those are NEVER tenant-scoped). Test asserts the rsvp
+      // CTA semantics work for ordinary event-rsvp paths.
+      rsvpUrl: "/rsvp/event-123",
       brandHref: "/",
       url: "/do-not-prefix-generic-url",
     },
@@ -44,9 +48,30 @@ test("prefixPublicHrefsDeep prefixes configured CTA/link fields only", () => {
     imageUrl: "/media/hero.jpg",
     nested: {
       ctaHref: "/impronta/directory",
-      rsvpUrl: "/impronta/join",
+      rsvpUrl: "/impronta/rsvp/event-123",
       brandHref: "/impronta",
       url: "/do-not-prefix-generic-url",
+    },
+  });
+});
+
+test("prefixPublicHrefsDeep skips platform auth paths (Phase 6C carve-out)", () => {
+  // /join, /login, /register, /talent/register are platform-level auth
+  // routes and MUST NOT be tenant-prefixed. Without this carve-out a CTA
+  // href=/login would resolve to /impronta/login → 404 on path-based tenants.
+  const input = {
+    nested: {
+      ctaHref: "/login",
+      rsvpUrl: "/join",
+      brandHref: "/register",
+    },
+  };
+
+  assert.deepEqual(prefixPublicHrefsDeep(input, "/impronta"), {
+    nested: {
+      ctaHref: "/login",
+      rsvpUrl: "/join",
+      brandHref: "/register",
     },
   });
 });
