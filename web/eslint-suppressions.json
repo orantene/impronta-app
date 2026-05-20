@@ -147,9 +147,6 @@
     },
     "react-hooks/refs": {
       "count": 1
-    },
-    "react-hooks/static-components": {
-      "count": 3
     }
   },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
@@ -306,9 +303,6 @@
     "react-hooks/refs": {
       "count": 2
     },
-    "react-hooks/static-components": {
-      "count": 3
-    },
     "react/no-children-prop": {
       "count": 2
     }
@@ -374,9 +368,6 @@
     },
     "react-hooks/preserve-manual-memoization": {
       "count": 1
-    },
-    "react-hooks/static-components": {
-      "count": 12
     }
   },
   "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx": {
@@ -651,9 +642,6 @@
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 66
-    },
-    "react-hooks/static-components": {
-      "count": 4
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkPage.tsx": {
@@ -1265,11 +1253,6 @@
     },
     "ratchet/no-untenanted-from": {
       "count": 45
-    }
-  },
-  "src/lib/server-actions/admin-inquiry-roster.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 1
     }
   },
   "src/lib/server-actions/admin-plan-downgrade.ts": {
