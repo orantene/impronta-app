@@ -1,5 +1,3 @@
-"use client";
-
 import { AppliedFilterChips } from "@/components/directory/directory-filters-sidebar";
 import type { TaxonomyFilterOption } from "@/lib/directory/taxonomy-filters";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
