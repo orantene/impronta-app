@@ -73,10 +73,10 @@ function eyebrowSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"
 }
 
 function headingSize(size?: "sm" | "md" | "lg" | "xl"): CSSProperties["fontSize"] {
-  if (size === "sm") return "clamp(30px, 3.4vw, 50px)";
-  if (size === "md") return "clamp(36px, 4vw, 64px)";
-  if (size === "lg") return "clamp(42px, 4.5vw, 74px)";
-  if (size === "xl") return "clamp(48px, 5vw, 84px)";
+  if (size === "sm") return "clamp(2.1rem, 3.3vw, 3.1rem)";
+  if (size === "md") return "clamp(2.45rem, 3.85vw, 3.85rem)";
+  if (size === "lg") return "clamp(2.75rem, 4.25vw, 4.35rem)";
+  if (size === "xl") return "clamp(3rem, 4.7vw, 4.85rem)";
   return undefined;
 }
 
