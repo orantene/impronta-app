@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * HybridModeSwitcher — top-nav pill that toggles between Talent and
  * Workspace surfaces for users who are BOTH (hybrid identity).
