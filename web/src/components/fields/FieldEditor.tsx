@@ -314,7 +314,7 @@ function VisibilityChips({
                   width: 8, height: 8, borderRadius: "50%", marginTop: 3, flexShrink: 0,
                   background: active ? DOT[c] : "rgba(11,11,13,0.16)",
                 }} />
-                <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="flex-1 min-w-0">
                   <span style={{
                     display: "block", fontSize: 12, fontWeight: 600,
                     color: active ? T.ink : T.inkMuted,
@@ -458,7 +458,7 @@ export function FieldEditor({
         ?? null;
       const currentLen = asString(draft).length;
       control = (
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <textarea
             value={asString(draft)}
             onChange={(e) => setDraftAndClearError(e.target.value)}
@@ -488,7 +488,7 @@ export function FieldEditor({
       // the number reads as a quantity, not a bare integer.
       const unit = field.unit?.trim();
       control = (
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <input
             type="number"
             value={asNumber(draft)}
@@ -573,7 +573,7 @@ export function FieldEditor({
       // are many options.
       const current = asString(draft);
       control = (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div className="flex flex-wrap gap-1.5">
           {opts.length === 0 && (
             <span style={{ fontSize: 11.5, color: T.inkMuted }}>No options configured.</span>
           )}
@@ -612,7 +612,7 @@ export function FieldEditor({
         commit(next.length === 0 ? null : next);
       };
       control = (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div className="flex flex-wrap gap-1.5">
           {opts.length === 0 && (
             <span style={{ fontSize: 11.5, color: T.inkMuted }}>No options configured.</span>
           )}

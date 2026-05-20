@@ -113,7 +113,7 @@ export function StatusSheet({ open, data, onClose }: Props) {
             color: "#0F4F3E",
             lineHeight: 1.5,
           }}>
-            <strong style={{ fontWeight: 700 }}>What happens next:</strong>{" "}
+            <strong className="font-bold">What happens next:</strong>{" "}
             {data.nextStep}
           </div>
         )}
@@ -323,7 +323,7 @@ function WorkflowStepper({ currentStage }: { currentStage: StageStatus }) {
 
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div className="mb-3.5">
       <div style={{
         fontSize: 10.5,
         fontWeight: 700,
@@ -357,7 +357,7 @@ function Row({
       display: "flex", alignItems: "center", gap: 8,
       fontSize: 12.5, color: "#0B0B0D",
     }}>
-      <span style={{ fontWeight: 600 }}>{primary}</span>
+      <span className="font-semibold">{primary}</span>
       {secondary && (
         <span
           style={{

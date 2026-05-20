@@ -2680,7 +2680,7 @@ function CanvasNodeInsertMenu({
           marginBottom: 8,
         }}
       >
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div
             style={{
               fontSize: 10,
@@ -2869,7 +2869,7 @@ function CanvasNodeChildrenPanel({
           marginBottom: 8,
         }}
       >
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div
             style={{
               fontSize: 10,
@@ -3034,7 +3034,7 @@ function CanvasNodeChildrenPanel({
                 >
                   {nodes.length > 1 ? "⋮⋮" : index + 1}
                 </span>
-                <span style={{ minWidth: 0, flex: 1 }}>
+                <span className="flex-1 min-w-0">
                   <span
                     style={{
                       display: "block",

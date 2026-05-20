@@ -89,7 +89,7 @@ export function ReplyContextBar({
         background: "#0F4F3E",
         flexShrink: 0,
       }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{
           fontSize: 10.5,
           fontWeight: 700,
@@ -166,7 +166,7 @@ export function QuotedMessage({
         background: "#0F4F3E",
         flexShrink: 0,
       }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{
           fontSize: 11,
           fontWeight: 700,

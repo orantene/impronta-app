@@ -81,7 +81,7 @@ export function PayoutNudgeCard({
           <path d="M2 6h10" stroke="currentColor" strokeWidth="1.4"/>
         </svg>
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div id="payout-nudge-title" style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
           color: palette.fg, textTransform: "uppercase",

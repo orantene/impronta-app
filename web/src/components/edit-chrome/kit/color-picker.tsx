@@ -392,7 +392,7 @@ export function ColorPickerPopover({
       ) : null}
 
       {/* Recent strip */}
-      <div style={{ marginTop: 10 }}>
+      <div className="mt-2.5">
         <div
           style={{
             fontSize: 10,
@@ -417,7 +417,7 @@ export function ColorPickerPopover({
             Picked colors will land here.
           </div>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {recent.map((hex) => (
               <Swatch
                 key={hex}

@@ -1158,7 +1158,7 @@ function AdvancedTab({
             >
               Theme preset
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {PRESET_OPTIONS.map((p) => {
                 const active = currentPreset === p.slug;
                 return (
@@ -1266,7 +1266,7 @@ function AdvancedTab({
                 Paste a JSON token bundle or extract from a URL.
               </span>
             </summary>
-            <div style={{ marginTop: 10 }}>
+            <div className="mt-2.5">
               <BrandKitImport onApply={onBulkApply} />
             </div>
           </details>
@@ -1299,7 +1299,7 @@ function AdvancedTab({
                 Compose a free mesh background and copy the CSS.
               </span>
             </summary>
-            <div style={{ marginTop: 10 }}>
+            <div className="mt-2.5">
               <MeshGradientGenerator />
             </div>
           </details>

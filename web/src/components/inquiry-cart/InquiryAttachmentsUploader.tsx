@@ -573,7 +573,7 @@ export function InquiryAttachmentsUploader(
               >
                 {p.filename}
               </span>
-              <span style={{ fontWeight: 600 }}>
+              <span className="font-semibold">
                 {p.status === "uploading"
                   ? "Uploading…"
                   : p.status === "ok"
@@ -730,7 +730,7 @@ function AttachmentChip({
           fill="none"
         />
       </svg>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div
           style={{
             fontWeight: 600,

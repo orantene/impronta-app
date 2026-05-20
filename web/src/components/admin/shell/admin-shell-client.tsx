@@ -864,7 +864,7 @@ function BottomActionFab() {
                   }}>
                     <Icon name={it.icon} size={14} stroke={1.7} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="flex-1 min-w-0">
                     <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>
                       {it.label}
                     </span>
@@ -928,7 +928,7 @@ function BottomActionFab() {
                   }}>
                     <Icon name="sparkle" size={14} stroke={1.7} color={COLORS.royalDeep} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="flex-1 min-w-0">
                     <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.royalDeep, letterSpacing: 0.2, textTransform: "uppercase" }}>
                       Ask AI
                     </span>
@@ -997,7 +997,7 @@ function BottomActionFab() {
       {/* The "+" button itself — with notification dot if work is pending.
           popoverTarget wires the native open/close behavior; React state
           mirrors via the popoverRef toggle event listener. */}
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <button
           type="button"
           {...({ popoverTarget: FAB_POPOVER_ID, popoverTargetAction: "toggle" } as Record<string, string>)}
@@ -1077,7 +1077,7 @@ function RecentSection({ title, items }: {
 }) {
   if (items.length === 0) return null;
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div className="mb-1.5">
       <div style={{
         padding: "6px 10px 4px",
         fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase",
@@ -1103,7 +1103,7 @@ function RecentSection({ title, items }: {
           }}>
             <Icon name="bolt" size={13} stroke={1.7} />
           </span>
-          <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="flex-1 min-w-0">
             <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
               {it.label}
             </span>

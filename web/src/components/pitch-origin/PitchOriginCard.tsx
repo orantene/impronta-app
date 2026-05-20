@@ -62,7 +62,7 @@ export function PitchOriginCard({
           <circle cx="7" cy="7" r="1" fill="currentColor"/>
         </svg>
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-1 min-w-0">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
           color: "#2B3FA3", textTransform: "uppercase",

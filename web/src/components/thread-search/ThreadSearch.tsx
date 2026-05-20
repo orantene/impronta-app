@@ -215,7 +215,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
             ? (query.trim() ? "No matches" : "Type to search")
             : `${results.length} result${results.length === 1 ? "" : "s"}`}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           {results.map((m) => (
             <button
               key={m.id}
@@ -236,7 +236,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
                 fontSize: 11, color: "rgba(11,11,13,0.55)",
                 display: "flex", alignItems: "baseline", gap: 6,
               }}>
-                <span style={{ fontWeight: 600 }}>{m.senderName}</span>
+                <span className="font-semibold">{m.senderName}</span>
                 <span aria-hidden style={{ opacity: 0.4 }}>·</span>
                 <span>{m.createdAt}</span>
                 {m.hasAttachment && (

@@ -104,7 +104,7 @@ export function CallSheetEditorSheet({
             gap: 10,
           }}
         >
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
               Edit call sheet
             </div>
@@ -219,7 +219,7 @@ export function CallSheetEditorSheet({
 }
 
 function Row({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "flex", gap: 10 }}>{children}</div>;
+  return <div className="flex gap-2.5">{children}</div>;
 }
 
 function Field({

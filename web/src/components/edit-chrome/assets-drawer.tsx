@@ -473,7 +473,7 @@ export function AssetsDrawer(): ReactElement | null {
             {lastSyncLabel ? (
               <>
                 <span style={{ color: CHROME.muted2 }}> · </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span className="inline-flex items-center gap-1">
                   <ClockIcon />
                   {lastSyncLabel}
                 </span>
@@ -615,7 +615,7 @@ export function AssetsDrawer(): ReactElement | null {
                 disabled={uploading}
                 style={primaryBtnStyle(uploading)}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span className="inline-flex items-center gap-1.5">
                   <UploadIcon />
                   {uploading ? "Uploading…" : "Upload"}
                 </span>

@@ -945,7 +945,7 @@ function Row({ row, active, idx, onHover, onCommit }: RowProps) {
       >
         {row.icon ?? <DefaultGroupGlyph group={row.group} />}
       </div>
-      <div style={{ minWidth: 0 }}>
+      <div className="min-w-0">
         <div
           style={{
             fontSize: 13,
@@ -1034,7 +1034,7 @@ function EmptyState({ query }: { query: string }) {
 
 function FooterHint({ label, keys }: { label: string; keys: string[] }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span className="inline-flex items-center gap-1.5">
       <KbdSequence keys={keys} />
       <span>{label}</span>
     </span>

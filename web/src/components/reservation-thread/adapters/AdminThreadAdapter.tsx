@@ -249,7 +249,7 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
         lineup.length === 0 ? (
           <Hint text="No talent on this inquiry yet. Add talent from classic Messages." />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {lineup.map((l, i) => (
               <div key={`${l.profileCode ?? i}`} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
                 <span style={{
@@ -320,7 +320,7 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
             />
           )}
           {inquiry.brief && (
-            <div style={{ marginTop: 4 }}>
+            <div className="mt-1">
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: palette.inkDim, marginBottom: 4 }}>Brief</div>
               <div style={{ fontSize: 13, color: palette.ink, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{inquiry.brief}</div>
             </div>
@@ -335,7 +335,7 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
         files.length === 0 ? (
           <Hint text="No files shared on this inquiry yet." />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {files.map((f) => (
               <div key={f.id} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -361,7 +361,7 @@ export function AdminThreadAdapter(props: AdminThreadAdapterProps) {
         coordinators.length === 0 ? (
           <Hint text="No coordinator assigned. Assign one from classic Messages." />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {coordinators.map((c, i) => (
               <div key={i} style={{ fontSize: 13, color: palette.ink }}>
                 {c.displayName}

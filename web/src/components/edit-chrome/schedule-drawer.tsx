@@ -370,7 +370,7 @@ export function ScheduleDrawer() {
           ) : (
             <span />
           )}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}

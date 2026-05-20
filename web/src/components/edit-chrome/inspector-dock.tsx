@@ -1214,7 +1214,7 @@ function InspectorSkeleton() {
         <div className="inspector-skel-bar" style={{ width: 48, height: 14 }} />
       </div>
       <div style={{ padding: "16px 14px", display: "grid", gap: 14 }}>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div className="grid gap-1.5">
           <div
             className="inspector-skel-bar"
             style={{ width: 92, height: 10 }}
@@ -1224,7 +1224,7 @@ function InspectorSkeleton() {
             style={{ width: "100%", height: 32 }}
           />
         </div>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div className="grid gap-1.5">
           <div
             className="inspector-skel-bar"
             style={{ width: 70, height: 10 }}
@@ -1234,7 +1234,7 @@ function InspectorSkeleton() {
             style={{ width: "100%", height: 64 }}
           />
         </div>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div className="grid gap-1.5">
           <div
             className="inspector-skel-bar"
             style={{ width: 60, height: 10 }}
@@ -1244,7 +1244,7 @@ function InspectorSkeleton() {
             style={{ width: "100%", height: 32 }}
           />
         </div>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div className="grid gap-1.5">
           <div
             className="inspector-skel-bar"
             style={{ width: 80, height: 10 }}

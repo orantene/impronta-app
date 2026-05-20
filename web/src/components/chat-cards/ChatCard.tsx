@@ -101,7 +101,7 @@ export function ChatCardShell({
         maxWidth: 480, width: "100%",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <div className="flex items-start gap-2.5">
         {icon && (
           <span aria-hidden style={{
             flexShrink: 0,
@@ -113,7 +113,7 @@ export function ChatCardShell({
             {icon}
           </span>
         )}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{
             fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
             color: p.fg, textTransform: "uppercase",

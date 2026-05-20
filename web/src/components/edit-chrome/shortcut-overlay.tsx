@@ -228,7 +228,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                           i === 0 ? "none" : `1px solid ${CHROME.line}`,
                       }}
                     >
-                      <div style={{ minWidth: 0 }}>
+                      <div className="min-w-0">
                         <div
                           style={{
                             fontSize: 13,

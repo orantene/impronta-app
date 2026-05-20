@@ -353,7 +353,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
       content: lineup.length === 0 ? (
         <EmptyHint text="The agency is putting together your talent shortlist. You'll see them here once they're added." />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {lineup.map((l, i) => (
             <div
               key={`${l.displayName}-${i}`}
@@ -366,7 +366,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
               }}
             >
               <Avatar name={l.displayName} pov="client" />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: palette.ink }}>
                   {l.displayName}
                 </div>
@@ -420,7 +420,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
       kind: "files",
       title: "Shared files",
       content: (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3">
           {/* Step 14 — client-side uploader. Renders when the parent
               page passes the action trio; the uploader handles its own
               optimistic list so we don't double-render the `files` prop
@@ -443,7 +443,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           {/* Legacy read-only listing — when the uploader isn't wired
               we fall back to the original chip stack. */}
           {!uploadAttachment && files.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {files.map((f) => (
                 <div
                   key={f.id}
@@ -465,7 +465,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
                       <path d="M3 1.5h5l3 3v7.5a.5.5 0 0 1-.5.5h-7.5a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5z M8 1.5V4.5h3" stroke="currentColor" strokeWidth="1.2" fill="none"/>
                     </svg>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 13, fontWeight: 600, color: palette.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {f.fileName}
                     </div>
@@ -734,7 +734,7 @@ function OfferSheetContent({ offer }: { offer: ClientThreadOffer }) {
     ? `Valid until ${new Date(offer.validUntil).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
     : null;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div className="flex flex-col gap-3.5">
       <div style={{
         padding: "14px 14px 12px",
         borderRadius: 12,
@@ -753,7 +753,7 @@ function OfferSheetContent({ offer }: { offer: ClientThreadOffer }) {
         )}
       </div>
       {offer.lineItems.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="flex flex-col gap-1.5">
           <div style={{
             fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase",
             color: palette.inkMuted, marginBottom: 4,
@@ -766,7 +766,7 @@ function OfferSheetContent({ offer }: { offer: ClientThreadOffer }) {
               border: `1px solid ${palette.borderSoft}`,
               background: palette.surfaceRaised,
             }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 13, fontWeight: 600, color: palette.ink }}>
                   {li.label || li.talentName || "Line item"}
                 </div>

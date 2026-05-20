@@ -284,7 +284,7 @@ function ListRow({
         }}
       />
 
-      <div style={{ minWidth: 0 }}>
+      <div className="min-w-0">
         {item.badges && item.badges.length > 0 && (
           <div
             style={{

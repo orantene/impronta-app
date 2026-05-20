@@ -356,7 +356,7 @@ export function SectionPickerPopover() {
                       >
                         <SectionTypeIcon typeKey={entry.typeKey} size={16} />
                       </span>
-                      <span style={{ minWidth: 0, flex: 1 }}>
+                      <span className="flex-1 min-w-0">
                         <span
                           style={{
                             display: "flex",
@@ -466,7 +466,7 @@ export function SectionPickerPopover() {
                 >
                   <SectionTypeIcon typeKey={entry.typeKey} size={16} />
                 </span>
-                <span style={{ minWidth: 0, flex: 1 }}>
+                <span className="flex-1 min-w-0">
                   <span
                     style={{
                       display: "flex",

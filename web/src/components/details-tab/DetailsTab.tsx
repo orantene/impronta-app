@@ -444,7 +444,7 @@ function PeopleCard({
           }}>
             {coordinators.length === 1 ? "Coordinator" : "Coordinators"}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex flex-col gap-1">
             {coordinators.map((c, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 8,
@@ -458,7 +458,7 @@ function PeopleCard({
                 }}>
                   {c.name.charAt(0).toUpperCase()}
                 </span>
-                <span style={{ fontWeight: 500 }}>{c.name}</span>
+                <span className="font-medium">{c.name}</span>
                 {c.role && (
                   <span style={{ fontSize: 11, color: C.inkDim }}>· {c.role}</span>
                 )}
@@ -493,7 +493,7 @@ function PeopleCard({
               <LineupStat label="Invited" value={lineup.invited} color={C.indigo} />
             </div>
             {lineup.accepted < lineup.total && (
-              <div style={{ marginTop: 8 }}>
+              <div className="mt-2">
                 <AmberChip label={`${lineup.total - lineup.accepted} spot${lineup.total - lineup.accepted !== 1 ? "s" : ""} still open`} />
               </div>
             )}
@@ -534,7 +534,7 @@ function PeopleCard({
 
 function LineupStat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div style={{ textAlign: "center" }}>
+    <div className="text-center">
       <div style={{ fontSize: 20, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 10.5, color: C.inkMuted, marginTop: 2 }}>{label}</div>
     </div>
@@ -662,7 +662,7 @@ function RiskCard({
           <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>
             Missing information
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {missingItems.map((item, i) => (
               <WarningChip key={i} label={item} />
             ))}
@@ -675,7 +675,7 @@ function RiskCard({
           <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>
             At risk
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {atRiskFlags.map((flag, i) => (
               <AmberChip key={i} label={flag} />
             ))}
@@ -768,9 +768,9 @@ function ActivityCard({
                   flexShrink: 0,
                   marginTop: 5,
                 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                   <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
-                    <span style={{ fontWeight: 600 }}>{entry.actor}</span>
+                    <span className="font-semibold">{entry.actor}</span>
                     {" · "}
                     {entry.summary}
                   </div>
@@ -795,7 +795,7 @@ export function DetailsTab({ pov, data }: { pov: DetailsTabPov; data: DetailsTab
 
   // Left column cards (mobile: top of stack)
   const leftCol = (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       <StatusSummaryCard stage={data.stage} nextAction={data.nextAction} />
       <JobBriefCard
         title={data.title}
@@ -834,7 +834,7 @@ export function DetailsTab({ pov, data }: { pov: DetailsTabPov; data: DetailsTab
 
   // Right column cards (mobile: bottom of stack)
   const rightCol = (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       <PeopleCard
         pov={pov}
         clientName={data.clientName}

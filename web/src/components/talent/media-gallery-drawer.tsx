@@ -702,7 +702,7 @@ export function MediaGalleryDrawer({
 
             {/* Google Drive import */}
             {onImportFromDrive && (
-              <div style={{ marginTop: 10 }}>
+              <div className="mt-2.5">
                 {!showDriveInput ? (
                   <button
                     type="button"
@@ -762,7 +762,7 @@ export function MediaGalleryDrawer({
                       {t("admin.talent.edit.mediaGallery.driveShareHint")}
                     </div>
                     {driveStatus.kind === "listing" && (
-                      <div style={{ marginTop: 8 }}>
+                      <div className="mt-2">
                         <div style={{ fontFamily: F, fontSize: 12, color: C.inkMuted, marginBottom: 5 }}>
                           {t("admin.talent.edit.mediaGallery.findingPhotos")}
                         </div>
@@ -772,7 +772,7 @@ export function MediaGalleryDrawer({
                       </div>
                     )}
                     {driveStatus.kind === "importing" && (
-                      <div style={{ marginTop: 8 }}>
+                      <div className="mt-2">
                         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F, fontSize: 12, color: C.inkMuted, marginBottom: 5 }}>
                           <span>
                             {driveStatus.total > 0
@@ -1113,7 +1113,7 @@ function PhotoCard({
         : undefined;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div className="flex flex-col">
       {/* Thumbnail + overlay container */}
       <div
         style={{

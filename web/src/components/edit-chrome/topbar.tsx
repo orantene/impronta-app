@@ -1691,7 +1691,7 @@ function MoreMenu({
               />
             </>
           ) : (
-            <div style={{ padding: 8 }}>
+            <div className="p-2">
               <button
                 type="button"
                 onClick={() => setShareOpen(false)}

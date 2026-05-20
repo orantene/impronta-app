@@ -248,7 +248,7 @@ export function InquiryDrawer({
             flexShrink: 0,
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
               {step === "compose" ? "New inquiry" : "Review & send"}
             </div>
@@ -387,7 +387,7 @@ function Compose(props: {
 }) {
   const { intent } = props;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       <RequesterSection
         value={intent.requester}
         onChange={props.setRequester}
@@ -463,7 +463,7 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
     const bookings = client?.previous_bookings_count ?? 0;
     return (
       <div style={trustCardStyle(C.successSoft, C.success)}>
-        <div style={{ fontWeight: 700 }}>Logged-in client</div>
+        <div className="font-bold">Logged-in client</div>
         <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", fontSize: 12, color: C.inkMuted, lineHeight: 1.6 }}>
           <li>✓ Verified email</li>
           {client?.member_since && <li>Member since {client.member_since}</li>}
@@ -475,7 +475,7 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
   }
   return (
     <div style={trustCardStyle(C.amberSoft, C.amber)}>
-      <div style={{ fontWeight: 700 }}>New client</div>
+      <div className="font-bold">New client</div>
       <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
         Contact info required so the agency can follow up. You&apos;ll get a magic-link to track this inquiry after submit.
       </div>
@@ -933,7 +933,7 @@ function FilesLinksSection({
     <Section title="Files & references" subtitle="Optional — moodboards, briefs, reference posts.">
       <FieldRow>
         <Field label="Reference link">
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <Input
               value={linkDraft}
               onChange={setLinkDraft}
@@ -1056,11 +1056,11 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
         padding: "14px 16px 16px",
       }}
     >
-      <div style={{ marginBottom: 10 }}>
+      <div className="mb-2.5">
         <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>{title}</div>
         {subtitle && <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>{subtitle}</div>}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{children}</div>
+      <div className="flex flex-col gap-2.5">{children}</div>
     </section>
   );
 }

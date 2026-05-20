@@ -1354,7 +1354,7 @@ export function NavigatorPanel() {
             );
           })}
         </div>
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <svg
             width="12"
             height="12"
@@ -1429,7 +1429,7 @@ export function NavigatorPanel() {
          *  same downstream inspector + save flow. No special shell mental
          *  model. */}
         {viewMode === "sections" && canEditSiteShell && shellRows.length > 0 ? (
-          <div style={{ marginBottom: 6 }}>
+          <div className="mb-1.5">
             <div
               style={{
                 display: "flex",
@@ -2951,7 +2951,7 @@ export function NavigatorPanel() {
         >
           Page
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           <FooterShortcut
             onClick={openPageSettings}
             title="Page setup — title, SEO, social preview, URL"
@@ -3304,7 +3304,7 @@ function NodeInsertMenu({
           gap: 8,
         }}
       >
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div
             style={{
               fontSize: 10,

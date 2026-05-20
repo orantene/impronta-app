@@ -586,7 +586,7 @@ export function PublishDrawer() {
               </p>
             </div>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
-            <div style={{ marginBottom: 12 }}>
+            <div className="mb-3">
               <PublishPreflight
                 enabled={publishOpen}
                 refreshKey={publishOpen ? 1 : 0}
@@ -601,7 +601,7 @@ export function PublishDrawer() {
               <CardBody>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                   <PreviewThumb />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-1 min-w-0">
                     <StatLine
                       count={summary.totalSections}
                       label={`section${summary.totalSections === 1 ? "" : "s"} ready`}
@@ -645,7 +645,7 @@ export function PublishDrawer() {
                       </p>
                     ) : null}
                     {!publishDiff.loading && publishedRows && publishDiff.summary.total === 0 ? (
-                      <div style={{ marginTop: 8 }}>
+                      <div className="mt-2">
                         <p
                           style={{
                             margin: 0,
@@ -829,7 +829,7 @@ export function PublishDrawer() {
                                   : CHROME.muted3,
                               }}
                             />
-                            <span style={{ flex: 1 }}>{row.label}</span>
+                            <span className="flex-1">{row.label}</span>
                             {row.missingRequired ? (
                               <span
                                 style={{
@@ -984,7 +984,7 @@ export function PublishDrawer() {
                               >
                                 <SectionIcon />
                               </span>
-                              <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="flex-1 min-w-0">
                                 <div
                                   style={{
                                     fontSize: 12,
@@ -1528,7 +1528,7 @@ function SuccessBody({
   const relative = formatRelative(when);
   return (
     <div className="py-2 text-sm" style={{ color: CHROME.text2 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <div className="flex items-start gap-3">
         <div
           style={{
             marginTop: 2,

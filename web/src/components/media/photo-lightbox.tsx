@@ -438,7 +438,7 @@ export function PhotoLightbox({
               wired the corresponding setter AND the asset isn't already
               filling that role. */}
           {(onSetAvatar && !isAvatar) || (onSetHero && !isHero) ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-1.5">
               {onSetAvatar && !isAvatar && (
                 <button type="button" disabled={setAvatarBusy} onClick={() => void handleSetAvatar()}
                   style={{ ...railBtnPrimary, width: "100%", padding: "9px 12px", fontSize: 12.5, opacity: setAvatarBusy ? 0.7 : 1 }}>
@@ -462,7 +462,7 @@ export function PhotoLightbox({
           {onCropAt && (
             <div>
               <div style={sectionLabel}>{L("cropSectionLabel", "admin.talent.edit.mediaGallery.cropSectionLabel")}</div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="flex gap-1.5">
                 <button type="button" onClick={() => onCropAt(1)}
                   style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
                   ✂ {L("cropProfile", "admin.talent.edit.mediaGallery.cropProfile")}
@@ -492,7 +492,7 @@ export function PhotoLightbox({
           {/* External actions — Open/Copy only when we have a real URL.
               Empty url happens on broken assets; an empty href would open
               the current page in a new tab, which is worse than no-op. */}
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className="flex gap-1.5">
             {current.url ? (
               <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
                 {L("openInNewTab", "admin.talent.edit.mediaGallery.openInNewTab")} ↗
