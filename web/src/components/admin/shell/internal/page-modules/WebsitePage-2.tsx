@@ -84,6 +84,27 @@ export function ConfigStatusRow({ label, status, value }: { label: string; statu
   );
 }
 
+// Hoisted from inside WebsitePerformance (Q4). Pure aside from fmtPrior,
+// which is lifted to a prop so the booking-revenue tile can pass fmtMoney.
+function Tile({ label, value, current, prior, accent, fmtPrior }: { label: string; value: string; current: number; prior: number; accent?: boolean; fmtPrior?: (n: number) => string }) {
+  const delta = prior > 0 ? ((current - prior) / prior) * 100 : 0;
+  const dir = Math.abs(delta) < 0.5 ? "flat" : (delta > 0 ? "up" : "down");
+  const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
+  const priorLabel = fmtPrior && typeof prior === "number" && prior > 1000 && label === "Booking revenue"
+    ? fmtPrior(prior)
+    : prior.toLocaleString();
+  return (
+    <div style={{ padding: 14, borderRadius: 10, background: accent ? COLORS.accentSoft : "#fff", border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}` }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-muted">{label}</div>
+      <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
+      <div style={{ fontSize: 11, color, marginTop: 2 }}>
+        {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
+        <span style={{ marginLeft: 4 }} className="text-admin-ink-dim">vs {priorLabel}</span>
+      </div>
+    </div>
+  );
+}
+
 export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: WebsiteAnalytics; pages: WebsitePageRow[]; fmtMoney: (n: number) => string }) {
   const [period, setPeriod] = useState<"7d" | "30d">("7d");
   const [topView, setTopView] = useState<"pages" | "talent">("pages");
@@ -106,22 +127,6 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
     .slice(0, 4)
     .map(t => ({ ...t, topPageTitle: pages.find(pg => pg.id === t.topPageId)?.title ?? "—" }));
 
-  const Tile = ({ label, value, current, prior, accent }: { label: string; value: string; current: number; prior: number; accent?: boolean }) => {
-    const delta = prior > 0 ? ((current - prior) / prior) * 100 : 0;
-    const dir = Math.abs(delta) < 0.5 ? "flat" : (delta > 0 ? "up" : "down");
-    const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
-    return (
-      <div style={{ padding: 14, borderRadius: 10, background: accent ? COLORS.accentSoft : "#fff", border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}` }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-ink-muted">{label}</div>
-        <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
-        <div style={{ fontSize: 11, color, marginTop: 2 }}>
-          {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
-          <span style={{ marginLeft: 4 }} className="text-admin-ink-dim">vs {typeof prior === "number" && prior > 1000 && label === "Booking revenue" ? fmtMoney(prior) : prior.toLocaleString()}</span>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
@@ -142,7 +147,7 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
           <Tile label="Visits"           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} />
           <Tile label="Inquiries"        value={m.inquiries.toLocaleString()} current={m.inquiries} prior={m.prior.inquiries} />
           <Tile label="Bookings"         value={m.bookings.toLocaleString()} current={m.bookings}  prior={m.prior.bookings} />
-          <Tile label="Booking revenue"  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent />
+          <Tile label="Booking revenue"  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent fmtPrior={fmtMoney} />
         </div>
 
         {/* Funnel strip */}
