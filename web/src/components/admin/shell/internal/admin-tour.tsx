@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * First-time admin tour — 4-step orientation overlay.
  *
