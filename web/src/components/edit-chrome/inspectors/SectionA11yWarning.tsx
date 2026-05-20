@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Phase 10 — per-section a11y warnings.
  *
