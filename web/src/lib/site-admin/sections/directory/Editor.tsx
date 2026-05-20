@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import type { SectionEditorProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { fashionDirectoryPreset } from "./presets";
+import {
+  readDirectoryLiveCatalogSnapshot,
+  setDirectoryFilterOptionSearchVisible,
+  setDirectoryTopBarFacetKey,
+  setDirectoryFieldSidebarVisibility,
+  type DirectoryLiveCatalogSnapshot,
+} from "@/lib/site-admin/server/directory-catalogs";
 
 /**
  * The 7-tab control drawer (plan §4). Every section-payload knob the
@@ -174,6 +181,59 @@ function FieldTags({
   );
 }
 
+/**
+ * Per-field visibility toggle list, sourced from the saved `item_order`
+ * (which is the live sidebar's facet sequence). Each row toggles the
+ * `field_visibility_overrides` entry for that facet. Missing entry =
+ * visible; `false` = hidden. The leading `__filter_search__` pseudo-key
+ * has its own dedicated toggle above and is filtered out here.
+ */
+function LiveFieldVisibilityList({
+  overrides,
+  itemOrder,
+  onToggle,
+}: {
+  overrides: Record<string, boolean>;
+  itemOrder: string[];
+  onToggle: (fieldKey: string, visible: boolean) => void;
+}) {
+  const facetKeys = itemOrder.filter((k) => k !== "__filter_search__");
+  if (facetKeys.length === 0) {
+    return (
+      <p className={HELP}>
+        No facet fields in the live catalog yet. Add directory facets in the
+        field definitions admin first.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-1 pt-1">
+      <div className={LABEL}>Hide individual facets (live)</div>
+      <div className="rounded-md border border-border/40">
+        {facetKeys.map((k) => {
+          const visible = overrides[k] !== false;
+          return (
+            <div
+              key={k}
+              className="flex items-center justify-between gap-3 border-b border-border/30 px-2.5 py-1.5 text-sm text-foreground last:border-b-0"
+            >
+              <span className="font-mono text-[12px]">{k}</span>
+              <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--impronta-muted)]">
+                <input
+                  type="checkbox"
+                  checked={visible}
+                  onChange={(e) => onToggle(k, e.target.checked)}
+                />
+                visible
+              </label>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const TABS = [
   "Source",
   "Template",
@@ -188,11 +248,68 @@ type Tab = (typeof TABS)[number];
 export function DirectoryEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<DirectoryV1>) {
   const [tab, setTab] = useState<Tab>("Source");
   const p = initial;
   const set = <K extends keyof DirectoryV1>(key: K, value: DirectoryV1[K]) =>
     onChange({ ...p, [key]: value });
+
+  // ── Live tenant catalog (Phase 2b) ──────────────────────────────────
+  // The Filters tab toggles knobs that live in `directory_sidebar_layout`
+  // (tenant-scoped) and `field_definitions` (tenant-local override). The
+  // section payload above ALSO carries similar booleans for the
+  // section's local intent — but the rendered storefront reads the live
+  // catalog. We load it once per drawer open and apply optimistic
+  // updates against it.
+  const [liveCatalog, setLiveCatalog] =
+    useState<DirectoryLiveCatalogSnapshot | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [_isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLiveError(null);
+    readDirectoryLiveCatalogSnapshot()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          setLiveCatalog(res.data);
+        } else {
+          setLiveError(res.error);
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLiveError(err instanceof Error ? err.message : "Couldn't read live catalog.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
+
+  /** Optimistic-then-revert helper for live catalog writes. */
+  const writeLive = (
+    next: DirectoryLiveCatalogSnapshot,
+    action: () => Promise<{ ok: true } | { ok: false; error: string }>,
+  ) => {
+    const previous = liveCatalog;
+    setLiveCatalog(next);
+    setLiveError(null);
+    startTransition(() => {
+      action()
+        .then((res) => {
+          if (!res.ok) {
+            setLiveCatalog(previous);
+            setLiveError(res.error);
+          }
+        })
+        .catch((err: unknown) => {
+          setLiveCatalog(previous);
+          setLiveError(err instanceof Error ? err.message : "Save failed.");
+        });
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -625,10 +742,88 @@ export function DirectoryEditor({
               { value: "inline", label: "Inline" },
             ]}
           />
-          <p className={HELP}>
-            Live sidebar facet ordering / per-field hide writes to the tenant
-            filter catalog in Phase 2b. The payload already carries intent.
-          </p>
+          {/* ── Live tenant catalog (Phase 2b) ─────────────────────── */}
+          <div className="mt-2 space-y-2 rounded-md border border-border/60 bg-[var(--impronta-cool-faint,transparent)] p-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
+                Live storefront sidebar
+              </h4>
+              <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
+                Tenant catalog
+              </span>
+            </div>
+            <p className={HELP}>
+              These toggles write directly to your tenant&apos;s live filter
+              catalog. They take effect after the directory page&apos;s next
+              publish (or its cache TTL).
+            </p>
+
+            {liveError ? (
+              <p className="text-[11px] text-rose-600">
+                Couldn&apos;t reach catalog: {liveError}
+              </p>
+            ) : null}
+
+            {liveCatalog ? (
+              <>
+                <FieldToggle
+                  label="Show filter search box (live)"
+                  checked={liveCatalog.sidebar.filterOptionSearchVisible}
+                  onChange={(v) => {
+                    const next: DirectoryLiveCatalogSnapshot = {
+                      sidebar: {
+                        ...liveCatalog.sidebar,
+                        filterOptionSearchVisible: v,
+                      },
+                    };
+                    writeLive(next, () => setDirectoryFilterOptionSearchVisible(v));
+                  }}
+                />
+                <FieldSelect
+                  label="Top facet bar (live)"
+                  value={
+                    liveCatalog.sidebar.topBarFacetKey === null
+                      ? "__none__"
+                      : liveCatalog.sidebar.topBarFacetKey
+                  }
+                  onChange={(v) => {
+                    const key = v === "__none__" ? null : v;
+                    const next: DirectoryLiveCatalogSnapshot = {
+                      sidebar: { ...liveCatalog.sidebar, topBarFacetKey: key },
+                    };
+                    writeLive(next, () => setDirectoryTopBarFacetKey(key));
+                  }}
+                  options={[
+                    { value: "__none__", label: "None" },
+                    { value: "talent_type", label: "Talent type" },
+                  ]}
+                />
+                <LiveFieldVisibilityList
+                  overrides={liveCatalog.sidebar.fieldVisibilityOverrides}
+                  itemOrder={liveCatalog.sidebar.itemOrder}
+                  onToggle={(fieldKey, visible) => {
+                    const nextOverrides = { ...liveCatalog.sidebar.fieldVisibilityOverrides };
+                    if (visible) {
+                      delete nextOverrides[fieldKey];
+                    } else {
+                      nextOverrides[fieldKey] = false;
+                    }
+                    const next: DirectoryLiveCatalogSnapshot = {
+                      sidebar: {
+                        ...liveCatalog.sidebar,
+                        fieldVisibilityOverrides: nextOverrides,
+                      },
+                    };
+                    writeLive(next, () =>
+                      setDirectoryFieldSidebarVisibility(fieldKey, visible),
+                    );
+                  }}
+                />
+              </>
+            ) : (
+              <p className={HELP}>Loading live catalog…</p>
+            )}
+          </div>
         </div>
       ) : null}
 
