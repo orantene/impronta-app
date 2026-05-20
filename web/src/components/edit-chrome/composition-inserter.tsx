@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * CompositionInserters — RETIRED in Sprint 3.1.
  *
