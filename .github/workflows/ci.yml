@@ -67,7 +67,7 @@ jobs:
       # Bumping any of these requires a PR that demonstrably reduces the
       # underlying count first; never raise to silence a regression.
       TSC_BASE: 4              # drawers.tsx relocated errors; see Phase 1d landing report (3db9a2922)
-      SUPPRESSIONS_BASE: 9519  # was 14699 @ c4f833937; lowered after Q1 (0aacfc5d2) cleared 5180 stale entries (296 in-scope fixes + 4884 orphaned post-decomp suppressions). Integrator-verified zero new-pair absorption, zero increased counts.
+      SUPPRESSIONS_BASE: 9336  # was 9519 post-Q1; lowered after Y1 codemod replay (b8dc7dd2f) dropped no-new-inline-style 8730 → 8547 (-183). Q3 added no-console:error rule with 0 suppressions. Integrator-verified post-stack: tsc 4-relocated/0-new, lint 0 errors / 966 warnings (was 981, Y1 trimmed 15).
     steps:
       - name: Checkout
         uses: actions/checkout@v4
