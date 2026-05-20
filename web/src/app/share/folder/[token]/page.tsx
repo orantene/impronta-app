@@ -7,6 +7,7 @@
  * Increments share_view_count on every valid load.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -75,7 +76,10 @@ export default async function FolderSharePage({ params }: PageParams) {
     .update({ share_view_count: folder.share_view_count + 1, updated_at: new Date().toISOString() })
     .eq("id", folder.id)
     .then((res) => {
-      if (res.error) console.error("[share/folder] view-count update failed", res.error);
+      if (res.error) void improntaLog("share_folder.error", {
+        message: "[share/folder] view-count update failed",
+        error: res.error.message,
+      });
     });
 
   // Load folder items → asset IDs

@@ -15,6 +15,7 @@
 // Designed for on-demand baking triggered by export flows.
 // Not suitable for bulk use — call p-limit upstream for batches.
 
+import { logServerError } from "@/lib/server/safe-error";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
@@ -208,7 +209,7 @@ async function composeAndStore({
 
     return { ok: true, publicUrl };
   } catch (err) {
-    console.error("[bake-watermark]", err);
+    logServerError("bake_watermark", err);
     return { ok: false, error: "Compositing failed." };
   }
 }

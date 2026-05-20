@@ -8,6 +8,7 @@
 // Capability gate: agency.roster.edit.
 // Security: also verifies the talent is on this tenant's roster.
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
@@ -200,7 +201,10 @@ export default async function WorkspaceRosterTalentPage({
     } catch (err) {
       logServerError(`roster/[id].${label}`, err);
       // eslint-disable-next-line no-console
-      console.error(`[talent-detail] ${label} threw:`, err instanceof Error ? err.message : err);
+      void improntaLog("admin_roster.error", {
+        message: `[talent-detail] ${label} threw:`,
+        detail: err instanceof Error ? err.message : String(err),
+      });
       return fallback;
     }
   };

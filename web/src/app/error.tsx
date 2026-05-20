@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -31,7 +32,7 @@ export default function GlobalError({
   const [isAgencyHost, setIsAgencyHost] = useState(false);
 
   useEffect(() => {
-    console.error(error);
+    logServerError("", error);
     if (typeof window !== "undefined") {
       const h = window.location.hostname;
       setIsAgencyHost(!PLATFORM_HOSTS.has(h));

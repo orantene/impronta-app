@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -649,13 +650,13 @@ async function fetchPublicFieldValues(
   // that WERE public under Phase 1.5: how many are now hidden by tenant
   // privacy vs. orphaned type-specific, and what remains visible.
   // eslint-disable-next-line no-console
-  console.info(
-    `[public-resolver-gate] talent=${talentProfileId} ` +
+  void improntaLog("t.info", {
+    message: `[public-resolver-gate] talent=${talentProfileId} ` +
       `governance=${governanceLoaded} prevPublic=${diag.prevPublic} ` +
       `hiddenByTenant=${diag.hiddenByTenant} hiddenOrphan=${diag.hiddenOrphan} ` +
       `keptUniversalGlobal=${diag.keptUniversalGlobal} ` +
       `keptTypeSpecific=${diag.keptTypeSpecific}`,
-  );
+  });
 
   return projected;
 }

@@ -12,6 +12,7 @@
  * misconfigured deployments don't silently accept unsigned events.
  */
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { NextResponse, type NextRequest } from "next/server";
 import { getStripe } from "@/lib/payments/stripe-checkout";
 import {
@@ -109,7 +110,9 @@ export async function POST(req: NextRequest) {
         const stripeAccountId = (event.account as string | undefined) ?? null;
         if (process.env.NODE_ENV !== "production") {
           // eslint-disable-next-line no-console
-          console.info(`[stripe.connect] ${event.type} acct=${stripeAccountId ?? "?"} payout=${payout.id} amount=${payout.amount} ${payout.currency}`);
+          void improntaLog("webhooks_stripe.info", {
+            message: `[stripe.connect] ${event.type} acct=${stripeAccountId ?? "?"} payout=${payout.id} amount=${payout.amount} ${payout.currency}`,
+          });
         }
         break;
       }
@@ -197,9 +200,9 @@ export async function POST(req: NextRequest) {
         const invoice = event.data.object as import("stripe").Stripe.Invoice;
         if (process.env.NODE_ENV !== "production") {
           // eslint-disable-next-line no-console
-          console.info(
-            `[stripe.subscription] invoice paid customer=${typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "?"} amount=${invoice.amount_paid} ${invoice.currency}`,
-          );
+          void improntaLog("webhooks_stripe.info", {
+            message: `[stripe.subscription] invoice paid customer=${typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "?"} amount=${invoice.amount_paid} ${invoice.currency}`,
+          });
         }
         break;
       }

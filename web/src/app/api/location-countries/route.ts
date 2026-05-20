@@ -1,3 +1,4 @@
+import { improntaLog } from "@/lib/server/structured-log";
 import { NextResponse } from "next/server";
 import { searchCanonicalCountries } from "@/lib/location-autocomplete";
 
@@ -10,7 +11,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ countries });
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[api/location-countries]", e);
+      void improntaLog("location_countries.warn", {
+        message: "[api/location-countries]",
+        error: String(e),
+      });
     }
     return NextResponse.json({ countries: [] }, { status: 200 });
   }

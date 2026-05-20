@@ -1,4 +1,5 @@
 "use client";
+import { logServerError } from "@/lib/server/safe-error";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -130,7 +131,7 @@ export default function ParticipantThreadShell({
           // A.5 — surface markRead failures so a busted RLS path or
           // network blip doesn't silently leave the read pointer stale.
           markRead().catch((err) => {
-            console.error("[ParticipantThreadShell] markRead failed", err);
+            logServerError("participantthreadshell", err);
           });
         },
       )
@@ -141,7 +142,7 @@ export default function ParticipantThreadShell({
       // unmount path) but log on the off-chance the disconnect throws
       // so we notice if the realtime client gets into a stuck state.
       supabase.removeChannel(channel).catch?.((err: unknown) => {
-        console.error("[ParticipantThreadShell] removeChannel failed", err);
+        logServerError("participantthreadshell", err);
       });
     };
   }, [inquiryId, markRead, threadType, viewerUserId]);

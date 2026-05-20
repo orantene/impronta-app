@@ -9,6 +9,8 @@
  * logs and returns empty/null so pages degrade gracefully.
  */
 
+import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,7 +84,7 @@ export async function loadPlatformTenants(): Promise<PlatformTenantRow[]> {
     .limit(200);
 
   if (error || !data) {
-    console.error("[platform-data] loadPlatformTenants:", error);
+    logServerError("platform_data", error);
     return [];
   }
 
@@ -145,7 +147,7 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
     .limit(200);
 
   if (error || !data) {
-    console.error("[platform-data] loadPlatformUsers:", error);
+    logServerError("platform_data", error);
     return [];
   }
 
@@ -340,7 +342,10 @@ export async function loadPlatformTenantDetail(
     .maybeSingle();
 
   if (agencyError || !agency) {
-    console.error("[platform-data] loadPlatformTenantDetail:", agencyError);
+    void improntaLog("platform_data.error", {
+      message: "[platform-data] loadPlatformTenantDetail:",
+      agencyError: agencyError?.message ?? null,
+    });
     return null;
   }
 

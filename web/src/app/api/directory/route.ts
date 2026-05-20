@@ -121,15 +121,15 @@ export async function GET(request: Request) {
     const fetchDirectoryPageMs = performance.now() - tFetch;
     const handlerWallMs = performance.now() - wall;
     if (audit) {
-      console.log(
-        JSON.stringify({
+      void improntaLog("directory.info", {
+        message: JSON.stringify({
           event: "api_directory_GET",
           searchParams: Object.fromEntries(searchParams.entries()),
           publicSettingsMs,
           fetchDirectoryPageMs,
           handlerWallMs,
         }),
-      );
+      });
     }
     if (audit || handlerWallMs >= 1200) {
       improntaLog("api_directory_timing", {

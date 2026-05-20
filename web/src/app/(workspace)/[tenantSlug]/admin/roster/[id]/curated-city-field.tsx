@@ -1,4 +1,5 @@
 "use client";
+import { improntaLog } from "@/lib/server/structured-log";
 
 // Single-input curated city autocomplete for the full-page service-area
 // editor. Type a city → curated suggestions (global, no country-first) →
@@ -42,7 +43,9 @@ export function CuratedCityField({
     let off = false;
     setLoading(true);
     const h = setTimeout(() => {
-      console.info(`[serviceAreas-ui] (full-page) search query="${query}"`);
+      void improntaLog("admin_curated_city_field.info", {
+        message: `[serviceAreas-ui] (full-page) search query="${query}"`,
+      });
       fetch(`/api/location-cities?query=${encodeURIComponent(query)}`, { cache: "no-store" })
         .then((r) => r.json())
         .then((d: { cities?: Array<{ id: string | null; name_en: string; country_name_en?: string; country_iso2?: string }> }) => {
@@ -50,7 +53,9 @@ export function CuratedCityField({
           const mapped = (d.cities ?? [])
             .filter((c) => !!c.id)
             .map((c) => ({ id: c.id as string, name: c.name_en, sub: c.country_name_en || c.country_iso2 || "" }));
-          console.info(`[serviceAreas-ui] (full-page) search results count=${mapped.length}`);
+          void improntaLog("admin_curated_city_field.info", {
+            message: `[serviceAreas-ui] (full-page) search results count=${mapped.length}`,
+          });
           setOpts(mapped);
         })
         .catch(() => !off && setOpts([]))
@@ -129,7 +134,9 @@ export function CuratedCityField({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                console.info(`[serviceAreas-ui] (full-page) pick city label="${o.name}" id=${o.id}`);
+                void improntaLog("admin_curated_city_field.info", {
+                  message: `[serviceAreas-ui] (full-page) pick city label="${o.name}" id=${o.id}`,
+                });
                 onPick({ id: o.id, label: o.name });
                 setQ("");
                 closeList();
