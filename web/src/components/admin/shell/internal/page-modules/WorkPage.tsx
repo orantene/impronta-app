@@ -273,7 +273,7 @@ export function WorkPage() {
               <div>
                 <StageBadge stage={iq.stage} />
               </div>
-              <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+              <div className="text-admin-ink-muted text-xs">
                 {(iq.amount as string | null) ?? "—"}
               </div>
               <div className="flex justify-end">
@@ -485,7 +485,7 @@ export function FreeValuePanel() {
                 <Icon name="check" size={11} stroke={2.5} color="#fff" />
               </span>
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+                <div className="text-admin-ink text-admin-13 font-semibold">
                   {v.label}
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">

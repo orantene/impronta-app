@@ -188,7 +188,7 @@ function BulkBtn({ label, icon, onClick, danger, disabled }: { label: string; ic
       onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.95)" : "rgba(255,255,255,0.22)"; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)"; }}
     >
-      <span style={{ fontSize: 13 }}>{icon}</span>
+      <span className="text-admin-13">{icon}</span>
       {label}
     </button>
   );
@@ -353,7 +353,7 @@ function FolderModal({
         boxShadow: "0 24px 64px rgba(11,11,13,0.25)", fontFamily: FONTS.body,
       }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "20px 22px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
+          <div className="text-admin-ink text-admin-15 font-bold">
             {folder ? "Edit folder" : "New folder"}
           </div>
         </div>
@@ -1081,7 +1081,7 @@ function UploadModal({
                   style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: FONTS.body }}>
                   Clear
                 </button>
-                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{stagingSelected.size} →</span>
+                <span className="text-admin-ink-muted text-admin-11h">{stagingSelected.size} →</span>
                 <select value={stagingBulkTalentId} onChange={(e) => onBulkTalentChange(e.target.value)} style={{ ...fsel }}>
                   {assignTalents.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
@@ -1909,7 +1909,7 @@ export function WorkspaceMediaPage() {
           <p style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 4, marginBottom: 0 }} className="text-admin-ink-muted">Your workspace photo library — every photo across every talent, with watermark control and usage tracking.</p>
         </div>
         <div style={{ marginTop: 32, padding: 28, borderRadius: 16, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ fontSize: 36 }}>🖼️</div>
+          <div className="text-4xl">🖼️</div>
           <div>
             <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, marginBottom: 6 }} className="text-admin-ink">Branded media gallery — Agency plan</div>
             <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }} className="text-admin-ink-muted">
@@ -2534,7 +2534,7 @@ export function WorkspaceMediaPage() {
             padding: "24px 28px 28px",
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">Keyboard shortcuts</div>
+              <div className="text-admin-ink text-admin-15 font-bold">Keyboard shortcuts</div>
               <button type="button" onClick={() => setShowShortcutHelp(false)}
                 style={{ background: "none", border: "none", color: COLORS.inkMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>

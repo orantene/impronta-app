@@ -124,7 +124,7 @@ export function FeatureControlsDrawer() {
                     <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? COLORS.accent : COLORS.ink }}>{g.label}</div>
                     <div style={{ fontSize: 10, color: audienceColor(g.audience), marginTop: 1 }}>{audienceLabel(g.audience)}</div>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700 }} className="text-admin-ink-muted">{enabledCount}/{g.features.length}</span>
+                  <span className="text-admin-ink-muted text-admin-10 font-bold">{enabledCount}/{g.features.length}</span>
                 </button>
               );
             })}
@@ -134,12 +134,12 @@ export function FeatureControlsDrawer() {
           <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
             <div style={{ fontSize: 11, marginBottom: 6 }} className="text-admin-ink-muted">Summary</div>
             <div className="flex justify-between">
-              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Enabled</span>
-              <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-success">{onCount}</span>
+              <span className="text-admin-ink-muted text-admin-11">Enabled</span>
+              <span className="text-admin-success text-xs font-bold">{onCount}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Disabled</span>
-              <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-coral">{totalCount - onCount}</span>
+              <span className="text-admin-ink-muted text-admin-11">Disabled</span>
+              <span className="text-admin-coral text-xs font-bold">{totalCount - onCount}</span>
             </div>
             <div style={{ marginTop: 8, height: 4, background: COLORS.border, borderRadius: 2, overflow: "hidden" }}>
               <div style={{ '--progress-w': `${(onCount / totalCount) * 100}%` }} className="w-[var(--progress-w)] h-full rounded-[2px] bg-admin-success [transition:width_var(--transition-admin-md)]" />
@@ -157,7 +157,7 @@ export function FeatureControlsDrawer() {
           {!search && (
             <div className="mb-4">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 15, fontWeight: 700 }} className="text-admin-ink">{group.label}</span>
+                <span className="text-admin-ink text-admin-15 font-bold">{group.label}</span>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: audienceColor(group.audience), background: `${audienceColor(group.audience)}16`, padding: "2px 8px" }} className="rounded-admin-sm">
                   {audienceLabel(group.audience)}
                 </span>
@@ -200,7 +200,7 @@ export function FeatureControlsDrawer() {
                 >
                   <div className="flex-1 min-w-0">
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{f.label}</span>
+                      <span className="text-admin-ink text-admin-13 font-semibold">{f.label}</span>
                       {f.badge && (
                         <span style={{ fontSize: 9.5, fontWeight: 700, background: `${COLORS.amber}18`, padding: "1px 6px" }} className="text-admin-amber rounded-admin-sm">
                           {f.badge}
@@ -310,7 +310,7 @@ export function CircleManageDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{MOCK_CIRCLE.length} people in your circle</span>
+      <span className="text-admin-ink-muted text-admin-11">{MOCK_CIRCLE.length} people in your circle</span>
       <SecondaryButton onClick={() => toast("Find someone to add…")}>Add person</SecondaryButton>
     </div>
   );
@@ -385,11 +385,11 @@ export function CircleManageDrawer() {
           {filtered.map(m => (
             <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-ink-muted">{m.name.split(" ").map(w => w[0]).join("").slice(0, 2)}</span>
+                <span className="text-admin-ink-muted text-xs font-bold">{m.name.split(" ").map(w => w[0]).join("").slice(0, 2)}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{m.name}</span>
+                  <span className="text-admin-ink text-admin-13 font-semibold">{m.name}</span>
                   <span style={{ fontSize: 10.5, fontWeight: 600, background: "rgba(11,11,13,0.05)", padding: "1px 7px", borderRadius: 999 }} className="text-admin-ink-muted">{m.role}</span>
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 3 }} className="text-admin-ink-muted">{m.lastCollab}</div>
@@ -455,7 +455,7 @@ export function CircleRecommendDrawer() {
 
   const footer = (
     <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{selected.size} selected</span>
+      <span className="text-admin-ink-muted text-admin-11">{selected.size} selected</span>
       <div className="flex gap-2">
         <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
         <SecondaryButton onClick={send}>Send recommendation</SecondaryButton>
@@ -508,7 +508,7 @@ export function CircleRecommendDrawer() {
                   {isSelected && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{m.name}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{m.name}</div>
                   <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{m.role} · {m.lastCollab}</div>
                 </div>
               </div>

@@ -174,7 +174,7 @@ export function SubmitRateSheet({
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
               {fmtMoney(budget.amount, currency)}{" "}
-              <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
+              <span className="text-admin-ink-muted text-xs font-medium">
                 {UNIT_TYPE_LABEL[budget.unitType]}
               </span>
             </div>
@@ -295,7 +295,7 @@ export function SubmitRateSheet({
               background: "#fff", paddingLeft: 12,
               transition: "border-color .12s",
             }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink-muted">
+              <span className="text-admin-ink-muted text-sm font-semibold">
                 {currency === "EUR" ? "€" : currency === "USD" ? "$" : "£"}
               </span>
               <input
@@ -503,7 +503,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
         <span style={{ fontWeight: 700 }} className="text-admin-ink">
           Live · DB-backed ({files.length})
         </span>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-admin-11">
           inquiry_attachments
         </span>
         <span style={{ flex: 1 }} />
@@ -581,7 +581,7 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
+              <div className="text-admin-ink-muted text-admin-11">
                 {f.byteSize != null ? `${Math.round(f.byteSize / 1024)} KB · ` : ""}
                 {f.visibility}
                 {f.description ? ` · ${f.description}` : ""}

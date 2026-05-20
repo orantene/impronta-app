@@ -167,7 +167,7 @@ export function InboxSnippetsDrawer() {
                 /
               </span>
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
+                <div className="text-admin-ink text-admin-13 font-medium">
                   {s.title}
                 </div>
                 <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink-muted">
@@ -378,7 +378,7 @@ export function NotificationsPrefsDrawer() {
             transition: "background .2s, border-color .2s",
           }}
         >
-          <span style={{ fontSize: 22 }}>🌙</span>
+          <span className="text-admin-22">🌙</span>
           <div className="flex-1 min-w-0">
             <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: dndNow ? "#92400E" : COLORS.ink }}>
               Do not disturb
@@ -709,7 +709,7 @@ export function DataExportDrawer() {
                 style={{ marginTop: 3 }}
               />
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
+                <div className="text-admin-ink text-admin-13 font-medium">
                   {label}
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
@@ -2247,7 +2247,7 @@ export function TalentNotificationsDrawer() {
                   padding: "0 2px",
                 }}
               >
-                <span style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
+                <span className="text-admin-ink-muted text-admin-10h font-semibold">
                   {meta.label} · {items.length}
                   {oldestForCategory(cat) && cat === "action" && (
                     <span style={{ marginLeft: 8, textTransform: "none", letterSpacing: 0, fontWeight: 500 }} className="text-admin-coral">
@@ -2323,10 +2323,10 @@ export function TalentNotificationsDrawer() {
       >
         <span className="inline-flex items-center gap-2">
           <Icon name="settings" size={13} stroke={1.7} color={COLORS.inkMuted} />
-          <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+          <span className="text-admin-ink text-admin-13 font-semibold">
             Notification settings
           </span>
-          <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+          <span className="text-admin-ink-muted text-admin-11h">
             Email + push per event
           </span>
         </span>
@@ -2371,7 +2371,7 @@ export function TalentNotificationsDrawer() {
               }}
             >
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
+                <div className="text-admin-ink text-admin-12h font-medium">
                   {row.label}
                 </div>
                 <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -2491,7 +2491,7 @@ export function TalentAnalyticsCard() {
     >
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
+          <div className="text-admin-ink text-sm font-semibold">
             Profile views · last 7 days
           </div>
           <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
@@ -2591,7 +2591,7 @@ export function TalentFunnelCard({
       }}
     >
       <div className="flex items-center gap-2">
-        <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
+        <div className="text-admin-ink text-sm font-semibold">
           Inquiries you&apos;re in
         </div>
         <span
@@ -3052,7 +3052,7 @@ export function DoubleBookingWarning({
         !
       </span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-red">
+        <div className="text-admin-red text-admin-13 font-semibold">
           {talentName} is already booked
         </div>
         <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink">
@@ -3155,7 +3155,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
           <Icon name="calendar" size={16} stroke={1.7} color={COLORS.accent} />
         </span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
+          <div className="text-admin-ink text-sm font-semibold">
             Sync to your calendar
           </div>
           <div style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
@@ -3894,7 +3894,7 @@ export function MentionTypeahead({
         >
           <Avatar initials={u.name.split(" ").map((p) => p[0]).join("").slice(0, 2)} hashSeed={u.name} size={22} tone="auto" />
           <span className="flex-1">{u.name}</span>
-          <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{u.role}</span>
+          <span className="text-admin-ink-muted text-admin-11">{u.role}</span>
         </button>
       ))}
     </div>
@@ -4050,7 +4050,7 @@ export function WhatsNewDrawer() {
               {item.date}
             </div>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+              <div className="text-admin-ink text-admin-13 font-semibold">
                 {item.title}
               </div>
               <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.55 }} className="text-admin-ink-muted">
@@ -4103,7 +4103,7 @@ export function HelpDrawer() {
                 <span style={{ fontFamily: FONTS.mono, fontSize: 11, padding: "2px 7px", background: "rgba(11,11,13,0.06)", borderRadius: 5, minWidth: 80 }} className="text-admin-ink">
                   {key}
                 </span>
-                <span style={{ fontSize: 12.5 }} className="text-admin-ink-muted">{desc}</span>
+                <span className="text-admin-ink-muted text-admin-12h">{desc}</span>
               </div>
             ))}
           </div>
@@ -4208,7 +4208,7 @@ export function WorkspaceActivationBanner() {
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
             Get your workspace ready
           </div>
-          <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+          <div className="text-admin-ink-muted text-xs">
             {doneCount} of {steps.length} steps complete
           </div>
         </div>
@@ -4535,12 +4535,12 @@ export function DemoDataBanner() {
 
   return (
     <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt, border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
-      <span style={{ fontSize: 18 }}>🧪</span>
+      <span className="text-lg">🧪</span>
       <div className="flex-1">
-        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+        <div className="text-admin-ink text-admin-13 font-semibold">
           {enabled ? "Demo data is active" : "Evaluating Tulala?"}
         </div>
-        <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+        <div className="text-admin-ink-muted text-admin-11h">
           {enabled ? "All data shown is fictional." : "Load sample inquiries, bookings, and talent to explore the full platform."}
         </div>
       </div>

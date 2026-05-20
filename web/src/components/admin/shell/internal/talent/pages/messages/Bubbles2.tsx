@@ -135,9 +135,9 @@ export function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { ms
           minWidth: 220,
         }}
       >
-        <span style={{ fontSize: 22 }}>📄</span>
+        <span className="text-admin-22">📄</span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 12.5, fontWeight: 500 }}>{msg.filename}</div>
+          <div className="text-admin-12h font-medium">{msg.filename}</div>
           <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 1 }}>
             {msg.sizeKB} KB · PDF
           </div>
@@ -245,7 +245,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 16 }}>💸</span>
+          <span className="text-base">💸</span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: submitted ? COLORS.green : COLORS.ink }}>
             {submitted ? "Rate sent to coordinator" : "What's your rate for this?"}
           </span>
@@ -256,7 +256,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
         </div>
         {submitted ? (
           <>
-            <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-green">€{val} / day</div>
+            <div className="text-admin-green text-admin-13 font-medium">€{val} / day</div>
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 6, fontSize: 10.5 }} className="text-admin-ink-muted">
               <span style={{ fontFamily: "monospace" }} className="text-admin-green">✓✓</span>
               <span>Sent · Viewed by coordinator · Awaiting decision</span>
@@ -292,7 +292,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
                   color: COLORS.ink,
                 }}
               />
-              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">/day</span>
+              <span className="text-admin-ink-muted text-admin-11">/day</span>
             </div>
             <PrimaryButton size="sm" onClick={() => { setRateSubmitted(true); }}>
               Send
@@ -306,7 +306,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     return (
       <div style={{ background: "#fff", border: `1px solid ${transportChosen ? "rgba(46,125,91,0.30)" : "rgba(194,106,69,0.30)"}`, borderLeft: `3px solid ${transportChosen ? COLORS.green : COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
         <div className="flex items-center gap-2 mb-2">
-          <span style={{ fontSize: 16 }}>🚖</span>
+          <span className="text-base">🚖</span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: transportChosen ? COLORS.green : COLORS.ink }}>
             {transportChosen ? `Transport confirmed · ${transportChosen}` : "Confirm your transport"}
           </span>
@@ -363,7 +363,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
         <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }} className="text-admin-indigo">
           📅 Calendar invite
         </div>
-        <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{msg.title}</div>
+        <div className="text-admin-ink text-admin-13h font-semibold">{msg.title}</div>
         <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{msg.date}</div>
         {hasConflict && (
           <div style={{
@@ -379,7 +379,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
             color: "#902a2a",
             lineHeight: 1.4,
           }}>
-            <span aria-hidden style={{ fontSize: 12 }}>⚠</span>
+            <span aria-hidden className="text-xs">⚠</span>
             <span><strong>Conflicts with Mango (May 18–19)</strong> · already on hold</span>
           </div>
         )}
@@ -390,9 +390,9 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
               <SecondaryButton size="sm" onClick={() => setCalState("declined")}>Decline</SecondaryButton>
             </>
           ) : calState === "added" ? (
-            <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">✓ Added to your calendar</div>
+            <div className="text-admin-green text-xs font-semibold">✓ Added to your calendar</div>
           ) : (
-            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">Declined</div>
+            <div className="text-admin-ink-muted text-xs">Declined</div>
           )}
         </div>
       </div>
@@ -402,9 +402,9 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     return (
       <div style={{ background: "#fff", border: `1px solid ${msg.resolved ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 16 }}>📑</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{msg.resolved ? "Contract signed" : "Sign contract"}</span>
-          {msg.resolved && <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-green">✓</span>}
+          <span className="text-base">📑</span>
+          <span className="text-admin-ink text-admin-12h font-semibold">{msg.resolved ? "Contract signed" : "Sign contract"}</span>
+          {msg.resolved && <span className="text-admin-green text-admin-11 font-semibold">✓</span>}
         </div>
         <div style={{ fontSize: 11.5, marginBottom: 8 }} className="text-admin-ink-muted">{msg.filename}</div>
         {!msg.resolved && (
@@ -425,8 +425,8 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
     return (
       <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 16 }}>📸</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
+          <span className="text-base">📸</span>
+          <span className="text-admin-ink text-admin-12h font-semibold">
             Polaroids requested {msg.resolved ? `· ${msg.resolved} sent` : ""}
           </span>
         </div>
@@ -434,7 +434,7 @@ export function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: bool
           Recent, unretouched, full-body + face. 5 minimum.
         </div>
         {msg.resolved ? (
-          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">✓ {msg.resolved} polaroids delivered</div>
+          <div className="text-admin-green text-xs font-semibold">✓ {msg.resolved} polaroids delivered</div>
         ) : (
           <PrimaryButton size="sm" onClick={() => openDrawer("talent-photo-edit", { focusSlot: "gallery" })}>Upload polaroids</PrimaryButton>
         )}

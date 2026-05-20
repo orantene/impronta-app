@@ -292,7 +292,7 @@ export function DayDetailDrawer() {
                 />
                 <div className="flex-1 min-w-0">
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
+                    <span className="text-admin-ink text-admin-13h font-semibold">
                       {inq.clientName}
                     </span>
                     <span
@@ -627,7 +627,7 @@ export function ClientProfileDrawer() {
                       cursor: "pointer",
                     }}
                   >
-                    <span aria-hidden style={{ fontSize: 14 }}>{it.emoji}</span>
+                    <span aria-hidden className="text-sm">{it.emoji}</span>
                     {it.label}
                   </button>
                 );
@@ -737,7 +737,7 @@ export function ClientProfileDrawer() {
           >
             <div className="flex items-center gap-2.5">
               <ClientTrustChip level={trust} />
-              <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
+              <span className="text-admin-ink-muted text-xs">
                 {CLIENT_TRUST_META[trust].hint}
               </span>
             </div>

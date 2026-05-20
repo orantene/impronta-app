@@ -346,7 +346,7 @@ export function CalendarWeekView({
           {/* Audit #34 — color legend so the left-border tones are scannable */}
           <CalendarColorLegend />
         </div>
-        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-admin-11h">
           {events.filter((e) => e.startDay !== null && days.includes(e.startDay!)).length} events
         </span>
       </div>
@@ -403,7 +403,7 @@ export function CalendarWeekView({
                     }}
                   >
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
+                      <div className="text-admin-ink text-admin-12h font-medium">
                         {e.client} · {e.brief}
                       </div>
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -510,7 +510,7 @@ export function CalendarDayView({
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
+                    <div className="text-admin-ink text-admin-13 font-medium">
                       {e.client}
                     </div>
                     <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
@@ -518,7 +518,7 @@ export function CalendarDayView({
                     </div>
                   </div>
                   {e.amount && (
-                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">
+                    <span className="text-admin-green text-xs font-semibold">
                       {e.amount}
                     </span>
                   )}

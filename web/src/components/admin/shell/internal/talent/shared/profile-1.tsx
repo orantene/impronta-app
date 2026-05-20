@@ -79,7 +79,7 @@ function VideoShowcase({
             fontWeight: 600,
           }}
         >
-          <span style={{ fontSize: 18 }}>+</span>
+          <span className="text-lg">+</span>
           <span>Add video</span>
         </button>
       </div>

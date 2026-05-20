@@ -19,7 +19,7 @@ function BookingStatCell({ label, value, accent }: { label: string; value: strin
         fontFamily: FONTS.body,
       }}
     >
-      <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
+      <div className="text-admin-ink-muted text-admin-10h font-semibold">
         {label}
       </div>
       <div
@@ -52,7 +52,7 @@ function RateLine({ label, range }: { label: string; range: string }) {
       }}
     >
       <span style={{ flex: 1 }} className="text-admin-ink">{label}</span>
-      <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{range}</span>
+      <span className="text-admin-ink-muted text-xs">{range}</span>
     </div>
   );
 }
@@ -71,10 +71,10 @@ function LinkChip({ link }: { link: TalentLink }) {
   };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", background: "rgba(11,11,13,0.04)", borderRadius: 999, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink">
-      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{glyph[link.kind]}</span>
+      <span className="text-admin-ink-muted text-admin-11">{glyph[link.kind]}</span>
       {link.label}
       {link.followers && (
-        <span style={{ fontSize: 10.5, fontWeight: 500 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-admin-10h font-medium">
           · {link.followers}
         </span>
       )}

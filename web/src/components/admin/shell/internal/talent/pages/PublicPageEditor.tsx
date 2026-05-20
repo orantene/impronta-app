@@ -75,7 +75,7 @@ export function PublicPageEditor() {
       {/* Tier gate banner */}
       {!isPro && (
         <div style={{ background: "rgba(79,70,229,0.06)", border: "1px solid rgba(79,70,229,0.18)", padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }} className="rounded-admin-lg">
-          <span style={{ fontSize: 20 }}>✨</span>
+          <span className="text-xl">✨</span>
           <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
               Unlock Pro to customise your page
@@ -133,7 +133,7 @@ export function PublicPageEditor() {
                 }}
               >
                 <div style={{ fontSize: 22, marginBottom: 6 }}>{tpl.thumb}</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{tpl.label}</div>
+                <div className="text-admin-ink text-xs font-semibold">{tpl.label}</div>
                 <div style={{ fontSize: 10, marginTop: 2 }} className="text-admin-ink-muted">{tpl.blurb}</div>
                 {locked && (
                   <div style={{ position: "absolute", top: 6, right: 6, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "2px 5px", borderRadius: 4 }} className="bg-admin-accent-soft text-admin-accent">

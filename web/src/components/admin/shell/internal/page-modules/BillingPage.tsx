@@ -416,12 +416,12 @@ function BillingActivityTable() {
             <div className="font-semibold">{row.ref}</div>
             <div>
               <div className="text-admin-ink">{row.client}</div>
-              <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{row.brief}</div>
+              <div className="text-admin-ink-muted text-admin-11h">{row.brief}</div>
             </div>
             <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</div>
             <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
               {row.netPayout}
-              <div style={{ fontSize: 11 }} className="text-admin-ink-dim">fee {row.fee}</div>
+              <div className="text-admin-ink-dim text-admin-11">fee {row.fee}</div>
             </div>
             <div className="text-admin-ink-muted">{row.receiverName}</div>
             <div>
@@ -500,7 +500,7 @@ export function AutoAckSettingsRow() {
       {/* Toggle row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 10 : 0 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Auto-acknowledgement</div>
+          <div className="text-admin-ink text-admin-13 font-semibold">Auto-acknowledgement</div>
           <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
             Instant reply to clients when a new inquiry is submitted.
           </div>

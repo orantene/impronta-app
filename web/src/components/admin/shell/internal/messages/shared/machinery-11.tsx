@@ -184,7 +184,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
             display: "inline-block", width: 12,
           }}
         >▸</span>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-admin-11">
           {expanded ? "Hide" : "Manage"}
         </span>
       </button>
@@ -194,7 +194,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
       {expanded && (
         <div id={`lineup-panel-${inquiryId}`} style={{ marginTop: 10 }}>
           <div className="flex items-center gap-2 mb-2">
-            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+            <span className="text-admin-ink-muted text-admin-11">
               inquiry_participants · drag to reorder
             </span>
             <span style={{ flex: 1 }} />
@@ -249,7 +249,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
                 <div style={{ fontWeight: 600 }} className="text-admin-ink">
                   {p.talentDisplayName ?? "(unnamed talent)"}
                 </div>
-                <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
+                <div className="text-admin-ink-muted text-admin-11">
                   {p.status}{p.invitedAt ? ` · invited ${new Date(p.invitedAt).toLocaleDateString()}` : ""}
                 </div>
               </div>
@@ -310,7 +310,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
               >
                 <span style={{ flex: 1, fontWeight: 600 }}>{cand.name}</span>
-                <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{cand.city ?? ""}</span>
+                <span className="text-admin-ink-muted text-admin-11">{cand.city ?? ""}</span>
               </button>
             ))}
           </div>
@@ -488,7 +488,7 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
     }}>
       <div className="flex items-center gap-2">
         <span style={{ fontWeight: 700 }} className="text-admin-ink">Draft editor</span>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">inquiry_offer_line_items</span>
+        <span className="text-admin-ink-muted text-admin-11">inquiry_offer_line_items</span>
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>Collapse</button>
       </div>
@@ -574,12 +574,12 @@ export function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: s
       <div className="flex items-center gap-2">
         <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>+ Add line item</button>
         <span style={{ flex: 1 }} />
-        <label style={{ fontSize: 11 }} className="text-admin-ink-muted">Total</label>
+        <label className="text-admin-ink-muted text-admin-11">Total</label>
         <input type="number" min={0} step="100" value={snapshot.totalClientPrice}
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, totalClientPrice: parseFloat(e.target.value) || 0 })}
           style={{ width: 90, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
         />
-        <label style={{ fontSize: 11 }} className="text-admin-ink-muted">Fee</label>
+        <label className="text-admin-ink-muted text-admin-11">Fee</label>
         <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
           style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}

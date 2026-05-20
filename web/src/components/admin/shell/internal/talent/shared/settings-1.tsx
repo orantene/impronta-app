@@ -113,7 +113,7 @@ export function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDet
               : r.tone === "pending" ? COLORS.amberSoft
               : "rgba(11,11,13,0.03)",
           }}>
-            <span style={{ fontSize: 13 }}>{r.emoji}</span>
+            <span className="text-admin-13">{r.emoji}</span>
             <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{r.label}</span>
             <span style={{
               fontSize: 11, fontWeight: 600,

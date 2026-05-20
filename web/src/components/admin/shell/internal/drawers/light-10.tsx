@@ -356,7 +356,7 @@ export function FieldCatalogDrawer() {
                           ) : (
                             <>
                               <div className="flex items-center gap-1.5">
-                                <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{fieldName}</span>
+                                <span className="text-admin-ink text-admin-12h font-medium">{fieldName}</span>
                                 {f.custom_label && (
                                   <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">renamed</span>
                                 )}
@@ -438,7 +438,7 @@ export function FieldCatalogDrawer() {
           {/* Custom workspace fields — honest "not yet" state. No fake add flow. */}
           <div style={{ padding: 14, borderRadius: 12, border: `1px dashed ${COLORS.borderSoft}`, fontFamily: FONTS.body }} className="bg-admin-surface">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
+              <span className="text-admin-ink text-admin-12h font-semibold">
                 Workspace-specific custom fields
               </span>
               <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">coming soon</span>

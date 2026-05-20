@@ -281,7 +281,7 @@ export function AdminBookingTab({
       <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>When</div>
-          <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+          <div className="text-admin-ink text-sm font-bold">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
@@ -327,7 +327,7 @@ export function AdminBookingTab({
         <div data-booking-card style={cardStyle}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
             <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
-            <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
+            <span className="text-admin-ink-muted text-admin-10h">
               {allFiles.length} file{allFiles.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -389,7 +389,7 @@ export function AdminBookingTab({
         <div data-booking-card style={cardStyle}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
             <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Last activity</div>
-            <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
+            <span className="text-admin-ink-muted text-admin-10h">
               {inquiry.timeline.length} event{inquiry.timeline.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -483,7 +483,7 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
           border: `1px solid ${days.urgent ? `${COLORS.amber}40` : `${COLORS.success}30`}`,
           borderRadius: 10,
         }}>
-          <span aria-hidden style={{ fontSize: 16 }}>{days.urgent ? "⏱" : "📅"}</span>
+          <span aria-hidden className="text-base">{days.urgent ? "⏱" : "📅"}</span>
           <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 700, color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success) }}>{days.headline}</div>
             <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{days.subhead}</div>
@@ -494,7 +494,7 @@ export function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inqu
       {/* Schedule — call time + wrap time, the questions a working
           talent asks first. */}
       <DetailSection title="Schedule">
-        <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+        <div className="text-admin-ink text-sm font-bold">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
@@ -627,7 +627,7 @@ export function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourR
             </svg>
           </span>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">Bank transfer · ES•••• 4421</div>
+            <div className="text-admin-ink text-admin-12h font-semibold">Bank transfer · ES•••• 4421</div>
             <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Default · added Mar 2024</div>
           </div>
           <button type="button" onClick={() => toast("Change payment method")} style={{

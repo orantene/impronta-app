@@ -139,7 +139,7 @@ export function DetailBlock({ label, icon, children }: { label: string; icon?: R
     <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 14 }} className="rounded-admin-md">
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
         {icon && <span aria-hidden style={{ color: COLORS.inkMuted, display: "inline-flex" }}>{icon}</span>}
-        <span style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-ink-muted">{label}</span>
+        <span className="text-admin-ink-muted text-admin-10h font-bold">{label}</span>
       </div>
       {children}
     </div>
@@ -231,7 +231,7 @@ export function TakeHomeCard({ takeHome, stage }: { takeHome: string; stage: str
     <div style={{ border: `1px solid ${COLORS.success}30`, padding: 16, fontFamily: FONTS.body }} className="bg-admin-success-soft rounded-admin-md">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-success">Your take-home</div>
+          <div className="text-admin-success text-admin-10h font-bold">Your take-home</div>
           <div style={{ fontFamily: FONTS.display, fontSize: 28, fontWeight: 700, marginTop: 2, letterSpacing: -0.5 }} className="text-admin-ink">{takeHome}</div>
           <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             {stage === "past" ? "Paid · invoice receipt available" : "Paid 14 days post-shoot"}

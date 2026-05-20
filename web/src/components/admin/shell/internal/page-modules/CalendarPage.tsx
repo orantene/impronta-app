@@ -119,7 +119,7 @@ export function CalendarPage() {
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">{monthLabel}</div>
+            <div className="text-admin-ink text-sm font-semibold">{monthLabel}</div>
             {/* Timezone display (#11) */}
             <div
               title="All times are local to the talent's shoot location. Adjust in Settings → Time zones."
@@ -288,7 +288,7 @@ export function CalendarPage() {
                   </button>
                 ))}
                 {dayEvents.length > 2 && (
-                  <span style={{ fontSize: 10, fontWeight: 600 }} className="text-admin-accent">
+                  <span className="text-admin-accent text-admin-10 font-semibold">
                     +{dayEvents.length - 2} more
                   </span>
                 )}

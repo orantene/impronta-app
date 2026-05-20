@@ -725,7 +725,7 @@ export function ClientTrustDetailDrawer() {
       <div className="flex flex-col gap-5">
         <div style={{ padding: "14px 16px", background: current.bg, border: `1px solid ${current.color}33`, borderLeft: `3px solid ${current.color}`, borderRadius: 10, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 18 }}>{current.badge}</span>
+            <span className="text-lg">{current.badge}</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: current.color }}>{current.label}</span>
             <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" as const, color: current.color }}>Current tier</span>
           </div>
@@ -746,7 +746,7 @@ export function ClientTrustDetailDrawer() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div style={{ fontSize: 13, fontWeight: 600, color: isCurrent ? t.color : COLORS.ink, marginBottom: 3 }}>{t.label}{isCurrent && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400 }} className="text-admin-ink-muted">— you are here</span>}</div>
-                  <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{t.requirements.join(" · ")}</div>
+                  <div className="text-admin-ink-muted text-admin-11h">{t.requirements.join(" · ")}</div>
                 </div>
               </div>
             );

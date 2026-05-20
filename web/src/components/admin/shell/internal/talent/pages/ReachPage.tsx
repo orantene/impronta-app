@@ -281,7 +281,7 @@ function ReachPage() {
           }}
         >
           <Icon name="search" size={14} stroke={1.7} color={COLORS.inkMuted} />
-          <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+          <span className="text-admin-ink text-admin-13 font-semibold">
             Find a hub or studio to join
           </span>
         </div>

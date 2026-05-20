@@ -378,7 +378,7 @@ export function WebsitePage() {
           )}
           {w.announcement.enabled && (
             <div style={{ padding: "10px 14px", borderRadius: 10, background: w.announcement.tone === "info" ? COLORS.indigoSoft : w.announcement.tone === "success" ? COLORS.successSoft : w.announcement.tone === "warning" ? COLORS.amberSoft : COLORS.surfaceAlt, color: w.announcement.tone === "info" ? COLORS.indigoDeep : w.announcement.tone === "success" ? COLORS.successDeep : w.announcement.tone === "warning" ? COLORS.amberDeep : COLORS.ink, fontFamily: FONTS.body, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: `1px solid ${COLORS.borderSoft}` }}>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>📣 {w.announcement.text}</span>
+              <span className="text-admin-13 font-medium">📣 {w.announcement.text}</span>
               <span style={{ fontSize: 11, opacity: 0.7, textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.6 }}>{w.announcement.audience}</span>
             </div>
           )}
@@ -502,7 +502,7 @@ export function WebsitePage() {
                   <div className="min-w-0">
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <PageStatusChip status={p.status} />
-                      <span style={{ fontSize: 11 }} className="text-admin-ink-dim">{p.author}</span>
+                      <span className="text-admin-ink-dim text-admin-11">{p.author}</span>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{p.title}</div>
                     <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{p.tags.join(" · ")}</div>

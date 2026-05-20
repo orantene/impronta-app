@@ -221,7 +221,7 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
                   <div key={t.talentId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
                     <span className="flex flex-col gap-0.5">
                       <span className="font-semibold">{t.talentName}</span>
-                      <span style={{ fontSize: 11 }} className="text-admin-ink-dim">{conv > 0 ? `${conv.toFixed(2)}% conv` : "no bookings"}</span>
+                      <span className="text-admin-ink-dim text-admin-11">{conv > 0 ? `${conv.toFixed(2)}% conv` : "no bookings"}</span>
                     </span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.visits.toLocaleString()}</span>
                     <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.inquiries}</span>

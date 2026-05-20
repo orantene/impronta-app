@@ -68,8 +68,8 @@ export function VacationHandoverDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {saved ? (
           <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)`, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-success-soft rounded-admin-lg">
-            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-success-deep">✓ Handover active</div>
-            <div style={{ fontSize: 12.5 }} className="text-admin-success-deep">
+            <div className="text-admin-success-deep text-admin-13 font-bold">✓ Handover active</div>
+            <div className="text-admin-success-deep text-admin-12h">
               {OPEN_COUNT} inquiries reassigned to <strong>{handoverTo}</strong> · {fromDate} – {toDate}
             </div>
             <div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
@@ -210,7 +210,7 @@ export function OnCallRotationDrawer() {
                     </span>
                   )}
                 </div>
-                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{slot.hours}</span>
+                <span className="text-admin-ink-muted text-admin-11h">{slot.hours}</span>
               </div>
             ))}
           </div>
@@ -236,7 +236,7 @@ export function OnCallRotationDrawer() {
                   )}
                 </div>
                 <div style={{ flex: 1, paddingTop: 4 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{step.label}</div>
+                  <div className="text-admin-ink text-admin-12h font-semibold">{step.label}</div>
                   <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{step.target}</div>
                   <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-indigo-deep">SLA: {step.sla}</div>
                 </div>
@@ -364,7 +364,7 @@ export function GdprExportDrawer() {
                   {dt.selected && <Icon name="check" size={11} color="#fff" stroke={2.5} />}
                 </div>
                 <div className="flex-1">
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{dt.label}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{dt.label}</div>
                   <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{dt.description}</div>
                 </div>
                 <div style={{ fontSize: 11, flexShrink: 0 }} className="text-admin-ink-muted">{dt.size}</div>
@@ -460,7 +460,7 @@ export function ConsentLogDrawer() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{entry.channel}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{entry.channel}</div>
                   <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{entry.timestamp} · {entry.method}</div>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: toneFor(entry.status), padding: "2px 8px", background: `${toneFor(entry.status)}18` }} className="rounded-admin-sm">
@@ -598,7 +598,7 @@ export function ContractTemplatesDrawer() {
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{tmpl.name}</div>
+                        <div className="text-admin-ink text-admin-13 font-semibold">{tmpl.name}</div>
                         <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                           {tmpl.fields.length} merge fields
                         </div>

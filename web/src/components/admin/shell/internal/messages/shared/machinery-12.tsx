@@ -53,7 +53,7 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
     <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
       <span style={{ fontWeight: 700 }} className="text-admin-ink">Live · DB-backed</span>
       <span className="text-admin-ink-muted">Offer status: <strong>{status}</strong></span>
-      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{offerId.slice(0, 8)}…</span>
+      <span className="text-admin-ink-muted text-admin-11">{offerId.slice(0, 8)}…</span>
       <span style={{ flex: 1 }} />
       {isAdmin && status === "draft" && (
         <button type="button" disabled={pending}
@@ -162,7 +162,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
             />
           )}
           <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }} className="rounded-admin-md">
-            <div style={{ fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">Submit your rate</div>
+            <div className="text-admin-ink text-admin-13h font-bold">Submit your rate</div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
               The coordinator is waiting on your number. You&apos;ll see the agency
               fee + platform fee deducted before take-home — quote what you
@@ -227,7 +227,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           fontSize: 10.5, fontWeight: 700,           padding: "3px 9px", borderRadius: 999, background: stage.bg, color: stage.tone, flexShrink: 0,
         }}>{stageLabel}</span>
         {offer.expiresInHours !== undefined && offer.stage !== "accepted" && offer.stage !== "rejected" && offer.stage !== "expired" && (
-          <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-coral">
+          <span className="text-admin-coral text-admin-11 font-semibold">
             ⏱ {offer.expiresInHours}h
           </span>
         )}

@@ -52,8 +52,8 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
           <div className="flex items-center gap-2.5">
             <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
             <div className="flex-1">
-              <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{coord.name}</div>
-              <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">Your coordinator</div>
+              <div className="text-admin-ink text-admin-13 font-bold">{coord.name}</div>
+              <div className="text-admin-ink-muted text-admin-11h">Your coordinator</div>
             </div>
             <button type="button" disabled title="Use the Messages tab to contact this coordinator." style={disabledBtn({
               padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
@@ -129,7 +129,7 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
 
       {/* When + where, combined into one calm card */}
       <DetailSection title="When & where">
-        <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
+        <div className="text-admin-ink text-admin-13 font-medium">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
@@ -252,7 +252,7 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
 
       {/* Schedule — talent's most-asked question */}
       <DetailSection title="Schedule">
-        <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+        <div className="text-admin-ink text-sm font-bold">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
@@ -289,7 +289,7 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
                 </span>
                 <CoordRoleBadge role={coord.role} />
               </div>
-              <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{coord.role === "owner" ? "Workspace owner" : "Coordinator"}</div>
+              <div className="text-admin-ink-muted text-admin-11">{coord.role === "owner" ? "Workspace owner" : "Coordinator"}</div>
             </div>
             <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
               padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 600,
@@ -502,8 +502,8 @@ export function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
             <Avatar size={28} tone="auto" hashSeed={c.name} initials={c.initials} />
             <div className="flex-1">
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
-              <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
+              <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
+              <div className="text-admin-ink-muted text-admin-11">
                 {c.role === "owner" ? "Workspace owner · Coordinator" : "Coordinator"}
                 {c.alsoTalentId && " · Also booked as talent"}
               </div>
@@ -637,7 +637,7 @@ export function PageTopUtility({
         </span>
       )}
       {meta && (
-        <span style={{ fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">{meta}</span>
+        <span className="text-admin-ink-muted text-admin-11h font-medium">{meta}</span>
       )}
       {action && (
         <button type="button" onClick={action.onClick} style={{

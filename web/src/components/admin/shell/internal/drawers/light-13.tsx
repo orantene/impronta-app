@@ -714,7 +714,7 @@ export function SiteHealthDrawer() {
               <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
                 {c.label}
               </span>
-              <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{c.value}</span>
+              <span className="text-admin-ink-muted text-xs">{c.value}</span>
             </div>
           ))}
         </div>

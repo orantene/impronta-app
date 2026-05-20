@@ -295,7 +295,7 @@ export function SiteSetupDrawer() {
                 {isDone ? (
                   <Icon name="check" size={14} stroke={2.5} color="#fff" />
                 ) : (
-                  <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
+                  <span className="text-admin-ink-muted text-admin-11 font-semibold">
                     {idx + 1}
                   </span>
                 )}
@@ -397,7 +397,7 @@ export function ThemeFoundationsDrawer() {
                   <span key={c} style={{ width: 18, height: 18, borderRadius: 4, background: c, border: `1px solid ${COLORS.borderSoft}` }} />
                 ))}
               </div>
-              <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{t.label}</div>
+              <div className="text-admin-ink text-admin-12h font-semibold">{t.label}</div>
             </button>
           ))}
         </div>
@@ -495,7 +495,7 @@ export function ThemeFoundationsDrawer() {
                 textAlign: "left",
               }}
             >
-              <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{d.label}</div>
+              <div className="text-admin-ink text-admin-12h font-semibold">{d.label}</div>
               <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{d.sub}</div>
             </button>
           ))}

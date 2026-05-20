@@ -23,7 +23,7 @@ export function PageTopCollection({
     }}>
       <h1 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 19, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">{title}</h1>
       {count !== undefined && (
-        <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-dim">
+        <span className="text-admin-ink-dim text-xs font-medium">
           {count}
         </span>
       )}
@@ -74,7 +74,7 @@ export function PageTopThread({
           </svg>
           <span className="hidden">{back.label}</span>
         </button>
-        <span style={{ fontSize: 13 }} className="text-admin-ink-dim">{back.label}</span>
+        <span className="text-admin-ink-dim text-admin-13">{back.label}</span>
         <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 12 }}>·</span>
         {/* Title takes remaining width; truncates if too long */}
         <h1 style={{ margin: 0, flex: 1, minWidth: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700, letterSpacing: -0.25, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">{title}</h1>
@@ -282,7 +282,7 @@ export function InquiryComposer({
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <div className="flex-1">
-            <div style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-ink-muted">
+            <div className="text-admin-ink-muted text-admin-10h font-bold">
               {mode === "client" ? "New inquiry" : mode === "hub" ? "Hub inquiry" : "Manual inquiry"}
             </div>
             <h2 style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, fontFamily: FONTS.display }} className="text-admin-ink">
@@ -342,7 +342,7 @@ export function InquiryComposer({
                   fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 5,
                 }}>
-                  <span aria-hidden style={{ fontSize: 13 }}>{c.emoji}</span>
+                  <span aria-hidden className="text-admin-13">{c.emoji}</span>
                   {c.label}
                 </button>
               );
@@ -521,7 +521,7 @@ export function MixedGroupBuilder({
         marginBottom: 10, gap: 8,
       }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-indigo-deep">
+          <div className="text-admin-indigo-deep text-xs font-semibold">
             Mixed group
           </div>
           <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">

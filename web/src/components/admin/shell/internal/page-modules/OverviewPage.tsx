@@ -278,7 +278,7 @@ export function OverviewPage() {
             <Icon name="bolt" size={18} color={COLORS.indigo} />
           </div>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">Operations</div>
+            <div className="text-admin-ink text-sm font-bold">Operations</div>
             <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Analytics, queues, automations, comms.</div>
           </div>
           <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
@@ -297,7 +297,7 @@ export function OverviewPage() {
             <Icon name="team" size={18} color={COLORS.accent} />
           </div>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">Production</div>
+            <div className="text-admin-ink text-sm font-bold">Production</div>
             <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Casting, crew, on-set, rights & safety.</div>
           </div>
           <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
@@ -504,7 +504,7 @@ function OverviewFree() {
           <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink">
             First 10 minutes
           </span>
-          <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+          <span className="text-admin-ink-muted text-admin-11h">
             {progressPct}% complete
           </span>
         </div>
@@ -585,7 +585,7 @@ function OverviewFree() {
                   >
                     {done && <Icon name="check" size={13} stroke={2.5} color="#fff" />}
                     {!done && (
-                      <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
+                      <span className="text-admin-ink-muted text-admin-11 font-semibold">
                         {idx + 1}
                       </span>
                     )}

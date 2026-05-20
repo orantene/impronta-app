@@ -84,8 +84,8 @@ export function CrewBookingDrawer() {
 
         <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink-muted">Estimated total</span>
-            <span style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-accent">£{total.toLocaleString()}</span>
+            <span className="text-admin-ink-muted text-admin-13 font-semibold">Estimated total</span>
+            <span className="text-admin-accent text-admin-22 font-extrabold">£{total.toLocaleString()}</span>
           </div>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
             {["confirmed", "pending", "unfilled"].map(s => {
@@ -149,7 +149,7 @@ export function ProductionTimelineDrawer() {
             <div style={{ flex: 1, padding: "10px 0 12px 0", borderBottom: i < events.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
               <div className="flex items-center gap-2">
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: typeColor(ev.type), flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ev.label}</span>
+                <span className="text-admin-ink text-admin-13 font-semibold">{ev.label}</span>
               </div>
               <div style={{ fontSize: 11, marginTop: 3, marginLeft: 16 }} className="text-admin-ink-muted">{ev.who}</div>
             </div>
@@ -225,7 +225,7 @@ export function UsageTrackerDrawer() {
             <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{u.talent}</div>
+                  <div className="text-admin-ink text-admin-13 font-bold">{u.talent}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{u.campaign}</div>
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(u.status), background: statusBg(u.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">
@@ -307,10 +307,10 @@ export function RelicenseFlowDrawer() {
         {step === 1 && (
           <div className="flex flex-col gap-3.5">
             <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14 }} className="bg-admin-accent-soft rounded-admin-md">
-              <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-accent">Lena Voss — Winter 2024</div>
+              <div className="text-admin-accent text-admin-13 font-bold">Lena Voss — Winter 2024</div>
               <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Current: Digital · UK only · Expires 15 May 2026</div>
             </div>
-            <div style={{ fontSize: 12 }} className="text-admin-ink">You are extending the licence for this talent and campaign. Select the new scope below.</div>
+            <div className="text-admin-ink text-xs">You are extending the licence for this talent and campaign. Select the new scope below.</div>
           </div>
         )}
 
@@ -345,13 +345,13 @@ export function RelicenseFlowDrawer() {
                   { k: "Fee", v: `£${fee}` },
                 ].map(row => (
                   <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.k}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.v}</span>
+                    <span className="text-admin-ink-muted text-xs">{row.k}</span>
+                    <span className="text-admin-ink text-xs font-semibold">{row.v}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+            <div className="text-admin-ink-muted text-xs">
               An offer will be sent to Lena Voss for acceptance. Once accepted, the new usage terms will be recorded automatically.
             </div>
           </div>
@@ -401,7 +401,7 @@ export function OwnershipTransferDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
 
         <div style={{ background: `${COLORS.coral}12`, border: `1px solid ${COLORS.coral}40`, padding: 14 }} className="rounded-admin-md">
-          <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-coral">⚠ Irreversible action</div>
+          <div className="text-admin-coral text-xs font-bold">⚠ Irreversible action</div>
           <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
             Ownership transfers require support review. This drawer does not change account access automatically.
           </div>
@@ -414,8 +414,8 @@ export function OwnershipTransferDrawer() {
               <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                 {[{ k: "Workspace", v: "Tulala Agency" }, { k: "Current owner", v: "orantene@gmail.com" }, { k: "Plan", v: "Studio" }, { k: "Members", v: "7" }].map(row => (
                   <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.k}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.v}</span>
+                    <span className="text-admin-ink-muted text-xs">{row.k}</span>
+                    <span className="text-admin-ink text-xs font-semibold">{row.v}</span>
                   </div>
                 ))}
               </div>
@@ -433,15 +433,15 @@ export function OwnershipTransferDrawer() {
               <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                 {[{ k: "From", v: "orantene@gmail.com" }, { k: "To", v: newOwnerEmail }, { k: "Workspace", v: "Tulala Agency" }].map(row => (
                   <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.k}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.v}</span>
+                    <span className="text-admin-ink-muted text-xs">{row.k}</span>
+                    <span className="text-admin-ink text-xs font-semibold">{row.v}</span>
                   </div>
                 ))}
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setConfirmed(c => !c)}>
               <Toggle on={confirmed} onChange={() => setConfirmed(c => !c)} />
-              <span style={{ fontSize: 12 }} className="bg-admin-surface rounded-admin-sm text-admin-ink">I understand this action is permanent and cannot be undone</span>
+              <span className="bg-admin-surface rounded-admin-sm text-admin-ink text-xs">I understand this action is permanent and cannot be undone</span>
             </div>
           </div>
         )}
@@ -472,7 +472,7 @@ export function MinorAccountDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
 
         <div style={{ background: `${COLORS.indigo}12`, border: `1px solid ${COLORS.indigo}40`, padding: 14 }} className="rounded-admin-md">
-          <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-indigo">ℹ Under-18 account</div>
+          <div className="text-admin-indigo text-xs font-bold">ℹ Under-18 account</div>
           <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
             A parent or legal guardian must be registered as co-pilot. They will receive booking notifications and must approve all paid engagements.
           </div>
@@ -481,8 +481,8 @@ export function MinorAccountDrawer() {
         <div style={{ border: `1px solid ${COLORS.border}`, padding: 14 }} className="bg-admin-surface rounded-admin-md">
           <CapsLabel>Talent (minor)</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Sofia Chen</div>
-            <div style={{ fontSize: 11 }} className="text-admin-ink-muted">sofia.chen@example.com · Age: 16</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">Sofia Chen</div>
+            <div className="text-admin-ink-muted text-admin-11">sofia.chen@example.com · Age: 16</div>
           </div>
         </div>
 
@@ -571,7 +571,7 @@ export function DiscoveryFeedDrawer() {
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t.name}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{t.name}</div>
                   <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
                     {t.tags.map(tag => (
                       <span key={tag} style={{ fontSize: 10, color: COLORS.inkMuted, background: COLORS.borderSoft, padding: "1px 6px", borderRadius: RADIUS.sm }}>{tag}</span>
@@ -579,7 +579,7 @@ export function DiscoveryFeedDrawer() {
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{t.bookings}</div>
+                  <div className="text-admin-ink text-admin-13 font-bold">{t.bookings}</div>
                   <div style={{ fontSize: 10, color: t.trend.startsWith("+") ? COLORS.success : COLORS.coral, marginTop: 1 }}>{t.trend}</div>
                 </div>
               </div>
@@ -592,7 +592,7 @@ export function DiscoveryFeedDrawer() {
             {editorial.map((e, i) => (
               <div key={i} style={{ padding: "14px 16px", background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{e.title}</div>
+                  <div className="text-admin-ink text-admin-13 font-bold">{e.title}</div>
                   <span style={{ fontSize: 10, fontWeight: 700, background: `${COLORS.indigo}18`, padding: "2px 7px" }} className="text-admin-indigo rounded-admin-sm">{e.type}</span>
                 </div>
                 <div className="flex gap-1.5">
@@ -653,14 +653,14 @@ export function AvailSearchDrawer() {
             {results.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-ink-muted">{r.name.split(" ").map(n => n[0]).join("")}</span>
+                  <span className="text-admin-ink-muted text-admin-11 font-bold">{r.name.split(" ").map(n => n[0]).join("")}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{r.name}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{r.name}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{r.type}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-ink">{r.rate}</div>
+                  <div className="text-admin-ink text-xs font-bold">{r.rate}</div>
                   <span style={{ fontSize: 10, fontWeight: 700, color: r.avail === "Full" ? COLORS.success : COLORS.amber, background: r.avail === "Full" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "1px 6px" }} className="rounded-admin-sm">
                     {r.avail}
                   </span>
@@ -715,12 +715,12 @@ export function CallSheetDrawer() {
 
         <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }} className="bg-admin-accent-soft rounded-admin-md">
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-accent">Spring Campaign 2026</div>
+            <div className="text-admin-accent text-admin-13 font-bold">Spring Campaign 2026</div>
             <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Studio One, Shoreditch · Tue 20 May 2026</div>
           </div>
           <div className="text-right">
-            <div style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-success">{crew.filter(c => c.status === "on-set").length}</div>
-            <div style={{ fontSize: 10 }} className="text-admin-ink-muted">on set now</div>
+            <div className="text-admin-success text-admin-22 font-extrabold">{crew.filter(c => c.status === "on-set").length}</div>
+            <div className="text-admin-ink-muted text-admin-10">on set now</div>
           </div>
         </div>
 
@@ -728,10 +728,10 @@ export function CallSheetDrawer() {
           {crew.map((c, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
               <div style={{ textAlign: "center", minWidth: 36, flexShrink: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-ink-muted">{c.callTime}</div>
+                <div className="text-admin-ink-muted text-admin-11 font-bold">{c.callTime}</div>
               </div>
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
                 <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.role}</div>
               </div>
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(c.status), background: statusBg(c.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">

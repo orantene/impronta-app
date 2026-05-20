@@ -145,7 +145,7 @@ export function DisputeFlowDrawer() {
           ))}
         </div>
         {step === 1 && <div className="flex flex-col gap-2">{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.accent : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
-        {step === 2 && <div className="flex flex-col gap-4"><div style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, opacity: 0.65 }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Evidence upload coming soon</div><div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">Attach evidence to the support email after it opens.</div></div><div className="flex gap-2"><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
+        {step === 2 && <div className="flex flex-col gap-4"><div style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, opacity: 0.65 }}><div className="text-[28px]">📎</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Evidence upload coming soon</div><div style={{ fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">Attach evidence to the support email after it opens.</div></div><div className="flex gap-2"><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
         {step === 3 && <div className="flex flex-col gap-4"><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, lineHeight: 1.6 }} className="text-admin-ink-muted"><strong style={{ color: "#7A2026" }}>Support must review this manually.</strong> Emailing this request does not freeze escrow automatically; support will confirm payment status and next steps.</div><div className="flex gap-2"><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={emailDisputeRequest} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Email dispute request</button></div></div>}
       </div>
     </DrawerShell>
@@ -160,10 +160,10 @@ export function KycVerificationDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Identity Verification" description="Secure · Encrypted · ~3 minutes" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 20 }}>
-        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span style={{ fontSize: 22 }}>{i.icon}</span><div><div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{i.title}</div><div style={{ fontSize: 12 }} className="text-admin-ink-muted">{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
-        {step === "id" && <div className="flex flex-col gap-4"><div onClick={() => { toast("File picker — select ID document"); setStep("selfie"); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🪪</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Tap to upload or take a photo</div></div></div>}
-        {step === "selfie" && <div className="flex flex-col gap-4"><div onClick={() => setStep("done")} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🤳</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Selfie holding your ID</div><div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">Both your face and document must be clearly visible</div></div></div>}
-        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div style={{ fontSize: 16, fontWeight: 700 }} className="text-admin-ink">Submitted</div><div style={{ fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">Review within 24 hours. You&apos;ll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
+        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span className="text-admin-22">{i.icon}</span><div><div className="text-admin-ink text-admin-13 font-semibold">{i.title}</div><div className="text-admin-ink-muted text-xs">{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
+        {step === "id" && <div className="flex flex-col gap-4"><div onClick={() => { toast("File picker — select ID document"); setStep("selfie"); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div className="text-4xl">🪪</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Tap to upload or take a photo</div></div></div>}
+        {step === "selfie" && <div className="flex flex-col gap-4"><div onClick={() => setStep("done")} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div className="text-4xl">🤳</div><div style={{ fontSize: 13, fontWeight: 500, marginTop: 8 }} className="text-admin-ink">Selfie holding your ID</div><div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">Both your face and document must be clearly visible</div></div></div>}
+        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div className="text-admin-ink text-base font-bold">Submitted</div><div style={{ fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink-muted">Review within 24 hours. You&apos;ll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
       </div>
     </DrawerShell>
   );
@@ -362,7 +362,7 @@ export function AiWeeklyDigestDrawer() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "1px solid rgba(95,75,139,0.18)" }} className="bg-admin-royal-soft rounded-admin-lg">
           <Icon name="sparkle" size={14} color={COLORS.royal} stroke={1.7} />
           <div className="flex-1">
-            <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-royal">
+            <div className="text-admin-royal text-xs font-bold">
               AI-generated · not saved · Apr 21 – Apr 28
             </div>
             <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 1 }} className="text-admin-royal">
@@ -624,7 +624,7 @@ export function ConversionFunnelDrawer() {
               <div style={{ fontSize: 19, fontWeight: 800, color: (tile as { warn?: boolean }).warn ? COLORS.coral : COLORS.ink, marginBottom: 2 }}>
                 {tile.value}
               </div>
-              <div style={{ fontSize: 10.5 }} className="text-admin-ink-muted">{tile.sub}</div>
+              <div className="text-admin-ink-muted text-admin-10h">{tile.sub}</div>
             </div>
           ))}
         </div>
@@ -684,14 +684,14 @@ export function ConversionFunnelDrawer() {
               >
                 <div className="flex items-center gap-2">
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: STAGE_COLORS[i] ?? COLORS.accent, flexShrink: 0, }} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{stage.label}</span>
+                  <span className="text-admin-ink text-admin-13 font-medium">{stage.label}</span>
                 </div>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{stage.count}</span>
+                  <span className="text-admin-ink text-admin-13 font-bold">{stage.count}</span>
                   {stage.dropPct !== null ? (
-                    <span style={{ fontSize: 11 }} className="text-admin-coral">−{stage.dropPct}% drop</span>
+                    <span className="text-admin-coral text-admin-11">−{stage.dropPct}% drop</span>
                   ) : (
-                    <span style={{ fontSize: 11 }} className="text-admin-ink-muted">entry stage</span>
+                    <span className="text-admin-ink-muted text-admin-11">entry stage</span>
                   )}
                 </div>
               </div>

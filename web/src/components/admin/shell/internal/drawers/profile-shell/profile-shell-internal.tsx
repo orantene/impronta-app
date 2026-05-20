@@ -265,7 +265,7 @@ export function FieldGroupBlock({
                 }}
               />
               <div className="flex-1 min-w-0">
-                <span style={{ fontSize: 12.5 }} className="text-admin-ink">
+                <span className="text-admin-ink text-admin-12h">
                 {f.label}
                 {f.required_before_publish && (
                   <span style={{ marginLeft: 6, fontWeight: 700, fontSize: 10 }}
@@ -475,9 +475,9 @@ export function LiveCategoryFieldsPanel({
           borderBottom: open ? `1px solid ${COLORS.borderSoft}` : "none",
         }}
       >
-        <span style={{ fontSize: 18 }}>🧬</span>
+        <span className="text-lg">🧬</span>
         <div className="flex-1">
-          <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
+          <div className="text-admin-ink text-admin-13h font-semibold">
             {copy.t("Agency Fields")}
           </div>
           <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
@@ -488,18 +488,18 @@ export function LiveCategoryFieldsPanel({
               : copy.t("DB-resolved field catalog for this talent's types")}
           </div>
         </div>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{open ? "▾" : "▸"}</span>
+        <span className="text-admin-ink-muted text-admin-11">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
         <div style={{ padding: "12px 14px" }}>
           {loading && (
-            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">{copy.t("Loading…")}</div>
+            <div className="text-admin-ink-muted text-xs">{copy.t("Loading…")}</div>
           )}
           {error && (
             <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 12 }} className="bg-admin-amber-soft text-admin-ink">{error}</div>
           )}
           {fields && fields.length === 0 && (
-            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+            <div className="text-admin-ink-muted text-xs">
               No category-specific fields yet. Set a primary type first.
             </div>
           )}
@@ -510,7 +510,7 @@ export function LiveCategoryFieldsPanel({
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
                   {fields.length} fields across {groups.length} groups · {completion.required} required to publish
                 </div>
-                <div style={{ fontSize: 10.5 }}>
+                <div className="text-admin-10h">
                   Groups auto-loaded from primary + secondary parent categories. Universal + global fields apply to everyone.
                 </div>
                 <div style={{ fontSize: 10.5, marginTop: 4, opacity: 0.85 }}>
@@ -625,8 +625,8 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
   const labelRow = (
     <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
       {field.name}
-      {!field.required && <span style={{ fontSize: 10, fontWeight: 500 }} className="text-admin-ink-dim">· optional</span>}
-      {field.required && <span style={{ fontSize: 10, fontWeight: 700 }} className="text-admin-amber-deep">· required</span>}
+      {!field.required && <span className="text-admin-ink-dim text-admin-10 font-medium">· optional</span>}
+      {field.required && <span className="text-admin-amber-deep text-admin-10 font-bold">· required</span>}
     </label>
   );
   const helper = field.helper && (
@@ -669,7 +669,7 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
           }}>
             <span style={{ position: "absolute", top: 2, left: v ? 16 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", }} />
           </span>
-          <span style={{ fontSize: 12.5 }} className="text-admin-ink">{v ? "Yes" : "No"}</span>
+          <span className="text-admin-ink text-admin-12h">{v ? "Yes" : "No"}</span>
         </button>
         {helper}
       </div>
@@ -1417,7 +1417,7 @@ export function ServicesEditor({
         {primaryRes ? (
           <div>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(15,79,62,0.08)", border: `1.5px solid ${COLORS.accent}`, fontSize: 13, fontWeight: 600 }} className="text-admin-accent-deep">
-              <span style={{ fontSize: 14 }}>{primaryRes.parent.emoji}</span>
+              <span className="text-sm">{primaryRes.parent.emoji}</span>
               {primaryRes.child.label}
               <button type="button" onClick={onClearPrimary} aria-label="Change main service"
                 style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700, padding: 0 }}>×</button>
@@ -1715,8 +1715,8 @@ export const RatesEditor = React.memo(function RatesEditor({ rates, selectedType
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <span style={{ fontSize: 14 }}>{r.parent.emoji}</span>
-            <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{r.child.label}</span>
+            <span className="text-sm">{r.parent.emoji}</span>
+            <span className="text-admin-ink text-admin-13 font-semibold">{r.child.label}</span>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <select value={r.currency} onChange={(e) => updateRow(r.typeId, { currency: e.target.value })} style={{
@@ -1879,7 +1879,7 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
         marginBottom: 14,
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: tierMeta.fg, display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 18 }}>{tierMeta.emoji}</span>
+          <span className="text-lg">{tierMeta.emoji}</span>
           {tierMeta.label}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
@@ -1899,7 +1899,7 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
-        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-admin-11h">
           Bookings completed on Tulala
         </span>
         <input type="number" min={0} value={verifications.bookingsCount}
@@ -1939,7 +1939,7 @@ export function InviteClaimBanner({ stageName, onResend, onTakeOver }: {
         fontSize: 12, flexShrink: 0,
       }}>📧</span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-amber-deep">
+        <div className="text-admin-amber-deep text-admin-12h font-semibold">
           Waiting on {stageName || "talent"} to claim this profile
         </div>
         <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -2827,7 +2827,7 @@ export function CoverPhotoSlot({
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
             </svg>
-            <span style={{ fontSize: 11.5, fontWeight: 500 }}>Add cover photo</span>
+            <span className="text-admin-11h font-medium">Add cover photo</span>
           </div>
         )}
         {imageUrl && (
@@ -3376,7 +3376,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
         fontFamily: FONTS.body,
         display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
       }}>
-        <span style={{ fontSize: 16 }}>+</span> Upload file (PDF, JPG, PNG, DOC)
+        <span className="text-base">+</span> Upload file (PDF, JPG, PNG, DOC)
       </button>
       <input ref={fileRef} type="file"
         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.heic" multiple style={{ display: "none" }}
@@ -3415,7 +3415,7 @@ export function RequiredCoach({ missing, onJump }: {
           }}>
             <span style={{ width: 16, height: 16, borderRadius: "50%", border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0, }} />
             <span style={{ fontSize: 12, flex: 1 }} className="text-admin-ink">{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
-            <span style={{ fontSize: 14 }} className="text-admin-indigo-deep">›</span>
+            <span className="text-admin-indigo-deep text-sm">›</span>
           </button>
         ))}
       </div>
@@ -3685,7 +3685,7 @@ export function PMobileMenuItem({ icon, label, onClick, disabled, shortcut, hasS
       {shortcut && (
         <span style={{ fontSize: 10, fontFamily: FONTS.mono, background: "rgba(11,11,13,0.04)", padding: "2px 6px", borderRadius: 4 }} className="text-admin-ink-dim">{shortcut}</span>
       )}
-      {hasSubmenu && <span style={{ fontSize: 13 }} className="text-admin-ink-dim">›</span>}
+      {hasSubmenu && <span className="text-admin-ink-dim text-admin-13">›</span>}
     </button>
   );
 }
@@ -3746,7 +3746,7 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
               <span style={{ display: "block", fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{s.emoji}  {s.label}</span>
               <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{s.helper}</span>
             </span>
-            <span style={{ fontSize: 14 }} className="text-admin-ink-dim">›</span>
+            <span className="text-admin-ink-dim text-sm">›</span>
           </button>
         ))}
       </div>
@@ -4043,7 +4043,7 @@ export function CountryAutocompleteInput({
             >
               <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }} className="text-admin-ink">{c.name_en}</span>
               {c.iso2 && (
-                <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">{c.iso2}</span>
+                <span className="text-admin-ink-muted text-admin-11 font-semibold">{c.iso2}</span>
               )}
             </button>
           ))}
@@ -4142,7 +4142,7 @@ export function CityAutocompleteInput({
                 fontFamily: FONTS.body, borderBottom: `1px solid ${COLORS.borderSoft}`,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{p.mainText}</span>
+              <span className="text-admin-ink text-admin-13 font-medium">{p.mainText}</span>
               {p.secondaryText && (
                 <span style={{ fontSize: 11.5, marginLeft: 6 }} className="text-admin-ink-muted">{p.secondaryText}</span>
               )}
@@ -4289,7 +4289,7 @@ export function StatusPillDropdown({ status, onChange, role }: {
           fontFamily: FONTS.body,
         }}>
         {copy.t(cur.label)}
-        <span style={{ fontSize: 10 }}>▾</span>
+        <span className="text-admin-10">▾</span>
       </button>
       <div
         ref={popoverRef}
@@ -5120,7 +5120,7 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
         <div style={{ padding: 12, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10 }} className="bg-admin-surface">
           <span style={{ width: 36, height: 36, borderRadius: 10, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }} className="bg-admin-accent">▶</span>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
+            <div className="text-admin-ink text-admin-12h font-semibold">
               {uploading ? "Uploading reel…" : "Reel uploaded"}
             </div>
             <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -5141,7 +5141,7 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
           fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, fontWeight: 500,
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
         }}>
-          <span style={{ fontSize: 18 }}>+</span>
+          <span className="text-lg">+</span>
           Drop or pick a 30-sec hello reel
         </button>
       )}
@@ -5214,7 +5214,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{loading ? "…" : `${a.items.length} photo${a.items.length === 1 ? "" : "s"}`}</span>
+              <span className="text-admin-ink-muted text-admin-11">{loading ? "…" : `${a.items.length} photo${a.items.length === 1 ? "" : "s"}`}</span>
               {albums.length > 1 && (
                 <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
                   width: 24, height: 24, borderRadius: 6,
@@ -5319,7 +5319,7 @@ export function SeasonalEditor({ windows, onChange }: {
           style={{ padding: "8px 8px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink, background: "#fff" }}>
           {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{monthName(i+1)}</option>)}
         </select>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-dim">→</span>
+        <span className="text-admin-ink-dim text-admin-11">→</span>
         <select value={draft.endMonth} onChange={(e) => setDraft(d => ({ ...d, endMonth: Number(e.target.value) }))}
           style={{ padding: "8px 8px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink, background: "#fff" }}>
           {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{monthName(i+1)}</option>)}
@@ -5411,7 +5411,7 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
         ) : (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input type="date" id="vacstart" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
-            <span style={{ fontSize: 11 }} className="text-admin-ink-dim">→</span>
+            <span className="text-admin-ink-dim text-admin-11">→</span>
             <input type="date" id="vacend"   style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
             <button type="button" onClick={() => {
               const s = (document.getElementById("vacstart") as HTMLInputElement)?.value;
@@ -6051,7 +6051,7 @@ export function NewTalentDrawer() {
           border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
           fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}>📋 Paste contact</button>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-dim">
+        <span className="text-admin-ink-dim text-admin-11">
           vCard · @handle · linkedin.com/in/… · plain text
         </span>
       </div>
@@ -6168,7 +6168,7 @@ export function NewTalentDrawer() {
           const match = allowedParents.flatMap(p => p.children.map(c => ({ parent: p, child: c }))).find(x => x.child.id === primaryType);
           return match ? (
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 7px", borderRadius: 999, background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
-              <span style={{ fontSize: 11 }} className="text-admin-green">✓</span>
+              <span className="text-admin-green text-admin-11">✓</span>
               <span>{match.child.label}</span>
               <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">under {match.parent.label}</span>
               <button type="button" onClick={() => setPrimaryType(null)} style={{
@@ -6235,7 +6235,7 @@ export function NewTalentDrawer() {
                       cursor: "pointer",
                     }}
                   >
-                    <span aria-hidden style={{ fontSize: 13 }}>{p.emoji}</span>
+                    <span aria-hidden className="text-admin-13">{p.emoji}</span>
                     <span>+ {p.label}</span>
                   </button>
                 );
@@ -6355,7 +6355,7 @@ export function NewTalentDrawer() {
           fontFamily: FONTS.body,
         }}>
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
+            <div className="text-admin-ink text-admin-12h font-semibold">
               Mobile-first self-registration
             </div>
             <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
@@ -6825,7 +6825,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                   }}>
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{parent.emoji}</span>
                     <div className="flex-1">
-                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+                      <div className="text-admin-ink text-admin-13 font-semibold">
                         {shortParentLabel(parent)}
                       </div>
                       <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">
@@ -6854,7 +6854,7 @@ export function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
 
       {/* Selection acknowledgment */}
       {selectedPair && (
-        <div style={{ fontSize: 11 }} className="text-admin-ink-dim">
+        <div className="text-admin-ink-dim text-admin-11">
           ✓ Selected: <strong style={{ fontWeight: 600 }} className="text-admin-ink">{selectedPair.child.label}</strong> under {selectedPair.parent.label}
         </div>
       )}
@@ -7212,8 +7212,8 @@ export function ManagementMethodPicker({
               </span>
               <div className="flex-1">
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 14 }}>{o.emoji}</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{o.title}</span>
+                  <span className="text-sm">{o.emoji}</span>
+                  <span className="text-admin-ink text-admin-13h font-semibold">{o.title}</span>
                 </div>
                 <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">{o.desc}</div>
               </div>

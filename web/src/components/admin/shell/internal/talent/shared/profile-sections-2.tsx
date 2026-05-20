@@ -272,7 +272,7 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
       }}
       title={`Unlocked at ${meta.label}`}
     >
-      <span style={{ fontSize: 9 }}>🔒</span>
+      <span className="text-admin-9">🔒</span>
       {meta.label}
     </span>
   );
@@ -379,7 +379,7 @@ function MeasurementsTable() {
             borderRadius: 8,
           }}
         >
-          <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
+          <div className="text-admin-ink-muted text-admin-10h font-semibold">
             {c.label}
           </div>
           <div style={{ fontSize: 13, marginTop: 3, fontWeight: 500 }} className="text-admin-ink">
@@ -407,7 +407,7 @@ function SkillRow({ skill }: { skill: TalentSkill }) {
         {catGlyph[skill.category]}
       </span>
       <span className="flex-1">{skill.label}</span>
-      {skill.level && <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{skill.level}</span>}
+      {skill.level && <span className="text-admin-ink-muted text-admin-11h">{skill.level}</span>}
     </div>
   );
 }
@@ -463,7 +463,7 @@ function CreditRow({ credit }: { credit: TalentCredit }) {
         {credit.role && <span className="text-admin-ink-muted"> · {credit.role}</span>}
       </span>
       {credit.pinned && (
-        <span style={{ fontSize: 12 }} className="text-admin-accent-deep">★</span>
+        <span className="text-admin-accent-deep text-xs">★</span>
       )}
     </div>
   );
@@ -489,7 +489,7 @@ function ReviewSnippet({ review }: { review: TalentReview }) {
           marginBottom: 4,
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">
+        <span className="text-admin-ink text-xs font-semibold">
           {review.reviewerName}
         </span>
         <span style={{ fontSize: 11, letterSpacing: 1 }} className="text-admin-accent-deep">

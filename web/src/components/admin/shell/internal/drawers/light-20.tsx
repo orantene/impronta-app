@@ -177,7 +177,7 @@ export function BrandAssetsDrawer() {
             >
               <span style={{ fontSize: 20, flexShrink: 0 }}>{typeIcon(asset.type)}</span>
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{asset.name}</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">{asset.name}</div>
                 <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{asset.size} · Added {asset.date}</div>
               </div>
               <div className="flex gap-1.5">
@@ -273,7 +273,7 @@ export function ApprovalFlowDrawer() {
                   }}
                 >
                   <div className="mb-2">
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{item.title}</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">{item.title}</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       {item.type} · From {item.requester} · {item.daysAgo === 0 ? "Today" : `${item.daysAgo}d ago`}
                     </div>
@@ -324,7 +324,7 @@ export function ApprovalFlowDrawer() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink-muted">{item.title}</div>
+                    <div className="text-admin-ink-muted text-admin-13 font-semibold">{item.title}</div>
                     <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-dim">{item.type} · {item.daysAgo}d ago</div>
                   </div>
                   <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(item.status), background: statusBg(item.status), padding: "2px 8px", textTransform: "capitalize" }} className="rounded-admin-sm">
@@ -387,7 +387,7 @@ export function SiteContextSwitcherDrawer() {
                   <Icon name="globe" size={16} color={active === ctx.id ? "#fff" : COLORS.inkMuted} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ctx.label}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{ctx.label}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{ctx.url}</div>
                 </div>
               </div>
@@ -411,8 +411,8 @@ export function SiteContextSwitcherDrawer() {
               { label: "Last edit", value: current.lastEdit },
             ].map(row => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{row.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{row.value}</span>
+                <span className="text-admin-ink-muted text-xs">{row.label}</span>
+                <span className="text-admin-ink text-xs font-semibold">{row.value}</span>
               </div>
             ))}
           </div>
@@ -448,7 +448,7 @@ export function PageSchedulerDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Page scheduler" description="Queue publish and unpublish events for any page." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
         <div style={{ border: `1px solid ${COLORS.accent}`, padding: 14 }} className="bg-admin-accent-soft rounded-admin-md">
-          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-accent">Scheduling: Spring campaign landing</div>
+          <div className="text-admin-accent text-xs font-semibold">Scheduling: Spring campaign landing</div>
           <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">tulala.digital/spring-2026</div>
         </div>
 
@@ -480,7 +480,7 @@ export function PageSchedulerDrawer() {
             {scheduled.map((item, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{item.title}</div>
+                  <div className="text-admin-ink text-xs font-semibold">{item.title}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{item.action} · {item.when}</div>
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: item.status === "published" ? COLORS.success : COLORS.amber, background: item.status === "published" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "2px 7px" }} className="rounded-admin-sm">
@@ -562,13 +562,13 @@ export function CastingFlowDrawer() {
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{i + 1}</span>
                 </div>
                 <div className="flex-1">
-                  <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">Round {i + 1}</div>
-                  <div style={{ fontSize: 11 }} className="text-admin-ink-muted">
+                  <div className="text-admin-ink text-xs font-semibold">Round {i + 1}</div>
+                  <div className="text-admin-ink-muted text-admin-11">
                     {i === 0 ? "Initial applications" : `Callbacks from round ${i}`}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Target:</span>
+                  <span className="text-admin-ink-muted text-admin-11">Target:</span>
                   <GhostButton onClick={() => updateCount(i, Math.max(1, (roundCounts[i] || 10) - 5))}>–</GhostButton>
                   <span style={{ fontSize: 13, fontWeight: 700, minWidth: 28, textAlign: "center" }} className="text-admin-ink">{roundCounts[i] ?? 10}</span>
                   <GhostButton onClick={() => updateCount(i, (roundCounts[i] || 10) + 5)}>+</GhostButton>
@@ -587,7 +587,7 @@ export function CastingFlowDrawer() {
               { label: "Final spots", value: String(roundCounts[rounds - 1] ?? 10) },
             ].map(item => (
               <div key={item.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "10px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 800 }} className="text-admin-accent">{item.value}</div>
+                <div className="text-admin-accent text-lg font-extrabold">{item.value}</div>
                 <div style={{ fontSize: 10.5, marginTop: 2 }} className="text-admin-ink-muted">{item.label}</div>
               </div>
             ))}
@@ -653,10 +653,10 @@ export function CallbackTrackerDrawer() {
           {(talentByRound[selectedRound] || []).map((t, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-ink-muted">{t.name.split(" ").map(n => n[0]).join("")}</span>
+                <span className="text-admin-ink-muted text-admin-11 font-bold">{t.name.split(" ").map(n => n[0]).join("")}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t.name}</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">{t.name}</div>
                 {t.notes && <div style={{ fontSize: 11, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{t.notes}</div>}
               </div>
               <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: statusColor(t.status), background: statusBg(t.status), padding: "2px 8px", flexShrink: 0 }} className="rounded-admin-sm">

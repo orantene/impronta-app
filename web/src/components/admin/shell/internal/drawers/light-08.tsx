@@ -70,7 +70,7 @@ export function PagesDrawer() {
             }}
           >
             <div className="flex-1">
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{p.title}</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">{p.title}</div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 /{p.title.toLowerCase().replace(/\s/g, "-")} · updated {p.updated}
               </div>
@@ -124,7 +124,7 @@ export function PostsDrawer() {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{p.title}</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">{p.title}</div>
               <StateChipMini label={p.status} tone={p.status === "published" ? "green" : "dim"} />
             </div>
             <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{p.at}</div>

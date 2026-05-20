@@ -256,7 +256,7 @@ export function WorkspacePageView() {
                 gap: 5,
               }}
             >
-              <span aria-hidden style={{ fontSize: 13 }}>{t.emoji}</span>
+              <span aria-hidden className="text-admin-13">{t.emoji}</span>
               {t.label}
             </button>
           );

@@ -80,7 +80,7 @@ export function SkillCategoryCard({
           gap: 8,
         }}
       >
-        <span style={{ fontSize: 14 }}>{roleEmoji}</span>
+        <span className="text-sm">{roleEmoji}</span>
         <div className="flex-1 min-w-0">
           <div
             style={{

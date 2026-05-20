@@ -161,7 +161,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
                 display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
                 marginBottom: 2,
               }}>
-                <span style={{ fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">{s.label}</span>
+                <span className="text-admin-ink text-admin-13h font-bold">{s.label}</span>
                 <span style={{
                   fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
                   textTransform: "uppercase",
@@ -176,7 +176,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
                   marginTop: 4,
                   display: "inline-flex", alignItems: "center", gap: 4,
                 }}>
-                  <span aria-hidden style={{ fontSize: 9 }}>›</span>
+                  <span aria-hidden className="text-admin-9">›</span>
                   {s.remainder}
                 </div>
               )}
@@ -306,7 +306,7 @@ export function ProfileHero() {
           }}
           aria-label="Edit headshot"
         >
-          {!avatarSrc && <span style={{ fontSize: 40 }}>👤</span>}
+          {!avatarSrc && <span className="text-[40px]">👤</span>}
           <span style={{ position: "absolute", bottom: 2, right: 2, width: 26, height: 26, borderRadius: "50%", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }} className="bg-admin-fill">
             <Icon name="palette" size={11} stroke={2} color="#fff" />
           </span>
@@ -409,7 +409,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
         marginBottom: 10,
       }}>
         <CapsLabel>Profile performance</CapsLabel>
-        <span style={{ fontSize: 11 }} className="text-admin-ink-dim">Last 7 days</span>
+        <span className="text-admin-ink-dim text-admin-11">Last 7 days</span>
       </div>
       <div data-tulala-talent-stat-strip style={{
         background: "#fff", borderRadius: 12,
@@ -432,7 +432,7 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">{it.label}</span>
+              <span className="text-admin-ink-muted text-admin-11 font-medium">{it.label}</span>
             </div>
             <div style={{
               fontFamily: FONTS.display, fontSize: 28, fontWeight: 700,

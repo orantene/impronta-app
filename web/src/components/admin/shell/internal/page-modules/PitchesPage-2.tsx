@@ -55,7 +55,7 @@ export function PitchDetailDrawerInline({
   return (
     <DrawerShell open onClose={onClose} title="Pitch detail" defaultSize="half" width={580}>
       {loading ? (
-        <p style={{ fontSize: 13 }} className="text-admin-ink-muted">Loading…</p>
+        <p className="text-admin-ink-muted text-admin-13">Loading…</p>
       ) : error ? (
         <p style={{ color: "#b91c1c", fontSize: 13 }}>{error}</p>
       ) : detail ? (

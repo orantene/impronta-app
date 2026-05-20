@@ -150,7 +150,7 @@ class ErrorBoundary extends Component<
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 40 }}>⚠️</div>
+          <div className="text-[40px]">⚠️</div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Something broke</h1>
           <p style={{ fontSize: 14, color: "rgba(11,11,13,0.6)", margin: 0 }}>
             {this.state.caught.message || "An unexpected error occurred."}

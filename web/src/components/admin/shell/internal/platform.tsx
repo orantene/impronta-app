@@ -947,7 +947,7 @@ function HubSubmissionRow({ sub }: { sub: HubSubmission }) {
       }}
     >
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 500 }}>{sub.talentName}</div>
+        <div className="text-admin-13 font-medium">{sub.talentName}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {sub.agency} · {sub.submittedAt}
         </div>
@@ -993,7 +993,7 @@ function ModerationRow({ item }: { item: ModerationItem }) {
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: sevColor, flexShrink: 0 }} />
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13 }}>{item.subject}</div>
+        <div className="text-admin-13">{item.subject}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {item.reason} · {item.reportedAt}
         </div>
@@ -1248,7 +1248,7 @@ function IncidentRow({ incident }: { incident: PlatformIncident }) {
         {incident.severity}
       </span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 500 }}>{incident.title}</div>
+        <div className="text-admin-13 font-medium">{incident.title}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {incident.state} · started {incident.startedAt}
         </div>
@@ -1279,7 +1279,7 @@ function SupportTicketRow({ ticket }: { ticket: SupportTicket }) {
       }}
     >
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 500 }}>{ticket.subject}</div>
+        <div className="text-admin-13 font-medium">{ticket.subject}</div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>
           {ticket.tenant} · {ticket.reportedBy} · {ticket.ageHrs}h ago
         </div>
@@ -1328,7 +1328,7 @@ function PlatformSettingsPage() {
             >
               <Avatar initials={m.initials} size={28} tone="ink" />
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</div>
+                <div className="text-admin-13 font-medium">{m.name}</div>
                 <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 1 }}>{m.email}</div>
               </div>
               <span
@@ -1374,7 +1374,7 @@ function PlatformSettingsPage() {
               }}
             >
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{row.label}</div>
+                <div className="text-admin-13 font-medium">{row.label}</div>
                 <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 2 }}>{row.desc}</div>
               </div>
               <Icon name="chevron-right" size={14} color={HQ.inkDim} />
@@ -1433,7 +1433,7 @@ export function PlatformTodayPulseDrawer() {
           >
             <StatDot tone={row.tone === "red" ? "red" : row.tone === "amber" ? "amber" : "ink"} size={8} />
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{row.label}</div>
+              <div className="text-admin-ink text-admin-13 font-medium">{row.label}</div>
               <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{row.sub}</div>
             </div>
           </div>
@@ -1729,7 +1729,7 @@ export function PlatformTenantPlanOverrideDrawer() {
             <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
               {PLAN_META[p].label}
             </span>
-            <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{PLAN_META[p].theme}</span>
+            <span className="text-admin-ink-muted text-admin-11h">{PLAN_META[p].theme}</span>
           </label>
         ))}
       </div>
@@ -2258,7 +2258,7 @@ export function PlatformHqTeamDrawer() {
           >
             <Avatar initials={m.initials} size={32} />
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{m.name}</div>
+              <div className="text-admin-ink text-admin-13 font-medium">{m.name}</div>
               <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{m.email}</div>
             </div>
             <span style={{ padding: "2px 8px", background: "rgba(11,11,13,0.04)", fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", borderRadius: 999 }} className="text-admin-ink">

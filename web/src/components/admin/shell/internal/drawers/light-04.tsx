@@ -128,7 +128,7 @@ export function TalentApprovalsDrawer() {
           <div style={{ padding: "32px 16px", textAlign: "center", borderRadius: 12, fontFamily: FONTS.body }} className="bg-admin-success-soft text-admin-success-deep">
             <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>All caught up</div>
-            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+            <div className="text-admin-ink-muted text-xs">
               New self-registrations will land here. You&apos;ll get a notification too.
             </div>
           </div>
@@ -153,7 +153,7 @@ export function TalentApprovalsDrawer() {
                     }} />
                     <div className="flex-1 min-w-0">
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">{p.name}</span>
+                        <span className="text-admin-ink text-sm font-semibold">{p.name}</span>
                         <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }} className="bg-admin-amber-soft text-admin-amber-deep">Pending · {p.submittedAgo}</span>
                       </div>
                       <div style={{ fontSize: 12, marginBottom: 4 }} className="text-admin-ink-muted">
@@ -171,7 +171,7 @@ export function TalentApprovalsDrawer() {
                           ) : null;
                         })}
                       </div>
-                      <div style={{ fontSize: 11 }} className="text-admin-ink-dim">
+                      <div className="text-admin-ink-dim text-admin-11">
                         {p.photoCount} photo{p.photoCount === 1 ? "" : "s"} · {p.languages.join(" · ")}
                       </div>
                     </div>
@@ -471,7 +471,7 @@ export function BrandingDrawer() {
       ) : (
         <Section title="Photo watermark" framed>
           <div style={{ padding: 16, borderRadius: 10, display: "flex", gap: 14, alignItems: "flex-start" }} className="bg-admin-surface-alt">
-            <span style={{ fontSize: 22 }}>🔒</span>
+            <span className="text-admin-22">🔒</span>
             <div>
               <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
                 Logo watermark — Studio &amp; above

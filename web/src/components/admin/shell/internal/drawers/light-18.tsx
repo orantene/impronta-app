@@ -114,7 +114,7 @@ export function EmailTemplatesDrawer() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{tmpl.name}</div>
+                      <div className="text-admin-ink text-admin-13 font-semibold">{tmpl.name}</div>
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Trigger: {tmpl.trigger}</div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -189,12 +189,12 @@ export function EmailBrandingDrawer() {
                 {senderName.charAt(0).toUpperCase()}
               </span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{senderName}</div>
+            <div className="text-admin-ink text-admin-13 font-bold">{senderName}</div>
           </div>
           <div style={{ fontSize: 12.5, marginBottom: 8 }} className="text-admin-ink">
             Hi [Talent Name], your booking for [Project] has been confirmed…
           </div>
-          <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{footerText}</div>
+          <div className="text-admin-ink-muted text-admin-11">{footerText}</div>
         </div>
 
         <FieldRow label="Sender name">
@@ -368,7 +368,7 @@ export function NotificationPrefsDrawer() {
               }}
             >
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{pref.label}</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">{pref.label}</div>
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{pref.description}</div>
               </div>
               <div style={{ display: "flex", gap: 16, flexShrink: 0 }}>
@@ -390,7 +390,7 @@ export function NotificationPrefsDrawer() {
         {/* WS-11.2 — Batching */}
         <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }} className="bg-admin-surface-alt rounded-admin-md">
           <div className="flex-1">
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Batch similar notifications</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">Batch similar notifications</div>
             <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
               Collapse &quot;3 new messages from Casa Pero&quot; instead of sending each separately.
             </div>
@@ -402,7 +402,7 @@ export function NotificationPrefsDrawer() {
         <div style={{ padding: "11px 14px", border: `1px solid ${COLORS.borderSoft}`, marginBottom: 4 }} className="bg-admin-surface-alt rounded-admin-md">
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Quiet hours</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">Quiet hours</div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 Pause push and SMS during these hours. Email is always allowed.
               </div>
@@ -456,7 +456,7 @@ export function NotificationPrefsDrawer() {
                     fontFamily: FONTS.body,
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{opt.label}</div>
+                  <div className="text-xs font-semibold">{opt.label}</div>
                   <div style={{ fontSize: 10.5, opacity: 0.85, marginTop: 1 }}>{opt.sub}</div>
                 </button>
               );
@@ -523,8 +523,8 @@ export function InviteFlowDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         {sent ? (
           <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)`, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-success-soft rounded-admin-lg">
-            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-success-deep">✓ Invite sent</div>
-            <div style={{ fontSize: 12.5 }} className="text-admin-success-deep">
+            <div className="text-admin-success-deep text-admin-13 font-bold">✓ Invite sent</div>
+            <div className="text-admin-success-deep text-admin-12h">
               {name ? name : email} will receive an invite email shortly with a personalized onboarding link.
             </div>
           </div>
@@ -669,7 +669,7 @@ export function ReferralDashboardDrawer() {
                 borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{ref.name}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{ref.name}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{ref.date} · {ref.reward}</div>
                 </div>
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(ref.status), background: statusBg(ref.status), padding: "2px 8px", textTransform: "capitalize" }} className="rounded-admin-sm">

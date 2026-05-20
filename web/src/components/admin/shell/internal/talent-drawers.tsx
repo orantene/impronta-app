@@ -122,7 +122,7 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
       }}
       title={`Unlocked at ${meta.label}`}
     >
-      <span style={{ fontSize: 9 }}>🔒</span>
+      <span className="text-admin-9">🔒</span>
       {meta.label}
     </span>
   );
@@ -639,7 +639,7 @@ export function TalentClosedBookingDrawer() {
                 />
                 <div className="flex-1 min-w-0">
                   <div style={{ fontWeight: 500 }} className="text-admin-ink">{p.name}</div>
-                  <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{p.role}</div>
+                  <div className="text-admin-ink-muted text-admin-11">{p.role}</div>
                 </div>
                 {p.you && (
                   <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 7px", borderRadius: 999 }} className="bg-admin-coral-soft text-admin-coral-deep">
@@ -728,7 +728,7 @@ export function TalentClosedBookingDrawer() {
               PDF
             </span>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
+              <div className="text-admin-ink text-admin-12h font-medium">
                 Signed booking agreement
               </div>
               <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -767,7 +767,7 @@ export function TalentClosedBookingDrawer() {
                     {"★".repeat(5 - detail.review.rating)}
                   </span>
                 </span>
-                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+                <span className="text-admin-ink-muted text-admin-11h">
                   {detail.review.author}
                 </span>
               </div>
@@ -1547,7 +1547,7 @@ function LogWorkForm({
                       {iBroughtTeam && <Icon name="check" size={10} stroke={2.5} color="#fff" />}
                     </span>
                     <div className="flex-1">
-                      <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
+                      <div className="text-admin-ink text-admin-12h font-medium">
                         I brought them
                       </div>
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -1946,7 +1946,7 @@ export function TalentAvailabilityDrawer() {
             <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
               {a.startDate} – {a.endDate}
             </span>
-            <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{a.reason}</span>
+            <span className="text-admin-ink-muted text-admin-11h">{a.reason}</span>
           </div>
         ))}
       </div>
@@ -2107,7 +2107,7 @@ export function TalentBlockDatesDrawer() {
               >
                 <span style={{ width: 14, height: 14, borderRadius: 3, background: "transparent", border: `1.5px solid ${COLORS.border}`, flexShrink: 0, }}
                 />
-                <div style={{ fontSize: 12 }} className="text-admin-ink">
+                <div className="text-admin-ink text-xs">
                   Travel costs must be covered by client
                 </div>
               </button>
@@ -2153,7 +2153,7 @@ export function TalentBlockDatesDrawer() {
                     }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
+                    <div className="text-admin-ink text-admin-12h font-medium">
                       {b.startDate} – {b.endDate}
                     </div>
                     <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
@@ -2284,7 +2284,7 @@ function AvailabilityAddAction({
         <Icon name={icon} size={13} stroke={1.7} />
       </span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+        <div className="text-admin-ink text-admin-13 font-semibold">
           {title}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }} className="text-admin-ink-muted">
@@ -2529,7 +2529,7 @@ export function TalentAgencyRelationshipDrawer() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 14 }} aria-hidden>🔔</span>
+              <span className="text-sm" aria-hidden>🔔</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#7C5A14" }}>
                 Exclusivity request pending
               </span>
@@ -3135,7 +3135,7 @@ export function TalentReferralsDrawer() {
         >
           <Icon name="external" size={13} color={COLORS.inkMuted} />
           <span style={{ flex: 1, fontFamily: "monospace" }}>{link}</span>
-          <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-accent-deep">Copy</span>
+          <span className="text-admin-accent-deep text-admin-11h font-semibold">Copy</span>
         </button>
       </FieldRow>
 
@@ -3158,7 +3158,7 @@ export function TalentReferralsDrawer() {
           >
             <Avatar initials={r.name.split(" ").map((n) => n[0]).join("")} size={28} tone="ink" />
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{r.name}</div>
+              <div className="text-admin-ink text-admin-13 font-medium">{r.name}</div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                 {r.status === "earning"
                   ? `Earned · joined ${r.joinedAt}`
@@ -3343,10 +3343,10 @@ export function TalentTaxDocsDrawer() {
           >
             <Icon name="external" size={14} color={COLORS.inkMuted} />
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{doc.label}</div>
+              <div className="text-admin-ink text-admin-13 font-medium">{doc.label}</div>
               <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{doc.body}</div>
             </div>
-            <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-accent-deep">{doc.action}</span>
+            <span className="text-admin-accent-deep text-admin-11h font-semibold">{doc.action}</span>
           </button>
         ))}
       </div>
@@ -3441,8 +3441,8 @@ export function TalentConflictResolveDrawer() {
               <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{c.client}</div>
               <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{c.brief}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-green">{c.rate}</span>
-                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">· {c.trust}</span>
+                <span className="text-admin-green text-xs font-semibold">{c.rate}</span>
+                <span className="text-admin-ink-muted text-admin-11h">· {c.trust}</span>
               </div>
             </div>
           </button>
@@ -3478,7 +3478,7 @@ export function TalentConflictResolveDrawer() {
           }}
         />
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">Propose alternative dates to both</div>
+          <div className="text-admin-ink text-admin-13 font-medium">Propose alternative dates to both</div>
           <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
             Suggest May 12 to Mango and May 16 to Atelier · we draft the messages
           </div>
@@ -3571,7 +3571,7 @@ function NetworkRow({
     >
       <Avatar initials={t.initials} size={32} tone="ink" />
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{t.name}</div>
+        <div className="text-admin-ink text-admin-13 font-medium">{t.name}</div>
         <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
           {t.category} · {t.booked} bookings · {t.mutuals} mutuals · {t.lastSeen}
         </div>
@@ -3759,7 +3759,7 @@ export function TalentMultiAgencyPickerDrawer() {
             <Avatar initials={a.name.split(" ").map((n) => n[0]).join("")} size={32} tone="ink" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{a.name}</span>
+                <span className="text-admin-ink text-admin-13 font-semibold">{a.name}</span>
                 {a.primary && (
                   <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999 }} className="text-admin-accent-deep bg-admin-accent-soft">
                     Primary
@@ -3840,7 +3840,7 @@ export function ReplyTemplatesDrawer() {
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
           >
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t.title}</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">{t.title}</div>
             <div style={{ fontSize: 11.5, marginTop: 2, lineHeight: 1.5 }} className="text-admin-ink-muted">
               {t.body.length > 120 ? `${t.body.slice(0, 118)}…` : t.body}
             </div>
@@ -4634,7 +4634,7 @@ export function TalentReviewsDrawer() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 13 }} className="text-admin-accent-deep">
+              <span className="text-admin-accent-deep text-admin-13">
                 {"★".repeat(r.rating)}
                 <span className="text-admin-ink-dim">{"★".repeat(5 - r.rating)}</span>
               </span>
@@ -5599,7 +5599,7 @@ export function TalentMediaEmbedsDrawer() {
               color: COLORS.ink,
             }}
           >
-            <span style={{ fontSize: 16 }}>{s.thumb}</span>
+            <span className="text-base">{s.thumb}</span>
             {s.label}
           </div>
         ))}
@@ -5915,10 +5915,10 @@ export function TalentCareerAnalyticsDrawer() {
                 borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.bookings} bookings</div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">
+                <div className="text-admin-ink text-admin-13 font-bold">
                   €{c.spend.toLocaleString()}
                 </div>
               </div>
@@ -6026,7 +6026,7 @@ export function TalentReceiveReviewDrawer() {
           <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }} className="text-admin-ink">
             Thanks for the feedback!
           </div>
-          <div style={{ fontSize: 13 }} className="text-admin-ink-muted">
+          <div className="text-admin-ink-muted text-admin-13">
             Your review helps other coordinators know what it&apos;s like working with you.
           </div>
           <div className="mt-5"><PrimaryButton onClick={closeDrawer}>Done</PrimaryButton></div>
@@ -6124,7 +6124,7 @@ export function TalentAgencyAnalyticsDrawer() {
               <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }} className="text-admin-ink-muted">
                 {t.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-ink">{t.value}</div>
+              <div className="text-admin-ink text-admin-22 font-extrabold">{t.value}</div>
             </div>
           ))}
         </div>
@@ -6151,7 +6151,7 @@ export function TalentAgencyAnalyticsDrawer() {
                   }}>
                     {i + 1}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{a.name}</span>
+                  <span className="text-admin-ink text-admin-13 font-bold">{a.name}</span>
                 </div>
                 <button
                   type="button"

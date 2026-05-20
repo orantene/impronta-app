@@ -436,7 +436,7 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
         🔍
       </span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-amber-deep">
+        <div className="text-admin-amber-deep text-admin-13 font-semibold">
           {pendingTitle}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
@@ -482,7 +482,7 @@ function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
         fontFamily: FONTS.body,
       }}
     >
-      <span style={{ fontSize: 13 }}>👤</span>
+      <span className="text-admin-13">👤</span>
       <div style={{ flex: 1, minWidth: 0, fontSize: 12 }} className="text-admin-ink-muted">
         {t("admin.roster.list.selfRowText")}
       </div>
@@ -566,7 +566,7 @@ function RosterStatusStrip({
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone, }}
               />
-              <span style={{ fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">{it.label}</span>
+              <span className="text-admin-ink-muted text-admin-11 font-medium">{it.label}</span>
             </div>
             <div
               style={{
@@ -704,7 +704,7 @@ function RosterFilterBar({
       <div style={{ flex: 1 }} />
 
       {/* Result count */}
-      <div style={{ fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">
+      <div className="text-admin-ink-muted text-admin-11h font-medium">
         {resultLabel}
       </div>
 

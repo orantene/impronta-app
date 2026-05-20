@@ -54,12 +54,12 @@ export function OnsetCheckinDrawer() {
 
         <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", border: `1px solid ${COLORS.accent}` }} className="bg-admin-accent-soft rounded-admin-md">
           <div className="flex-1">
-            <div style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-accent">Spring Campaign 2026</div>
+            <div className="text-admin-accent text-xs font-bold">Spring Campaign 2026</div>
             <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Tue 20 May · Studio One</div>
           </div>
           <div className="text-right">
-            <div style={{ fontSize: 24, fontWeight: 800 }} className="text-admin-accent">{checkedIn.size}/{crew.length}</div>
-            <div style={{ fontSize: 10 }} className="text-admin-ink-muted">checked in</div>
+            <div className="text-admin-accent text-2xl font-extrabold">{checkedIn.size}/{crew.length}</div>
+            <div className="text-admin-ink-muted text-admin-10">checked in</div>
           </div>
         </div>
 
@@ -84,10 +84,10 @@ export function OnsetCheckinDrawer() {
                   {isIn && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
                 </div>
                 <div className="flex-1">
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{c.name}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
                   <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{c.role} · Call: {c.callTime}</div>
                 </div>
-                {isIn && <span style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-success">Checked in</span>}
+                {isIn && <span className="text-admin-success text-admin-11 font-bold">Checked in</span>}
               </div>
             );
           })}
@@ -95,7 +95,7 @@ export function OnsetCheckinDrawer() {
 
         {checkedIn.size === crew.length && (
           <div style={{ border: `1px solid ${COLORS.success}`, padding: 14, textAlign: "center" }} className="bg-admin-success-soft rounded-admin-md">
-            <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-success">Full crew on set ✓</div>
+            <div className="text-admin-success text-admin-13 font-bold">Full crew on set ✓</div>
             <div style={{ fontSize: 11, marginTop: 3 }} className="text-admin-ink-muted">All {crew.length} members checked in</div>
           </div>
         )}
@@ -137,12 +137,12 @@ export function IncidentReportDrawer() {
       <DrawerShell open={open} onClose={closeDrawer} title="Incident report" description="" footer={<GhostButton onClick={closeDrawer}>Close</GhostButton>} defaultSize="half">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "40px 24px", fontFamily: FONTS.body, textAlign: "center" }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }} className="bg-admin-success-soft">✓</div>
-          <div style={{ fontSize: 16, fontWeight: 700 }} className="text-admin-ink">Report submitted</div>
+          <div className="text-admin-ink text-base font-bold">Report submitted</div>
           <div style={{ fontSize: 12, maxWidth: 280 }} className="text-admin-ink-muted">
             Your report has been logged securely. {anonymous ? "Submitted anonymously. " : ""}An admin will review within 24 hours and may reach out if further information is needed.
           </div>
           <div style={{ border: `1px solid ${COLORS.border}`, padding: "8px 14px" }} className="bg-admin-surface rounded-admin-sm">
-            <div style={{ fontSize: 11 }} className="text-admin-ink-muted">Reference</div>
+            <div className="text-admin-ink-muted text-admin-11">Reference</div>
             <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }} className="text-admin-ink">INC-{Date.now().toString().slice(-6)}</div>
           </div>
         </div>
@@ -202,7 +202,7 @@ export function IncidentReportDrawer() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setAnonymous(a => !a)}>
           <Toggle on={anonymous} onChange={() => setAnonymous(a => !a)} />
-          <span style={{ fontSize: 12 }} className="bg-admin-surface rounded-admin-sm text-admin-ink">Submit anonymously</span>
+          <span className="bg-admin-surface rounded-admin-sm text-admin-ink text-xs">Submit anonymously</span>
         </div>
       </div>
     </DrawerShell>
@@ -266,10 +266,10 @@ export function DisputeResolutionDrawer() {
                     <div style={{ fontSize: 12, fontFamily: "monospace" }} className="text-admin-ink-muted">{d.id}</div>
                     <span style={{ fontSize: 10, fontWeight: 700, color: stageColor(d.stage), background: `${stageColor(d.stage)}18`, padding: "2px 7px" }} className="rounded-admin-sm">{d.stage}</span>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{d.parties}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{d.parties}</div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                    <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{d.type} · {d.opened}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700 }} className="text-admin-ink">{d.amount}</span>
+                    <span className="text-admin-ink-muted text-admin-11">{d.type} · {d.opened}</span>
+                    <span className="text-admin-ink text-xs font-bold">{d.amount}</span>
                   </div>
                 </div>
               ))}
@@ -285,9 +285,9 @@ export function DisputeResolutionDrawer() {
                   <div style={{ fontSize: 13, fontFamily: "monospace" }} className="text-admin-ink-muted">{selected.id}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }} className="text-admin-ink">{selected.parties}</div>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800 }} className="text-admin-ink">{selected.amount}</div>
+                <div className="text-admin-ink text-base font-extrabold">{selected.amount}</div>
               </div>
-              <div style={{ fontSize: 12 }} className="text-admin-ink-muted">{selected.type} · Opened {selected.opened}</div>
+              <div className="text-admin-ink-muted text-xs">{selected.type} · Opened {selected.opened}</div>
             </div>
 
             <div>
@@ -386,14 +386,14 @@ export function LocationsDrawer() {
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{loc.name}</span>
+                        <span className="text-admin-ink text-admin-13 font-bold">{loc.name}</span>
                         <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "capitalize", color: typeColor(loc.type), background: `${typeColor(loc.type)}18`, padding: "1px 6px" }} className="rounded-admin-sm">{loc.type}</span>
                       </div>
                       <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{loc.address}</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{loc.bookings}</div>
-                      <div style={{ fontSize: 10 }} className="text-admin-ink-muted">bookings</div>
+                      <div className="text-admin-ink text-admin-13 font-bold">{loc.bookings}</div>
+                      <div className="text-admin-ink-muted text-admin-10">bookings</div>
                     </div>
                   </div>
                 </div>
@@ -490,7 +490,7 @@ export function AiWorkspaceDrawer() {
               <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{p.name}</div>
+                    <div className="text-admin-ink text-admin-13 font-bold">{p.name}</div>
                     <div style={{ fontSize: 11, fontFamily: "monospace", marginTop: 1 }} className="text-admin-ink-muted">{p.model}</div>
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: p.status === "active" ? COLORS.success : COLORS.inkDim, background: p.status === "active" ? COLORS.successSoft : COLORS.borderSoft, padding: "2px 8px" }} className="rounded-admin-sm">
@@ -499,12 +499,12 @@ export function AiWorkspaceDrawer() {
                 </div>
                 <div className="flex gap-4">
                   <div>
-                    <div style={{ fontSize: 10 }} className="text-admin-ink-dim">Calls this month</div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{p.calls.toLocaleString()}</div>
+                    <div className="text-admin-ink-dim text-admin-10">Calls this month</div>
+                    <div className="text-admin-ink text-admin-13 font-bold">{p.calls.toLocaleString()}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10 }} className="text-admin-ink-dim">Cost this month</div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{p.cost}</div>
+                    <div className="text-admin-ink-dim text-admin-10">Cost this month</div>
+                    <div className="text-admin-ink text-admin-13 font-bold">{p.cost}</div>
                   </div>
                 </div>
               </div>
@@ -533,7 +533,7 @@ export function AiWorkspaceDrawer() {
                 { label: "Avg/day", value: "180" },
               ].map(stat => (
                 <div key={stat.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "10px 12px", textAlign: "center" }}>
-                  <div style={{ fontSize: 18, fontWeight: 800 }} className="text-admin-royal">{stat.value}</div>
+                  <div className="text-admin-royal text-lg font-extrabold">{stat.value}</div>
                   <div style={{ fontSize: 10, marginTop: 2 }} className="text-admin-ink-muted">{stat.label}</div>
                 </div>
               ))}
@@ -548,7 +548,7 @@ export function AiWorkspaceDrawer() {
                 { label: "Auto-tag uploaded images", key: "tags" },
               ].map(item => (
                 <div key={item.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
-                  <span style={{ fontSize: 12 }} className="text-admin-ink">{item.label}</span>
+                  <span className="text-admin-ink text-xs">{item.label}</span>
                   <Toggle on={true} onChange={() => toast(`${item.label} toggled`)} />
                 </div>
               ))}

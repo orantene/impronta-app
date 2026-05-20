@@ -2322,7 +2322,7 @@ export function TalentProfileShellDrawer() {
                   fontFamily: FONTS.body, textAlign: "center",
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
+                <div className="text-admin-ink text-sm font-semibold">
                   {copy.t("Couldn't load this profile's saved data")}
                 </div>
                 <div style={{ fontSize: 12, maxWidth: 320 }} className="text-admin-ink-muted">
@@ -2549,7 +2549,7 @@ export function TalentProfileShellDrawer() {
                     </button>
                   )}
                   {/* M7 fix — "Live taxonomy" replaced with plain English. */}
-                  <div style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
+                  <div className="text-admin-ink-dim text-admin-10h">
                     Showing {visibleParentsLP.length} categories{restParentsLP.length > 0 ? ` · ${restParentsLP.length} more available` : ""}
                     {liveTax.error && ` · ${liveTax.error}`}
                   </div>
@@ -3062,7 +3062,7 @@ export function TalentProfileShellDrawer() {
                 {workspaceCustomTalentFields.length > 0 && (
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">
-                      <span style={{ fontSize: 13 }}>✦</span>
+                      <span className="text-admin-13">✦</span>
                       Custom workspace fields
                       <span style={{
                         fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,

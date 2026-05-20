@@ -376,7 +376,7 @@ export function NotificationsBell({
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <span style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{copy.t("Notifications")}</span>
+          <span className="text-admin-ink text-admin-13 font-bold">{copy.t("Notifications")}</span>
           {totalUnread > 0 && (
             <button type="button" onClick={() => { markAllRead(); force(n => n + 1); }} style={{
               background: "transparent", border: "none", padding: 0, cursor: "pointer",

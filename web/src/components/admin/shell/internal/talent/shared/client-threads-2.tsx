@@ -75,7 +75,7 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
           <Icon name="sparkle" size={13} stroke={1.7} />
         </span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-royal-deep">
+          <div className="text-admin-royal-deep text-admin-13 font-semibold">
             AI suggestion for {item.client}
           </div>
           <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 1 }} className="text-admin-royal-deep">
@@ -114,7 +114,7 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                   gap: 4,
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 700 }} className="text-admin-royal-deep">
+                <div className="text-admin-royal-deep text-admin-11 font-bold">
                   {v.label}
                 </div>
                 <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink">
@@ -218,7 +218,7 @@ export function InboxPowerToolbar({
         <option value="fit">Best fit (AI)</option>
       </select>
       <div style={{ flex: 1 }} />
-      <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+      <span className="text-admin-ink-muted text-admin-11h">
         {totalShown} item{totalShown === 1 ? "" : "s"}
       </span>
     </div>
@@ -253,7 +253,7 @@ export function BulkActionBar({
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", color: "#fff", borderRadius: 10, fontFamily: FONTS.body, marginTop: 12 }} className="bg-admin-fill">
-      <span style={{ fontSize: 13, fontWeight: 600 }}>
+      <span className="text-admin-13 font-semibold">
         {count} selected
       </span>
       <span style={{ flex: 1 }} />

@@ -281,7 +281,7 @@ export function TeamDrawer() {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Default coordinator</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">Default coordinator</div>
               <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">Requires Agency tier</div>
             </div>
             <span

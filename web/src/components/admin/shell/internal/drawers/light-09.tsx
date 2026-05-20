@@ -170,7 +170,7 @@ export function WorkspaceFieldSettingsDrawer() {
           display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
           fontFamily: FONTS.body,
         }}>
-          <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+          <div className="text-admin-ink-muted text-xs">
             <strong className="text-admin-ink">{overrideCount}</strong> {overrideCount === 1 ? "override" : "overrides"} active
             {overrideCount > 0 && canCustomize && (
               <button type="button" onClick={() => void resetAll()} style={{

@@ -179,7 +179,7 @@ export function TrustVerificationQueueDrawer() {
           </select>
           {bulkSelected.size > 0 && (
             <>
-              <span style={{ fontSize: 11.5, fontWeight: 500 }} className="text-admin-ink-muted">
+              <span className="text-admin-ink-muted text-admin-11h font-medium">
                 {bulkSelected.size} selected
               </span>
               <button type="button" onClick={() => {
@@ -271,7 +271,7 @@ export function TrustVerificationQueueDrawer() {
                       <span>{typeMeta.emoji} {typeMeta.shortLabel}</span>
                       {r.claimedIdentifier && <span className="text-admin-ink-dim">· {r.claimedIdentifier}</span>}
                     </div>
-                    <div style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
+                    <div className="text-admin-ink-dim text-admin-10h">
                       {new Date(r.createdAt).toLocaleDateString()} · code {r.verificationCode ?? "—"}
                     </div>
                   </button>
@@ -287,7 +287,7 @@ export function TrustVerificationQueueDrawer() {
             fontFamily: FONTS.body,
           }}>
             {!cur ? (
-              <div style={{ fontSize: 12 }} className="text-admin-ink-muted">Select a request to review.</div>
+              <div className="text-admin-ink-muted text-xs">Select a request to review.</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -512,7 +512,7 @@ export function DisputedClaimsDrawer() {
                   borderBottom: `1px solid ${COLORS.borderSoft}`, cursor: "pointer",
                   fontFamily: FONTS.body,
                 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+                  <div className="text-admin-ink text-admin-13 font-semibold">
                     {talentNameForId(c.profileId)}
                   </div>
                   <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
@@ -532,7 +532,7 @@ export function DisputedClaimsDrawer() {
             background: "#fff", padding: 16,
           }}>
             {!cur ? (
-              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">Pick a claim to review.</div>
+              <div className="text-admin-ink-muted text-admin-12h">Pick a claim to review.</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
@@ -595,7 +595,7 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid ${COLORS.border}`, background: "#fff",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Release to talent</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">Release to talent</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       Talent is right. Profile is freed from agency control. Status → Released.
                     </div>
@@ -605,7 +605,7 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid ${COLORS.border}`, background: "#fff",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Uphold agency claim</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">Uphold agency claim</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       Agency is right (paperwork checks out). Re-issue invite. Status → Invite sent.
                     </div>
@@ -615,7 +615,7 @@ export function DisputedClaimsDrawer() {
                     border: `1px solid rgba(200,40,40,0.30)`, background: "rgba(200,40,40,0.04)",
                     cursor: "pointer", fontFamily: FONTS.body,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-red">Remove profile</div>
+                    <div className="text-admin-red text-admin-13 font-semibold">Remove profile</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       Neither party owns it. Take the profile down entirely.
                     </div>

@@ -355,7 +355,7 @@ function AddAspirationPicker({
                   gap: 6,
                 }}
               >
-                <span style={{ fontSize: 14 }}>{p.emoji}</span>
+                <span className="text-sm">{p.emoji}</span>
                 {copy.term(p.name_en)}
               </button>
             ))}

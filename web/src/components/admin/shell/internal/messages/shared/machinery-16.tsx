@@ -395,7 +395,7 @@ export function ConversationEmptyState() {
           <path d="M3 4h10c.6 0 1 .4 1 1v6c0 .6-.4 1-1 1H7l-3 2.5V12H3c-.6 0-1-.4-1-1V5c0-.6.4-1 1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
         </svg>
       </span>
-      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">No messages yet</div>
+      <div className="text-admin-ink text-admin-13 font-semibold">No messages yet</div>
       <div style={{ fontSize: 11.5, maxWidth: 240 }} className="text-admin-ink-muted">
         Start the conversation below — your message will go to the right people in this thread.
       </div>

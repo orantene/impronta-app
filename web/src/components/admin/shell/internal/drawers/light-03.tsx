@@ -386,7 +386,7 @@ export function TalentRegistrationDrawer() {
                   }}>
                     <span style={{ fontSize: 22, flexShrink: 0 }}>{p.emoji}</span>
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{p.label}</div>
+                      <div className="text-admin-ink text-admin-13h font-semibold">{p.label}</div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{p.helper}</div>
                     </div>
                     <span style={{

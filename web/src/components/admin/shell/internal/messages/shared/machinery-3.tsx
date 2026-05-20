@@ -254,7 +254,7 @@ export function ClientProjectViewTab({
       <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>When</div>
-          <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+          <div className="text-admin-ink text-sm font-bold">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>
@@ -408,7 +408,7 @@ export function ClientProjectViewTab({
           <div data-booking-card style={cardStyle}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
               <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
-              <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
+              <span className="text-admin-ink-muted text-admin-10h">
                 {clientFiles.length} file{clientFiles.length === 1 ? "" : "s"}
               </span>
             </div>

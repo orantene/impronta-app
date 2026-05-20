@@ -91,7 +91,7 @@ export function TodayPulseDrawer() {
           >
             <StatDot tone={it.tone} />
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{it.title}</div>
+              <div className="text-admin-ink text-admin-13 font-semibold">{it.title}</div>
               <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">{it.sub}</div>
             </div>
             <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
@@ -164,11 +164,11 @@ export function PipelineDrawer() {
                     }}
                   >
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{iq.client}</div>
+                      <div className="text-admin-ink text-admin-12h font-semibold">{iq.client}</div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{iq.brief}</div>
                     </div>
                     {iq.amount && (
-                      <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
+                      <span className="text-admin-ink-muted text-xs font-medium">
                         {iq.amount}
                       </span>
                     )}
@@ -238,15 +238,15 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
               textAlign: "left",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{iq.client}</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">{iq.client}</div>
             <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{iq.brief}</div>
             <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
               <StageBadgeMini stage={iq.stage} />
               {iq.amount && (
-                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{iq.amount}</span>
+                <span className="text-admin-ink-muted text-admin-11h">{iq.amount}</span>
               )}
               {iq.date && (
-                <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">· {iq.date}</span>
+                <span className="text-admin-ink-muted text-admin-11h">· {iq.date}</span>
               )}
             </div>
           </button>
@@ -384,7 +384,7 @@ export function NotificationsDrawer() {
               <Icon name={KIND_ICON[n.kind]} size={10} stroke={1.8} />
               {n.kind}
             </span>
-            <span style={{ fontSize: 11 }} className="text-admin-ink-dim">{n.ts}</span>
+            <span className="text-admin-ink-dim text-admin-11">{n.ts}</span>
           </div>
         )}
       </div>
@@ -448,7 +448,7 @@ export function NotificationsDrawer() {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{b.summary}</span>
+              <span className="text-admin-ink text-admin-13 font-semibold">{b.summary}</span>
               <span style={{ display: "inline-flex", padding: "1px 6px", minWidth: 18, height: 18, borderRadius: 999, color: "#fff", fontSize: 10, fontWeight: 700, alignItems: "center", justifyContent: "center" }} className="bg-admin-accent">
                 {b.count}
               </span>

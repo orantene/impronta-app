@@ -104,10 +104,10 @@ export function TopPerformersDrawer() {
                     }}>
                       {i + 1}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{row.name}</span>
+                    <span className="text-admin-ink text-admin-13 font-semibold">{row.name}</span>
                   </div>
                   <div className="text-right">
-                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">€{row.revenue.toLocaleString()}</div>
+                    <div className="text-admin-ink text-admin-13 font-bold">€{row.revenue.toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
                   </div>
                 </div>
@@ -143,10 +143,10 @@ export function TopPerformersDrawer() {
                     }}>
                       {i + 1}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{row.name}</span>
+                    <span className="text-admin-ink text-admin-13 font-semibold">{row.name}</span>
                   </div>
                   <div className="text-right">
-                    <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">€{row.spend.toLocaleString()}</div>
+                    <div className="text-admin-ink text-admin-13 font-bold">€{row.spend.toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
                   </div>
                 </div>
@@ -208,7 +208,7 @@ export function CoordinatorWorkloadDrawer() {
               <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }} className="text-admin-ink-muted">
                 {tile.label}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800 }} className="text-admin-ink">{tile.value}</div>
+              <div className="text-admin-ink text-admin-22 font-extrabold">{tile.value}</div>
             </div>
           ))}
         </div>
@@ -230,7 +230,7 @@ export function CoordinatorWorkloadDrawer() {
                   {/* Header row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{coord.name}</div>
+                      <div className="text-admin-ink text-admin-13 font-semibold">{coord.name}</div>
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{coord.role}</div>
                     </div>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: color, background: `${color}1A`, padding: "3px 8px" }} className="rounded-admin-sm">
@@ -356,8 +356,8 @@ export function MyQueueDrawer() {
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                   <div className="flex items-center gap-1.5">
-                    <span style={{ fontSize: 10.5, fontWeight: 700 }} className="text-admin-ink-muted">{item.id}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{item.client}</span>
+                    <span className="text-admin-ink-muted text-admin-10h font-bold">{item.id}</span>
+                    <span className="text-admin-ink text-admin-13 font-semibold">{item.client}</span>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 600, color: item.slaUrgent ? COLORS.coral : COLORS.inkMuted, background: item.slaUrgent ? COLORS.coralSoft : COLORS.surfaceAlt, padding: "2px 7px" }} className="rounded-admin-sm">
                     {item.slaLabel}
@@ -454,7 +454,7 @@ export function SlaTimersDrawer() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <div>
                       <span style={{ fontSize: 10.5, fontWeight: 700, marginRight: 6 }} className="text-admin-ink-muted">{row.id}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{row.client}</span>
+                      <span className="text-admin-ink text-admin-13 font-semibold">{row.client}</span>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: tone }}>{slaLabel(row.hoursLeft)}</span>
                   </div>
@@ -692,7 +692,7 @@ export function SavedRepliesDrawer() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{reply.name}</span>
+                      <span className="text-admin-ink text-admin-13 font-semibold">{reply.name}</span>
                       <button
                         type="button"
                         onClick={() => {

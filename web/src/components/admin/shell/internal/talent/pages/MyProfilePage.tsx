@@ -133,7 +133,7 @@ export function MyProfilePage() {
             fontFamily: FONTS.body,
           }}
         >
-          <span aria-hidden style={{ fontSize: 14 }}>⏳</span>
+          <span aria-hidden className="text-sm">⏳</span>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1f4d8a" }}>
               Submitted to your agency · waiting for review
@@ -222,7 +222,7 @@ export function MyProfilePage() {
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
                 Profile {p.completeness}% complete
               </div>
-              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">
+              <div className="text-admin-ink-muted text-admin-12h">
                 {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left · tap to see what&apos;s missing
               </div>
             </div>

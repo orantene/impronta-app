@@ -163,7 +163,7 @@ export function SkillDiscoveryPanel({
             gap: 6,
           }}
         >
-          <span style={{ fontSize: 13 }}>🔍</span>
+          <span className="text-admin-13">🔍</span>
           {t("admin.roster.skillDiscovery.toggle")}
         </button>
       )}

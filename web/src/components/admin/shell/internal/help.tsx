@@ -2928,7 +2928,7 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
   if (vote) {
     return (
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-        <span aria-hidden style={{ fontSize: 13 }}>
+        <span aria-hidden className="text-admin-13">
           {vote === "up" ? "✓" : "✦"}
         </span>
         <span>

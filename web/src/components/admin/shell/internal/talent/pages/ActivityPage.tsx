@@ -99,7 +99,7 @@ function EarningsGoalRing({ total }: { total: number }) {
           <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.3 }} className="text-admin-ink">
             {Math.round(pct * 100)}%
           </span>
-          <span style={{ fontSize: 9.5, fontWeight: 600 }} className="text-admin-ink-muted">
+          <span className="text-admin-ink-muted text-admin-9h font-semibold">
             of goal
           </span>
         </div>
@@ -114,7 +114,7 @@ function EarningsGoalRing({ total }: { total: number }) {
           <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, letterSpacing: -0.3 }} className="text-admin-ink">
             €{total.toLocaleString()}
           </span>
-          <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
+          <span className="text-admin-ink-muted text-xs">
             of €{goal.toLocaleString()}
           </span>
           <span
@@ -136,7 +136,7 @@ function EarningsGoalRing({ total }: { total: number }) {
         </div>
         {editOpen ? (
           <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: 12 }} className="text-admin-ink-muted">€</span>
+            <span className="text-admin-ink-muted text-xs">€</span>
             <input
               type="text"
               value={editValue}

@@ -492,7 +492,7 @@ function AccountMenuTrigger({
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 2 }} className="text-admin-ink-muted">
               {copy.t("Signed in as")}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{userName}</div>
+            <div className="text-admin-ink text-admin-13 font-semibold">{userName}</div>
             <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{bridgeSessionIdentity?.email ?? ""}</div>
             {/* Tenant meta — plan / role, shown on mobile where the identity
                 bar chips are hidden (#2) */}
@@ -542,7 +542,7 @@ function AccountMenuTrigger({
             fontFamily: FONTS.body,
           }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{copy.t("Language")}</div>
+              <div className="text-admin-ink text-admin-13 font-medium">{copy.t("Language")}</div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{copy.t("Dashboard display language")}</div>
             </div>
             <DashboardLocaleToggle variant="prototype" />

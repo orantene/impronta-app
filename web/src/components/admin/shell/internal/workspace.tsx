@@ -171,12 +171,12 @@ function MinorProtectionBanner({ talents, compact = false }: {
           textAlign: "left", width: "100%",
         }}
       >
-        <span aria-hidden style={{ fontSize: 14 }}>🛡️</span>
-        <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-coral-deep">
+        <span aria-hidden className="text-sm">🛡️</span>
+        <span className="text-admin-coral-deep text-xs font-semibold">
           {talents.length === 1 ? `${talents[0].name} is a minor` : `${talents.length} minors on this inquiry`}
         </span>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, fontWeight: 600 }} className="text-admin-coral-deep">
+        <span className="text-admin-coral-deep text-admin-11 font-semibold">
           Review protections →
         </span>
       </button>
@@ -628,7 +628,7 @@ function PhoneMessagingStream({
               gap: 6,
             }}
           >
-            <span aria-hidden style={{ fontSize: 11 }}>↓</span>
+            <span aria-hidden className="text-admin-11">↓</span>
             Latest
           </button>
         )}
@@ -739,9 +739,9 @@ function StatusStrip({
         }}
       >
         <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={7} />
-        <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{meta.label}</span>
+        <span className="text-admin-ink text-admin-12h font-semibold">{meta.label}</span>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{nextLabel}</span>
+        <span className="text-admin-ink-muted text-admin-11">{nextLabel}</span>
       </div>
     );
   }
@@ -761,12 +761,12 @@ function StatusStrip({
       }}
     >
       <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={8} />
-      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+      <span className="text-admin-ink text-admin-13 font-semibold">
         {meta.label}
       </span>
-      <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{meta.description}</span>
+      <span className="text-admin-ink-muted text-xs">{meta.description}</span>
       <span style={{ flex: 1 }} />
-      <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">{nextLabel}</span>
+      <span className="text-admin-ink-muted text-admin-11h">{nextLabel}</span>
       {pov === "admin" && inquiry.coordinator && (
         <>
           <Bullet />
@@ -1136,7 +1136,7 @@ function ParticipantChipStrip({
                 flexShrink: 0,
               }} />
             ) : (
-              <span style={{ fontSize: 13 }}>{t.thumb}</span>
+              <span className="text-admin-13">{t.thumb}</span>
             )}
             {t.name.split(" ")[0]}
             {t.lastSaidTs && !isActive && (
@@ -1181,7 +1181,7 @@ function ThreadSearchBar({
         flexShrink: 0,
       }}
     >
-      <span style={{ fontSize: 12 }} className="text-admin-ink-dim">🔍</span>
+      <span className="text-admin-ink-dim text-xs">🔍</span>
       <input
         ref={inputRef}
         type="search"
@@ -1669,7 +1669,7 @@ function MessagingPanel({
           {pov === "client" && (
             <>
               <Bullet />
-              <span style={{ fontSize: 11.5 }} className="text-admin-ink-dim">
+              <span className="text-admin-ink-dim text-admin-11h">
                 Direct line to your coordinator. Talent can&apos;t see this.
               </span>
             </>
@@ -1677,7 +1677,7 @@ function MessagingPanel({
           {pov === "talent" && (
             <>
               <Bullet />
-              <span style={{ fontSize: 11.5 }} className="text-admin-ink-dim">
+              <span className="text-admin-ink-dim text-admin-11h">
                 You and the other booked talent. The client can&apos;t see this.
               </span>
             </>
@@ -1834,7 +1834,7 @@ function MessagingPanel({
               gap: 6,
             }}
           >
-            <span aria-hidden style={{ fontSize: 11 }}>↓</span>
+            <span aria-hidden className="text-admin-11">↓</span>
             Latest
           </button>
         )}
@@ -2669,10 +2669,10 @@ function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
               fontFamily: FONTS.body,
             }}
           >
-            <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
+            <span className="text-admin-ink text-admin-12h font-medium">
               {REQUIREMENT_ROLE_META[g.role].pluralLabel}
             </span>
-            <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+            <span className="text-admin-ink-muted text-admin-11h">
               {g.approved}/{g.needed} approved
             </span>
           </div>
@@ -2846,7 +2846,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
               {li.thumb?.startsWith("http") ? (
                 <span style={{ width: 22, height: 22, borderRadius: "50%", background: `url(${li.thumb}) center/cover`, flexShrink: 0 }} />
               ) : (
-                <span style={{ fontSize: 14 }}>{li.thumb}</span>
+                <span className="text-sm">{li.thumb}</span>
               )}
               <span style={{ flex: 1 }} className="text-admin-ink">{li.talentName}</span>
               <span style={{ fontWeight: 500 }} className="text-admin-ink">{li.fee}</span>

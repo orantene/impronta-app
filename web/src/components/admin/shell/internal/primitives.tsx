@@ -2469,7 +2469,7 @@ export function RiskScorePill({ score, label = "Trust health" }: { score: number
       fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
     }}>
       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 700 }}>{score}</span>
+      <span className="text-admin-13 font-bold">{score}</span>
       <span style={{ fontSize: 10.5, opacity: 0.8 }}>· {tone.word}</span>
     </div>
   );
@@ -3498,7 +3498,7 @@ export function MoreWithSection({
           (e.currentTarget as HTMLElement).style.color = COLORS.inkMuted;
         }}
       >
-        <span aria-hidden style={{ fontSize: 10 }}>🔒</span>
+        <span aria-hidden className="text-admin-10">🔒</span>
         {title ?? `${count} more with ${planLabel}`}
         <span aria-hidden style={{ marginLeft: 2, fontSize: 11 }}>→</span>
       </button>
@@ -4032,7 +4032,7 @@ export function DrawerShell({
                 onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
                 onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
               >
-                <span aria-hidden style={{ fontSize: 12 }}>←</span>
+                <span aria-hidden className="text-xs">←</span>
                 Back to {drawerIdToLabel(previousDrawer.drawerId)}
               </button>
             )}
@@ -5858,7 +5858,7 @@ export function BulkSelectBar({
         fontFamily: FONTS.body,
       }}
     >
-      <span style={{ fontSize: 13, fontWeight: 500 }}>
+      <span className="text-admin-13 font-medium">
         {count} selected
       </span>
       <button
@@ -6335,7 +6335,7 @@ export function ShortcutsModal({
                 borderRadius: 8,
               }}
             >
-              <span style={{ fontSize: 13 }} className="text-admin-ink">{label}</span>
+              <span className="text-admin-ink text-admin-13">{label}</span>
               <span className="inline-flex gap-1">
                 {keys.map((k) => (
                   <kbd
@@ -6542,7 +6542,7 @@ export function FloatingFab({
                     {a.emoji ?? "+"}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">{a.label}</div>
+                    <div className="text-admin-ink text-sm font-semibold">{a.label}</div>
                     {a.sub && (
                       <div style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.35 }} className="text-admin-ink-muted">{a.sub}</div>
                     )}
@@ -6871,7 +6871,7 @@ export function FieldError({
             gap: 4,
           }}
         >
-          <span aria-hidden style={{ fontSize: 12 }}>⚠</span>
+          <span aria-hidden className="text-xs">⚠</span>
           {error}
         </span>
       )}
@@ -7093,7 +7093,7 @@ export function ModalPopover({
               flexShrink:     0,
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 600 }} className="text-admin-ink">
+            <span className="text-admin-ink text-sm font-semibold">
               {title}
             </span>
             <button
@@ -7626,7 +7626,7 @@ export function StaleDataPill({
       }}
     >
       <style>{`@keyframes tulalaStaleIn { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: translateY(0); } }`}</style>
-      <span style={{ fontSize: 13 }}>↑</span>
+      <span className="text-admin-13">↑</span>
       <span>
         {by ? <strong>{by}</strong> : "Someone"} made changes
         {" — "}
@@ -7748,7 +7748,7 @@ export function ConflictDialog({
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
               Edit conflict
             </div>
-            <div style={{ fontSize: 13 }} className="text-admin-ink-muted">
+            <div className="text-admin-ink-muted text-admin-13">
               <strong>{theirAuthor}</strong> also edited <em>{field}</em>. Choose which version to keep.
             </div>
           </div>
@@ -8406,7 +8406,7 @@ export function ActivityFeed({
               <div className="flex-1 min-w-0">
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 700, fontSize: 12.5 }} className="text-admin-ink">{entry.actor}</span>
-                  <span style={{ fontSize: 12.5 }} className="text-admin-ink-muted">{entry.action}</span>
+                  <span className="text-admin-ink-muted text-admin-12h">{entry.action}</span>
                   {entry.badge && (
                     <span style={{
                       fontSize: 10.5, fontWeight: 700,

@@ -128,6 +128,25 @@
   --transition-admin-md: 0.18s ease;
   --transition-admin-layout: 0.22s ease-out;
   --transition-admin-drawer: 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Off-grid admin font sizes (Y3/Phase-B canonical map) ────────
+   * Values that appear 5+ times in admin/shell and are NOT on
+   * Tailwind's default scale (xs=12px, sm=14px, base=16px, lg=18px,
+   * xl=20px, 2xl=24px).  The @theme inline block below registers
+   * text-admin-* utilities from these custom properties.            */
+  --text-admin-9: 9px;
+  --text-admin-9h: 9.5px;
+  --text-admin-10: 10px;
+  --text-admin-10h: 10.5px;
+  --text-admin-11: 11px;
+  --text-admin-11h: 11.5px;
+  --text-admin-12h: 12.5px;
+  --text-admin-13: 13px;
+  --text-admin-13h: 13.5px;
+  --text-admin-15: 15px;
+  --text-admin-17: 17px;
+  --text-admin-22: 22px;
+  --text-admin-26: 26px;
 }
 
 /*
@@ -202,4 +221,19 @@
   --radius-admin-md: var(--radius-admin-md);
   --radius-admin-lg: var(--radius-admin-lg);
   --radius-admin-xl: var(--radius-admin-xl);
+
+  /* Off-grid admin font sizes → text-admin-* utilities */
+  --text-admin-9: var(--text-admin-9);
+  --text-admin-9h: var(--text-admin-9h);
+  --text-admin-10: var(--text-admin-10);
+  --text-admin-10h: var(--text-admin-10h);
+  --text-admin-11: var(--text-admin-11);
+  --text-admin-11h: var(--text-admin-11h);
+  --text-admin-12h: var(--text-admin-12h);
+  --text-admin-13: var(--text-admin-13);
+  --text-admin-13h: var(--text-admin-13h);
+  --text-admin-15: var(--text-admin-15);
+  --text-admin-17: var(--text-admin-17);
+  --text-admin-22: var(--text-admin-22);
+  --text-admin-26: var(--text-admin-26);
 }

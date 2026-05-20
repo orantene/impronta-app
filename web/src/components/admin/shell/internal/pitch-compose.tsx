@@ -618,7 +618,7 @@ function PostSendView({
                   💬
                 </span>
                 <span className="flex-1">WhatsApp</span>
-                <span style={{ fontSize: 14, fontWeight: 400 }} className="text-admin-ink-dim">↗</span>
+                <span className="text-admin-ink-dim text-sm font-normal">↗</span>
               </a>
             ) : null}
             {data.emailUrl ? (
@@ -659,7 +659,7 @@ function PostSendView({
                   ✉
                 </span>
                 <span className="flex-1">Email</span>
-                <span style={{ fontSize: 14, fontWeight: 400 }} className="text-admin-ink-dim">↗</span>
+                <span className="text-admin-ink-dim text-sm font-normal">↗</span>
               </a>
             ) : null}
           </div>
@@ -1136,7 +1136,7 @@ export function PitchComposeDrawer({
             {talents.length === 0 ? (
               <div style={{ padding: "24px", textAlign: "center", fontSize: 13, fontFamily: FONTS.body, background: "rgba(11,11,13,0.02)", border: `1px dashed ${COLORS.borderSoft}`, borderRadius: 12, lineHeight: 1.6 }} className="text-admin-ink-muted">
                 No talents selected.<br />
-                <span style={{ fontSize: 12 }} className="text-admin-ink-dim">
+                <span className="text-admin-ink-dim text-xs">
                   Close, then pick some from the roster to start a pitch.
                 </span>
               </div>
@@ -1192,7 +1192,7 @@ export function PitchComposeDrawer({
                 style={{ cursor: "pointer", width: 16, height: 16, accentColor: COLORS.ink }}
               />
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Set an expiry</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">Set an expiry</div>
                 <div style={{ fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">
                   Link auto-expires; recipient sees a friendly notice instead of stale data.
                 </div>

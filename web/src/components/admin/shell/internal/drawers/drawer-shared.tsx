@@ -730,7 +730,7 @@ export function CategoryExpandPanel({
                   padding: "8px 10px",
                 }}>
                   <div className="flex-1">
-                    <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
+                    <div className="text-admin-ink text-admin-12h font-semibold">
                       {sub.custom_label ?? sub.name_en}
                       {sub.is_custom && (
                         <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">CUSTOM</span>
@@ -895,7 +895,7 @@ export function CategoryExpandPanel({
                           )}
                         </span>
                         {f.tier === "type-specific" && (
-                          <span style={{ fontSize: 10 }} className="text-admin-ink-muted">{f.source}</span>
+                          <span className="text-admin-ink-muted text-admin-10">{f.source}</span>
                         )}
                         <span style={{ fontSize: 10, fontFamily: "ui-monospace, monospace" }} className="text-admin-ink-muted">{f.kind}</span>
                       </div>
@@ -1145,7 +1145,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
         <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontFamily: FONTS.body, marginBottom: 14 }} className="bg-admin-indigo-soft">
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-indigo-deep">
+              <div className="text-admin-indigo-deep text-xs font-semibold">
                 {totalEnabled} of {tree.length} categories enabled
               </div>
               <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
@@ -1175,7 +1175,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", cursor: "pointer", }} onClick={() => toggleExpand(parent.id)}>
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
+                      <div className="text-admin-ink text-admin-13h font-semibold">
                         {parent.custom_label ?? parent.name_en}
                       </div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
@@ -1281,7 +1281,7 @@ export function LegacyTalentTypesDrawer() {
       {/* Plan usage strip */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontFamily: FONTS.body, marginBottom: 14 }} className="bg-admin-indigo-soft">
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-indigo-deep">
+          <div className="text-admin-indigo-deep text-xs font-semibold">
             {limit === 999 ? "All groups available" : `${enabledCount} of ${limit} groups enabled`}
           </div>
           <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
@@ -1370,7 +1370,7 @@ export function TalentTypeRow({
       }} onClick={() => !locked && setting.isEnabled && setExpanded(e => !e)}>
         <span style={{ fontSize: 22, flexShrink: 0 }}>{parent.emoji}</span>
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
+          <div className="text-admin-ink text-admin-13h font-semibold">
             {parent.label}
           </div>
           <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
@@ -1440,7 +1440,7 @@ export function TaxonomyToggleRow({ label, desc, value, onChange }: { label: str
         <span style={{ position: "absolute", top: 2, left: value ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", }} />
       </button>
       <div className="flex-1">
-        <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{label}</div>
+        <div className="text-admin-ink text-admin-12h font-medium">{label}</div>
         <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{desc}</div>
       </div>
     </div>
@@ -1680,12 +1680,12 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
       }}>
         <div style={{ padding: 12, borderRight: `1px solid ${COLORS.borderSoft}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, marginBottom: 8 }} className="text-admin-success-deep">
-            <span style={{ fontSize: 12 }}>🌐</span>
+            <span className="text-xs">🌐</span>
             <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>On {agencyName}&apos;s site</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {publicLabels.length === 0 && (
-              <li style={{ fontSize: 11 }} className="text-admin-ink-dim">None — fully internal.</li>
+              <li className="text-admin-ink-dim text-admin-11">None — fully internal.</li>
             )}
             {publicLabels.map(l => (
               <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
@@ -1696,12 +1696,12 @@ export function ConsentTwoCol({ agencyName }: { agencyName: string }) {
         </div>
         <div className="p-3">
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, marginBottom: 8 }} className="text-admin-amber-deep">
-            <span style={{ fontSize: 12 }}>🔒</span>
+            <span className="text-xs">🔒</span>
             <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>Agency admins see</span>
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
             {internalLabels.length === 0 && (
-              <li style={{ fontSize: 11 }} className="text-admin-ink-dim">None.</li>
+              <li className="text-admin-ink-dim text-admin-11">None.</li>
             )}
             {internalLabels.map(l => (
               <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
@@ -1924,7 +1924,7 @@ export function PhotoGalleryReal({ album, onUpdateAlbum }: {
             fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
             transition: "background .12s",
           }}>
-            <span style={{ fontSize: 18 }}>+</span>
+            <span className="text-lg">+</span>
             <span>{dragOver ? "Drop here" : "Drop or pick"}</span>
           </button>
         )}
@@ -2125,7 +2125,7 @@ export function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
+              <span className="text-admin-ink-muted text-admin-11">{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
               {albums.length > 1 && (
                 <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
                   width: 24, height: 24, borderRadius: 6,
@@ -2227,7 +2227,7 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
         }}>
           <span style={{ fontSize: 24, lineHeight: 1 }}>+</span>
           <span>Drop or pick a cover banner</span>
-          <span style={{ fontSize: 10.5, fontWeight: 500 }} className="text-admin-ink-dim">The wide image at the top of your public profile</span>
+          <span className="text-admin-ink-dim text-admin-10h font-medium">The wide image at the top of your public profile</span>
         </button>
       )}
       <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
@@ -2351,7 +2351,7 @@ export function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }:
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
             fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
           }}>
-            <span style={{ fontSize: 18 }}>+</span>
+            <span className="text-lg">+</span>
             <span>Drop or pick</span>
           </button>
         )}
@@ -2778,7 +2778,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
                 color: "#fff", fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
                 padding: 6, textAlign: "center", gap: 4,
               }}>
-                <span style={{ fontSize: 18 }}>⚠</span>
+                <span className="text-lg">⚠</span>
                 <span style={{ fontSize: 9.5, lineHeight: 1.3 }}>{it.uploadError}</span>
               </div>
             )}
@@ -2844,7 +2844,7 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
             fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
             transition: "background .12s",
           }}>
-            <span style={{ fontSize: 18 }}>+</span>
+            <span className="text-lg">+</span>
             <span>{dragOver ? "Drop here" : "Pick · drop · capture"}</span>
           </button>
         )}
@@ -3397,7 +3397,7 @@ export function InquiryTrustPanel({ clientName, talentNames }: { clientName: str
               {talentRisk !== null && <div className="mt-2"><RiskScorePill score={talentRisk} label="Score" /></div>}
             </>
           ) : (
-            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Not on roster</span>
+            <span className="text-admin-ink-muted text-admin-11">Not on roster</span>
           )}
         </div>
       </div>
@@ -3751,7 +3751,7 @@ export function FieldPrivacyRow({
     }}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{label}</span>
+          <span className="text-admin-ink text-admin-12h font-medium">{label}</span>
           {isOverridden && (
             <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">changed</span>
           )}
@@ -3780,7 +3780,7 @@ export function FieldPrivacyRow({
                 fontFamily: FONTS.body,
               }}
             >
-              <span aria-hidden style={{ fontSize: 11 }}>{o.emoji}</span>
+              <span aria-hidden className="text-admin-11">{o.emoji}</span>
               {o.label}
             </button>
           );
@@ -3956,9 +3956,9 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
                   background: "#fff", cursor: "pointer",
                   fontFamily: FONTS.body, textAlign: "left",
                 }}>
-                <span style={{ fontSize: 18 }}>{s.emoji}</span>
+                <span className="text-lg">{s.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{s.copy}</div>
+                  <div className="text-admin-ink text-admin-12h font-semibold">{s.copy}</div>
                   <div style={{ fontSize: 11, marginTop: 1, fontWeight: 600 }} className="text-admin-success-deep">+{s.lift} score</div>
                 </div>
               </button>
@@ -4067,7 +4067,7 @@ export function InstagramVerificationInstructions({
           color: "#fff", fontSize: 10.5, fontWeight: 700,
           marginBottom: 10, letterSpacing: 0.5, textTransform: "uppercase",
         }}>
-          <span aria-hidden style={{ fontSize: 11 }}>📸</span> Instagram Verified
+          <span aria-hidden className="text-admin-11">📸</span> Instagram Verified
         </div>
         <div style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 600, letterSpacing: -0.2, marginBottom: 6 }} className="text-admin-ink">Verify your Instagram</div>
         <div style={{ fontSize: 12.5, marginBottom: 16, lineHeight: 1.5 }} className="text-admin-ink-muted">
@@ -4205,7 +4205,7 @@ export function ConfigRow({ label, hint, children }: { label: string; hint?: str
       padding: "10px 0", borderBottom: `1px solid ${COLORS.borderSoft}`,
     }}>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{label}</div>
+        <div className="text-admin-ink text-admin-12h font-semibold">{label}</div>
         {hint && <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{hint}</div>}
       </div>
       <div className="shrink-0">{children}</div>
@@ -4696,7 +4696,7 @@ export function PayoutReceiverPickerDrawer() {
               >
                 <Avatar initials={rec.initials} size={36} />
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
+                  <div className="text-admin-ink text-admin-13h font-semibold">
                     {rec.displayName}
                   </div>
                   <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">

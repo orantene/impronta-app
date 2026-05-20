@@ -196,7 +196,7 @@ export function AvailableChannelRow({
               Verified
             </span>
           )}
-          <span style={{ fontSize: 11 }} className="text-admin-ink-dim">
+          <span className="text-admin-ink-dim text-admin-11">
             Available · not joined
           </span>
         </div>

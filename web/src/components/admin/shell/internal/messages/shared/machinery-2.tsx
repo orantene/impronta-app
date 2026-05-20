@@ -281,7 +281,7 @@ export function TalentBookingTab({
             <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: -0.4, lineHeight: 1 }} className="text-admin-ink">
               {fmtMoney(histRow.costRate * histRow.units, histCurrency)}
             </span>
-            <span style={{ fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
+            <span className="text-admin-ink-muted text-xs font-medium">
               {histRow.units} × {UNIT_TYPE_LABEL[histRow.unitType]}
             </span>
           </div>
@@ -312,7 +312,7 @@ export function TalentBookingTab({
       }}>
         <div data-booking-card style={cardStyle}>
           <div data-booking-section-title style={sectionTitle}>When</div>
-          <div style={{ fontSize: 14, fontWeight: 700 }} className="text-admin-ink">
+          <div className="text-admin-ink text-sm font-bold">
             {inquiry.schedule.start}
             {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
           </div>

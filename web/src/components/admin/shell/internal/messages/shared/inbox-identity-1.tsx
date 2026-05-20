@@ -540,7 +540,7 @@ export function ParticipantTrustStrip({
       {showTalent && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Talent</span>
-          <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{talentName}</span>
+          <span className="text-admin-ink text-xs font-semibold">{talentName}</span>
           <TrustBadgeGroup trust={talentTrust!} surface="chat_header" size="sm" max={3} />
         </div>
       )}
@@ -550,7 +550,7 @@ export function ParticipantTrustStrip({
       {showClient && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Client</span>
-          <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">{clientName}</span>
+          <span className="text-admin-ink text-xs font-semibold">{clientName}</span>
           <TrustBadgeGroup trust={clientTrust!} surface="chat_header" size="sm" max={3} />
         </div>
       )}

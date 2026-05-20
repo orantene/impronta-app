@@ -494,7 +494,7 @@ export function TalentJobInbox({
         <div data-tulala-list-header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">My jobs</h3>
           <div className="inline-flex items-center gap-1.5">
-            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{conversations.length}</span>
+            <span className="text-admin-ink-muted text-admin-11">{conversations.length}</span>
             {onCollapse && (
               <button
                 type="button"
@@ -580,7 +580,7 @@ export function TalentJobInbox({
                 <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+            <div className="text-admin-ink text-admin-13 font-semibold">
               {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">

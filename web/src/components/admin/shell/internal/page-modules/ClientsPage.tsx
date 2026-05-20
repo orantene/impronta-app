@@ -268,11 +268,11 @@ export function ClientsPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <Avatar initials={client.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()} size={32} tone="auto" hashSeed={client.name} />
               <div className="min-w-0">
-                <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">{client.name}</div>
+                <div className="text-admin-ink text-admin-13h font-semibold">{client.name}</div>
                 <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{client.contact}</div>
               </div>
             </div>
-            <div style={{ fontSize: 12 }} className="text-admin-ink-muted">
+            <div className="text-admin-ink-muted text-xs">
               {client.bookingsYTD} bookings YTD
             </div>
             <div>
@@ -282,7 +282,7 @@ export function ClientsPage() {
               {client.trust ? (
                 <ClientTrustChip level={client.trust} compact />
               ) : (
-                <span style={{ fontSize: 11 }} className="text-admin-ink-dim">—</span>
+                <span className="text-admin-ink-dim text-admin-11">—</span>
               )}
             </div>
             <div className="flex justify-end">

@@ -112,7 +112,7 @@ export function AdminInboxList({
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
           <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">Inbox</h3>
           <div className="flex items-center gap-2">
-            <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
+            <span className="text-admin-ink-muted text-admin-11">{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
             {/* Bulk-select toggle — admin+ only. Visible chevron pill
                 so the affordance reads as "switch into bulk mode" not
                 some hidden gesture. */}
@@ -195,7 +195,7 @@ export function AdminInboxList({
                 <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+            <div className="text-admin-ink text-admin-13 font-semibold">
               {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No inquiries yet"}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">

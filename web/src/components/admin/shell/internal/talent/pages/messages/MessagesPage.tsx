@@ -183,7 +183,7 @@ function ConversationList({
           <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0 }} className="text-admin-ink">
             Messages
           </h2>
-          <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+          <span className="text-admin-ink-muted text-admin-11h">
             {conversations.length} thread{conversations.length === 1 ? "" : "s"}
           </span>
         </div>

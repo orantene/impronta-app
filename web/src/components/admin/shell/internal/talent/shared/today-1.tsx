@@ -66,7 +66,7 @@ export function ProfileCompletenessBanner({
         <Icon name="user" size={13} stroke={1.7} />
       </span>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-indigo-deep">
+        <div className="text-admin-indigo-deep text-admin-12h font-semibold">
           {remaining > 0
             ? `${remaining}% from Verified visibility · ${percent}% complete`
             : `${percent}% complete · finish strong`}
@@ -117,7 +117,7 @@ function TodaysPlanBanner({
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-green">
           Today
         </span>
-        <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-xs">
           {bookings.length === 1 ? "1 confirmed shoot" : `${bookings.length} confirmed shoots`}
         </span>
       </div>
@@ -147,7 +147,7 @@ function TodaysPlanBanner({
               {b.call}
             </span>
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
+              <div className="text-admin-ink text-admin-13 font-medium">
                 {b.client} · {b.brief}
               </div>
               <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">

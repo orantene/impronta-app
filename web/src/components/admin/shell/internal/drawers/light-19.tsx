@@ -55,7 +55,7 @@ export function CalendarSyncDrawer() {
                 <div className="flex items-center gap-2.5">
                   <Icon name={intg.icon} size={16} color={intg.connected ? COLORS.accent : COLORS.inkMuted} stroke={1.6} />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{intg.name}</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">{intg.name}</div>
                     <div style={{ fontSize: 11, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted, marginTop: 1 }}>
                       {intg.note}
                     </div>
@@ -175,10 +175,10 @@ export function SystemStatusDrawer() {
                   borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">{comp.name}</div>
+                <div className="text-admin-ink text-admin-13 font-medium">{comp.name}</div>
                 <div className="flex items-center gap-2.5">
                   {comp.latency && (
-                    <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{comp.latency}</span>
+                    <span className="text-admin-ink-muted text-admin-11">{comp.latency}</span>
                   )}
                   <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(comp.status), background: statusBg(comp.status), padding: "2px 7px", textTransform: "capitalize" }} className="rounded-admin-sm">
                     {comp.status}
@@ -202,7 +202,7 @@ export function SystemStatusDrawer() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{inc.title}</div>
+                  <div className="text-admin-ink text-admin-13 font-semibold">{inc.title}</div>
                   <span style={{ fontSize: 10.5, fontWeight: 700, flexShrink: 0, color: inc.resolved ? COLORS.successDeep : COLORS.coral, background: inc.resolved ? COLORS.successSoft : COLORS.coralSoft, padding: "2px 7px" }} className="rounded-admin-sm">
                     {inc.resolved ? "Resolved" : "Ongoing"}
                   </span>
@@ -274,7 +274,7 @@ export function TelemetryDashboardDrawer() {
               <div style={{ fontSize: 20, fontWeight: 800, color: toneColor(m.tone), marginBottom: 2 }}>
                 {m.value}
               </div>
-              <div style={{ fontSize: 10.5 }} className="text-admin-ink-muted">{m.sub}</div>
+              <div className="text-admin-ink-muted text-admin-10h">{m.sub}</div>
             </div>
           ))}
         </div>
@@ -369,7 +369,7 @@ export function BetaProgramDrawer() {
             <Toggle on={flag.enrolled} onChange={() => toggle(flag.id)} />
             <div className="flex-1">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{flag.name}</span>
+                <span className="text-admin-ink text-admin-13 font-semibold">{flag.name}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px" }} className="text-admin-indigo-deep bg-admin-indigo-soft rounded-admin-sm">
                   {flag.rollout}% rollout
                 </span>
@@ -506,8 +506,8 @@ export function CsvImportDrawer() {
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               {columns.map((col) => (
                 <div key={col} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}` }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{col}</span>
-                  <span style={{ fontSize: 11.5 }} className="text-admin-success-deep">✓ Auto-matched</span>
+                  <span className="text-admin-ink text-admin-12h font-medium">{col}</span>
+                  <span className="text-admin-success-deep text-admin-11h">✓ Auto-matched</span>
                 </div>
               ))}
             </div>
@@ -547,7 +547,7 @@ export function CsvImportDrawer() {
         {step === "done" && (
           <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)` }} className="bg-admin-success-soft rounded-admin-lg">
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }} className="text-admin-success-deep">✓ Import complete</div>
-            <div style={{ fontSize: 12.5 }} className="text-admin-success-deep">
+            <div className="text-admin-success-deep text-admin-12h">
               {PREVIEW_ROWS.length} {importType} records imported successfully. They appear in your roster immediately.
             </div>
           </div>
@@ -650,9 +650,9 @@ export function MigrationAssistantDrawer() {
                       transition: TRANSITION.sm,
                     }}
                   >
-                    <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                    <span className="text-xl">{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{meta.label}</div>
+                      <div className="text-admin-ink text-admin-13 font-semibold">{meta.label}</div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{meta.hint}</div>
                     </div>
                     {source === key && (
@@ -667,7 +667,7 @@ export function MigrationAssistantDrawer() {
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
                 Drop your file here
               </div>
-              <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">or click to browse</div>
+              <div className="text-admin-ink-muted text-admin-11h">or click to browse</div>
             </div>
           </>
         )}

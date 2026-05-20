@@ -475,7 +475,7 @@ export function CommandPalette() {
                     <span className="flex-1 min-w-0">{it.label}</span>
                     {it.current && <CurrentChip />}
                     {it.hint && (
-                      <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{it.hint}</span>
+                      <span className="text-admin-ink-muted text-admin-11">{it.hint}</span>
                     )}
                   </button>
                 );

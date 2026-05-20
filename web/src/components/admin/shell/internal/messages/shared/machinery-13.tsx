@@ -143,7 +143,7 @@ export function DealSummaryCard({
           {hero.value}
         </span>
         {hero.unit && (
-          <span style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink-muted">
+          <span className="text-admin-ink-muted text-admin-12h font-medium">
             {hero.unit}
           </span>
         )}
@@ -225,7 +225,7 @@ export function SummaryTile({
       border: `1px solid ${COLORS.border}`, background: "#fff",
       position: "relative",
     }}>
-      <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-dim">
+      <div className="text-admin-ink-dim text-admin-10h font-semibold">
         {label}
       </div>
       <div style={{ marginTop: 4, fontSize: 17, fontWeight: 700, color: primaryColor, fontFamily: FONTS.display }}>
@@ -267,8 +267,8 @@ export function ParticipantRow({
     }}>
       <Avatar size={28} tone="auto" hashSeed={name} initials={initials} />
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{name}</div>
-        {note && <div style={{ fontSize: 11 }} className="text-admin-ink-muted">{note}</div>}
+        <div className="text-admin-ink text-admin-13 font-semibold">{name}</div>
+        {note && <div className="text-admin-ink-muted text-admin-11">{note}</div>}
       </div>
       <span style={{
         fontSize: 9.5, fontWeight: 700,         padding: "2px 8px", borderRadius: 999, background: palette.bg, color: palette.fg,
@@ -363,7 +363,7 @@ export function dashedBtn(_label: string): React.CSSProperties {
 export function TotalCell({ label, value, accent, tone }: { label: string; value: string; accent?: boolean; tone?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-dim">
+      <div className="text-admin-ink-dim text-admin-10h font-semibold">
         {label}
       </div>
       <div style={{
@@ -418,7 +418,7 @@ export function LineupRowCard({
         <Avatar size={32} tone="auto" hashSeed={row.talentName} initials={row.initials} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span style={{ fontSize: 13.5, fontWeight: 700 }} className="text-admin-ink">
+            <span className="text-admin-ink text-admin-13h font-bold">
               {pov.kind === "talent" && !pov.isCoordinator && !isMine ? "Hidden talent" : row.talentName}
             </span>
             {offer.coordinators.some(c => c.alsoTalentId === row.talentId) && (
@@ -533,7 +533,7 @@ export function LineupRowCard({
             </button>
           )}
           {row.status === "approved" && (
-            <span style={{ fontSize: 11.5 }} className="text-admin-success-deep">✓ You&apos;re booked at this rate.</span>
+            <span className="text-admin-success-deep text-admin-11h">✓ You&apos;re booked at this rate.</span>
           )}
         </div>
       )}

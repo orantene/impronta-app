@@ -197,7 +197,7 @@ export function ProTierValueCard({
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", padding: "4px 9px", borderRadius: 999 }} className="text-admin-green bg-admin-success-soft">
           {targetMeta.label} · {targetMeta.monthlyPrice}
         </span>
-        <span style={{ fontSize: 12 }} className="text-admin-ink-muted">vs your current {TALENT_TIER_META[currentTier].label}</span>
+        <span className="text-admin-ink-muted text-xs">vs your current {TALENT_TIER_META[currentTier].label}</span>
       </div>
       <h3 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
         {isBasic
@@ -213,7 +213,7 @@ export function ProTierValueCard({
 
       <div className="flex items-center gap-2.5">
         <PrimaryButton onClick={onCompare}>See full comparison</PrimaryButton>
-        <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+        <span className="text-admin-ink-muted text-admin-11h">
           Cancel anytime. Your URL stays the same.
         </span>
       </div>
@@ -265,7 +265,7 @@ export function ReachHealthScore({
         {score}
       </div>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
+        <div className="text-admin-ink-muted text-admin-10h font-semibold">
           Reach health
         </div>
         <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }} className="text-admin-ink">
@@ -320,7 +320,7 @@ export function ProTierCompactStrip({
         On {TALENT_TIER_META[currentTier].label}.{" "}
         <span style={{ fontWeight: 600 }} className="text-admin-green">{targetMeta.label}</span> unlocks 3 modules · {targetMeta.monthlyPrice}
       </span>
-      <span style={{ fontSize: 11.5, fontWeight: 600 }} className="text-admin-green">
+      <span className="text-admin-green text-admin-11h font-semibold">
         Compare →
       </span>
     </button>

@@ -492,7 +492,7 @@ export function TrustBadgesPanel({
               background: badge?.status === "verified" ? T.accentSoft : T.surface,
               border: `1px solid ${badge?.status === "verified" ? T.accent : T.border}`,
             }}>
-              <span style={{ fontSize: 20 }}>{meta.emoji}</span>
+              <span className="text-xl">{meta.emoji}</span>
               <div className="flex-1">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>
                   {meta.label}

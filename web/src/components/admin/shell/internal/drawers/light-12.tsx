@@ -140,9 +140,9 @@ export function TalentTrustDetailDrawer() {
               display: "flex", alignItems: "center", gap: 10,
               fontFamily: FONTS.body,
             }}>
-              <span style={{ fontSize: 18 }}>👤</span>
+              <span className="text-lg">👤</span>
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+                <div className="text-admin-ink text-admin-13 font-semibold">
                   {trust.claimStatus === "claimed" && "You own this profile."}
                   {trust.claimStatus === "invite_sent" && "Claim invite pending."}
                   {trust.claimStatus === "unclaimed" && "Profile not yet claimed."}
@@ -170,9 +170,9 @@ export function TalentTrustDetailDrawer() {
           </div>
           {igActive && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-success-soft">
-              <span style={{ fontSize: 18 }}>📸</span>
+              <span className="text-lg">📸</span>
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-success-deep">Verified</div>
+                <div className="text-admin-success-deep text-admin-13 font-semibold">Verified</div>
                 <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Public badge live</div>
               </div>
             </div>
@@ -204,9 +204,9 @@ export function TalentTrustDetailDrawer() {
           </div>
           {tulalaActive && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, fontFamily: FONTS.body }} className="bg-admin-success-soft">
-              <span style={{ fontSize: 18 }}>✓</span>
+              <span className="text-lg">✓</span>
               <div className="flex-1">
-                <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-success-deep">Tulala Verified</div>
+                <div className="text-admin-success-deep text-admin-13 font-semibold">Tulala Verified</div>
                 <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">Public badge live</div>
               </div>
             </div>
@@ -268,7 +268,7 @@ export function TalentTrustDetailDrawer() {
                       cursor: active ? "default" : "pointer",
                       textAlign: "left",
                     }}>
-                    <span style={{ fontSize: 16 }}>{m.emoji}</span>
+                    <span className="text-base">{m.emoji}</span>
                     <span className="flex-1">{active ? "Verified" : m.label}</span>
                     {!active && <span aria-hidden style={{ color: COLORS.inkDim }}>→</span>}
                   </button>
@@ -397,8 +397,8 @@ export function TalentClaimInviteDrawer() {
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
               <span style={{ width: 56, height: 56, borderRadius: "50%", background: `url(https://i.pravatar.cc/200?img=23) center/cover, ${COLORS.surfaceAlt}`, flexShrink: 0, }} />
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }} className="text-admin-ink">{profileName}</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-accent-deep">Promotional model · Lisbon</div>
+                <div className="text-admin-ink text-base font-bold">{profileName}</div>
+                <div className="text-admin-accent-deep text-xs font-semibold">Promotional model · Lisbon</div>
                 <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">Created by {agencyName} · 5 days ago</div>
               </div>
             </div>
@@ -554,7 +554,7 @@ export function PlatformVerificationMethodsDrawer() {
                   <span aria-hidden style={{ fontSize: 18, lineHeight: "20px" }}>{meta.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{meta.label}</span>
+                      <span className="text-admin-ink text-admin-13 font-semibold">{meta.label}</span>
                       <span style={{
                         fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999,
                         background: c.enabled ? "rgba(15,79,62,0.12)" : "rgba(11,11,13,0.06)",
@@ -579,7 +579,7 @@ export function PlatformVerificationMethodsDrawer() {
             background: "#fff", padding: 16,
           }}>
             {!cur ? (
-              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">Pick a method to configure.</div>
+              <div className="text-admin-ink-muted text-admin-12h">Pick a method to configure.</div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
@@ -594,7 +594,7 @@ export function PlatformVerificationMethodsDrawer() {
                 {/* Enabled toggle */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14 }} className="bg-admin-surface">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">Enabled platform-wide</div>
+                    <div className="text-admin-ink text-admin-13 font-semibold">Enabled platform-wide</div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
                       {cur.enabled ? "Talent and admins can use this method." : "Hidden from talent CTAs and admin queues."}
                     </div>
@@ -668,7 +668,7 @@ export function PlatformVerificationMethodsDrawer() {
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-dim">Recent changes</div>
                   {filteredAudit.length === 0 ? (
-                    <div style={{ fontSize: 12 }} className="text-admin-ink-dim">No changes logged.</div>
+                    <div className="text-admin-ink-dim text-xs">No changes logged.</div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       {filteredAudit.slice(0, 8).map(a => (

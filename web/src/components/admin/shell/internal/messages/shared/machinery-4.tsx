@@ -165,7 +165,7 @@ export function ReassignCoordinatorSheet({
                     }}>
                     <Avatar size={32} tone="auto" hashSeed={c.displayName} initials={initials} />
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{c.displayName}</div>
+                      <div className="text-admin-ink text-admin-13 font-bold">{c.displayName}</div>
                       <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{meta}</div>
                     </div>
                     {isPicked && (

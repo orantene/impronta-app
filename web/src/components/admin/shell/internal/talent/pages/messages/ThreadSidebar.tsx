@@ -395,7 +395,7 @@ export function ThreadInfoSidebar({
         >
           <Avatar size={28} tone="ink" initials={conv.leader.initials} />
           <div className="flex-1 min-w-0">
-            <div style={{ fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">{conv.leader.name}</div>
+            <div className="text-admin-ink text-admin-12h font-medium">{conv.leader.name}</div>
             <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">{conv.leader.role}</div>
           </div>
           <Icon name="chevron-right" size={11} color={COLORS.inkDim} />
@@ -438,7 +438,7 @@ export function ThreadInfoSidebar({
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.03)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <span style={{ fontSize: 14 }}>{f.kind}</span>
+              <span className="text-sm">{f.kind}</span>
               <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {f.name}
               </span>

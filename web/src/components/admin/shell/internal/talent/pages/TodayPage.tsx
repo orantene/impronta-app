@@ -219,7 +219,7 @@ export function TalentTodayPage() {
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
                 Finish setting up your profile
               </div>
-              <div style={{ fontSize: 12.5 }} className="text-admin-ink-muted">
+              <div className="text-admin-ink-muted text-admin-12h">
                 {onboardingCompleteness.missing.length} field{onboardingCompleteness.missing.length === 1 ? "" : "s"} left before you can publish + take bookings.
               </div>
             </div>

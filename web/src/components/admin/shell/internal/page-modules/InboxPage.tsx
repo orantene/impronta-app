@@ -241,7 +241,7 @@ export function UnifiedInboxPage() {
               gap: 4,
             }}
           >
-            <span aria-hidden style={{ fontSize: 10 }}>🔖</span>
+            <span aria-hidden className="text-admin-10">🔖</span>
             {label}
           </button>
         ))}
@@ -334,7 +334,7 @@ export function UnifiedInboxPage() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+                      <span className="text-admin-ink text-admin-13 font-semibold">
                         {inq.clientName}
                       </span>
                       <ClientTrustChip level={inq.clientTrust} compact />
@@ -539,7 +539,7 @@ function InboxPipelineView({
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
+                      <span className="text-admin-ink text-admin-12h font-semibold">
                         {inq.clientName}
                       </span>
                       {isFixtureInquiryId(inq.id) && <FixtureBadge compact />}

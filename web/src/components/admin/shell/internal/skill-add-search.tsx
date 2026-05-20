@@ -327,7 +327,7 @@ export function AddSkillSearch({
                     gap: 8,
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>{p.emoji}</span>
+                  <span className="text-base">{p.emoji}</span>
                   {parentLabel(p)}
                 </button>
               ))}

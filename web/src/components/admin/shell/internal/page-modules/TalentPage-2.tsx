@@ -40,7 +40,7 @@ export function FilterChip({
         whiteSpace: "nowrap",
       }}
     >
-      {emoji && <span aria-hidden style={{ fontSize: 12 }}>{emoji}</span>}
+      {emoji && <span aria-hidden className="text-xs">{emoji}</span>}
       {label}
     </button>
   );

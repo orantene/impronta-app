@@ -715,7 +715,7 @@ export function CalendarPage() {
               <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
                 {a.startDate} – {a.endDate}
               </span>
-              <span style={{ fontSize: 12 }} className="text-admin-ink-muted">{a.reason}</span>
+              <span className="text-admin-ink-muted text-xs">{a.reason}</span>
               <button
                 onClick={() => openDrawer("talent-availability", { id: a.id })}
                 style={{

@@ -381,7 +381,7 @@ export function Composer({
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <span style={{ fontSize: 20 }}>{a.icon}</span>
+              <span className="text-xl">{a.icon}</span>
               <span>{a.label}</span>
             </button>
           ))}

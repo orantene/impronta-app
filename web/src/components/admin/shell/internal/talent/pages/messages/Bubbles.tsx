@@ -289,7 +289,7 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
                   boxShadow: "0 1px 2px rgba(11,11,13,0.04)",
                 }}
               >
-                <span style={{ fontSize: 12 }}>{e}</span>
+                <span className="text-xs">{e}</span>
                 {count > 1 && <span className="text-admin-ink-muted">{count}</span>}
               </button>
             );

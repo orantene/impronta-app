@@ -176,7 +176,7 @@ export function TalentJobShellHeader({
             instantly reads the closure reason. */}
         {!hasRate && conv.stage === "cancelled" && conv.outcome && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: "rgba(11,11,13,0.05)", fontSize: 11, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-            <span aria-hidden style={{ fontSize: 11 }}>
+            <span aria-hidden className="text-admin-11">
               {conv.outcome === "client_cancelled" ? "🚫"
                 : conv.outcome === "client_rejected" ? "✕"
                 : conv.outcome === "client_no_response" ? "⌛"

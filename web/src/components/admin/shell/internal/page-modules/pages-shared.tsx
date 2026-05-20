@@ -49,7 +49,7 @@ export function WorkspaceStatStrip({ items }: {
           {it.demo && <DemoBadge />}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: it.tone }} />
-            <span style={{ fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">{it.label}</span>
+            <span className="text-admin-ink-muted text-admin-11 font-medium">{it.label}</span>
           </div>
           <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{it.value}</div>
         </button>
@@ -165,7 +165,7 @@ export function PageHeader({
             onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
             onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
           >
-            <span aria-hidden style={{ fontSize: 14 }}>←</span>
+            <span aria-hidden className="text-sm">←</span>
             Back
           </button>
         )}

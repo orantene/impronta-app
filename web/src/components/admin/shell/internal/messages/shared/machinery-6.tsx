@@ -169,7 +169,7 @@ export function PayoutReceiverPicker({
     }}>
       <span style={{ fontWeight: 700 }} className="text-admin-ink">Payout receiver</span>
       {currentDisplayName && (
-        <span style={{ fontSize: 11 }} className="text-admin-ink-muted">currently · {currentDisplayName}</span>
+        <span className="text-admin-ink-muted text-admin-11">currently · {currentDisplayName}</span>
       )}
       <span style={{ flex: 1 }} />
       <select
