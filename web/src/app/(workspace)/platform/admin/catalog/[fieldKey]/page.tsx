@@ -1,7 +1,7 @@
-// Phase 9A slice 4 — Platform HQ · Catalog · per-field detail (read-only).
+// Phase 9A slices 4 + 5 — Platform HQ · Catalog · per-field detail (read-only).
 // Server Component. Platform-admin gated by the (workspace)/platform/admin
 // layout (super_admin). Zero mutation; aggregates over the canonical
-// engine + a tenant join for workspace-name expansion.
+// engine + a tenant join for workspace-name expansion + per-tenant talent-value counts.
 
 import Link from "next/link";
 import {
@@ -181,6 +181,21 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
           <span style={{ fontSize: 10.5, fontWeight: 700, color: planTone }}>
             {w.plan}
           </span>
+          {!w.has_override && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                padding: "1px 5px",
+                borderRadius: 4,
+                background: HQ.cardSoft,
+                color: HQ.inkDim,
+                letterSpacing: 0.3,
+              }}
+            >
+              no override
+            </span>
+          )}
           {w.status !== "active" && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>
               {w.status.toUpperCase()}
@@ -188,14 +203,30 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
           )}
         </div>
         <div style={{ fontSize: 10.5, color: HQ.inkMuted, marginTop: 2 }}>
-          {summariseOverride(w)}
+          {w.has_override ? summariseOverride(w) : "Using platform defaults — no field override set."}
         </div>
+      </div>
+      {/* Talents with a value */}
+      <div style={{ textAlign: "right", minWidth: 56 }}>
+        <div
+          style={{
+            fontFamily: "ui-monospace, monospace",
+            fontSize: 15,
+            fontWeight: 600,
+            color: w.value_count > 0 ? HQ.green : HQ.inkDim,
+          }}
+        >
+          {w.value_count}
+        </div>
+        <div style={{ fontSize: 9.5, color: HQ.inkDim, marginTop: 1 }}>talents</div>
       </div>
       <span
         style={{
           fontSize: 10.5,
           color: HQ.inkDim,
           fontFamily: "ui-monospace, monospace",
+          minWidth: 80,
+          textAlign: "right",
         }}
       >
         {w.slug}
@@ -302,6 +333,11 @@ export default async function PlatformCatalogFieldDetailPage({
             tone={f.deprecated && f.total_value_count > 0 ? HQ.amber : undefined}
           />
           <Stat
+            label="Tenants with values"
+            value={f.tenants_with_values}
+            tone={f.tenants_with_values > 0 ? HQ.green : HQ.inkDim}
+          />
+          <Stat
             label="Risks"
             value={detail.risks.length}
             tone={detail.risks.length ? HQ.red : HQ.green}
@@ -378,18 +414,43 @@ export default async function PlatformCatalogFieldDetailPage({
 
       <HqCard
         title="Workspace adoption"
-        subtitle={
-          detail.workspaces.length === 0
-            ? "No workspace has a per-field override row for this field."
-            : `${detail.workspaces.length} workspace${detail.workspaces.length === 1 ? "" : "s"} with an override (each row = one workspace_profile_field_settings row)`
-        }
+        subtitle={(() => {
+          if (detail.workspaces.length === 0)
+            return "No workspace has an override or talent with a value for this field.";
+          const overrideCount = detail.workspaces.filter((w) => w.has_override).length;
+          const valueOnlyCount = detail.workspaces.length - overrideCount;
+          const parts: string[] = [];
+          if (overrideCount > 0)
+            parts.push(`${overrideCount} with a field override`);
+          if (valueOnlyCount > 0)
+            parts.push(`${valueOnlyCount} with talent values but no override`);
+          return `${detail.workspaces.length} workspace${detail.workspaces.length === 1 ? "" : "s"} — ${parts.join(", ")}. Sorted by talent count.`;
+        })()}
       >
         {detail.workspaces.length === 0 ? (
           <div style={{ fontSize: 12, color: HQ.inkDim }}>
-            No data — the field is on the platform default everywhere.
+            No data — the field is on the platform default everywhere and no talent has stored a value.
           </div>
         ) : (
           <div>
+            {/* Column header */}
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: "4px 10px 6px",
+                fontSize: 10,
+                fontWeight: 700,
+                color: HQ.inkDim,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+                borderBottom: `1px solid ${HQ.borderSoft}`,
+              }}
+            >
+              <span style={{ flex: 1 }}>Workspace</span>
+              <span style={{ minWidth: 56, textAlign: "right" }}>Talents</span>
+              <span style={{ minWidth: 80, textAlign: "right" }}>Slug</span>
+            </div>
             {detail.workspaces.map((w, i) => (
               <WorkspaceRow key={w.tenant_id} w={w} isFirst={i === 0} />
             ))}

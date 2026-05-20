@@ -1,8 +1,11 @@
 /**
- * Phase 9A slice 4 — Per-field detail loader for the Platform Catalog
- * Map. Joins workspace_profile_field_settings → agencies so platform
- * admin can see *which workspaces* override a given field (name, plan,
- * entity type, override specifics). STRICTLY READ-ONLY.
+ * Phase 9A slices 4 + 5 — Per-field detail loader for the Platform Catalog
+ * Map. Slice 4: joins workspace_profile_field_settings → agencies so
+ * platform admin can see which workspaces override a given field. Slice 5:
+ * adds per-tenant talent-value counts — for each tenant whose active-roster
+ * talents have at least one 'live' value for this field, how many?
+ * Merges override rows ∪ value-only rows sorted by value_count desc.
+ * STRICTLY READ-ONLY.
  *
  * Service-role client (the platform/admin layout already gates the route
  * to super_admin). Server-only; never import from a client component.
@@ -32,6 +35,8 @@ export type FieldDetailField = {
   deprecated: boolean;
   total_value_count: number;
   total_override_count: number;
+  /** Number of tenants with ≥1 active-roster talent that has a live value. */
+  tenants_with_values: number;
 };
 
 export type FieldDetailWorkspace = {
@@ -49,6 +54,10 @@ export type FieldDetailWorkspace = {
   admin_only_override: boolean | null;
   effective_label: string;
   is_customized: boolean;
+  /** Active-roster talents on this tenant with a live value for this field. */
+  value_count: number;
+  /** True when a workspace_profile_field_settings row exists for this tenant. */
+  has_override: boolean;
 };
 
 export type FieldDetailRisk = {
@@ -148,64 +157,142 @@ export async function loadPlatformCatalogFieldDetail(
       groupName = g?.name_en ?? g?.slug ?? null;
     }
 
-    // 3. Value count (existence only; never the value)
-    const { count: valCount } = await sb
+    // 3. Value count (existence only; never the value) + workspace overrides —
+    //    independent queries, run in parallel.
+    const [valCountRes, ovsRes] = await Promise.all([
+      sb
+        .from("talent_profile_field_values")
+        .select("id", { count: "exact", head: true })
+        .eq("field_definition_id", def.id),
+      sb
+        .from("workspace_profile_field_settings")
+        .select(
+          "tenant_id, enabled_override, required_override, custom_label, custom_helper, show_in_public_override, admin_only_override",
+        )
+        .eq("field_definition_id", def.id),
+    ]);
+    const ovRows = (ovsRes.data ?? []) as OverrideRow[];
+
+    // 4. Slice 5 — per-tenant talent-value counts.
+    //    Step A: talent_profile_ids with a live value for this field.
+    const { data: talentValRows } = await sb
       .from("talent_profile_field_values")
-      .select("id", { count: "exact", head: true })
-      .eq("field_definition_id", def.id);
+      .select("talent_profile_id")
+      .eq("field_definition_id", def.id)
+      .eq("workflow_state", "live");
 
-    // 4. Workspace overrides
-    const { data: ovs } = await sb
-      .from("workspace_profile_field_settings")
-      .select(
-        "tenant_id, enabled_override, required_override, custom_label, custom_helper, show_in_public_override, admin_only_override",
-      )
-      .eq("field_definition_id", def.id);
-    const ovRows = (ovs ?? []) as OverrideRow[];
+    const talentIdsWithValue = [
+      ...new Set(
+        ((talentValRows ?? []) as Array<{ talent_profile_id: string }>).map(
+          (r) => r.talent_profile_id,
+        ),
+      ),
+    ];
 
-    // 5. Agency lookup for the tenant_ids in those overrides
-    let workspaces: FieldDetailWorkspace[] = [];
-    if (ovRows.length > 0) {
-      const tenantIds = ovRows.map((o) => o.tenant_id);
+    //    Step B: roster rows joining those talent_ids to active tenant_ids.
+    const perTenantValueCount = new Map<string, number>();
+    if (talentIdsWithValue.length > 0) {
+      const { data: rosterRows } = await sb
+        .from("agency_talent_roster")
+        .select("talent_profile_id, tenant_id")
+        .in("talent_profile_id", talentIdsWithValue)
+        .eq("status", "active");
+
+      //    Step C: aggregate distinct talent_profile_id per tenant_id.
+      for (const row of (rosterRows ?? []) as Array<{
+        talent_profile_id: string;
+        tenant_id: string;
+      }>) {
+        perTenantValueCount.set(
+          row.tenant_id,
+          (perTenantValueCount.get(row.tenant_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    // 5. Agency lookup for all tenant_ids (overrides ∪ value-only).
+    const allTenantIds = [
+      ...new Set([
+        ...ovRows.map((o) => o.tenant_id),
+        ...perTenantValueCount.keys(),
+      ]),
+    ];
+    const byId = new Map<string, AgencyRow>();
+    if (allTenantIds.length > 0) {
       const { data: agenciesData } = await sb
         .from("agencies")
         .select("id, display_name, slug, entity_type, plan_tier, status")
-        .in("id", tenantIds);
-      const byId = new Map<string, AgencyRow>(
-        ((agenciesData ?? []) as AgencyRow[]).map((a) => [a.id, a]),
-      );
-      const fieldLabel = def.label ?? def.field_key;
-      workspaces = ovRows
-        .map((o) => {
-          const a = byId.get(o.tenant_id);
-          const isCustomized =
-            !!o.custom_label ||
-            !!o.custom_helper ||
-            o.enabled_override === false ||
-            o.required_override !== null ||
-            o.show_in_public_override !== null ||
-            o.admin_only_override !== null;
-          return {
-            tenant_id: o.tenant_id,
-            name: a?.display_name ?? a?.slug ?? o.tenant_id,
-            slug: a?.slug ?? o.tenant_id,
-            entity_type: a?.entity_type ?? "—",
-            plan: a?.plan_tier ?? "free",
-            status: a?.status ?? "unknown",
-            enabled_override: o.enabled_override,
-            required_override: o.required_override,
-            custom_label: o.custom_label,
-            custom_helper: o.custom_helper,
-            show_in_public_override: o.show_in_public_override,
-            admin_only_override: o.admin_only_override,
-            effective_label: o.custom_label ?? fieldLabel,
-            is_customized: isCustomized,
-          };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .in("id", allTenantIds);
+      for (const a of (agenciesData ?? []) as AgencyRow[]) {
+        byId.set(a.id, a);
+      }
     }
 
-    // 6. Field summary + visibility via the shared engine
+    // 6. Build merged workspace rows.
+    const fieldLabel = def.label ?? def.field_key;
+    const workspaceMap = new Map<string, FieldDetailWorkspace>();
+
+    // Override rows first (may or may not have value counts).
+    for (const o of ovRows) {
+      const a = byId.get(o.tenant_id);
+      const isCustomized =
+        !!o.custom_label ||
+        !!o.custom_helper ||
+        o.enabled_override === false ||
+        o.required_override !== null ||
+        o.show_in_public_override !== null ||
+        o.admin_only_override !== null;
+      workspaceMap.set(o.tenant_id, {
+        tenant_id: o.tenant_id,
+        name: a?.display_name ?? a?.slug ?? o.tenant_id,
+        slug: a?.slug ?? o.tenant_id,
+        entity_type: a?.entity_type ?? "—",
+        plan: a?.plan_tier ?? "free",
+        status: a?.status ?? "unknown",
+        enabled_override: o.enabled_override,
+        required_override: o.required_override,
+        custom_label: o.custom_label,
+        custom_helper: o.custom_helper,
+        show_in_public_override: o.show_in_public_override,
+        admin_only_override: o.admin_only_override,
+        effective_label: o.custom_label ?? fieldLabel,
+        is_customized: isCustomized,
+        value_count: perTenantValueCount.get(o.tenant_id) ?? 0,
+        has_override: true,
+      });
+    }
+
+    // Value-only rows — tenants using the field without a settings override.
+    for (const [tenantId, count] of perTenantValueCount.entries()) {
+      if (workspaceMap.has(tenantId)) continue;
+      const a = byId.get(tenantId);
+      workspaceMap.set(tenantId, {
+        tenant_id: tenantId,
+        name: a?.display_name ?? a?.slug ?? tenantId,
+        slug: a?.slug ?? tenantId,
+        entity_type: a?.entity_type ?? "—",
+        plan: a?.plan_tier ?? "free",
+        status: a?.status ?? "unknown",
+        enabled_override: null,
+        required_override: null,
+        custom_label: null,
+        custom_helper: null,
+        show_in_public_override: null,
+        admin_only_override: null,
+        effective_label: fieldLabel,
+        is_customized: false,
+        value_count: count,
+        has_override: false,
+      });
+    }
+
+    // Sort by value_count desc, then name asc for ties.
+    const workspaces = [...workspaceMap.values()].sort((a, b) => {
+      if (b.value_count !== a.value_count) return b.value_count - a.value_count;
+      return a.name.localeCompare(b.name);
+    });
+
+    // 7. Field summary + visibility via the shared engine
     const dv = Array.isArray(def.default_visibility)
       ? (def.default_visibility as string[])
       : [];
@@ -216,7 +303,7 @@ export async function loadPlatformCatalogFieldDetail(
       is_sensitive: def.is_sensitive,
     });
     const isDeprecated = !!def.deprecated_at;
-    const totalValue = valCount ?? 0;
+    const totalValue = valCountRes.count ?? 0;
     const totalOverride = ovRows.length;
 
     const field: FieldDetailField = {
@@ -236,9 +323,10 @@ export async function loadPlatformCatalogFieldDetail(
       deprecated: isDeprecated,
       total_value_count: totalValue,
       total_override_count: totalOverride,
+      tenants_with_values: perTenantValueCount.size,
     };
 
-    // 7. Per-field risks (read-only diagnostics, never auto-acted)
+    // 8. Per-field risks (read-only diagnostics, never auto-acted)
     const risks: FieldDetailRisk[] = [];
     if (def.is_sensitive && def.show_in_public) {
       risks.push({
