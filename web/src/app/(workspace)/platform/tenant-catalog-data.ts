@@ -45,6 +45,13 @@ export type TenantFieldOverride = {
   /** True when at least one column differs from the platform default. */
   is_customized: boolean;
   deprecated: boolean;
+  /** Platform-side `admin_only` flag — carried through so risk logic can
+   *  distinguish "tenant tried to widen an admin field" from "tenant tried
+   *  to widen a sensitive field" (both clamp to admin via the engine, but
+   *  the diagnostic message + remediation differ). */
+  platformAdminOnly: boolean;
+  /** Platform-side `is_sensitive` flag — see platformAdminOnly. */
+  platformIsSensitive: boolean;
 };
 
 export type TenantGroupOverride = {
@@ -243,6 +250,8 @@ export async function loadTenantCatalogPosture(
             admin_only_override: ov.admin_only_override,
             is_customized,
             deprecated: !!d.deprecated_at,
+            platformAdminOnly: !!d.admin_only,
+            platformIsSensitive: !!d.is_sensitive,
           } satisfies TenantFieldOverride;
         })
         .filter((x): x is TenantFieldOverride => x !== null)
@@ -349,24 +358,31 @@ export async function loadTenantCatalogPosture(
           detail: `Deprecated field has values on ${adoptionById.get(ov.field_definition_id)!.talentCount} talent(s).`,
         });
       }
+      // Tenant tried to widen a platform-locked field — engine will clamp
+      // it, but the override row itself is misleading. Two distinct cases:
+      //  - `admin_only` platform flag → "admin-field-made-public"
+      //  - `is_sensitive` platform flag → "sensitive-field-made-public"
+      // Both collapse to `platformVisibility === "admin"` via the shared
+      // engine; we need the raw platform flags (carried on the override
+      // row) to differentiate. Before the platformAdminOnly + platformIsSensitive
+      // additions, this was two copy-paste duplicates of the SAME condition,
+      // so every admin-only override fired BOTH risks. Now each fires only
+      // when the matching platform flag is set.
       if (
         ov.show_in_public_override === true &&
-        ov.platformVisibility === "admin"
+        ov.platformAdminOnly &&
+        ov.admin_only_override !== true
       ) {
-        // Tenant tried to widen an admin-only field — engine will clamp it,
-        // but the override row itself is suspicious.
-        if (ov.admin_only_override !== true) {
-          risks.push({
-            kind: "admin-field-made-public",
-            field_key: ov.field_key,
-            detail:
-              "show_in_public_override=true on a platform admin-only field — engine clamps to admin, but override row is misleading.",
-          });
-        }
+        risks.push({
+          kind: "admin-field-made-public",
+          field_key: ov.field_key,
+          detail:
+            "show_in_public_override=true on a platform admin-only field — engine clamps to admin, but override row is misleading.",
+        });
       }
       if (
         ov.show_in_public_override === true &&
-        ov.platformVisibility === "admin"
+        ov.platformIsSensitive
       ) {
         risks.push({
           kind: "sensitive-field-made-public",

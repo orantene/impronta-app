@@ -159,11 +159,17 @@ export async function loadPlatformCatalogFieldDetail(
 
     // 3. Value count (existence only; never the value) + workspace overrides —
     //    independent queries, run in parallel.
+    //    Filter the value count by workflow_state='live' so the headline number
+    //    matches the per-tenant breakdown below (which is also live-only).
+    //    Before this filter, total_value_count included pending/archived rows
+    //    while tenants_with_values reflected only live, producing inconsistent
+    //    totals on the field summary card.
     const [valCountRes, ovsRes] = await Promise.all([
       sb
         .from("talent_profile_field_values")
         .select("id", { count: "exact", head: true })
-        .eq("field_definition_id", def.id),
+        .eq("field_definition_id", def.id)
+        .eq("workflow_state", "live"),
       sb
         .from("workspace_profile_field_settings")
         .select(

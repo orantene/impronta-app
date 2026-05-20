@@ -64,6 +64,8 @@ export async function GET(
       ["deprecated", f.deprecated],
       ["total_value_count", f.total_value_count],
       ["total_override_count", f.total_override_count],
+      // Slice-5 fields — were initially omitted from exports.
+      ["tenants_with_values", f.tenants_with_values],
     ];
     for (const [k, v] of summaryRows) {
       lines.push(toCsvRow(["summary", k, v]));
@@ -80,6 +82,8 @@ export async function GET(
     }
 
     // Section 3: workspace adoption
+    // Includes slice-5 `value_count` + `has_override` so exports surface
+    // the same data the per-field detail page shows.
     lines.push("");
     lines.push(
       toCsvRow([
@@ -88,6 +92,8 @@ export async function GET(
         "plan",
         "status",
         "entity_type",
+        "has_override",
+        "value_count",
         "enabled_override",
         "required_override",
         "custom_label",
@@ -106,6 +112,8 @@ export async function GET(
           w.plan,
           w.status,
           w.entity_type,
+          w.has_override,
+          w.value_count,
           w.enabled_override ?? "",
           w.required_override ?? "",
           w.custom_label ?? "",
@@ -118,7 +126,7 @@ export async function GET(
       );
     }
     if (detail.workspaces.length === 0) {
-      lines.push(toCsvRow(["(none)", "", "", "", "", "", "", "", "", "", "", "", ""]));
+      lines.push(toCsvRow(["(none)", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]));
     }
 
     const body = lines.join("\r\n") + "\r\n";
@@ -133,6 +141,8 @@ export async function GET(
   }
 
   // JSON (default)
+  // Includes slice-5 `tenants_with_values` (field summary) and
+  // `has_override` + `value_count` (per-workspace row).
   const payload = {
     field: {
       field_key: f.field_key,
@@ -148,6 +158,7 @@ export async function GET(
       deprecated: f.deprecated,
       total_value_count: f.total_value_count,
       total_override_count: f.total_override_count,
+      tenants_with_values: f.tenants_with_values,
     },
     risks: detail.risks.map((r) => ({ kind: r.kind, detail: r.detail })),
     workspaces: detail.workspaces.map((w) => ({
@@ -156,6 +167,8 @@ export async function GET(
       plan: w.plan,
       status: w.status,
       entity_type: w.entity_type,
+      has_override: w.has_override,
+      value_count: w.value_count,
       enabled_override: w.enabled_override,
       required_override: w.required_override,
       custom_label: w.custom_label,

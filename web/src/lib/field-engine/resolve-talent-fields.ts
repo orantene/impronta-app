@@ -362,16 +362,21 @@ export async function resolveTalentFields(
 
   // 1b. Phase 4 (additive, read-only) — which field definitions have a
   // stored value for this talent. The value store is delete-on-empty, so a
-  // row existing == a real value present. We select ONLY the id (never the
-  // value) so this stays a pure presence signal; the panel decides per
-  // view-as role whether to even hint presence. Failure is non-fatal:
-  // `has_value` simply stays undefined and the panel degrades gracefully.
+  // row existing == a real value present. We also filter explicitly by
+  // workflow_state='live' so pending/archived rows don't flip has_value to
+  // true — this matches the per-tenant value count surfaced in the
+  // platform-admin catalog (catalog-field-detail-data.ts) so both signals
+  // agree. We select ONLY the id (never the value) so this stays a pure
+  // presence signal; the panel decides per view-as role whether to even
+  // hint presence. Failure is non-fatal: `has_value` simply stays undefined
+  // and the panel degrades gracefully.
   const valuePresenceIds = new Set<string>();
   {
     const { data: valRows } = await sb
       .from("talent_profile_field_values")
       .select("field_definition_id")
-      .eq("talent_profile_id", talentProfileId);
+      .eq("talent_profile_id", talentProfileId)
+      .eq("workflow_state", "live");
     for (const row of valRows ?? []) {
       if (row?.field_definition_id) valuePresenceIds.add(row.field_definition_id);
     }
