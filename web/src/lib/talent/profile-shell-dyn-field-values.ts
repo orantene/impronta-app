@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
+import { mirrorWriteToCanonical } from "@/lib/fields/legacy-mirror";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
@@ -137,6 +138,10 @@ export async function syncProfileShellDynFieldValues(
         const m = await mirrorHeightCmToTalentProfile(supabase, talent_profile_id, null);
         if (!m.ok) return { ok: false, error: CLIENT_ERROR.update };
       }
+      // P5-γ legacy→canonical bridge — keep talent_profile_field_values in
+      // sync for the 17 bridged keys. No-op for unbridged keys. Errors are
+      // logged inside the helper and never block the legacy delete above.
+      await mirrorWriteToCanonical(supabase, def.key, talent_profile_id, null);
       continue;
     }
 
@@ -163,6 +168,18 @@ export async function syncProfileShellDynFieldValues(
       const m = await mirrorHeightCmToTalentProfile(supabase, talent_profile_id, height);
       if (!m.ok) return { ok: false, error: CLIENT_ERROR.update };
     }
+
+    // P5-γ legacy→canonical bridge — extract the single scalar from the
+    // typed-column patch and mirror to talent_profile_field_values for the
+    // 17 bridged keys. No-op for unbridged keys; errors are logged inside
+    // the helper and never block the legacy upsert above.
+    const canonicalValue =
+      patch.value_text ??
+      patch.value_number ??
+      patch.value_boolean ??
+      patch.value_date ??
+      null;
+    await mirrorWriteToCanonical(supabase, def.key, talent_profile_id, canonicalValue);
   }
 
   if (touchedAiDoc) {

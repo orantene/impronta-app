@@ -107,3 +107,96 @@ export async function mirrorWriteToLegacy(
       onConflict: "talent_profile_id,field_definition_id",
     });
 }
+
+// Reverse map (legacy key → canonical key) for the canonical-mirror.
+// Derived once from NEW_TO_OLD_KEY so the two stay in lockstep.
+const OLD_TO_NEW_KEY: Record<string, string> = Object.fromEntries(
+  Object.entries(NEW_TO_OLD_KEY).map(([newKey, oldKey]) => [oldKey, newKey]),
+);
+
+// ---------------------------------------------------------------------------
+// mirrorWriteToCanonical — legacy → canonical bridge (Phase 5-γ).
+//
+// `syncProfileShellDynFieldValues` (talent self-edit shell + admin shell)
+// writes ONLY to legacy `field_values`. For the 17 bridged keys, every NEW
+// shell edit drifts canonical `talent_profile_field_values`. P5-β backfilled
+// the historical data; this helper closes the forward drift by mirroring
+// each shell write into canonical as well.
+//
+// Fire-and-forget semantically — errors are logged + swallowed so a failed
+// canonical mirror never blocks the legacy write the caller already trusts.
+// When the OLD tables are dropped (Phase 5 cutover), the call sites should
+// be flipped to write canonical-first and this whole bridge can be deleted.
+// ---------------------------------------------------------------------------
+export async function mirrorWriteToCanonical(
+  supabase: MirrorSupabase,
+  legacyKey: string,
+  talentProfileId: string,
+  value: unknown, // text | number | boolean | null
+): Promise<void> {
+  const newKey = OLD_TO_NEW_KEY[legacyKey];
+  if (!newKey) return; // not in the 17-key bridge — no-op
+
+  try {
+    const { data: newDef, error: defErr } = await supabase
+      .from("profile_field_definitions")
+      .select("id")
+      .eq("field_key", newKey)
+      .maybeSingle();
+    if (defErr) {
+       
+      console.warn("[mirrorWriteToCanonical] def lookup failed", { newKey, error: defErr });
+      return;
+    }
+    if (!newDef) return;
+    const fieldDefinitionId = newDef.id as string;
+
+    if (value === null || value === undefined) {
+      const { error: delErr } = await supabase
+        .from("talent_profile_field_values")
+        .delete()
+        .eq("talent_profile_id", talentProfileId)
+        .eq("field_definition_id", fieldDefinitionId);
+      if (delErr) {
+         
+        console.warn("[mirrorWriteToCanonical] delete failed", { newKey, error: delErr });
+      }
+      return;
+    }
+
+    // Resolve tenant_id the same way P5-β's backfill migration does
+    // (first active roster row, deterministic by created_at ASC).
+    // tenant_id is nullable on talent_profile_field_values — freelance /
+    // orphan talent (no active roster) writes with tenant_id = NULL.
+    const { data: rosterRow } = await supabase
+      .from("agency_talent_roster")
+      .select("tenant_id, created_at")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const tenantId = (rosterRow?.tenant_id ?? null) as string | null;
+
+    const { error: upErr } = await supabase
+      .from("talent_profile_field_values")
+      .upsert(
+        {
+          tenant_id: tenantId,
+          talent_profile_id: talentProfileId,
+          field_definition_id: fieldDefinitionId,
+          value,
+          workflow_state: "live",
+          last_edited_role: "platform",
+        },
+        { onConflict: "talent_profile_id,field_definition_id" },
+      );
+    if (upErr) {
+       
+      console.warn("[mirrorWriteToCanonical] upsert failed", { newKey, error: upErr });
+    }
+  } catch (err) {
+     
+    console.warn("[mirrorWriteToCanonical] unexpected error", { legacyKey, err });
+  }
+}
