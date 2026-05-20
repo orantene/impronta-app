@@ -794,15 +794,67 @@
       "count": 1
     }
   },
-  "src/components/admin/shell/internal/talent-drawers.tsx": {
-    "max-lines": {
-      "count": 1
-    },
+  "src/components/admin/shell/internal/talent-drawers/agency.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 27
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/analytics.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 44
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/availability.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 26
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/closed-booking.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 35
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/events.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 37
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/monetization.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 39
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/network.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 24
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 60
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 389
+      "count": 32
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/profile-extras.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 38
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/shared.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 18
+    }
+  },
+  "src/components/admin/shell/internal/talent-drawers/today.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 9
     }
   },
   "src/components/admin/shell/internal/talent.tsx": {
