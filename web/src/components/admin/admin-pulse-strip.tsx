@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Images, LayoutList, MessageSquare, UserRound, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
