@@ -74,7 +74,7 @@ jobs:
       # BASE to 6 reflects current reality. Lower back to 4 (or to whatever the new
       # count is) once those 2 are fixed.
       TSC_BASE: 6              # was 4; raised after Q1 narrowing surfaced 2 latent errors. Followup: fix light-01.tsx:146 + WorkspaceTopbar.tsx:549 to drop back to 4.
-      SUPPRESSIONS_BASE: 8481  # was 9336 post-Y1; lowered after Y2 codemod replay (-797 no-new-inline-style) + Q4 WorkspacePageView hoists (-58 react-hooks/static-components) stacked cleanly. Integrator-verified zero new pairs, zero increased counts.
+      SUPPRESSIONS_BASE: 8458  # was 8481 post-Wave-2-partial; lowered after Q4 Phase B-D landed (11 hoists across 5 files: media-page 6, drawer-shared 1, profile-shell-internal 1, WebsitePage-2 1, plus Phase-A already-landed 2 in WorkspacePageView). -22 react-hooks/static-components + -1 max-lines (WorkspacePageView shrink). 27 remaining react-hooks suppressions are REAL (purity/refs/rules-of-hooks/preserve-manual-memoization/immutability) deferred to Q5 lane per web/docs/q4-deferred.md.
     steps:
       - name: Checkout
         uses: actions/checkout@v4

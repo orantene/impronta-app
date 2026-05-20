@@ -27,6 +27,7 @@ or lands. Honest numbers only; no vanity rounding (per the audit mandate).
 | Realistic structural ceiling | ~88–92 | reachable only with T2b/T2c/T2d + RSC; 90→100 = vanity |
 | **Wave 1+ HONEST READ** | **~84-88** | per-dimension math says 95 but this is paper-math, not a re-audit; realistic is high-80s pending Wave 2 + T2b |
 | **+ Wave 2 partial** (T2b batch 1, Y2, Q4 phase A) | **~86-90** est. | T2b 1/25 batches landed (3 commits) + Y2 codemod replay (-797 inline-style) + Q4 WorkspacePageView (-58 react-hooks/static-components); per-dimension Style +18 / Code Quality +2 / Security +1 (T2b ramping) |
+| **+ Q4 COMPLETE (Phase B-D)** | **~88-92** est. | Q4 6 more commits — all reachable static-components hoisted across 5 files; 11 hoists total; -22 suppressions; 27 remaining react-hooks violations are REAL (not stale) and deferred to a new Q5 lane (purity/refs/rules-of-hooks/preserve-manual-memoization/immutability per-rule surgery); plugin gap finding logged (eslint-plugin-react-hooks 7.0.1 → 7.1.1 would surface 200+ more violations) |
 | Wave 1+ honest target | **~84** | per `improvement-plan-2026-05-19-weak-dimensions.md` end-to-end (14–16 weeks) |
 
 > **🏁 ALL STRUCTURAL LANES LANDED `554e2c8cd`** — `talent 15.5k→275` (1a) ·
@@ -158,7 +159,9 @@ Per `improvement-plan-2026-05-19-weak-dimensions.md` — climb the 4 weak dimens
 |---|---|---|---|---|
 | W2.1 | Y2 — color/token codemod replay (Y1 deferred-categories) | Opus high | `impronta-y2` | ✅ **LANDED 8 commits** (-797 no-new-inline-style) — Phase A/B deferred (low yield), Phase C delivered |
 | W2.2 | F2 — RSC Class A flip (63 files) | Opus high | (in flight) | ▶ running |
-| W2.3 | Q4 — React-Compiler debt (107 violations) | Opus high | `impronta-q4` | ▶ **IN PROGRESS** — Phase A landed (WorkspacePageView 58 → 0) · Phase B next (media-page.tsx 13) |
+| W2.3 | Q4 — React-Compiler debt (107 violations) | Opus high | `impronta-q4` | ✅ **COMPLETE** — Phase A landed (bbd6bc5b8 + 06839df30, WorkspacePageView 58→0) + Phase B-D landed (6 commits 78d83b910 + 5 prior, 11 hoists total across 5 files, -22 react-hooks/static-components); 27 remaining suppressions are REAL, deferred to Q5 (see web/docs/q4-deferred.md) |
+| W2.4 | **Q5 (new lane)** — react-hooks purity/refs/rules-of-hooks/preserve-manual-memoization/immutability per-site surgery | Opus high | not started | 📋 **QUEUED** — 27 violations across 12 files (purity 14, refs 7, rules-of-hooks 3, preserve-manual-memoization 2, immutability 1); brief = web/docs/q4-deferred.md §A; per-rule playbook required |
+| W2.5 | **Plugin-bump (new lane)** — eslint-plugin-react-hooks 7.0.1 → 7.1.1 + re-baseline | Sonnet | not started | 📋 **QUEUED** — would surface 200+ MORE react-hooks/static-components violations (currently invisible because bundled plugin doesn't fire on arrow-const inner components); brief = web/docs/q4-deferred.md §C |
 
 ### Integrator protocol for PM3 (this chat)
 
