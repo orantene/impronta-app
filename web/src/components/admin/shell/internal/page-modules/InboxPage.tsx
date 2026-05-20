@@ -92,9 +92,11 @@ export function UnifiedInboxPage() {
   };
 
   // Keyboard nav refs — populated on render.
+  // Q5: pass the ref itself (not .current) so the hook reads live row
+  // refs lazily inside its keydown handler (react-hooks/refs).
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
   useKeyboardListNav({
-    rows: rowRefs.current,
+    rowsRef: rowRefs,
     onActivate: (idx) => {
       const inq = rows[idx];
       if (inq) openDrawer("inquiry-workspace", { inquiryId: inq.id });

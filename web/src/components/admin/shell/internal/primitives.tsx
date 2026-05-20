@@ -5378,6 +5378,11 @@ export function SwipeableRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const startX = useRef<number | null>(null);
   const startDx = useRef(0);
+  // Q5: mirror startX-non-null as a state so render can read it without
+  // touching ref.current (react-hooks/refs). The ref still drives the
+  // pointer-move math (it must update synchronously between move events),
+  // but `dragging` flips on Down/Up to control the CSS transition.
+  const [dragging, setDragging] = useState(false);
   const allActions = [...(leftActions ?? []), ...(rightActions ?? [])];
   const ACTION_WIDTH = 80;
   const leftMax = (leftActions?.length ?? 0) * ACTION_WIDTH;
@@ -5386,6 +5391,7 @@ export function SwipeableRow({
   const onPointerDown = (e: React.PointerEvent) => {
     startX.current = e.clientX;
     startDx.current = dx;
+    setDragging(true);
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -5397,6 +5403,7 @@ export function SwipeableRow({
   };
   const onPointerUp = () => {
     startX.current = null;
+    setDragging(false);
     // Snap to fully open (one direction) or closed
     if (dx > leftMax / 2) setDx(leftMax);
     else if (dx < -rightMax / 2) setDx(-rightMax);
@@ -5495,7 +5502,7 @@ export function SwipeableRow({
         style={{
           background: COLORS.card,
           transform: `translateX(${dx}px)`,
-          transition: startX.current === null ? "transform .2s ease" : "none",
+          transition: dragging ? "none" : "transform .2s ease",
           willChange: "transform",
           position: "relative",
         }}
@@ -5704,11 +5711,17 @@ export function Skeleton({
  * plus a tabindex / data-attr. The hook listens at window level and
  * focuses+highlights rows on key.
  */
+// Q5: accept a RefObject<(T|null)[]> instead of the live array. The
+// previous signature required callers to pass `rowRefs.current` at the
+// hook call site, which is a render-time ref read (react-hooks/refs).
+// With a ref, the keydown handler dereferences `.current` lazily, which
+// is also semantically correct: the latest row set is always read at the
+// moment the user presses a key.
 export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
-  rows,
+  rowsRef,
   onActivate,
 }: {
-  rows: (T | null)[];
+  rowsRef: React.RefObject<(T | null)[]>;
   onActivate?: (index: number) => void;
 }) {
   const [activeIdx, setActiveIdx] = useState(0);
@@ -5723,7 +5736,7 @@ export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
       ) {
         return;
       }
-      const live = rows.filter((r): r is T => r !== null);
+      const live = (rowsRef.current ?? []).filter((r): r is T => r !== null);
       if (live.length === 0) return;
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
@@ -5748,7 +5761,7 @@ export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rows, onActivate, activeIdx]);
+  }, [rowsRef, onActivate, activeIdx]);
   return activeIdx;
 }
 
