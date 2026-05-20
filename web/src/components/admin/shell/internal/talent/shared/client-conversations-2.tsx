@@ -1,5 +1,3 @@
-"use client";
-
 import { type Msg } from "./client-conversations-1";
 
 
