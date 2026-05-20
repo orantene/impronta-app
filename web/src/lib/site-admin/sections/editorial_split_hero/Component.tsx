@@ -2,6 +2,7 @@ import { presentationDataAttrs } from "../shared/presentation";
 import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import { Container, Cta, MediaFrame } from "../shared/section-primitives";
 import { renderInlineRich } from "../shared/rich-text";
+import { SmartImage } from "@/components/ui/smart-image";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { SectionComponentProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
@@ -97,6 +98,12 @@ export function EditorialSplitHeroComponent({
           { label: "Mexico City", value: "mexico-city" },
           { label: "Buenos Aires", value: "buenos-aires" },
         ];
+  const selectedCategoryLabel = categoryOptions.find(
+    (option) => option.disabled !== true,
+  )?.label;
+  const selectedMarketLabel = marketOptions.find(
+    (option) => option.disabled !== true,
+  )?.label;
   // Only static media renders today; selected/dynamic are documented
   // follow-ons (would couple to the cache-trimmed featured DTO).
   const resolvedMedia = mediaMode === "static" ? (mediaUrl ?? null) : null;
@@ -153,44 +160,68 @@ export function EditorialSplitHeroComponent({
               </p>
             ) : null}
             {resolvedDiscoveryForm ? (
-              <form className="site-esh__discovery" action={discoveryAction}>
-                <label className="site-esh__field">
-                  <span>
-                    {resolvedDiscoveryForm.categoryLabel ?? "Talent type"}
-                  </span>
-                  <select name="type" defaultValue={categoryOptions[0]?.value ?? ""}>
-                    {categoryOptions.map((option) => (
-                      <option
-                        key={`${option.label}-${option.value ?? option.label}`}
-                        value={option.value ?? option.label}
-                        disabled={option.disabled === true}
-                      >
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="site-esh__field">
-                  <span>{resolvedDiscoveryForm.marketLabel ?? "Market"}</span>
-                  <select
-                    name="market"
-                    defaultValue={marketOptions[0]?.value ?? ""}
-                  >
-                    {marketOptions.map((option) => (
-                      <option
-                        key={`${option.label}-${option.value ?? option.label}`}
-                        value={option.value ?? option.label}
-                        disabled={option.disabled === true}
-                      >
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="site-esh__submit" type="submit">
-                  {resolvedDiscoveryForm.submitLabel ?? "Explore"}
-                </button>
-              </form>
+              <div className="site-esh__discovery-wrap">
+                <div className="site-esh__discovery-label">
+                  Find talent for your event, production or brand
+                </div>
+                <form className="site-esh__discovery" action={discoveryAction}>
+                  <label className="site-esh__field">
+                    <span>
+                      {resolvedDiscoveryForm.categoryLabel ?? "Talent type"}
+                    </span>
+                    <select
+                      name="type"
+                      defaultValue={categoryOptions[0]?.value ?? ""}
+                    >
+                      {categoryOptions.map((option) => (
+                        <option
+                          key={`${option.label}-${option.value ?? option.label}`}
+                          value={option.value ?? option.label}
+                          disabled={option.disabled === true}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="site-esh__field">
+                    <span>{resolvedDiscoveryForm.marketLabel ?? "Market"}</span>
+                    <select
+                      name="market"
+                      defaultValue={marketOptions[0]?.value ?? ""}
+                    >
+                      {marketOptions.map((option) => (
+                        <option
+                          key={`${option.label}-${option.value ?? option.label}`}
+                          value={option.value ?? option.label}
+                          disabled={option.disabled === true}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="site-esh__submit" type="submit">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <span>{resolvedDiscoveryForm.submitLabel ?? "Explore"}</span>
+                  </button>
+                </form>
+                {selectedCategoryLabel || selectedMarketLabel ? (
+                  <p className="site-esh__discovery-note" aria-live="polite">
+                    Showing: {selectedCategoryLabel ?? "All talent"}
+                    {" · "}
+                    {selectedMarketLabel ?? "All markets"}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             {primaryCta || secondaryCta ? (
               <div className="site-esh__ctas">
@@ -224,24 +255,39 @@ export function EditorialSplitHeroComponent({
               <div className="site-esh__stack">
                 {stackUrls[1] ? (
                   <div className="site-esh__stack-card site-esh__stack-card--b">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={stackUrls[1]} alt="" loading="lazy" decoding="async" />
+                    <SmartImage
+                      src={stackUrls[1]}
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) 42vw, 24rem"
+                      priority
+                    />
+                    <span className="site-esh__stack-scrim" aria-hidden="true" />
                   </div>
                 ) : null}
                 {stackUrls[2] ? (
                   <div className="site-esh__stack-card site-esh__stack-card--c">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={stackUrls[2]} alt="" loading="lazy" decoding="async" />
+                    <SmartImage
+                      src={stackUrls[2]}
+                      alt=""
+                      fill
+                      sizes="(max-width: 768px) 40vw, 23rem"
+                      priority
+                    />
+                    <span className="site-esh__stack-scrim" aria-hidden="true" />
                   </div>
                 ) : null}
                 <div className="site-esh__stack-card site-esh__stack-card--main">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <span className="site-esh__stack-tab">Selected</span>
+                  <SmartImage
                     src={stackUrls[0]}
                     alt={mediaAlt ?? headline ?? ""}
-                    loading="lazy"
-                    decoding="async"
+                    fill
+                    sizes="(max-width: 768px) 58vw, 31rem"
+                    priority
                   />
+                  <span className="site-esh__stack-scrim" aria-hidden="true" />
+                  <span className="site-esh__stack-sheen" aria-hidden="true" />
                   {mediaStackCaptions?.[0] ? (
                     <div className="site-esh__stack-cap">
                       <b>{mediaStackCaptions[0].name}</b>

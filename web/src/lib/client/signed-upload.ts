@@ -21,13 +21,9 @@
  * set `fallbackToLegacy: false` so the caller surfaces the error instead.
  */
 
-import {
-  actionCreateSignedUploadUrl,
-  actionRegisterUploadedAsset,
-  actionCreateStagingSignedUploadUrl,
-  actionRegisterStagedAsset,
-  type UploadVariant,
-  type StagedMediaMeta,
+import type {
+  UploadVariant,
+  StagedMediaMeta,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { compressImage, type CompressResult } from "@/lib/client/image-compress";
 
@@ -87,6 +83,8 @@ export async function uploadTalentMedia(opts: {
   }
   const signExt = (compressed.ext === "png" ? "png" : "jpg") as "jpg" | "png";
 
+  const { actionCreateSignedUploadUrl, actionRegisterUploadedAsset } =
+    await import("@/app/(workspace)/[tenantSlug]/admin/media/actions");
   const signed = await actionCreateSignedUploadUrl(
     variantKind,
     talentProfileId,
@@ -160,6 +158,8 @@ export async function uploadStagingMedia(opts: {
   }
   const signExt = (compressed.ext === "png" ? "png" : "jpg") as "jpg" | "png";
 
+  const { actionCreateStagingSignedUploadUrl, actionRegisterStagedAsset } =
+    await import("@/app/(workspace)/[tenantSlug]/admin/media/actions");
   const signed = await actionCreateStagingSignedUploadUrl(signExt);
   if (!signed.ok) {
     return { ok: false, fallbackToLegacy: false, error: signed.error };

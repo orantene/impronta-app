@@ -1,8 +1,13 @@
 "use client";
 
+import { useCallback, useRef, useState } from "react";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { coerceLegacyHref } from "../../links/link-ref";
+import {
+  searchTenantTalent,
+  type TenantTalentPick,
+} from "../../edit-mode/talent-picker-action";
 import type { SectionEditorProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
 
@@ -13,6 +18,8 @@ const INPUT =
 type DiscoveryForm = NonNullable<EditorialSplitHeroV1["discoveryForm"]>;
 type DiscoveryOption = NonNullable<DiscoveryForm["categories"]>[number];
 type DiscoveryListKey = "categories" | "markets";
+type MediaStackCaption = NonNullable<EditorialSplitHeroV1["mediaStackCaptions"]>[number];
+type SelectedStackTalent = TenantTalentPick & { cardImageUrl: string };
 
 const DEFAULT_DISCOVERY_FORM: DiscoveryForm = {
   enabled: false,
@@ -41,6 +48,7 @@ export function EditorialSplitHeroEditor({
     mediaAlt: initial.mediaAlt ?? "",
     mediaRatio: initial.mediaRatio ?? "4/3",
     mediaStyle: initial.mediaStyle ?? "single",
+    mediaStackTalentCodes: initial.mediaStackTalentCodes,
     mediaStackUrls: initial.mediaStackUrls,
     mediaStackCaptions: initial.mediaStackCaptions,
     overlayColor: initial.overlayColor ?? "",
@@ -71,6 +79,22 @@ export function EditorialSplitHeroEditor({
         i === index ? { ...option, ...next } : option,
       ),
     );
+  };
+  const applyStackTalent = (next: SelectedStackTalent[]) => {
+    patch({
+      mediaMode: "static",
+      mediaStyle: "card-stack",
+      mediaAlt:
+        next[0]?.displayName != null
+          ? `${next[0].displayName}, Impronta talent`
+          : value.mediaAlt,
+      mediaStackTalentCodes: next.map((talent) => talent.profileCode),
+      mediaStackUrls: next.map((talent) => talent.cardImageUrl),
+      mediaStackCaptions: next.map((talent) => ({
+        name: talent.displayName,
+        sub: talent.primaryTypeLabel ?? talent.cityLabel ?? "Impronta talent",
+      })),
+    });
   };
 
   const cta = (key: "primaryCta" | "secondaryCta", label: string) => (
@@ -291,7 +315,7 @@ export function EditorialSplitHeroEditor({
       {cta("primaryCta", "Primary CTA")}
       {cta("secondaryCta", "Secondary CTA")}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <label className={FIELD}>
           <span className={LABEL}>Media mode</span>
           <select
@@ -307,6 +331,22 @@ export function EditorialSplitHeroEditor({
             <option value="static">Static media</option>
             <option value="selected">Selected talent (follow-on)</option>
             <option value="dynamic">Dynamic talent (follow-on)</option>
+          </select>
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Media style</span>
+          <select
+            className={INPUT}
+            value={value.mediaStyle}
+            onChange={(e) =>
+              patch({
+                mediaStyle: e.target
+                  .value as EditorialSplitHeroV1["mediaStyle"],
+              })
+            }
+          >
+            <option value="single">Single frame</option>
+            <option value="card-stack">3 talent cards</option>
           </select>
         </label>
         <label className={FIELD}>
@@ -370,6 +410,15 @@ export function EditorialSplitHeroEditor({
         </div>
       )}
 
+      {value.mediaMode === "static" && value.mediaStyle === "card-stack" ? (
+        <TalentStackPicker
+          selectedCodes={value.mediaStackTalentCodes ?? []}
+          selectedUrls={value.mediaStackUrls ?? []}
+          selectedCaptions={value.mediaStackCaptions ?? []}
+          onChange={applyStackTalent}
+        />
+      ) : null}
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
           <span className={LABEL}>Media ratio</span>
@@ -432,6 +481,212 @@ export function EditorialSplitHeroEditor({
         value={value.presentation}
         onChange={(next) => patch({ presentation: next })}
       />
+    </div>
+  );
+}
+
+const STACK_SLOT_LABELS = ["Main middle card", "Left support card", "Right support card"];
+
+function TalentStackPicker({
+  selectedCodes,
+  selectedUrls,
+  selectedCaptions,
+  onChange,
+}: {
+  selectedCodes: string[];
+  selectedUrls: string[];
+  selectedCaptions: MediaStackCaption[];
+  onChange: (next: SelectedStackTalent[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<TenantTalentPick[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selected = selectedUrls.reduce<SelectedStackTalent[]>(
+    (items, url, index) => {
+      if (!url) return items;
+      const caption = selectedCaptions[index];
+      const code = selectedCodes[index] ?? `card-${index + 1}`;
+      items.push({
+        talentProfileId: code,
+        profileCode: code,
+        displayName: caption?.name ?? code,
+        primaryTypeLabel: caption?.sub ?? null,
+        cityLabel: null,
+        cardImageUrl: url,
+      });
+      return items;
+    },
+    [],
+  );
+
+  const run = useCallback(async (q: string) => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await searchTenantTalent({ query: q });
+      if (res.ok) {
+        setResults(res.results);
+      } else {
+        setErr(res.error);
+      }
+    } catch {
+      setErr("Could not search talent.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const onQuery = (q: string) => {
+    setQuery(q);
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => void run(q), 250);
+  };
+
+  const update = (next: SelectedStackTalent[]) => {
+    onChange(next.slice(0, 3));
+  };
+  const add = (talent: TenantTalentPick) => {
+    if (selected.some((item) => item.profileCode === talent.profileCode)) return;
+    if (selected.length >= 3) return;
+    if (!talent.cardImageUrl) {
+      setErr("This talent does not have approved public media yet.");
+      return;
+    }
+    update([...selected, { ...talent, cardImageUrl: talent.cardImageUrl }]);
+  };
+  const remove = (profileCode: string) => {
+    update(selected.filter((talent) => talent.profileCode !== profileCode));
+  };
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= selected.length) return;
+    const next = [...selected];
+    const [talent] = next.splice(from, 1);
+    if (!talent) return;
+    next.splice(to, 0, talent);
+    update(next);
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border/50 p-3">
+      <div>
+        <span className={LABEL}>Card-stack talent</span>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          Pick up to three roster talent. The first slot is the large middle
+          card shown on the homepage.
+        </p>
+      </div>
+
+      {selected.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {selected.map((talent, index) => (
+            <div
+              key={`${talent.profileCode}-${index}`}
+              className="grid grid-cols-[42px_1fr_auto] items-center gap-2 rounded-md border border-border/50 p-2"
+            >
+              <span
+                aria-hidden
+                className="h-10 w-10 rounded-md bg-muted bg-cover bg-center"
+                style={{ backgroundImage: `url(${talent.cardImageUrl})` }}
+              />
+              <span className="min-w-0">
+                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {STACK_SLOT_LABELS[index] ?? "Support card"}
+                </span>
+                <b className="block truncate text-sm">{talent.displayName}</b>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {talent.profileCode}
+                </span>
+              </span>
+              <span className="flex gap-1">
+                <button
+                  type="button"
+                  className="rounded border border-border/60 px-1.5 py-1 text-[11px] disabled:opacity-35"
+                  disabled={index === 0}
+                  onClick={() => move(index, index - 1)}
+                >
+                  Up
+                </button>
+                <button
+                  type="button"
+                  className="rounded border border-border/60 px-1.5 py-1 text-[11px] disabled:opacity-35"
+                  disabled={index === selected.length - 1}
+                  onClick={() => move(index, index + 1)}
+                >
+                  Down
+                </button>
+                <button
+                  type="button"
+                  className="rounded border border-border/60 px-1.5 py-1 text-[11px] text-destructive"
+                  onClick={() => remove(talent.profileCode)}
+                >
+                  Remove
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <input
+        className={INPUT}
+        placeholder="Search roster by name or profile code..."
+        value={query}
+        onChange={(e) => onQuery(e.target.value)}
+      />
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Searching...</p>
+      ) : err ? (
+        <p className="text-xs text-destructive">{err}</p>
+      ) : results.length > 0 ? (
+        <ul className="max-h-56 overflow-auto rounded-md border border-border/60">
+          {results.map((talent) => {
+            const picked = selected.some(
+              (item) => item.profileCode === talent.profileCode,
+            );
+            const canAdd =
+              !picked && selected.length < 3 && talent.cardImageUrl != null;
+            return (
+              <li key={talent.talentProfileId}>
+                <button
+                  type="button"
+                  disabled={!canAdd}
+                  onClick={() => add(talent)}
+                  className="grid w-full grid-cols-[36px_1fr_auto] items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+                >
+                  <span
+                    aria-hidden
+                    className="h-9 w-9 rounded-md bg-muted bg-cover bg-center"
+                    style={
+                      talent.cardImageUrl
+                        ? { backgroundImage: `url(${talent.cardImageUrl})` }
+                        : undefined
+                    }
+                  />
+                  <span className="min-w-0 truncate">
+                    <b>{talent.displayName}</b>{" "}
+                    <span className="text-muted-foreground">
+                      {talent.primaryTypeLabel ?? talent.profileCode}
+                      {talent.cityLabel ? ` · ${talent.cityLabel}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {picked
+                      ? "Added"
+                      : talent.cardImageUrl
+                        ? "Add"
+                        : "No media"}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : query.trim().length > 0 ? (
+        <p className="text-xs text-muted-foreground">No matches on roster.</p>
+      ) : null}
     </div>
   );
 }

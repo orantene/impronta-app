@@ -30,8 +30,7 @@ export interface TenantTalentPick {
   displayName: string;
   primaryTypeLabel: string | null;
   cityLabel: string | null;
-  /** Resolved at render time by the section's card; null here keeps the
-   * picker query lean + avoids the heavy media pipeline. */
+  /** First approved public media URL for picker previews and static hero stacks. */
   cardImageUrl: string | null;
 }
 
@@ -109,7 +108,7 @@ export async function searchTenantTalent(input: {
     }
 
     const lowerCity = safe.toLowerCase();
-    const results: TenantTalentPick[] = ((data ?? []) as Row[])
+    const baseResults = ((data ?? []) as Row[])
       .map((r) => {
         const city = one(r.residence_city);
         const cityLabel =
@@ -124,7 +123,6 @@ export async function searchTenantTalent(input: {
           displayName: r.display_name ?? r.profile_code,
           primaryTypeLabel: term?.name_en ?? term?.name_es ?? null,
           cityLabel,
-          cardImageUrl: null,
         };
       })
       // Best-effort city match in addition to name/code (kept out of the
@@ -136,6 +134,49 @@ export async function searchTenantTalent(input: {
           r.profileCode.toLowerCase().includes(lowerCity) ||
           (r.cityLabel?.toLowerCase().includes(lowerCity) ?? false),
       );
+
+    const cardImageByProfileId = new Map<string, string>();
+    if (baseResults.length > 0) {
+      const { data: mediaRows, error: mediaError } = await auth.supabase
+        .from("media_assets")
+        .select("owner_talent_profile_id, storage_path, variant_kind, sort_order")
+        .in(
+          "owner_talent_profile_id",
+          baseResults.map((r) => r.talentProfileId),
+        )
+        .eq("approval_state", "approved")
+        .is("deleted_at", null)
+        .in("variant_kind", ["card", "public_watermarked", "gallery"])
+        .order("variant_kind")
+        .order("sort_order");
+
+      if (mediaError) {
+        logServerError("edit-mode/search-tenant-talent/media", mediaError);
+      } else {
+        for (const row of mediaRows ?? []) {
+          if (
+            cardImageByProfileId.has(row.owner_talent_profile_id) ||
+            !row.storage_path
+          ) {
+            continue;
+          }
+          const { data: urlData } = auth.supabase.storage
+            .from("media-public")
+            .getPublicUrl(row.storage_path);
+          if (urlData?.publicUrl) {
+            cardImageByProfileId.set(
+              row.owner_talent_profile_id,
+              urlData.publicUrl,
+            );
+          }
+        }
+      }
+    }
+
+    const results: TenantTalentPick[] = baseResults.map((r) => ({
+      ...r,
+      cardImageUrl: cardImageByProfileId.get(r.talentProfileId) ?? null,
+    }));
 
     return { ok: true, results };
   } catch (error) {

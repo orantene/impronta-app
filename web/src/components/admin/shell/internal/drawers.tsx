@@ -21,7 +21,7 @@ import { ClientTodayPulseDrawer, ClientTalentCardDrawer, ClientShortlistDetailDr
 import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "./platform";
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
 import { TalentProfileShellDrawer, NewTalentDrawer } from "./drawers/profile-shell";
-import { TenantSummaryDrawer, SiteSetupDrawer, ThemeFoundationsDrawer, PlanBillingDrawer } from "./drawers/light-01";
+import { TenantSummaryDrawer, SiteSetupDrawer, PlanBillingDrawer } from "./drawers/light-01";
 import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
 import { TalentApprovalsDrawer, BrandingDrawer, WatermarkEditorDrawer } from "./drawers/light-04";
@@ -70,8 +70,6 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TenantSummaryDrawer />;
     case "site-setup":
       return <SiteSetupDrawer />;
-    case "theme-foundations":
-      return <ThemeFoundationsDrawer />;
     case "plan-billing":
       return <PlanBillingDrawer />;
     case "team":
@@ -182,8 +180,6 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentPaymentVerifyDrawer />;
     case "taxonomy":
       return <TaxonomyDrawer />;
-    case "design":
-      return <ThemeFoundationsDrawer />;
     case "widgets":
       return <WidgetsDrawer />;
     case "api-keys":

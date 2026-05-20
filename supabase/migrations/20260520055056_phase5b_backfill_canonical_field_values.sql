@@ -77,6 +77,8 @@ WITH key_map(new_key, old_key) AS (
 -- Resolve canonical tenant_id the same way the write path does
 -- (talent-field-values-catalog.ts:62-68): first active roster row.
 -- LEFT JOIN — tenant_id is nullable for freelance / orphan talent.
+-- The canonical table is tenant-scoped, so orphan legacy values are audited
+-- by the runbook and intentionally skipped here instead of inserting NULL.
 roster_tenant AS (
   SELECT DISTINCT ON (atr.talent_profile_id)
     atr.talent_profile_id,
@@ -115,6 +117,7 @@ SELECT
   'platform'
 FROM src
 WHERE src.value_json IS NOT NULL
+  AND src.tenant_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1
       FROM public.talent_profile_field_values existing

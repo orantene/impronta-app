@@ -405,6 +405,91 @@ const WORKFLOW_META: Record<string, { label: string; dot: string; bg: string; te
   hidden:    { label: "Hidden",    dot: C.amber,                bg: C.amberSoft,            textColor: C.amber },
 };
 
+// Statuses an admin can pick directly from the sidebar. `invited` is set
+// automatically by the Add-Talent drawer "Send claim invite" flow + needs the
+// matching enum value to land in `profile_workflow_status` (deferred — see
+// remediation report), so it stays out of the picker. `archived` is intentionally
+// reachable through Remove-from-roster only, not via this quick toggle.
+const PICKABLE_STATUSES: { value: "draft" | "approved" | "published" | "hidden"; visibility: "hidden" | "public" | "private" }[] = [
+  { value: "draft",     visibility: "hidden" },
+  { value: "approved",  visibility: "public" },
+  { value: "published", visibility: "public" },
+  { value: "hidden",    visibility: "hidden" },
+];
+
+function StatusPicker({
+  action,
+  pending,
+  currentStatus,
+}: {
+  action: (formData: FormData) => void;
+  pending: boolean;
+  currentStatus: string;
+}) {
+  const [next, setNext] = useState<string>(
+    PICKABLE_STATUSES.find((s) => s.value === currentStatus)?.value ?? "draft",
+  );
+
+  // Keep local select state in sync if the server-refresh changes the status
+  // out from under us (e.g. a sibling action publishes the profile).
+  useEffect(() => {
+    if (PICKABLE_STATUSES.find((s) => s.value === currentStatus)) setNext(currentStatus);
+  }, [currentStatus]);
+
+  const visibility =
+    PICKABLE_STATUSES.find((s) => s.value === next)?.visibility ?? "hidden";
+  const dirty = next !== currentStatus;
+
+  return (
+    <form action={action} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <input type="hidden" name="workflow_status" value={next} />
+      <input type="hidden" name="visibility" value={visibility} />
+      <select
+        name="workflow_status_picker"
+        value={next}
+        onChange={(e) => setNext(e.target.value)}
+        disabled={pending}
+        aria-label="Change status"
+        style={{
+          width: "100%",
+          padding: "8px 11px",
+          borderRadius: 8,
+          border: `1px solid ${C.border}`,
+          background: "#fff",
+          fontSize: 13,
+          fontFamily: F,
+          color: C.ink,
+          appearance: "auto",
+        }}
+      >
+        <option value="draft">Draft — internal only</option>
+        <option value="approved">Approved — live publicly</option>
+        <option value="published">Published — live publicly</option>
+        <option value="hidden">Hidden — taken down</option>
+      </select>
+      <button
+        type="submit"
+        disabled={pending || !dirty}
+        style={{
+          width: "100%",
+          background: dirty ? C.accent : "transparent",
+          color: dirty ? "#fff" : C.inkMuted,
+          border: dirty ? "none" : `1px solid ${C.border}`,
+          padding: "9px 0",
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          fontFamily: F,
+          cursor: pending || !dirty ? "not-allowed" : "pointer",
+          opacity: pending || !dirty ? 0.6 : 1,
+        }}
+      >
+        {pending ? "Saving…" : dirty ? "Save status" : "No change"}
+      </button>
+    </form>
+  );
+}
+
 function WorkflowBadge({ status, t }: { status: string; t: (key: string) => string }) {
   const m = WORKFLOW_META[status] ?? WORKFLOW_META.draft;
   const label = t(`admin.talent.edit.status.${status}`);
@@ -751,55 +836,16 @@ function WorkflowSidebar({
           </div>
         )}
 
-        {!isLive ? (
-          <form action={action}>
-            <input type="hidden" name="workflow_status" value="approved" />
-            <input type="hidden" name="visibility" value="public" />
-            <button
-              type="submit"
-              disabled={pending}
-              style={{
-                width: "100%",
-                background: C.accent,
-                color: "#fff",
-                border: "none",
-                padding: "9px 0",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: F,
-                cursor: pending ? "not-allowed" : "pointer",
-                opacity: pending ? 0.6 : 1,
-              }}
-            >
-              {pending ? t("admin.talent.edit.workflow.approvingBtn") : t("admin.talent.edit.workflow.approveBtn")}
-            </button>
-          </form>
-        ) : (
-          <form action={action}>
-            <input type="hidden" name="workflow_status" value="draft" />
-            <input type="hidden" name="visibility" value="hidden" />
-            <button
-              type="submit"
-              disabled={pending}
-              style={{
-                width: "100%",
-                background: "transparent",
-                color: C.inkMuted,
-                border: `1px solid ${C.border}`,
-                padding: "9px 0",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 500,
-                fontFamily: F,
-                cursor: pending ? "not-allowed" : "pointer",
-                opacity: pending ? 0.6 : 1,
-              }}
-            >
-              {pending ? t("admin.talent.edit.workflow.hidingBtn") : t("admin.talent.edit.workflow.draftBtn")}
-            </button>
-          </form>
-        )}
+        {/* Status picker — admins pick any valid workflow status; visibility
+            follows the picked status so the public surface stays in sync.
+            Replaces the previous binary Approve/Hide buttons that couldn't
+            move a profile to e.g. Hidden directly from Approved, or back to
+            Draft from Published, in one step. */}
+        <StatusPicker
+          action={action}
+          pending={pending}
+          currentStatus={workflowStatus}
+        />
       </div>
 
       {/* Agency visibility card */}

@@ -152,7 +152,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       eyebrow: "The agency",
       headline: "Discover premium talent across",
       highlight: "destination cities.",
-      body: "Choose a discipline and market to start with a focused shortlist — curated and managed by the agency.",
+      body: "Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires & beyond.",
       primaryCta: { label: "Explore talent", href: "/directory" },
       secondaryCta: { label: "Start an inquiry", href: "/contact" },
       discoveryForm: {
@@ -162,15 +162,18 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
         marketLabel: "Market",
         submitLabel: "Explore",
         categories: [
+          { label: "All talent", value: "" },
           { label: "Models", value: "models" },
-          { label: "Hosts & Promo", value: "hosts" },
+          { label: "Hosts & Promoters", value: "hosts" },
           { label: "Performers", value: "performers" },
           { label: "Creators", value: "creators" },
         ],
         markets: [
+          { label: "All markets", value: "" },
           { label: "Riviera Maya", value: "riviera-maya" },
           { label: "Mexico City", value: "mexico-city" },
           { label: "Buenos Aires", value: "buenos-aires" },
+          { label: "— More cities coming —", disabled: true },
         ],
       },
       mediaMode: "static",

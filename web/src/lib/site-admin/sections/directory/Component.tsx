@@ -9,7 +9,7 @@ import {
   directorySurfaceFromTenantId,
   getCachedDirectoryFilterSidebarModel,
 } from "@/lib/directory/field-driven-filters";
-import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
 
@@ -87,12 +87,8 @@ export async function DirectoryComponent({
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 
   // Tenant context for the public directory query (scoped by host).
-  const [hostContext, publicScope] = await Promise.all([
-    getPublicHostContext(),
-    getPublicTenantScope(),
-  ]);
-  const directoryTenantId =
-    hostContext.kind === "agency" ? hostContext.tenantId : null;
+  const publicScope = await getPublicTenantScope();
+  const directoryTenantId = publicScope?.tenantId ?? null;
   const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
 
   // Section-scope → seed taxonomy filter (currently only by_talent_type

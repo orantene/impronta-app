@@ -354,19 +354,6 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     relatedDrawers: ["domain", "branding", "homepage"],
   },
 
-  "theme-foundations": {
-    audience: W_ADMIN,
-    category: "Settings",
-    purpose:
-      "Brand-level design tokens — fonts, colors, spacing — that propagate across your storefront and emails.",
-    youCanHere: [
-      "Pick a font pairing or upload custom webfonts",
-      "Define your primary, accent, and ink colors",
-      "Preview changes on a sample page before saving",
-    ],
-    relatedDrawers: ["design", "branding", "homepage"],
-  },
-
   "plan-billing": {
     audience: W_ADMIN,
     category: "Settings",
@@ -407,7 +394,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Set the favicon shown in browser tabs",
       "Upload a default OG image for social shares",
     ],
-    relatedDrawers: ["theme-foundations", "domain", "homepage"],
+    relatedDrawers: ["domain", "homepage"],
   },
 
   domain: {
@@ -526,7 +513,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Drop in widgets (booking form, featured talent, press logos)",
       "Preview on desktop, tablet, and mobile before publishing",
     ],
-    relatedDrawers: ["pages", "design", "widgets"],
+    relatedDrawers: ["pages", "widgets"],
   },
 
   pages: {
@@ -633,19 +620,6 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Merge two categories that should be one",
     ],
     relatedDrawers: ["field-catalog", "filter-config"],
-  },
-
-  design: {
-    audience: [W_ADMIN, W_EDIT],
-    category: "Public site",
-    purpose:
-      "Section-level design controls — typography, spacing, button styles — beyond the brand foundations.",
-    youCanHere: [
-      "Tweak component styles (cards, buttons, headers)",
-      "Override layout for specific page sections",
-      "Reset to the brand defaults at any time",
-    ],
-    relatedDrawers: ["theme-foundations", "homepage"],
   },
 
   widgets: {

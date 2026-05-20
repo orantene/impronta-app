@@ -242,7 +242,7 @@ const RECIPES: Record<string, Recipe> = {
   // tenant via the admin one-click starter (tenant resolved from
   // requireTenantScope(), never hardcoded). Slot keys are chosen so the
   // homepage template's slot order yields the intended section order:
-  // hero(hero_search, editorial_split_hero) → trust_band(talent_type_grid)
+  // hero(editorial_split_hero) → trust_band(talent_type_grid)
   // → services(featured_talent) → featured(location_discovery) →
   // process(process_steps) → destinations(values_trio) → gallery(talent
   // CTA) → final_cta(client CTA). No "Curated" copy; no Impronta colors in
@@ -254,58 +254,11 @@ const RECIPES: Record<string, Recipe> = {
     entries: [
       {
         slotKey: "hero",
-        sectionTypeKey: "hero_search",
-        propsOverride: {
-          headline: "Find the right talent",
-          highlight: "for your brief.",
-          subheadline:
-            "Search models, hosts, performers, creators, and event talent across Riviera Maya, Mexico City, and Buenos Aires.",
-          search: {
-            enabled: true,
-            mode: "directory-query",
-            placeholder: "Search talent, disciplines, or locations…",
-            actionHref: "/directory",
-            submitLabel: "Search",
-          },
-          primaryCta: { label: "Start Inquiry", href: "/contact" },
-          secondaryCta: { label: "Apply as talent", href: "/register" },
-          chipsSource: "manual",
-          // Prototype market chips. The represented count remains manual
-          // below until product/data decides how many roster_only profiles
-          // should become site_visible.
-          chips: [
-            { label: "Riviera Maya", href: "/directory" },
-            { label: "Mexico City", href: "/directory" },
-            { label: "Buenos Aires", href: "/directory" },
-            { label: "More cities coming" },
-          ],
-          // Manual stat for launch. The dynamic `tenant_talent_count`
-          // counts only publicly site-visible roster (shared storefront
-          // isolation primitive `listTalentIdsOnTenantRoster`). On Impronta
-          // …0001 only 1 of 28 active roster rows is `site_visible` (27 are
-          // `roster_only`), so the dynamic stat read "1+". Making it
-          // dynamic-correct needs a product/data decision (publish more
-          // roster to site_visible) — out of scope here. Manual until then.
-          statSource: "manual",
-          statItems: [
-            {
-              value: "28",
-              label: "represented talent · agency-managed from brief to confirmation",
-            },
-          ],
-          layout: "editorial",
-        },
-      },
-      {
-        slotKey: "hero",
         sectionTypeKey: "editorial_split_hero",
         propsOverride: {
-          eyebrow: "Impronta",
           headline: "Discover premium talent across",
           highlight: "destination cities.",
-          body: "Choose a discipline and market to start with a focused shortlist — curated and managed by the agency.",
-          primaryCta: { label: "Explore Talent", href: "/directory" },
-          secondaryCta: { label: "Start inquiry", href: "/contact" },
+          body: "Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires & beyond.",
           discoveryForm: {
             enabled: true,
             actionHref: "/directory",
@@ -313,34 +266,38 @@ const RECIPES: Record<string, Recipe> = {
             marketLabel: "Market",
             submitLabel: "Explore",
             categories: [
+              { label: "All talent", value: "" },
               { label: "Models", value: "models" },
-              { label: "Hosts & Promo", value: "hosts" },
+              { label: "Hosts & Promoters", value: "hosts" },
               { label: "Performers", value: "performers" },
               { label: "Creators", value: "creators" },
             ],
             markets: [
+              { label: "All markets", value: "" },
               { label: "Riviera Maya", value: "riviera-maya" },
               { label: "Mexico City", value: "mexico-city" },
               { label: "Buenos Aires", value: "buenos-aires" },
+              { label: "— More cities coming —", disabled: true },
             ],
           },
           mediaMode: "static",
-          // Editorial/creative-shoot frame (sanctioned prototype Unsplash
-          // source). Reinforces "events, shoots, and brand experiences"
-          // and is distinct from the four discipline cards below. Swap to
-          // licensed Impronta photography via the Page Builder later — no
-          // code change needed.
+          // Impronta roster media. The stack stores static public media URLs
+          // so the homepage can intentionally feature staff-selected roster
+          // picks without waiting on the directory fetch path.
           mediaUrl:
-            "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&q=80&w=1600&h=1200",
-          mediaAlt: "Creative team on a premium editorial production set",
+            "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/1d6bcec0-874d-427d-90ce-9f9c8f0e8929/gallery/8f703c9d-d59f-4190-9683-1c198398742a.jpg",
+          mediaAlt: "More, Impronta talent",
           mediaStyle: "card-stack",
+          mediaStackTalentCodes: ["TAL-00045", "TAL-00036", "TAL-00034"],
           mediaStackUrls: [
-            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=72&w=1200&h=1500",
-            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=72&w=1200&h=760",
-            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=72&w=1200&h=760",
+            "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/1d6bcec0-874d-427d-90ce-9f9c8f0e8929/gallery/8f703c9d-d59f-4190-9683-1c198398742a.jpg",
+            "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/42b0d16f-de76-49f3-bc98-f80b5bba377d/gallery/ac0412e7-c608-4b68-bc0d-13af97790fd3.jpg",
+            "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/72033ce0-e8be-4e22-8981-1caa52c3207d/gallery/346ce0a8-ea98-4acb-9c56-df1cb6eaeff3.jpg",
           ],
           mediaStackCaptions: [
-            { name: "Selected talent", sub: "Agency managed" },
+            { name: "More", sub: "Editorial Model" },
+            { name: "Anto", sub: "Commercial Model" },
+            { name: "Nalea", sub: "Art Model" },
           ],
           mediaRatio: "4/3",
           overlayStrength: "soft",

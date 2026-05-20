@@ -63,6 +63,12 @@ export const editorialSplitHeroSchemaV1 = z.object({
    * single `mediaUrl` frame when `card-stack` has no `mediaStackUrls`.
    */
   mediaStyle: z.enum(["single", "card-stack"]).default("single"),
+  /**
+   * Optional roster profile codes aligned to `mediaStackUrls`. These are
+   * editor provenance only; render stays static so explicit roster picks can
+   * be intentionally featured on a tenant homepage.
+   */
+  mediaStackTalentCodes: z.array(z.string().min(1).max(40)).max(3).optional(),
   /** Up to 3 image URLs for `mediaStyle: card-stack` (front, left, right). */
   mediaStackUrls: z.array(z.string().url().max(2048)).max(3).optional(),
   /** Optional captions aligned to `mediaStackUrls` (front card shows its caption). */

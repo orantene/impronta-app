@@ -227,7 +227,7 @@ function OverrideRow({ ov }: { ov: TenantFieldOverride }) {
         </div>
         {ov.custom_helper && (
           <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 3, fontStyle: "italic" }}>
-            helper: "{ov.custom_helper}"
+            helper: {ov.custom_helper}
           </div>
         )}
       </div>

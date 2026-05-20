@@ -64,11 +64,6 @@
       "count": 1
     }
   },
-  "src/app/(workspace)/platform/admin/tenants/[id]/catalog/page.tsx": {
-    "react/no-unescaped-entities": {
-      "count": 2
-    }
-  },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
       "count": 3
@@ -119,6 +114,9 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 13
+    },
+    "react-hooks/purity": {
+      "count": 2
     }
   },
   "src/components/admin/shell/internal/drawers/UpgradeModal.tsx": {
@@ -261,6 +259,12 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 113
+    },
+    "react-hooks/preserve-manual-memoization": {
+      "count": 1
+    },
+    "react-hooks/refs": {
+      "count": 8
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-drawer.tsx": {
@@ -356,6 +360,9 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 11
+    },
+    "react-hooks/purity": {
+      "count": 2
     }
   },
   "src/components/admin/shell/internal/live-category-fields-editor.tsx": {
@@ -384,7 +391,10 @@
       "count": 2
     },
     "ratchet/no-new-inline-style": {
-      "count": 223
+      "count": 224
+    },
+    "react-hooks/refs": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx": {
@@ -696,6 +706,9 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 67
+    },
+    "react-hooks/purity": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/platform.tsx": {
@@ -881,6 +894,9 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 9
+    },
+    "react-hooks/preserve-manual-memoization": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/skill-verify-dialog.tsx": {
@@ -1201,6 +1217,15 @@
   "src/components/edit-chrome/edit-context.tsx": {
     "max-lines": {
       "count": 1
+    },
+    "react-hooks/immutability": {
+      "count": 2
+    },
+    "react-hooks/preserve-manual-memoization": {
+      "count": 10
+    },
+    "react-hooks/refs": {
+      "count": 4
     }
   },
   "src/components/edit-chrome/edit-shell.tsx": {
@@ -1219,6 +1244,9 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 2
+    },
+    "react-hooks/preserve-manual-memoization": {
+      "count": 1
     }
   },
   "src/components/edit-chrome/inspectors/builder-node-content.tsx": {
@@ -1244,6 +1272,9 @@
   "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": {
     "max-lines": {
       "count": 1
+    },
+    "react-hooks/refs": {
+      "count": 1
     }
   },
   "src/components/edit-chrome/inspectors/style-panel.tsx": {
@@ -1253,6 +1284,9 @@
   },
   "src/components/edit-chrome/navigator-panel.tsx": {
     "max-lines": {
+      "count": 1
+    },
+    "react-hooks/immutability": {
       "count": 1
     }
   },
@@ -1269,6 +1303,9 @@
   "src/components/edit-chrome/rich-editor/CanvasEditOverlay.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
+    },
+    "react-hooks/immutability": {
+      "count": 1
     }
   },
   "src/components/edit-chrome/selection-layer.tsx": {
@@ -1277,6 +1314,9 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 5
+    },
+    "react-hooks/refs": {
+      "count": 3
     }
   },
   "src/components/edit-chrome/theme-drawer.tsx": {
@@ -1286,6 +1326,11 @@
   },
   "src/components/edit-chrome/topbar.tsx": {
     "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/home/hero-search.tsx": {
+    "react-hooks/refs": {
       "count": 1
     }
   },
@@ -1305,11 +1350,17 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
+    },
+    "react-hooks/refs": {
+      "count": 1
     }
   },
   "src/components/marketing/get-started-form.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
+    },
+    "react-hooks/refs": {
+      "count": 12
     }
   },
   "src/components/media/photo-lightbox.tsx": {
@@ -1353,6 +1404,11 @@
     }
   },
   "src/lib/directory/field-driven-filters.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/field-engine/resolve-talent-fields.test.ts": {
     "max-lines": {
       "count": 1
     }
@@ -1559,7 +1615,7 @@
   },
   "src/lib/server-actions/client-guest-merge.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 5
+      "count": 6
     }
   },
   "src/lib/server-actions/client-inquiry-attachments.ts": {

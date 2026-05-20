@@ -83,7 +83,7 @@ export function loadPublishedShell(
         });
         return null;
       }
-      const rows = rowsRaw ?? [];
+      const rows = (Array.isArray(rowsRaw) ? rowsRaw : []) as ShellRow[];
       const dataForLocale = candidateLocales
         .map((candidate) => rows.find((row) => row.locale === candidate))
         .find(Boolean);
