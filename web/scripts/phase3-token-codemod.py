@@ -451,18 +451,143 @@ def build_pattern(src: str) -> re.Pattern:
 
 
 LAYOUT_PATS = [(build_pattern(s), cls) for s, cls in EXACT_LAYOUT.items()]
-ADMIN_PATS  = [(build_pattern(s), cls) for s, cls in EXACT_ADMIN.items()]
+
+
+# ── Y2 multi-property splitter ───────────────────────────────────────────────
+# Extends Y1's sole-attribute restriction.  Given `style={{ A, B, C }}` on a
+# bare HTML element (no other attributes / no existing className), pull every
+# attribute that maps to a known admin utility into a `className=`, keep the
+# rest inline.  Subsumes Y1's single-attr ADMIN_PATS (when every attr converts,
+# the result has no `style={{}}` left, matching Y1's behaviour exactly).
+#
+# Conservative rules:
+#   - Element must be a bare HTML tag with `style={{ ... }}` as the SOLE attr.
+#     (Same surface area as the layout codemod.)
+#   - Attribute value must be EXACTLY `COLORS.<key>` / `RADIUS.<key>` —
+#     no ternaries, template literals, function calls, fallback `??`, etc.
+#     Anything more complex is left inline.
+#   - Off-grid attrs (fontSize: 13, marginTop: 2) stay inline.  Y2 only pulls
+#     admin-color/radius/shadow attrs out.
+
+STYLE_ELEM_RE = re.compile(
+    r'<(' + HTML + r')\s+style=\{\{\s*(.*?)\s*\}\}\s*>',
+    re.DOTALL,
+)
+
+# Build (attr_js, token_key) → utility map from EXACT_ADMIN single-attr table.
+VALID_ATTR_KEY: dict[tuple[str, str], str] = {}
+_ADMIN_KEY_RE = re.compile(
+    r'^style=\{\{\s*(\w+):\s*(COLORS|RADIUS)\.(\w+)\s*\}\}$'
+)
+for _src, _util in EXACT_ADMIN.items():
+    _m = _ADMIN_KEY_RE.match(_src)
+    if _m:
+        VALID_ATTR_KEY[(_m.group(1), _m.group(3))] = _util
+
+
+def _split_style_attrs(inner: str) -> list[str]:
+    """Split `key: value, key: value` at top-level commas.  Tracks brace/
+    bracket/paren depth + string + template-literal state so commas inside
+    nested values are not mistaken for separators."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    in_str: str | None = None
+    in_back = False
+    i = 0
+    while i < len(inner):
+        c = inner[i]
+        if in_str:
+            buf.append(c)
+            if c == '\\' and i + 1 < len(inner):
+                buf.append(inner[i + 1])
+                i += 2
+                continue
+            if c == in_str:
+                in_str = None
+        elif in_back:
+            buf.append(c)
+            if c == '`':
+                in_back = False
+        elif c == '`':
+            in_back = True
+            buf.append(c)
+        elif c in ('"', "'"):
+            in_str = c
+            buf.append(c)
+        elif c in '({[':
+            depth += 1
+            buf.append(c)
+        elif c in ')}]':
+            depth -= 1
+            buf.append(c)
+        elif c == ',' and depth == 0:
+            parts.append(''.join(buf).strip())
+            buf = []
+        else:
+            buf.append(c)
+        i += 1
+    tail = ''.join(buf).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+_ATTR_RE = re.compile(
+    r'^(color|background|backgroundColor|borderColor|borderRadius|boxShadow):\s*'
+    r'(COLORS|RADIUS)\.([a-zA-Z]+)\s*$'
+)
+
+
+def split_admin_multi(text: str) -> tuple[str, int]:
+    """Pull admin-token attrs out of multi-property inline styles."""
+    converted = 0
+
+    def repl(m: re.Match) -> str:
+        nonlocal converted
+        tag = m.group(1)
+        inner = m.group(2)
+        if not inner.strip():
+            return m.group(0)
+        try:
+            parts = _split_style_attrs(inner)
+        except Exception:
+            return m.group(0)
+        kept: list[str] = []
+        classes: list[str] = []
+        for p in parts:
+            am = _ATTR_RE.match(p)
+            if am:
+                util = VALID_ATTR_KEY.get((am.group(1), am.group(3)))
+                if util:
+                    classes.append(util)
+                    continue
+            kept.append(p)
+        if not classes:
+            return m.group(0)
+        converted += len(classes)
+        cls_attr = f' className="{" ".join(classes)}"'
+        if kept:
+            return f'<{tag} style={{{{ {", ".join(kept)} }}}}{cls_attr}>'
+        return f'<{tag}{cls_attr}>'
+
+    new = STYLE_ELEM_RE.sub(repl, text)
+    return new, converted
 
 
 def process(text: str, admin_colors: bool) -> tuple[str, int]:
     n = 0
-    pats = LAYOUT_PATS + (ADMIN_PATS if admin_colors else [])
-    for pat, cls in pats:
+    # Layout (sole-attr exact matches) — unchanged from Y1.
+    for pat, cls in LAYOUT_PATS:
         def repl(m: re.Match, cls: str = cls) -> str:
             nonlocal n
             n += 1
             return f'<{m.group(1)} className="{cls}">'
         text = pat.sub(repl, text)
+    # Admin colors (Y2: multi-prop splitter; subsumes Y1's single-attr table).
+    if admin_colors:
+        text, k = split_admin_multi(text)
+        n += k
     return text, n
 
 
