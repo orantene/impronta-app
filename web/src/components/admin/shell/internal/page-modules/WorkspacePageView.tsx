@@ -121,7 +121,7 @@ function AccordionItem({
           </div>
         </div>
         {/* Chevron — rotates 180° when open */}
-        <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkMuted, transition: `transform ${TRANSITION.sm}`, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+        <span aria-hidden className={`shrink-0 text-admin-ink-muted [transition:transform_var(--transition-admin-sm)] ${open ? 'rotate-180' : 'rotate-0'}`}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

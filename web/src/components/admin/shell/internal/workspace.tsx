@@ -930,7 +930,7 @@ function SystemEventGroup({ messages }: { messages: ThreadMessage[] }) {
         <span className="font-medium">
           {messages.length} system updates
         </span>
-        <span aria-hidden style={{ fontSize: 10, transform: open ? "rotate(180deg)" : undefined, transition: `transform ${TRANSITION.sm}` }}>
+        <span aria-hidden className={`text-admin-10 [transition:transform_var(--transition-admin-sm)] ${open ? 'rotate-180' : ''}`}>
           ▾
         </span>
       </button>

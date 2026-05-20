@@ -224,7 +224,7 @@ export function TalentJobShellHeader({
                 >{coordCommissionLabel}</span>
               )}
               {isReal && (
-                <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ transform: breakdownOpen ? "rotate(180deg)" : "rotate(0)", transition: TRANSITION.sm, opacity: 0.7 }}>
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none" className={`transition-admin-sm opacity-70 ${breakdownOpen ? 'rotate-180' : 'rotate-0'}`}>
                   <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}

@@ -7,3 +7,26 @@
   from { opacity: 0; transform: translateY(-2px); }
   to   { opacity: 1; transform: translateY(0);    }
 }
+
+/* ── Admin transition utilities (Y3/Phase-C)  ──────────────────────────
+ * Named utilities for the TRANSITION scale from state/fixtures.ts.
+ * These apply `transition: all <timing>` — use on elements where ALL
+ * properties may animate (hover colour, opacity, background swaps).
+ * For single-property transitions use arbitrary values:
+ *   [transition:background_var(--transition-admin-sm)]
+ *   [transition:transform_var(--transition-admin-md)]              */
+@utility transition-admin-micro {
+  transition: all var(--transition-admin-micro);
+}
+@utility transition-admin-sm {
+  transition: all var(--transition-admin-sm);
+}
+@utility transition-admin-md {
+  transition: all var(--transition-admin-md);
+}
+@utility transition-admin-layout {
+  transition: all var(--transition-admin-layout);
+}
+@utility transition-admin-drawer {
+  transition: all var(--transition-admin-drawer);
+}

@@ -249,7 +249,7 @@ export function TakeHomeCard({ takeHome, stage }: { takeHome: string; stage: str
             display: "inline-flex", alignItems: "center", gap: 4,
           }}>
             {expanded ? "Hide breakdown" : "See breakdown"}
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: TRANSITION.sm }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-admin-sm ${expanded ? 'rotate-180' : 'rotate-0'}`}>
               <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
