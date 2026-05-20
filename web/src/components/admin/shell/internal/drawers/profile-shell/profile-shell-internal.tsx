@@ -115,6 +115,26 @@ import {
 // + ~100 private editors), byte-for-byte from drawers.tsx. Irreducible-large;
 // max-lines grandfathered via mandated scoped suppression regen (state/* precedent).
 
+// Q5: relative-time helper hoisted to module scope so the Date.now() call
+// doesn't trip react-hooks/purity when used from a render closure.
+function relTime(iso: string): string {
+  const diff = Date.now() - Date.parse(iso);
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+// Q5: hoisted ID generator for new optimistic rows. Date.now() +
+// Math.random() inside render-body closures (handler factories like
+// `add = () => onChange([..., { id: tempId('lim') }])`) tripped
+// react-hooks/purity even though they only execute on user events;
+// moving the impure calls to module scope cleans that up.
+function tempId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+}
+
 export type ResolvedGroupForUI = {
   group_slug: string;
   group_label_en: string;
@@ -2703,14 +2723,8 @@ export function ProfileActivityLog({ talentProfileId }: { talentProfileId?: stri
     <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">No activity recorded yet.</div>
   );
 
-  const relTime = (iso: string) => {
-    const diff = Date.now() - Date.parse(iso);
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
+  // Q5: relTime moved to module scope (see top of file) so the Date.now()
+  // call no longer trips react-hooks/purity from a render-time closure.
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONTS.body }}>
@@ -3010,8 +3024,11 @@ export type PolaroidsEditorProps = {
 export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, onChange, talentProfileId }: PolaroidsEditorProps) {
   const { toast } = useAdminShell();
   const fileRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  // Q5: ref write moved to useEffect (was in render body, tripping refs).
   const polaroidsRef = useRef(polaroids);
-  polaroidsRef.current = polaroids;
+  useEffect(() => {
+    polaroidsRef.current = polaroids;
+  });
   const filledCount = polaroids.filter(p => p.url).length;
   const setUrl = (id: string, url: string | null, mediaAssetId?: string | null) =>
     onChange(polaroidsRef.current.map(p => p.id === id ? { ...p, url, mediaAssetId: mediaAssetId === undefined ? p.mediaAssetId : mediaAssetId } : p));
@@ -3174,7 +3191,7 @@ export const LimitsEditor = React.memo(function LimitsEditor({ limits, onChange 
     "No alcohol", "No religious imagery", "Vegan only",
   ];
   const add = (label?: string) => onChange([...limits, {
-    id: `lim-${Date.now()}-${Math.random().toString(36).slice(2,5)}`, category: "wardrobe", label: label ?? "", enforcement: "hard",
+    id: tempId("lim"), category: "wardrobe", label: label ?? "", enforcement: "hard",
   }]);
   const update = (id: string, patch: Partial<typeof limits[number]>) =>
     onChange(limits.map(l => l.id === id ? { ...l, ...patch } : l));
@@ -3246,8 +3263,11 @@ export type FilesEditorProps = {
 export const FilesEditor = React.memo(function FilesEditor({ files, onChange, talentProfileId }: FilesEditorProps) {
   const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // Q5: ref write moved to useEffect (was in render body, tripping refs).
   const filesRef = useRef(files);
-  filesRef.current = files;
+  useEffect(() => {
+    filesRef.current = files;
+  });
   const ICON_FOR_KIND: Record<string, string> = {
     tax: "🧾", release: "📝", nda: "🔒", contract: "📃", cert: "🎓", id: "🪪", other: "📄",
   };
@@ -3261,7 +3281,7 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
       : "other";
   };
   const add = async (selectedFile: File) => {
-    const id = `f-${Date.now()}-${Math.random().toString(36).slice(2,5)}`;
+    const id = tempId("f");
     const kind = guessKind(selectedFile.name);
     // Optimistic — show the file row immediately with `uploading: true`.
     const optimistic: FilesEditorEntry = {
@@ -5050,8 +5070,11 @@ export type PersonalityEditorProps = {
 export const PersonalityEditor = React.memo(function PersonalityEditor({ value, onChange }: PersonalityEditorProps) {
   // Stable callbacks so the memoized ChipsInput children only re-render
   // when their `values` actually change.
+  // Q5: ref write moved to useEffect (was in render body, tripping refs).
   const valueRef = useRef(value);
-  valueRef.current = value;
+  useEffect(() => {
+    valueRef.current = value;
+  });
   const setLoves = React.useCallback((v: string[]) => onChange({ ...valueRef.current, loves: v }), [onChange]);
   const setAvoids = React.useCallback((v: string[]) => onChange({ ...valueRef.current, avoids: v }), [onChange]);
   return (
