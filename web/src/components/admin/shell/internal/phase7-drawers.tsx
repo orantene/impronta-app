@@ -305,7 +305,10 @@ export function AgencyMediaCurationPanel({
     setLoading(false);
   };
 
-  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [talentProfileId]);
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload closes over talentProfileId and stable setters; re-fetch when the talent changes
+  }, [talentProfileId]);
 
   const handleRemove = async (id: string) => {
     if (!confirm("Remove this from your agency's photo layer?")) return;
@@ -427,7 +430,10 @@ export function TrustBadgesPanel({
     setLoading(false);
   };
 
-  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [talentProfileId]);
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload closes over talentProfileId and stable setters; re-fetch when the talent changes
+  }, [talentProfileId]);
 
   const handleVerify = async (badgeId: string) => {
     await updateTrustBadge({ badge_id: badgeId, status: "verified" });
