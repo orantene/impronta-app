@@ -9,6 +9,11 @@ import {
   extractImageMetadata,
   isSafeImageMime,
 } from "@/lib/server/media-metadata";
+import {
+  resizeUploadForStorage,
+  shouldResize,
+  MAX_UPLOAD_BYTES,
+} from "@/lib/server/media-resize";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -40,7 +45,9 @@ export async function actionUploadAndAssignMedia(
   if (isImage && !isSafeImageMime(file.type)) {
     return { ok: false, error: "SVG and unknown image types are not supported." };
   }
-  const maxBytes = isVideo ? 200 * 1024 * 1024 : 25 * 1024 * 1024;
+  // Images cap at 8 MB (was 25 MB) — we now sharp-resize server-side
+  // before storage, so the raw upload doesn't need to be huge.
+  const maxBytes = isVideo ? 200 * 1024 * 1024 : MAX_UPLOAD_BYTES;
   if (file.size > maxBytes) return { ok: false, error: `File must be under ${Math.round(maxBytes / 1024 / 1024)} MB.` };
 
   const { data: rosterRow } = await admin
@@ -52,12 +59,9 @@ export async function actionUploadAndAssignMedia(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
-  const ext = (file.name.split(".").pop() ?? (isVideo ? "mp4" : "jpg")).toLowerCase().replace(/[^a-z0-9]/g, "") || (isVideo ? "mp4" : "jpg");
-  const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${ext}`;
-
-  const bytes = await file.arrayBuffer();
+  const inputBytes = await file.arrayBuffer();
   const meta = isImage
-    ? await extractImageMetadata(file, bytes)
+    ? await extractImageMetadata(file, inputBytes)
     : {
         width: null,
         height: null,
@@ -65,9 +69,34 @@ export async function actionUploadAndAssignMedia(
         mimeType: file.type || "application/octet-stream",
         originalFilename: file.name || "upload",
       };
+
+  // Resize images server-side. Videos and unsupported-for-resize image
+  // types (SVG already rejected above; GIF would lose animation) pass
+  // through unchanged. The resized version is what we serve.
+  let uploadBytes: ArrayBuffer | Buffer = inputBytes;
+  let uploadContentType = file.type;
+  let storedExtOverride: string | null = null;
+  let resizedMeta: { width: number; height: number; byteSize: number } | null = null;
+  if (isImage && shouldResize(file.type)) {
+    try {
+      const resized = await resizeUploadForStorage(inputBytes, variantKind);
+      uploadBytes = resized.buffer;
+      uploadContentType = resized.mimeType;
+      storedExtOverride = resized.ext;
+      resizedMeta = { width: resized.width, height: resized.height, byteSize: resized.byteSize };
+    } catch (e) {
+      logServerError("media.actions.uploadAssign.resize", e);
+      return { ok: false, error: "Could not process image. Try a different file." };
+    }
+  }
+
+  const rawExt = (file.name.split(".").pop() ?? (isVideo ? "mp4" : "jpg")).toLowerCase().replace(/[^a-z0-9]/g, "") || (isVideo ? "mp4" : "jpg");
+  const ext = storedExtOverride ?? rawExt;
+  const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${ext}`;
+
   const { error: upErr } = await admin.storage
     .from("media-public")
-    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+    .upload(storagePath, uploadBytes, { contentType: uploadContentType, upsert: false });
 
   if (upErr) {
     logServerError("media.actions.uploadAssign.storage", upErr);
@@ -103,10 +132,13 @@ export async function actionUploadAndAssignMedia(
       variant_kind: variantKind,
       approval_state: "approved",
       sort_order: nextOrder,
-      width: meta.width,
-      height: meta.height,
-      file_size_bytes: meta.fileSizeBytes,
-      mime_type: meta.mimeType,
+      // Prefer post-resize dimensions when sharp ran — they describe the
+      // bytes actually living in storage, which is what callers serving
+      // the file need to honor (e.g. <Image width/height> hints).
+      width: resizedMeta?.width ?? meta.width,
+      height: resizedMeta?.height ?? meta.height,
+      file_size_bytes: resizedMeta?.byteSize ?? meta.fileSizeBytes,
+      mime_type: uploadContentType,
       original_filename: meta.originalFilename,
       metadata,
       source_media_asset_id: sourceMediaAssetId,
@@ -586,17 +618,37 @@ export async function actionUploadToStagingStorage(
   if (!isSafeImageMime(file.type)) {
     return { ok: false, error: "SVG and unknown image types are not supported." };
   }
-  if (file.size > 25 * 1024 * 1024) return { ok: false, error: "File must be under 25 MB." };
+  // 8 MB cap (down from 25 MB) — sharp re-encodes server-side now, so
+  // raw uploads don't need to be huge. See media-resize.ts.
+  if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File must be under 8 MB." };
 
-  const ext =
-    (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-  const storagePath = `${tenantId}/staging/${randomUUID()}.${ext}`;
+  const inputBytes = await file.arrayBuffer();
+  const meta = await extractImageMetadata(file, inputBytes);
 
-  const bytes = await file.arrayBuffer();
-  const meta = await extractImageMetadata(file, bytes);
+  // Staging uploads land as "gallery" by default — most are assigned to
+  // a talent gallery in step 2. Use gallery sizing.
+  let uploadBytes: ArrayBuffer | Buffer = inputBytes;
+  let uploadContentType = file.type;
+  let storedExt = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  let resizedMeta: { width: number; height: number; byteSize: number } | null = null;
+  if (shouldResize(file.type)) {
+    try {
+      const resized = await resizeUploadForStorage(inputBytes, "gallery");
+      uploadBytes = resized.buffer;
+      uploadContentType = resized.mimeType;
+      storedExt = resized.ext;
+      resizedMeta = { width: resized.width, height: resized.height, byteSize: resized.byteSize };
+    } catch (e) {
+      logServerError("media.actions.stagingUpload.resize", e);
+      return { ok: false, error: "Could not process image. Try a different file." };
+    }
+  }
+
+  const storagePath = `${tenantId}/staging/${randomUUID()}.${storedExt}`;
+
   const { error: upErr } = await admin.storage
     .from("media-public")
-    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+    .upload(storagePath, uploadBytes, { contentType: uploadContentType, upsert: false });
 
   if (upErr) {
     logServerError("media.actions.stagingUpload", upErr);
@@ -610,10 +662,12 @@ export async function actionUploadToStagingStorage(
       storagePath,
       publicUrl: urlData.publicUrl,
       meta: {
-        width: meta.width,
-        height: meta.height,
-        fileSizeBytes: meta.fileSizeBytes,
-        mimeType: meta.mimeType,
+        // Return post-resize dims so step 2's media_assets row matches
+        // what's actually in storage.
+        width: resizedMeta?.width ?? meta.width,
+        height: resizedMeta?.height ?? meta.height,
+        fileSizeBytes: resizedMeta?.byteSize ?? meta.fileSizeBytes,
+        mimeType: uploadContentType,
         originalFilename: meta.originalFilename,
       },
     },
@@ -1188,24 +1242,47 @@ export async function actionImportSingleDriveFile(
   const downloaded = await downloadDriveFile(fileId);
   if (!downloaded) return { ok: false, error: "Could not download — make sure the file is shared as \"Anyone with the link\"." };
 
-  const ext = downloaded.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-  const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${ext}`;
+  // Apply the same sharp resize the direct-upload path uses, so Drive
+  // imports don't bypass egress hygiene. Drive files are bounded by
+  // Drive's own quotas (no extra cap here); the resize cuts the served
+  // bytes regardless.
+  let storedBuffer: ArrayBuffer | Buffer = downloaded.buffer;
+  let storedContentType = downloaded.contentType;
+  let storedExt = downloaded.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+  let storedWidth: number | null = null;
+  let storedHeight: number | null = null;
+  let storedByteSize = downloaded.buffer.byteLength;
+  if (shouldResize(downloaded.contentType)) {
+    try {
+      const resized = await resizeUploadForStorage(downloaded.buffer, "gallery");
+      storedBuffer = resized.buffer;
+      storedContentType = resized.mimeType;
+      storedExt = resized.ext;
+      storedWidth = resized.width;
+      storedHeight = resized.height;
+      storedByteSize = resized.byteSize;
+    } catch (e) {
+      logServerError("media.actions.importSingle.resize", e);
+      return { ok: false, error: "Could not process image from Drive." };
+    }
+  } else {
+    // Best-effort metadata for pass-through formats.
+    try {
+      const sharpMod = (await import("sharp")).default;
+      const m = await sharpMod(Buffer.from(downloaded.buffer)).metadata();
+      storedWidth = typeof m.width === "number" ? m.width : null;
+      storedHeight = typeof m.height === "number" ? m.height : null;
+    } catch {
+      /* metadata is best-effort */
+    }
+  }
+
+  const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${storedExt}`;
 
   const { error: upErr } = await admin.storage
     .from("media-public")
-    .upload(storagePath, downloaded.buffer, { contentType: downloaded.contentType, upsert: false });
+    .upload(storagePath, storedBuffer, { contentType: storedContentType, upsert: false });
   if (upErr) return { ok: false, error: "Upload failed." };
-
-  let singleMetaWidth: number | null = null;
-  let singleMetaHeight: number | null = null;
-  try {
-    const sharpMod = (await import("sharp")).default;
-    const m = await sharpMod(Buffer.from(downloaded.buffer)).metadata();
-    singleMetaWidth = typeof m.width === "number" ? m.width : null;
-    singleMetaHeight = typeof m.height === "number" ? m.height : null;
-  } catch {
-    // best-effort
-  }
 
   const { data: inserted, error: insErr } = await admin
     .from("media_assets")
@@ -1217,10 +1294,10 @@ export async function actionImportSingleDriveFile(
       variant_kind: "gallery",
       approval_state: "approved",
       sort_order: sortOrder,
-      width: singleMetaWidth,
-      height: singleMetaHeight,
-      file_size_bytes: downloaded.buffer.byteLength,
-      mime_type: downloaded.contentType,
+      width: storedWidth,
+      height: storedHeight,
+      file_size_bytes: storedByteSize,
+      mime_type: storedContentType,
       original_filename: `drive-${fileId}`,
       metadata: { source: "google_drive", drive_file_id: fileId },
     })
@@ -1294,27 +1371,47 @@ export async function actionImportFromGoogleDrive(
       continue;
     }
 
-    const ext = downloaded.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-    const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${ext}`;
+    // Same resize as actionImportSingleDriveFile — see comments there.
+    let storedBuffer: ArrayBuffer | Buffer = downloaded.buffer;
+    let storedContentType = downloaded.contentType;
+    let storedExt = downloaded.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+    let driveMetaWidth: number | null = null;
+    let driveMetaHeight: number | null = null;
+    let storedByteSize = downloaded.buffer.byteLength;
+    if (shouldResize(downloaded.contentType)) {
+      try {
+        const resized = await resizeUploadForStorage(downloaded.buffer, "gallery");
+        storedBuffer = resized.buffer;
+        storedContentType = resized.mimeType;
+        storedExt = resized.ext;
+        driveMetaWidth = resized.width;
+        driveMetaHeight = resized.height;
+        storedByteSize = resized.byteSize;
+      } catch (e) {
+        logServerError("media.actions.importBulk.resize", e);
+        errors.push(`Could not process one file.`);
+        continue;
+      }
+    } else {
+      try {
+        const sharpMod = (await import("sharp")).default;
+        const m = await sharpMod(Buffer.from(downloaded.buffer)).metadata();
+        driveMetaWidth = typeof m.width === "number" ? m.width : null;
+        driveMetaHeight = typeof m.height === "number" ? m.height : null;
+      } catch {
+        /* metadata is best-effort */
+      }
+    }
+
+    const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${storedExt}`;
 
     const { error: upErr } = await admin.storage
       .from("media-public")
-      .upload(storagePath, downloaded.buffer, { contentType: downloaded.contentType, upsert: false });
+      .upload(storagePath, storedBuffer, { contentType: storedContentType, upsert: false });
 
     if (upErr) {
       errors.push(`Upload failed for one file.`);
       continue;
-    }
-
-    let driveMetaWidth: number | null = null;
-    let driveMetaHeight: number | null = null;
-    try {
-      const sharpMod = (await import("sharp")).default;
-      const m = await sharpMod(Buffer.from(downloaded.buffer)).metadata();
-      driveMetaWidth = typeof m.width === "number" ? m.width : null;
-      driveMetaHeight = typeof m.height === "number" ? m.height : null;
-    } catch {
-      // metadata is best-effort
     }
 
     const { data: inserted, error: insErr } = await admin
@@ -1329,8 +1426,8 @@ export async function actionImportFromGoogleDrive(
         sort_order: nextOrder++,
         width: driveMetaWidth,
         height: driveMetaHeight,
-        file_size_bytes: downloaded.buffer.byteLength,
-        mime_type: downloaded.contentType,
+        file_size_bytes: storedByteSize,
+        mime_type: storedContentType,
         original_filename: `drive-${fileId}`,
         metadata: { source: "google_drive", drive_file_id: fileId },
       })

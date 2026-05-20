@@ -18,7 +18,9 @@ import { logServerError } from "@/lib/server/safe-error";
 //   original, card, gallery, banner, lightbox, public_watermarked, watermarked, hero
 // "hero" is the talent-side 4:5 cover (project_talent_surface_launch.md);
 // "card" is the curated thumbnail. Both work as primary; we prefer hero.
-const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery", "original"];
+// "original" is intentionally excluded — see talents-by-ids/route.ts for
+// the egress-hygiene rationale (raw camera files dominate storage egress).
+const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery"];
 
 export type DiscoverTalentListItem = {
   id: string;

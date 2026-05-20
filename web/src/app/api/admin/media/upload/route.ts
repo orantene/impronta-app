@@ -25,11 +25,20 @@ import { randomUUID } from "node:crypto";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
+import {
+  resizeUploadForStorage,
+  shouldResize,
+  MAX_UPLOAD_BYTES,
+} from "@/lib/server/media-resize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES_IMAGE = 10 * 1024 * 1024;       // 10 MB
+// 8 MB image cap (was 10 MB) — we now sharp-resize server-side before
+// storage, so raw uploads no longer need huge headroom. See
+// media-resize.ts for the egress rationale.
+const MAX_BYTES_IMAGE = MAX_UPLOAD_BYTES;
 const MAX_BYTES_DOCUMENT = 25 * 1024 * 1024;    // 25 MB
 const MAX_BYTES_VIDEO = 200 * 1024 * 1024;      // 200 MB
 const BUCKET = "media-public";
@@ -181,11 +190,34 @@ export async function POST(req: Request) {
   // separates them visually from the image library.
   const subPath =
     kind === "document" ? "documents" : kind === "video" ? "videos" : "library";
-  const storagePath = `tenant/${scope.tenantId}/${subPath}/${objectId}.${ext}`;
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const upload = await supabase.storage.from(BUCKET).upload(storagePath, buffer, {
-    contentType: mime,
+  const rawBuffer = Buffer.from(await file.arrayBuffer());
+
+  // Sharp-resize images. SVG (vector — already tiny, sharp may crash on
+  // hostile inputs) and GIF (would lose animation) bypass. Documents and
+  // videos always bypass.
+  let uploadBuffer: Buffer = rawBuffer;
+  let uploadContentType = mime;
+  let uploadExt = ext;
+  if (kind === "image" && shouldResize(mime)) {
+    try {
+      const resized = await resizeUploadForStorage(rawBuffer, "gallery");
+      uploadBuffer = resized.buffer;
+      uploadContentType = resized.mimeType;
+      uploadExt = resized.ext;
+    } catch (e) {
+      logServerError("api.admin.media.upload.resize", e);
+      return NextResponse.json(
+        { ok: false, error: "Could not process image. Try a different file." },
+        { status: 400 },
+      );
+    }
+  }
+
+  const storagePath = `tenant/${scope.tenantId}/${subPath}/${objectId}.${uploadExt}`;
+
+  const upload = await supabase.storage.from(BUCKET).upload(storagePath, uploadBuffer, {
+    contentType: uploadContentType,
     cacheControl: "3600",
     upsert: false,
   });
@@ -208,7 +240,7 @@ export async function POST(req: Request) {
         approval_state: "approved",
         purpose: kindCfg.purpose,
         sort_order: 0,
-        file_size: buffer.length,
+        file_size: uploadBuffer.length,
         metadata: {
           source: "admin-upload",
           original_mime: mime,

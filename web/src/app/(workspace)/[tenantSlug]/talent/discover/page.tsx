@@ -23,6 +23,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { SmartImage } from "@/components/ui/smart-image";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -279,8 +280,13 @@ export default async function TalentDiscoverPage({ params }: { params: PageParam
               position: "relative", overflow: "hidden",
             }}>
               {d.headshotUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={d.headshotUrl} alt={d.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <SmartImage
+                  src={d.headshotUrl}
+                  alt={d.displayName}
+                  fill
+                  sizes="(max-width: 768px) 50vw, 320px"
+                  style={{ objectFit: "cover" }}
+                />
               ) : (
                 <div style={{
                   width: 64, height: 64, borderRadius: "50%",
