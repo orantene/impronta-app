@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Phase 13 — contrast checker for the Theme Drawer.
  *
