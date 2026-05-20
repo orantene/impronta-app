@@ -215,7 +215,7 @@ export function WorkspaceTemplateGallery({
     if (open && templates === null) {
       void refresh();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load once when gallery opens; templates/refresh omitted to avoid re-fetching after every successful load
   }, [open]);
 
   useEffect(() => {
