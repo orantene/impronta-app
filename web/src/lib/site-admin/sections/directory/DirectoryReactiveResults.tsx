@@ -25,6 +25,7 @@ import { DirectoryTalentTypeBar } from "@/components/directory/directory-talent-
 import { DirectoryResultsToolbar } from "@/components/directory/directory-results-toolbar";
 import { DirectoryFiltersSidebar } from "@/components/directory/directory-filters-sidebar";
 import { DirectoryMobileFilters } from "@/components/directory/directory-mobile-filters";
+import { DirectoryQueryProvider } from "@/components/directory/query-provider";
 
 import type { DirectoryV1 } from "./schema";
 
@@ -98,24 +99,26 @@ export function DirectoryReactiveResults({
   hoverBehavior: DirectoryV1["hoverBehavior"];
 }) {
   return (
-    <Suspense fallback={null}>
-      <DirectoryReactiveResultsInner
-        initialPage={initialPage}
-        locale={locale}
-        ui={ui}
-        topBarFacet={topBarFacet}
-        sidebarBlocks={sidebarBlocks}
-        defaultSort={defaultSort}
-        showTopBar={showTopBar}
-        showSidebar={showSidebar}
-        showSort={showSort}
-        showResultCount={showResultCount}
-        aiSearchEnabled={aiSearchEnabled}
-        scopeLimitedHint={scopeLimitedHint}
-        density={density}
-        hoverBehavior={hoverBehavior}
-      />
-    </Suspense>
+    <DirectoryQueryProvider>
+      <Suspense fallback={null}>
+        <DirectoryReactiveResultsInner
+          initialPage={initialPage}
+          locale={locale}
+          ui={ui}
+          topBarFacet={topBarFacet}
+          sidebarBlocks={sidebarBlocks}
+          defaultSort={defaultSort}
+          showTopBar={showTopBar}
+          showSidebar={showSidebar}
+          showSort={showSort}
+          showResultCount={showResultCount}
+          aiSearchEnabled={aiSearchEnabled}
+          scopeLimitedHint={scopeLimitedHint}
+          density={density}
+          hoverBehavior={hoverBehavior}
+        />
+      </Suspense>
+    </DirectoryQueryProvider>
   );
 }
 
