@@ -527,16 +527,16 @@ function MediaLightbox({
     setActivity([]);
     setActivityLoaded(false);
     setCropMode(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reset on photo ID change only; state setters are stable; current.tags/note are initial values for the new photo
   }, [current.id]);
 
   // Re-sync local state when bridge data refreshes after a mutation
   useEffect(() => {
     if (!savingTags) setTags(current.tags);
-  }, [current.tags]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current.tags, savingTags]);
   useEffect(() => {
     if (!savingNote) setNote(current.note ?? "");
-  }, [current.note]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current.note, savingNote]);
 
   // Lazy-load activity feed for current photo
   useEffect(() => {
@@ -1687,7 +1687,7 @@ export function WorkspaceMediaPage() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: all meaningful state is listed; omitted helpers (setSelected, queueRouterRefresh, etc.) are stable setters/fns
   }, [selected, view, focusedPendingIdx, filtered, lightboxPhoto, showAssignModal]);
 
   // Selection helpers
