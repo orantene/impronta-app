@@ -646,7 +646,7 @@ export function AdminShellProvider({
     }
     // Only run once on mount — deps are stable (tenantSlug and initialSurface
     // are server-provided props that never change within a mounted provider).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only prefetch: tenantSlug/initialSurface are server props stable for provider lifetime; router.prefetch is a stable Next.js method
   }, []);
 
   // Phase 5 — preferred surface from DB user prefs. Priority order:
@@ -1584,7 +1584,7 @@ export function AdminShellProvider({
   // Phase 3.12.2 — talent self-surface bridge
   const effectiveTalentInquiries = useMemo<TalentInquiryRow[]>(
     () => initialBridgeData?.talentInquiries ?? [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: dep is the nested array reference; ESLint prefers the parent object but we want fine-grained invalidation
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
