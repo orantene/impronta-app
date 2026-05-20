@@ -301,6 +301,7 @@ function GroupBlock({
       return () => clearTimeout(t);
     }
     if (!open) wasOpen.current = false;
+    return undefined;
   }, [open]);
 
   if (chromeless) {

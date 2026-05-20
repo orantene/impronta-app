@@ -778,6 +778,7 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
       return () => clearTimeout(t);
     }
     wasSavingRef.current = saving;
+    return undefined;
   }, [saving, dirty]);
 
   const dot = "inline-block shrink-0 rounded-full";

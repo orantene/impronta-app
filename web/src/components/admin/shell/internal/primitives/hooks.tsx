@@ -115,6 +115,7 @@ export function useFeatureFlag(key: string): boolean {
       window.addEventListener("storage", onStorage);
       return () => window.removeEventListener("storage", onStorage);
     }
+    return undefined;
   }, [key]);
   return active;
 }

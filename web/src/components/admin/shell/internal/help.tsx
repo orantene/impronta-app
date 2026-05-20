@@ -2666,6 +2666,7 @@ export function HelpPanel({
       const t = window.setTimeout(() => setMounted(false), 240);
       return () => window.clearTimeout(t);
     }
+    return undefined;
   }, [open]);
 
   if (!mounted || !entry) return null;
@@ -3110,4 +3111,3 @@ function audienceTint(a: Audience): { bg: string; fg: string } {
       return { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink };
   }
 }
-

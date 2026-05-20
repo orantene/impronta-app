@@ -122,6 +122,8 @@ async function clearPrimaryForTalentTypes(
     logServerError("talent-taxonomy/clearPrimary/update", updErr);
     return { ok: false, error: "Could not update taxonomy." };
   }
+
+  return undefined;
 }
 
 /**

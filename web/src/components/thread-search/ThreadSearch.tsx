@@ -58,6 +58,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
       const t = setTimeout(() => inputRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [open]);
 
   // Esc-to-close

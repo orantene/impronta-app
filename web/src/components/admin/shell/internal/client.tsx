@@ -566,6 +566,7 @@ function ClientTodayPage() {
         return () => clearTimeout(t);
       }
     } catch { /* ignore */ }
+    return undefined;
   }, [isFirstRun]);
 
   return (

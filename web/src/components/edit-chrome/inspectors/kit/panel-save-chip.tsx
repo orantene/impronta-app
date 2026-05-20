@@ -32,6 +32,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
       return () => clearTimeout(t);
     }
     wasSavingRef.current = saving;
+    return undefined;
   }, [saving, dirty, error]);
 
   if (error) {

@@ -154,6 +154,7 @@ export function DrawerShell({
       }
       returnFocusRef.current = null;
     }
+    return undefined;
   }, [open]);
 
   useEffect(() => {
@@ -777,4 +778,3 @@ export function ModalShell({
     </div>
   );
 }
-

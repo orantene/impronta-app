@@ -82,6 +82,7 @@ export function Sheet({ pov, open, title, onClose, children, footer }: SheetProp
       const t = setTimeout(() => setMounted(false), 220);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [open]);
 
   if (!mounted && !open) return null;

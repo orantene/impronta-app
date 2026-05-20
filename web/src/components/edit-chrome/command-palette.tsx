@@ -213,6 +213,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       const t = setTimeout(() => inputRef.current?.focus(), 0);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [open]);
 
   // Build the full row list every render — the list is small (< 50 rows

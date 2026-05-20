@@ -61,6 +61,7 @@ export function SaveStateIndicator({
       const t = setTimeout(() => setVisibleState("idle"), 1600);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [state]);
 
   if (visibleState === "idle") return null;
