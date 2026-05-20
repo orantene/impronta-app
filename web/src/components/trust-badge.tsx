@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * TrustBadge — inline chip that shows a client's trust tier.
  *
