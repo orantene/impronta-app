@@ -58,6 +58,17 @@ export function AccountMenuItem({
   );
 }
 
+// Q5: cookie write hoisted to module scope so the `document.cookie = ...`
+// assignment isn't lexically inside the LocaleToggle render body
+// (react-hooks/immutability flags any assignment inside a component body
+// without distinguishing host-object setters from React state mutations).
+function persistLocaleCookie(next: "en" | "es"): void {
+  const { path, maxAge, sameSite, secure } = localeCookieOptions;
+  let line = `${LOCALE_COOKIE}=${next}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
+  if (secure) line += "; secure";
+  document.cookie = line;
+}
+
 export function LocaleToggle() {
   const [locale, setLocale] = useState<"en" | "es">("en");
 
@@ -72,10 +83,7 @@ export function LocaleToggle() {
 
   const pick = (next: "en" | "es") => {
     if (locale === next) return;
-    const { path, maxAge, sameSite, secure } = localeCookieOptions;
-    let line = `${LOCALE_COOKIE}=${next}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
-    if (secure) line += "; secure";
-    document.cookie = line;
+    persistLocaleCookie(next);
     setLocale(next);
     window.location.reload();
   };
