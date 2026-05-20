@@ -30,9 +30,26 @@ import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
+import {
+  PublishedShellHeader,
+  shouldRenderSnapshotShell,
+} from "@/components/site-shell/PublishedShell";
 
 export async function PublicHeader() {
   const locale = await getRequestLocale();
+  const hostContext = await getPublicHostContext();
+  const tenantIdForIdentity =
+    hostContext.kind === "agency" || hostContext.kind === "hub"
+      ? hostContext.tenantId
+      : null;
+
+  if (
+    tenantIdForIdentity &&
+    (await shouldRenderSnapshotShell(tenantIdForIdentity, locale))
+  ) {
+    return <PublishedShellHeader tenantId={tenantIdForIdentity} locale={locale} />;
+  }
+
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
@@ -65,11 +82,6 @@ export async function PublicHeader() {
     href: headerHref(link.href),
   }));
 
-  const hostContext = await getPublicHostContext();
-  const tenantIdForIdentity =
-    hostContext.kind === "agency" || hostContext.kind === "hub"
-      ? hostContext.tenantId
-      : null;
   const [identity, branding] = tenantIdForIdentity
     ? await Promise.all([
         loadPublicIdentity(tenantIdForIdentity),

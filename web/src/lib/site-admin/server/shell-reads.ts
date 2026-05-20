@@ -25,8 +25,9 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
-import type { Locale } from "@/i18n/config";
+import { defaultLocale, type Locale } from "@/i18n/config";
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { HomepageSnapshot } from "./homepage";
 
@@ -59,16 +60,20 @@ export function loadPublishedShell(
     async (): Promise<PublishedShell | null> => {
       const supabase = createPublicSupabaseClient();
       if (!supabase) return null;
+      const tenantLocale = await loadTenantLocaleSettings(tenantId);
+      const candidateLocales = Array.from(
+        new Set([locale, tenantLocale.defaultLocale, defaultLocale]),
+      );
       // Phase B.2.A fix (2026-04-26): direct SELECT on cms_pages is blocked
       // by anon RLS; the public read path goes through the SECURITY INVOKER
       // RPC `cms_public_pages_for_tenant` which sets the tenant GUC so the
       // tenant-aware policy permits the row. Same pattern as loadPublicPage.
-      const { data, error } = await supabase
+      const { data: rowsRaw, error } = await supabase
         .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
         .select(SELECT)
-        .eq("locale", locale)
+        .in("locale", candidateLocales)
         .eq("system_template_key", "site_shell")
-        .maybeSingle<ShellRow>();
+        .returns<ShellRow[]>();
       if (error) {
         void improntaLog("site_admin_shell_reads.warn", {
           message: "[site-admin/shell-reads] shell load failed",
@@ -78,6 +83,11 @@ export function loadPublishedShell(
         });
         return null;
       }
+      const rows = rowsRaw ?? [];
+      const dataForLocale = candidateLocales
+        .map((candidate) => rows.find((row) => row.locale === candidate))
+        .find(Boolean);
+      const data = dataForLocale ?? null;
       if (!data) return null;
       if (data.status !== "published") return null;
       const snap = data.published_page_snapshot;
