@@ -861,7 +861,10 @@ export function DirectoryFiltersSidebar({
 
   const selectScalarRadio = useCallback(
     (fieldKey: string, valueId: string) => {
-      const next = mergeFacetSelections(fieldFacets, fieldKey, () => new Set([valueId]));
+      const next = mergeFacetSelections(fieldFacets, fieldKey, (set) => {
+        set.clear();
+        set.add(valueId);
+      });
       pushFieldFacets(next);
     },
     [fieldFacets, pushFieldFacets],

@@ -17,6 +17,7 @@ import { nodePresentationInlineStyle } from "../shared/node-presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
+import { normalizeDirectoryProps } from "./normalize";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
 
 function eyebrowSize(size: "sm" | "md" | "lg" | "xl"): string {
@@ -79,10 +80,11 @@ const cachedBuildDirectoryUiCopy = cache(
  * `TalentCard` are no longer mounted by this section.
  */
 export async function DirectoryComponent({
-  props,
+  props: rawProps,
   locale,
   builderNodeBindings,
 }: SectionComponentProps<DirectoryV1>) {
+  const props = normalizeDirectoryProps(rawProps);
   const loc: Locale = isLocale(locale) ? locale : defaultLocale;
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
 

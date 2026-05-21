@@ -19,10 +19,24 @@ function filterOptionsFromConfig(
   config: Record<string, unknown> | null | undefined,
 ): string[] | null {
   const raw = config?.filter_options;
-  if (!Array.isArray(raw)) return null;
-  const out = raw
-    .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-    .map((x) => x.trim());
+  if (Array.isArray(raw)) {
+    const out = raw
+      .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      .map((x) => x.trim());
+    if (out.length) return out;
+  }
+
+  const optionRows = config?.options;
+  if (!Array.isArray(optionRows)) return null;
+  const out = optionRows
+    .filter(
+      (x): x is { value: string } =>
+        x !== null &&
+        typeof x === "object" &&
+        typeof (x as { value?: unknown }).value === "string" &&
+        (x as { value: string }).value.trim().length > 0,
+    )
+    .map((x) => x.value.trim());
   return out.length ? out : null;
 }
 
@@ -49,11 +63,15 @@ async function fetchFieldValueTalentIds(
   constrainedTalentIds: string[] | null,
 ): Promise<string[]> {
   const acc = new Set<string>();
+  const textValues =
+    filter.kind === "text"
+      ? new Set(filter.values.map((value) => value.trim().toLowerCase()).filter(Boolean))
+      : null;
 
   const runBatch = async (idChunk: string[] | null) => {
     let q = supabase
       .from("field_values")
-      .select("talent_profile_id")
+      .select("talent_profile_id,value_text")
       .eq("field_definition_id", fieldDefinitionId);
     if (idChunk) {
       if (idChunk.length === 0) return;
@@ -62,11 +80,17 @@ async function fetchFieldValueTalentIds(
     if (filter.kind === "boolean") {
       q = q.in("value_boolean", filter.values);
     } else {
-      q = q.in("value_text", filter.values);
+      q = q.not("value_text", "is", null);
     }
     const { data, error } = await q;
     if (error) throw new Error(`[directory] field_values facet: ${error.message}`);
-    for (const row of (data ?? []) as { talent_profile_id: string }[]) {
+    for (const row of (data ?? []) as { talent_profile_id: string; value_text?: string | null }[]) {
+      if (
+        textValues &&
+        !textValues.has((row.value_text ?? "").trim().toLowerCase())
+      ) {
+        continue;
+      }
       acc.add(row.talent_profile_id);
     }
   };

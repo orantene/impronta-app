@@ -137,7 +137,7 @@ export async function EditChromeMount() {
   //   /en/p/about         → locale "en", slug "about"
   //   /es                 → locale "es", homepage (null)
   //   /about              → slug "about" (hypothetical direct route)
-  //   /directory          → non-builder public surface (no mount)
+  //   /directory          → seeded Directory system page (__directory__)
   //   /t/TAL-...          → profile public surface (no mount)
   // rawPathname is already resolved above.
   const supportedLocales = localeContext.settings.supportedLocales as ReadonlyArray<string>;
@@ -147,8 +147,11 @@ export async function EditChromeMount() {
     supportedLocales,
     publicPathPrefix,
   });
-  if (ownership.kind !== "builder_page") return null;
-  const pageSlug = ownership.pageSlug;
+  if (ownership.kind !== "builder_page" && ownership.kind !== "directory") {
+    return null;
+  }
+  const pageSlug =
+    ownership.kind === "directory" ? "__directory__" : ownership.pageSlug;
 
   // T1-2 — Server-prefetch the composition when the editor is engaged.
   //

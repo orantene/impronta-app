@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import type { SectionEditorProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { fashionDirectoryPreset } from "./presets";
+import { normalizeDirectoryProps } from "./normalize";
 import {
   readDirectoryLiveCatalogSnapshot,
   setDirectoryFilterOptionSearchVisible,
@@ -269,7 +270,7 @@ export function DirectoryEditor({
   tenantId,
 }: SectionEditorProps<DirectoryV1>) {
   const [tab, setTab] = useState<Tab>("Source");
-  const p = initial;
+  const p = normalizeDirectoryProps(initial);
   const set = <K extends keyof DirectoryV1>(key: K, value: DirectoryV1[K]) =>
     onChange({ ...p, [key]: value });
 

@@ -431,22 +431,37 @@ export async function fetchDirectoryPage(
     const perKindSets: string[][] = [];
     for (const [, termIds] of taxonomyByKind) {
       if (termIds.length === 0) continue;
-      const { data: taxonomyRows, error: taxonomyError } = await auditTime(
-        audit,
-        timings,
-        "taxonomyProfileFilterMs",
-        () =>
+      const [taxonomyResult, fieldValueResult] = await Promise.all([
+        auditTime(audit, timings, "taxonomyProfileFilterMs", () =>
           supabase
             .from("talent_profile_taxonomy")
             .select("talent_profile_id")
             .in("taxonomy_term_id", termIds),
-      );
+        ),
+        auditTime(audit, timings, "taxonomyFieldValueFilterMs", () =>
+          supabase
+            .from("field_values")
+            .select("talent_profile_id")
+            .overlaps("value_taxonomy_ids", termIds),
+        ),
+      ]);
+
+      const { data: taxonomyRows, error: taxonomyError } = taxonomyResult;
+      const { data: fieldValueRows, error: fieldValueError } = fieldValueResult;
 
       if (taxonomyError) {
         throw new Error(`[directory] taxonomy filter: ${taxonomyError.message}`);
       }
+      if (fieldValueError) {
+        throw new Error(`[directory] taxonomy field value filter: ${fieldValueError.message}`);
+      }
 
-      const ids = uniqueIds((taxonomyRows ?? []) as { talent_profile_id: string }[]);
+      const ids = [
+        ...new Set([
+          ...uniqueIds((taxonomyRows ?? []) as { talent_profile_id: string }[]),
+          ...uniqueIds((fieldValueRows ?? []) as { talent_profile_id: string }[]),
+        ]),
+      ];
       if (ids.length === 0) {
         return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
       }
