@@ -2,14 +2,16 @@
 
 This project deploys to **Vercel** (project `tulala`, team `oran-tenes-projects`). GitHub auto-deploys are live as of 2026-04-23.
 
-- Pushes to any branch auto-build a **preview** on Vercel (SSO-gated 401).
-- Push to `phase-1` builds a **preview, not production** — Vercel's internal `link.productionBranch` is stale at `"main"` (Hobby plan won't let us edit). Promote releases with `npm run deploy:promote` (preferred) or `vercel promote <preview-url> --yes`.
-- **Always alias custom domains after promoting.** Vercel's Promote action updates the project's "production" pointer but does **not** reliably reassign `tulala.digital` + `app.tulala.digital`; they stay aliased to whichever earlier deploy they were on. `npm run deploy:promote` handles both steps in one command. Manual fallback:
+- **`main` is the canonical branch** — GitHub default + Vercel production branch + single source of truth. Production runs whatever is on `main`.
+- **Push to `main` → Vercel builds a production deployment.** No promote step for a normal release.
+- Push to any **other** branch → Vercel builds an SSO-gated **preview** (401).
+- `phase-1` is the **retired** former working branch. Do not develop on it; it is kept briefly as a transition alias and will be deleted. New work branches off `main` — see [`web/docs/development-workflow.md`](web/docs/development-workflow.md).
+- **Alias custom domains after a production deploy.** The production pointer does **not** reliably reassign `tulala.digital` + `app.tulala.digital`; the `vercel-post-deploy-alias.yml` Action re-aliases them. Manual fallback:
   ```
-  vercel alias set <preview-url> app.tulala.digital --scope oran-tenes-projects
-  vercel alias set <preview-url> tulala.digital --scope oran-tenes-projects
+  vercel alias set <deploy-url> app.tulala.digital --scope oran-tenes-projects
+  vercel alias set <deploy-url> tulala.digital --scope oran-tenes-projects
   ```
-- **After any deploy, run the smoke test**: `npm run deploy:smoke`. Catches alias drift, missing CSP directives, broken image optimizer, dead Places key, Supabase region drift. Exit code 1 means at least one signal is wrong — re-promote or investigate before walking away.
+- **After any deploy, run the smoke test**: `cd web && npm run deploy:smoke`. Catches alias drift, missing CSP directives, broken image optimizer, dead Places key, Supabase region drift. Exit code 1 means at least one signal is wrong — investigate before walking away.
 
 ## Deploy commands cheat-sheet
 
@@ -29,13 +31,13 @@ Vercel auto-deploys code on every push. Supabase does **not** auto-apply migrati
 The rule: **if your work includes a new migration, `npm run db:push` is part of the commit, not optional.**
 
 Per-agent workflow:
-1. Write code + migration locally
-2. `npm run db:push` — apply to remote Supabase
-3. `npx tsc --noEmit && npm run lint` — gate
-4. `git commit && git push`
-5. (Optional) `npm run deploy:promote` — promote the new build to production
+1. Branch off `main`; write code + migration locally
+2. `npm run db:push` — apply the migration to remote Supabase
+3. `cd web && npx tsc --noEmit && npm run lint` — gate
+4. `git commit`, push the feature branch, open a PR to `main`
+5. Merge the PR → `main` auto-deploys to production
 
-`deploy:promote` blocks if step 2 was skipped. `deploy:smoke` reports drift even when no promote is happening.
+There is no migration auto-apply yet — step 2 is mandatory and must happen *before* the merge, or the production deploy 500s on the feature that needs the new schema. `deploy:promote` is now a rollback / hotfix tool only. `deploy:smoke` reports migration drift — run it after the deploy.
 
 ## QA caveat (important for any feature dev)
 
@@ -49,12 +51,14 @@ To QA a preview, either:
 
 Domain list, env vars, Supabase seeding contract, ghost-project alias workaround, Vercel IDs, account security notes, branch situation — all in the user-level auto-memory file `project_vercel_deployment.md` (at `~/.claude/projects/-Users-oranpersonal-Desktop-impronta-app/memory/`). Treat that file as the source of truth for anything deploy-adjacent.
 
-## Branch coordination (multi-agent)
+## Branch workflow
 
-All active development lands on **`phase-1`**. When two or more agents run concurrently:
+`main` is canonical. Day-to-day work is **local-first on short-lived feature branches off `main`**, merged back via PR. The full standard — branch naming, when to push, when to deploy, hotfixes, multi-agent coordination — lives in [`web/docs/development-workflow.md`](web/docs/development-workflow.md). Read it before starting.
 
-1. **Always `git pull --rebase origin phase-1` before starting any edit** — prevents stale-base conflicts.
-2. **One migration per agent** — never let two agents pick the same timestamp. Use `date -u +%Y%m%d%H%M%S` to generate a unique one at start of work.
-3. **Park-restore pattern for timestamp collisions**: if `supabase db push` fails because two files share a timestamp, `mv` one to `.tmp-migrations-park/`, push, then restore. Document the park in your commit message.
-4. **TS + lint gate before every commit**: `cd web && npx tsc --noEmit && npm run lint` — a red TS build blocks the next agent's work.
-5. **Never force-push** `phase-1` — other agents may have commits in flight.
+Multi-agent essentials:
+
+1. **Branch off the latest `main`** — `git fetch origin && git switch -c <type>/<topic> origin/main`. Never commit directly to `main`.
+2. **One migration per agent** — never let two agents pick the same timestamp. Use `date -u +%Y%m%d%H%M%S` at the start of work.
+3. **Park-restore pattern for timestamp collisions**: if `db push` fails because two files share a timestamp, `mv` one to `.tmp-migrations-park/`, push, then restore. Document the park in your commit message.
+4. **TS + lint gate before every commit**: `cd web && npx tsc --noEmit && npm run lint`.
+5. **Never force-push `main`.**

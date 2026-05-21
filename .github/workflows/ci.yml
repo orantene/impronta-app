@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # T2a — CI structural quality gate
 #
-# Enforces, on every PR to `phase-1` and every push to `phase-1`, the ratchets
+# Enforces, on every PR to `main` and every push to `main`, the ratchets
 # the remediation plan relies on. Without this workflow the ratchets are
 # honor-system and erode the moment discipline lapses (see
 # `web/docs/improvement-plan-2026-05-19-weak-dimensions.md` §Prerequisites and
@@ -25,7 +25,7 @@
 #
 # Tripwire numbers below are captured from `origin/phase-1` at the tip this
 # workflow was authored against (`c4f833937`, "docs(plan): improvement plan
-# for 4 weakest dimensions"). When `phase-1`'s baseline legitimately drops
+# for 4 weakest dimensions"). When `main`'s baseline legitimately drops
 # (e.g. Phase 1d cuts tsc errors to 2, or a hygiene sweep cuts suppressions),
 # lower the BASE here in the same PR that proves the drop on green CI.
 # Never raise BASE — that defeats the ratchet.
@@ -40,12 +40,12 @@ name: CI — structural quality gate
 
 on:
   pull_request:
-    branches: [phase-1]
+    branches: [main]
   push:
-    branches: [phase-1]
+    branches: [main]
 
 # Cancel superseded runs on the same ref so a second push to a PR doesn't
-# stack up; production-branch (`phase-1`) pushes still cancel each other but
+# stack up; production-branch (`main`) pushes still cancel each other but
 # that's intentional — only the latest commit needs to be green.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
