@@ -12,7 +12,17 @@ import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant"
 // always sets a UUID via middleware (PostgreSQL `uuid` column), so anything
 // non-UUID is by definition tampered or malformed. Used as defence-in-depth
 // over proxy.ts's strip of the inbound `x-impronta-tenant-id` header.
-const TENANT_ID_SCHEMA = z.string().uuid();
+//
+// Validates UUID *shape* (8-4-4-4-12 hex) to match exactly what the Postgres
+// `uuid` column accepts. Deliberately NOT `z.string().uuid()`: zod 4's
+// `.uuid()` additionally enforces RFC 9562 version/variant bits, which the
+// seeded placeholder tenant ids (e.g. 00000000-0000-0000-0000-000000000001)
+// do not satisfy — that over-strict check silently returned null for every
+// tenant, dropping tenant scope (and the tenant theme) on every public
+// storefront. Shape-only still fails closed on tampered / non-UUID values.
+const TENANT_ID_SCHEMA = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 
 /**
  * SaaS request scope — the tenant whose data this request is acting on.
