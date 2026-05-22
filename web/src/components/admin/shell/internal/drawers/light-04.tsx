@@ -432,13 +432,19 @@ export function BrandingDrawer() {
         <FieldRow label="Favorite icon" hint="Icon shown on talent cards for saving to favorites.">
           <div className="flex gap-2">
             {(["bookmark", "heart"] as const).map((v) => (
-              <button key={v} type="button" onClick={() => setFavoriteIcon(v)} style={{
-                padding: "5px 14px", borderRadius: 999, border: `1.5px solid ${favoriteIcon === v ? COLORS.fill : COLORS.border}`,
-                cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
-                textTransform: "capitalize",
-                background: favoriteIcon === v ? COLORS.fill : "transparent",
-                color: favoriteIcon === v ? "#fff" : COLORS.ink,
-              }}>{v === "bookmark" ? "🔖 Bookmark" : "♥ Heart"}</button>
+              <button
+                key={v}
+                type="button"
+                onClick={() => setFavoriteIcon(v)}
+                className={[
+                  "cursor-pointer rounded-full border-[1.5px] px-3.5 py-[5px] text-xs font-semibold capitalize transition-colors",
+                  favoriteIcon === v
+                    ? "border-[#4D4855] bg-[#4D4855] text-white"
+                    : "border-[#18181b1a] bg-transparent text-[#0B0B0D]",
+                ].join(" ")}
+              >
+                {v === "bookmark" ? "🔖 Bookmark" : "♥ Heart"}
+              </button>
             ))}
           </div>
         </FieldRow>
