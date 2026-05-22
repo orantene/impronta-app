@@ -513,6 +513,18 @@ function Compose(props: {
       <BriefSection
         value={intent.brief ?? {}}
         onChange={props.setBrief}
+        context={{
+          talentNames: (intent.talent?.selected_ids ?? [])
+            .map((id) => props.roster.find((r) => r.id === id)?.name ?? "")
+            .filter(Boolean),
+          eventLocation: [intent.location?.city, intent.location?.country]
+            .filter(Boolean)
+            .join(", "),
+          eventDate: intent.date?.event_date ?? "",
+          talentCount: intent.talent?.count_needed != null
+            ? String(intent.talent.count_needed)
+            : "",
+        }}
       />
       <FilesLinksSection
         files={intent.files ?? []}
@@ -657,8 +669,110 @@ function ClientSection({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section: Location (spec §5) — basic text + status, Google Places hookup TODO
+// Section: Location (spec §5) — City autocomplete via /api/location-cities
 // ─────────────────────────────────────────────────────────────────────────────
+
+type CitySuggestion = {
+  name_en: string;
+  country_iso2: string;
+  country_name_en: string;
+  subtitle?: string | null;
+};
+
+function CityAutocomplete({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (city: string, countryIso2: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value changes (e.g. intent reset).
+  useEffect(() => { setDraft(value); }, [value]);
+
+  const fetchSuggestions = useCallback((q: string) => {
+    if (q.trim().length < 2) { setSuggestions([]); setOpen(false); return; }
+    void fetch(`/api/location-cities?query=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list: CitySuggestion[] = (data.cities ?? []).slice(0, 6);
+        setSuggestions(list);
+        setOpen(list.length > 0);
+      })
+      .catch(() => { setSuggestions([]); setOpen(false); });
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setDraft(q);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => fetchSuggestions(q), 300);
+  };
+
+  const handleSelect = (s: CitySuggestion) => {
+    setDraft(s.name_en);
+    setSuggestions([]);
+    setOpen(false);
+    onSelect(s.name_en, s.country_iso2);
+  };
+
+  // Close on outside click.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      <input
+        type="text"
+        value={draft}
+        onChange={handleChange}
+        onBlur={() => {
+          // Flush the free-text value back if no suggestion was selected.
+          if (draft !== value) onSelect(draft, "");
+        }}
+        placeholder="e.g. Tulum"
+        style={inputStyle}
+      />
+      {open && suggestions.length > 0 && (
+        <ul style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+          zIndex: 200, margin: 0, padding: "4px 0", listStyle: "none",
+          background: "#fff", borderRadius: 8, border: `1px solid ${C.border}`,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.10)", fontFamily: FONT,
+        }}>
+          {suggestions.map((s, i) => (
+            <li
+              key={i}
+              onMouseDown={() => handleSelect(s)}
+              style={{
+                padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.ink,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.surfaceAlt)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+            >
+              <span style={{ fontWeight: 500 }}>{s.name_en}</span>
+              <span style={{ marginLeft: 6, fontSize: 11.5, color: C.inkMuted }}>
+                {s.subtitle ?? s.country_name_en}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function LocationSection({
   value, onChange,
@@ -676,10 +790,15 @@ function LocationSection({
       </FieldRow>
       <FieldRow>
         <Field label="City">
-          <Input
+          <CityAutocomplete
             value={value.city ?? ""}
-            onChange={(v) => onChange({ ...value, city: v })}
-            placeholder="e.g. Tulum"
+            onSelect={(city, countryIso2) =>
+              onChange({
+                ...value,
+                city,
+                ...(countryIso2 ? { country: countryIso2 } : {}),
+              })
+            }
           />
         </Field>
         <Field label="Country (optional)">
@@ -994,10 +1113,56 @@ function BudgetSection({
 // Section: Brief / logistics (spec §9)
 // ─────────────────────────────────────────────────────────────────────────────
 
+type BriefContext = {
+  talentNames: string[];
+  eventLocation: string;
+  eventDate: string;
+  talentCount: string;
+};
+
 function BriefSection({
-  value, onChange,
-}: { value: InquiryBrief; onChange: (v: InquiryBrief) => void }) {
+  value, onChange, context,
+}: {
+  value: InquiryBrief;
+  onChange: (v: InquiryBrief) => void;
+  context: BriefContext;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const hasText = (value.summary ?? "").trim().length > 20;
+
+  const runAi = useCallback(async (action: "generate" | "polish") => {
+    setAiState("loading");
+    setAiError(null);
+    try {
+      const res = await fetch("/api/ai/inquiry-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          talentNames: context.talentNames,
+          eventLocation: context.eventLocation,
+          eventDate: context.eventDate,
+          quantity: context.talentCount,
+          currentMessage: value.summary ?? "",
+        }),
+      });
+      const data = await res.json() as { draft?: string; error?: string };
+      if (!res.ok || !data.draft) {
+        setAiError(data.error ?? "Couldn't generate a draft right now.");
+        setAiState("error");
+        return;
+      }
+      onChange({ ...value, summary: data.draft });
+      setAiState("idle");
+    } catch {
+      setAiError("Network error — try again.");
+      setAiState("error");
+    }
+  }, [context, value, onChange]);
+
   return (
     <Section title="What you need" subtitle="A short brief is enough to start.">
       <FieldRow>
@@ -1010,6 +1175,54 @@ function BriefSection({
           />
         </Field>
       </FieldRow>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {!hasText && (
+          <button
+            type="button"
+            disabled={aiState === "loading"}
+            onClick={() => void runAi("generate")}
+            style={{
+              padding: "5px 10px",
+              background: C.accentSoft,
+              border: `1px solid rgba(29,78,216,0.18)`,
+              borderRadius: 7,
+              color: C.accent,
+              fontSize: 11.5,
+              fontWeight: 600,
+              fontFamily: FONT,
+              cursor: aiState === "loading" ? "not-allowed" : "pointer",
+              opacity: aiState === "loading" ? 0.6 : 1,
+            }}
+          >
+            {aiState === "loading" ? "Writing…" : "✦ Write a brief for me"}
+          </button>
+        )}
+        {hasText && (
+          <button
+            type="button"
+            disabled={aiState === "loading"}
+            onClick={() => void runAi("polish")}
+            style={{
+              padding: "5px 10px",
+              background: C.accentSoft,
+              border: `1px solid rgba(29,78,216,0.18)`,
+              borderRadius: 7,
+              color: C.accent,
+              fontSize: 11.5,
+              fontWeight: 600,
+              fontFamily: FONT,
+              cursor: aiState === "loading" ? "not-allowed" : "pointer",
+              opacity: aiState === "loading" ? 0.6 : 1,
+            }}
+          >
+            {aiState === "loading" ? "Polishing…" : "✦ Polish this brief"}
+          </button>
+        )}
+        {aiState === "error" && aiError && (
+          <span style={{ fontSize: 11.5, color: C.amber }}>{aiError}</span>
+        )}
+      </div>
 
       <button
         type="button"
