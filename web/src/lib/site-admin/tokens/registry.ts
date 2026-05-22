@@ -430,6 +430,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`editorial-line` = thin-stroke bouquet / brush / ring icon set used on Muse Bridal. `geometric` = Bauhaus-style flat shapes.",
   },
+  "favorite.icon": {
+    key: "favorite.icon",
+    label: "Favorite icon",
+    scope: "icon",
+    agencyConfigurable: true,
+    validator: z.enum(["heart", "bookmark"]),
+    defaultValue: "heart",
+    group: "Icons",
+    description:
+      "Shape of the save-to-favorites control on every talent card. `heart` reads warmer / consumer; `bookmark` reads as a curated list. Projected to `<html data-token-favorite-icon>`; `<TalentCardActions>` renders the matching icon.",
+  },
 
   // ── Site shell ──────────────────────────────────────────────────────
   "shell.header-variant": {
