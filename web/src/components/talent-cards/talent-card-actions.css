@@ -1,0 +1,23 @@
+/* Lane G / G4 + G5 — favorite-icon token rendering.
+ *
+ * <TalentCardActions> renders BOTH the heart and bookmark glyphs; CSS
+ * picks the visible one from the per-tenant `favoriteIcon` branding token
+ * projected onto <html data-token-favorite-icon="…">. This keeps the swap
+ * SSR-safe — no JS, no hydration flash. Default (token absent or "heart")
+ * shows the heart. */
+
+.talent-card-actions__favorite [data-favorite-glyph="bookmark"] {
+  display: none;
+}
+
+[data-token-favorite-icon="bookmark"]
+  .talent-card-actions__favorite
+  [data-favorite-glyph="heart"] {
+  display: none;
+}
+
+[data-token-favorite-icon="bookmark"]
+  .talent-card-actions__favorite
+  [data-favorite-glyph="bookmark"] {
+  display: inline-block;
+}
