@@ -387,10 +387,11 @@ export function TeamDrawer() {
             return (
               <PersonRow
                 key={m.id}
+                photoUrl={m.photoUrl}
                 initials={m.initials || initialsFromName(m.name)}
                 hashSeed={m.name}
                 primary={m.name}
-                secondary={m.email}
+                secondary={m.email || undefined}
                 trailing={
                   <>
                     {payoutCandidate && <PayoutStatusChip status={payoutCandidate.status} />}
