@@ -22,8 +22,13 @@ const FAVORITE_IDS_KEY = "impronta.public.favorite-ids";
  *
  * Step 3 needs the IDs to be read CLIENT-side first (server can't see
  * localStorage); we pass them to the server action as an argument.
- * After success, we also clear the localStorage key + rehydrate state
- * so the bookmark badge shows the merged count.
+ *
+ * Hardening (Lane G / G2): the guest localStorage key is cleared ONLY
+ * after the server confirms the merge landed (`result.ok`). A transient
+ * failure used to clear the key unconditionally, silently destroying the
+ * visitor's saved favorites. On failure the key is left intact, so the
+ * next authed navigation (a fresh component instance, fresh `ran` guard)
+ * retries the merge — the sweep is self-healing.
  */
 export function MergeGuestFavorites() {
   const ran = useRef(false);
@@ -34,8 +39,7 @@ export function MergeGuestFavorites() {
     if (ran.current) return;
     ran.current = true;
 
-    // Read localStorage favorites BEFORE calling the server action;
-    // they'll be cleared after merge.
+    // Read localStorage favorites BEFORE calling the server action.
     let guestFavoriteIds: string[] = [];
     try {
       const raw = window.localStorage.getItem(FAVORITE_IDS_KEY);
@@ -51,22 +55,28 @@ export function MergeGuestFavorites() {
       guestFavoriteIds = [];
     }
 
-    void mergeGuestActivity(guestFavoriteIds).then(() => {
-      // Clear the localStorage favorites — they now live in
-      // `client_favorites` and will be reloaded from the SSR seed on
-      // the next render.
-      if (guestFavoriteIds.length > 0) {
-        try {
-          window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify([]));
-        } catch {
-          /* ignore */
+    void mergeGuestActivity(guestFavoriteIds)
+      .then((result) => {
+        // Only clear the guest favorites once the server confirms the
+        // upsert into `client_favorites` succeeded — otherwise a failed
+        // merge would lose them. On failure, leave the key for a retry.
+        if (result.ok && guestFavoriteIds.length > 0) {
+          try {
+            window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify([]));
+          } catch {
+            /* ignore */
+          }
+          if (discovery) {
+            discovery.clearFavoriteIds();
+          }
         }
-        if (discovery) {
-          discovery.clearFavoriteIds();
-        }
-      }
-      router.refresh();
-    });
+        router.refresh();
+      })
+      .catch(() => {
+        // Network/unexpected error — keep localStorage intact so a later
+        // authed navigation re-attempts the merge.
+        router.refresh();
+      });
   }, [discovery, router]);
   return null;
 }
