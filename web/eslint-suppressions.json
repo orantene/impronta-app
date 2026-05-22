@@ -49,11 +49,6 @@
       "count": 1
     }
   },
-  "src/app/(workspace)/[tenantSlug]/client/inquiries/new/new-inquiry-form.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    }
-  },
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": {
     "max-lines": {
       "count": 1
@@ -1283,11 +1278,6 @@
   },
   "src/components/inquiry-cart/InquiryAttachmentsUploader.tsx": {
     "max-lines": {
-      "count": 1
-    }
-  },
-  "src/components/inquiry-cart/InquiryCartForm.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
       "count": 1
     }
   },
