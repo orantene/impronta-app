@@ -20,7 +20,7 @@
  * Per spec §10 the desktop layout uses 2 columns; mobile collapses to 1.
  */
 
-import { useState, useEffect, useRef, useTransition, useMemo } from "react";
+import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
 import Image from "next/image";
 import {
@@ -151,6 +151,7 @@ export function InquiryDrawer({
   const [intent, setIntent] = useState<InquiryIntent>(defaults);
 
   const [step, setStep] = useState<"compose" | "review">("compose");
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
   // ─ Inquiry-cart binding (B2 — directory shortlist ⟷ composer) ─────────────
   // `useInquiryCart` is provider-optional: on the client dashboard (no
@@ -263,6 +264,7 @@ export function InquiryDrawer({
     const fd = new FormData();
     fd.set("tenantSlug", tenantSlug);
     fd.set("intent", JSON.stringify(intent));
+    stagedFiles.forEach((f) => fd.append("files[]", f));
     submitFormAction(fd);
   };
 
@@ -382,6 +384,8 @@ export function InquiryDrawer({
               setBrief={(v) => update("brief", v)}
               setFiles={(v) => update("files", v)}
               setLinks={(v) => update("links", v)}
+              stagedFiles={stagedFiles}
+              onStagedFiles={setStagedFiles}
               roster={roster}
               client={client}
               talentToolsSlot={talentToolsSlot}
@@ -467,6 +471,8 @@ function Compose(props: {
   setBrief: (v: InquiryBrief) => void;
   setFiles: (v: InquiryAttachment[] | undefined) => void;
   setLinks: (v: string[] | undefined) => void;
+  stagedFiles: File[];
+  onStagedFiles: (v: File[]) => void;
   roster: RosterLiteItem[];
   client: InquiryDrawerProps["client"];
   /** B2 — extra tools rendered inside the Talent section (directory quick-add). */
@@ -513,6 +519,8 @@ function Compose(props: {
         links={intent.links ?? []}
         onFiles={props.setFiles}
         onLinks={props.setLinks}
+        stagedFiles={props.stagedFiles}
+        onStagedFiles={props.onStagedFiles}
       />
     </div>
   );
@@ -1066,17 +1074,108 @@ function BriefSection({
 // Section: Files + links
 // ─────────────────────────────────────────────────────────────────────────────
 
+const FILE_MAX_BYTES = 20 * 1024 * 1024; // 20 MB client-side guard
+const FILE_MAX_COUNT = 10;
+const FILE_ACCEPT = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip";
+
 function FilesLinksSection({
-  files, links, onFiles, onLinks,
+  files, links, onFiles, onLinks, stagedFiles, onStagedFiles,
 }: {
   files: InquiryAttachment[];
   links: string[];
   onFiles: (v: InquiryAttachment[] | undefined) => void;
   onLinks: (v: string[] | undefined) => void;
+  stagedFiles: File[];
+  onStagedFiles: (v: File[]) => void;
 }) {
   const [linkDraft, setLinkDraft] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileWarning, setFileWarning] = useState<string | null>(null);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    const combined = [...stagedFiles, ...picked];
+    const oversized = picked.filter((f) => f.size > FILE_MAX_BYTES);
+    if (oversized.length > 0) {
+      setFileWarning(`${oversized.map((f) => f.name).join(", ")} ${oversized.length === 1 ? "is" : "are"} over 20 MB and won't be uploaded.`);
+    } else {
+      setFileWarning(null);
+    }
+    const valid = combined.filter((f) => f.size <= FILE_MAX_BYTES).slice(0, FILE_MAX_COUNT);
+    onStagedFiles(valid);
+    // Reset so the same file can be re-selected after removal.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [stagedFiles, onStagedFiles]);
+
+  const removeFile = useCallback((idx: number) => {
+    onStagedFiles(stagedFiles.filter((_, i) => i !== idx));
+  }, [stagedFiles, onStagedFiles]);
+
+  void files; void onFiles; // reserved for post-submit attachment display
+
   return (
     <Section title="Files & references" subtitle="Optional — moodboards, briefs, reference posts.">
+      {/* File picker */}
+      <div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={FILE_ACCEPT}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+          aria-label="Attach files"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={stagedFiles.length >= FILE_MAX_COUNT}
+          style={{
+            ...ghostBtn,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12.5,
+            opacity: stagedFiles.length >= FILE_MAX_COUNT ? 0.5 : 1,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>📎</span>
+          Attach files
+        </button>
+        <span style={{ marginLeft: 8, fontSize: 11, color: C.inkDim }}>
+          PDF, images, docs — up to 20 MB each, {FILE_MAX_COUNT} max
+        </span>
+      </div>
+
+      {stagedFiles.length > 0 && (
+        <ul style={{ margin: "4px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+          {stagedFiles.map((f, i) => (
+            <li
+              key={i}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: C.surfaceAlt, borderRadius: 6,
+                padding: "6px 10px", fontSize: 12.5, color: C.ink,
+              }}
+            >
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              <span style={{ fontSize: 11, color: C.inkMuted, flexShrink: 0 }}>{formatBytes(f.size)}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                aria-label={`Remove ${f.name}`}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: C.inkMuted, fontSize: 14, lineHeight: 1, padding: "0 2px" }}
+              >×</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {fileWarning && (
+        <div style={{ fontSize: 11.5, color: C.amber, marginTop: 2 }}>{fileWarning}</div>
+      )}
+
+      {/* Reference links */}
       <FieldRow>
         <Field label="Reference link">
           <div className="flex gap-2">
@@ -1100,7 +1199,7 @@ function FilesLinksSection({
         </Field>
       </FieldRow>
       {links.length > 0 && (
-        <ul style={{ margin: "6px 0 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+        <ul style={{ margin: "2px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
           {links.map((l, i) => (
             <li key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: C.inkMuted }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
@@ -1113,10 +1212,6 @@ function FilesLinksSection({
           ))}
         </ul>
       )}
-      <div style={{ fontSize: 11, color: C.inkDim, marginTop: 4 }}>
-        File uploads coming soon — for now, link-share via the references field.
-      </div>
-      {/* files + onFiles reserved for the upload UI shipping in B-4.1 */}
     </Section>
   );
 }
@@ -1625,4 +1720,124 @@ function formatRelative(iso: string): string {
   if (m < 60) return `${m} minutes ago`;
   const h = Math.floor(m / 60);
   return h === 1 ? "1 hour ago" : `${h} hours ago`;
+}
+
+function formatBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InquiryDrawerShell — reusable overlay + slide-in panel used by both the
+// full composer and the auxiliary states (loading / paused / unconfigured).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function InquiryDrawerShell({
+  label,
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+}: {
+  label?: string;
+  title: string;
+  subtitle?: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={label ?? title}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        display: "flex", justifyContent: "flex-end",
+        background: "rgba(11,11,13,0.48)",
+        backdropFilter: "blur(2px)",
+      }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          width: "min(720px, 100vw)",
+          height: "100dvh",
+          background: C.surface,
+          display: "flex", flexDirection: "column",
+          boxShadow: "-12px 0 40px rgba(0,0,0,0.18)",
+          fontFamily: FONT,
+          animation: "iq-drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <style dangerouslySetInnerHTML={{ __html: keyframesCSS }} />
+        <header
+          style={{
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+            padding: "16px 22px", borderBottom: `1px solid ${C.borderSoft}`,
+            background: "#fff", flexShrink: 0,
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            {label && (
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                {label}
+              </div>
+            )}
+            <h2 style={{ margin: label ? "3px 0 0" : 0, fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
+              {title}
+            </h2>
+            {subtitle && (
+              <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: `1px solid ${C.borderSoft}`,
+              background: "transparent", color: C.ink, fontSize: 16,
+              cursor: "pointer", display: "inline-flex", alignItems: "center",
+              justifyContent: "center", flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </header>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
+          {children}
+        </div>
+        {footer && (
+          <footer
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 10, padding: "12px 22px",
+              borderTop: `1px solid ${C.borderSoft}`,
+              background: "#fff", flexShrink: 0,
+            }}
+          >
+            {footer}
+          </footer>
+        )}
+      </div>
+    </div>
+  );
 }

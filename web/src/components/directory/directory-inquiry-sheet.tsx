@@ -27,15 +27,8 @@ import { DirectoryInquirySuccessPanel } from "@/components/directory/directory-i
 import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { InquiryTalentQuickAdd } from "@/components/directory/inquiry-talent-quick-add";
-import { InquiryDrawer, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
+import { InquiryDrawer, InquiryDrawerShell, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { Locale } from "@/i18n/config";
 import type { DirectoryInquiryPayload } from "@/lib/load-directory-inquiry-payload";
@@ -139,48 +132,40 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     );
   }
 
-  // ── Auxiliary states — light side sheet ──────────────────────────────────
+  // ── Auxiliary states — uses the same InquiryDrawerShell for visual consistency ──
+  const auxTitle = success ? s.titleThankYou : s.titleStartInquiry;
+  const auxSubtitle = success ? s.descThankYou : s.descEmptyShortlist;
+
   return (
-    <Drawer open={open} onOpenChange={handleOpenChange}>
-      <DrawerContent
-        side="right"
-        className="flex w-full max-w-lg flex-col border-l border-border/80 bg-background p-0 sm:max-w-xl"
-      >
-        <div className="border-b border-border/60 px-6 pb-4 pt-6 pr-14">
-          <DrawerHeader className="space-y-1 p-0 text-left">
-            <DrawerTitle className="font-display text-xl tracking-wide">
-              {success ? s.titleThankYou : s.titleStartInquiry}
-            </DrawerTitle>
-            <DrawerDescription className="text-m text-muted-foreground">
-              {success ? s.descThankYou : s.descEmptyShortlist}
-            </DrawerDescription>
-          </DrawerHeader>
-        </div>
+    <InquiryDrawerShell
+      label="Inquiry"
+      title={auxTitle}
+      subtitle={auxSubtitle}
+      onClose={() => handleOpenChange(false)}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {success ? (
+          <DirectoryInquirySuccessPanel
+            success={success}
+            signedIn={success.email === null}
+            copy={ui.inquirySuccess}
+          />
+        ) : payload?.kind === "unconfigured" ? (
+          <p className="text-sm text-destructive">{s.unconfigured}</p>
+        ) : !ready ? (
+          <p className="text-sm text-muted-foreground">{s.loading}</p>
+        ) : !ready.tenantSlug ? (
+          <p className="text-sm text-destructive">{s.unconfigured}</p>
+        ) : (
+          <p className="rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-m text-muted-foreground">
+            {s.inquiriesPausedNotice}
+          </p>
+        )}
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
-          {success ? (
-            <DirectoryInquirySuccessPanel
-              success={success}
-              signedIn={success.email === null}
-              copy={ui.inquirySuccess}
-            />
-          ) : payload?.kind === "unconfigured" ? (
-            <p className="text-sm text-destructive">{s.unconfigured}</p>
-          ) : !ready ? (
-            <p className="text-sm text-muted-foreground">{s.loading}</p>
-          ) : !ready.tenantSlug ? (
-            <p className="text-sm text-destructive">{s.unconfigured}</p>
-          ) : (
-            <p className="rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-m text-muted-foreground">
-              {s.inquiriesPausedNotice}
-            </p>
-          )}
-
-          <Button variant="ghost" className="w-full text-muted-foreground" asChild>
-            <Link href="/directory">{s.backToDirectory}</Link>
-          </Button>
-        </div>
-      </DrawerContent>
-    </Drawer>
+        <Button variant="ghost" className="w-full text-muted-foreground" asChild>
+          <Link href="/directory">{s.backToDirectory}</Link>
+        </Button>
+      </div>
+    </InquiryDrawerShell>
   );
 }
