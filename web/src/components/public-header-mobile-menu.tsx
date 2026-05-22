@@ -36,7 +36,9 @@ import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 import type { PublicNavLink } from "@/lib/cms/public-navigation";
-import type { Locale } from "@/i18n/config";
+import { getLocaleMetadata, type Locale } from "@/i18n/config";
+import { withLocalePath } from "@/i18n/pathnames";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 
 type MobileNavVariant = "drawer-right" | "sheet-bottom" | "full-screen-fade";
 
@@ -64,6 +66,8 @@ interface Props {
   /** Localized copy for the trigger button's screen-reader label. */
   openMenuLabel?: string;
   closeMenuLabel?: string;
+  availableLocales?: readonly Locale[];
+  defaultLocale?: Locale;
   /** C2 — role-specific dashboard nav links rendered below site links. */
   roleNavLinks?: MobileMenuRoleNavLink[];
   /** C4 — signed-in user identity for the identity block + dashboard shortcut. */
@@ -82,6 +86,8 @@ export function PublicHeaderMobileMenu({
   utilityContent,
   openMenuLabel = "Open menu",
   closeMenuLabel = "Close menu",
+  availableLocales = ["en", "es"],
+  defaultLocale = "en",
   roleNavLinks,
   userIdentity,
   signOutAction,
@@ -238,6 +244,8 @@ export function PublicHeaderMobileMenu({
             <LanguageRow
               locale={locale}
               pathnameWithoutLocale={pathnameWithoutLocale}
+              availableLocales={availableLocales}
+              defaultLocale={defaultLocale}
               onPick={() => setOpen(false)}
             />
             {utilityContent ? (
@@ -282,16 +290,27 @@ const VARIANT_CLASSES: Record<MobileNavVariant, string> = {
 function LanguageRow({
   locale,
   pathnameWithoutLocale,
+  availableLocales,
+  defaultLocale,
   onPick,
 }: {
   locale: Locale;
   pathnameWithoutLocale: string;
+  availableLocales: readonly Locale[];
+  defaultLocale: Locale;
   onPick: () => void;
 }) {
-  const localeOptions: Array<{ code: Locale; label: string }> = [
-    { code: "en" as Locale, label: "EN" },
-    { code: "es" as Locale, label: "ES" },
-  ];
+  const localeOptions = Array.from(
+    new Set([defaultLocale, ...availableLocales].filter(Boolean)),
+  );
+  if (localeOptions.length <= 1) return null;
+
+  const pathSettings = {
+    ...FALLBACK_LANGUAGE_SETTINGS,
+    defaultLocale,
+    publicLocales: localeOptions,
+  };
+
   return (
     <div className="flex items-center gap-3 text-xs">
       <span
@@ -305,29 +324,28 @@ function LanguageRow({
         aria-label="Language"
         className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1 py-0.5 text-xs font-medium"
       >
-        {localeOptions.map((opt, i) => {
-          const active = opt.code === locale;
-          const href =
-            opt.code === "en"
-              ? pathnameWithoutLocale || "/"
-              : `/${opt.code}${pathnameWithoutLocale}`;
+        {localeOptions.map((code, i) => {
+          const active = code === locale;
+          const meta = getLocaleMetadata(code);
           return (
-            <span key={opt.code} className="contents">
+            <span key={code} className="contents">
               {i > 0 ? (
                 <span className="text-border" aria-hidden>
                   |
                 </span>
               ) : null}
               <Link
-                href={href}
+                href={withLocalePath(pathnameWithoutLocale || "/", code, pathSettings)}
                 onClick={onPick}
+                aria-current={active ? "true" : undefined}
+                aria-label={meta.label}
                 className={`rounded px-2 py-0.5 transition-colors ${
                   active
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
-                {opt.label}
+                {code.toUpperCase()}
               </Link>
             </span>
           );

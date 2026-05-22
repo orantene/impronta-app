@@ -17,14 +17,19 @@ import {
   type ShellContactLink,
 } from "@/lib/site-admin/server/shell-social-contact";
 import { headerContactHref } from "@/lib/site-admin/site-header/social-contact-normalize";
-import type { Locale } from "@/i18n/config";
+import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { headers } from "next/headers";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 import { publicLocaleHref } from "@/i18n/client-directory-href";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { resolveAccountHref } from "@/lib/auth-flow";
+import {
+  loadTenantLocaleSettings,
+  type TenantLocaleSettings,
+} from "@/lib/site-admin/server/locale-resolver";
 
 /**
  * Phase 6B — the prototype `editorial-split` header has a bespoke right
@@ -41,6 +46,7 @@ async function renderRightZone(
   showAccount: boolean,
   showLanguage: boolean,
   showDiscovery: boolean,
+  localeSettings: TenantLocaleSettings,
 ) {
   if (variant !== "editorial-split") {
     return showAccount || showLanguage || showDiscovery ? (
@@ -49,6 +55,8 @@ async function renderRightZone(
         showAccountMenu={showAccount}
         showLanguageToggle={showLanguage}
         showDiscoveryTools={showDiscovery}
+        availableLocales={localeSettings.supportedLocales}
+        defaultLocale={localeSettings.defaultLocale}
       />
     ) : null;
   }
@@ -62,12 +70,21 @@ async function renderRightZone(
     getFavoriteTalentIds(),
   ]);
   const isEs = locale === "es";
+  const pathSettings = {
+    ...FALLBACK_LANGUAGE_SETTINGS,
+    defaultLocale: localeSettings.defaultLocale,
+    publicLocales: [...localeSettings.supportedLocales],
+  };
+  const localeLinks = showLanguage
+    ? localeSettings.supportedLocales.map((code) => ({
+        code,
+        label: getLocaleMetadata(code).label,
+        href: withLocalePath(pathnameWithoutLocale, code, pathSettings),
+      }))
+    : [];
   return (
     <EditorialSplitActions
-      localeHrefs={{
-        en: withLocalePath(pathnameWithoutLocale, "en"),
-        es: withLocalePath(pathnameWithoutLocale, "es"),
-      }}
+      localeLinks={localeLinks}
       activeLocale={locale}
       navItems={navItems}
       primaryCta={primaryCta}
@@ -482,11 +499,16 @@ export async function SiteHeaderComponent({
     tenantId,
     brandTagline: brand.tagline,
   });
+  const tenantLocaleSettings = tenantId
+    ? await loadTenantLocaleSettings(tenantId)
+    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const };
   const bd = brandDisplay ?? "image-and-text";
   const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
   const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;
   const showAccount = authArea?.showAccountMenu ?? true;
-  const showLanguage = authArea?.showLanguageToggle ?? true;
+  const showLanguage =
+    (authArea?.showLanguageToggle ?? true) &&
+    tenantLocaleSettings.supportedLocales.length > 1;
   const showDiscovery = authArea?.showDiscoveryTools ?? true;
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const headlineNode = nodePresentation?.headline;
@@ -679,6 +701,7 @@ export async function SiteHeaderComponent({
             showAccount,
             showLanguage,
             showDiscovery,
+            tenantLocaleSettings,
           )}
         </div>
       </div>

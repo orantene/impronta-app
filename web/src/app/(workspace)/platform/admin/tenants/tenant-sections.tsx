@@ -115,6 +115,15 @@ function KV({ k, v }: { k: string; v: ReactNode }) {
   );
 }
 
+const LOCALE_LABELS: Record<string, string> = {
+  en: "English",
+  es: "Spanish",
+};
+
+function localeLabel(code: string): string {
+  return LOCALE_LABELS[code] ?? code.toUpperCase();
+}
+
 // ─── A. Summary ─────────────────────────────────────────────────────────────────
 
 function SummarySection({ detail, defaultOpen }: SectionProps) {
@@ -371,6 +380,66 @@ function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
   );
 }
 
+// ─── D. Language & localization ─────────────────────────────────────────────
+
+function LanguageLocalizationSection({ detail, defaultOpen }: SectionProps) {
+  const language = detail.language;
+  const activeLocales = language.activeLocales;
+  const isDefaultActive = activeLocales.includes(language.defaultLocale);
+  const hasLocales = activeLocales.length > 0;
+  const isSupportedState =
+    hasLocales &&
+    isDefaultActive &&
+    activeLocales.every((locale) => locale === "en" || locale === "es");
+  const readinessTone = isSupportedState ? "green" : "amber";
+
+  return (
+    <Accordion title="Language & Localization" defaultOpen={defaultOpen ?? false}>
+      <div style={{ paddingTop: 4 }}>
+        <KV k="Default language" v={localeLabel(language.defaultLocale)} />
+        <KV
+          k="Active languages"
+          v={
+            <span style={{ display: "inline-flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {activeLocales.map((locale) => (
+                <Chip key={locale} outline>
+                  {localeLabel(locale)}
+                </Chip>
+              ))}
+            </span>
+          }
+        />
+        <KV
+          k="Public switcher"
+          v={
+            language.switcherStatus === "shown"
+              ? "Shown when visitors can choose EN/ES"
+              : "Hidden because only one language is active"
+          }
+        />
+        <KV
+          k="Settings mode"
+          v={language.mode === "tenant-managed" ? "Tenant managed" : "Platform fallback"}
+        />
+        <KV
+          k="Readiness"
+          v={
+            <Chip bg={readinessTone === "green" ? HQ.greenSoft : HQ.amberSoft} color={readinessTone === "green" ? HQ.green : HQ.amber}>
+              {isSupportedState ? "Supported" : "Needs review"}
+            </Chip>
+          }
+        />
+        <KV k="Last updated" v={language.updatedAt ? fmtDate(language.updatedAt) : "Not set"} />
+      </div>
+      <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "10px 0 0" }}>
+        Platform Admin visibility is wired to the canonical tenant identity
+        locale settings. Editing stays in workspace settings until platform
+        override semantics are product-approved.
+      </p>
+    </Accordion>
+  );
+}
+
 // ─── G. Analytics (preview) ──────────────────────────────────────────────────
 
 function AnalyticsSection({ detail, defaultOpen }: SectionProps) {
@@ -545,6 +614,12 @@ export function TenantSectionStack({
         detail={detail}
         onChanged={onChanged}
         defaultOpen
+      />,
+      <LanguageLocalizationSection
+        key="lang"
+        detail={detail}
+        onChanged={onChanged}
+        defaultOpen={!drawer}
       />,
       <AnalyticsSection
         key="a"

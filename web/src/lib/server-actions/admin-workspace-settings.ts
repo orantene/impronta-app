@@ -16,8 +16,18 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import {
+  DEFAULT_PLATFORM_LOCALE,
+  isLocale,
+  localeSchema,
+  supportedLocalesSchema,
+  type Locale,
+} from "@/lib/site-admin/locales";
+import { invalidateTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 // ─── Branding ────────────────────────────────────────────────────────────────
 //
@@ -124,22 +134,24 @@ export async function updateAgencyBranding(
   // the public-readable agency_branding table has the latest watermark config.
   // agency_branding is publicly readable; agencies.settings is staff-only.
   if (v.watermark_preset !== undefined || v.logo_url !== undefined) {
-    const { data: brandingRow } = await supabase
-      .from("agency_branding")
+    const { data: brandingRow } = await tenantScopedQuery(
+      supabase,
+      "agency_branding",
+      tenantId,
+    )
       .select("theme_json")
-      .eq("tenant_id", tenantId)
       .maybeSingle();
+    const branding = brandingRow as { theme_json?: unknown } | null;
     const currentTheme: Record<string, unknown> =
-      typeof brandingRow?.theme_json === "object" && brandingRow.theme_json !== null
-        ? (brandingRow.theme_json as Record<string, unknown>)
+      typeof branding?.theme_json === "object" && branding.theme_json !== null
+        ? (branding.theme_json as Record<string, unknown>)
         : {};
     const themeUpdate: Record<string, unknown> = { ...currentTheme };
     if (v.watermark_preset !== undefined) themeUpdate.watermark_preset = v.watermark_preset;
     if (v.logo_url !== undefined) themeUpdate.logo_url = v.logo_url;
     // Non-fatal if this fails — settings are still saved
-    await supabase
-      .from("agency_branding")
-      .upsert({ tenant_id: tenantId, theme_json: themeUpdate, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
+    await tenantScopedQuery(supabase, "agency_branding", tenantId)
+      .upsert({ theme_json: themeUpdate, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
   }
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
@@ -209,10 +221,11 @@ export async function updateWorkspaceAccount(
   return { ok: true };
 }
 
-// ─── Workspace fields (timezone, locale, currency) ───────────────────────────
+// ─── Workspace fields (timezone, language, currency) ─────────────────────────
 //
-// These map to existing typed columns: preferred_currency exists; locale
-// goes in supported_locales (array); timezone needs the settings JSONB.
+// Currency and timezone live on the agency/settings surface. Tenant public
+// language is canonical on agency_business_identity.default_locale +
+// supported_locales because middleware and storefront rendering read that row.
 
 const updateWorkspaceFieldsSchema = z
   .object({
@@ -221,9 +234,24 @@ const updateWorkspaceFieldsSchema = z
       .length(3, "Currency code must be 3 letters (ISO 4217).")
       .optional(),
     timezone: z.string().max(60).optional(), // e.g. "America/Cancun"
-    primary_locale: z
-      .enum(["en", "es", "pt", "fr", "it"])
-      .optional(),
+    default_locale: localeSchema.optional(),
+    active_locales: supportedLocalesSchema.optional(),
+    /** @deprecated use default_locale; kept so older clients fail safe. */
+    primary_locale: localeSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    const defaultLocale = value.default_locale ?? value.primary_locale;
+    if (
+      defaultLocale &&
+      value.active_locales &&
+      !value.active_locales.includes(defaultLocale)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["default_locale"],
+        message: "Default language must be one of the active languages.",
+      });
+    }
   })
   .strict();
 
@@ -251,10 +279,10 @@ export async function updateWorkspaceFields(
   }
 
   let nextSettings: Record<string, unknown> | undefined;
-  if (v.timezone !== undefined || v.primary_locale !== undefined) {
+  if (v.timezone !== undefined) {
     const { data: agency } = await supabase
       .from("agencies")
-      .select("settings, supported_locales")
+      .select("settings")
       .eq("id", tenantId)
       .single();
     const currentSettings: Record<string, unknown> =
@@ -263,25 +291,137 @@ export async function updateWorkspaceFields(
         : {};
     nextSettings = { ...currentSettings };
     if (v.timezone !== undefined) nextSettings.timezone = v.timezone;
-    if (v.primary_locale !== undefined) {
-      nextSettings.primary_locale = v.primary_locale;
-      // Also push primary_locale to the front of supported_locales.
-      const supported: string[] = Array.isArray(agency?.supported_locales)
-        ? (agency.supported_locales as string[])
-        : ["en", "es"];
-      const filtered = supported.filter((l) => l !== v.primary_locale);
-      patch.supported_locales = [v.primary_locale, ...filtered];
-    }
     patch.settings = nextSettings;
   }
 
-  const { error } = await supabase.from("agencies").update(patch).eq("id", tenantId);
-  if (error) {
-    logServerError("admin-workspace-settings.fields.update", error);
-    return { ok: false, error: CLIENT_ERROR.update };
+  if (Object.keys(patch).length > 1) {
+    const { error } = await supabase.from("agencies").update(patch).eq("id", tenantId);
+    if (error) {
+      logServerError("admin-workspace-settings.fields.update", error);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+  }
+
+  const requestedDefaultLocale = v.default_locale ?? v.primary_locale;
+  if (requestedDefaultLocale || v.active_locales) {
+    const languageResult = await updateCanonicalWorkspaceLanguageSettings({
+      supabase,
+      tenantId,
+      actorProfileId: auth.user.id,
+      defaultLocale: requestedDefaultLocale,
+      activeLocales: v.active_locales,
+    });
+    if (!languageResult.ok) return languageResult;
   }
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true };
+}
+
+async function updateCanonicalWorkspaceLanguageSettings({
+  supabase,
+  tenantId,
+  actorProfileId,
+  defaultLocale,
+  activeLocales,
+}: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  actorProfileId: string;
+  defaultLocale?: Locale;
+  activeLocales?: readonly Locale[];
+}): Promise<UpdateBrandingResult> {
+  const { data: agency, error: agencyError } = await supabase
+    .from("agencies")
+    .select("display_name, supported_locales")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (agencyError || !agency) {
+    logServerError("admin-workspace-settings.language.agency", agencyError);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const { data: current, error: currentError } = await tenantScopedQuery(
+    supabase,
+    "agency_business_identity",
+    tenantId,
+  )
+    .select("public_name, default_locale, supported_locales, version")
+    .maybeSingle();
+  if (currentError) {
+    logServerError("admin-workspace-settings.language.identity.read", currentError);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const currentIdentity = current as {
+    public_name?: string | null;
+    default_locale?: string | null;
+    supported_locales?: unknown;
+    version?: number | null;
+  } | null;
+  const currentLocales = Array.isArray(currentIdentity?.supported_locales)
+    ? currentIdentity.supported_locales.filter(isLocale)
+    : [];
+  const nextDefault =
+    defaultLocale ??
+    (isLocale(currentIdentity?.default_locale)
+      ? currentIdentity.default_locale
+      : DEFAULT_PLATFORM_LOCALE);
+  const nextActive = Array.from(
+    new Set(
+      (activeLocales && activeLocales.length > 0
+        ? activeLocales
+        : currentLocales.length > 0
+          ? currentLocales
+          : [nextDefault]
+      ).filter(isLocale),
+    ),
+  );
+
+  if (nextActive.length === 0) {
+    return { ok: false, error: "At least one language must be active." };
+  }
+  if (!nextActive.includes(nextDefault)) {
+    return { ok: false, error: "Default language must be active." };
+  }
+
+  const nextVersion = (currentIdentity?.version ?? 0) + 1;
+  const publicName =
+    currentIdentity?.public_name?.trim() ||
+    (typeof agency.display_name === "string" && agency.display_name.trim()) ||
+    "Workspace";
+
+  const payload = {
+    public_name: publicName,
+    default_locale: nextDefault,
+    supported_locales: nextActive,
+    updated_by: actorProfileId,
+    version: nextVersion,
+  };
+
+  const { error: identityError } = current
+    ? await tenantScopedQuery(supabase, "agency_business_identity", tenantId)
+        .update(payload)
+    : await tenantScopedQuery(supabase, "agency_business_identity", tenantId)
+        .insert(payload);
+
+  if (identityError) {
+    logServerError("admin-workspace-settings.language.identity.update", identityError);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const { error: agencyMirrorError } = await supabase
+    .from("agencies")
+    .update({
+      supported_locales: nextActive,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tenantId);
+  if (agencyMirrorError) {
+    logServerError("admin-workspace-settings.language.agency_mirror", agencyMirrorError);
+  }
+
+  invalidateTenantLocaleSettings(tenantId);
   return { ok: true };
 }
 
@@ -308,15 +448,14 @@ export async function updateMediaWatermarkOverride(
 ): Promise<UpdateBrandingResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const parsed = overrideSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid override." };
   }
 
-  const { error } = await supabase
-    .from("media_assets")
+  const { error } = await tenantScopedQuery(supabase, "media_assets", tenantId)
     .update({
       watermark_override_json: parsed.data.override ?? null,
       updated_at: new Date().toISOString(),
@@ -419,6 +558,8 @@ export type AgencyAccountSettings = {
   contactEmail: string | null;
   timezone: string | null;
   primaryLocale: string | null;
+  defaultLocale: Locale;
+  activeLocales: Locale[];
   preferredCurrency: string | null;
 };
 
@@ -431,20 +572,46 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const { data: agency, error } = await supabase
+  const [{ data: agency, error }, { data: identity, error: identityError }] = await Promise.all([
+    supabase
     .from("agencies")
-    .select("display_name, settings, preferred_currency")
+    .select("display_name, settings, preferred_currency, supported_locales")
     .eq("id", tenantId)
-    .single();
+    .single(),
+    tenantScopedQuery(supabase, "agency_business_identity", tenantId)
+      .select("default_locale, supported_locales")
+      .maybeSingle(),
+  ]);
 
   if (error) {
     logServerError("admin-workspace-settings.account.load", error);
     return { ok: false, error: "Could not load workspace settings." };
   }
+  if (identityError) {
+    logServerError("admin-workspace-settings.account.identity.load", identityError);
+  }
 
   const settings = (typeof agency?.settings === "object" && agency.settings !== null
     ? agency.settings
     : {}) as Record<string, unknown>;
+  const identityRow = identity as {
+    default_locale?: string | null;
+    supported_locales?: unknown;
+  } | null;
+  const identityLocales = Array.isArray(identityRow?.supported_locales)
+    ? identityRow.supported_locales.filter(isLocale)
+    : [];
+  const agencyLocales = Array.isArray(agency?.supported_locales)
+    ? agency.supported_locales.filter(isLocale)
+    : [];
+  const activeLocales = identityLocales.length > 0
+    ? identityLocales
+    : agencyLocales.length > 0
+      ? agencyLocales
+      : [DEFAULT_PLATFORM_LOCALE];
+  const defaultLocale = isLocale(identityRow?.default_locale)
+    ? identityRow.default_locale
+    : activeLocales[0] ?? DEFAULT_PLATFORM_LOCALE;
 
   return {
     ok: true,
@@ -452,7 +619,9 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
       displayName:       typeof agency?.display_name === "string" ? agency.display_name : null,
       contactEmail:      typeof settings.contact_email === "string" ? settings.contact_email : null,
       timezone:          typeof settings.timezone === "string" ? settings.timezone : null,
-      primaryLocale:     typeof settings.primary_locale === "string" ? settings.primary_locale : null,
+      primaryLocale:     defaultLocale,
+      defaultLocale,
+      activeLocales,
       preferredCurrency: typeof agency?.preferred_currency === "string" ? agency.preferred_currency : null,
     },
   };

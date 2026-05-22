@@ -29,6 +29,7 @@ import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -100,6 +101,10 @@ export async function PublicHeader() {
   ) {
     return <PublishedShellHeader tenantId={tenantIdForIdentity} locale={locale} />;
   }
+
+  const tenantLocaleSettings = tenantIdForIdentity
+    ? await loadTenantLocaleSettings(tenantIdForIdentity)
+    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const };
 
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
@@ -361,6 +366,8 @@ export async function PublicHeader() {
             navLinks={cmsHeaderLinks}
             locale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
+            availableLocales={tenantLocaleSettings.supportedLocales}
+            defaultLocale={tenantLocaleSettings.defaultLocale}
             brandLabel={brandLabel}
             ctaLabel={showCtaInMobileMenu ? ctaLabel : null}
             ctaHref={showCtaInMobileMenu && ctaHref ? headerHref(ctaHref) : null}
@@ -489,6 +496,8 @@ export async function PublicHeader() {
             className="mr-1 hidden sm:flex"
             activeLocale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
+            availableLocales={tenantLocaleSettings.supportedLocales}
+            defaultLocale={tenantLocaleSettings.defaultLocale}
           />
           <PublicHeaderDiscoveryTools
             initialFavoritesCount={favoriteIds.length}

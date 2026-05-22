@@ -3,9 +3,17 @@
 import { useActionState } from "react";
 import { requestPasswordReset, type AuthActionState } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
+import { createTranslator } from "@/i18n/messages";
 import Link from "next/link";
 
-export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) {
+export function ForgotPasswordForm({
+  defaultEmail,
+  locale = "en",
+}: {
+  defaultEmail?: string;
+  locale?: string;
+}) {
+  const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
     AuthActionState,
     FormData
@@ -13,6 +21,7 @@ export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) 
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="locale" value={locale} />
       {state?.error ? (
         <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.error}
@@ -25,7 +34,7 @@ export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) 
       ) : null}
       <div className="space-y-2">
         <label htmlFor="reset-email" className="text-sm font-medium">
-          Email
+          {t("public.auth.form.email")}
         </label>
         <input
           id="reset-email"
@@ -38,11 +47,11 @@ export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) 
         />
       </div>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Sending…" : "Send reset link"}
+        {pending ? t("public.auth.forgot.pending") : t("public.auth.forgot.submit")}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         <Link href="/login" className="text-primary underline-offset-4 hover:underline">
-          Back to log in
+          {t("public.auth.forgot.back")}
         </Link>
       </p>
     </form>

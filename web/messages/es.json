@@ -31,6 +31,94 @@
       "directoryInquiryTooltipEmpty": "Abre el formulario de consulta: añade talento con la búsqueda o guardando desde el directorio",
       "directoryInquiryTooltipWithShortlist": "Contacta ahora — tu lista está lista para enviar"
     },
+    "auth": {
+      "language": "Idioma",
+      "or": "o",
+      "googleOpening": "Abriendo Google…",
+      "googleFailed": "No se pudo iniciar sesión con Google.",
+      "googlePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio e inténtalo de nuevo.",
+      "googleUnableToStart": "No se pudo iniciar el acceso con Google.",
+      "login": {
+        "title": "Iniciar sesión",
+        "inviteTitle": "Inicia sesión para unirte a {agency}",
+        "description": "Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta.",
+        "inviteDescription": "{agency} te invitó a su roster. Inicia sesión para reclamar tu perfil y empezar a recibir reservas.",
+        "google": "Continuar con Google",
+        "emailSubmit": "Iniciar sesión con correo",
+        "pending": "Iniciando sesión…",
+        "forgot": "¿Olvidaste tu contraseña?",
+        "remember": "Mantener mi sesión activa por 30 días",
+        "noAccount": "¿No tienes cuenta?",
+        "signUp": "Regístrate"
+      },
+      "register": {
+        "title": "Crea tu cuenta",
+        "operatorTitle": "Crea tu cuenta de operador",
+        "inviteTitle": "Únete a {agency}",
+        "description": "Después de registrarte elegirás si eres Talento (para unirte al roster de la agencia) o Cliente (para reservar talento para eventos).",
+        "operatorDescription": "Usa el mismo correo que usaste en Comenzar. Abriremos tu workspace gratuito y crearemos su URL de Tulala automáticamente después del registro.",
+        "inviteDescription": "{agency} te invitó a unirte a su roster. Crea una cuenta en Tulala para reclamar tu perfil y empezar a recibir reservas.",
+        "google": "Registrarse con Google",
+        "googleContinue": "Continuar con Google",
+        "emailSubmit": "Registrarse con correo",
+        "operatorSubmit": "Crear cuenta y abrir workspace",
+        "inviteSubmit": "Crear cuenta y reclamar perfil",
+        "pending": "Creando cuenta…",
+        "passwordHint": "Al menos 8 caracteres.",
+        "haveAccount": "¿Ya tienes una cuenta?",
+        "logIn": "Inicia sesión"
+      },
+      "roleRegister": {
+        "talentTitle": "Unirse como Talento",
+        "talentDescription": "Crea una cuenta para unirte al roster, gestionar tu perfil y recibir reservas.",
+        "clientTitle": "Unirse como Cliente",
+        "clientDescription": "Crea una cuenta para descubrir talento, enviar solicitudes y gestionar tus reservas."
+      },
+      "forgot": {
+        "title": "Olvidé mi contraseña",
+        "description": "Te enviaremos un enlace para elegir una nueva contraseña. Si normalmente entras con Google, puedes seguir usándolo, o crear una contraseña aquí para entrar también con correo.",
+        "expired": "Ese enlace de restablecimiento ya no es válido. Escribe tu correo abajo para recibir uno nuevo.",
+        "submit": "Enviar enlace de restablecimiento",
+        "pending": "Enviando…",
+        "back": "Volver a iniciar sesión"
+      },
+      "update": {
+        "title": "Crear nueva contraseña",
+        "description": "Elige una contraseña segura. Después de guardar, iniciarás sesión y te llevaremos a tu panel.",
+        "newPassword": "Nueva contraseña",
+        "confirmPassword": "Confirmar nueva contraseña",
+        "submit": "Actualizar contraseña y continuar",
+        "pending": "Guardando…"
+      },
+      "form": {
+        "email": "Correo electrónico",
+        "password": "Contraseña"
+      },
+      "actions": {
+        "invalidEmail": "Escribe un correo electrónico válido.",
+        "resetSent": "Si existe una cuenta con ese correo, enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada y spam.",
+        "emailPasswordRequired": "Correo electrónico y contraseña son obligatorios.",
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+        "signupEmailInvalid": "Ese correo no parece correcto. Revisa el formato e inténtalo de nuevo.",
+        "signupDomainBlocked": "No se permiten registros con ese dominio de correo. Prueba con otro correo.",
+        "signupWeakPassword": "La contraseña es demasiado débil. Usa al menos 8 caracteres, idealmente mezclando letras, números y símbolos.",
+        "signupRateLimited": "Hay demasiados intentos de registro para este correo. Espera unos minutos e inténtalo de nuevo.",
+        "signupExists": "Ya existe una cuenta con ese correo. Intenta iniciar sesión o restablece tu contraseña si la olvidaste.",
+        "signupDisabled": "Los registros nuevos están temporalmente desactivados. Contáctanos para obtener acceso.",
+        "signupGeneric": "No pudimos crear tu cuenta. Inténtalo de nuevo.",
+        "signupConfirmation": "Cuenta creada. Revisa tu correo para encontrar el enlace de confirmación y después continúa iniciando sesión.",
+        "signInGeneric": "No pudimos iniciar sesión. Revisa tus datos e inténtalo de nuevo.",
+        "confirmPassword": "Escribe y confirma tu nueva contraseña.",
+        "passwordMismatch": "La contraseña y la confirmación no coinciden.",
+        "generic": "Algo salió mal. Inténtalo de nuevo."
+      },
+      "errors": {
+        "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
+        "emailNotConfirmed": "Tu correo aún no está confirmado. Revisa tu bandeja de entrada para encontrar el enlace de confirmación.",
+        "tooManyAttempts": "Demasiados intentos; espera un minuto e inténtalo de nuevo.",
+        "network": "Problema de conexión; revisa tu red e inténtalo de nuevo."
+      }
+    },
     "profile": {
       "about": "Acerca de",
       "portfolio": "Portafolio",

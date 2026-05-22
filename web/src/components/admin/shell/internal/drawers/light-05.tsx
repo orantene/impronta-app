@@ -1,5 +1,6 @@
 "use client";
 import { logServerError } from "@/lib/server/safe-error";
+import type { Locale } from "@/lib/site-admin/locales";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -369,7 +370,8 @@ export function IdentityDrawer() {
 export function WorkspaceSettingsDrawer() {
   const { closeDrawer, toast, tenantSlug } = useAdminShell();
   const queueRouterRefresh = useQueuedRouterRefresh();
-  const [locale, setLocale] = useState<"en" | "es" | "pt" | "fr" | "it">("en");
+  const [defaultLocale, setDefaultLocale] = useState<Locale>("en");
+  const [activeLocales, setActiveLocales] = useState<Locale[]>(["en"]);
   const [timezone, setTimezone] = useState("America/Cancun");
   const [currency, setCurrency] = useState("USD");
   const [firstDay, setFirstDay] = useState("Monday");
@@ -382,9 +384,8 @@ export function WorkspaceSettingsDrawer() {
       try {
         const res = await loadWorkspaceAccountSettings();
         if (res.ok) {
-          const validLocales = ["en", "es", "pt", "fr", "it"] as const;
-          const loc = res.data.primaryLocale;
-          if (loc && (validLocales as readonly string[]).includes(loc)) setLocale(loc as typeof locale);
+          setDefaultLocale(res.data.defaultLocale);
+          setActiveLocales(res.data.activeLocales.length ? res.data.activeLocales : [res.data.defaultLocale]);
           if (res.data.timezone) setTimezone(res.data.timezone);
           if (res.data.preferredCurrency) setCurrency(res.data.preferredCurrency);
         }
@@ -396,15 +397,30 @@ export function WorkspaceSettingsDrawer() {
   const localeOptions = [
     { label: "English", value: "en" as const },
     { label: "Español", value: "es" as const },
-    { label: "Português", value: "pt" as const },
-    { label: "Français", value: "fr" as const },
-    { label: "Italiano", value: "it" as const },
   ];
-  const localeLabel = localeOptions.find((o) => o.value === locale)?.label ?? "English";
+  const localeLabel = localeOptions.find((o) => o.value === defaultLocale)?.label ?? "English";
   const handleLocaleChange = (label: string) => {
     const match = localeOptions.find((o) => o.label === label);
-    if (match) setLocale(match.value);
+    if (!match) return;
+    setDefaultLocale(match.value);
+    setActiveLocales((current) =>
+      current.includes(match.value) ? current : [...current, match.value],
+    );
   };
+  const toggleActiveLocale = (code: Locale, checked: boolean) => {
+    const next = checked
+      ? Array.from(new Set([...activeLocales, code]))
+      : activeLocales.filter((l) => l !== code);
+    if (next.length === 0) return;
+    if (!next.includes(defaultLocale)) {
+      setDefaultLocale(next[0] ?? "en");
+    }
+    setActiveLocales(next);
+  };
+  const languagePreview =
+    activeLocales.length > 1
+      ? `Visitors can switch between ${activeLocales.map((l) => l.toUpperCase()).join(" and ")}.`
+      : `Only ${activeLocales[0]?.toUpperCase() ?? defaultLocale.toUpperCase()} is active for this site.`;
 
   const currencyOptions = [
     { label: "USD $", value: "USD" },
@@ -431,7 +447,8 @@ export function WorkspaceSettingsDrawer() {
       const result = await updateWorkspaceFields({
         preferred_currency: currency,
         timezone,
-        primary_locale: locale,
+        default_locale: defaultLocale,
+        active_locales: activeLocales,
       });
       if (!result.ok) {
         toast(result.error || "Couldn't save. Try again.");
@@ -453,17 +470,50 @@ export function WorkspaceSettingsDrawer() {
       open
       onClose={closeDrawer}
       title="Workspace settings"
-      description="Operational defaults — locale, currency, timezone."
+      description="Operational defaults — language, currency, timezone."
       footer={<StandardFooter onSave={onSave} disabled={isSaving || isLoading} saveLabel={isSaving ? "Saving…" : isLoading ? "Loading…" : "Save"} />}
     >
-      <Section title="Locale & timezone" framed>
-        <FieldRow label="Default locale">
+      <Section title="Language & localization" framed>
+        <FieldRow label="Default public language">
           <SelectInput
             options={localeOptions.map((o) => o.label)}
             value={localeLabel}
             onChange={handleLocaleChange}
           />
         </FieldRow>
+        <FieldRow label="Active public languages">
+          <div className="flex flex-col gap-2" style={{ fontFamily: FONTS.body }}>
+            {localeOptions.map((opt) => {
+              const checked = activeLocales.includes(opt.value);
+              const locked = checked && activeLocales.length === 1;
+              return (
+                <label key={opt.value} className="flex items-center gap-2 text-admin-ink" style={{ fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={locked}
+                    onChange={(e) => toggleActiveLocale(opt.value, e.currentTarget.checked)}
+                    className="size-4 cursor-pointer rounded border-admin-border"
+                  />
+                  <span>{opt.label}</span>
+                  {opt.value === defaultLocale ? (
+                    <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
+                      default
+                    </span>
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
+        </FieldRow>
+        <FieldRow label="Public language switcher" hint={activeLocales.length > 1 ? "Shown automatically." : "Hidden because one language is active."}>
+          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+            {languagePreview}
+          </div>
+        </FieldRow>
+      </Section>
+
+      <Section title="Regional defaults" framed>
         <FieldRow label="Timezone">
           <SelectInput
             options={[
@@ -717,4 +767,3 @@ export function MyProfileDrawer() {
 // ════════════════════════════════════════════════════════════════════
 // Inquiries: peek + new + new booking
 // ════════════════════════════════════════════════════════════════════
-

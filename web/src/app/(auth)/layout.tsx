@@ -1,9 +1,14 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { PublicLanguageToggle } from "@/components/public-language-toggle";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
 /** Auth screens should not be indexed; page titles use the root template. */
 export const metadata: Metadata = {
@@ -35,7 +40,19 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const brandLabel = await resolveAuthBrand();
+  const [brandLabel, locale, ctx, h] = await Promise.all([
+    resolveAuthBrand(),
+    getRequestLocale(),
+    getPublicHostContext(),
+    headers(),
+  ]);
+  const localeSettings =
+    ctx.kind === "agency" || ctx.kind === "hub"
+      ? await loadTenantLocaleSettings(ctx.tenantId)
+      : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const };
+  const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
@@ -48,6 +65,13 @@ export default async function AuthLayout({
         <div className="w-full max-w-sm rounded-lg border border-border/50 bg-card/80 p-8 shadow-none backdrop-blur-sm">
           {children}
         </div>
+        <PublicLanguageToggle
+          className="mt-6"
+          activeLocale={locale}
+          pathnameWithoutLocale={pathnameWithoutLocale}
+          availableLocales={localeSettings.supportedLocales}
+          defaultLocale={localeSettings.defaultLocale}
+        />
       </div>
     </div>
   );

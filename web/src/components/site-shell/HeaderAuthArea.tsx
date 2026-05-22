@@ -48,6 +48,8 @@ interface Props {
   showAccountMenu: boolean;
   showLanguageToggle: boolean;
   showDiscoveryTools: boolean;
+  availableLocales?: readonly Locale[];
+  defaultLocale?: Locale;
 }
 
 export async function HeaderAuthArea({
@@ -55,6 +57,8 @@ export async function HeaderAuthArea({
   showAccountMenu,
   showLanguageToggle,
   showDiscoveryTools,
+  availableLocales = ["en", "es"],
+  defaultLocale = "en",
 }: Props) {
   if (!showAccountMenu && !showLanguageToggle && !showDiscoveryTools) {
     return null;
@@ -101,6 +105,8 @@ export async function HeaderAuthArea({
           className="mr-1 hidden sm:flex"
           activeLocale={locale}
           pathnameWithoutLocale={pathnameWithoutLocale}
+          availableLocales={availableLocales}
+          defaultLocale={defaultLocale}
         />
       ) : null}
       {showDiscoveryTools ? (

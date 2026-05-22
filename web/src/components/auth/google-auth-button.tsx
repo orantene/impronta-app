@@ -17,9 +17,17 @@ function getPopupPosition(size: number, screenStart: number, screenSpan: number)
 export function GoogleAuthButton({
   nextPath,
   children,
+  pendingLabel = "Opening Google…",
+  failedLabel = "Google sign-in failed.",
+  popupBlockedMessage = "Popup blocked. Allow popups for this site and try again.",
+  unableToStartMessage = "Unable to start Google sign-in.",
 }: {
   nextPath?: string;
   children: React.ReactNode;
+  pendingLabel?: string;
+  failedLabel?: string;
+  popupBlockedMessage?: string;
+  unableToStartMessage?: string;
 }) {
   const router = useRouter();
   const popupRef = useRef<Window | null>(null);
@@ -33,7 +41,7 @@ export function GoogleAuthButton({
       if (event.data?.type !== AUTH_POPUP_MESSAGE_TYPE) return;
 
       setPending(false);
-      setError(event.data.success ? null : event.data.error ?? "Google sign-in failed.");
+      setError(event.data.success ? null : event.data.error ?? failedLabel);
 
       if (closeWatcherRef.current) {
         window.clearInterval(closeWatcherRef.current);
@@ -56,7 +64,7 @@ export function GoogleAuthButton({
         window.clearInterval(closeWatcherRef.current);
       }
     };
-  }, [router]);
+  }, [failedLabel, router]);
 
   async function handleClick() {
     setError(null);
@@ -85,7 +93,7 @@ export function GoogleAuthButton({
     );
 
     if (!popup) {
-      setError("Popup blocked. Allow popups for this site and try again.");
+      setError(popupBlockedMessage);
       return;
     }
 
@@ -110,7 +118,7 @@ export function GoogleAuthButton({
       popup.close();
       popupRef.current = null;
       setPending(false);
-      setError(oauthError?.message ?? "Unable to start Google sign-in.");
+      setError(oauthError?.message ?? unableToStartMessage);
       return;
     }
 
@@ -131,7 +139,7 @@ export function GoogleAuthButton({
   return (
     <div className="space-y-3">
       <Button type="button" className="w-full" disabled={pending} onClick={handleClick}>
-        {pending ? "Opening Google…" : children}
+        {pending ? pendingLabel : children}
       </Button>
       {error ? (
         <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-m text-destructive">
