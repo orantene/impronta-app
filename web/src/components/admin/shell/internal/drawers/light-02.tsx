@@ -482,7 +482,9 @@ export function TeamDrawer() {
                   ? "No coordinators set — the workspace owner catches new inquiries."
                   : `${coordinatorTalentIds.length} coordinator${
                       coordinatorTalentIds.length === 1 ? "" : "s"
-                    } auto-join every new inquiry.`}
+                    } auto-join${
+                      coordinatorTalentIds.length === 1 ? "s" : ""
+                    } every new inquiry.`}
               </div>
             </>
           )}
