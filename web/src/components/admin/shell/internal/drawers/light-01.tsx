@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   type AdminShellIconName,
@@ -8,7 +8,6 @@ import {
   DrawerId,
   DrawerShell,
   FONTS,
-  FieldRow,
   GhostButton,
   Icon,
   IconChip,
@@ -18,22 +17,17 @@ import {
   PrimaryButton,
   SecondaryButton,
   Section,
-  StandardFooter,
   StateChipMini,
   StatusPill,
   TRANSITION,
-  TextInput,
   UsageRow,
   getTeam,
-  loadAgencySettingsNamespace,
   meetsPlan,
   nextPlan,
   openSupportEmail,
-  patchAgencySettingsNamespace,
   planPrice,
   teamCap,
-  useAdminShell,
-  useQueuedRouterRefresh
+  useAdminShell
 } from "./drawer-shared";
 
 // Phase 1d (remediation §4): 4 leaf drawer bodies, byte-for-byte from
@@ -216,7 +210,6 @@ export function SiteSetupDrawer() {
     { id: "pages", label: "Pages", desc: "About, Press, FAQ, Contact.", drawer: "pages" },
     { id: "posts", label: "Posts", desc: "Editorial features, news, BTS.", drawer: "posts" },
     { id: "navigation", label: "Navigation & footer", desc: "Header structure, footer columns.", drawer: "navigation" },
-    { id: "theme", label: "Theme & foundations", desc: "Type, color, density, layout.", drawer: "theme-foundations" },
     { id: "seo", label: "SEO & defaults", desc: "Meta, sitemap, redirects.", drawer: "seo" },
   ];
   const completedCount = done.size;
@@ -315,192 +308,6 @@ export function SiteSetupDrawer() {
           );
         })}
       </div>
-    </DrawerShell>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════
-// Theme & foundations
-// ════════════════════════════════════════════════════════════════════
-
-
-export function ThemeFoundationsDrawer() {
-  const queueRouterRefresh = useQueuedRouterRefresh();
-  const { closeDrawer, toast } = useAdminShell();
-  const [pending, startTransition] = useTransition();
-  const [theme, setTheme] = useState<"editorial-noir" | "modern-mono" | "warm-light">("editorial-noir");
-  const [headingFont, setHeadingFont] = useState("Cormorant Garamond");
-  const [bodyFont, setBodyFont] = useState("Inter");
-  const [accent, setAccent] = useState("#B8860B");
-  const [density, setDensity] = useState<"compact" | "comfortable" | "spacious">("comfortable");
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadAgencySettingsNamespace("", "theme").then((r) => {
-      if (cancelled) return;
-      if (r.ok && r.data) {
-        const v = r.data as Record<string, unknown>;
-        if (typeof v.theme === "string") setTheme(v.theme as typeof theme);
-        if (typeof v.headingFont === "string") setHeadingFont(v.headingFont);
-        if (typeof v.bodyFont === "string") setBodyFont(v.bodyFont);
-        if (typeof v.accent === "string") setAccent(v.accent);
-        if (typeof v.density === "string") setDensity(v.density as typeof density);
-      }
-      setLoaded(true);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  const onSave = () => {
-    startTransition(async () => {
-      const r = await patchAgencySettingsNamespace("", "theme", {
-        theme, headingFont, bodyFont, accent, density,
-      });
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Theme saved"); queueRouterRefresh(); closeDrawer(); }
-    });
-  };
-
-  return (
-    <DrawerShell
-      open
-      onClose={closeDrawer}
-      title="Theme & foundations"
-      description="Typography, color, and density — applied across your site."
-      width={580}
-      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
-    >
-      <Section title="Theme preset" description="Three starting points. Customize anything below.">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {[
-            { id: "editorial-noir", label: "Editorial Noir", swatch: ["#0B0B0D", "#FAFAF7", "#B8860B"] },
-            { id: "modern-mono", label: "Modern Mono", swatch: ["#0F0F11", "#FFFFFF", "#5B5B62"] },
-            { id: "warm-light", label: "Warm Light", swatch: ["#3D2A18", "#FBF5EC", "#C68A1E"] },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t.id as typeof theme)}
-              style={{
-                background: "#fff",
-                border: `1.5px solid ${theme === t.id ? COLORS.accent : COLORS.borderSoft}`,
-                borderRadius: 10,
-                padding: 12,
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                textAlign: "left",
-                transition: `border-color ${TRANSITION.micro}`,
-              }}
-            >
-              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                {t.swatch.map((c) => (
-                  <span key={c} style={{ width: 18, height: 18, borderRadius: 4, background: c, border: `1px solid ${COLORS.borderSoft}` }} />
-                ))}
-              </div>
-              <div className="text-admin-ink text-admin-12h font-semibold">{t.label}</div>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Typography">
-        <FieldRow label="Heading font">
-          <select
-            value={headingFont}
-            onChange={(e) => setHeadingFont(e.target.value)}
-            style={{
-              padding: "9px 12px",
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 8,
-              background: "#fff",
-              color: COLORS.ink,
-            }}
-          >
-            <option>Cormorant Garamond</option>
-            <option>EB Garamond</option>
-            <option>Playfair Display</option>
-            <option>Inter</option>
-          </select>
-        </FieldRow>
-        <FieldRow label="Body font">
-          <select
-            value={bodyFont}
-            onChange={(e) => setBodyFont(e.target.value)}
-            style={{
-              padding: "9px 12px",
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 8,
-              background: "#fff",
-              color: COLORS.ink,
-            }}
-          >
-            <option>Inter</option>
-            <option>Söhne</option>
-            <option>Neue Haas Grotesk</option>
-            <option>Helvetica Neue</option>
-          </select>
-        </FieldRow>
-        <div
-          style={{
-            background: "#fff",
-            padding: 16,
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-          }}
-        >
-          <div style={{ fontFamily: headingFont, fontSize: 26, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.15 }} className="text-admin-ink">
-            Editorial preview
-          </div>
-          <div style={{ fontFamily: bodyFont, fontSize: 13, marginTop: 6, lineHeight: 1.55 }} className="text-admin-ink-muted">
-            The quick brown fox jumps over the lazy dog. The five boxing wizards jump quickly.
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Brand color">
-        <FieldRow label="Accent">
-          <div className="flex items-center gap-2.5">
-            <input
-              type="color"
-              value={accent}
-              onChange={(e) => setAccent(e.target.value)}
-              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: "pointer" }}
-            />
-            <TextInput defaultValue={accent} />
-          </div>
-        </FieldRow>
-      </Section>
-
-      <Section title="Density">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {[
-            { id: "compact", label: "Compact", sub: "Tighter rows" },
-            { id: "comfortable", label: "Comfortable", sub: "Default" },
-            { id: "spacious", label: "Spacious", sub: "Editorial" },
-          ].map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setDensity(d.id as typeof density)}
-              style={{
-                background: "#fff",
-                border: `1.5px solid ${density === d.id ? COLORS.accent : COLORS.borderSoft}`,
-                borderRadius: 10,
-                padding: 12,
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                textAlign: "left",
-              }}
-            >
-              <div className="text-admin-ink text-admin-12h font-semibold">{d.label}</div>
-              <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{d.sub}</div>
-            </button>
-          ))}
-        </div>
-      </Section>
     </DrawerShell>
   );
 }
