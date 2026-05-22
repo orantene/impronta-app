@@ -3,8 +3,8 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { randomBytes } from "crypto";
 import { buildInquiryContext } from "@/lib/inquiries";
+import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { getPublicSettings } from "@/lib/public-settings";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -24,139 +24,6 @@ const GUEST_HEADER = "x-impronta-guest";
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 export type InquiryFormState = { error?: string } | undefined;
-
-type GuestClientProvisionResult =
-  | { status: "matched"; clientUserId: string }
-  | { status: "created"; clientUserId: string }
-  | { status: "unlinked"; clientUserId: null };
-
-function generateGuestClientPassword() {
-  return randomBytes(18).toString("base64url");
-}
-
-async function ensureGuestClientByEmail(args: {
-  email: string;
-  name: string;
-  company: string;
-  phone: string;
-}): Promise<GuestClientProvisionResult> {
-  const admin = createServiceRoleClient();
-  if (!admin) {
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  const normalizedEmail = args.email.trim().toLowerCase();
-  const { data: matchRows, error: matchErr } = await admin.rpc("find_auth_user_identity_by_email", {
-    p_email: normalizedEmail,
-  });
-
-  if (matchErr) {
-    logServerError("directory/ensureGuestClientByEmail/find", matchErr);
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  const match = Array.isArray(matchRows) ? matchRows[0] : null;
-  if (match?.user_id) {
-    const role = match.app_role as string | null;
-    if (role === "super_admin" || role === "agency_staff" || role === "talent") {
-      return { status: "unlinked", clientUserId: null };
-    }
-
-    const userId = match.user_id as string;
-    const nextDisplayName = (match.display_name as string | null)?.trim() || args.name;
-    const profilePatch: Record<string, unknown> = {
-      display_name: nextDisplayName,
-      app_role: "client",
-      account_status:
-        match.account_status === "active" ? "active" : "onboarding",
-      updated_at: new Date().toISOString(),
-    };
-    if (match.account_status !== "active") {
-      profilePatch.onboarding_completed_at = null;
-    }
-
-    const { error: profileErr } = await admin
-      .from("profiles")
-      .update(profilePatch)
-      .eq("id", userId);
-
-    if (profileErr) {
-      logServerError("directory/ensureGuestClientByEmail/profileUpdate", profileErr);
-      return { status: "unlinked", clientUserId: null };
-    }
-
-    const { error: clientProfileErr } = await admin
-      .from("client_profiles")
-      .upsert(
-        {
-          user_id: userId,
-          company_name: args.company || null,
-          phone: args.phone || null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-
-    if (clientProfileErr) {
-      logServerError("directory/ensureGuestClientByEmail/clientProfileUpsert", clientProfileErr);
-      return { status: "unlinked", clientUserId: null };
-    }
-
-    return { status: "matched", clientUserId: userId };
-  }
-
-  const created = await admin.auth.admin.createUser({
-    email: normalizedEmail,
-    password: generateGuestClientPassword(),
-    email_confirm: true,
-    user_metadata: {
-      full_name: args.name,
-      name: args.name,
-    },
-  });
-
-  if (created.error || !created.data.user?.id) {
-    logServerError("directory/ensureGuestClientByEmail/createUser", created.error);
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  const userId = created.data.user.id;
-
-  const { error: profileErr } = await admin
-    .from("profiles")
-    .update({
-      display_name: args.name,
-      app_role: "client",
-      account_status: "onboarding",
-      onboarding_completed_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-
-  if (profileErr) {
-    logServerError("directory/ensureGuestClientByEmail/profileCreatePatch", profileErr);
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  const { error: clientProfileErr } = await admin
-    .from("client_profiles")
-    .upsert(
-      {
-        user_id: userId,
-        company_name: args.company || null,
-        phone: args.phone || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-
-  if (clientProfileErr) {
-    logServerError("directory/ensureGuestClientByEmail/clientProfileCreate", clientProfileErr);
-    return { status: "unlinked", clientUserId: null };
-  }
-
-  return { status: "created", clientUserId: userId };
-}
 
 function parseInquiryFields(formData: FormData) {
   const contact_name = String(formData.get("contact_name") ?? "").trim();

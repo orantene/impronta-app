@@ -132,6 +132,13 @@ export function InquiryDrawer({
 
   const [step, setStep] = useState<"compose" | "review">("compose");
 
+  // ─ Submit ────────────────────────────────────────────────────────────────
+  const [submitState, submitFormAction, submitting] = useActionState<
+    InquiryIntentActionState,
+    FormData
+  >(submitInquiryNowAction, { kind: "idle" });
+  const submitted = submitState.kind === "submitted";
+
   // ─ Autosave (logged-in only) ──────────────────────────────────────────────
   const autosaveEnabled = (enableDraftAutosave ?? !!client?.user_id) && !!client?.user_id;
   const [saveState, saveAction] = useActionState<InquiryIntentActionState, FormData>(
@@ -166,9 +173,10 @@ export function InquiryDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- saveAction is a stable useActionState dispatch; startAutosave is a stable useTransition dispatch; intentRef/lastSavedJSONRef are refs
   }, [autosaveEnabled, tenantSlug, draftId]);
 
-  // Periodic autosave + on-blur + on visibility change.
+  // Periodic autosave + on-blur + on visibility change. Stops once the
+  // inquiry is submitted so a post-submit tick can't spawn an orphan draft.
   useEffect(() => {
-    if (!autosaveEnabled) return;
+    if (!autosaveEnabled || submitted) return;
     const t = setInterval(triggerAutosave, INQUIRY_DRAFT_AUTOSAVE_MS);
     const onBlur = () => triggerAutosave();
     const onVisibility = () => { if (document.hidden) triggerAutosave(); };
@@ -179,13 +187,7 @@ export function InquiryDrawer({
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [autosaveEnabled, triggerAutosave]);
-
-  // ─ Submit ────────────────────────────────────────────────────────────────
-  const [submitState, submitFormAction, submitting] = useActionState<
-    InquiryIntentActionState,
-    FormData
-  >(submitInquiryNowAction, { kind: "idle" });
+  }, [autosaveEnabled, submitted, triggerAutosave]);
 
   const validation = validateIntentForSubmit(intent);
   const canSubmit = validation.ok;
@@ -250,18 +252,24 @@ export function InquiryDrawer({
         >
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-              {step === "compose" ? "New inquiry" : "Review & send"}
+              {submitted ? "Sent" : step === "compose" ? "New inquiry" : "Review & send"}
             </div>
             <h2 style={{ margin: "3px 0 0", fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
-              {step === "compose" ? "Start a new project" : "Looks good — ready to send?"}
+              {submitted
+                ? "Inquiry sent"
+                : step === "compose"
+                  ? "Start a new project"
+                  : "Looks good — ready to send?"}
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
-              {step === "compose"
-                ? <>Tell <strong>{agencyName}</strong> what you need. We&apos;ll match talent + draft an offer.</>
-                : <>One last check before <strong>{agencyName}</strong> picks this up.</>
+              {submitted
+                ? <>Your request is with <strong>{agencyName}</strong>.</>
+                : step === "compose"
+                  ? <>Tell <strong>{agencyName}</strong> what you need. We&apos;ll match talent + draft an offer.</>
+                  : <>One last check before <strong>{agencyName}</strong> picks this up.</>
               }
             </p>
-            {autosaveEnabled && (
+            {autosaveEnabled && !submitted && (
               <div style={{ marginTop: 8, fontSize: 11, color: saveState.kind === "saved" ? C.success : C.inkDim }}>
                 {saveState.kind === "saved"
                   ? `Draft saved ${formatRelative(saveState.savedAt)}`
@@ -294,7 +302,9 @@ export function InquiryDrawer({
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
-          {step === "compose" ? (
+          {submitState.kind === "submitted" ? (
+            <SubmittedView state={submitState} agencyName={agencyName} />
+          ) : step === "compose" ? (
             <Compose
               intent={intent}
               setRequester={(v) => update("requester", v)}
@@ -328,15 +338,21 @@ export function InquiryDrawer({
           }}
         >
           <div style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.35, maxWidth: 320 }}>
-            {!canSubmit && step === "compose"
-              ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
-              : submitState.kind === "error"
-                ? <span style={{ color: C.amber }}>{submitState.message}</span>
-                : <>By sending, you&apos;ll start a coordinator-led conversation with {agencyName}.</>
+            {submitted
+              ? <>Thanks — {agencyName} will be in touch.</>
+              : !canSubmit && step === "compose"
+                ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
+                : submitState.kind === "error"
+                  ? <span style={{ color: C.amber }}>{submitState.message}</span>
+                  : <>By sending, you&apos;ll start a coordinator-led conversation with {agencyName}.</>
             }
           </div>
           <div style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
-            {step === "compose" ? (
+            {submitted ? (
+              <button type="button" onClick={onClose} style={primaryBtn(true)}>
+                Done
+              </button>
+            ) : step === "compose" ? (
               <button
                 type="button"
                 onClick={() => setStep("review")}
@@ -1043,6 +1059,109 @@ function statusLabel(s: string | undefined): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Submitted step — in-drawer confirmation (works for guest + authed client).
+// ─────────────────────────────────────────────────────────────────────────────
+
+type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
+
+function SubmittedView({
+  state, agencyName,
+}: {
+  state: SubmittedState;
+  agencyName: string;
+}) {
+  const messagesHref =
+    `/${state.tenantSlug}/client/messages`
+    + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
+  const loginHref = state.guestEmail
+    ? `/login?email=${encodeURIComponent(state.guestEmail)}`
+    : "/login";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+        gap: 14,
+        padding: "28px 12px",
+        fontFamily: FONT,
+      }}
+    >
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 999,
+          background: C.successSoft,
+          color: C.success,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 26,
+        }}
+      >
+        ✓
+      </div>
+      <div>
+        <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
+          Your inquiry is on its way
+        </div>
+        <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
+          {agencyName} has it now. A coordinator will review your brief, match
+          talent, and reply with an offer — no commitment until you approve it.
+        </p>
+      </div>
+
+      {state.isGuest ? (
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            background: C.card,
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 10,
+            padding: "14px 16px",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
+            {state.guestActivation === "matched"
+              ? "We found your account"
+              : state.guestActivation === "created"
+                ? "We set up an account for you"
+                : "Track this inquiry"}
+          </div>
+          <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
+            {state.guestEmail ? (
+              <>
+                Sign in with <strong>{state.guestEmail}</strong> to follow this
+                inquiry — offers, messages, and updates all land in one place.
+              </>
+            ) : (
+              <>
+                Sign in any time to follow this inquiry — offers, messages, and
+                updates all land in one place.
+              </>
+            )}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            <a href={loginHref} style={primaryLinkStyle}>
+              Sign in to track
+            </a>
+          </div>
+        </div>
+      ) : (
+        <a href={messagesHref} style={primaryLinkStyle}>
+          View in Messages
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Primitives
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1193,6 +1312,15 @@ const ghostBtn: React.CSSProperties = {
   fontFamily: FONT,
   fontSize: 13,
   fontWeight: 600,
+};
+
+/** primaryBtn rendered as an <a> — used by the submitted-step CTAs. */
+const primaryLinkStyle: React.CSSProperties = {
+  ...primaryBtn(true),
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
 };
 
 const chipStyle: React.CSSProperties = {
