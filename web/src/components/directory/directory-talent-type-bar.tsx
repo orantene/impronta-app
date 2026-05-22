@@ -13,11 +13,12 @@ import { FilterChip, FilterChips } from "@/components/ui/filter-chips";
 import type { DirectoryFilterOption } from "@/lib/directory/field-driven-filters";
 import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
+import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
 
 function pillLabel(label: string): string {
   const t = label.trim();
   if (!t) return t;
-  return t.toUpperCase();
+  return humanizeEnumLabel(t).toUpperCase();
 }
 
 /**

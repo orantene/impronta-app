@@ -19,6 +19,7 @@ import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { formatFilterSearchSummary } from "@/lib/directory/directory-ui-copy";
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import { serializeDirectoryFieldFacetParams } from "@/lib/directory/search-params";
+import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
 
 const COLLAPSE_CHIPS = 6;
 const COLLAPSE_RADIO = 8;
@@ -35,15 +36,10 @@ function labelMatchesQuery(label: string, q: string): boolean {
   return label.toLowerCase().includes(q);
 }
 
-/** Readable label in filter tiles (taxonomy terms are often stored ALL CAPS). */
+/** Readable label in filter tiles. Delegates to the shared humanize helper so
+ *  underscore-slugs ("dark_brown") render as title-case ("Dark Brown"). */
 function facetTileLabel(label: string): string {
-  const t = label.trim();
-  if (!t) return t;
-  return t
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
+  return humanizeEnumLabel(label);
 }
 
 function heightSectionMatchesQuery(sectionLabel: string, q: string): boolean {
@@ -94,6 +90,7 @@ function DirectoryLocationSearchDropdown({
   const [inputValue, setInputValue] = useState("");
   const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const wrapRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +116,11 @@ function DirectoryLocationSearchDropdown({
     if (!q) return sorted.slice(0, LOCATION_DROPDOWN_MAX);
     return sorted.filter((o) => o.label.toLowerCase().includes(q)).slice(0, LOCATION_DROPDOWN_MAX);
   }, [options, inputValue]);
+
+  // Reset highlight when the filtered list changes so a stale index never selects the wrong item.
+  useEffect(() => {
+    setHighlightIndex(-1);
+  }, [filtered]);
 
   const updateMenuPosition = useCallback(() => {
     const el = wrapRef.current;
@@ -160,6 +162,7 @@ function DirectoryLocationSearchDropdown({
     pushLocation(opt.id);
     setInputValue(opt.label);
     setOpen(false);
+    setHighlightIndex(-1);
     inputRef.current?.blur();
   };
 
@@ -167,6 +170,7 @@ function DirectoryLocationSearchDropdown({
     pushLocation("");
     setInputValue("");
     setOpen(false);
+    setHighlightIndex(-1);
   };
 
   if (options.length === 0) {
@@ -193,11 +197,12 @@ function DirectoryLocationSearchDropdown({
         {filtered.length === 0 ? (
           <li className="px-3 py-2 text-xs text-[var(--impronta-muted)]">{fc.noCitiesMatch}</li>
         ) : (
-          filtered.map((opt) => {
+          filtered.map((opt, idx) => {
             const selected = locationSelected === opt.id;
+            const highlighted = idx === highlightIndex;
             const c = opt.count;
             return (
-              <li key={opt.id} role="presentation">
+              <li key={opt.id} role="presentation" id={`dir-loc-opt-${opt.id}`}>
                 <button
                   type="button"
                   role="option"
@@ -208,7 +213,9 @@ function DirectoryLocationSearchDropdown({
                     "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
                     selected
                       ? "bg-white/10 text-white"
-                      : "text-zinc-200 hover:bg-white/[0.04]",
+                      : highlighted
+                        ? "bg-white/[0.08] text-white"
+                        : "text-zinc-200 hover:bg-white/[0.04]",
                   )}
                 >
                   <span className="min-w-0 truncate">
@@ -251,6 +258,11 @@ function DirectoryLocationSearchDropdown({
           aria-expanded={open}
           aria-controls="directory-location-listbox"
           aria-autocomplete="list"
+          aria-activedescendant={
+            open && highlightIndex >= 0 && filtered[highlightIndex]
+              ? `dir-loc-opt-${filtered[highlightIndex]!.id}`
+              : undefined
+          }
           placeholder={fc.locationPlaceholder}
           value={inputValue}
           onChange={(e) => {
@@ -266,7 +278,21 @@ function DirectoryLocationSearchDropdown({
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               setOpen(false);
+              setHighlightIndex(-1);
               (e.target as HTMLInputElement).blur();
+              return;
+            }
+            if (!open || filtered.length === 0) return;
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setHighlightIndex((i) => Math.max(i - 1, 0));
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              const target = filtered[highlightIndex >= 0 ? highlightIndex : 0];
+              if (target) pick(target);
             }
           }}
           className={cn(
@@ -915,6 +941,7 @@ export function DirectoryFiltersSidebar({
           <button
             type="button"
             onClick={clearAll}
+            aria-label="Clear all sidebar filters"
             className="text-xs text-white underline-offset-4 hover:underline"
           >
             {fc.clearAll}
@@ -1069,7 +1096,7 @@ export function DirectoryFiltersSidebar({
                           )}
                           aria-hidden
                         />
-                        <HighlightMatch text={opt.label} query={filterQuery} />
+                        <HighlightMatch text={humanizeEnumLabel(opt.label)} query={filterQuery} />
                       </span>
                       {c !== undefined ? (
                         <span className={cn("tabular-nums text-xs", on ? "" : "text-[var(--impronta-muted)]")}>
@@ -1105,7 +1132,7 @@ export function DirectoryFiltersSidebar({
                         )}
                       >
                         <span>
-                          <HighlightMatch text={opt.label} query={filterQuery} />
+                          <HighlightMatch text={humanizeEnumLabel(opt.label)} query={filterQuery} />
                         </span>
                         {c !== undefined ? (
                           <span className={cn("ml-1 tabular-nums", on ? "" : "opacity-70")}>({c})</span>
@@ -1142,7 +1169,7 @@ export function DirectoryFiltersSidebar({
                           )}
                           aria-hidden
                         />
-                        <HighlightMatch text={opt.label} query={filterQuery} />
+                        <HighlightMatch text={humanizeEnumLabel(opt.label)} query={filterQuery} />
                       </span>
                       {c !== undefined ? (
                         <span className={cn("tabular-nums text-xs", on ? "" : "text-[var(--impronta-muted)]")}>
@@ -1231,7 +1258,7 @@ export function DirectoryFiltersSidebar({
                         )}
                       >
                         <span>
-                          <HighlightMatch text={opt.label} query={filterQuery} />
+                          <HighlightMatch text={humanizeEnumLabel(opt.label)} query={filterQuery} />
                         </span>
                         {c !== undefined ? (
                           <span className={cn("ml-1 tabular-nums", on ? "" : "opacity-70")}>({c})</span>
@@ -1470,13 +1497,7 @@ function AgeRangeSection({
 }
 
 function prettyChipLabel(label: string): string {
-  const t = label.trim();
-  if (!t) return t;
-  return t
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
+  return humanizeEnumLabel(label);
 }
 
 export function AppliedFilterChips({
