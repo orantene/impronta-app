@@ -18,7 +18,6 @@ import {
   Role,
   RoleChip,
   SecondaryButton,
-  Section,
   StateChipMini,
   TextInput,
   getFieldsForTalent,
@@ -124,6 +123,119 @@ function PersonRow({
       {trailing ? (
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           {trailing}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Collapsible panel — a modern "door": a rounded card whose header is a
+ * full-width button that expands / collapses the body, with a chevron
+ * that rotates on open. Used to fold the Team drawer into tidy sections
+ * the user opens on demand.
+ */
+function CollapsibleSection({
+  title,
+  subtitle,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        background: "#fff",
+        overflow: "hidden",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "13px 14px",
+          background: open ? "rgba(15,79,62,0.045)" : "#fff",
+          border: "none",
+          borderBottom: `1px solid ${open ? COLORS.borderSoft : "transparent"}`,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            className="text-admin-ink"
+            style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700 }}
+          >
+            {title}
+          </div>
+          {subtitle ? (
+            <div
+              className="text-admin-ink-muted"
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                marginTop: 2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {subtitle}
+            </div>
+          ) : null}
+        </div>
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            width: 22,
+            height: 22,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 999,
+            background: open ? "rgba(15,79,62,0.12)" : "rgba(11,11,13,0.05)",
+            color: open ? "#0F4F3E" : COLORS.inkMuted,
+            fontSize: 14,
+            lineHeight: 1,
+            transition: "transform 160ms ease",
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        >
+          ›
+        </span>
+      </button>
+      {open ? (
+        <div style={{ padding: 14 }}>
+          {description ? (
+            <p
+              className="text-admin-ink-muted"
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                lineHeight: 1.5,
+                margin: "0 0 12px",
+              }}
+            >
+              {description}
+            </p>
+          ) : null}
+          {children}
         </div>
       ) : null}
     </div>
@@ -250,11 +362,15 @@ export function TeamDrawer() {
       open
       onClose={closeDrawer}
       title="Team"
-      description={`${team.length} members. Roles: viewer / editor / manager / admin / owner.`}
+      description="Workspace admins, teammate invites, and inquiry coordinators."
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <Section title="Members">
+      <CollapsibleSection
+        title="Workspace Admins"
+        subtitle={`${team.length} ${team.length === 1 ? "person" : "people"} with workspace access`}
+        defaultOpen
+      >
         <div className="flex flex-col gap-2">
           {team.map((m) => {
             // Match team member by name to a payout receiver candidate
@@ -317,10 +433,14 @@ export function TeamDrawer() {
             );
           })}
         </div>
-      </Section>
+      </CollapsibleSection>
 
       {canManage && (
-        <Section title="Invite a teammate" description="They'll get a link to join the workspace at the role you set. Email delivery wires in Phase 8 — for now copy the link below and share it directly.">
+        <CollapsibleSection
+          title="Invite a teammate"
+          subtitle="Send a join link at a set role"
+          description="They'll get a link to join the workspace at the role you set. Email delivery wires in Phase 8 — for now copy the link below and share it directly."
+        >
           <FieldRow label="Email">
             <TextInput
               type="email"
@@ -404,12 +524,19 @@ export function TeamDrawer() {
               </div>
             </div>
           ) : null}
-        </Section>
+        </CollapsibleSection>
       )}
 
       {canManage && isAgencyTier && (
-        <Section
+        <CollapsibleSection
           title="Auto-coordinator"
+          subtitle={
+            coordinatorTalentIds.length === 0
+              ? "Pick talent who auto-join new inquiries"
+              : `${coordinatorTalentIds.length} talent auto-join${
+                  coordinatorTalentIds.length === 1 ? "s" : ""
+                } new inquiries`
+          }
           description="Pick the roster talent who auto-join every new inquiry as coordinators. They land on the message thread and can manage the inquiry → booking flow. Pick as many as you need."
         >
           {effectiveRoster.length === 0 ? (
@@ -488,13 +615,14 @@ export function TeamDrawer() {
               </div>
             </>
           )}
-        </Section>
+        </CollapsibleSection>
       )}
 
       {canManage && !isAgencyTier && (
-        <Section
+        <CollapsibleSection
           title="Auto-coordinator"
-          description="On Agency-tier workspaces, you can pick a default coordinator for every new inquiry. Upgrade to enable."
+          subtitle="Agency-tier feature"
+          description="On Agency-tier workspaces, you can pick the roster talent who auto-join every new inquiry as coordinators. Upgrade to enable."
         >
           <div
             style={{
@@ -530,7 +658,7 @@ export function TeamDrawer() {
               Agency
             </span>
           </div>
-        </Section>
+        </CollapsibleSection>
       )}
     </DrawerShell>
   );
