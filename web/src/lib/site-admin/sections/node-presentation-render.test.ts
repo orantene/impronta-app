@@ -2179,7 +2179,7 @@ test("blog detail renderer applies category/title/byline nodePresentation and ch
   assert.match(html, /site-post__title[^>]*><span style="[^"]*max-width:700px/);
 });
 
-test("site header renderer applies brand/cta nodePresentation and child node ids", () => {
+test("site header renderer applies brand/cta nodePresentation and child node ids", async () => {
   const props: SiteHeaderV1 = {
     brand: { label: "Impronta", href: { kind: "tenant-page", value: "/" } },
     brandDisplay: "image-and-text",
@@ -2206,9 +2206,9 @@ test("site header renderer applies brand/cta nodePresentation and child node ids
   };
 
   const html = renderToStaticMarkup(
-    createElement(SiteHeaderComponent, {
+    await SiteHeaderComponent({
       props,
-      tenantId: "00000000-0000-0000-0000-000000000001",
+      tenantId: "",
       locale: "en",
       preview: false,
       builderNodeBindings: {
@@ -2227,7 +2227,7 @@ test("site header renderer applies brand/cta nodePresentation and child node ids
   assert.match(html, /site-header__cta[^>]*padding:0.5rem 0.85rem/);
 });
 
-test("site footer renderer applies brand/tagline nodePresentation and child node ids", () => {
+test("site footer renderer applies brand/tagline nodePresentation and child node ids", async () => {
   const props: SiteFooterV1 = {
     brand: { label: "Impronta", tagline: "Built for global operators" },
     brandDisplay: "image-and-text",
@@ -2244,9 +2244,9 @@ test("site footer renderer applies brand/tagline nodePresentation and child node
   };
 
   const html = renderToStaticMarkup(
-    createElement(SiteFooterComponent, {
+    await SiteFooterComponent({
       props,
-      tenantId: "00000000-0000-0000-0000-000000000001",
+      tenantId: "",
       locale: "en",
       preview: false,
       builderNodeBindings: {
