@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DiscoverShortlistWithTalents } from "../../_data-bridge/discover";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 
 const C = {
   ink:        "#0B0B0D",
@@ -351,6 +352,7 @@ function ShortlistCard({
               }}
             >
               <div style={{
+                position: "relative",
                 aspectRatio: "1/1", borderRadius: 8,
                 background: t.headshotUrl
                   ? `url(${t.headshotUrl}) center/cover no-repeat`
@@ -360,6 +362,18 @@ function ShortlistCard({
                 marginBottom: 4,
               }}>
                 {!t.headshotUrl && t.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
+                {/* Canonical favorite control — heart a talent straight
+                    from the shortlist tile, wired to client_favorites. */}
+                <div style={{ position: "absolute", top: 4, right: 4 }}>
+                  <TalentCardActions
+                    talentProfileId={t.talentId}
+                    profileCode={t.profileCode ?? ""}
+                    displayName={t.displayName}
+                    sourcePage="client-dashboard"
+                    variant="compact"
+                    hideInquiry
+                  />
+                </div>
               </div>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>
                 {t.displayName}

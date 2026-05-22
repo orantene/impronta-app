@@ -6,6 +6,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useFavorites } from "@/lib/talent-cards/use-favorites";
+
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
   ink:        "#0B0B0D",
@@ -30,34 +32,33 @@ const NAV_ITEMS = [
 
 export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
   const pathname = usePathname();
+  // D4 — favorites count comes from the canonical useFavorites() store
+  // (seeded SSR by DiscoveryStateBridge), so the pill updates live the
+  // moment a talent is favorited/unfavorited anywhere in the dashboard.
+  const favorites = useFavorites();
   const [counts, setCounts] = useState<{
-    favorites: number | null;
     shortlists: number | null;
     pitches: number | null;
   }>({
-    favorites: null,
     shortlists: null,
     pitches: null,
   });
 
-  // Hydrate counts once on mount. Don't block render — pills appear when
-  // the fetch lands. Failure stays null (no pill renders).
+  // Hydrate shortlist + pitch counts once on mount. Don't block render —
+  // pills appear when the fetch lands. Failure stays null (no pill renders).
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      fetch("/api/discover/favorites").then((r) => (r.ok ? r.json() : { favorites: [] })),
       fetch("/api/discover/shortlists").then((r) => (r.ok ? r.json() : { shortlists: [] })),
       fetch("/api/client/pitches/count").then((r) => (r.ok ? r.json() : { count: 0 })),
     ])
       .then(
-        ([fav, sl, pi]: [
-          { favorites?: unknown[] },
+        ([sl, pi]: [
           { shortlists?: unknown[] },
           { count?: number },
         ]) => {
           if (cancelled) return;
           setCounts({
-            favorites: Array.isArray(fav.favorites) ? fav.favorites.length : 0,
             shortlists: Array.isArray(sl.shortlists) ? sl.shortlists.length : 0,
             pitches: typeof pi.count === "number" ? pi.count : 0,
           });
@@ -68,7 +69,7 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
   }, []);
 
   const countFor = (path: string): number | null => {
-    if (path === "favorites") return counts.favorites;
+    if (path === "favorites") return favorites.isReady ? favorites.favoritesCount : null;
     if (path === "shortlists") return counts.shortlists;
     if (path === "pitches") return counts.pitches;
     return null;

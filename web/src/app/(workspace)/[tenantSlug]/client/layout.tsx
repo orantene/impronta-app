@@ -19,6 +19,12 @@ import { notFound, redirect } from "next/navigation";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
+import {
+  DiscoveryStateBridge,
+  PublicDiscoveryStateProvider,
+} from "@/components/directory/public-discovery-state";
+import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
 import { ClientTopbar } from "./client-topbar";
@@ -102,6 +108,15 @@ export default async function ClientLayout({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
+  // D4 — seed the canonical discovery state so <TalentCardActions> /
+  // useFavorites work on every client-dashboard surface, exactly as the
+  // public layout does. favoriteIds ← client_favorites, savedIds ←
+  // saved_talent cart. Both are global / cross-tenant.
+  const [favoriteIds, savedIds] = await Promise.all([
+    getFavoriteTalentIds(),
+    getSavedTalentIds(),
+  ]);
+
   const userName = userDisplayName(
     session.user.email,
     session.user.user_metadata as Record<string, unknown> | undefined,
@@ -146,6 +161,19 @@ export default async function ClientLayout({
       `}</style>
 
       <div className="client-root" style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT_BODY }}>
+       <PublicDiscoveryStateProvider>
+        {/* D4 — hydrate the canonical favorites + inquiry-cart stores from
+            the SSR seed. The client dashboard uses the ♥ heart icon
+            (matches every existing dashboard surface + page copy). */}
+        <DiscoveryStateBridge
+          savedIds={savedIds}
+          favoriteIds={favoriteIds}
+          favoriteIcon="heart"
+        />
+        {/* Sweeps any guest-mode localStorage favorites into client_favorites
+            on first authed render — mirrors (public)/layout.tsx, so a save
+            made before sign-in still lands in /client/favorites. */}
+        <MergeGuestFavorites serverFavoriteIds={favoriteIds} />
 
         {/* ── Bar 1: Identity bar (56px) ── */}
         <header
@@ -354,6 +382,7 @@ export default async function ClientLayout({
         >
           {children}
         </main>
+       </PublicDiscoveryStateProvider>
       </div>
 
       <Toaster
