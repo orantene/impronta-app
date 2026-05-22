@@ -2,13 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "D4 impronta.local proxy (3031)",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["/tmp/d4-host-proxy.mjs"],
-      "port": 3031,
-      "autoPort": false
-    },
-    {
       "name": "Checkpoint2 QA (3021)",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-cp2-integration/web && PORT=3021 npm run dev"],
