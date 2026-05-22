@@ -1294,9 +1294,6 @@
   "src/components/inquiry/InquiryDrawer.tsx": {
     "max-lines": {
       "count": 1
-    },
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
     }
   },
   "src/components/marketing/get-started-form.tsx": {
