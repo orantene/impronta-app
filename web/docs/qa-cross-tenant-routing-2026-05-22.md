@@ -165,3 +165,93 @@ delete.
 - `test:inquiry-workspace` — 10/10
 - engine submit / owning-party / cross-tenant unit tests — 42 pass, 2 skipped
 - `test:tenant-isolation` — 25/26 (1 pre-existing unrelated failure)
+
+---
+
+# Phase 2 — Billing & Commission QA (2026-05-22)
+
+## Direct answers
+
+- **Does commission resolve correctly per tenant?** The math does, but the
+  pipeline was **completely dead** — see the critical bug below. After the
+  fix it resolves correctly.
+- **Does commission differ by plan tier (Impronta agency vs Morena free)?**
+  No — and that is **by design**. The platform take is a ratified flat 5%
+  for every tier (`platform_commission_config.plan_tier_bps = {}`; decision
+  log §11.2 explicitly defers tier discounts to Phase Z). The Free-vs-Agency
+  commission difference is operational — a Free "friend-link" workspace
+  prices its offer line items at `talent_cost = unit_price` so the workspace
+  lane is $0; the platform still takes 5%. It is not a config-driven rate.
+- **Is per-row owning-party honored for commission?** Commission is one
+  snapshot per booking, keyed off `agency_bookings.tenant_id` (= the
+  inquiry's tenant). Correct for every current (single-tenant) inquiry. The
+  per-row `owning_party` frozen on `inquiry_participants` is **not** read by
+  the commission engine — only relevant for the future Discover D5
+  multi-owning-party fan-out, which is not live. Documented as a future gap.
+
+## 🔴 CRITICAL bug found + fixed — commission pipeline was 100% dead
+
+`engine_load_commission_context` (the RPC that feeds the resolver) was
+written against two columns that do not exist:
+
+| RPC referenced | Actual column |
+|---|---|
+| `agency_bookings.inquiry_id` | `agency_bookings.source_inquiry_id` |
+| `agencies.plan` | `agencies.plan_tier` |
+
+plpgsql resolves column names at run time, not `CREATE` time — so the RPC
+deployed clean (in `20260513075408`, on `main`) and threw `42703` on **every
+call**. `persistBookingCommissionSnapshot` catches that as a non-fatal
+`context_load_failed`, so bookings were created with **no commission
+snapshot, ever**. Confirmed in production data: 1 booking exists, 0 rows in
+`booking_commission_snapshot`. Platform-fee capture, the 3-lane split, and
+off-platform accrual have never run since the engine shipped (2026-05-13).
+
+**Fixed:** `supabase/migrations/20260926000000_fix_commission_context_rpc_columns.sql`
+re-creates the RPC with the correct column names (body otherwise identical).
+Applied to the remote DB and merged to `main`.
+
+## What was verified (post-fix, all in ROLLBACK transactions — nothing persisted)
+
+1. **Context loader** — `engine_load_commission_context` now returns
+   well-formed JSON for a real booking: `tenant_id`, `workspace_plan`
+   (correctly read from `plan_tier`), `platform_config`, and
+   `offer_line_items` with cents conversion.
+2. **3-lane split** — a $1000 booking ($850 talent cost) resolves to
+   platform $50 (5%) + workspace $150 + talent $800; the three lanes sum to
+   gross. Verified by the pure resolver against the live platform config and
+   by persisting a real `booking_commission_snapshot` row.
+3. **Payment-path branching** — on-platform `card` writes only the snapshot;
+   off-platform `cash` additionally writes a `platform_commission_movements`
+   `accrual` row ($50) and bumps `platform_commission_balances` for the
+   tenant. Both verified end-to-end.
+4. **Plan tiers** — Impronta (`agency`) and Morena Studio (`free`) both
+   resolve to the same 5% platform take (`resolved_from: platform_default`),
+   confirming the ratified flat-rate design.
+
+## Issues found (billing)
+
+### Important
+- **Commission test files are orphaned from CI.** `commission.test.ts`
+  (22 resolver unit tests) is a Vitest file, but the Vitest config `include`
+  is `test/**/*.test.tsx` — a `src/**/*.test.ts` file is never collected.
+  The `commission*.characterization.test.ts` files are `node:test` files but
+  are not in the `ci` script either. The bug above would have been caught by
+  a single real-schema integration test; none runs. Recommend wiring a
+  commission test into `ci`.
+
+### Future
+- Per-row owning-party commission (Discover D5 cross-tenant fan-out): the
+  engine produces one snapshot per booking keyed off the booking tenant. A
+  multi-owning-party inquiry would need per-participant commission. Not a
+  current bug — no live multi-tenant inquiry.
+
+## Billing gates
+- `commission.test.ts` (resolver units) — 22/22 (run via temp Vitest config)
+- `commission.characterization.test.ts` + `commission-engine.characterization.test.ts` — pass
+- end-to-end pipeline probes (context → persist → off-platform accrual) — pass
+
+## Stopped before
+Live-money / Stripe Connect verification — Stripe is test-mode and Dashboard
+config is deferred (`pending_stripe_live_money_testing.md`). Resolver math,
+RPC wiring, snapshot + ledger writes verified; no live charges attempted.
