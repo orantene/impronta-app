@@ -59,6 +59,7 @@ export function DirectoryReactiveGrid({
   columnsDesktop,
   columnsTablet,
   columnsMobile,
+  onFetchingChange,
 }: {
   taxonomyTermIds: string[];
   initialPage: DirectoryPageResponse;
@@ -88,6 +89,8 @@ export function DirectoryReactiveGrid({
   columnsDesktop: number;
   columnsTablet: number;
   columnsMobile: number;
+  /** Called whenever the filter-refetch-in-flight state changes. */
+  onFetchingChange?: (isFetching: boolean) => void;
 }) {
   const taxKey = [...taxonomyTermIds].sort().join(",");
   const ffKey = serializeDirectoryFieldFacetParams(fieldFacets).join("|");
@@ -212,6 +215,16 @@ export function DirectoryReactiveGrid({
   // only show skeletons when we have no items AND a fetch is in flight.
   const isInitialLoading = items.length === 0 && isFetching;
 
+  // Report filter-refetch-in-flight state to the parent toolbar so the
+  // result count dims while a filter change is loading (Task 4).
+  // Computed before early returns so the hook is always called.
+  const filterRefetchInFlight =
+    isFetching && !isFetchingNextPage && (isPlaceholderData || isRefetching);
+
+  useEffect(() => {
+    onFetchingChange?.(filterRefetchInFlight);
+  }, [filterRefetchInFlight, onFetchingChange]);
+
   if (status === "error" && items.length === 0) {
     return (
       <p className="text-sm text-[var(--impronta-muted)]" role="alert">
@@ -247,8 +260,7 @@ export function DirectoryReactiveGrid({
     );
   }
 
-  const filterRefetchBusy =
-    isFetching && !isFetchingNextPage && (isPlaceholderData || isRefetching);
+  const filterRefetchBusy = filterRefetchInFlight;
 
   return (
     <>

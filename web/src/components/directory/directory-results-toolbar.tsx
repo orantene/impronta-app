@@ -16,11 +16,13 @@ export function DirectoryResultsToolbar({
   sort,
   view,
   ui,
+  isFetching = false,
 }: {
   totalCount: number;
   sort: DirectorySortValue;
   view: DirectoryViewMode;
   ui: DirectoryUiCopy;
+  isFetching?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -43,7 +45,14 @@ export function DirectoryResultsToolbar({
     <div className="mb-4 space-y-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="text-sm tabular-nums text-white/70">
+          <span
+            className={cn(
+              "text-sm tabular-nums transition-opacity duration-150",
+              isFetching ? "text-white/30" : "text-white/70",
+            )}
+            aria-live="polite"
+            aria-label={isFetching ? "Updating result count…" : undefined}
+          >
             {formatResultsCount(ui, totalCount)}
           </span>
         </div>

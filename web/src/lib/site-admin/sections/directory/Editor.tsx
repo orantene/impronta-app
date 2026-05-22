@@ -825,6 +825,19 @@ export function DirectoryEditor({
                     { value: "talent_type", label: "Talent type" },
                   ]}
                 />
+                {(() => {
+                  const visibleFacetCount = liveCatalog.sidebar.itemOrder
+                    .filter((k) => k !== "__filter_search__")
+                    .filter(
+                      (k) =>
+                        liveCatalog.sidebar.fieldVisibilityOverrides[k] !== false,
+                    ).length;
+                  return visibleFacetCount > 8 ? (
+                    <p className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-400/90">
+                      {visibleFacetCount} filters will show to visitors — consider hiding low-signal ones so the sidebar stays scannable.
+                    </p>
+                  ) : null;
+                })()}
                 <LiveFieldVisibilityList
                   overrides={liveCatalog.sidebar.fieldVisibilityOverrides}
                   itemOrder={liveCatalog.sidebar.itemOrder}

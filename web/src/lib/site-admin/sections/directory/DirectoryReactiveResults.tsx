@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import {
@@ -27,6 +27,7 @@ import { DirectoryMobileFilters } from "@/components/directory/directory-mobile-
 import { DirectoryQueryProvider } from "@/components/directory/query-provider";
 
 import { AIInterpretChip } from "./AIInterpretChip";
+import { DirectoryActiveFilterChips } from "./DirectoryActiveFilterChips";
 import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
 import type { DirectoryV1 } from "./schema";
 
@@ -68,7 +69,7 @@ export function DirectoryReactiveResults({
   showSidebar,
   showSort,
   showResultCount,
-  showActiveChips: _showActiveChips,
+  showActiveChips,
   aiSearchEnabled = false,
   scopeLimitedHint,
   density,
@@ -132,6 +133,7 @@ export function DirectoryReactiveResults({
           showSidebar={showSidebar}
           showSort={showSort}
           showResultCount={showResultCount}
+          showActiveChips={showActiveChips}
           aiSearchEnabled={aiSearchEnabled}
           scopeLimitedHint={scopeLimitedHint}
           density={density}
@@ -178,6 +180,7 @@ function DirectoryReactiveResultsInner({
   showSidebar,
   showSort,
   showResultCount,
+  showActiveChips,
   aiSearchEnabled,
   scopeLimitedHint,
   density,
@@ -204,6 +207,7 @@ function DirectoryReactiveResultsInner({
   showSidebar: boolean;
   showSort: boolean;
   showResultCount: boolean;
+  showActiveChips: boolean;
   aiSearchEnabled: boolean;
   scopeLimitedHint?: string;
   density: DirectoryV1["density"];
@@ -271,6 +275,35 @@ function DirectoryReactiveResultsInner({
     record.ff,
   );
 
+  // B5 — label maps for the active-filter chips. Resolve term-ids /
+  // facet-value-ids → display labels by walking the same catalog data
+  // the pill bar + sidebar render from (topBarFacet + sidebarBlocks).
+  const { labelById, fieldLabelByKey } = useMemo(() => {
+    const labels: Record<string, string> = {};
+    const fieldLabels: Record<string, string> = {};
+    for (const opt of topBarFacet?.options ?? []) {
+      labels[opt.id] = opt.label;
+    }
+    for (const block of sidebarBlocks) {
+      if (block.kind !== "section") continue;
+      const section = block.section;
+      if ("options" in section) {
+        fieldLabels[section.fieldKey] = section.label;
+        for (const opt of section.options) {
+          labels[opt.id] = opt.label;
+        }
+      }
+    }
+    return { labelById: labels, fieldLabelByKey: fieldLabels };
+  }, [topBarFacet, sidebarBlocks]);
+
+  // Propagate grid refetch state up to the toolbar so the result count
+  // dims while a filter change is in flight (Task 4).
+  const [isGridFetching, setIsGridFetching] = useState(false);
+  const handleFetchingChange = useCallback((fetching: boolean) => {
+    setIsGridFetching(fetching);
+  }, []);
+
   // Side-effect-free: the legacy controls below call `usePathname()`
   // themselves and route through `commitDirectoryListingUrl`, which now
   // auto-detects basePath from pathname (`/p/...` stays on that path).
@@ -336,12 +369,29 @@ function DirectoryReactiveResultsInner({
             </div>
           ) : null}
 
+          {showActiveChips ? (
+            <DirectoryActiveFilterChips
+              taxonomyTermIds={taxonomyTermIds}
+              query={query}
+              locationSlug={locationSlug}
+              heightMinCm={heightMinCm}
+              heightMaxCm={heightMaxCm}
+              ageMin={ageMin}
+              ageMax={ageMax}
+              fieldFacets={fieldFacets}
+              labelById={labelById}
+              fieldLabelByKey={fieldLabelByKey}
+              ui={ui}
+            />
+          ) : null}
+
           {showSort || showResultCount ? (
             <DirectoryResultsToolbar
               totalCount={initialPage.totalCount ?? 0}
               sort={sort}
               view={view}
               ui={ui}
+              isFetching={isGridFetching}
             />
           ) : null}
 
@@ -362,6 +412,7 @@ function DirectoryReactiveResultsInner({
             directorySearchViaAi={aiSearchEnabled && query.trim().length > 0}
             cardStyle={cardStyle}
             cardAspect={cardAspect}
+            onFetchingChange={handleFetchingChange}
             show={{
               showName,
               showTalentType,
