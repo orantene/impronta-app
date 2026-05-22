@@ -18,35 +18,42 @@ the Free workspace Morena Studio (`e886a518-…-da26`).
 - **Any isolation leaks?** None. Across the entire DB, 0 participants and 0
   messages have a `tenant_id` differing from their parent inquiry.
 
-## CRITICAL BLOCKER — RLS infinite recursion (production-affecting)
+## CRITICAL — RLS infinite recursion (RESOLVED 2026-05-22)
 
-`infinite recursion detected in policy for relation "talent_profiles"`
-(Postgres `42P17`) fails **every authenticated read** of `talent_profiles` /
-`agency_talent_roster`, and by extension `inquiries` and
-`inquiry_participants` (their talent-participant SELECT policies subquery
+**Status: fixed.** `infinite recursion detected in policy for relation
+"talent_profiles"` (Postgres `42P17`) was failing **every authenticated read**
+of `talent_profiles` / `agency_talent_roster`, and by extension `inquiries`
+and `inquiry_participants` (their talent-participant SELECT policies subquery
 `talent_profiles`).
 
-Root cause: migration `20260522061318_talent_public_visibility.sql` (created
-today, **applied to the shared/production Supabase**, **not committed to
-`origin/main`** — another agent's uncommitted work) rewrote the
-`talent_select_public` policy to inline-subquery `agency_talent_roster`. That
-table already has `agency_talent_roster_talent_self_read` (migration
-`20260606100000`) which inline-subqueries `talent_profiles`. The two policies
-now reference each other → Postgres re-enters RLS on every hop → abort.
+Root cause: migration `20260522061318_talent_public_visibility.sql` (applied to
+the shared/production Supabase but **not committed to `main`** — another
+agent's uncommitted work) rewrote the `talent_select_public` policy to
+inline-subquery `agency_talent_roster`. That table already has
+`agency_talent_roster_talent_self_read` (migration `20260606100000`) which
+inline-subqueries `talent_profiles`. The two policies referenced each other →
+Postgres re-entered RLS on every hop → abort.
 
 Blast radius observed in the dev server: workspace roster, calendar, bookings,
 media, overview metrics, talent self-profile, **and inquiry-list reads**.
 
-Fix delivered (NOT applied — needs Oran's go-ahead, it is a production DB
-change): `supabase/migrations/20260925000000_fix_talent_rls_recursion.sql`
-moves the roster check into a `SECURITY DEFINER` function so
-`talent_select_public` no longer re-enters `agency_talent_roster` RLS. Same
-semantics, breaks every cycle. Apply with `npm run db:push` (or
-`npm run migrate:apply`).
+Fix: `supabase/migrations/20260925000000_fix_talent_rls_recursion.sql` moves
+the roster check into a `SECURITY DEFINER` function so `talent_select_public`
+no longer re-enters `agency_talent_roster` RLS. Same semantics, breaks every
+cycle. It also re-asserts `talent_profiles.is_publicly_hidden` with
+`ADD COLUMN IF NOT EXISTS` so it builds from scratch on `main` despite the
+un-merged drift migration.
 
-This blocked all in-browser QA of the workspace/admin/talent UI. Routing,
-isolation and thread fan-out below were verified at the engine + DB layer
-with a service-role client (bypasses RLS).
+- **Applied to the remote/production DB** (recorded as `20260925000000`).
+- **Merged to `main`** alongside this report.
+- **Verified:** as an `authenticated` role carrying the test user's JWT,
+  `talent_profiles` (27 rows), `agency_talent_roster` (56) and `inquiries`
+  (13) all read cleanly — no `42P17`.
+
+Note for the integrator: the drift migrations `20260522061318` and
+`20260924000000` are applied to remote but not on `main`; they should be
+committed to `main` by their owning agents so the migration history matches
+the live DB.
 
 ## What was verified
 
@@ -97,6 +104,10 @@ cross-tenant rows).
   (defence in depth).
 - Global DB leak check: **0** participants and **0** messages with a
   `tenant_id` differing from their parent inquiry.
+- **Live RLS check** (post-fix): with the test user's JWT as the
+  `authenticated` role, `inquiries` returns exactly **13** rows across
+  exactly **2** tenants — Impronta (12) + Morena Studio (1), the two
+  workspaces she belongs to. None of the 3 other test tenants leak through.
 - `npm run test:tenant-isolation`: 25/26 pass (the 1 failure —
   `surface-allow-list` `/api/directory` on the `app` host — is pre-existing
   on `origin/main`, already fixed in commit `94837ba74` ahead of it,
@@ -112,8 +123,8 @@ fired into the private thread for all three inquiries. Delivery NOT claimed.
 ## Issues found
 
 ### Critical
-- **RLS infinite recursion** (above). Blocks the workspace/admin/talent UI.
-  Fix migration delivered, not applied.
+- **RLS infinite recursion** (above) — **RESOLVED**: fix migration
+  `20260925000000` applied to the remote DB and merged to `main`.
 
 ### Important
 - **Talent-profile inquiry path is not roster-gated.** The public directory
@@ -135,11 +146,13 @@ fired into the private thread for all three inquiries. Delivery NOT claimed.
   context-free label on talent inquiry cards. Prefer the route tenant's
   display name.
 
-## Could NOT verify (blocked by the RLS recursion)
-- In-browser workspace/admin/talent dashboards, inquiry-list cards, message
-  surfaces, read/unread state, mobile-viewport layout. All require RLS-bound
-  reads of `talent_profiles` / `inquiries`. Re-run once the fix migration is
-  applied.
+## Not yet verified in-browser
+The RLS recursion that blocked it is now fixed, so these are unblocked for a
+follow-up pass (they were not re-run in this session after the fix landed):
+in-browser workspace/admin/talent dashboards, inquiry-list cards, message
+surfaces, read/unread state, mobile-viewport layout. The underlying routing,
+isolation, thread fan-out and notification generation are all verified above
+at the engine + DB layer.
 
 ## Test data left in the DB (QA artifacts)
 3 inquiries with `contact_name` prefixed `QAX-1779460891359` — 2 in Impronta,
