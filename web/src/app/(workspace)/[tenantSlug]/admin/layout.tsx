@@ -116,7 +116,7 @@ export default async function WorkspaceAdminLayout({
     websiteData,
     userNotifications,
   ] = await Promise.all([
-    loadWorkspaceRosterForCurrentTenant(),
+    loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
     loadWorkspaceClients(tenantId),
     loadCalendarEvents(tenantId),

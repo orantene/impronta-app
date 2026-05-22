@@ -513,9 +513,18 @@ function deriveHeightLabel(profile: {
 }
 
 /**
- * Load the workspace roster for the currently-scoped tenant. Phase 1
- * Acceptance test: Impronta owner on `impronta.tulala.digital` should
- * see all 29 active+pending Impronta roster rows.
+ * Load the workspace roster for a tenant. Phase 1 Acceptance test:
+ * Impronta owner on `impronta.tulala.digital` should see all 29
+ * active+pending Impronta roster rows.
+ *
+ * Tenant resolution: callers on `/{tenantSlug}/admin/*` routes MUST pass
+ * the slug-resolved `tenantId` (every sibling loader in the admin layout
+ * already does). Resolving the tenant from the cookie/header scope on a
+ * slug-based route leaks the user's *default* tenant's roster into a
+ * different workspace's UI — e.g. a hybrid talent who owns a second
+ * workspace would see her agency's roster inside her own studio. The
+ * no-arg fallback (cookie/header scope) is retained only for standalone
+ * callers that have no slug context.
  *
  * Returns `[]` when:
  *   - No tenant scope is resolvable (anonymous, no membership, or
@@ -527,12 +536,16 @@ function deriveHeightLabel(profile: {
  * shell, NOT the bridge. The bridge is a faithful "here is what live
  * data looks like" function.
  */
-export async function loadWorkspaceRosterForCurrentTenant(): Promise<
-  TalentProfile[]
-> {
+export async function loadWorkspaceRosterForCurrentTenant(
+  explicitTenantId?: string,
+): Promise<TalentProfile[]> {
   try {
-    const scope = await getTenantScope();
-    if (!scope) return [];
+    let tenantId = explicitTenantId ?? null;
+    if (!tenantId) {
+      const scope = await getTenantScope();
+      if (!scope) return [];
+      tenantId = scope.tenantId;
+    }
 
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
@@ -575,7 +588,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         )
         `,
       )
-      .eq("tenant_id", scope.tenantId)
+      .eq("tenant_id", tenantId)
       .neq("status", "removed")
       .order("created_at", { ascending: true });
 
