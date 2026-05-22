@@ -330,6 +330,9 @@ type Ctx = {
     email: string;
     role: string;
     displayName: string | null;
+    /** True when the user is a platform admin — gates the switcher's
+     *  "Platform" entry point to the HQ console. */
+    isPlatformAdmin?: boolean;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity

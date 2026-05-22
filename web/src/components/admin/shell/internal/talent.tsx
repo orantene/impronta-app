@@ -2,7 +2,7 @@
 
 import { useRef, type ReactNode } from "react";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
-import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, useAdminShell } from "./state";
+import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TALENT_TIER_META, TRANSITION, useAdminShell } from "./state";
 import { AgenciesPage } from "./talent/pages/AgenciesPage";
 import { CalendarPage } from "./talent/pages/CalendarPage";
 import { InboxPage } from "./talent/pages/InboxPage";
@@ -76,6 +76,19 @@ function TalentTopbar() {
   // WS-12.6 — roving tabindex on talent topbar page nav
   const talentNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(talentNavRef, "button", { orientation: "horizontal" });
+
+  // Current talent plan tier for the "Plan" nav badge. Phase 1: a real
+  // signed-in talent is Free (billing not live); the standalone
+  // prototype shows the demo fixture tier. When billing ships, resolve
+  // from `talent_plan_key` on the bridge profile instead.
+  const tier = bridgeTalentSelfProfile ? "free" : MY_TALENT_PROFILE.subscription.tier;
+  const tierLabel = TALENT_TIER_META[tier].label;
+  const planBadge =
+    tier === "max"
+      ? { bg: COLORS.fill, fg: "#fff", border: COLORS.fill }
+      : tier === "pro"
+        ? { bg: COLORS.accentSoft, fg: COLORS.accent, border: "rgba(15,79,62,0.28)" }
+        : { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted, border: "rgba(11,11,13,0.10)" };
 
   return (
     <header
@@ -152,6 +165,54 @@ function TalentTopbar() {
             );
           })}
         </nav>
+
+        {/* Plan — opens the talent tier-compare drawer. The badge shows
+            the current tier (Free / Pro / Max). Stays visible at every
+            breakpoint — it's a primary affordance, not secondary. */}
+        <button
+          type="button"
+          onClick={() => openDrawer("talent-tier-compare")}
+          data-tulala-talent-plan-nav
+          aria-label={`Plan — currently ${tierLabel}. Open plan comparison.`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "8px 12px",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 500,
+            color: COLORS.inkMuted,
+            letterSpacing: 0.1,
+            borderRadius: 7,
+            transition: `color ${TRANSITION.micro}`,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
+        >
+          Plan
+          <span
+            aria-hidden
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              padding: "2px 6px",
+              borderRadius: 999,
+              background: planBadge.bg,
+              color: planBadge.fg,
+              border: `1px solid ${planBadge.border}`,
+            }}
+          >
+            {tierLabel}
+          </span>
+        </button>
 
         {/* Preview public profile — secondary link on desktop only.
             Hidden on mobile because the topbar gets cramped and this

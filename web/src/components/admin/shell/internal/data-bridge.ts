@@ -259,6 +259,14 @@ export type BridgeData = {
     email: string;
     role: string; // membership role: 'owner' | 'admin' | 'coordinator' | etc.
     displayName: string | null;
+    /**
+     * True when the signed-in user holds a platform-level role
+     * (`profiles.platform_role` / legacy `app_role = 'super_admin'`).
+     * Drives the "Platform" entry point in the workspace switcher —
+     * the platform console is not a tenant, so it can't surface via
+     * `agency_memberships` like ordinary workspaces.
+     */
+    isPlatformAdmin?: boolean;
   } | null;
 
   // ── Media gallery + watermark (Agency tier) ────────────────────────────────

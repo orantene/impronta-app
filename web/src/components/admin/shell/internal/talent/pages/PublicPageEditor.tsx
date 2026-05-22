@@ -25,9 +25,9 @@ export function PublicPageEditor() {
     ?? profile.name.toLowerCase().replace(/\s+/g, "-");
   const [preview, setPreview] = useState(false);
 
-  const tier = profile.subscription?.tier ?? "basic";
-  const isPro  = tier === "pro"  || tier === "portfolio";
-  const isPort = tier === "portfolio";
+  const tier = profile.subscription?.tier ?? "free";
+  const isPro  = tier === "pro"  || tier === "max";
+  const isPort = tier === "max";
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 0" }}>
@@ -110,7 +110,7 @@ export function PublicPageEditor() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           {TALENT_PAGE_TEMPLATES.map((tpl) => {
-            const tierOrder: TalentSubscriptionTier[] = ["basic", "pro", "portfolio"];
+            const tierOrder: TalentSubscriptionTier[] = ["free", "pro", "max"];
             const locked = tierOrder.indexOf(tier) < tierOrder.indexOf(tpl.availableAt);
             return (
               <button
@@ -307,4 +307,3 @@ export function PublicPageEditor() {
     </div>
   );
 }
-

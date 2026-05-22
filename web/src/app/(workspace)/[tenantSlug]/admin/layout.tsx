@@ -11,6 +11,7 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
+import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { WorkspaceNotAvailableScreen } from "@/components/talent/workspace-not-available-screen";
 import {
@@ -161,6 +162,10 @@ export default async function WorkspaceAdminLayout({
     email: session.user.email ?? "",
     role: scope.membership.role,
     displayName: profileDisplayName,
+    // Platform admins get a "Platform" entry point in the workspace
+    // switcher — the HQ console isn't a tenant, so it can't surface
+    // through agency_memberships like ordinary workspaces.
+    isPlatformAdmin: isPlatformAdmin(session.profile),
   };
 
   return (

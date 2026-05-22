@@ -16,12 +16,12 @@ export function PersonalPageBand() {
   const { openDrawer, toast } = useAdminShell();
   const p = MY_TALENT_PROFILE;
   const sub = p.subscription;
-  // Phase 1.5: hard-code Basic for launch — no subscription field wired yet.
+  // Phase 1.5: hard-code Free for launch — no subscription field wired yet.
   // Phase 2: derive from real talent.subscription.tier once billing ships.
-  const tier: "basic" | "pro" | "portfolio" = "basic";
+  const tier: "free" | "pro" | "max" = "free";
 
-  // Basic talent: hide the full premium band and show a single "coming soon" card instead.
-  if (tier === "basic") {
+  // Free talent: hide the full premium band and show a single "coming soon" card instead.
+  if (tier === "free") {
     return (
       <div
         style={{
@@ -37,7 +37,7 @@ export function PersonalPageBand() {
       >
         <div className="flex-1 min-w-0">
           <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, marginBottom: 5 }} className="text-admin-indigo-deep">
-            Tulala Pro &amp; Portfolio — coming soon
+            Tulala Pro &amp; Max — coming soon
           </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.6, maxWidth: 520 }} className="text-admin-ink-muted">
             Richer templates, social &amp; video embeds, press band, downloadable media kit, and a custom
@@ -70,9 +70,9 @@ export function PersonalPageBand() {
     );
   }
 
-  // Pro / Portfolio talent: show the full premium band (unchanged).
-  // Cast needed because TypeScript narrows `tier` to `never` after the Basic early-return guard.
-  const resolvedTier = tier as "pro" | "portfolio";
+  // Pro / Max talent: show the full premium band (unchanged).
+  // Cast needed because TypeScript narrows `tier` to `never` after the Free early-return guard.
+  const resolvedTier = tier as "pro" | "max";
   const meta = TALENT_TIER_META[resolvedTier];
   const activeTemplate = TALENT_PAGE_TEMPLATES.find((t) => t.id === sub.template) ?? TALENT_PAGE_TEMPLATES[0];
   const allowEmbeds = tierAllows(resolvedTier, "media-embeds");
@@ -88,13 +88,13 @@ export function PersonalPageBand() {
         title={`Your personal Tulala page · ${meta.label}`}
         description={
           resolvedTier === "pro"
-            ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Portfolio."
+            ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Max."
             : "Full mini personal site. Multi-section page builder, custom domain, EPK kit, SEO controls, priority discover placement."
         }
         icon={<Icon name="globe" size={14} stroke={1.7} />}
-        affordance={resolvedTier === "portfolio" ? "Manage page" : "Compare tiers"}
+        affordance={resolvedTier === "max" ? "Manage page" : "Compare tiers"}
         onClick={() =>
-          resolvedTier === "portfolio" ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare")
+          resolvedTier === "max" ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare")
         }
       >
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, padding: "10px 12px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10 }} className="bg-admin-surface-alt">
@@ -181,7 +181,7 @@ export function PersonalPageBand() {
                   : "Connect your own domain — yourname.com → personal page."
                 : "Personal domain (yourname.com) routed straight to your Tulala page. Portfolio only."
             }
-            meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {sub.customDomain ? "Live" : "Not set"}</> : <LockedBadge requiredTier="portfolio" />}
+            meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {sub.customDomain ? "Live" : "Not set"}</> : <LockedBadge requiredTier="max" />}
             affordance={allowDomain ? "Manage domain" : "Unlock custom domain"}
             onClick={() => (allowDomain ? openDrawer("talent-custom-domain") : openDrawer("talent-tier-compare"))}
           />
@@ -192,7 +192,7 @@ export function PersonalPageBand() {
                 ? "Bio · About · Press · Tour dates · Show calendar · Contact CTA. Drag to re-order."
                 : "Multi-section page — story, tour dates, show calendar, contact CTA. Portfolio only."
             }
-            meta={allowExtraSections ? <><StatDot tone="green" /> 6 sections</> : <LockedBadge requiredTier="portfolio" />}
+            meta={allowExtraSections ? <><StatDot tone="green" /> 6 sections</> : <LockedBadge requiredTier="max" />}
             affordance={allowExtraSections ? "Edit sections" : "Unlock sections"}
             onClick={() => (allowExtraSections ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare"))}
           />
@@ -206,15 +206,15 @@ export function PersonalPageBand() {
 // ─── Atomic profile primitives (chips, rows, snippets) ──────────────
 
 /**
- * Tier pill shown on hero. Tone scales with tier — Basic ink, Pro
- * forest accent, Portfolio deep ink. Click opens the tier-compare drawer.
+ * Tier pill shown on hero. Tone scales with tier — Free ink, Pro
+ * forest accent, Max deep ink. Click opens the tier-compare drawer.
  */
 export function TierPill({ tier, onClick }: { tier: TalentSubscriptionTier; onClick: () => void }) {
   const meta = TALENT_TIER_META[tier];
   const palette: Record<TalentSubscriptionTier, { bg: string; fg: string; border: string }> = {
-    basic: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, border: "rgba(11,11,13,0.10)" },
+    free: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, border: "rgba(11,11,13,0.10)" },
     pro: { bg: COLORS.accentSoft, fg: COLORS.accent, border: "rgba(15,79,62,0.28)" },
-    portfolio: { bg: COLORS.royal, fg: "#fff", border: COLORS.royal },
+    max: { bg: COLORS.royal, fg: "#fff", border: COLORS.royal },
   };
   const c = palette[tier];
   return (
@@ -239,7 +239,7 @@ export function TierPill({ tier, onClick }: { tier: TalentSubscriptionTier; onCl
     >
       <span style={{ fontSize: 9, opacity: 0.85 }}>●</span>
       {meta.label} plan
-      {tier !== "portfolio" && (
+      {tier !== "max" && (
         <span style={{ fontSize: 10, marginLeft: 2, opacity: 0.7 }}>↗</span>
       )}
     </button>
@@ -260,9 +260,9 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
         alignItems: "center",
         gap: 4,
         padding: "2px 7px",
-        background: requiredTier === "portfolio" ? COLORS.fill : COLORS.accentSoft,
-        color: requiredTier === "portfolio" ? "#fff" : COLORS.accent,
-        border: `1px solid ${requiredTier === "portfolio" ? COLORS.accent : "rgba(15,79,62,0.28)"}`,
+        background: requiredTier === "max" ? COLORS.fill : COLORS.accentSoft,
+        color: requiredTier === "max" ? "#fff" : COLORS.accent,
+        border: `1px solid ${requiredTier === "max" ? COLORS.accent : "rgba(15,79,62,0.28)"}`,
         fontFamily: FONTS.body,
         fontSize: 10,
         fontWeight: 600,

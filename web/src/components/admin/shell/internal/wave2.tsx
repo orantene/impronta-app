@@ -872,7 +872,8 @@ const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
 };
 
 export function TenantSwitcherDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useAdminShell();
+  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const isPlatformAdmin = Boolean(bridgeSessionIdentity?.isPlatformAdmin);
   const open = state.drawer.drawerId === "tenant-switcher";
   const [realWorkspaces, setRealWorkspaces] = useState<UserWorkspace[]>([]);
   const [wsLoading, setWsLoading] = useState(false);
@@ -925,6 +926,50 @@ export function TenantSwitcherDrawer() {
       )}
     >
       <div className="flex flex-col gap-3.5">
+        {/* Platform section — only rendered for platform admins. The HQ
+            console is NOT a tenant, so it never appears in the
+            agency_memberships list below. Without this row a platform
+            admin has no in-product way to reach /platform/admin and has
+            to type the URL by hand. Styled dark to echo the HQ console's
+            own theme and read as a distinct surface, not a workspace. */}
+        {isPlatformAdmin && (
+          <section style={PLATFORM_SWITCHER_STYLES.section}>
+            <header style={PLATFORM_SWITCHER_STYLES.header}>
+              <span style={PLATFORM_SWITCHER_STYLES.eyebrow} className="text-admin-ink-muted">
+                Platform
+              </span>
+              <span style={PLATFORM_SWITCHER_STYLES.subhead} className="text-admin-ink-dim">
+                Tulala HQ — operate any tenant, users, billing, and network.
+              </span>
+            </header>
+            <button
+              type="button"
+              data-tulala-row
+              onClick={() => { closeDrawer(); window.location.href = "/platform/admin"; }}
+              style={PLATFORM_SWITCHER_STYLES.row}
+            >
+              <span style={PLATFORM_SWITCHER_STYLES.glyph}>
+                T
+              </span>
+              <div className="flex-1 min-w-0">
+                <div style={PLATFORM_SWITCHER_STYLES.titleRow}>
+                  <span style={PLATFORM_SWITCHER_STYLES.title}>
+                    Tulala HQ Console
+                  </span>
+                  <span style={PLATFORM_SWITCHER_STYLES.badge}>
+                    Super admin
+                  </span>
+                </div>
+                <div style={PLATFORM_SWITCHER_STYLES.caption}>
+                  Platform-wide operations console
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden style={PLATFORM_SWITCHER_STYLES.chevron}>
+                <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </section>
+        )}
         {wsLoading && (
           <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-dim">
             Loading workspaces…
