@@ -290,6 +290,7 @@ test("resolveTenantLocale returns supported locale passthrough", () => {
   const settings = {
     defaultLocale: "en" as const,
     supportedLocales: ["en", "es"] as const,
+    showLanguageSwitcher: true,
   };
   const r = resolveTenantLocale(settings, "es");
   assert.equal(r.locale, "es");
@@ -300,6 +301,7 @@ test("resolveTenantLocale falls back to default for unsupported", () => {
   const settings = {
     defaultLocale: "en" as const,
     supportedLocales: ["en"] as const,
+    showLanguageSwitcher: false,
   };
   const r = resolveTenantLocale(settings, "es");
   assert.equal(r.locale, "en");
@@ -310,6 +312,7 @@ test("resolveTenantLocale falls back to default for null/empty/invalid", () => {
   const settings = {
     defaultLocale: "en" as const,
     supportedLocales: ["en", "es"] as const,
+    showLanguageSwitcher: true,
   };
   for (const req of [null, undefined, "", "fr", "DE"]) {
     const r = resolveTenantLocale(settings, req);

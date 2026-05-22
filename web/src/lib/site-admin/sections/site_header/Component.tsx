@@ -57,6 +57,7 @@ async function renderRightZone(
         showDiscoveryTools={showDiscovery}
         availableLocales={localeSettings.supportedLocales}
         defaultLocale={localeSettings.defaultLocale}
+        showLanguageSwitcher={localeSettings.showLanguageSwitcher}
       />
     ) : null;
   }
@@ -501,13 +502,14 @@ export async function SiteHeaderComponent({
   });
   const tenantLocaleSettings = tenantId
     ? await loadTenantLocaleSettings(tenantId)
-    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const };
+    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const, showLanguageSwitcher: true };
   const bd = brandDisplay ?? "image-and-text";
   const showBrandImage = (bd === "image" || bd === "image-and-text") && !!brandLogoUrl;
   const showBrandText = (bd === "text" || bd === "image-and-text") && !!brand.label;
   const showAccount = authArea?.showAccountMenu ?? true;
   const showLanguage =
     (authArea?.showLanguageToggle ?? true) &&
+    tenantLocaleSettings.showLanguageSwitcher &&
     tenantLocaleSettings.supportedLocales.length > 1;
   const showDiscovery = authArea?.showDiscoveryTools ?? true;
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;

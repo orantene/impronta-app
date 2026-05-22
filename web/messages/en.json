@@ -376,19 +376,32 @@
           "all": "ALL"
         },
         "topBarPills": {
-          "all": "ALL"
+          "all": "ALL",
+          "more": "MORE",
+          "moreOptionsAria": "{label} more options",
+          "searchPlaceholder": "Search…",
+          "searchAria": "Search disciplines",
+          "noMatches": "No matches"
         },
         "taxonomyBarAria": "Filter by taxonomy",
         "card": {
           "available": "Available",
+          "availableFrom": "Available from {date}",
+          "availableDaysInNext30": "Available {count} days in next 30",
+          "availabilityUnknown": "Availability unknown — ask to confirm",
           "saveAria": "Save",
           "removeSaveAria": "Remove from saved",
+          "saveFavoriteAria": "Save to favorites",
+          "removeFavoriteAria": "Remove from favorites",
           "shareAria": "Share profile",
           "featuredAria": "Featured profile",
           "featuredLabel": "Featured",
           "livesInTitle": "Lives in: {location}",
           "viewPortfolio": "View Profile",
           "inquire": "Inquire",
+          "added": "Added ✓",
+          "favoriteUpdateFailed": "Could not update favorites",
+          "inquiryUpdateFailed": "Could not update inquiry",
           "quickPreview": "Quick preview",
           "aiMatchWhyAria": "Why this match",
           "aiDetailsOpenAria": "Open full AI match details",
@@ -429,6 +442,20 @@
         },
         "flash": {
           "dismissAria": "Dismiss message"
+        },
+        "favorites": {
+          "title": "Your saved talents",
+          "close": "Close",
+          "updateFailed": "Could not update favorites",
+          "hiddenUnavailable": "{count} hidden — they may no longer be available.",
+          "inquireAboutThese": "Inquire about these {count}",
+          "buildPortfolio": "Build your portfolio of talent →",
+          "clearAll": "Clear all",
+          "saveForever": "Save them forever — create a free account",
+          "listFollows": "and your list follows you.",
+          "removeTalent": "Remove {name}",
+          "emptyTitle": "No favorites yet",
+          "emptyDescription": "Tap the bookmark on any talent card to save them here. Your list stays with you across sessions."
         }
       }
     },
@@ -566,6 +593,17 @@
     "impersonationV1ReadOnlyQa": "v1 read-only QA mode — saves and mutations are disabled.",
     "returnToAdmin": "Return to admin",
     "readOnlyBadge": "Read only",
+    "clientNav": {
+      "messages": "Messages",
+      "today": "Today",
+      "discover": "Discover",
+      "favorites": "Favorites",
+      "shortlists": "Shortlists",
+      "pitches": "Pitches",
+      "inquiries": "Inquiries",
+      "bookings": "Bookings",
+      "settings": "Settings"
+    },
     "clientOverview": {
       "title": "Overview",
       "subtitle": "Jump into each area of your portal — the workspace bar above keeps directory and cart one tap away.",

@@ -49,7 +49,7 @@ export default async function AuthLayout({
   const localeSettings =
     ctx.kind === "agency" || ctx.kind === "hub"
       ? await loadTenantLocaleSettings(ctx.tenantId)
-      : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const };
+      : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const, showLanguageSwitcher: true };
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
 
@@ -71,6 +71,7 @@ export default async function AuthLayout({
           pathnameWithoutLocale={pathnameWithoutLocale}
           availableLocales={localeSettings.supportedLocales}
           defaultLocale={localeSettings.defaultLocale}
+          showLanguageSwitcher={localeSettings.showLanguageSwitcher}
         />
       </div>
     </div>

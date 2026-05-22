@@ -414,8 +414,14 @@ function LanguageLocalizationSection({ detail, defaultOpen }: SectionProps) {
           v={
             language.switcherStatus === "shown"
               ? "Shown when visitors can choose EN/ES"
-              : "Hidden because only one language is active"
+              : activeLocales.length > 1
+                ? "Hidden by tenant preference"
+                : "Hidden because only one language is active"
           }
+        />
+        <KV
+          k="Switcher preference"
+          v={language.showLanguageSwitcher ? "Show when bilingual" : "Hidden"}
         />
         <KV
           k="Settings mode"

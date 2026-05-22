@@ -236,6 +236,7 @@ const updateWorkspaceFieldsSchema = z
     timezone: z.string().max(60).optional(), // e.g. "America/Cancun"
     default_locale: localeSchema.optional(),
     active_locales: supportedLocalesSchema.optional(),
+    show_language_switcher: z.boolean().optional(),
     /** @deprecated use default_locale; kept so older clients fail safe. */
     primary_locale: localeSchema.optional(),
   })
@@ -303,13 +304,18 @@ export async function updateWorkspaceFields(
   }
 
   const requestedDefaultLocale = v.default_locale ?? v.primary_locale;
-  if (requestedDefaultLocale || v.active_locales) {
+  if (
+    requestedDefaultLocale ||
+    v.active_locales ||
+    v.show_language_switcher !== undefined
+  ) {
     const languageResult = await updateCanonicalWorkspaceLanguageSettings({
       supabase,
       tenantId,
       actorProfileId: auth.user.id,
       defaultLocale: requestedDefaultLocale,
       activeLocales: v.active_locales,
+      showLanguageSwitcher: v.show_language_switcher,
     });
     if (!languageResult.ok) return languageResult;
   }
@@ -324,12 +330,14 @@ async function updateCanonicalWorkspaceLanguageSettings({
   actorProfileId,
   defaultLocale,
   activeLocales,
+  showLanguageSwitcher,
 }: {
   supabase: SupabaseClient;
   tenantId: string;
   actorProfileId: string;
   defaultLocale?: Locale;
   activeLocales?: readonly Locale[];
+  showLanguageSwitcher?: boolean;
 }): Promise<UpdateBrandingResult> {
   const { data: agency, error: agencyError } = await supabase
     .from("agencies")
@@ -346,7 +354,7 @@ async function updateCanonicalWorkspaceLanguageSettings({
     "agency_business_identity",
     tenantId,
   )
-    .select("public_name, default_locale, supported_locales, version")
+    .select("public_name, default_locale, supported_locales, show_language_switcher, version")
     .maybeSingle();
   if (currentError) {
     logServerError("admin-workspace-settings.language.identity.read", currentError);
@@ -357,6 +365,7 @@ async function updateCanonicalWorkspaceLanguageSettings({
     public_name?: string | null;
     default_locale?: string | null;
     supported_locales?: unknown;
+    show_language_switcher?: boolean | null;
     version?: number | null;
   } | null;
   const currentLocales = Array.isArray(currentIdentity?.supported_locales)
@@ -395,6 +404,8 @@ async function updateCanonicalWorkspaceLanguageSettings({
     public_name: publicName,
     default_locale: nextDefault,
     supported_locales: nextActive,
+    show_language_switcher:
+      showLanguageSwitcher ?? currentIdentity?.show_language_switcher ?? true,
     updated_by: actorProfileId,
     version: nextVersion,
   };
@@ -560,6 +571,7 @@ export type AgencyAccountSettings = {
   primaryLocale: string | null;
   defaultLocale: Locale;
   activeLocales: Locale[];
+  showLanguageSwitcher: boolean;
   preferredCurrency: string | null;
 };
 
@@ -579,7 +591,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
     .eq("id", tenantId)
     .single(),
     tenantScopedQuery(supabase, "agency_business_identity", tenantId)
-      .select("default_locale, supported_locales")
+      .select("default_locale, supported_locales, show_language_switcher")
       .maybeSingle(),
   ]);
 
@@ -597,6 +609,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
   const identityRow = identity as {
     default_locale?: string | null;
     supported_locales?: unknown;
+    show_language_switcher?: boolean | null;
   } | null;
   const identityLocales = Array.isArray(identityRow?.supported_locales)
     ? identityRow.supported_locales.filter(isLocale)
@@ -612,6 +625,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
   const defaultLocale = isLocale(identityRow?.default_locale)
     ? identityRow.default_locale
     : activeLocales[0] ?? DEFAULT_PLATFORM_LOCALE;
+  const showLanguageSwitcher = identityRow?.show_language_switcher ?? true;
 
   return {
     ok: true,
@@ -622,6 +636,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
       primaryLocale:     defaultLocale,
       defaultLocale,
       activeLocales,
+      showLanguageSwitcher,
       preferredCurrency: typeof agency?.preferred_currency === "string" ? agency.preferred_currency : null,
     },
   };

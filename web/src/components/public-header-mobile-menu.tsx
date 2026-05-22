@@ -68,6 +68,7 @@ interface Props {
   closeMenuLabel?: string;
   availableLocales?: readonly Locale[];
   defaultLocale?: Locale;
+  showLanguageSwitcher?: boolean;
   /** C2 — role-specific dashboard nav links rendered below site links. */
   roleNavLinks?: MobileMenuRoleNavLink[];
   /** C4 — signed-in user identity for the identity block + dashboard shortcut. */
@@ -88,6 +89,7 @@ export function PublicHeaderMobileMenu({
   closeMenuLabel = "Close menu",
   availableLocales = ["en", "es"],
   defaultLocale = "en",
+  showLanguageSwitcher = true,
   roleNavLinks,
   userIdentity,
   signOutAction,
@@ -246,6 +248,7 @@ export function PublicHeaderMobileMenu({
               pathnameWithoutLocale={pathnameWithoutLocale}
               availableLocales={availableLocales}
               defaultLocale={defaultLocale}
+              showLanguageSwitcher={showLanguageSwitcher}
               onPick={() => setOpen(false)}
             />
             {utilityContent ? (
@@ -292,18 +295,20 @@ function LanguageRow({
   pathnameWithoutLocale,
   availableLocales,
   defaultLocale,
+  showLanguageSwitcher,
   onPick,
 }: {
   locale: Locale;
   pathnameWithoutLocale: string;
   availableLocales: readonly Locale[];
   defaultLocale: Locale;
+  showLanguageSwitcher: boolean;
   onPick: () => void;
 }) {
   const localeOptions = Array.from(
     new Set([defaultLocale, ...availableLocales].filter(Boolean)),
   );
-  if (localeOptions.length <= 1) return null;
+  if (!showLanguageSwitcher || localeOptions.length <= 1) return null;
 
   const pathSettings = {
     ...FALLBACK_LANGUAGE_SETTINGS,

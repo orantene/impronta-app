@@ -163,7 +163,7 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
       .in("tenant_id", ids),
     sb
       .from("agency_business_identity")
-      .select("tenant_id, default_locale, supported_locales")
+      .select("tenant_id, default_locale, supported_locales, show_language_switcher")
       .in("tenant_id", ids),
   ]);
 
@@ -269,16 +269,13 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
     list.push({ hostname: d.hostname, kind: d.kind, is_primary: d.is_primary });
     domainsByTenant.set(d.tenant_id, list);
   }
-  const languageByTenant = new Map<string, { default_locale: string | null; supported_locales: string[] | null }>();
+  const languageByTenant = new Map<string, {
+    default_locale: string | null; supported_locales: string[] | null; show_language_switcher: boolean | null;
+  }>();
   for (const row of (identityRes.data ?? []) as Array<{
-    tenant_id: string;
-    default_locale: string | null;
-    supported_locales: string[] | null;
+    tenant_id: string; default_locale: string | null; supported_locales: string[] | null; show_language_switcher: boolean | null;
   }>) {
-    languageByTenant.set(row.tenant_id, {
-      default_locale: row.default_locale,
-      supported_locales: row.supported_locales,
-    });
+    languageByTenant.set(row.tenant_id, row);
   }
 
   return (agencies as Array<{
@@ -310,6 +307,7 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
       ? lang.supported_locales
       : ["en"];
     const defaultLocale = lang?.default_locale ?? activeLocales[0] ?? "en";
+    const showLanguageSwitcher = lang?.show_language_switcher ?? true;
     return {
       id: r.id,
       name: r.display_name ?? r.slug,
@@ -328,8 +326,10 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
       hasActiveOverride: overrideByTenant.has(r.id),
       overrideExpiresAt: overrideByTenant.get(r.id) ?? null,
       languageSummary:
-        activeLocales.length > 1
+        activeLocales.length > 1 && showLanguageSwitcher
           ? `${defaultLocale.toUpperCase()} default · ${activeLocales.map((l) => l.toUpperCase()).join("/")}`
+          : activeLocales.length > 1
+            ? `${defaultLocale.toUpperCase()} default · switcher off`
           : `${defaultLocale.toUpperCase()} only`,
       publicUrl: urls.publicSite,
       adminUrl: urls.adminDashboard,
@@ -387,6 +387,7 @@ export type TenantManagementDetail = {
     defaultLocale: string;
     activeLocales: string[];
     switcherStatus: "shown" | "hidden";
+    showLanguageSwitcher: boolean;
     mode: "tenant-managed" | "fallback";
     updatedAt: string | null;
     updatedAtLabel: string;
@@ -544,7 +545,7 @@ export async function loadTenantManagementDetail(
       .eq("tenant_id", tenantId),
     sb
       .from("agency_business_identity")
-      .select("default_locale, supported_locales, updated_at")
+      .select("default_locale, supported_locales, show_language_switcher, updated_at")
       .eq("tenant_id", tenantId)
       .maybeSingle(),
   ]);
@@ -679,6 +680,7 @@ export async function loadTenantManagementDetail(
   const identity = identityRes.data as {
     default_locale: string | null;
     supported_locales: string[] | null;
+    show_language_switcher: boolean | null;
     updated_at: string | null;
   } | null;
   const activeLocales =
@@ -686,6 +688,7 @@ export async function loadTenantManagementDetail(
       ? identity.supported_locales
       : ["en"];
   const defaultLocale = identity?.default_locale ?? activeLocales[0] ?? "en";
+  const showLanguageSwitcher = identity?.show_language_switcher ?? true;
 
   return {
     id: agency.id,
@@ -717,7 +720,9 @@ export async function loadTenantManagementDetail(
     language: {
       defaultLocale,
       activeLocales,
-      switcherStatus: activeLocales.length > 1 ? "shown" : "hidden",
+      switcherStatus:
+        activeLocales.length > 1 && showLanguageSwitcher ? "shown" : "hidden",
+      showLanguageSwitcher,
       mode: identity ? "tenant-managed" : "fallback",
       updatedAt: identity?.updated_at ?? null,
       updatedAtLabel: formatDate(identity?.updated_at),

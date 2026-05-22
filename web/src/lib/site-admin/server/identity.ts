@@ -56,6 +56,7 @@ export interface IdentityRow {
   social_x: string | null;
   default_locale: string;
   supported_locales: string[];
+  show_language_switcher: boolean;
   seo_default_title: string | null;
   seo_default_description: string | null;
   seo_default_share_image_media_asset_id: string | null;
@@ -88,6 +89,7 @@ const IDENTITY_SELECT = `
   social_x,
   default_locale,
   supported_locales,
+  show_language_switcher,
   seo_default_title,
   seo_default_description,
   seo_default_share_image_media_asset_id,
@@ -121,7 +123,7 @@ function toDbValues(
   values: IdentityFormValues,
   tenantId: string,
   actorProfileId: string | null,
-): Omit<IdentityRow, "version" | "created_at" | "updated_at"> {
+): Omit<IdentityRow, "version" | "created_at" | "updated_at" | "show_language_switcher"> {
   return {
     tenant_id: tenantId,
     public_name: values.publicName,

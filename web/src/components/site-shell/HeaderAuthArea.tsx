@@ -50,6 +50,7 @@ interface Props {
   showDiscoveryTools: boolean;
   availableLocales?: readonly Locale[];
   defaultLocale?: Locale;
+  showLanguageSwitcher?: boolean;
 }
 
 export async function HeaderAuthArea({
@@ -59,6 +60,7 @@ export async function HeaderAuthArea({
   showDiscoveryTools,
   availableLocales = ["en", "es"],
   defaultLocale = "en",
+  showLanguageSwitcher = true,
 }: Props) {
   if (!showAccountMenu && !showLanguageToggle && !showDiscoveryTools) {
     return null;
@@ -107,6 +109,7 @@ export async function HeaderAuthArea({
           pathnameWithoutLocale={pathnameWithoutLocale}
           availableLocales={availableLocales}
           defaultLocale={defaultLocale}
+          showLanguageSwitcher={showLanguageSwitcher}
         />
       ) : null}
       {showDiscoveryTools ? (

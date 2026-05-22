@@ -651,6 +651,7 @@ export type Database = {
           seo_default_share_image_media_asset_id: string | null
           seo_default_title: string | null
           service_area: string | null
+          show_language_switcher: boolean
           social_facebook: string | null
           social_instagram: string | null
           social_linkedin: string | null
@@ -681,6 +682,7 @@ export type Database = {
           seo_default_share_image_media_asset_id?: string | null
           seo_default_title?: string | null
           service_area?: string | null
+          show_language_switcher?: boolean
           social_facebook?: string | null
           social_instagram?: string | null
           social_linkedin?: string | null
@@ -711,6 +713,7 @@ export type Database = {
           seo_default_share_image_media_asset_id?: string | null
           seo_default_title?: string | null
           service_area?: string | null
+          show_language_switcher?: boolean
           social_facebook?: string | null
           social_instagram?: string | null
           social_linkedin?: string | null

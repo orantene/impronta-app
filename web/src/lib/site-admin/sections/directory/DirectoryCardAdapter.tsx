@@ -8,13 +8,12 @@ import { setTalentFavorited, setTalentSaved } from "@/app/(public)/directory/act
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import { createTranslator } from "@/i18n/messages";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 
 import { DirectoryCard } from "./DirectoryCard";
-import {
-  AVAILABILITY_UNKNOWN,
-  type DirectoryCardData,
-} from "./card-data";
+import type { DirectoryCardData } from "./card-data";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -60,12 +59,14 @@ export function DirectoryCardAdapter({
   index?: number;
 }) {
   const pathname = usePathname();
+  const { locale } = stripLocaleFromPathname(pathname);
+  const t = createTranslator(locale);
   const discovery = usePublicDiscoveryStateOptional();
   const inquiryModal = useOptionalDirectoryInquiryModal();
   const [favPending, startFavTransition] = useTransition();
   const [cartPending, startCartTransition] = useTransition();
 
-  const data = mapDtoToCardData(card, pathname);
+  const data = mapDtoToCardData(card, pathname, locale);
 
   const style: "portrait" | "editorial" =
     cardStyle === "editorial" ? "editorial" : "portrait";
@@ -101,7 +102,7 @@ export function DirectoryCardAdapter({
         discovery.setFavoriteState(card.id, !next);
         discovery.setFlash({
           tone: "error",
-          title: "Could not update favorites",
+          title: t("public.directory.ui.card.favoriteUpdateFailed"),
           message: res.error,
         });
       }
@@ -119,7 +120,7 @@ export function DirectoryCardAdapter({
         discovery.setSavedState(card.id, !next);
         discovery.setFlash({
           tone: "error",
-          title: "Could not update inquiry",
+          title: t("public.directory.ui.card.inquiryUpdateFailed"),
           message: res.error,
         });
         return;
@@ -149,7 +150,11 @@ export function DirectoryCardAdapter({
           onClick={toggleFavorite}
           disabled={favPending}
           aria-pressed={favorited}
-          aria-label={favorited ? "Remove from favorites" : "Save to favorites"}
+          aria-label={
+            favorited
+              ? t("public.directory.ui.card.removeFavoriteAria")
+              : t("public.directory.ui.card.saveFavoriteAria")
+          }
           className={
             "absolute right-2.5 top-2.5 z-[2] inline-flex size-9 items-center justify-center rounded-full backdrop-blur-md outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 " +
             (favorited
@@ -177,7 +182,7 @@ export function DirectoryCardAdapter({
         data-card-inquiry-toggle
         data-in-cart={inCart ? "true" : "false"}
       >
-        {inCart ? "Added ✓" : "Inquire"}
+        {inCart ? t("public.directory.ui.card.added") : t("public.directory.ui.card.inquire")}
       </button>
     </div>
   );
@@ -186,12 +191,13 @@ export function DirectoryCardAdapter({
 function mapDtoToCardData(
   card: DirectoryCardDTO,
   pathname: string,
+  locale: string,
 ): DirectoryCardData {
   const profileHref = card.profileCode
     ? clientLocaleHref(pathname, `/t/${encodeURIComponent(card.profileCode)}`)
     : "";
 
-  const availability = formatAvailability(card);
+  const availability = formatAvailability(card, locale);
 
   return {
     id: card.id,
@@ -209,18 +215,22 @@ function mapDtoToCardData(
   };
 }
 
-function formatAvailability(card: DirectoryCardDTO): {
+function formatAvailability(card: DirectoryCardDTO, locale: string): {
   label: string;
   known: boolean;
 } {
+  const t = createTranslator(locale);
   if (card.nextAvailableDate) {
     const d = new Date(`${card.nextAvailableDate}T00:00:00`);
     if (!Number.isNaN(d.getTime())) {
-      const when = d.toLocaleDateString("en", {
+      const when = d.toLocaleDateString(locale === "es" ? "es" : "en", {
         month: "short",
         day: "numeric",
       });
-      return { label: `Available from ${when}`, known: true };
+      return {
+        label: t("public.directory.ui.card.availableFrom").replace("{date}", when),
+        known: true,
+      };
     }
   }
   if (
@@ -228,9 +238,12 @@ function formatAvailability(card: DirectoryCardDTO): {
     card.availableDaysInNext30 > 0
   ) {
     return {
-      label: `Available ${card.availableDaysInNext30} days in next 30`,
+      label: t("public.directory.ui.card.availableDaysInNext30").replace(
+        "{count}",
+        String(card.availableDaysInNext30),
+      ),
       known: true,
     };
   }
-  return { label: AVAILABILITY_UNKNOWN, known: false };
+  return { label: t("public.directory.ui.card.availabilityUnknown"), known: false };
 }

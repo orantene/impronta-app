@@ -104,7 +104,7 @@ export async function PublicHeader() {
 
   const tenantLocaleSettings = tenantIdForIdentity
     ? await loadTenantLocaleSettings(tenantIdForIdentity)
-    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const };
+    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const, showLanguageSwitcher: true };
 
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
@@ -368,6 +368,7 @@ export async function PublicHeader() {
             pathnameWithoutLocale={pathnameWithoutLocale}
             availableLocales={tenantLocaleSettings.supportedLocales}
             defaultLocale={tenantLocaleSettings.defaultLocale}
+            showLanguageSwitcher={tenantLocaleSettings.showLanguageSwitcher}
             brandLabel={brandLabel}
             ctaLabel={showCtaInMobileMenu ? ctaLabel : null}
             ctaHref={showCtaInMobileMenu && ctaHref ? headerHref(ctaHref) : null}
@@ -498,6 +499,7 @@ export async function PublicHeader() {
             pathnameWithoutLocale={pathnameWithoutLocale}
             availableLocales={tenantLocaleSettings.supportedLocales}
             defaultLocale={tenantLocaleSettings.defaultLocale}
+            showLanguageSwitcher={tenantLocaleSettings.showLanguageSwitcher}
           />
           <PublicHeaderDiscoveryTools
             initialFavoritesCount={favoriteIds.length}

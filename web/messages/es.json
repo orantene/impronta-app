@@ -376,19 +376,32 @@
           "all": "TODOS"
         },
         "topBarPills": {
-          "all": "TODOS"
+          "all": "TODOS",
+          "more": "MÁS",
+          "moreOptionsAria": "Más opciones de {label}",
+          "searchPlaceholder": "Buscar…",
+          "searchAria": "Buscar disciplinas",
+          "noMatches": "Sin coincidencias"
         },
         "taxonomyBarAria": "Filtrar por taxonomía",
         "card": {
           "available": "Disponible",
+          "availableFrom": "Disponible desde {date}",
+          "availableDaysInNext30": "Disponible {count} días en los próximos 30",
+          "availabilityUnknown": "Disponibilidad no confirmada — consulta para confirmar",
           "saveAria": "Guardar",
           "removeSaveAria": "Quitar de guardados",
+          "saveFavoriteAria": "Guardar en favoritos",
+          "removeFavoriteAria": "Quitar de favoritos",
           "shareAria": "Compartir perfil",
           "featuredAria": "Perfil destacado",
           "featuredLabel": "Destacado",
           "livesInTitle": "Vive en: {location}",
           "viewPortfolio": "Ver perfil",
           "inquire": "Consultar",
+          "added": "Añadido ✓",
+          "favoriteUpdateFailed": "No se pudieron actualizar los favoritos",
+          "inquiryUpdateFailed": "No se pudo actualizar la consulta",
           "quickPreview": "Vista rápida",
           "aiMatchWhyAria": "Por qué coincide",
           "aiDetailsOpenAria": "Abrir detalles completos del encaje IA",
@@ -429,6 +442,20 @@
         },
         "flash": {
           "dismissAria": "Cerrar mensaje"
+        },
+        "favorites": {
+          "title": "Talentos guardados",
+          "close": "Cerrar",
+          "updateFailed": "No se pudieron actualizar los favoritos",
+          "hiddenUnavailable": "{count} ocultos — quizá ya no estén disponibles.",
+          "inquireAboutThese": "Consultar sobre estos {count}",
+          "buildPortfolio": "Crear tu portafolio de talento →",
+          "clearAll": "Borrar todo",
+          "saveForever": "Guárdalos para siempre — crea una cuenta gratis",
+          "listFollows": "y tu lista te acompaña.",
+          "removeTalent": "Quitar {name}",
+          "emptyTitle": "Aún no tienes favoritos",
+          "emptyDescription": "Toca el marcador en cualquier tarjeta de talento para guardarlo aquí. Tu lista se mantiene entre sesiones."
         }
       }
     },
@@ -566,6 +593,17 @@
     "impersonationV1ReadOnlyQa": "Modo QA v1 solo lectura: guardados y cambios están desactivados.",
     "returnToAdmin": "Volver al admin",
     "readOnlyBadge": "Solo lectura",
+    "clientNav": {
+      "messages": "Mensajes",
+      "today": "Hoy",
+      "discover": "Descubrir",
+      "favorites": "Favoritos",
+      "shortlists": "Selecciones",
+      "pitches": "Propuestas",
+      "inquiries": "Consultas",
+      "bookings": "Reservas",
+      "settings": "Ajustes"
+    },
     "clientOverview": {
       "title": "Resumen",
       "subtitle": "Accede a cada área de tu portal — la barra superior mantiene el directorio y el carrito a un toque.",

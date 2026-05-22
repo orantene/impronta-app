@@ -207,6 +207,7 @@ async function DirectoryDiscoverInner({
           selectedIds={taxonomyTermIds}
           allLabel={ui.topBarPills.all}
           barAriaLabel={filterSidebar.topBarFacet.label}
+          overflowCopy={ui.topBarPills}
         />
       ) : null}
       <div className="flex gap-8">

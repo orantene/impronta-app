@@ -20,12 +20,14 @@ export function PublicLanguageToggle({
   pathnameWithoutLocale,
   availableLocales = ["en", "es"],
   defaultLocale = "en",
+  showLanguageSwitcher = true,
 }: {
   className?: string;
   activeLocale: Locale;
   pathnameWithoutLocale: string;
   availableLocales?: readonly Locale[];
   defaultLocale?: Locale;
+  showLanguageSwitcher?: boolean;
 }) {
   const search = useSearchParams();
   const qs = search?.toString();
@@ -33,7 +35,7 @@ export function PublicLanguageToggle({
   const locales = Array.from(
     new Set([defaultLocale, ...availableLocales].filter(Boolean)),
   );
-  if (locales.length <= 1) return null;
+  if (!showLanguageSwitcher || locales.length <= 1) return null;
 
   const pathSettings = {
     ...FALLBACK_LANGUAGE_SETTINGS,

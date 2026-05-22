@@ -53,13 +53,6 @@ function initials(name: string): string {
     .join("");
 }
 
-function userDisplayName(email: string | null | undefined, meta: Record<string, unknown> | undefined): string {
-  if (meta?.full_name && typeof meta.full_name === "string") return meta.full_name;
-  if (meta?.name && typeof meta.name === "string") return meta.name;
-  if (email) return email.split("@")[0].replace(/[._-]/g, " ");
-  return "You";
-}
-
 export default async function ClientLayout({
   children,
   params,
@@ -102,10 +95,6 @@ export default async function ClientLayout({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const userName = userDisplayName(
-    session.user.email,
-    session.user.user_metadata as Record<string, unknown> | undefined,
-  );
   const userInitials = initials(clientProfile.displayName);
 
   return (
@@ -281,7 +270,7 @@ export default async function ClientLayout({
                   color: C.accent,
                 }}
               >
-                Client
+                {t("dashboard.roleClient")}
               </span>
             </div>
 
@@ -307,15 +296,15 @@ export default async function ClientLayout({
                   letterSpacing: 0.1,
                 }}
               >
-                Client
+                {t("dashboard.roleClient")}
               </div>
 
               {/* Sign-out */}
               <form action={signOut}>
                 <button
                   type="submit"
-                  title="Sign out"
-                  aria-label="Sign out"
+                  title={t("dashboard.signOut")}
+                  aria-label={t("dashboard.signOut")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -339,7 +328,7 @@ export default async function ClientLayout({
         </header>
 
         {/* ── Bar 2: Client nav topbar ── */}
-        <ClientTopbar tenantSlug={tenantSlug} />
+        <ClientTopbar tenantSlug={tenantSlug} locale={locale} />
 
         {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
         <ClientKeyboardShortcuts tenantSlug={tenantSlug} labels={keyboardLabels} />
