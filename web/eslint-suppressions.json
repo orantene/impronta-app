@@ -114,9 +114,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 13
-    },
-    "react-hooks/purity": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/drawers/UpgradeModal.tsx": {
@@ -259,12 +256,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 113
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
-    },
-    "react-hooks/refs": {
-      "count": 8
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-drawer.tsx": {
@@ -360,9 +351,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 11
-    },
-    "react-hooks/purity": {
-      "count": 2
     }
   },
   "src/components/admin/shell/internal/live-category-fields-editor.tsx": {
@@ -392,9 +380,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 224
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/messages/AdminOperationsShell.tsx": {
@@ -706,9 +691,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 67
-    },
-    "react-hooks/purity": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/platform.tsx": {
@@ -871,9 +853,6 @@
     }
   },
   "src/components/admin/shell/internal/skill-overrides-panel.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    },
     "ratchet/no-new-inline-style": {
       "count": 27
     }
@@ -894,9 +873,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 9
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
     }
   },
   "src/components/admin/shell/internal/skill-verify-dialog.tsx": {
@@ -909,7 +885,7 @@
       "count": 1
     },
     "ratchet/no-new-hook-deps-disable": {
-      "count": 2
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/state/fixtures.ts": {
@@ -1217,15 +1193,6 @@
   "src/components/edit-chrome/edit-context.tsx": {
     "max-lines": {
       "count": 1
-    },
-    "react-hooks/immutability": {
-      "count": 2
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 10
-    },
-    "react-hooks/refs": {
-      "count": 4
     }
   },
   "src/components/edit-chrome/edit-shell.tsx": {
@@ -1244,9 +1211,6 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 2
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
     }
   },
   "src/components/edit-chrome/inspectors/builder-node-content.tsx": {
@@ -1272,9 +1236,6 @@
   "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": {
     "max-lines": {
       "count": 1
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "src/components/edit-chrome/inspectors/style-panel.tsx": {
@@ -1284,9 +1245,6 @@
   },
   "src/components/edit-chrome/navigator-panel.tsx": {
     "max-lines": {
-      "count": 1
-    },
-    "react-hooks/immutability": {
       "count": 1
     }
   },
@@ -1303,9 +1261,6 @@
   "src/components/edit-chrome/rich-editor/CanvasEditOverlay.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
-    },
-    "react-hooks/immutability": {
-      "count": 1
     }
   },
   "src/components/edit-chrome/selection-layer.tsx": {
@@ -1314,9 +1269,6 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 5
-    },
-    "react-hooks/refs": {
-      "count": 3
     }
   },
   "src/components/edit-chrome/theme-drawer.tsx": {
@@ -1326,11 +1278,6 @@
   },
   "src/components/edit-chrome/topbar.tsx": {
     "max-lines": {
-      "count": 1
-    }
-  },
-  "src/components/home/hero-search.tsx": {
-    "react-hooks/refs": {
       "count": 1
     }
   },
@@ -1350,17 +1297,11 @@
     },
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
-    },
-    "react-hooks/refs": {
-      "count": 1
     }
   },
   "src/components/marketing/get-started-form.tsx": {
     "ratchet/no-new-hook-deps-disable": {
       "count": 1
-    },
-    "react-hooks/refs": {
-      "count": 12
     }
   },
   "src/components/media/photo-lightbox.tsx": {
