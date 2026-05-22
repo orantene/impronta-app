@@ -393,7 +393,7 @@ export function InquiryDrawer({
               onRemoveTalent={removeTalentFromCart}
             />
           ) : (
-            <Review intent={intent} agencyName={agencyName} />
+            <Review intent={intent} agencyName={agencyName} stagedFiles={stagedFiles} />
           )}
         </div>
 
@@ -691,6 +691,10 @@ function CityAutocomplete({
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Guard: onMouseDown on a suggestion fires before the input's onBlur.
+  // Without this flag, onBlur would call onSelect(draft, "") and clobber
+  // the country that handleSelect just set via onSelect(city, iso2).
+  const justSelectedRef = useRef(false);
 
   // Sync external value changes (e.g. intent reset).
   useEffect(() => { setDraft(value); }, [value]);
@@ -715,13 +719,14 @@ function CityAutocomplete({
   };
 
   const handleSelect = (s: CitySuggestion) => {
+    justSelectedRef.current = true;
     setDraft(s.name_en);
     setSuggestions([]);
     setOpen(false);
     onSelect(s.name_en, s.country_iso2);
   };
 
-  // Close on outside click.
+  // Close on outside click; clear debounce on unmount.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -729,7 +734,10 @@ function CityAutocomplete({
       }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
   return (
@@ -739,7 +747,10 @@ function CityAutocomplete({
         value={draft}
         onChange={handleChange}
         onBlur={() => {
-          // Flush the free-text value back if no suggestion was selected.
+          // If the user just clicked a suggestion, handleSelect already called
+          // onSelect with the correct countryIso2 — skip the free-text flush
+          // to avoid a second setState that would clobber the country.
+          if (justSelectedRef.current) { justSelectedRef.current = false; return; }
           if (draft !== value) onSelect(draft, "");
         }}
         placeholder="e.g. Tulum"
@@ -1433,7 +1444,7 @@ function FilesLinksSection({
 // Review step
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Review({ intent, agencyName }: { intent: InquiryIntent; agencyName: string }) {
+function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; agencyName: string; stagedFiles: File[] }) {
   const sameAsRequester = intent.client?.same_as_requester !== false;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13.5, color: C.ink, fontFamily: FONT }}>
@@ -1478,6 +1489,19 @@ function Review({ intent, agencyName }: { intent: InquiryIntent; agencyName: str
           {intent.brief?.summary ?? "—"}
         </span>
       </ReviewRow>
+      {(stagedFiles.length > 0 || (intent.links ?? []).length > 0) && (
+        <ReviewRow label="References">
+          {stagedFiles.length > 0 && (
+            <span>{stagedFiles.length} file{stagedFiles.length !== 1 ? "s" : ""} attached</span>
+          )}
+          {stagedFiles.length > 0 && (intent.links ?? []).length > 0 && (
+            <span style={{ color: C.inkMuted }}> · </span>
+          )}
+          {(intent.links ?? []).length > 0 && (
+            <span style={{ color: C.inkMuted }}>{(intent.links ?? []).length} link{(intent.links ?? []).length !== 1 ? "s" : ""}</span>
+          )}
+        </ReviewRow>
+      )}
     </div>
   );
 }

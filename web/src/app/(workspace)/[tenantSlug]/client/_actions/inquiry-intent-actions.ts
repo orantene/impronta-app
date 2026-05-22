@@ -223,7 +223,8 @@ export async function submitInquiryNowAction(
       (v): v is File => v instanceof File && v.size > 0 && v.size <= 20 * 1024 * 1024,
     );
     if (files.length > 0) {
-      const uploadClient = createServiceRoleClient() ?? ctx.writeClient;
+      // ctx.writeClient is already the service-role client (see resolveSubmitContext).
+      const uploadClient = ctx.writeClient;
       for (const file of files) {
         const objectId = crypto.randomUUID();
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
