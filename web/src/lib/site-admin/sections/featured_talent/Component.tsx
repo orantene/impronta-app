@@ -4,6 +4,7 @@ import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 import { fetchFeaturedTalentForSection } from "./fetch";
+import { TalentCardActions } from "@/components/talent-card-actions";
 import { FeaturedTalentCard } from "./FeaturedTalentCard";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { CSSProperties } from "react";
@@ -696,21 +697,30 @@ export async function FeaturedTalentComponent({
             data-grid-variant={variant}
           >
             {cards.map((card, i) => (
-              <FeaturedTalentCard
-                key={card.id}
-                card={card}
-                priority={i < columns}
-                publicPathPrefix={publicPathPrefix}
-                display={cardDisplay}
-                requestCta={
-                  requestCta
-                    ? {
-                        label: requestCta.label,
-                        href: resolveLinkLike(requestCta.href, linkCtx).href,
-                      }
-                    : null
-                }
-              />
+              // Wrap in a relative container so TalentCardActions can
+              // overlay the bookmark + inquiry buttons as an absolute
+              // sibling outside the card's <Link> (no nested interactives).
+              <div key={card.id} className="relative">
+                <FeaturedTalentCard
+                  card={card}
+                  priority={i < columns}
+                  publicPathPrefix={publicPathPrefix}
+                  display={cardDisplay}
+                  requestCta={
+                    requestCta
+                      ? {
+                          label: requestCta.label,
+                          href: resolveLinkLike(requestCta.href, linkCtx).href,
+                        }
+                      : null
+                  }
+                />
+                <TalentCardActions
+                  talentId={card.id}
+                  sourcePage="/featured-talent"
+                  variant="overlay"
+                />
+              </div>
             ))}
           </div>
         ) : (

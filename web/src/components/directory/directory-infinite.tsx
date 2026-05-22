@@ -10,15 +10,12 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
-  useTransition,
 } from "react";
 
 import type { SearchResult } from "@/lib/ai/search-result";
 import { AI_SEARCH_DEBOUNCE_MS_DEFAULT } from "@/lib/ai/search-debounce";
 import { buildDirectoryAiOverlayByTalentId } from "@/lib/directory/directory-ai-overlay";
 
-import { setTalentSaved } from "@/app/(public)/directory/actions";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search } from "lucide-react";
@@ -31,7 +28,7 @@ import { DIRECTORY_PAGE_SIZE_DEFAULT } from "@/lib/directory/types";
 import { MAX_CARD_FIT_LABELS } from "@/lib/directory/talent-card-dto";
 import type { DirectoryFieldFacetSelection, DirectorySortValue } from "@/lib/directory/types";
 
-import { ContactTalentButton, SaveTalentButton } from "./directory-inquiry-actions";
+import { TalentCardActions } from "@/components/talent-card-actions";
 import { TalentCard } from "./talent-card";
 import { TalentDirectoryListRow } from "./talent-directory-list-row";
 import { usePublicDiscoveryState } from "./public-discovery-state";
@@ -184,6 +181,7 @@ export function DirectoryInfiniteGrid({
   ageMax = null,
   fieldFacets = [],
   view = "grid",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initialSavedIds = [],
   ui,
   directorySearchViaAi = false,
@@ -215,14 +213,8 @@ export function DirectoryInfiniteGrid({
   const [preview, setPreview] = useState<DirectoryCardDTO | null>(null);
   const [previewDetails, setPreviewDetails] =
     useState<DirectoryPreviewResponse | null>(null);
-  const [, startTransition] = useTransition();
   const discoveryState = usePublicDiscoveryState();
   const matchFitCtx = useDirectoryMatchFitOptional();
-  const hydrated = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
 
   useEffect(() => {
     if (!directorySearchViaAi) {
@@ -236,32 +228,6 @@ export function DirectoryInfiniteGrid({
   }, [query, directorySearchViaAi]);
 
   const effectiveQuery = directorySearchViaAi ? debouncedQuery : query;
-
-  const isSaved = useCallback(
-    (id: string) =>
-      hydrated ? discoveryState.isSaved(id) : initialSavedIds.includes(id),
-    [discoveryState, hydrated, initialSavedIds],
-  );
-
-  const toggleSave = useCallback(
-    (id: string) => {
-      startTransition(async () => {
-        const saved = isSaved(id);
-        const nextWantSaved = !saved;
-        discoveryState.setSavedState(id, nextWantSaved);
-        const res = await setTalentSaved(id, nextWantSaved);
-        if (!res.ok) {
-          discoveryState.setSavedState(id, saved);
-          discoveryState.setFlash({
-            tone: "error",
-            title: ui.inquiry.flashCouldNotUpdateSaved,
-            message: res.error,
-          });
-        }
-      });
-    },
-    [discoveryState, isSaved, startTransition, ui.inquiry.flashCouldNotUpdateSaved],
-  );
 
   const previewCacheRef = useRef(
     new Map<string, Promise<DirectoryPreviewResponse | null>>(),
@@ -469,8 +435,6 @@ export function DirectoryInfiniteGrid({
             <TalentDirectoryListRow
               key={card.id}
               card={card}
-              saved={isSaved(card.id)}
-              onSaveToggle={() => toggleSave(card.id)}
               onQuickPreview={() => openPreview(card)}
               priority={index < 4}
               sourcePage={sourcePage}
@@ -485,8 +449,6 @@ export function DirectoryInfiniteGrid({
             <TalentCard
               key={card.id}
               card={card}
-              saved={isSaved(card.id)}
-              onSaveToggle={() => toggleSave(card.id)}
               onQuickPreview={() => openPreview(card)}
               priority={index < 4}
               sourcePage={sourcePage}
@@ -595,27 +557,12 @@ export function DirectoryInfiniteGrid({
               </p>
             ) : null}
             <div className="flex flex-col gap-2">
-              <SaveTalentButton
-                talent={{
-                  id: preview.id,
-                  profileCode: preview.profileCode,
-                  displayName: preview.displayName,
-                }}
+              {/* Favorite + inquiry-cart — canonical TalentCardActions (bar). */}
+              <TalentCardActions
+                talentId={preview.id}
                 sourcePage={discoveryState.searchContext?.sourcePage ?? "/directory"}
-                inquiry={ui.inquiry}
-                label={ui.preview.saveThisTalent}
-                savedLabel={ui.preview.savedToCart}
-                className="w-full border-[var(--impronta-gold-border)] text-[var(--impronta-gold)] hover:text-[var(--impronta-gold)]"
-              />
-              <ContactTalentButton
-                talent={{
-                  id: preview.id,
-                  profileCode: preview.profileCode,
-                  displayName: preview.displayName,
-                }}
-                sourcePage={discoveryState.searchContext?.sourcePage ?? "/directory"}
-                inquiry={ui.inquiry}
-                className="w-full bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+                variant="bar"
+                className="w-full"
               />
               <Button asChild variant="ghost" className="w-full">
                 <Link

@@ -3,12 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TalentCardActions } from "@/components/talent-card-actions";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
 import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
 import type { DirectoryAiCardOverlay, DirectoryCardDTO } from "@/lib/directory/types";
-import { ContactTalentButton } from "@/components/directory/directory-inquiry-actions";
 import { cn } from "@/lib/utils";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
@@ -19,8 +18,6 @@ function talentProfileHref(pathname: string, profileCode: string): string {
 
 export function TalentDirectoryListRow({
   card,
-  saved,
-  onSaveToggle,
   onQuickPreview,
   priority,
   sourcePage = "/directory",
@@ -28,8 +25,6 @@ export function TalentDirectoryListRow({
   aiOverlay = null,
 }: {
   card: DirectoryCardDTO;
-  saved: boolean;
-  onSaveToggle: () => void;
   onQuickPreview: () => void;
   priority?: boolean;
   sourcePage?: string;
@@ -120,20 +115,12 @@ export function TalentDirectoryListRow({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            className="h-8 w-8 shrink-0 rounded-full border border-white/10 bg-black/40 text-[var(--impronta-gold)]"
-            aria-pressed={saved}
-            aria-label={saved ? lc.removeSaveAria : lc.saveAria}
-            onClick={(e) => {
-              e.preventDefault();
-              onSaveToggle();
-            }}
-          >
-            <Bookmark className={cn("size-3.5", saved && "fill-current")} strokeWidth={1.75} />
-          </Button>
+          {/* Favorite + inquiry — canonical TalentCardActions. */}
+          <TalentCardActions
+            talentId={card.id}
+            sourcePage={sourcePage}
+            variant="bar"
+          />
           <Button
             asChild
             size="sm"
@@ -141,19 +128,6 @@ export function TalentDirectoryListRow({
           >
             <Link href={profileHref}>{lc.view}</Link>
           </Button>
-          <ContactTalentButton
-            talent={{
-              id: card.id,
-              profileCode: card.profileCode,
-              displayName: card.displayName,
-            }}
-            sourcePage={sourcePage}
-            initialSaved={saved}
-            variant="outline"
-            inquiry={ui.inquiry}
-            label={lc.inquire}
-            className="h-8 shrink-0 rounded-lg border-[var(--impronta-gold-border)] px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--impronta-gold)]"
-          />
           <button
             type="button"
             className="text-[10px] font-medium uppercase tracking-wide text-[var(--impronta-muted)] underline-offset-4 hover:text-[var(--impronta-gold)] hover:underline"

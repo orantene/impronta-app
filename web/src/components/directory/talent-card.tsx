@@ -4,10 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Bookmark, ChevronDown, ChevronUp, Share2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ContactTalentButton } from "@/components/directory/directory-inquiry-actions";
+import { TalentCardActions } from "@/components/talent-card-actions";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
 import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
@@ -159,13 +159,11 @@ function OwnershipBadge({
 
 export type TalentCardProps = {
   card: DirectoryCardDTO;
-  saved: boolean;
-  onSaveToggle: () => void;
   onQuickPreview: () => void;
   /** First viewport row — improves LCP */
   priority?: boolean;
   className?: string;
-  /** Passed through to inquiry actions (search context). */
+  /** For analytics / source attribution. */
   sourcePage?: string;
   ui: DirectoryUiCopy;
   /** When present (hybrid AI listing), show compact match explanations + optional confidence line. */
@@ -178,8 +176,7 @@ export type TalentCardProps = {
  */
 export function TalentCard({
   card,
-  saved,
-  onSaveToggle,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onQuickPreview,
   priority,
   className,
@@ -327,26 +324,14 @@ export function TalentCard({
           ) : null}
         </div>
 
-        {/* Top-right: save + share */}
+        {/* Top-right: save (TalentCardActions) + share */}
         <div className="absolute right-1.5 top-1.5 z-[1] flex flex-col gap-1">
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            className="size-8 rounded-full border border-white/10 bg-black/50 text-[var(--impronta-foreground)] backdrop-blur-sm hover:bg-black/70"
-            aria-pressed={saved}
-            aria-label={saved ? c.removeSaveAria : c.saveAria}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onSaveToggle();
-            }}
-          >
-            <Bookmark
-              className={cn("size-3.5", saved && "fill-current")}
-              strokeWidth={1.75}
-            />
-          </Button>
+          <TalentCardActions
+            talentId={card.id}
+            sourcePage={sourcePage}
+            variant="overlay"
+            showCart={false}
+          />
           <Button
             type="button"
             size="icon"
@@ -545,18 +530,12 @@ export function TalentCard({
           >
             <Link href={profileHref}>{c.viewPortfolio}</Link>
           </Button>
-          <ContactTalentButton
-            talent={{
-              id: card.id,
-              profileCode: card.profileCode,
-              displayName: card.displayName,
-            }}
+          {/* Inquiry-cart toggle — canonical TalentCardActions (bar variant). */}
+          <TalentCardActions
+            talentId={card.id}
             sourcePage={sourcePage}
-            initialSaved={saved}
-            variant="outline"
-            inquiry={ui.inquiry}
-            label={c.inquire}
-            className="h-9 shrink-0 rounded-lg border-white/15 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-foreground)] hover:border-white/40 hover:bg-white/10 hover:text-[var(--impronta-foreground)] sm:px-3 sm:text-xs"
+            variant="bar"
+            showFavorite={false}
           />
         </div>
 
