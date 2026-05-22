@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -295,6 +296,11 @@ export type WorkspaceTeamMember = {
   /** Member headshot URL from `profiles.avatar_url`, when it is an http(s)
    *  URL. Shown on the identity card; falls back to an initial avatar. */
   photoUrl?: string;
+  /** Account email from `auth.users.email` (fetched via service-role
+   *  `auth.admin.getUserById` since `public.profiles` carries no email).
+   *  Shown as the secondary line on the identity card. Best-effort —
+   *  optional. */
+  email?: string;
   /** Membership role: viewer | editor | manager | admin | owner */
   role: string;
   /** Membership status: active | pending_acceptance */
@@ -351,6 +357,27 @@ export async function loadWorkspaceTeamMembers(
     };
 
     const rows = (data ?? []) as unknown as MemberRow[];
+
+    // Member emails live on `auth.users`, not `public.profiles` — so fetch
+    // them via service-role `auth.admin.getUserById` in parallel. Best-
+    // effort: a failure leaves emails blank but member rows still render.
+    const emailById = new Map<string, string>();
+    const admin = createServiceRoleClient();
+    if (admin && rows.length > 0) {
+      try {
+        const lookups = await Promise.all(
+          rows.map((r) => admin.auth.admin.getUserById(r.profile_id)),
+        );
+        for (let i = 0; i < lookups.length; i++) {
+          const user = lookups[i]?.data?.user;
+          const email = user?.email?.trim();
+          if (email) emailById.set(rows[i]!.profile_id, email);
+        }
+      } catch (err) {
+        logServerError("workspace.loadTeamMembers.emails", err);
+      }
+    }
+
     const out: WorkspaceTeamMember[] = rows.map((row) => {
       const profileJoin = row.profiles;
       const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
@@ -362,6 +389,7 @@ export async function loadWorkspaceTeamMembers(
         // Only http(s) avatars render as <img>; storage-path avatars are
         // skipped so the card falls back to an initial avatar cleanly.
         photoUrl: avatar && /^https?:\/\//i.test(avatar) ? avatar : undefined,
+        email: emailById.get(row.profile_id),
         role: row.role,
         status: row.status,
         joinedAt: row.accepted_at ?? row.created_at,
