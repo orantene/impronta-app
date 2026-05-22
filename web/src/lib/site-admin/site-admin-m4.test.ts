@@ -408,7 +408,7 @@ test("sectionDuplicateSchema rejects non-uuid tenantId", () => {
 // ---- capability matrix ----------------------------------------------------
 
 test("sections.edit: editor/coordinator/admin/owner YES, viewer NO", () => {
-  for (const role of ["editor", "coordinator", "admin", "owner"] as const) {
+  for (const role of ["editor", "manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.sections.edit"),
       true,
@@ -429,7 +429,7 @@ test("sections.publish: editor/viewer NO, coordinator/admin/owner YES", () => {
       `role=${role} should NOT have sections.publish`,
     );
   }
-  for (const role of ["coordinator", "admin", "owner"] as const) {
+  for (const role of ["manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.sections.publish"),
       true,

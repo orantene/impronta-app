@@ -32,15 +32,25 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 
 import type { PublicNavLink } from "@/lib/cms/public-navigation";
-import type { Locale } from "@/i18n/config";
+import { getLocaleMetadata, type Locale } from "@/i18n/config";
+import { withLocalePath } from "@/i18n/pathnames";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 
 type MobileNavVariant = "drawer-right" | "sheet-bottom" | "full-screen-fade";
 
 const VARIANTS = ["drawer-right", "sheet-bottom", "full-screen-fade"] as const;
+
+export type MobileMenuRoleNavLink = { label: string; href: string };
+
+export type MobileMenuUserIdentity = {
+  displayName: string;
+  roleLabel: string;
+  dashboardHref: string;
+};
 
 interface Props {
   navLinks: PublicNavLink[];
@@ -56,6 +66,15 @@ interface Props {
   /** Localized copy for the trigger button's screen-reader label. */
   openMenuLabel?: string;
   closeMenuLabel?: string;
+  availableLocales?: readonly Locale[];
+  defaultLocale?: Locale;
+  showLanguageSwitcher?: boolean;
+  /** C2 — role-specific dashboard nav links rendered below site links. */
+  roleNavLinks?: MobileMenuRoleNavLink[];
+  /** C4 — signed-in user identity for the identity block + dashboard shortcut. */
+  userIdentity?: MobileMenuUserIdentity | null;
+  /** C4 — server action for the sign-out button inside the menu. */
+  signOutAction?: (formData: FormData) => void | Promise<void>;
 }
 
 export function PublicHeaderMobileMenu({
@@ -68,6 +87,12 @@ export function PublicHeaderMobileMenu({
   utilityContent,
   openMenuLabel = "Open menu",
   closeMenuLabel = "Close menu",
+  availableLocales = ["en", "es"],
+  defaultLocale = "en",
+  showLanguageSwitcher = true,
+  roleNavLinks,
+  userIdentity,
+  signOutAction,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [variant, setVariant] = useState<MobileNavVariant>("drawer-right");
@@ -96,6 +121,13 @@ export function PublicHeaderMobileMenu({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [open]);
+
+  // C3 — remove CMS links whose href duplicates a role nav link so the
+  // menu doesn't show the same destination twice under different labels.
+  const roleNavHrefs = new Set(roleNavLinks?.map((l) => l.href) ?? []);
+  const filteredNavLinks = navLinks.filter((l) => !roleNavHrefs.has(l.href));
+
+  const hasRoleNav = roleNavLinks && roleNavLinks.length > 0;
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -137,6 +169,26 @@ export function PublicHeaderMobileMenu({
             </Dialog.Close>
           </div>
 
+          {/* C4 — Identity block: signed-in user name, role, and dashboard shortcut. */}
+          {userIdentity ? (
+            <div className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5">
+              <p className="text-sm font-semibold leading-snug text-foreground">
+                {userIdentity.displayName}
+              </p>
+              <p className="mt-0.5 text-xs capitalize text-muted-foreground">
+                {userIdentity.roleLabel}
+              </p>
+              <Link
+                href={userIdentity.dashboardHref}
+                onClick={() => setOpen(false)}
+                className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:underline"
+              >
+                <LayoutDashboard className="size-3" aria-hidden />
+                Dashboard
+              </Link>
+            </div>
+          ) : null}
+
           {ctaLabel && ctaHref ? (
             <Link
               href={ctaHref}
@@ -146,12 +198,38 @@ export function PublicHeaderMobileMenu({
               {ctaLabel}
             </Link>
           ) : null}
-          {navLinks.length > 0 ? (
+
+          {/* C2 — Role-aware dashboard nav: only shown when signed in. */}
+          {hasRoleNav ? (
+            <nav aria-label="Your dashboard" className="flex flex-col">
+              <p className="mb-1 px-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                My dashboard
+              </p>
+              {roleNavLinks!.map((l) => (
+                <Link
+                  key={`role:${l.href}`}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="border-b border-border/40 py-3 text-base font-medium text-foreground transition-colors hover:text-primary"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+
+          {/* C3 — CMS site links, deduped against role nav. */}
+          {filteredNavLinks.length > 0 ? (
             <nav
               aria-label="Site links"
               className="flex flex-col"
             >
-              {navLinks.map((l) => (
+              {hasRoleNav ? (
+                <p className="mb-1 px-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Site
+                </p>
+              ) : null}
+              {filteredNavLinks.map((l) => (
                 <Link
                   key={`${l.href}:${l.label}`}
                   href={l.href}
@@ -168,12 +246,27 @@ export function PublicHeaderMobileMenu({
             <LanguageRow
               locale={locale}
               pathnameWithoutLocale={pathnameWithoutLocale}
+              availableLocales={availableLocales}
+              defaultLocale={defaultLocale}
+              showLanguageSwitcher={showLanguageSwitcher}
               onPick={() => setOpen(false)}
             />
             {utilityContent ? (
               <div className="flex items-center justify-start gap-1.5">
                 {utilityContent}
               </div>
+            ) : null}
+            {/* C4 — Sign-out inside the menu for signed-in users. */}
+            {signOutAction ? (
+              <form action={signOutAction} className="-mt-1">
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-2 rounded-md py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <LogOut className="size-4" aria-hidden />
+                  Sign out
+                </button>
+              </form>
             ) : null}
           </div>
         </Dialog.Content>
@@ -200,16 +293,29 @@ const VARIANT_CLASSES: Record<MobileNavVariant, string> = {
 function LanguageRow({
   locale,
   pathnameWithoutLocale,
+  availableLocales,
+  defaultLocale,
+  showLanguageSwitcher,
   onPick,
 }: {
   locale: Locale;
   pathnameWithoutLocale: string;
+  availableLocales: readonly Locale[];
+  defaultLocale: Locale;
+  showLanguageSwitcher: boolean;
   onPick: () => void;
 }) {
-  const localeOptions: Array<{ code: Locale; label: string }> = [
-    { code: "en" as Locale, label: "EN" },
-    { code: "es" as Locale, label: "ES" },
-  ];
+  const localeOptions = Array.from(
+    new Set([defaultLocale, ...availableLocales].filter(Boolean)),
+  );
+  if (!showLanguageSwitcher || localeOptions.length <= 1) return null;
+
+  const pathSettings = {
+    ...FALLBACK_LANGUAGE_SETTINGS,
+    defaultLocale,
+    publicLocales: localeOptions,
+  };
+
   return (
     <div className="flex items-center gap-3 text-xs">
       <span
@@ -223,29 +329,28 @@ function LanguageRow({
         aria-label="Language"
         className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1 py-0.5 text-xs font-medium"
       >
-        {localeOptions.map((opt, i) => {
-          const active = opt.code === locale;
-          const href =
-            opt.code === "en"
-              ? pathnameWithoutLocale || "/"
-              : `/${opt.code}${pathnameWithoutLocale}`;
+        {localeOptions.map((code, i) => {
+          const active = code === locale;
+          const meta = getLocaleMetadata(code);
           return (
-            <span key={opt.code} className="contents">
+            <span key={code} className="contents">
               {i > 0 ? (
                 <span className="text-border" aria-hidden>
                   |
                 </span>
               ) : null}
               <Link
-                href={href}
+                href={withLocalePath(pathnameWithoutLocale || "/", code, pathSettings)}
                 onClick={onPick}
+                aria-current={active ? "true" : undefined}
+                aria-label={meta.label}
                 className={`rounded px-2 py-0.5 transition-colors ${
                   active
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
-                {opt.label}
+                {code.toUpperCase()}
               </Link>
             </span>
           );

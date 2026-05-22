@@ -21,11 +21,44 @@ import { unstable_cache } from "next/cache";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { tagFor } from "@/lib/site-admin";
+import { isPostgrestMissingColumnError } from "@/lib/server/safe-error";
 
 import type { IdentityRow } from "./identity";
 import type { BrandingRow } from "./branding";
 
 const IDENTITY_READ_COLUMNS = `
+  tenant_id,
+  public_name,
+  legal_name,
+  tagline,
+  footer_tagline,
+  contact_email,
+  contact_phone,
+  whatsapp,
+  address_city,
+  address_country,
+  service_area,
+  social_instagram,
+  social_tiktok,
+  social_facebook,
+  social_linkedin,
+  social_youtube,
+  social_x,
+  default_locale,
+  supported_locales,
+  show_language_switcher,
+  seo_default_title,
+  seo_default_description,
+  seo_default_share_image_media_asset_id,
+  primary_cta_label,
+  primary_cta_href,
+  version,
+  updated_by,
+  created_at,
+  updated_at
+`;
+
+const IDENTITY_READ_COLUMNS_LEGACY = `
   tenant_id,
   public_name,
   legal_name,
@@ -72,11 +105,37 @@ const BRANDING_READ_COLUMNS = `
   brand_mark_svg,
   theme_json,
   theme_preset_slug,
+  favorite_icon,
   version,
   updated_by,
   created_at,
   updated_at
 `;
+
+async function selectIdentityRow(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  tenantId: string,
+): Promise<{ data: IdentityRow | null; error: { message: string } | null }> {
+  let { data, error } = await supabase
+    .from("agency_business_identity")
+    .select(IDENTITY_READ_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .maybeSingle<IdentityRow>();
+
+  if (error && isPostgrestMissingColumnError(error)) {
+    const fallback = await supabase
+      .from("agency_business_identity")
+      .select(IDENTITY_READ_COLUMNS_LEGACY)
+      .eq("tenant_id", tenantId)
+      .maybeSingle<Omit<IdentityRow, "show_language_switcher">>();
+    data = fallback.data
+      ? { ...fallback.data, show_language_switcher: true }
+      : null;
+    error = fallback.error;
+  }
+
+  return { data: data ?? null, error };
+}
 
 /**
  * Cached storefront read of the public identity row.
@@ -95,11 +154,7 @@ export function loadPublicIdentity(
     async (): Promise<IdentityRow | null> => {
       const supabase = createPublicSupabaseClient();
       if (!supabase) return null;
-      const { data, error } = await supabase
-        .from("agency_business_identity")
-        .select(IDENTITY_READ_COLUMNS)
-        .eq("tenant_id", tenantId)
-        .maybeSingle<IdentityRow>();
+      const { data, error } = await selectIdentityRow(supabase, tenantId);
       if (error) {
         void improntaLog("site_admin_reads.warn", {
           message: "[site-admin/reads] identity load failed",
@@ -176,11 +231,7 @@ export async function loadIdentityForStaff(
   supabase: import("@supabase/supabase-js").SupabaseClient,
   tenantId: string,
 ): Promise<IdentityRow | null> {
-  const { data, error } = await supabase
-    .from("agency_business_identity")
-    .select(IDENTITY_READ_COLUMNS)
-    .eq("tenant_id", tenantId)
-    .maybeSingle<IdentityRow>();
+  const { data, error } = await selectIdentityRow(supabase, tenantId);
   if (error) {
     void improntaLog("site_admin_reads.warn", {
       message: "[site-admin/reads] staff identity load failed",

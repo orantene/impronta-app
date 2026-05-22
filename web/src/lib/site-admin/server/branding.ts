@@ -48,6 +48,8 @@ export interface BrandingRow {
   theme_json: Record<string, unknown>;
   /** M7 — optional; null on legacy / never-applied rows. Metadata only. */
   theme_preset_slug?: string | null;
+  /** A1/A2 — per-tenant favorite icon preference: 'heart' | 'bookmark'. Default 'bookmark'. */
+  favorite_icon?: "heart" | "bookmark" | null;
   version: number;
   updated_by: string | null;
   created_at: string;

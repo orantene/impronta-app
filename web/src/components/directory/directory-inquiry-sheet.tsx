@@ -87,7 +87,6 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
         client={
           isClient
             ? {
-                user_id: ready.userId ?? null,
                 displayName: ready.defaultName,
                 email: ready.defaultEmail,
                 phone: ready.defaultPhone,
@@ -104,7 +103,6 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             name: ready.defaultName ?? "",
             email: ready.defaultEmail ?? "",
             phone: ready.defaultPhone ?? "",
-            user_id: isClient ? ready.userId ?? null : null,
             trust_level: isClient ? "verified" : "basic",
           },
           client: {
@@ -132,21 +130,16 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     );
   }
 
-  // Prefetch in-flight: don't render the legacy auxiliary shell while the
-  // payload is still loading on a normal open click. Without this gate, the
-  // aux shell briefly paints with the old "Contact the agency / we'll come
-  // back to you" copy and then the canonical InquiryDrawer slams on top,
-  // producing the "old drawer flashes then gets overwritten" visual the
-  // execution-plan comment above (`no transient loading sheet, no swap from
-  // one drawer to another`) was meant to prevent. Only fall through to the
-  // aux shell when we have a definite reason to show it (success,
-  // unconfigured, or paused — all of which require `payload` to be set).
+  // Prefetch in-flight: don't render the auxiliary shell while the payload
+  // is still loading. Only fall through when there's a definite reason
+  // (success, unconfigured, or paused — all require `payload` to be set).
   if (!success && !payload) return null;
 
-  // ── Auxiliary states — uses the same InquiryDrawerShell for visual consistency ──
+  // ── Auxiliary states — InquiryDrawerShell for visual consistency ──
   const auxTitle = success ? s.titleThankYou : s.titleStartInquiry;
   const auxSubtitle = success ? s.descThankYou : s.descEmptyShortlist;
 
+  // ── Auxiliary states — light side sheet ──────────────────────────────────
   return (
     <InquiryDrawerShell
       label="Inquiry"

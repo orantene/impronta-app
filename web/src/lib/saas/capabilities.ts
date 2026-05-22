@@ -78,7 +78,7 @@ const EDITOR: Capability[] = [
   "edit_navigation",
 ];
 
-const COORDINATOR: Capability[] = [
+const MANAGER: Capability[] = [
   ...EDITOR,
   "view_private_client_data",
   "manage_talent_roster",
@@ -94,7 +94,7 @@ const COORDINATOR: Capability[] = [
 ];
 
 const ADMIN: Capability[] = [
-  ...COORDINATOR,
+  ...MANAGER,
   "delete_client_relationship",
   "edit_branding",
   "edit_storefront_layout",
@@ -114,7 +114,7 @@ const OWNER: Capability[] = [
 const ROLE_CAPS: Record<MembershipRole, ReadonlySet<Capability>> = {
   viewer: new Set(VIEWER),
   editor: new Set(EDITOR),
-  coordinator: new Set(COORDINATOR),
+  manager: new Set(MANAGER),
   admin: new Set(ADMIN),
   owner: new Set(OWNER),
 };

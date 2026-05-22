@@ -141,6 +141,9 @@ const APP_WORKSPACE_PREFIXES = [
 const APP_API_PREFIXES = [
   "/api/admin",
   "/api/ai",
+  // Directory API can serve path-based tenant previews on the canonical app
+  // host; the route handler resolves and enforces tenant scope itself.
+  "/api/directory",
   // Phase B-4 + Phase E (2026-05-14) — client-side dashboard API routes
   // for the new InquiryDrawer + Messages tabs + Offer actions. RLS gates
   // tenant scope inside the route; middleware just lets the path through.

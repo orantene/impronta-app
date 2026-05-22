@@ -21,6 +21,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { signOut } from "@/app/auth/actions";
 import { PlatformTopbar } from "./platform-topbar";
+import { PlatformWorkspaceSwitcher } from "./platform-workspace-switcher";
 
 // ─── HQ design tokens ────────────────────────────────────────────────────────
 
@@ -234,6 +235,11 @@ export default async function PlatformAdminLayout({
             </span>
 
             <div style={{ flex: 1 }} />
+
+            {/* Workspace switcher — the way back from HQ into any workspace
+                the user belongs to. Without it the platform console is a
+                one-way door (the ↩ button only signs out). */}
+            <PlatformWorkspaceSwitcher />
 
             {/* Sign-out */}
             <form action={signOut}>

@@ -157,7 +157,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   talent_basic: {
     key: "talent_basic",
     audience: "talent",
-    displayName: "Talent Basic",
+    displayName: "Free",
     tagline: "Default for every talent",
     description:
       "Standard profile, included free. Default Tulala-hosted personal page at <slug>.tulala.digital. Roster participation in agencies and hubs.",
@@ -176,7 +176,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   talent_pro: {
     key: "talent_pro",
     audience: "talent",
-    displayName: "Talent Pro",
+    displayName: "Pro",
     tagline: "Richer presentation",
     description:
       "Pro layout, video and audio embeds, social-link surfacing, better media gallery, stronger portfolio presentation. Same canonical URL at tulala.digital/t/<slug>, richer page render. Founder pricing 2026-04-25: $12/mo placeholder.",
@@ -194,7 +194,7 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   talent_portfolio: {
     key: "talent_portfolio",
     audience: "talent",
-    displayName: "Talent Portfolio",
+    displayName: "Max",
     tagline: "Your branded talent page",
     description:
       "Custom domain, guided one-page builder-lite, multi-template choice, SEO controls. The canonical URL tulala.digital/t/<slug> still works; your custom domain points to the same content. Founder pricing 2026-04-25: $29/mo placeholder.",

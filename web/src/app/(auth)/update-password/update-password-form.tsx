@@ -6,8 +6,10 @@ import {
   type PasswordRecoveryActionState,
 } from "@/app/auth/password-actions";
 import { Button } from "@/components/ui/button";
+import { createTranslator } from "@/i18n/messages";
 
-export function UpdatePasswordForm() {
+export function UpdatePasswordForm({ locale = "en" }: { locale?: string }) {
+  const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
     PasswordRecoveryActionState,
     FormData
@@ -15,6 +17,7 @@ export function UpdatePasswordForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="locale" value={locale} />
       {state?.error ? (
         <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.error}
@@ -22,7 +25,7 @@ export function UpdatePasswordForm() {
       ) : null}
       <div className="space-y-2">
         <label htmlFor="recovery-new" className="text-sm font-medium">
-          New password
+          {t("public.auth.update.newPassword")}
         </label>
         <input
           id="recovery-new"
@@ -36,7 +39,7 @@ export function UpdatePasswordForm() {
       </div>
       <div className="space-y-2">
         <label htmlFor="recovery-confirm" className="text-sm font-medium">
-          Confirm new password
+          {t("public.auth.update.confirmPassword")}
         </label>
         <input
           id="recovery-confirm"
@@ -49,7 +52,7 @@ export function UpdatePasswordForm() {
         />
       </div>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Saving…" : "Update password and continue"}
+        {pending ? t("public.auth.update.pending") : t("public.auth.update.submit")}
       </Button>
     </form>
   );

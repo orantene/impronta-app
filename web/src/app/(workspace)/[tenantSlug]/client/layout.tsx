@@ -19,6 +19,12 @@ import { notFound, redirect } from "next/navigation";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
+import {
+  DiscoveryStateBridge,
+  PublicDiscoveryStateProvider,
+} from "@/components/directory/public-discovery-state";
+import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
 import { ClientTopbar } from "./client-topbar";
@@ -51,13 +57,6 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-function userDisplayName(email: string | null | undefined, meta: Record<string, unknown> | undefined): string {
-  if (meta?.full_name && typeof meta.full_name === "string") return meta.full_name;
-  if (meta?.name && typeof meta.name === "string") return meta.name;
-  if (email) return email.split("@")[0].replace(/[._-]/g, " ");
-  return "You";
 }
 
 export default async function ClientLayout({
@@ -102,10 +101,15 @@ export default async function ClientLayout({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const userName = userDisplayName(
-    session.user.email,
-    session.user.user_metadata as Record<string, unknown> | undefined,
-  );
+  // D4 — seed the canonical discovery state so <TalentCardActions> /
+  // useFavorites work on every client-dashboard surface, exactly as the
+  // public layout does. favoriteIds ← client_favorites, savedIds ←
+  // saved_talent cart. Both are global / cross-tenant.
+  const [favoriteIds, savedIds] = await Promise.all([
+    getFavoriteTalentIds(),
+    getSavedTalentIds(),
+  ]);
+
   const userInitials = initials(clientProfile.displayName);
 
   return (
@@ -146,6 +150,19 @@ export default async function ClientLayout({
       `}</style>
 
       <div className="client-root" style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT_BODY }}>
+       <PublicDiscoveryStateProvider>
+        {/* D4 — hydrate the canonical favorites + inquiry-cart stores from
+            the SSR seed. The client dashboard uses the ♥ heart icon
+            (matches every existing dashboard surface + page copy). */}
+        <DiscoveryStateBridge
+          savedIds={savedIds}
+          favoriteIds={favoriteIds}
+          favoriteIcon="heart"
+        />
+        {/* Sweeps any guest-mode localStorage favorites into client_favorites
+            on first authed render — mirrors (public)/layout.tsx, so a save
+            made before sign-in still lands in /client/favorites. */}
+        <MergeGuestFavorites serverFavoriteIds={favoriteIds} />
 
         {/* ── Bar 1: Identity bar (56px) ── */}
         <header
@@ -281,7 +298,7 @@ export default async function ClientLayout({
                   color: C.accent,
                 }}
               >
-                Client
+                {t("dashboard.roleClient")}
               </span>
             </div>
 
@@ -307,15 +324,15 @@ export default async function ClientLayout({
                   letterSpacing: 0.1,
                 }}
               >
-                Client
+                {t("dashboard.roleClient")}
               </div>
 
               {/* Sign-out */}
               <form action={signOut}>
                 <button
                   type="submit"
-                  title="Sign out"
-                  aria-label="Sign out"
+                  title={t("dashboard.signOut")}
+                  aria-label={t("dashboard.signOut")}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -339,7 +356,7 @@ export default async function ClientLayout({
         </header>
 
         {/* ── Bar 2: Client nav topbar ── */}
-        <ClientTopbar tenantSlug={tenantSlug} />
+        <ClientTopbar tenantSlug={tenantSlug} locale={locale} />
 
         {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
         <ClientKeyboardShortcuts tenantSlug={tenantSlug} labels={keyboardLabels} />
@@ -354,6 +371,7 @@ export default async function ClientLayout({
         >
           {children}
         </main>
+       </PublicDiscoveryStateProvider>
       </div>
 
       <Toaster

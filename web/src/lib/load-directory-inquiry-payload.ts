@@ -40,11 +40,6 @@ export type DirectoryInquiryPayload =
        */
       tenantSlug: string;
       agencyName: string;
-      /**
-       * Auth user id when `mode === "client"` — lets the InquiryDrawer
-       * render the logged-in trust card instead of the "New client" one.
-       */
-      userId?: string;
     };
 
 /**
@@ -192,6 +187,5 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     eventTypes: eventTypes ?? [],
     tenantSlug,
     agencyName,
-    userId: user?.id,
   };
 }

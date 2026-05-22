@@ -1,5 +1,7 @@
 "use client";
 import { logServerError } from "@/lib/server/safe-error";
+import type { Locale } from "@/lib/site-admin/locales";
+import { useDashboardText } from "../dashboard-i18n";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -368,8 +370,12 @@ export function IdentityDrawer() {
 
 export function WorkspaceSettingsDrawer() {
   const { closeDrawer, toast, tenantSlug } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const queueRouterRefresh = useQueuedRouterRefresh();
-  const [locale, setLocale] = useState<"en" | "es" | "pt" | "fr" | "it">("en");
+  const [defaultLocale, setDefaultLocale] = useState<Locale>("en");
+  const [activeLocales, setActiveLocales] = useState<Locale[]>(["en"]);
+  const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(true);
   const [timezone, setTimezone] = useState("America/Cancun");
   const [currency, setCurrency] = useState("USD");
   const [firstDay, setFirstDay] = useState("Monday");
@@ -382,9 +388,9 @@ export function WorkspaceSettingsDrawer() {
       try {
         const res = await loadWorkspaceAccountSettings();
         if (res.ok) {
-          const validLocales = ["en", "es", "pt", "fr", "it"] as const;
-          const loc = res.data.primaryLocale;
-          if (loc && (validLocales as readonly string[]).includes(loc)) setLocale(loc as typeof locale);
+          setDefaultLocale(res.data.defaultLocale);
+          setActiveLocales(res.data.activeLocales.length ? res.data.activeLocales : [res.data.defaultLocale]);
+          setShowLanguageSwitcher(res.data.showLanguageSwitcher);
           if (res.data.timezone) setTimezone(res.data.timezone);
           if (res.data.preferredCurrency) setCurrency(res.data.preferredCurrency);
         }
@@ -396,15 +402,41 @@ export function WorkspaceSettingsDrawer() {
   const localeOptions = [
     { label: "English", value: "en" as const },
     { label: "Español", value: "es" as const },
-    { label: "Português", value: "pt" as const },
-    { label: "Français", value: "fr" as const },
-    { label: "Italiano", value: "it" as const },
   ];
-  const localeLabel = localeOptions.find((o) => o.value === locale)?.label ?? "English";
+  const localeLabel = localeOptions.find((o) => o.value === defaultLocale)?.label ?? "English";
   const handleLocaleChange = (label: string) => {
     const match = localeOptions.find((o) => o.label === label);
-    if (match) setLocale(match.value);
+    if (!match) return;
+    setDefaultLocale(match.value);
+    setActiveLocales((current) =>
+      current.includes(match.value) ? current : [...current, match.value],
+    );
   };
+  const toggleActiveLocale = (code: Locale, checked: boolean) => {
+    const next = checked
+      ? Array.from(new Set([...activeLocales, code]))
+      : activeLocales.filter((l) => l !== code);
+    if (next.length === 0) return;
+    if (!next.includes(defaultLocale)) {
+      setDefaultLocale(next[0] ?? "en");
+    }
+    setActiveLocales(next);
+  };
+  const languagePreview =
+    activeLocales.length > 1 && showLanguageSwitcher
+      ? tt("Visitors can switch between {languages}.").replace(
+          "{languages}",
+          activeLocales.map((l) => l.toUpperCase()).join(" and "),
+        )
+      : activeLocales.length > 1
+        ? tt("Visitors will use {language} by default; the public switcher is hidden.").replace(
+            "{language}",
+            defaultLocale.toUpperCase(),
+          )
+      : tt("Only {language} is active for this site.").replace(
+          "{language}",
+          activeLocales[0]?.toUpperCase() ?? defaultLocale.toUpperCase(),
+        );
 
   const currencyOptions = [
     { label: "USD $", value: "USD" },
@@ -422,7 +454,7 @@ export function WorkspaceSettingsDrawer() {
   const onSave = async () => {
     if (isSaving || isLoading) return;
     if (!tenantSlug) {
-      toast("Settings saved (demo)");
+      toast(tt("Settings saved (demo)"));
       closeDrawer();
       return;
     }
@@ -431,18 +463,20 @@ export function WorkspaceSettingsDrawer() {
       const result = await updateWorkspaceFields({
         preferred_currency: currency,
         timezone,
-        primary_locale: locale,
+        default_locale: defaultLocale,
+        active_locales: activeLocales,
+        show_language_switcher: showLanguageSwitcher,
       });
       if (!result.ok) {
-        toast(result.error || "Couldn't save. Try again.");
+        toast(result.error || tt("Couldn't save. Try again."));
         return;
       }
-      toast("Settings saved");
+      toast(tt("Settings saved"));
       queueRouterRefresh();
       closeDrawer();
     } catch (err) {
       logServerError("updateworkspacefields", err);
-      toast("Couldn't save. Try again.");
+      toast(tt("Couldn't save. Try again."));
     } finally {
       setIsSaving(false);
     }
@@ -452,19 +486,67 @@ export function WorkspaceSettingsDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Workspace settings"
-      description="Operational defaults — locale, currency, timezone."
-      footer={<StandardFooter onSave={onSave} disabled={isSaving || isLoading} saveLabel={isSaving ? "Saving…" : isLoading ? "Loading…" : "Save"} />}
+      title={tt("Workspace settings")}
+      description={tt("Operational defaults — language, currency, timezone.")}
+      footer={<StandardFooter onSave={onSave} disabled={isSaving || isLoading} saveLabel={isSaving ? tt("Saving…") : isLoading ? tt("Loading…") : tt("Save")} />}
     >
-      <Section title="Locale & timezone" framed>
-        <FieldRow label="Default locale">
+      <Section title={tt("Language & localization")} framed>
+        <FieldRow label={tt("Default public language")}>
           <SelectInput
             options={localeOptions.map((o) => o.label)}
             value={localeLabel}
             onChange={handleLocaleChange}
           />
         </FieldRow>
-        <FieldRow label="Timezone">
+        <FieldRow label={tt("Active public languages")}>
+          <div className="flex flex-col gap-2" style={{ fontFamily: FONTS.body }}>
+            {localeOptions.map((opt) => {
+              const checked = activeLocales.includes(opt.value);
+              const locked = checked && activeLocales.length === 1;
+              return (
+                <label key={opt.value} className="flex items-center gap-2 text-admin-ink" style={{ fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={locked}
+                    onChange={(e) => toggleActiveLocale(opt.value, e.currentTarget.checked)}
+                    className="size-4 cursor-pointer rounded border-admin-border"
+                  />
+                  <span>{opt.label}</span>
+                  {opt.value === defaultLocale ? (
+                    <span style={{ fontSize: 10.5 }} className="text-admin-ink-muted">
+                      {tt("default")}
+                    </span>
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
+        </FieldRow>
+        <FieldRow
+          label={tt("Public language switcher")}
+          hint={activeLocales.length > 1 ? tt("Controls public and auth chrome.") : tt("Hidden because one language is active.")}
+        >
+          <div className="flex flex-col gap-2" style={{ fontFamily: FONTS.body }}>
+            <label className="flex items-center gap-2 text-admin-ink" style={{ fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={showLanguageSwitcher}
+                disabled={activeLocales.length <= 1}
+                onChange={(e) => setShowLanguageSwitcher(e.currentTarget.checked)}
+                className="size-4 cursor-pointer rounded border-admin-border disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <span>{tt("Show when multiple languages are active")}</span>
+            </label>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
+              {languagePreview}
+            </div>
+          </div>
+        </FieldRow>
+      </Section>
+
+      <Section title={tt("Regional defaults")} framed>
+        <FieldRow label={tt("Timezone")}>
           <SelectInput
             options={[
               "America/Cancun",
@@ -481,14 +563,14 @@ export function WorkspaceSettingsDrawer() {
             onChange={setTimezone}
           />
         </FieldRow>
-        <FieldRow label="Default currency">
+        <FieldRow label={tt("Default currency")}>
           <SelectInput
             options={currencyOptions.map((o) => o.label)}
             value={currencyLabel}
             onChange={handleCurrencyChange}
           />
         </FieldRow>
-        <FieldRow label="First day of week" hint="Cosmetic — calendar grid only. Not yet persisted.">
+        <FieldRow label={tt("First day of week")} hint={tt("Cosmetic — calendar grid only. Not yet persisted.")}>
           <SelectInput
             options={["Monday", "Sunday"]}
             value={firstDay}
@@ -717,4 +799,3 @@ export function MyProfileDrawer() {
 // ════════════════════════════════════════════════════════════════════
 // Inquiries: peek + new + new booking
 // ════════════════════════════════════════════════════════════════════
-

@@ -91,11 +91,12 @@ export function TalentCardActions({
               : `Save${nameSuffix} to favorites`
           }
           className={cn(
-            "talent-card-actions__favorite inline-flex shrink-0 items-center justify-center rounded-full border outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60",
+            // Lane E — the circle is CONSTANT in both states; only the
+            // glyph changes (hollow + muted → solid + accent colour, see
+            // talent-card-actions.css `[data-favorited="true"]`). The old
+            // design inverted the whole button, which read as neither.
+            "talent-card-actions__favorite inline-flex shrink-0 items-center justify-center rounded-full border border-border bg-background/80 text-foreground/70 backdrop-blur-sm outline-none transition-colors duration-200 hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60",
             compact ? "size-8" : "size-9",
-            favorited
-              ? "border-foreground bg-foreground text-background"
-              : "border-border bg-background/80 text-foreground hover:bg-muted",
           )}
           data-card-favorite-toggle=""
           data-favorited={favorited ? "true" : "false"}

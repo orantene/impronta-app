@@ -30,8 +30,7 @@ type ProfileRow = {
   last_name: string | null;
   short_bio: string | null;
   height_cm: number | null;
-  workflow_status: string | null;
-  visibility: string | null;
+  is_publicly_hidden: boolean | null;
 };
 
 type MediaRow = {
@@ -85,11 +84,10 @@ async function loadTalent(slug: string): Promise<LoadedTalent | null> {
   const { data: profile, error: profileErr } = await supabase
     .from("talent_profiles")
     .select(
-      "id, profile_code, display_name, first_name, last_name, short_bio, height_cm, workflow_status, visibility, location_id",
+      "id, profile_code, display_name, first_name, last_name, short_bio, height_cm, is_publicly_hidden, location_id",
     )
     .eq("profile_code", normalized)
-    .in("workflow_status", ["published", "approved"])
-    .eq("visibility", "public")
+    .eq("is_publicly_hidden", false)
     .maybeSingle();
 
   if (profileErr || !profile) return null;
@@ -105,6 +103,7 @@ async function loadTalent(slug: string): Promise<LoadedTalent | null> {
     .eq("talent_profile_id", typedProfile.id)
     .eq("status", "active")
     .in("agency_visibility", ["site_visible", "featured"])
+    .eq("talent_site_hidden", false)
     .limit(1);
 
   const roster = (rosterRows ?? [])[0] as RosterRow | undefined;

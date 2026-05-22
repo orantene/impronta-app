@@ -14,6 +14,7 @@ import type { DirectoryFilterOption } from "@/lib/directory/field-driven-filters
 import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
 import { humanizeEnumLabel } from "@/lib/directory/humanize-enum-label";
+import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 function pillLabel(label: string): string {
   const t = label.trim();
@@ -37,12 +38,14 @@ export function DirectoryTalentTypeBar({
   selectedIds,
   allLabel,
   barAriaLabel,
+  overflowCopy,
 }: {
   options: DirectoryFilterOption[];
   selectedIds: string[];
   allLabel: string;
   /** Usually the facet label (e.g. "Talent type", "Skills") for the pill tablist. */
   barAriaLabel: string;
+  overflowCopy: DirectoryUiCopy["topBarPills"];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -211,7 +214,7 @@ export function DirectoryTalentTypeBar({
             aria-expanded={overflowOpen}
             aria-controls="directory-talent-type-overflow"
           >
-            MORE · {overflowOptions.length}
+            {overflowCopy.more} · {overflowOptions.length}
           </button>
         ) : null}
       </FilterChips>
@@ -221,21 +224,21 @@ export function DirectoryTalentTypeBar({
           ref={overflowRef}
           id="directory-talent-type-overflow"
           role="listbox"
-          aria-label={`${barAriaLabel} — more options`}
+          aria-label={overflowCopy.moreOptionsAria.replace("{label}", barAriaLabel)}
           className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-zinc-950/95 p-3 shadow-xl backdrop-blur-md"
         >
           <input
             type="search"
             value={overflowQuery}
             onChange={(e) => setOverflowQuery(e.target.value)}
-            placeholder="Search…"
-            aria-label="Search disciplines"
+            placeholder={overflowCopy.searchPlaceholder}
+            aria-label={overflowCopy.searchAria}
             className="mb-2 w-full rounded-md border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-white/40 focus:ring-1 focus:ring-white/25"
             autoFocus
           />
           <ul className="max-h-72 overflow-y-auto">
             {overflowFiltered.length === 0 ? (
-              <li className="px-2 py-2 text-xs text-white/50">No matches</li>
+              <li className="px-2 py-2 text-xs text-white/50">{overflowCopy.noMatches}</li>
             ) : (
               overflowFiltered.map((opt) => {
                 const on = activeId === opt.id;

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -56,6 +57,17 @@ export async function loadWorkspaceAgencySummary(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
+
+    // Self-heal an expired platform plan override before reading the plan,
+    // so the workspace's own dashboard / billing / gates stay honest. The
+    // RPC is SECURITY DEFINER + idempotent — a no-op when nothing expired.
+    try {
+      await supabase.rpc("reconcile_expired_plan_overrides", {
+        p_tenant_id: tenantId,
+      });
+    } catch {
+      // Non-fatal — the platform-side sweep reconciles too.
+    }
 
     const [agencyRes, identityRes, rosterCountRes] = await Promise.all([
       supabase
@@ -281,7 +293,15 @@ export type WorkspaceTeamMember = {
   /** profile_id from agency_memberships */
   id: string;
   name: string;
-  /** Membership role: viewer | editor | coordinator | admin | owner */
+  /** Member headshot URL from `profiles.avatar_url`, when it is an http(s)
+   *  URL. Shown on the identity card; falls back to an initial avatar. */
+  photoUrl?: string;
+  /** Account email from `auth.users.email` (fetched via service-role
+   *  `auth.admin.getUserById` since `public.profiles` carries no email).
+   *  Shown as the secondary line on the identity card. Best-effort —
+   *  optional. */
+  email?: string;
+  /** Membership role: viewer | editor | manager | admin | owner */
   role: string;
   /** Membership status: active | pending_acceptance */
   status: string;
@@ -305,7 +325,7 @@ export async function loadWorkspaceTeamMembers(
     const { data, error } = await supabase
       .from("agency_memberships")
       .select(
-        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name)",
+        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name, avatar_url)",
       )
       .eq("tenant_id", tenantId)
       .in("status", ["active", "pending_acceptance"])
@@ -323,27 +343,53 @@ export async function loadWorkspaceTeamMembers(
       accepted_at: string | null;
       created_at: string;
       profiles:
-        | { display_name: string | null }
-        | { display_name: string | null }[]
+        | { display_name: string | null; avatar_url: string | null }
+        | { display_name: string | null; avatar_url: string | null }[]
         | null;
     };
 
     const ROLE_RANK: Record<string, number> = {
       owner: 4,
       admin: 3,
-      coordinator: 2,
+      manager: 2,
       editor: 1,
       viewer: 0,
     };
 
     const rows = (data ?? []) as unknown as MemberRow[];
+
+    // Member emails live on `auth.users`, not `public.profiles` — so fetch
+    // them via service-role `auth.admin.getUserById` in parallel. Best-
+    // effort: a failure leaves emails blank but member rows still render.
+    const emailById = new Map<string, string>();
+    const admin = createServiceRoleClient();
+    if (admin && rows.length > 0) {
+      try {
+        const lookups = await Promise.all(
+          rows.map((r) => admin.auth.admin.getUserById(r.profile_id)),
+        );
+        for (let i = 0; i < lookups.length; i++) {
+          const user = lookups[i]?.data?.user;
+          const email = user?.email?.trim();
+          if (email) emailById.set(rows[i]!.profile_id, email);
+        }
+      } catch (err) {
+        logServerError("workspace.loadTeamMembers.emails", err);
+      }
+    }
+
     const out: WorkspaceTeamMember[] = rows.map((row) => {
       const profileJoin = row.profiles;
       const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
       const name = profile?.display_name?.trim() || row.profile_id.slice(0, 8);
+      const avatar = profile?.avatar_url?.trim();
       return {
         id: row.profile_id,
         name,
+        // Only http(s) avatars render as <img>; storage-path avatars are
+        // skipped so the card falls back to an initial avatar cleanly.
+        photoUrl: avatar && /^https?:\/\//i.test(avatar) ? avatar : undefined,
+        email: emailById.get(row.profile_id),
         role: row.role,
         status: row.status,
         joinedAt: row.accepted_at ?? row.created_at,

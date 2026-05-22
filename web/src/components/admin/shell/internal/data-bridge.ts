@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -96,9 +97,13 @@ import type {
  * Contract:
  *   - Server-only ("server-only" guard above will throw if any client
  *     module imports this file at runtime).
- *   - No service-role key — every read goes through the SSR client tied
- *     to the user's auth cookie. RLS enforces tenant isolation at the
- *     database, not in this file.
+ *   - Reads go through the SSR client tied to the user's auth cookie, so
+ *     RLS enforces tenant isolation at the database. The one exception is
+ *     `loadWorkspaceRosterForCurrentTenant`, which self-elevates its read
+ *     to the service-role client (RLS would otherwise NULL the embedded
+ *     `talent_profiles` join for invited/hidden profiles); that read is
+ *     gated by an upstream capability check + an explicit `tenant_id`
+ *     filter — see the inline comment on that function.
  *   - No URL params, no cookie reads, no hardcoded fallback. Tenant
  *     resolution funnels through `getTenantScope()` only.
  *   - Returns `[]` when scope is null, the env is unconfigured, or the
@@ -252,8 +257,16 @@ export type BridgeData = {
   sessionIdentity?: {
     userId: string;
     email: string;
-    role: string; // membership role: 'owner' | 'admin' | 'coordinator' | etc.
+    role: string; // membership role: 'owner' | 'admin' | 'manager' | etc.
     displayName: string | null;
+    /**
+     * True when the signed-in user holds a platform-level role
+     * (`profiles.platform_role` / legacy `app_role = 'super_admin'`).
+     * Drives the "Platform" entry point in the workspace switcher —
+     * the platform console is not a tenant, so it can't surface via
+     * `agency_memberships` like ordinary workspaces.
+     */
+    isPlatformAdmin?: boolean;
   } | null;
 
   // ── Media gallery + watermark (Agency tier) ────────────────────────────────
@@ -309,7 +322,9 @@ type RosterRow = {
     display_name: string | null;
     first_name: string | null;
     last_name: string | null;
+    invitation_email: string | null;
     workflow_status: string | null;
+    is_publicly_hidden: boolean | null;
     height_cm: number | null;
     updated_at: string | null;
     talent_profile_taxonomy:
@@ -550,7 +565,26 @@ export async function loadWorkspaceRosterForCurrentTenant(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
-    const { data, error } = await supabase
+    // Self-elevate the roster read to service-role. RLS on `talent_profiles`
+    // only exposes profiles to non-owning actors once they are public —
+    // an `invited` / `visibility:hidden` profile returns a NULL embed even
+    // for the workspace's own admin. The `agency_talent_roster` row IS
+    // visible under RLS, but the `talent_profiles!talent_profile_id` embed
+    // collapses to null, so the `if (!profile) continue` below silently
+    // drops every freshly-invited talent from the roster page.
+    //
+    // The actor is already gated upstream: the admin layout
+    // (`[tenantSlug]/admin/layout.tsx`) verifies
+    // `userHasCapability("agency.workspace.view", tenantId)` before this
+    // loader runs, and the query below pins `.eq("tenant_id", tenantId)`.
+    // Service-role + an explicit tenant filter = no cross-tenant leak.
+    // Same precedent as the Discover roster read (commit b635cad6b) and
+    // createOffer (85729cbc7) — the engine/UI gate auth, service-role
+    // does the mechanical read. RLS stays as the secondary gate.
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    const { data, error } = await readClient
       .from("agency_talent_roster")
       .select(
         `
@@ -564,7 +598,9 @@ export async function loadWorkspaceRosterForCurrentTenant(
           display_name,
           first_name,
           last_name,
+          invitation_email,
           workflow_status,
+          is_publicly_hidden,
           height_cm,
           updated_at,
           talent_profile_taxonomy (
@@ -622,12 +658,24 @@ export async function loadWorkspaceRosterForCurrentTenant(
         id: profile.id,
         profileCode: profile.profile_code ?? undefined,
         name: deriveDisplayName(profile),
+        // Real-name + email identity for cards (Team drawer coordinator
+        // picker etc.) — admins can't recognise talent from a stage name
+        // alone. Optional: incomplete fixtures may have none of these.
+        firstName: profile.first_name ?? undefined,
+        lastName: profile.last_name ?? undefined,
+        email: profile.invitation_email ?? undefined,
         state: deriveProfileState(row),
         height: deriveHeightLabel(profile),
         city: deriveCity(profile),
         thumb: thumbUrl,
         primaryType: derivePrimaryType(profile),
         portfolioCount,
+        // Agency directory visibility — the roster-card eye toggle.
+        siteVisible:
+          row.agency_visibility === "site_visible" ||
+          row.agency_visibility === "featured",
+        // Talent's own global hide switch — overrides the agency eye.
+        talentHidden: profile.is_publicly_hidden ?? false,
         createdAt: row.created_at ?? undefined,
         updatedAt: profile.updated_at ?? undefined,
         // `completeness`, `availability`, `lastActive` are derived UI

@@ -75,7 +75,7 @@ function fmtPitchRelative(iso: string | null): string {
 export function PitchesPage() {
   const { state, effectivePitches, effectiveRoster, tenantSlug, toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
-  const canEdit = meetsRole(state.role, "coordinator");
+  const canEdit = meetsRole(state.role, "manager");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
 

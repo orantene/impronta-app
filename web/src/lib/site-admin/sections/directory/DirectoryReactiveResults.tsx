@@ -318,6 +318,7 @@ function DirectoryReactiveResultsInner({
           selectedIds={taxonomyTermIds}
           allLabel={ui.topBarPills.all}
           barAriaLabel={topBarFacet.label}
+          overflowCopy={ui.topBarPills}
         />
       ) : null}
       {scopeLimitedHint ? (

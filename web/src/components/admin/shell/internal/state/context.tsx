@@ -14,9 +14,9 @@ import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder } from "../data-bridge";
 import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-flags-tenant-slug";
-import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
+import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
-import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 
 // ─── Provider ────────────────────────────────────────────────────────
 
@@ -39,6 +39,8 @@ export type AdminShellState = {
   page: WorkspacePage;
   // talent dimensions
   talentPage: TalentPage;
+  /** Talent personal subscription tier — Free / Pro / Max. */
+  talentTier: TalentSubscriptionTier;
   // client dimensions
   clientPlan: ClientPlan;
   clientPage: ClientPage;
@@ -85,6 +87,8 @@ type Ctx = {
   setWorkspaceLayout: (l: WorkspaceLayout) => void;
   setPage: (p: WorkspacePage) => void;
   setTalentPage: (p: TalentPage) => void;
+  /** Switch the talent's plan tier (dev/test affordance until billing is live). */
+  setTalentTier: (t: TalentSubscriptionTier) => void;
   setClientPlan: (p: ClientPlan) => void;
   setClientPage: (p: ClientPage) => void;
   /** Active client identity (Martina Beach Club business vs The Gringo person). */
@@ -320,6 +324,12 @@ type Ctx = {
      * Agency-tier workspaces.
      */
     defaultCoordinatorUserId?: string | null;
+    /**
+     * Phase 5 — roster talent designated as default inquiry coordinators
+     * (agency_inquiry_coordinators). All of them auto-join every new
+     * inquiry as `coordinator` participants. Empty array when none set.
+     */
+    inquiryCoordinatorTalentIds?: string[];
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls
@@ -330,6 +340,9 @@ type Ctx = {
     email: string;
     role: string;
     displayName: string | null;
+    /** True when the user is a platform admin — gates the switcher's
+     *  "Platform" entry point to the HQ console. */
+    isPlatformAdmin?: boolean;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity
@@ -496,8 +509,12 @@ function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
   return {
     id: m.id,
     name: m.name,
-    email: "",
-    role: (["viewer","editor","coordinator","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
+    // Email comes from `auth.users` via the bridge loader's service-role
+    // lookup (`public.profiles` carries none) — may still be empty if
+    // the lookup failed.
+    email: m.email ?? "",
+    photoUrl: m.photoUrl,
+    role: (["viewer","editor","manager","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
     status: m.status === "pending_acceptance" ? "invited" : "active",
     initials,
   };
@@ -755,6 +772,12 @@ export function AdminShellProvider({
     if (currentPath === canonicalHref || currentPath === brandedHref) return;
     router.push(canonicalHref);
   }, [router, initialSurface]);
+  // talent personal subscription tier (Free / Pro / Max). A real bridge
+  // talent starts on Free (billing not live); prototype mode uses the
+  // demo fixture tier. Switchable in dev via the Compare-plans drawer.
+  const [talentTier, setTalentTier] = useState<TalentSubscriptionTier>(
+    initialBridgeData?.talentSelfProfile ? "free" : MY_TALENT_PROFILE.subscription.tier,
+  );
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
   const [clientPage, setClientPage] = useState<ClientPage>("today");
@@ -1625,6 +1648,7 @@ export function AdminShellProvider({
         alsoTalent,
         page,
         talentPage,
+        talentTier,
         clientPlan,
         clientPage,
         clientProfile,
@@ -1648,6 +1672,7 @@ export function AdminShellProvider({
       setWorkspaceLayout,
       setPage,
       setTalentPage,
+      setTalentTier,
       setClientPlan,
       setClientPage,
       clientProfile,
@@ -1746,6 +1771,7 @@ export function AdminShellProvider({
       alsoTalent,
       page,
       talentPage,
+      talentTier,
       clientPlan,
       clientPage,
       hqRole,

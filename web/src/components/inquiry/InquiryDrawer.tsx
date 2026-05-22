@@ -203,6 +203,45 @@ export function InquiryDrawer({
     }
   }, [bindToInquiryCart, submitted, cart]);
 
+  // ─ Inquiry-cart binding (B2 — directory shortlist ⟷ composer) ─────────────
+  // `useInquiryCart` is provider-optional: on the client dashboard (no
+  // PublicDiscoveryState) it is inert and the sync effect below no-ops.
+  const cart = useInquiryCart();
+  const cartKey = cart.cartIds.join(",");
+  useEffect(() => {
+    if (!bindToInquiryCart) return;
+    setIntent((cur) => {
+      const next = cartKey ? cartKey.split(",") : [];
+      const curIds = cur.talent?.selected_ids ?? [];
+      if (
+        curIds.length === next.length
+        && curIds.every((id, i) => id === next[i])
+      ) {
+        return cur;
+      }
+      return {
+        ...cur,
+        talent: {
+          ...cur.talent,
+          selected_ids: next,
+          selection_mode: cur.talent?.selection_mode ?? "i_know_who",
+        },
+      };
+    });
+  }, [bindToInquiryCart, cartKey]);
+
+  const removeTalentFromCart = bindToInquiryCart
+    ? (id: string) =>
+        cart.setInCart({ talentProfileId: id, profileCode: "" }, false)
+    : undefined;
+
+  // ─ Submit ────────────────────────────────────────────────────────────────
+  const [submitState, submitFormAction, submitting] = useActionState<
+    InquiryIntentActionState,
+    FormData
+  >(submitInquiryNowAction, { kind: "idle" });
+  const submitted = submitState.kind === "submitted";
+
   // ─ Autosave (logged-in only) ──────────────────────────────────────────────
   const autosaveEnabled = (enableDraftAutosave ?? !!client?.user_id) && !!client?.user_id;
   const [saveState, saveAction] = useActionState<InquiryIntentActionState, FormData>(
@@ -485,6 +524,7 @@ function Compose(props: {
   const { intent } = props;
   return (
     <div className="flex flex-col gap-4">
+      {props.headerSlot}
       <RequesterSection
         value={intent.requester}
         onChange={props.setRequester}

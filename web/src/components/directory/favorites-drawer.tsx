@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bookmark, Trash2, X } from "lucide-react";
 
 import { setTalentFavorited, setTalentSaved } from "@/app/(public)/directory/actions";
@@ -12,6 +12,8 @@ import { useOptionalDirectoryInquiryModal } from "@/components/directory/directo
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { Button } from "@/components/ui/button";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import { createTranslator } from "@/i18n/messages";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { DirectoryTalentMini } from "@/app/api/directory/talents-by-ids/route";
 
 /**
@@ -32,6 +34,8 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
   const discovery = usePublicDiscoveryState();
   const inquiryModal = useOptionalDirectoryInquiryModal();
   const pathname = usePathname();
+  const { locale } = stripLocaleFromPathname(pathname);
+  const t = useMemo(() => createTranslator(locale), [locale]);
   const [talents, setTalents] = useState<DirectoryTalentMini[]>([]);
   const [loading, setLoading] = useState(false);
   const [bulkPending, setBulkPending] = useState(false);
@@ -91,12 +95,12 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
         discovery.setFavoriteState(id, true);
         discovery.setFlash({
           tone: "error",
-          title: "Could not update favorites",
+          title: t("public.directory.ui.favorites.updateFailed"),
           message: res.error,
         });
       }
     },
-    [discovery],
+    [discovery, t],
   );
 
   const clearAll = useCallback(async () => {
@@ -149,7 +153,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
       <aside
         ref={panelRef}
         role="dialog"
-        aria-label="Your saved talents"
+        aria-label={t("public.directory.ui.favorites.title")}
         aria-modal="true"
         className={
           "fixed right-0 top-0 z-50 flex h-full w-full max-w-md transform flex-col border-l border-white/10 bg-zinc-950/97 backdrop-blur-md shadow-2xl transition-transform duration-300 ease-out " +
@@ -164,7 +168,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
               fill="currentColor"
             />
             <h2 className="truncate font-display text-lg font-medium tracking-wide text-foreground">
-              Your saved talents
+              {t("public.directory.ui.favorites.title")}
               {favoriteIds.length > 0 ? (
                 <span className="ml-2 font-mono text-[11px] tabular-nums text-white/55">
                   {favoriteIds.length}
@@ -175,7 +179,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
           <button
             type="button"
             onClick={() => drawer.close()}
-            aria-label="Close"
+            aria-label={t("public.directory.ui.favorites.close")}
             className="inline-flex size-8 items-center justify-center rounded-full text-white/70 outline-none transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30"
           >
             <X className="size-4" />
@@ -190,19 +194,22 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
             <FavoritesSkeleton count={Math.min(favoriteIds.length, 4)} />
           ) : (
             <ul className="flex flex-col gap-1.5">
-              {talents.map((t) => (
+              {talents.map((talent) => (
                 <FavoriteRow
-                  key={t.id}
-                  talent={t}
+                  key={talent.id}
+                  talent={talent}
                   pathname={pathname}
-                  onRemove={() => removeOne(t.id)}
+                  onRemove={() => removeOne(talent.id)}
+                  removeLabel={t("public.directory.ui.favorites.removeTalent")}
                 />
               ))}
               {/* Ghost rows for IDs that didn't resolve (e.g. talent removed) */}
               {talents.length < favoriteIds.length ? (
                 <li className="px-3 py-2 text-[11px] text-white/40">
-                  {favoriteIds.length - talents.length} hidden — they may no
-                  longer be available.
+                  {t("public.directory.ui.favorites.hiddenUnavailable").replace(
+                    "{count}",
+                    String(favoriteIds.length - talents.length),
+                  )}
                 </li>
               ) : null}
             </ul>
@@ -218,7 +225,10 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
                 disabled={bulkPending}
                 className="w-full bg-white text-black hover:bg-white/90"
               >
-                Inquire about these {favoriteIds.length}
+                {t("public.directory.ui.favorites.inquireAboutThese").replace(
+                  "{count}",
+                  String(favoriteIds.length),
+                )}
               </Button>
               <div className="flex items-center justify-between gap-2 text-[12px]">
                 <Link
@@ -226,7 +236,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
                   onClick={() => drawer.close()}
                   className="text-white/55 underline-offset-4 hover:text-white hover:underline"
                 >
-                  Build your portfolio of talent →
+                  {t("public.directory.ui.favorites.buildPortfolio")}
                 </Link>
                 <button
                   type="button"
@@ -234,7 +244,7 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
                   className="inline-flex items-center gap-1 text-white/45 transition-colors hover:text-white/85"
                 >
                   <Trash2 className="size-3.5" />
-                  Clear all
+                  {t("public.directory.ui.favorites.clearAll")}
                 </button>
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-white/45">
@@ -243,9 +253,9 @@ export function FavoritesDrawer({ signupHref }: { signupHref: string }) {
                   onClick={() => drawer.close()}
                   className="text-white/70 underline-offset-4 hover:text-white hover:underline"
                 >
-                  Save them forever — create a free account
+                  {t("public.directory.ui.favorites.saveForever")}
                 </Link>{" "}
-                and your list follows you.
+                {t("public.directory.ui.favorites.listFollows")}
               </p>
             </div>
           ) : null}
@@ -259,10 +269,12 @@ function FavoriteRow({
   talent,
   pathname,
   onRemove,
+  removeLabel,
 }: {
   talent: DirectoryTalentMini;
   pathname: string;
   onRemove: () => void;
+  removeLabel: string;
 }) {
   const profileHref = talent.profileCode
     ? clientLocaleHref(
@@ -307,7 +319,7 @@ function FavoriteRow({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Remove ${talent.displayName}`}
+        aria-label={removeLabel.replace("{name}", talent.displayName)}
         className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/35 outline-none transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30"
       >
         <X className="size-4" />
@@ -317,15 +329,17 @@ function FavoriteRow({
 }
 
 function EmptyState() {
+  const pathname = usePathname();
+  const { locale } = stripLocaleFromPathname(pathname);
+  const t = useMemo(() => createTranslator(locale), [locale]);
   return (
     <div className="mx-auto mt-12 max-w-xs text-center">
       <Bookmark className="mx-auto size-7 text-white/30" />
       <p className="mt-4 font-display text-base tracking-wide text-foreground">
-        No favorites yet
+        {t("public.directory.ui.favorites.emptyTitle")}
       </p>
       <p className="mt-2 text-[13px] leading-relaxed text-white/55">
-        Tap the bookmark on any talent card to save them here. Your list stays
-        with you across sessions.
+        {t("public.directory.ui.favorites.emptyDescription")}
       </p>
     </div>
   );

@@ -5,7 +5,11 @@ import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/account-menu";
 import { PublicLanguageToggle } from "@/components/public-language-toggle";
 import { PublicHeaderDiscoveryTools } from "@/components/public-header-discovery-tools";
-import { PublicHeaderMobileMenu } from "@/components/public-header-mobile-menu";
+import {
+  PublicHeaderMobileMenu,
+  type MobileMenuRoleNavLink,
+  type MobileMenuUserIdentity,
+} from "@/components/public-header-mobile-menu";
 import { PublicHeaderOverHeroSensor } from "@/components/public-header-over-hero-sensor";
 import {
   getRequestLocale,
@@ -16,7 +20,6 @@ import { publicLocaleHref } from "@/i18n/client-directory-href";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import {
-  isStaffRole,
   resolveAccountHref,
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
@@ -26,6 +29,7 @@ import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -34,6 +38,54 @@ import {
   PublishedShellHeader,
   shouldRenderSnapshotShell,
 } from "@/components/site-shell/PublishedShell";
+
+// C2 — Build role-specific dashboard nav links for the mobile menu.
+// Paths are absolute (no tenant slug) — the middleware/routing layer maps
+// /client, /talent, /admin to the scoped workspace routes on each host.
+function buildRoleNavLinks(
+  appRole: string | null | undefined,
+  headerHref: (href: string) => string,
+): MobileMenuRoleNavLink[] {
+  if (!appRole) return [];
+
+  if (appRole === "client") {
+    return [
+      { label: "Today",      href: headerHref("/client/today") },
+      { label: "Discover",   href: headerHref("/client/discover") },
+      { label: "Favorites",  href: headerHref("/client/favorites") },
+      { label: "Shortlists", href: headerHref("/client/shortlists") },
+      { label: "Inquiries",  href: headerHref("/client/inquiries") },
+      { label: "Messages",   href: headerHref("/client/messages") },
+      { label: "Bookings",   href: headerHref("/client/bookings") },
+      { label: "Settings",   href: headerHref("/client/settings") },
+    ];
+  }
+
+  if (appRole === "talent") {
+    return [
+      { label: "Today",     href: headerHref("/talent/today") },
+      { label: "Messages",  href: headerHref("/talent/messages") },
+      { label: "Profile",   href: headerHref("/talent/profile") },
+      { label: "Calendar",  href: headerHref("/talent/calendar") },
+      { label: "Agencies",  href: headerHref("/talent/agencies") },
+      { label: "Settings",  href: headerHref("/talent/settings") },
+    ];
+  }
+
+  // super_admin or agency_staff
+  if (appRole === "super_admin" || appRole === "agency_staff") {
+    return [
+      { label: "Home",     href: headerHref("/admin") },
+      { label: "Requests", href: headerHref("/admin/inquiries") },
+      { label: "Bookings", href: headerHref("/admin/bookings") },
+      { label: "Talents",  href: headerHref("/admin/talent") },
+      { label: "Clients",  href: headerHref("/admin/clients") },
+      { label: "Settings", href: headerHref("/admin/settings") },
+    ];
+  }
+
+  return [];
+}
 
 export async function PublicHeader() {
   const locale = await getRequestLocale();
@@ -50,6 +102,10 @@ export async function PublicHeader() {
     return <PublishedShellHeader tenantId={tenantIdForIdentity} locale={locale} />;
   }
 
+  const tenantLocaleSettings = tenantIdForIdentity
+    ? await loadTenantLocaleSettings(tenantIdForIdentity)
+    : { defaultLocale: "en" as const, supportedLocales: ["en", "es"] as const, showLanguageSwitcher: true };
+
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
@@ -62,17 +118,31 @@ export async function PublicHeader() {
     publicLocaleHref(pathnameWithoutLocale, href, locale);
   const accountLink = resolveAccountHref(Boolean(user), profile);
   const destination = resolveAuthenticatedDestination(profile);
-  const rawSecondaryAction = !user
-    ? null
-    : destination === "/onboarding/role"
-      ? { href: "/onboarding/role", label: t("public.header.finishSetup") }
-      : isStaffRole(profile?.app_role)
-        ? { href: "/admin", label: t("public.header.inquiries") }
-        : profile?.app_role === "talent"
-          ? { href: "/talent", label: t("public.header.myProfile") }
-          : { href: "/client", label: t("public.header.dashboard") };
-  const secondaryAction = rawSecondaryAction
-    ? { ...rawSecondaryAction, href: headerHref(rawSecondaryAction.href) }
+  // C3 — Desktop AccountMenu dedup: secondary action currently always
+  // resolves to the same href as the primary dashboard link, so it's a
+  // no-op entry. Null it out to keep the dropdown uncluttered.
+  const secondaryAction: { href: string; label: string } | null = null;
+
+  // C2/C4 — Role nav + identity for the mobile menu. Only built when the
+  // user is fully active (not mid-onboarding) so the menu doesn't show
+  // dashboard links to users who haven't chosen a role yet.
+  const isActiveSession =
+    Boolean(user) &&
+    destination !== "/onboarding/role" &&
+    destination !== "/";
+  const roleNavLinks: MobileMenuRoleNavLink[] = isActiveSession
+    ? buildRoleNavLinks(profile?.app_role, headerHref)
+    : [];
+  const mobileUserIdentity: MobileMenuUserIdentity | null = isActiveSession
+    ? {
+        displayName:
+          profile?.display_name?.trim() ||
+          (user?.email ? user.email.split("@")[0] : "You"),
+        roleLabel: profile?.app_role
+          ? profile.app_role.replace(/_/g, " ")
+          : "Signed in",
+        dashboardHref: headerHref(accountLink.href),
+      }
     : null;
 
   const [savedIds, favoriteIds] = await Promise.all([
@@ -296,12 +366,35 @@ export async function PublicHeader() {
             navLinks={cmsHeaderLinks}
             locale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
+            availableLocales={tenantLocaleSettings.supportedLocales}
+            defaultLocale={tenantLocaleSettings.defaultLocale}
+            showLanguageSwitcher={tenantLocaleSettings.showLanguageSwitcher}
             brandLabel={brandLabel}
             ctaLabel={showCtaInMobileMenu ? ctaLabel : null}
             ctaHref={showCtaInMobileMenu && ctaHref ? headerHref(ctaHref) : null}
             openMenuLabel={t("public.header.openMenuAria")}
             closeMenuLabel={t("public.header.closeMenuAria")}
+            roleNavLinks={roleNavLinks}
+            userIdentity={mobileUserIdentity}
+            signOutAction={isActiveSession ? signOut : undefined}
           />
+          {/* C1 — Profile shortcut beside the hamburger, mobile-only, signed-in only.
+           *  Shows the user's initials so they can confirm who they're signed in as
+           *  at a glance; tapping navigates directly to their dashboard. */}
+          {isActiveSession ? (
+            <Link
+              href={headerHref(accountLink.href)}
+              aria-label={`${mobileUserIdentity?.displayName ?? "Your account"} — go to dashboard`}
+              className="md:hidden inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {mobileUserIdentity?.displayName
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((w) => w[0]?.toUpperCase() ?? "")
+                .join("") || <UserRound className="size-4" />}
+            </Link>
+          ) : null}
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
               href={headerHref("/directory")}
@@ -404,6 +497,9 @@ export async function PublicHeader() {
             className="mr-1 hidden sm:flex"
             activeLocale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
+            availableLocales={tenantLocaleSettings.supportedLocales}
+            defaultLocale={tenantLocaleSettings.defaultLocale}
+            showLanguageSwitcher={tenantLocaleSettings.showLanguageSwitcher}
           />
           <PublicHeaderDiscoveryTools
             initialFavoritesCount={favoriteIds.length}

@@ -5,8 +5,8 @@ import Image from "next/image";
 import { Card } from "../primitives";
 import { COLORS, FONTS, TAXONOMY, useAdminShell } from "../state";
 import type { TalentProfile } from "../state";
-import { fillAdminTpl, rosterWorkflowStateLabel } from "./TalentPage-1";
-import { RosterPhotoBadgeOverlay, RosterTrustCell } from "./TalentPage-3";
+import { fillAdminTpl } from "./TalentPage-1";
+import { RosterEyeToggle, RosterPhotoBadgeOverlay, RosterTrustCell } from "./TalentPage-3";
 
 
 export function FilterChip({
@@ -340,7 +340,7 @@ function RosterCard({
   // Mirror the old CSS background-image silent-fallback: on 400/404 from
   // Supabase, hide the image and let the initials placeholder show through.
   const [photoFailed, setPhotoFailed] = useState(false);
-  const { bridgeTalentSelfProfile, t } = useAdminShell();
+  const { bridgeTalentSelfProfile, tenantSlug, t } = useAdminShell();
   const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
   // Resolve primary type → label + parent emoji + first specialty.
@@ -359,15 +359,6 @@ function RosterCard({
     return null;
   })();
   const typeLabel = typeMeta?.label ?? null;
-
-  // State dot tone
-  const stateTone = ({
-    published: COLORS.green,
-    draft: COLORS.inkMuted,
-    invited: COLORS.indigoDeep,
-    "awaiting-approval": COLORS.amber,
-    claimed: COLORS.ink,
-  } as const)[profile.state];
 
   // Availability dot
   const availDot = profile.availability === "available"
@@ -399,8 +390,11 @@ function RosterCard({
         textAlign: "left",
         fontFamily: FONTS.body,
         overflow: "hidden",
-        transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s",
+        transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s",
         boxShadow: hover ? "0 6px 20px -10px rgba(11,11,13,0.18)" : "0 1px 2px rgba(11,11,13,0.03)",
+        // Talent has globally hidden themselves — render the card "deactivated"
+        // so the agency sees at a glance it is off everywhere, not just here.
+        opacity: profile.talentHidden ? 0.6 : 1,
       }}
     >
       {/* Photo */}
@@ -435,39 +429,6 @@ function RosterCard({
         )}
         {/* Modern verified-icon overlay — IG / Tulala / Agency. */}
         <RosterPhotoBadgeOverlay talentId={profile.id} />
-        {/* "On Discover" pill — surfaces talent_profiles.is_discoverable.
-            Shown top-right of the photo when the talent has opted in to
-            the cross-tenant Tulala Discover catalog. Admins can manage
-            placement boost separately via `feature_in_directory` (in
-            the profile editor's admin section). See
-            project_discover_unified.md §3 + audit A1. */}
-        {profile.isDiscoverable && (
-          <div
-            aria-label="On Tulala Discover"
-            title="This talent has enabled their Discover toggle"
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 9px",
-              borderRadius: 999,
-              background: "rgba(46,125,91,0.92)",
-              color: "#fff",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              backdropFilter: "blur(6px)",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
-              pointerEvents: "none",
-            }}
-          >
-            Discover
-          </div>
-        )}
         {/* "You" badge — persistent marker when this is the signed-in talent's own profile */}
         {isSelf && (
           <div
@@ -529,10 +490,52 @@ function RosterCard({
           </button>
         )}
 
-        {/* Availability + state dots, top-right */}
-        <div style={{ position: "absolute", top: 8, right: 8, display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)", boxShadow: "0 1px 4px rgba(11,11,13,0.10)", fontSize: 10, fontWeight: 600 }} className="text-admin-ink">
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
-          <span>{rosterWorkflowStateLabel(t, profile.state)}</span>
+        {/* Top-right stack — directory-visibility eye toggle + Discover pill.
+            The eye is the agency's single public-visibility control; it
+            replaced the old Draft/Published status chip. */}
+        <div
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 5,
+            zIndex: 2,
+          }}
+        >
+          <RosterEyeToggle
+            talentId={profile.id}
+            tenantSlug={tenantSlug}
+            siteVisible={profile.siteVisible ?? false}
+            talentHidden={profile.talentHidden ?? false}
+          />
+          {/* "On Discover" pill — surfaces talent_profiles.is_discoverable
+              (the talent's cross-tenant Tulala Discover opt-in). */}
+          {profile.isDiscoverable && (
+            <div
+              aria-label="On Tulala Discover"
+              title="This talent has enabled their Discover toggle"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "3px 9px",
+                borderRadius: 999,
+                background: "rgba(46,125,91,0.92)",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                textTransform: "uppercase",
+                backdropFilter: "blur(6px)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                pointerEvents: "none",
+              }}
+            >
+              Discover
+            </div>
+          )}
         </div>
 
         {/* Bottom-left stack: completeness (non-published only) + portfolio count */}

@@ -307,6 +307,49 @@ export async function submitInquiry(
       });
     }
 
+    // Phase 5 — multi-coordinator fan-out. Every roster talent the
+    // workspace designated a default inquiry coordinator
+    // (agency_inquiry_coordinators) also joins the thread as a
+    // `coordinator` participant, so they can manage the inquiry → booking
+    // flow alongside the primary coordinator resolved above. Deduped
+    // against the primary; talent without a claimed account (no user_id)
+    // are skipped — a participant needs a user. Best-effort: the inquiry
+    // is already persisted, so a failure here must never block submission.
+    if (input.tenant_id) {
+      try {
+        const { data: coordRows } = await supabase
+          .from("agency_inquiry_coordinators")
+          .select("talent_profile_id")
+          .eq("tenant_id", input.tenant_id);
+        const coordTalentIds = (
+          (coordRows ?? []) as Array<{ talent_profile_id: string }>
+        ).map((r) => r.talent_profile_id);
+        if (coordTalentIds.length > 0) {
+          const { data: coordTalent } = await supabase
+            .from("talent_profiles")
+            .select("user_id")
+            .in("id", coordTalentIds);
+          const seenCoord = new Set<string>(
+            assignment.coordinator_id ? [assignment.coordinator_id] : [],
+          );
+          for (const t of (coordTalent ?? []) as Array<{ user_id: string | null }>) {
+            const uid = t.user_id;
+            if (!uid || seenCoord.has(uid)) continue;
+            seenCoord.add(uid);
+            await supabase.from("inquiry_participants").insert({
+              inquiry_id: inquiryId,
+              tenant_id: input.tenant_id,
+              user_id: uid,
+              role: "coordinator",
+              status: "invited",
+            });
+          }
+        }
+      } catch (fanoutErr) {
+        logServerError("inquiry-engine-submit.coordinatorFanout", fanoutErr);
+      }
+    }
+
     // D0 (Discover funnel convergence): resolve per-row owning party at
     // submit time. Each talent's owning party is FROZEN onto
     // `inquiry_participants.owning_party_type/_id` so commission

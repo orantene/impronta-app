@@ -5,7 +5,7 @@
 // Owns: TalentTierCompareDrawer, TalentPersonalPageDrawer,
 // TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer,
 // TalentMediaKitDrawer, TalentCustomDomainDrawer.
-// Private helpers: LockedBadge, FeatureCell + TIER_FEATURE_MATRIX data.
+// Private helpers: LockedBadge, FeatureCell (matrix → TALENT_TIER_CATALOG).
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
@@ -14,11 +14,15 @@ import {
   FONTS,
   MY_TALENT_PROFILE,
   TALENT_PAGE_TEMPLATES,
+  TALENT_TIER_CATALOG,
+  TALENT_TIER_GROUP_LABELS,
   TALENT_TIER_META,
   tierAllows,
   useAdminShell,
   type TalentMediaEmbed,
   type TalentSubscriptionTier,
+  type TalentTierCell,
+  type TalentTierGroup,
 } from "../state";
 import {
   CapsLabel,
@@ -42,9 +46,9 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
         alignItems: "center",
         gap: 4,
         padding: "2px 7px",
-        background: requiredTier === "portfolio" ? COLORS.fill : COLORS.accentSoft,
-        color: requiredTier === "portfolio" ? "#fff" : COLORS.accent,
-        border: `1px solid ${requiredTier === "portfolio" ? COLORS.accent : "rgba(15,79,62,0.28)"}`,
+        background: requiredTier === "max" ? COLORS.fill : COLORS.accentSoft,
+        color: requiredTier === "max" ? "#fff" : COLORS.accent,
+        border: `1px solid ${requiredTier === "max" ? COLORS.accent : "rgba(15,79,62,0.28)"}`,
         fontFamily: FONTS.body,
         fontSize: 10,
         fontWeight: 600,
@@ -61,26 +65,13 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 }
 
 // ─── Tier compare ────────────────────────────────────────────────
-
-const TIER_FEATURE_MATRIX: Array<{ label: string; basic: string | true; pro: string | true; portfolio: string | true }> = [
-  { label: "Standard public profile", basic: true, pro: true, portfolio: true },
-  { label: "Roster · Tulala hub discovery", basic: true, pro: true, portfolio: true },
-  { label: "Inquiry inbox + bookings", basic: true, pro: true, portfolio: true },
-  { label: "Page templates", basic: "Roster only", pro: "+ Editorial / Studio", portfolio: "+ Stage / Creator / EPK" },
-  { label: "Social + video embeds", basic: "—", pro: "Up to 6", portfolio: "Unlimited" },
-  { label: "Press / clippings band", basic: "—", pro: true, portfolio: true },
-  { label: "Downloadable media kit (EPK)", basic: "—", pro: true, portfolio: true },
-  { label: "Custom domain (yourname.com)", basic: "—", pro: "—", portfolio: true },
-  { label: "Multi-section page builder", basic: "—", pro: "—", portfolio: true },
-  { label: "SEO controls + meta", basic: "—", pro: "—", portfolio: true },
-  { label: "Priority discover placement", basic: "—", pro: "—", portfolio: true },
-];
-
+// The feature matrix is data-driven: TALENT_TIER_CATALOG (state/fixtures)
+// is the single source for the rows below AND the per-feature gates.
 
 export function TalentTierCompareDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, setTalentTier } = useAdminShell();
   const open = state.drawer.drawerId === "talent-tier-compare";
-  const current = MY_TALENT_PROFILE.subscription.tier;
+  const current = state.talentTier;
 
   return (
     <DrawerShell
@@ -95,9 +86,14 @@ export function TalentTierCompareDrawer() {
         </>
       }
     >
+      {process.env.NODE_ENV !== "production" && (
+        <div style={{ marginBottom: 10, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-dim">
+          Dev — switch tier to preview plan gating live across the talent surface.
+        </div>
+      )}
       {/* Tier columns */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-        {(["basic", "pro", "portfolio"] as const).map((t) => {
+        {(["free", "pro", "max"] as const).map((t) => {
           const meta = TALENT_TIER_META[t];
           const isCurrent = t === current;
           return (
@@ -105,9 +101,9 @@ export function TalentTierCompareDrawer() {
               key={t}
               style={{
                 padding: "16px 16px",
-                background: t === "portfolio" ? COLORS.fill : "#fff",
-                color: t === "portfolio" ? "#fff" : COLORS.ink,
-                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : t === "portfolio" ? COLORS.accent : COLORS.borderSoft}`,
+                background: t === "max" ? COLORS.fill : "#fff",
+                color: t === "max" ? "#fff" : COLORS.ink,
+                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : t === "max" ? COLORS.accent : COLORS.borderSoft}`,
                 borderRadius: 12,
                 position: "relative",
               }}
@@ -142,7 +138,7 @@ export function TalentTierCompareDrawer() {
                   fontFamily: FONTS.display,
                   fontSize: 18,
                   marginTop: 12,
-                  color: t === "portfolio" ? "#fff" : COLORS.accentDeep,
+                  color: t === "max" ? "#fff" : COLORS.accentDeep,
                   fontWeight: 600,
                 }}
               >
@@ -160,6 +156,27 @@ export function TalentTierCompareDrawer() {
               >
                 {meta.blurb}
               </p>
+              {process.env.NODE_ENV !== "production" && !isCurrent && (
+                <button
+                  type="button"
+                  onClick={() => setTalentTier(t)}
+                  style={{
+                    marginTop: 12,
+                    width: "100%",
+                    padding: "6px 10px",
+                    background: "transparent",
+                    color: t === "max" ? "#fff" : COLORS.ink,
+                    border: `1px solid ${t === "max" ? "rgba(255,255,255,0.4)" : COLORS.border}`,
+                    borderRadius: 8,
+                    fontFamily: FONTS.body,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Switch to {meta.label}
+                </button>
+              )}
             </div>
           );
         })}
@@ -180,31 +197,42 @@ export function TalentTierCompareDrawer() {
           {/* Header */}
           <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", padding: "10px 14px", background: "rgba(11,11,13,0.025)", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }} className="text-admin-ink-muted">
             <span>Feature</span>
-            <span className="text-center">Basic</span>
+            <span className="text-center">Free</span>
             <span className="text-center">Pro</span>
-            <span className="text-center">Portfolio</span>
+            <span className="text-center">Max</span>
           </div>
-          {/* Rows */}
-          {TIER_FEATURE_MATRIX.map((f, i) => (
-            <div
-              key={i}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.6fr 1fr 1fr 1fr",
-                padding: "10px 14px",
-                borderBottom: i < TIER_FEATURE_MATRIX.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.ink,
-                alignItems: "center",
-              }}
-            >
-              <span className="font-medium">{f.label}</span>
-              <FeatureCell value={f.basic} />
-              <FeatureCell value={f.pro} />
-              <FeatureCell value={f.portfolio} />
-            </div>
-          ))}
+          {/* Rows — grouped by section */}
+          {(["page", "discovery", "money", "tools"] as TalentTierGroup[]).map((group, gi) => {
+            const rows = TALENT_TIER_CATALOG.filter((r) => r.group === group);
+            if (rows.length === 0) return null;
+            return (
+              <div key={group}>
+                <div style={{ padding: "7px 14px", background: "rgba(11,11,13,0.02)", borderTop: gi > 0 ? `1px solid ${COLORS.borderSoft}` : "none", borderBottom: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-dim">
+                  {TALENT_TIER_GROUP_LABELS[group]}
+                </div>
+                {rows.map((f, i) => (
+                  <div
+                    key={f.label}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.6fr 1fr 1fr 1fr",
+                      padding: "10px 14px",
+                      borderBottom: i < rows.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+                      fontFamily: FONTS.body,
+                      fontSize: 12.5,
+                      color: COLORS.ink,
+                      alignItems: "center",
+                    }}
+                  >
+                    <span className="font-medium">{f.label}</span>
+                    <FeatureCell value={f.free} />
+                    <FeatureCell value={f.pro} />
+                    <FeatureCell value={f.max} />
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -213,7 +241,7 @@ export function TalentTierCompareDrawer() {
         you&apos;re on now. The tier only affects your direct Tulala destination page.
       </div>
 
-      {/* Phase 1.5: Pro & Portfolio not yet available for launch — waitlist card replaces trial CTA */}
+      {/* Phase 1.5: Pro & Max not yet available for launch — waitlist card replaces trial CTA */}
       <div
         style={{
           marginTop: 16,
@@ -229,7 +257,7 @@ export function TalentTierCompareDrawer() {
       >
         <div className="flex-1 min-w-0">
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }} className="text-admin-indigo-deep">
-            Pro &amp; Portfolio launching soon
+            Pro &amp; Max launching soon
           </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
             Join the waitlist and you&apos;ll be first to know — plus an early-access discount when billing opens.
@@ -258,13 +286,13 @@ export function TalentTierCompareDrawer() {
   );
 }
 
-function FeatureCell({ value }: { value: string | true }) {
+function FeatureCell({ value }: { value: TalentTierCell }) {
   if (value === true) {
     return (
       <span style={{ textAlign: "center", fontWeight: 600 }} className="text-admin-green">✓</span>
     );
   }
-  if (value === "—") {
+  if (value === false) {
     return <span style={{ textAlign: "center" }} className="text-admin-ink-dim">—</span>;
   }
   return (
@@ -274,7 +302,7 @@ function FeatureCell({ value }: { value: string | true }) {
   );
 }
 
-// ─── Personal page (page-builder lite, Portfolio) ──────────────────
+// ─── Personal page (page-builder lite, Max) ────────────────────────
 
 export function TalentPersonalPageDrawer() {
   const { state, closeDrawer } = useAdminShell();
@@ -347,7 +375,7 @@ export function TalentPersonalPageDrawer() {
 export function TalentPageTemplateDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-page-template";
-  const tier = MY_TALENT_PROFILE.subscription.tier;
+  const tier = state.talentTier;
   const active = MY_TALENT_PROFILE.subscription.template;
 
   return (
@@ -361,9 +389,9 @@ export function TalentPageTemplateDrawer() {
     >
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
         {TALENT_PAGE_TEMPLATES.map((t) => {
-          const locked = !tierAllows(tier, "template-picker") && t.availableAt !== "basic";
+          const locked = !tierAllows(tier, "template-picker") && t.availableAt !== "free";
           const tierLocked = !tierAllows(tier, "media-embeds") && t.availableAt === "pro";
-          const sigLocked = !tierAllows(tier, "extra-sections") && t.availableAt === "portfolio";
+          const sigLocked = !tierAllows(tier, "extra-sections") && t.availableAt === "max";
           const isLocked = locked || tierLocked || sigLocked;
           const isActive = t.id === active;
           return (
@@ -443,7 +471,7 @@ export function TalentMediaEmbedsDrawer() {
       width={580}
       footer={
         <>
-          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Basic */}
+          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Free */}
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -537,7 +565,7 @@ export function TalentPressDrawer() {
       width={580}
       footer={
         <>
-          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Basic */}
+          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Free */}
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -651,7 +679,7 @@ export function TalentMediaKitDrawer() {
 // ─── Custom domain ──────────────────────────────────────────────────
 
 export function TalentCustomDomainDrawer() {
-  // Phase 1.5 STRIP: Portfolio only — save CTA removed; drawer kept for Phase 2 re-wiring
+  // Phase 1.5 STRIP: Max only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-custom-domain";
   const sub = MY_TALENT_PROFILE.subscription;
@@ -664,7 +692,7 @@ export function TalentCustomDomainDrawer() {
       description="Point your own domain at your Tulala personal page. Visitors see yourname.com — Tulala handles SSL + redirects."
       width={580}
       footer={
-        // Phase 1.5 STRIP: save removed — Portfolio-only feature, not wired for Basic
+        // Phase 1.5 STRIP: save removed — Max-only feature, not wired for Free
         <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
       }
     >

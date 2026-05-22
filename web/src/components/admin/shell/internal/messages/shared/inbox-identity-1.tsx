@@ -300,7 +300,7 @@ export function CoordAvatarPopover({
       onBlur={() => setOpen(false)}
       tabIndex={0}
     >
-      <Avatar size={size} tone={role === "owner" || role === "coordinator" ? "ink" : "auto"} hashSeed={name} initials={initials} photoUrl={photoUrl} />
+      <Avatar size={size} tone={role === "owner" || role === "manager" ? "ink" : "auto"} hashSeed={name} initials={initials} photoUrl={photoUrl} />
       {withPresence && <PresenceDot name={name} />}
       {open && (
         <div role="tooltip" style={{

@@ -57,14 +57,14 @@ export async function resolveStorefrontLocale(): Promise<StorefrontLocaleContext
 
   if (!tenantId) {
     const { locale, isFallback } = resolveTenantLocale(
-      { defaultLocale: "en", supportedLocales: ["en"] },
+      { defaultLocale: "en", supportedLocales: ["en"], showLanguageSwitcher: false },
       requestedLocale,
     );
     return {
       locale,
       requestedLocale,
       isFallback,
-      settings: { defaultLocale: "en", supportedLocales: ["en"] },
+      settings: { defaultLocale: "en", supportedLocales: ["en"], showLanguageSwitcher: false },
       tenantId: null,
     };
   }

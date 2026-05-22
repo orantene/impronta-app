@@ -26,6 +26,9 @@ export type TalentSelfProfile = {
   homeCity: string | null;
   /** workflow_status: draft | published | invited */
   workflowStatus: string;
+  /** Talent's global hide kill-switch (`talent_profiles.is_publicly_hidden`).
+   *  true = the talent has hidden their profile across all of Tulala. */
+  isPubliclyHidden: boolean;
   /** Roster status: active | pending | paused */
   rosterStatus: string;
   /** The talent's public profile URL code (profile_code) */
@@ -64,6 +67,7 @@ export async function loadTalentSelfProfile(
         first_name,
         last_name,
         workflow_status,
+        is_publicly_hidden,
         profile_code,
         short_bio,
         bio_en,
@@ -92,6 +96,7 @@ export async function loadTalentSelfProfile(
       first_name: string | null;
       last_name: string | null;
       workflow_status: string | null;
+      is_publicly_hidden: boolean | null;
       profile_code: string | null;
       short_bio: string | null;
       bio_en: string | null;
@@ -170,6 +175,7 @@ export async function loadTalentSelfProfile(
       primaryTypeLabel,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
+      isPubliclyHidden: p.is_publicly_hidden ?? false,
       rosterStatus: roster.status,
       profileCode: p.profile_code ?? null,
       agencyName: agencyRow?.display_name ?? "Agency",
@@ -409,6 +415,9 @@ export type TalentAgencyRow = {
   isPrimary: boolean;
   /** Agency visibility tier on this roster: roster_only | site_visible | featured */
   agencyVisibility: string;
+  /** Talent's own per-site opt-out for this agency (agency_talent_roster.talent_site_hidden).
+   *  true = the talent has chosen not to appear on this agency's public site. */
+  talentSiteHidden: boolean;
   /**
    * Exclusivity confirmation lifecycle (migration 20260515195642):
    *   confirmed       — talent accepted or back-compat default
@@ -439,6 +448,7 @@ export async function loadTalentAgencies(
         created_at,
         is_primary,
         agency_visibility,
+        talent_site_hidden,
         exclusivity_status,
         exclusivity_auto_assigned_at,
         agencies!tenant_id ( id, display_name, slug, plan_tier )
@@ -457,6 +467,7 @@ export async function loadTalentAgencies(
       created_at: string;
       is_primary: boolean;
       agency_visibility: string;
+      talent_site_hidden: boolean | null;
       exclusivity_status: "confirmed" | "auto_assigned" | "declined" | "notice_period" | null;
       exclusivity_auto_assigned_at: string | null;
       agencies: { id: string; display_name: string; slug: string; plan_tier: string | null } | { id: string; display_name: string; slug: string; plan_tier: string | null }[] | null;
@@ -473,6 +484,7 @@ export async function loadTalentAgencies(
         addedAt: row.created_at,
         isPrimary: row.is_primary ?? false,
         agencyVisibility: row.agency_visibility ?? "roster_only",
+        talentSiteHidden: row.talent_site_hidden ?? false,
         exclusivityStatus: row.exclusivity_status ?? "confirmed",
         exclusivityAutoAssignedAt: row.exclusivity_auto_assigned_at,
       };

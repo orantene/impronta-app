@@ -7,10 +7,18 @@
 // affordance. Click a card to open the talent's public page in a new tab —
 // the in-app drawer lives on Discover; from here we deep-link to the
 // canonical /t/<profileCode>.
+//
+// D4 — favorites are now the canonical store. The bespoke
+// `DELETE /api/discover/favorites/:id` fetch is retired; the per-card
+// favorite control is the shared <TalentCardActions>, wired through
+// useFavorites() → client_favorites. Un-favoriting a card here drops it
+// from the list reactively (no page reload).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DiscoverShortlistTalent } from "../../_data-bridge/discover";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { useFavorites } from "@/lib/talent-cards/use-favorites";
 
 const C = {
   ink:        "#0B0B0D",
@@ -27,8 +35,6 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
-type FavoriteWithProfileCode = DiscoverShortlistTalent & { profileCode?: string | null };
-
 export function FavoritesShell({
   favorites,
   tenantSlug,
@@ -36,23 +42,21 @@ export function FavoritesShell({
   favorites: DiscoverShortlistTalent[];
   tenantSlug: string;
 }) {
-  const [removed, setRemoved] = useState<Set<string>>(() => new Set());
-  const visible = favorites.filter((f) => !removed.has(f.talentId));
+  const { isFavorited } = useFavorites();
 
-  const handleRemove = async (talentId: string) => {
-    // Optimistic remove with revert on failure.
-    setRemoved((prev) => new Set([...prev, talentId]));
-    try {
-      const res = await fetch(`/api/discover/favorites/${talentId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("delete_failed");
-    } catch {
-      setRemoved((prev) => {
-        const next = new Set(prev);
-        next.delete(talentId);
-        return next;
-      });
-    }
-  };
+  // SSR renders the full server list. Once the canonical store has
+  // hydrated (DiscoveryStateBridge runs in the client layout, an effect
+  // ancestor of this page), filter to talents still favorited — so
+  // un-favoriting a card via <TalentCardActions> drops it immediately.
+  // The pre-hydration gate avoids a one-frame "all removed" flash.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const visible = hydrated
+    ? favorites.filter((f) => isFavorited(f.talentId))
+    : favorites;
 
   if (visible.length === 0) {
     return (
@@ -76,12 +80,7 @@ export function FavoritesShell({
         }}
       >
         {visible.map((t) => (
-          <FavoriteCard
-            key={t.talentId}
-            talent={t as FavoriteWithProfileCode}
-            tenantSlug={tenantSlug}
-            onRemove={() => handleRemove(t.talentId)}
-          />
+          <FavoriteCard key={t.talentId} talent={t} tenantSlug={tenantSlug} />
         ))}
       </div>
       <div style={{
@@ -98,22 +97,20 @@ export function FavoritesShell({
 function FavoriteCard({
   talent,
   tenantSlug,
-  onRemove,
 }: {
-  talent: FavoriteWithProfileCode;
+  talent: DiscoverShortlistTalent;
   tenantSlug: string;
-  onRemove: () => void;
 }) {
   const initials = talent.displayName
     .split(/\s+/).filter(Boolean).slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "").join("");
 
-  // Discover detail drawer surface lives at /client/discover; deep-linking
-  // to it isn't wired (drawer state is client-side). Open the public
-  // profile in a new tab so the user can keep this list visible.
-  // profileCode is a future enrichment — for now, no public link unless
-  // the talent provided one.
-  const inquireHref = `/${tenantSlug}/client/discover`;
+  // Open the canonical public profile when the talent has a profile code;
+  // otherwise keep the user on Discover (the in-app detail drawer lives
+  // there — drawer state is client-side and not deep-linkable).
+  const nameHref = talent.profileCode
+    ? `/t/${talent.profileCode}`
+    : `/${tenantSlug}/client/discover`;
 
   return (
     <div
@@ -145,24 +142,18 @@ function FavoriteCard({
             {initials || "?"}
           </div>
         )}
-        <button
-          type="button"
-          aria-label="Remove from favorites"
-          title="Remove from favorites"
-          onClick={onRemove}
-          style={{
-            position: "absolute", top: 8, right: 8,
-            width: 30, height: 30, borderRadius: "50%",
-            background: "rgba(176,48,58,0.92)", color: "#fff",
-            border: "none", padding: 0,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 14, lineHeight: 1, cursor: "pointer",
-            backdropFilter: "blur(6px)",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-          }}
-        >
-          ♥
-        </button>
+        {/* Canonical favorite control — toggles client_favorites via
+            useFavorites(). Un-favoriting drops this card from the list. */}
+        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
+          <TalentCardActions
+            talentProfileId={talent.talentId}
+            profileCode={talent.profileCode ?? ""}
+            displayName={talent.displayName}
+            sourcePage="client-dashboard"
+            variant="compact"
+            hideInquiry
+          />
+        </div>
         {talent.agencyName && (
           <div
             style={{
@@ -182,7 +173,7 @@ function FavoriteCard({
       </div>
       <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
         <Link
-          href={inquireHref}
+          href={nameHref}
           style={{
             fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 600,
             color: C.ink, textDecoration: "none", letterSpacing: -0.1,

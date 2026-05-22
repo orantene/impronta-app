@@ -15,7 +15,7 @@ import type { CapabilityKey } from "./capabilities";
 export const TENANT_ROLE_KEYS = [
   "viewer",
   "editor",
-  "coordinator",
+  "manager",
   "admin",
   "owner",
 ] as const;
@@ -47,9 +47,9 @@ export const TENANT_ROLES: Record<TenantRoleKey, TenantRoleDef> = {
     rank: 1,
     isAssignable: true,
   },
-  coordinator: {
-    key: "coordinator",
-    displayName: "Coordinator",
+  manager: {
+    key: "manager",
+    displayName: "Manager",
     description: "Run inquiries and bookings end-to-end. Publish site updates.",
     rank: 2,
     isAssignable: true,
@@ -98,7 +98,7 @@ const EDITOR_CAPS: readonly CapabilityKey[] = [
   "agency.site_admin.media.upload",
 ];
 
-const COORDINATOR_CAPS: readonly CapabilityKey[] = [
+const MANAGER_CAPS: readonly CapabilityKey[] = [
   ...EDITOR_CAPS,
   "agency.roster.invite",
   "view_private_client_data",
@@ -128,7 +128,7 @@ const COORDINATOR_CAPS: readonly CapabilityKey[] = [
 ];
 
 const ADMIN_CAPS: readonly CapabilityKey[] = [
-  ...COORDINATOR_CAPS,
+  ...MANAGER_CAPS,
   "agency.roster.remove",
   "delete_client_relationship",
   "edit_branding",
@@ -161,7 +161,7 @@ const OWNER_CAPS: readonly CapabilityKey[] = [
 export const ROLE_CAPABILITIES: Record<TenantRoleKey, ReadonlySet<CapabilityKey>> = {
   viewer: new Set(VIEWER_CAPS),
   editor: new Set(EDITOR_CAPS),
-  coordinator: new Set(COORDINATOR_CAPS),
+  manager: new Set(MANAGER_CAPS),
   admin: new Set(ADMIN_CAPS),
   owner: new Set(OWNER_CAPS),
 };

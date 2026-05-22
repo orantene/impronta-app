@@ -32,6 +32,7 @@ export async function filterTalentIdsOnTenantRoster(
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .in("agency_visibility", PUBLIC_VISIBILITIES)
+    .eq("talent_site_hidden", false)
     .in("talent_profile_id", talentProfileIds);
   if (error) return [];
   const valid = new Set(
@@ -57,7 +58,8 @@ export async function listTalentIdsOnTenantRoster(
     .select("talent_profile_id")
     .eq("tenant_id", tenantId)
     .eq("status", "active")
-    .in("agency_visibility", PUBLIC_VISIBILITIES);
+    .in("agency_visibility", PUBLIC_VISIBILITIES)
+    .eq("talent_site_hidden", false);
   if (error) return [];
   return (data ?? []).map((row) => row.talent_profile_id as string);
 }
@@ -98,6 +100,7 @@ export async function isTalentOnTenantRoster(
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .in("agency_visibility", PUBLIC_VISIBILITIES)
+    .eq("talent_site_hidden", false)
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
   if (error) return false;

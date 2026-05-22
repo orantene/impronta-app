@@ -139,13 +139,13 @@ export function ProTierValueCard({
   onDismiss?: () => void;
 }) {
   // Skip if already on top tier (parent gates this, but defensive).
-  if (currentTier === "portfolio") return null;
-  const isBasic = currentTier === "basic";
-  const targetTier = isBasic ? "pro" : "portfolio";
+  if (currentTier === "max") return null;
+  const isFree = currentTier === "free";
+  const targetTier = isFree ? "pro" : "max";
   const targetMeta = TALENT_TIER_META[targetTier];
 
   // Anchor the pitch on what's missing today, in priority order.
-  const unlocks = isBasic
+  const unlocks = isFree
     ? [
         { label: "Template picker", body: "Pick a personal-page template that matches your category — Roster, Magazine, Editorial, Reel." },
         { label: "Press + Media Kit", body: "Linked press band and a downloadable PDF media kit. Casting directors love these." },
@@ -200,9 +200,9 @@ export function ProTierValueCard({
         <span className="text-admin-ink-muted text-xs">vs your current {TALENT_TIER_META[currentTier].label}</span>
       </div>
       <h3 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
-        {isBasic
+        {isFree
           ? "Three things Pro unlocks that move inquiry rate"
-          : "What Portfolio adds on top of Pro"}
+          : "What Max adds on top of Pro"}
       </h3>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
@@ -292,8 +292,8 @@ export function ProTierCompactStrip({
   currentTier: TalentSubscriptionTier;
   onCompare: () => void;
 }) {
-  const isBasic = currentTier === "basic";
-  const targetTier = isBasic ? "pro" : "portfolio";
+  const isFree = currentTier === "free";
+  const targetTier = isFree ? "pro" : "max";
   const targetMeta = TALENT_TIER_META[targetTier];
   return (
     <button

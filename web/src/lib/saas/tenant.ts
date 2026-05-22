@@ -23,7 +23,7 @@ export const HUB_AGENCY_ID = "00000000-0000-0000-0000-000000000002" as const;
 export type MembershipRole =
   | "owner"
   | "admin"
-  | "coordinator"
+  | "manager"
   | "editor"
   | "viewer";
 

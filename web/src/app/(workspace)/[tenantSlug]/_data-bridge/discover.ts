@@ -78,6 +78,8 @@ export type DiscoverHub = {
 export type DiscoverShortlistTalent = {
   talentId: string;
   displayName: string;
+  /** Public profile code (`/t/[code]`) — carried for `<TalentCardActions>`. */
+  profileCode: string | null;
   primaryTypeLabel: string | null;
   homeCity: string | null;
   homeCountry: string | null;
@@ -360,7 +362,7 @@ export async function loadClientShortlistsForUser(
         added_at,
         talent_profile_id,
         talent_profiles!talent_profile_id (
-          id, display_name, first_name, last_name,
+          id, display_name, first_name, last_name, profile_code,
           home_country_text, home_city_text,
           is_discoverable, workflow_status,
           talent_profile_taxonomy (
@@ -398,6 +400,7 @@ export async function loadClientShortlistsForUser(
         display_name: string | null;
         first_name: string | null;
         last_name: string | null;
+        profile_code: string | null;
         home_country_text: string | null;
         home_city_text: string | null;
         is_discoverable: boolean | null;
@@ -488,6 +491,7 @@ export async function loadClientShortlistsForUser(
         return {
           talentId: p.id,
           displayName,
+          profileCode: p.profile_code,
           primaryTypeLabel: primaryLabel,
           homeCity: p.home_city_text,
           homeCountry: p.home_country_text,
@@ -686,6 +690,11 @@ export async function loadAdminDiscoverInquiries(
  * embedded. Used by the /client/favorites page. Mirror of GET
  * /api/discover/favorites — talent details denormalized so the page
  * renders without per-row roundtrips.
+ *
+ * A4 (cross-tenant): client_favorites is keyed by client_user_id only —
+ * no tenant scope — so favorites saved on any agency storefront appear
+ * here. This is intentional: a client builds one global favorites list
+ * that follows them across agencies.
  */
 export async function loadClientFavoritesForUser(
   userId: string,
@@ -700,7 +709,7 @@ export async function loadClientFavoritesForUser(
       added_at,
       talent_profile_id,
       talent_profiles!talent_profile_id (
-        id, display_name, first_name, last_name,
+        id, display_name, first_name, last_name, profile_code,
         home_country_text, home_city_text,
         is_discoverable, workflow_status,
         talent_profile_taxonomy (
@@ -730,6 +739,7 @@ export async function loadClientFavoritesForUser(
       display_name: string | null;
       first_name: string | null;
       last_name: string | null;
+      profile_code: string | null;
       home_country_text: string | null;
       home_city_text: string | null;
       is_discoverable: boolean | null;
@@ -804,6 +814,7 @@ export async function loadClientFavoritesForUser(
       return {
         talentId: p.id,
         displayName,
+        profileCode: p.profile_code,
         primaryTypeLabel: primaryLabel,
         homeCity: p.home_city_text,
         homeCountry: p.home_country_text,

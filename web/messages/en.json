@@ -31,6 +31,94 @@
       "directoryInquiryTooltipEmpty": "Open the inquiry form — add talent with search or save from the directory",
       "directoryInquiryTooltipWithShortlist": "Contact now — your shortlist is ready to send"
     },
+    "auth": {
+      "language": "Language",
+      "or": "or",
+      "googleOpening": "Opening Google…",
+      "googleFailed": "Google sign-in failed.",
+      "googlePopupBlocked": "Popup blocked. Allow popups for this site and try again.",
+      "googleUnableToStart": "Unable to start Google sign-in.",
+      "login": {
+        "title": "Log in",
+        "inviteTitle": "Sign in to join {agency}",
+        "description": "Continue with Google or email. With Google, a password is optional — you can add one later under Account.",
+        "inviteDescription": "{agency} invited you to their roster. Sign in to claim your profile and start receiving bookings.",
+        "google": "Continue with Google",
+        "emailSubmit": "Log in with email",
+        "pending": "Signing in…",
+        "forgot": "Forgot password?",
+        "remember": "Keep me signed in for 30 days",
+        "noAccount": "No account?",
+        "signUp": "Sign up"
+      },
+      "register": {
+        "title": "Create your account",
+        "operatorTitle": "Create your operator account",
+        "inviteTitle": "Join {agency}",
+        "description": "After signing up you'll choose whether you're Talent (join the agency roster) or a Client (book talent for events).",
+        "operatorDescription": "Use the same email you used on Get Started. We'll open your free workspace and create its Tulala URL automatically after signup.",
+        "inviteDescription": "{agency} invited you to join their roster. Create a Tulala account to claim your profile and start receiving bookings.",
+        "google": "Sign up with Google",
+        "googleContinue": "Continue with Google",
+        "emailSubmit": "Sign up with email",
+        "operatorSubmit": "Create account and open workspace",
+        "inviteSubmit": "Create account & claim profile",
+        "pending": "Creating account…",
+        "passwordHint": "At least 8 characters.",
+        "haveAccount": "Already have an account?",
+        "logIn": "Log in"
+      },
+      "roleRegister": {
+        "talentTitle": "Join as Talent",
+        "talentDescription": "Create an account to join the roster, manage your profile, and receive bookings.",
+        "clientTitle": "Join as a Client",
+        "clientDescription": "Create an account to discover talent, make inquiries, and manage your bookings."
+      },
+      "forgot": {
+        "title": "Forgot password",
+        "description": "We will email you a link to choose a new password. If you usually sign in with Google, you can keep using that — or set a password here to also sign in with email.",
+        "expired": "That reset link is no longer valid. Enter your email below to get a new one.",
+        "submit": "Send reset link",
+        "pending": "Sending…",
+        "back": "Back to log in"
+      },
+      "update": {
+        "title": "Set new password",
+        "description": "Choose a strong password. After saving, you will be signed in and taken to your dashboard.",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "submit": "Update password and continue",
+        "pending": "Saving…"
+      },
+      "form": {
+        "email": "Email",
+        "password": "Password"
+      },
+      "actions": {
+        "invalidEmail": "Enter a valid email address.",
+        "resetSent": "If an account exists for that address, we sent a link to reset your password. Check your inbox and spam folder.",
+        "emailPasswordRequired": "Email and password are required.",
+        "passwordTooShort": "Password must be at least 8 characters.",
+        "signupEmailInvalid": "That email address doesn't look right. Check the format and try again.",
+        "signupDomainBlocked": "Signups aren't allowed for that email domain. Try a different address.",
+        "signupWeakPassword": "Password is too weak. Use at least 8 characters, ideally mixing letters, numbers, and symbols.",
+        "signupRateLimited": "Too many signup attempts for this address. Wait a few minutes and try again.",
+        "signupExists": "An account with that email already exists. Try signing in, or reset your password if you've forgotten it.",
+        "signupDisabled": "New account signups are temporarily disabled. Contact us for access.",
+        "signupGeneric": "We couldn't create your account. Please try again.",
+        "signupConfirmation": "Account created. Check your email for the confirmation link, then continue signing in.",
+        "signInGeneric": "We couldn't sign you in. Check your details and try again.",
+        "confirmPassword": "Enter and confirm your new password.",
+        "passwordMismatch": "Password and confirmation do not match.",
+        "generic": "Something went wrong. Please try again."
+      },
+      "errors": {
+        "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
+        "emailNotConfirmed": "Your email isn't confirmed yet. Check your inbox for the confirmation link.",
+        "tooManyAttempts": "Too many attempts — please wait a minute and try again.",
+        "network": "Connection issue — check your network and try again."
+      }
+    },
     "profile": {
       "about": "About",
       "portfolio": "Portfolio",
@@ -288,19 +376,32 @@
           "all": "ALL"
         },
         "topBarPills": {
-          "all": "ALL"
+          "all": "ALL",
+          "more": "MORE",
+          "moreOptionsAria": "{label} more options",
+          "searchPlaceholder": "Search…",
+          "searchAria": "Search disciplines",
+          "noMatches": "No matches"
         },
         "taxonomyBarAria": "Filter by taxonomy",
         "card": {
           "available": "Available",
+          "availableFrom": "Available from {date}",
+          "availableDaysInNext30": "Available {count} days in next 30",
+          "availabilityUnknown": "Availability unknown — ask to confirm",
           "saveAria": "Save",
           "removeSaveAria": "Remove from saved",
+          "saveFavoriteAria": "Save to favorites",
+          "removeFavoriteAria": "Remove from favorites",
           "shareAria": "Share profile",
           "featuredAria": "Featured profile",
           "featuredLabel": "Featured",
           "livesInTitle": "Lives in: {location}",
           "viewPortfolio": "View Profile",
           "inquire": "Inquire",
+          "added": "Added ✓",
+          "favoriteUpdateFailed": "Could not update favorites",
+          "inquiryUpdateFailed": "Could not update inquiry",
           "quickPreview": "Quick preview",
           "aiMatchWhyAria": "Why this match",
           "aiDetailsOpenAria": "Open full AI match details",
@@ -341,6 +442,20 @@
         },
         "flash": {
           "dismissAria": "Dismiss message"
+        },
+        "favorites": {
+          "title": "Your saved talents",
+          "close": "Close",
+          "updateFailed": "Could not update favorites",
+          "hiddenUnavailable": "{count} hidden — they may no longer be available.",
+          "inquireAboutThese": "Inquire about these {count}",
+          "buildPortfolio": "Build your portfolio of talent →",
+          "clearAll": "Clear all",
+          "saveForever": "Save them forever — create a free account",
+          "listFollows": "and your list follows you.",
+          "removeTalent": "Remove {name}",
+          "emptyTitle": "No favorites yet",
+          "emptyDescription": "Tap the bookmark on any talent card to save them here. Your list stays with you across sessions."
         }
       }
     },
@@ -478,6 +593,17 @@
     "impersonationV1ReadOnlyQa": "v1 read-only QA mode — saves and mutations are disabled.",
     "returnToAdmin": "Return to admin",
     "readOnlyBadge": "Read only",
+    "clientNav": {
+      "messages": "Messages",
+      "today": "Today",
+      "discover": "Discover",
+      "favorites": "Favorites",
+      "shortlists": "Shortlists",
+      "pitches": "Pitches",
+      "inquiries": "Inquiries",
+      "bookings": "Bookings",
+      "settings": "Settings"
+    },
     "clientOverview": {
       "title": "Overview",
       "subtitle": "Jump into each area of your portal — the workspace bar above keeps directory and cart one tap away.",
@@ -936,7 +1062,9 @@
         "pending": "Pending",
         "invited": "Invited",
         "draft": "Draft",
-        "claimed": "Claimed"
+        "claimed": "Claimed",
+        "visible": "Visible",
+        "hidden": "Hidden"
       },
       "filters": {
         "searchAria": "Search roster",

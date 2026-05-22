@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { LanguageSettings } from "@/lib/language-settings/types";
 import { stripDefaultLocalePrefixFromPath } from "@/i18n/pathnames";
 import {
   isDashboardInnerPath,
@@ -37,7 +38,10 @@ import {
   isPathAllowedForHostKind,
   resolvePathBasedTenantPublicPath,
 } from "@/lib/saas/surface-allow-list";
-import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import {
+  loadTenantLocaleSettings,
+  type TenantLocaleSettings,
+} from "@/lib/site-admin/server/locale-resolver";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -66,6 +70,18 @@ function isTenantHostContext(
 function isLocalhostHost(hostHeader: string): boolean {
   const hostname = hostHeader.split(":")[0]?.trim().toLowerCase();
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function withTenantLanguageSettings(
+  base: LanguageSettings,
+  tenantSettings: TenantLocaleSettings | null,
+): LanguageSettings {
+  if (!tenantSettings) return base;
+  return {
+    ...base,
+    defaultLocale: tenantSettings.defaultLocale,
+    publicLocales: [...tenantSettings.supportedLocales],
+  };
 }
 
 export async function proxy(request: NextRequest) {
@@ -190,6 +206,13 @@ export async function proxy(request: NextRequest) {
   }
 
   const langSettings = await getLanguageSettingsForMiddleware();
+  const hostTenantLocaleSettings = isTenantHostContext(hostContext)
+    ? await loadTenantLocaleSettings(hostContext.tenantId)
+    : null;
+  const hostLangSettings = withTenantLanguageSettings(
+    langSettings,
+    hostTenantLocaleSettings,
+  );
 
   const parts = pathname.split("/");
   if (parts[1]) {
@@ -205,7 +228,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const withoutLocalePrefix = stripDefaultLocalePrefixFromPath(pathname, langSettings);
+  const withoutLocalePrefix = stripDefaultLocalePrefixFromPath(pathname, hostLangSettings);
   // Audit H11 — locale-strip redirect: only safe methods.
   if (
     withoutLocalePrefix !== pathname &&
@@ -225,7 +248,7 @@ export async function proxy(request: NextRequest) {
     //
     // Set the cookie on the redirect response so the followed URL
     // serves with the right locale.
-    syncLocaleCookieForPath(res, pathname, langSettings, request);
+    syncLocaleCookieForPath(res, pathname, hostLangSettings, request);
     return res;
   }
 
@@ -241,7 +264,8 @@ export async function proxy(request: NextRequest) {
       (l) => l.toLowerCase() === firstSegment?.toLowerCase(),
     );
     if (firstSegment && isPlatformLocale) {
-      const tenantLocales = await loadTenantLocaleSettings(hostContext.tenantId);
+      const tenantLocales =
+        hostTenantLocaleSettings ?? await loadTenantLocaleSettings(hostContext.tenantId);
       const supportsRequested = tenantLocales.supportedLocales.some(
         (l) => l.toLowerCase() === firstSegment.toLowerCase(),
       );
@@ -263,8 +287,8 @@ export async function proxy(request: NextRequest) {
   // SaaS P2 — surface allow-list. Reject paths that do not belong on this
   // host kind BEFORE rate limits, CMS redirects, or auth run. Checked
   // against the locale-stripped path so `/es/admin` is treated as `/admin`.
-  const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, langSettings)
-    ? stripNonDefaultLocalePrefix(pathname, langSettings)
+  const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, hostLangSettings)
+    ? stripNonDefaultLocalePrefix(pathname, hostLangSettings)
     : pathname;
 
   const canResolvePathBasedTenant =
@@ -282,6 +306,14 @@ export async function proxy(request: NextRequest) {
       )
     : null;
   const effectiveHostContext = pathBasedTenantContext ?? hostContext;
+  const effectiveTenantLocaleSettings =
+    pathBasedTenantContext && isTenantHostContext(pathBasedTenantContext)
+      ? await loadTenantLocaleSettings(pathBasedTenantContext.tenantId)
+      : hostTenantLocaleSettings;
+  const effectiveLangSettings = withTenantLanguageSettings(
+    langSettings,
+    effectiveTenantLocaleSettings,
+  );
   const effectiveCanonicalPath =
     pathBasedTenantContext && pathBasedTenant
       ? pathBasedTenant.pathnameWithoutTenant
@@ -399,8 +431,8 @@ export async function proxy(request: NextRequest) {
 
   const originalPathname = request.nextUrl.pathname;
 
-  if (isNonDefaultLocalePrefixedPath(originalPathname, langSettings)) {
-    const inner = stripNonDefaultLocalePrefix(originalPathname, langSettings);
+  if (isNonDefaultLocalePrefixedPath(originalPathname, effectiveLangSettings)) {
+    const inner = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);
     if (isDashboardInnerPath(inner)) {
       const url = request.nextUrl.clone();
       url.pathname = inner;
@@ -416,7 +448,7 @@ export async function proxy(request: NextRequest) {
     effectiveHostContext.kind === "agency" ? effectiveHostContext.tenantId : null,
   );
   if (cmsRedirect) {
-    syncLocaleCookieForPath(cmsRedirect, originalPathname, langSettings, request);
+    syncLocaleCookieForPath(cmsRedirect, originalPathname, effectiveLangSettings, request);
     return cmsRedirect;
   }
 
@@ -427,7 +459,7 @@ export async function proxy(request: NextRequest) {
   // return the default locale instead of `es`. Result: the page renders in
   // EN even when the URL is `/es/...`, and the operator-facing locale
   // switcher appears non-functional.
-  const locale = resolveLocaleForPathname(pathname, request, langSettings);
+  const locale = resolveLocaleForPathname(pathname, request, effectiveLangSettings);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
@@ -468,8 +500,8 @@ export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl.clone();
   let brandedWorkspaceShortcutRewrite = false;
 
-  if (shouldRewriteLocalePublicPath(originalPathname, langSettings)) {
-    nextUrl.pathname = stripNonDefaultLocalePrefix(originalPathname, langSettings);
+  if (shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings)) {
+    nextUrl.pathname = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);
     pathnameForAuth = nextUrl.pathname;
   }
 
@@ -517,16 +549,16 @@ export async function proxy(request: NextRequest) {
 
   const sessionRes = await updateSession(innerRequest, {
     pathnameForAuth,
-    languageSettings: langSettings,
+    languageSettings: effectiveLangSettings,
   });
 
   if (sessionRes.headers.get("location")) {
-    syncLocaleCookieForPath(sessionRes, originalPathname, langSettings, request);
+    syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
     return sessionRes;
   }
 
   if (
-    shouldRewriteLocalePublicPath(originalPathname, langSettings) ||
+    shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
     cmsSlugRewrite ||
     brandedWorkspaceShortcutRewrite
@@ -548,11 +580,11 @@ export async function proxy(request: NextRequest) {
       }
     });
 
-    syncLocaleCookieForPath(res, originalPathname, langSettings, request);
+    syncLocaleCookieForPath(res, originalPathname, effectiveLangSettings, request);
     return res;
   }
 
-  syncLocaleCookieForPath(sessionRes, originalPathname, langSettings, request);
+  syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
   return sessionRes;
 }
 

@@ -5,6 +5,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createTranslator } from "@/i18n/messages";
+
+import { useFavorites } from "@/lib/talent-cards/use-favorites";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -17,47 +20,53 @@ const C = {
 } as const;
 
 const NAV_ITEMS = [
-  { label: "Messages",   path: "messages"   },
-  { label: "Today",      path: "today"      },
-  { label: "Discover",   path: "discover"   },
-  { label: "Favorites",  path: "favorites"  },
-  { label: "Shortlists", path: "shortlists" },
-  { label: "Pitches",    path: "pitches"    },
-  { label: "Inquiries",  path: "inquiries"  },
-  { label: "Bookings",   path: "bookings"   },
-  { label: "Settings",   path: "settings"   },
+  { key: "messages",   path: "messages"   },
+  { key: "today",      path: "today"      },
+  { key: "discover",   path: "discover"   },
+  { key: "favorites",  path: "favorites"  },
+  { key: "shortlists", path: "shortlists" },
+  { key: "pitches",    path: "pitches"    },
+  { key: "inquiries",  path: "inquiries"  },
+  { key: "bookings",   path: "bookings"   },
+  { key: "settings",   path: "settings"   },
 ] as const;
 
-export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
+export function ClientTopbar({
+  tenantSlug,
+  locale = "en",
+}: {
+  tenantSlug: string;
+  locale?: string;
+}) {
   const pathname = usePathname();
+  const t = createTranslator(locale);
+  // D4 — favorites count comes from the canonical useFavorites() store
+  // (seeded SSR by DiscoveryStateBridge), so the pill updates live the
+  // moment a talent is favorited/unfavorited anywhere in the dashboard.
+  const favorites = useFavorites();
   const [counts, setCounts] = useState<{
-    favorites: number | null;
     shortlists: number | null;
     pitches: number | null;
   }>({
-    favorites: null,
     shortlists: null,
     pitches: null,
   });
 
-  // Hydrate counts once on mount. Don't block render — pills appear when
-  // the fetch lands. Failure stays null (no pill renders).
+  // Hydrate shortlist + pitch counts once on mount. Don't block render —
+  // pills appear when the fetch lands. Failure stays null (no pill renders).
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      fetch("/api/discover/favorites").then((r) => (r.ok ? r.json() : { favorites: [] })),
       fetch("/api/discover/shortlists").then((r) => (r.ok ? r.json() : { shortlists: [] })),
       fetch("/api/client/pitches/count").then((r) => (r.ok ? r.json() : { count: 0 })),
     ])
       .then(
-        ([fav, sl, pi]: [
-          { favorites?: unknown[] },
+        ([sl, pi]: [
           { shortlists?: unknown[] },
           { count?: number },
         ]) => {
           if (cancelled) return;
           setCounts({
-            favorites: Array.isArray(fav.favorites) ? fav.favorites.length : 0,
             shortlists: Array.isArray(sl.shortlists) ? sl.shortlists.length : 0,
             pitches: typeof pi.count === "number" ? pi.count : 0,
           });
@@ -68,7 +77,7 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
   }, []);
 
   const countFor = (path: string): number | null => {
-    if (path === "favorites") return counts.favorites;
+    if (path === "favorites") return favorites.isReady ? favorites.favoritesCount : null;
     if (path === "shortlists") return counts.shortlists;
     if (path === "pitches") return counts.pitches;
     return null;
@@ -102,9 +111,10 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
           minWidth: "100%",
         }}
       >
-        {NAV_ITEMS.map(({ label, path }) => {
+        {NAV_ITEMS.map(({ key, path }) => {
           const href = `/${tenantSlug}/client/${path}`;
           const active = pathname === href || pathname.startsWith(href + "/");
+          const label = t(`dashboard.clientNav.${key}`);
           return (
             <Link
               key={path}

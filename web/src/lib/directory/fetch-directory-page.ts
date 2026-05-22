@@ -379,8 +379,7 @@ export async function fetchDirectoryPage(
           .from("talent_profiles")
           .select("id")
           .is("deleted_at", null)
-          .in("workflow_status", ["approved", "published"])
-          .eq("visibility", "public")
+          .eq("is_publicly_hidden", false)
           .or(orResidenceOrLegacyLocationMatches(locIds)),
     );
     if (locTalentErr) {
@@ -564,8 +563,7 @@ export async function fetchDirectoryPage(
       .from("talent_profiles")
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
-      .in("workflow_status", ["approved", "published"])
-      .eq("visibility", "public");
+      .eq("is_publicly_hidden", false);
 
     if (locationId) {
       countQuery = countQuery.or(orResidenceOrLegacyLocationEq(locationId));
@@ -647,8 +645,7 @@ export async function fetchDirectoryPage(
     `,
     )
     .is("deleted_at", null)
-    .in("workflow_status", ["approved", "published"])
-    .eq("visibility", "public");
+    .eq("is_publicly_hidden", false);
 
   if (locationId) {
     query = query.or(orResidenceOrLegacyLocationEq(locationId));

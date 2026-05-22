@@ -99,7 +99,7 @@ export async function createStaffPayoutAccountAction(formData: FormData): Promis
     backToAccount(tenantSlug, p);
   }
 
-  if (!["owner", "admin", "coordinator"].includes(membership.role)) {
+  if (!["owner", "admin", "manager"].includes(membership.role)) {
     const p = new URLSearchParams({ perr: "Only owner, admin, or coordinator can be payout receivers." });
     backToAccount(tenantSlug, p);
   }

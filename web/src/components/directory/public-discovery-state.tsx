@@ -67,6 +67,10 @@ type PublicDiscoveryStateValue = {
   setFavoriteState: (id: string, favorited: boolean) => void;
   hydrateFavoriteIds: (ids: string[]) => void;
   clearFavoriteIds: () => void;
+  // — Branding tokens (seeded from SSR, read-only for UI components) ————
+  /** A1/A2 — which icon to use for the favorites toggle. Default 'bookmark'. */
+  favoriteIcon: "heart" | "bookmark";
+  setFavoriteIcon: (icon: "heart" | "bookmark") => void;
   // — Search context (for inquiry analytics + AI assist) ————————
   searchContext: DiscoverySearchContext | null;
   setSearchContext: (context: DiscoverySearchContext | null) => void;
@@ -140,6 +144,7 @@ export function PublicDiscoveryStateProvider({
 }) {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favoriteIcon, setFavoriteIconState] = useState<"heart" | "bookmark">("bookmark");
   const [searchContext, setSearchContextState] =
     useState<DiscoverySearchContext | null>(null);
   const [flash, setFlashState] = useState<PublicFlashMessage | null>(null);
@@ -219,6 +224,10 @@ export function PublicDiscoveryStateProvider({
     [],
   );
 
+  const setFavoriteIcon = useCallback((icon: "heart" | "bookmark") => {
+    setFavoriteIconState(icon);
+  }, []);
+
   const setFlash = useCallback((next: PublicFlashMessage | null) => {
     setFlashState(next);
   }, []);
@@ -237,6 +246,8 @@ export function PublicDiscoveryStateProvider({
       setFavoriteState,
       hydrateFavoriteIds,
       clearFavoriteIds,
+      favoriteIcon,
+      setFavoriteIcon,
       searchContext,
       setSearchContext,
       flash,
@@ -252,6 +263,8 @@ export function PublicDiscoveryStateProvider({
       isFavorited,
       savedIds,
       favoriteIds,
+      favoriteIcon,
+      setFavoriteIcon,
       searchContext,
       setSavedState,
       setFavoriteState,
@@ -287,13 +300,16 @@ export function usePublicDiscoveryStateOptional(): PublicDiscoveryStateValue | n
 export function DiscoveryStateBridge({
   savedIds,
   favoriteIds,
+  favoriteIcon,
   searchContext,
 }: {
   savedIds?: string[];
   favoriteIds?: string[];
+  /** A1/A2 — SSR-seeded favorite icon token from agency branding. */
+  favoriteIcon?: "heart" | "bookmark" | null;
   searchContext?: DiscoverySearchContext | null;
 }) {
-  const { hydrateSavedIds, hydrateFavoriteIds, setSearchContext } =
+  const { hydrateSavedIds, hydrateFavoriteIds, setFavoriteIcon, setSearchContext } =
     usePublicDiscoveryState();
 
   useEffect(() => {
@@ -307,6 +323,12 @@ export function DiscoveryStateBridge({
       hydrateFavoriteIds(favoriteIds);
     }
   }, [hydrateFavoriteIds, favoriteIds]);
+
+  useEffect(() => {
+    if (favoriteIcon) {
+      setFavoriteIcon(favoriteIcon);
+    }
+  }, [favoriteIcon, setFavoriteIcon]);
 
   useEffect(() => {
     if (searchContext) {

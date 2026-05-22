@@ -19,6 +19,7 @@ import { headers } from "next/headers";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { isPlatformAdmin } from "@/lib/access/platform-role";
 import {
   loadTalentSelfProfile,
   loadTalentInquiries,
@@ -141,6 +142,7 @@ export default async function TalentLayout({
     email: session.user.email ?? "",
     role: membership?.role ?? "viewer",
     displayName: profileDisplayName,
+    isPlatformAdmin: isPlatformAdmin(session.profile),
   };
 
   return (

@@ -20,6 +20,7 @@ import type {
   DiscoverFacets,
   DiscoverHub,
 } from "../../_data-bridge/discover";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 
 /** Local mirror of DiscoverAvailabilityDay (API response shape). */
 type DiscoverAvailabilityDay = {
@@ -107,21 +108,15 @@ export function DiscoverShell({
   const [, startNavTransition] = useTransition();
   const [openTalentId, setOpenTalentId] = useState<string | null>(null);
   const [availabilityByTalent, setAvailabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(() => new Set());
   const [shortlists, setShortlists] = useState<DiscoverShortlist[]>([]);
   const [autoOpenPicker, setAutoOpenPicker] = useState(false);
 
-  // Hydrate favorites + shortlists once on mount. Optimistic mutations below.
+  // D4 — favorites are no longer fetched/owned here. The canonical
+  // useFavorites() store (seeded SSR by DiscoveryStateBridge in the client
+  // layout) drives the per-card favorite control inside <TalentCardActions>.
+  // Only shortlists stay local — they're a separate concept.
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/discover/favorites")
-      .then((r) => (r.ok ? r.json() : { favorites: [] }))
-      .then((j: { favorites?: Array<{ talentId: string }> }) => {
-        if (cancelled) return;
-        const ids = (j.favorites ?? []).map((f) => f.talentId);
-        setFavoritedIds(new Set(ids));
-      })
-      .catch(() => {});
     fetch("/api/discover/shortlists")
       .then((r) => (r.ok ? r.json() : { shortlists: [] }))
       .then((j: { shortlists?: DiscoverShortlist[] }) => {
@@ -179,36 +174,6 @@ export function DiscoverShell({
       return j.shortlist;
     } catch {
       return null;
-    }
-  }, []);
-
-  const handleToggleFavorite = useCallback(async (talentId: string) => {
-    // Optimistic — flip the set, fire the API, revert on failure.
-    let nextFavorited = false;
-    setFavoritedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(talentId)) {
-        next.delete(talentId);
-        nextFavorited = false;
-      } else {
-        next.add(talentId);
-        nextFavorited = true;
-      }
-      return next;
-    });
-    try {
-      const res = await fetch(`/api/discover/favorites/${talentId}`, {
-        method: nextFavorited ? "POST" : "DELETE",
-      });
-      if (!res.ok) throw new Error("favorite_failed");
-    } catch {
-      // Revert
-      setFavoritedIds((prev) => {
-        const next = new Set(prev);
-        if (nextFavorited) next.delete(talentId);
-        else next.add(talentId);
-        return next;
-      });
     }
   }, []);
 
@@ -391,8 +356,6 @@ export function DiscoverShell({
               key={t.id}
               item={t}
               availability={availabilityByTalent.get(t.id)}
-              isFavorited={favoritedIds.has(t.id)}
-              onToggleFavorite={() => handleToggleFavorite(t.id)}
               onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
               onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
             />
@@ -540,15 +503,11 @@ function FacetChip({
 function DiscoverCard({
   item,
   availability,
-  isFavorited,
-  onToggleFavorite,
   onAddToShortlist,
   onOpen,
 }: {
   item: DiscoverTalentListItem;
   availability: DiscoverAvailabilityDay[] | undefined;
-  isFavorited: boolean;
-  onToggleFavorite: () => void;
   onAddToShortlist: () => void;
   onOpen: () => void;
 }) {
@@ -638,33 +597,22 @@ function DiscoverCard({
         >
           ✓ Tulala
         </div>
-        {/* Favorite heart — toggles client_favorites via /api/discover/favorites/:id.
-            Click stops propagation so it doesn't open the detail drawer. */}
-        <button
-          type="button"
-          aria-label={isFavorited ? "Remove from favorites" : "Save to favorites"}
-          aria-pressed={isFavorited}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite();
-          }}
+        {/* Canonical favorite control — toggles client_favorites through
+            useFavorites(). Sits in a positioned wrapper; its own click
+            handler stops propagation so it doesn't open the detail drawer. */}
+        <div
+          style={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}
           onKeyDown={(e) => { e.stopPropagation(); }}
-          style={{
-            position: "absolute", top: 8, right: 8,
-            width: 32, height: 32, borderRadius: "50%",
-            background: isFavorited ? "rgba(176,48,58,0.92)" : "rgba(255,255,255,0.88)",
-            color: isFavorited ? "#fff" : "rgba(11,11,13,0.55)",
-            border: "none", padding: 0,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, lineHeight: 1, cursor: "pointer",
-            backdropFilter: "blur(6px)",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-            transition: "background 120ms, color 120ms",
-          }}
-          title={isFavorited ? "Saved — click to remove" : "Save to favorites"}
         >
-          {isFavorited ? "♥" : "♡"}
-        </button>
+          <TalentCardActions
+            talentProfileId={item.id}
+            profileCode={item.profileCode ?? ""}
+            displayName={item.displayName}
+            sourcePage="client-dashboard"
+            variant="compact"
+            hideInquiry
+          />
+        </div>
         {/* Add to shortlist — opens drawer with picker auto-expanded.
             Sits beside the heart so the two save-affordances live together. */}
         <button

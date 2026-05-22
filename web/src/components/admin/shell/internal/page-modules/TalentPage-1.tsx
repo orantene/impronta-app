@@ -27,15 +27,6 @@ export function fillAdminTpl(template: string, vars: Record<string, string>) {
   return s;
 }
 
-export function rosterWorkflowStateLabel(t: (key: string) => string, state: TalentProfile["state"]): string {
-  if (state === "awaiting-approval") return t("admin.roster.status.pending");
-  if (state === "published") return t("admin.roster.status.published");
-  if (state === "draft") return t("admin.roster.status.draft");
-  if (state === "invited") return t("admin.roster.status.invited");
-  if (state === "claimed") return t("admin.roster.status.claimed");
-  return state;
-}
-
 /** Next plan up that lifts the roster cap. Network has no further upgrade. */
 function nextPlanForRoster(plan: Plan): Plan | null {
   if (plan === "free") return "studio";
@@ -68,7 +59,7 @@ export function TalentPage() {
   const isFree = state.plan === "free";
 
   const [search, setSearch] = useState("");
-  const [stateFilter, setStateFilter] = useState<"all" | "published" | "draft" | "invited" | "awaiting-approval">("all");
+  const [stateFilter, setStateFilter] = useState<"all" | "visible" | "hidden">("all");
   const [typeFilter, setTypeFilter] = useState<TaxonomyParentId | "all">("all");
   const [sort, setSort] = useState<"name" | "completeness" | "newest" | "lastEdited">("newest");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -83,8 +74,16 @@ export function TalentPage() {
     ? null
     : new Set(TAXONOMY.find(p => p.id === typeFilter)?.children.map(c => c.id) ?? []);
 
+  // A talent is publicly visible when the agency eye is on AND the talent
+  // has not globally hidden themselves.
+  const isPubliclyVisible = (p: TalentProfile) =>
+    (p.siteVisible ?? false) && !(p.talentHidden ?? false);
+
   const filteredRoster = roster
-    .filter((p) => stateFilter === "all" || p.state === stateFilter)
+    .filter((p) => {
+      if (stateFilter === "all") return true;
+      return stateFilter === "visible" ? isPubliclyVisible(p) : !isPubliclyVisible(p);
+    })
     .filter((p) => !typeFilterChildren || (p.primaryType !== undefined && typeFilterChildren.has(p.primaryType)))
     .filter((p) => {
       if (!search.trim()) return true;
@@ -111,11 +110,10 @@ export function TalentPage() {
       return sortDir === "asc" ? r : -r;
     });
 
+  const visibleCount = roster.filter(isPubliclyVisible).length;
   const counts = {
-    published: roster.filter((r) => r.state === "published").length,
-    draft: roster.filter((r) => r.state === "draft").length,
-    invited: roster.filter((r) => r.state === "invited").length,
-    awaiting: roster.filter((r) => r.state === "awaiting-approval").length,
+    visible: visibleCount,
+    hidden: roster.length - visibleCount,
   };
 
   // Talent-type parents that actually exist in the roster — drives the
@@ -238,6 +236,9 @@ export function TalentPage() {
                     openDrawer("talent-types");
                   }}
                 />
+                {meetsRole(state.role, "admin") && (
+                  <GhostButton onClick={() => openDrawer("team")}>Team</GhostButton>
+                )}
                 <GhostButton onClick={() => openDrawer("invite-flow")}>{t("admin.roster.list.invite")}</GhostButton>
                 <PrimaryButton onClick={() => openDrawer("new-talent")}>
                   {state.entityType === "hub" ? t("admin.roster.list.inviteMember") : t("admin.roster.list.addTalent")}
@@ -507,21 +508,21 @@ function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
 }
 
 // ── Roster status strip ─────────────────────────────────────────────
+// Two segments — directory visibility, not a workflow lifecycle. Each is a
+// clickable filter; clicking the active one again clears back to "all".
 function RosterStatusStrip({
   counts,
   active,
   onFilter,
 }: {
-  counts: { published: number; draft: number; invited: number; awaiting: number };
-  active: "all" | "published" | "draft" | "invited" | "awaiting-approval";
-  onFilter: (f: "published" | "draft" | "invited" | "awaiting-approval") => void;
+  counts: { visible: number; hidden: number };
+  active: "all" | "visible" | "hidden";
+  onFilter: (f: "visible" | "hidden") => void;
 }) {
   const { t } = useAdminShell();
-  const items: { id: "published" | "awaiting-approval" | "invited" | "draft"; label: string; count: number; tone: string }[] = [
-    { id: "published",         label: t("admin.roster.status.published"), count: counts.published, tone: COLORS.green },
-    { id: "awaiting-approval", label: t("admin.roster.status.pending"),    count: counts.awaiting,  tone: COLORS.amber },
-    { id: "invited",           label: t("admin.roster.status.invited"),    count: counts.invited,   tone: COLORS.indigoDeep },
-    { id: "draft",             label: t("admin.roster.status.draft"),      count: counts.draft,     tone: COLORS.inkMuted },
+  const items: { id: "visible" | "hidden"; label: string; count: number; tone: string }[] = [
+    { id: "visible", label: t("admin.roster.status.visible"), count: counts.visible, tone: COLORS.green },
+    { id: "hidden",  label: t("admin.roster.status.hidden"),  count: counts.hidden,  tone: COLORS.inkMuted },
   ];
   return (
     <div

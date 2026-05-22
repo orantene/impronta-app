@@ -190,7 +190,7 @@ test("capability matrix: design.edit is admin+ only", () => {
   assert.equal(rolePhase5HasCapability("viewer", "agency.site_admin.design.edit"), false);
   assert.equal(rolePhase5HasCapability("editor", "agency.site_admin.design.edit"), false);
   assert.equal(
-    rolePhase5HasCapability("coordinator", "agency.site_admin.design.edit"),
+    rolePhase5HasCapability("manager", "agency.site_admin.design.edit"),
     false,
   );
   assert.equal(rolePhase5HasCapability("admin", "agency.site_admin.design.edit"), true);
@@ -207,7 +207,7 @@ test("capability matrix: design.publish is admin+ only", () => {
     false,
   );
   assert.equal(
-    rolePhase5HasCapability("coordinator", "agency.site_admin.design.publish"),
+    rolePhase5HasCapability("manager", "agency.site_admin.design.publish"),
     false,
   );
   assert.equal(

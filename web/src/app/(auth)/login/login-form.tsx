@@ -3,29 +3,42 @@
 import { useActionState, useEffect, useState } from "react";
 import { signInWithEmail, type AuthActionState } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
+import { createTranslator } from "@/i18n/messages";
 import Link from "next/link";
 
 const REMEMBER_STORAGE_KEY = "tulala.login.remember";
 
-function friendlyAuthError(raw: string | undefined): string | undefined {
+function friendlyAuthError(
+  raw: string | undefined,
+  t: ReturnType<typeof createTranslator>,
+): string | undefined {
   if (!raw) return undefined;
   const lower = raw.toLowerCase();
   if (lower.includes("invalid login") || lower.includes("invalid credentials") || lower.includes("password")) {
-    return "Invalid email or password. Check the email or use Forgot password.";
+    return t("public.auth.errors.invalidCredentials");
   }
   if (lower.includes("email not confirmed") || lower.includes("not confirmed")) {
-    return "Your email isn't confirmed yet. Check your inbox for the confirmation link.";
+    return t("public.auth.errors.emailNotConfirmed");
   }
   if (lower.includes("rate") || lower.includes("too many")) {
-    return "Too many attempts — please wait a minute and try again.";
+    return t("public.auth.errors.tooManyAttempts");
   }
   if (lower.includes("network") || lower.includes("fetch")) {
-    return "Connection issue — check your network and try again.";
+    return t("public.auth.errors.network");
   }
   return raw;
 }
 
-export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defaultEmail?: string }) {
+export function LoginForm({
+  nextPath,
+  defaultEmail,
+  locale = "en",
+}: {
+  nextPath?: string;
+  defaultEmail?: string;
+  locale?: string;
+}) {
+  const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
     AuthActionState,
     FormData
@@ -48,13 +61,14 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defau
     } catch { /* ignore */ }
   };
 
-  const friendlyError = friendlyAuthError(state?.error);
+  const friendlyError = friendlyAuthError(state?.error, t);
 
   return (
     <form action={formAction} className="space-y-4">
       {nextPath ? (
         <input type="hidden" name="next" value={nextPath} />
       ) : null}
+      <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="remember" value={remember ? "1" : "0"} />
       {friendlyError ? (
         <p role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -68,7 +82,7 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defau
       ) : null}
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">
-          Email
+          {t("public.auth.form.email")}
         </label>
         <input
           id="email"
@@ -83,13 +97,13 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defau
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <label htmlFor="password" className="text-sm font-medium">
-            Password
+            {t("public.auth.form.password")}
           </label>
           <Link
             href="/forgot-password"
             className="text-sm text-primary underline-offset-4 hover:underline"
           >
-            Forgot password?
+            {t("public.auth.login.forgot")}
           </Link>
         </div>
         <input
@@ -108,7 +122,7 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defau
           onChange={(e) => handleRememberChange(e.target.checked)}
           className="size-4 cursor-pointer rounded border-input accent-foreground"
         />
-        Keep me signed in for 30 days
+        {t("public.auth.login.remember")}
       </label>
       <Button type="submit" className="w-full" disabled={pending} aria-busy={pending}>
         {pending ? (
@@ -117,19 +131,19 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defau
               aria-hidden
               className="inline-block size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
             />
-            Signing in…
+            {t("public.auth.login.pending")}
           </span>
         ) : (
-          "Log in with email"
+          t("public.auth.login.emailSubmit")
         )}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        No account?{" "}
+        {t("public.auth.login.noAccount")}{" "}
         <Link
           href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"}
           className="text-primary underline-offset-4 hover:underline"
         >
-          Sign up
+          {t("public.auth.login.signUp")}
         </Link>
       </p>
     </form>

@@ -69,8 +69,15 @@ export type DirectoryUiCopy = {
     heightMaxPart: string;
   };
   talentType: { barAria: string; all: string };
-  /** ALL label for the configurable taxonomy pill row above results. */
-  topBarPills: { all: string };
+  /** Labels for the configurable taxonomy pill row above results. */
+  topBarPills: {
+    all: string;
+    more: string;
+    moreOptionsAria: string;
+    searchPlaceholder: string;
+    searchAria: string;
+    noMatches: string;
+  };
   taxonomyBarAria: string;
   card: {
     available: string;
@@ -340,6 +347,11 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
     },
     topBarPills: {
       all: t("public.directory.ui.topBarPills.all"),
+      more: t("public.directory.ui.topBarPills.more"),
+      moreOptionsAria: t("public.directory.ui.topBarPills.moreOptionsAria"),
+      searchPlaceholder: t("public.directory.ui.topBarPills.searchPlaceholder"),
+      searchAria: t("public.directory.ui.topBarPills.searchAria"),
+      noMatches: t("public.directory.ui.topBarPills.noMatches"),
     },
     taxonomyBarAria: t("public.directory.ui.taxonomyBarAria"),
     card: {

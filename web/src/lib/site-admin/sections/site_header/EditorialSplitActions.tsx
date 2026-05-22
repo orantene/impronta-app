@@ -33,6 +33,9 @@ import { usePathname } from "next/navigation";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
+// Favorite-icon token swap (heart ⇄ bookmark) — shared with <TalentCardActions>
+// so the header favorites icon is always identical to the talent-card icon.
+import "@/components/talent-cards/talent-card-actions.css";
 
 export interface EditorialSplitNavItem {
   label: string;
@@ -42,7 +45,8 @@ export interface EditorialSplitNavItem {
 
 export interface EditorialSplitActionsProps {
   /** Canonical, server-computed locale hrefs (no client locale guessing). */
-  localeHrefs: { en: string; es: string };
+  localeHrefs?: { en: string; es: string };
+  localeLinks?: Array<{ code: string; label: string; href: string }>;
   activeLocale: string;
   navItems: EditorialSplitNavItem[];
   /** Operator's real primary CTA (drawer "Start an Inquiry" + Inquiry icon). */
@@ -69,6 +73,7 @@ export interface EditorialSplitActionsProps {
 
 export function EditorialSplitActions({
   localeHrefs,
+  localeLinks,
   activeLocale,
   navItems,
   primaryCta,
@@ -133,7 +138,13 @@ export function EditorialSplitActions({
   }, [open]);
 
   const inquiryHref = primaryCta?.href ?? directoryHref;
-  const isEs = activeLocale === "es";
+  const fallbackLocaleLinks = localeHrefs
+    ? [
+        { code: "en", label: "EN", href: localeHrefs.en },
+        { code: "es", label: "ES", href: localeHrefs.es },
+      ]
+    : [];
+  const effectiveLocaleLinks = localeLinks ?? fallbackLocaleLinks;
 
   const drawer = (
     <div
@@ -211,32 +222,36 @@ export function EditorialSplitActions({
   return (
     <>
     <div className="site-header__es-acct">
-      {/* EN · ES — real canonical locale switch (server-computed hrefs) */}
-      <span
-        className="site-header__es-loc"
-        role="group"
-        aria-label={copy.language}
-      >
-        <a
-          href={localeHrefs.en}
-          className="site-header__es-loc-btn"
-          data-on={!isEs ? "true" : undefined}
-          aria-current={!isEs ? "true" : undefined}
+      {/* Real canonical locale switch (server-computed hrefs). */}
+      {effectiveLocaleLinks.length > 1 ? (
+        <span
+          className="site-header__es-loc"
+          role="group"
+          aria-label={copy.language}
         >
-          EN
-        </a>
-        <span aria-hidden="true" className="site-header__es-loc-sep">
-          ·
+          {effectiveLocaleLinks.map((link, index) => {
+            const active = link.code === activeLocale;
+            return (
+              <span key={link.code} className="contents">
+                {index > 0 ? (
+                  <span aria-hidden="true" className="site-header__es-loc-sep">
+                    ·
+                  </span>
+                ) : null}
+                <a
+                  href={link.href}
+                  className="site-header__es-loc-btn"
+                  data-on={active ? "true" : undefined}
+                  aria-current={active ? "true" : undefined}
+                  aria-label={link.label}
+                >
+                  {link.code.toUpperCase()}
+                </a>
+              </span>
+            );
+          })}
         </span>
-        <a
-          href={localeHrefs.es}
-          className="site-header__es-loc-btn"
-          data-on={isEs ? "true" : undefined}
-          aria-current={isEs ? "true" : undefined}
-        >
-          ES
-        </a>
-      </span>
+      ) : null}
 
       {/* Saved — bookmark glyph (prototype `.ai-saved`). Opens favorites
           drawer when the drawer context is available; falls back to a
@@ -251,7 +266,20 @@ export function EditorialSplitActions({
           data-active={hasFavorites ? "true" : undefined}
           onClick={() => favoritesDrawer.open()}
         >
+          {/* Both glyphs render; the per-tenant favoriteIcon token
+              (<html data-token-favorite-icon>) shows exactly one — so this
+              header icon always matches the talent-card favorite icon. */}
           <svg
+            data-favorite-glyph="heart"
+            viewBox="0 0 24 24"
+            fill={hasFavorites ? "currentColor" : "none"}
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.49 4.04 3 5.5l7 7Z" />
+          </svg>
+          <svg
+            data-favorite-glyph="bookmark"
             viewBox="0 0 24 24"
             fill={hasFavorites ? "currentColor" : "none"}
             stroke="currentColor"
@@ -270,7 +298,10 @@ export function EditorialSplitActions({
           data-tip={copy.saved}
           aria-label={copy.saved}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <svg data-favorite-glyph="heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.49 4.04 3 5.5l7 7Z" />
+          </svg>
+          <svg data-favorite-glyph="bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
           {liveFavoritesCount > 0 ? (
