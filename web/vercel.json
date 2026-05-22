@@ -21,6 +21,9 @@
     "src/app/api/cron/usage-audit/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/reconcile-plan-overrides/route.ts": {
+      "maxDuration": 30
+    },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
     }
@@ -29,6 +32,7 @@
     { "path": "/api/cron/skill-metrics-refresh", "schedule": "0 4 * * *" },
     { "path": "/api/cron/cleanup-guest-cart", "schedule": "0 5 * * *" },
     { "path": "/api/cron/refresh-discover-index", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/usage-audit", "schedule": "0 9 * * 1" }
+    { "path": "/api/cron/usage-audit", "schedule": "0 9 * * 1" },
+    { "path": "/api/cron/reconcile-plan-overrides", "schedule": "0 3 * * *" }
   ]
 }
