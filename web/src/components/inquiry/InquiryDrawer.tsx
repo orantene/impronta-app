@@ -110,11 +110,11 @@ export type InquiryDrawerProps = {
    */
   bindToInquiryCart?: boolean;
   /**
-   * Optional content rendered at the top of the compose body — used by the
-   * directory to keep its AI-draft strip + talent quick-add inside the
-   * canonical composer (execution-plan risk #3: don't strip those features).
+   * Optional tools rendered inside the Talent section, beside the
+   * selected-talent chips — used by the directory to host its talent
+   * quick-add search next to the chips it populates.
    */
-  composeHeaderSlot?: React.ReactNode;
+  talentToolsSlot?: React.ReactNode;
   onClose: () => void;
 };
 
@@ -128,7 +128,7 @@ export function InquiryDrawer({
   roster = [],
   enableDraftAutosave,
   bindToInquiryCart = false,
-  composeHeaderSlot,
+  talentToolsSlot,
   onClose,
 }: InquiryDrawerProps) {
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
@@ -187,6 +187,17 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+
+  // B2 — once the inquiry is submitted, empty the inquiry cart so the next
+  // inquiry doesn't pre-load this one's now-consumed shortlist. Runs once.
+  const cartClearedRef = useRef(false);
+  useEffect(() => {
+    if (!bindToInquiryCart || !submitted || cartClearedRef.current) return;
+    cartClearedRef.current = true;
+    for (const id of cart.cartIds) {
+      cart.setInCart({ talentProfileId: id, profileCode: "" }, false);
+    }
+  }, [bindToInquiryCart, submitted, cart]);
 
   // ─ Autosave (logged-in only) ──────────────────────────────────────────────
   const autosaveEnabled = (enableDraftAutosave ?? !!client?.user_id) && !!client?.user_id;
@@ -370,7 +381,7 @@ export function InquiryDrawer({
               setLinks={(v) => update("links", v)}
               roster={roster}
               client={client}
-              headerSlot={composeHeaderSlot}
+              talentToolsSlot={talentToolsSlot}
               boundToCart={bindToInquiryCart}
               onRemoveTalent={removeTalentFromCart}
             />
@@ -455,8 +466,8 @@ function Compose(props: {
   setLinks: (v: string[] | undefined) => void;
   roster: RosterLiteItem[];
   client: InquiryDrawerProps["client"];
-  /** B2 — optional content above the sections (directory AI strip + quick-add). */
-  headerSlot?: React.ReactNode;
+  /** B2 — extra tools rendered inside the Talent section (directory quick-add). */
+  talentToolsSlot?: React.ReactNode;
   /** B2 — selected talent is driven by the inquiry cart, not local edits. */
   boundToCart?: boolean;
   /** B2 — when cart-bound, removing a chip writes back to the cart. */
@@ -465,7 +476,6 @@ function Compose(props: {
   const { intent } = props;
   return (
     <div className="flex flex-col gap-4">
-      {props.headerSlot}
       <RequesterSection
         value={intent.requester}
         onChange={props.setRequester}
@@ -484,6 +494,7 @@ function Compose(props: {
         roster={props.roster}
         boundToCart={props.boundToCart}
         onRemoveTalent={props.onRemoveTalent}
+        toolsSlot={props.talentToolsSlot}
       />
       <BudgetSection
         value={intent.budget ?? {}}
@@ -557,7 +568,8 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
     <div style={trustCardStyle(C.amberSoft, C.amber)}>
       <div className="font-bold">New client</div>
       <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
-        Contact info required so the agency can follow up. You&apos;ll get a magic-link to track this inquiry after submit.
+        Your contact info lets the agency follow up. You can set up a free account
+        right after sending to track this inquiry.
       </div>
     </div>
   );
@@ -751,7 +763,7 @@ function DateSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TalentSection({
-  value, onChange, roster, boundToCart = false, onRemoveTalent,
+  value, onChange, roster, boundToCart = false, onRemoveTalent, toolsSlot,
 }: {
   value: InquiryTalent;
   onChange: (v: InquiryTalent) => void;
@@ -760,6 +772,8 @@ function TalentSection({
   boundToCart?: boolean;
   /** B2 — cart-bound removal handler. */
   onRemoveTalent?: (id: string) => void;
+  /** B2 — extra add-talent tools (directory quick-add) shown with the list. */
+  toolsSlot?: React.ReactNode;
 }) {
   const selected = value.selected_ids ?? [];
   const isAgencyMode = value.selection_mode === "agency_recommends" || selected.length === 0;
@@ -838,6 +852,11 @@ function TalentSection({
           </Field>
         </FieldRow>
       )}
+
+      {/* B2 — caller-supplied add-talent tools (directory quick-add search),
+          rendered right where the selected talent appears so adding a
+          talent and seeing it land are in the same place. */}
+      {toolsSlot && <div style={{ marginTop: 2 }}>{toolsSlot}</div>}
 
       {isAgencyMode && (
         <FieldRow>
@@ -1149,9 +1168,24 @@ function SubmittedView({
   const messagesHref =
     `/${state.tenantSlug}/client/messages`
     + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
-  const loginHref = state.guestEmail
-    ? `/login?email=${encodeURIComponent(state.guestEmail)}`
-    : "/login";
+
+  // Guest follow-up CTA. The route is activation-dependent so the visitor
+  // never lands on a dead end:
+  //  • created  → a fresh account with no password yet → set-password flow.
+  //  • matched  → an existing account → password sign-in.
+  //  • unlinked → no account was linked → let them register.
+  const guestEmailQuery = state.guestEmail
+    ? `?email=${encodeURIComponent(state.guestEmail)}`
+    : "";
+  const guestCta =
+    state.guestActivation === "matched"
+      ? { href: `/login${guestEmailQuery}`, label: "Sign in to track" }
+      : state.guestActivation === "created"
+        ? {
+            href: `/forgot-password${guestEmailQuery}`,
+            label: "Set a password to track",
+          }
+        : { href: `/register${guestEmailQuery}`, label: "Create an account" };
 
   return (
     <div
@@ -1210,21 +1244,32 @@ function SubmittedView({
                 : "Track this inquiry"}
           </div>
           <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-            {state.guestEmail ? (
+            {state.guestActivation === "created" ? (
               <>
-                Sign in with <strong>{state.guestEmail}</strong> to follow this
-                inquiry — offers, messages, and updates all land in one place.
+                We started a free account for{" "}
+                {state.guestEmail ? <strong>{state.guestEmail}</strong> : "you"}.
+                Set a password to follow this inquiry — offers, messages, and
+                updates all land in one place.
+              </>
+            ) : state.guestActivation === "matched" ? (
+              <>
+                Sign in
+                {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
+                to follow this inquiry — offers, messages, and updates all land
+                in one place.
               </>
             ) : (
               <>
-                Sign in any time to follow this inquiry — offers, messages, and
-                updates all land in one place.
+                Create a free account
+                {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
+                to follow this inquiry — offers, messages, and updates all land
+                in one place.
               </>
             )}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-            <a href={loginHref} style={primaryLinkStyle}>
-              Sign in to track
+            <a href={guestCta.href} style={primaryLinkStyle}>
+              {guestCta.label}
             </a>
           </div>
         </div>

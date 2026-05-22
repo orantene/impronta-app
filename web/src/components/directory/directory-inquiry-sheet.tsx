@@ -5,16 +5,18 @@
  *
  * Lane B / B2 (2026-05-22): the form body is now the canonical
  * `InquiryDrawer` (→ `submitInquiryNowAction` → `submitInquiry` engine),
- * replacing the legacy `InquiryCartForm` divergence. The directory's
- * value-add features survive the swap (execution-plan risk #3):
- *   • AI-draft strip + talent quick-add ride in via the drawer's
- *     `composeHeaderSlot`.
- *   • The shortlist (saved_talent cart) stays live inside the composer
- *     via `bindToInquiryCart` — the canonical `useInquiryCart` contract.
+ * replacing the legacy `InquiryCartForm` divergence.
  *
- * Auxiliary states (loading / unconfigured / inquiries-paused / the
- * email-deep-link success panel) render in a light side sheet; the
- * compose state renders the full `InquiryDrawer`.
+ * The directory's talent quick-add survives the swap (execution-plan
+ * risk #3): it rides in through the drawer's `talentToolsSlot`, rendered
+ * inside the Talent section right beside the selected-talent chips. The
+ * shortlist (saved_talent cart) stays live inside the composer via
+ * `bindToInquiryCart` — the canonical `useInquiryCart` contract.
+ *
+ * The payload is prefetched on mount so the composer opens instantly
+ * (no loading-sheet flash). Auxiliary states (unconfigured /
+ * inquiries-paused / the email-deep-link success panel) render in a
+ * light side sheet; the compose state renders the full `InquiryDrawer`.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -24,7 +26,6 @@ import { getDirectoryInquirySheetData } from "@/app/(public)/directory/get-inqui
 import { DirectoryInquirySuccessPanel } from "@/components/directory/directory-inquiry-success-panel";
 import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
-import { InquiryAiStrip } from "@/components/directory/inquiry-ai-strip";
 import { InquiryTalentQuickAdd } from "@/components/directory/inquiry-talent-quick-add";
 import { InquiryDrawer, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
@@ -56,9 +57,11 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     });
   }, []);
 
-  // Load (and refresh) the payload whenever the sheet opens for composing.
+  // Prefetch on mount + refresh whenever the sheet opens. The mount
+  // prefetch means the canonical InquiryDrawer is ready the instant the
+  // user clicks "Your inquiry" — no transient loading sheet, no swap from
+  // one drawer to another.
   useEffect(() => {
-    if (!open) return;
     if (success) return;
     refreshPayload();
   }, [open, success, refreshPayload]);
@@ -80,6 +83,7 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
       id: t.id,
       name: t.display_name ?? s.talentFallbackName,
     }));
+    const isClient = ready.mode === "client";
 
     return (
       <InquiryDrawer
@@ -87,9 +91,9 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
         tenantSlug={ready.tenantSlug}
         agencyName={ready.agencyName}
         client={
-          ready.mode === "client"
+          isClient
             ? {
-                // user_id is resolved server-side from the session at submit.
+                user_id: ready.userId ?? null,
                 displayName: ready.defaultName,
                 email: ready.defaultEmail,
                 phone: ready.defaultPhone,
@@ -106,7 +110,8 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             name: ready.defaultName ?? "",
             email: ready.defaultEmail ?? "",
             phone: ready.defaultPhone ?? "",
-            trust_level: ready.mode === "client" ? "verified" : "basic",
+            user_id: isClient ? ready.userId ?? null : null,
+            trust_level: isClient ? "verified" : "basic",
           },
           client: {
             company: ready.defaultCompany ?? "",
@@ -127,15 +132,7 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             },
           },
         }}
-        composeHeaderSlot={
-          <div className="flex flex-col gap-3">
-            <InquiryAiStrip
-              title={ui.inquirySheet.aiAssistTitle}
-              body={ui.inquirySheet.aiAssistBody}
-            />
-            <InquiryTalentQuickAdd copy={ui.inquiryQuickAdd} />
-          </div>
-        }
+        talentToolsSlot={<InquiryTalentQuickAdd copy={ui.inquiryQuickAdd} />}
         onClose={() => handleOpenChange(false)}
       />
     );

@@ -6,6 +6,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 export type DirectoryInquiryOrderedTalent = {
   id: string;
@@ -37,6 +38,11 @@ export type DirectoryInquiryPayload =
        */
       tenantSlug: string;
       agencyName: string;
+      /**
+       * Auth user id when `mode === "client"` — lets the InquiryDrawer
+       * render the logged-in trust card instead of the "New client" one.
+       */
+      userId?: string;
     };
 
 /**
@@ -58,13 +64,12 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   const tenantSlug = hostCtx.kind === "agency" ? hostCtx.tenantSlug : "";
   let agencyName = "the agency";
   if (hostCtx.tenantId) {
-    const { data: agencyRow } = await pub
-      .from("agencies")
-      .select("display_name")
-      .eq("id", hostCtx.tenantId)
-      .maybeSingle();
-    const displayName = (agencyRow?.display_name as string | null)?.trim();
-    if (displayName) agencyName = displayName;
+    // The storefront brand name lives in `agency_business_identity.public_name`
+    // (the same source the public header uses). The `agencies` table is not
+    // readable by the anon client, so resolve it via loadPublicIdentity.
+    const identity = await loadPublicIdentity(hostCtx.tenantId);
+    const publicName = identity?.public_name?.trim();
+    if (publicName) agencyName = publicName;
   }
   if (guestKey) {
     await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
@@ -152,5 +157,6 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     eventTypes: eventTypes ?? [],
     tenantSlug,
     agencyName,
+    userId: user?.id,
   };
 }
