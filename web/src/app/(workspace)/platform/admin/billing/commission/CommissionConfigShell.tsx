@@ -109,11 +109,11 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: F }}>
-      {/* Warning banner — required by spec */}
+      {/* Info banner — per-participant grain is live; tier rates now safe */}
       <div
         style={{
-          background: "rgba(240,180,97,0.08)",
-          border: "1px solid rgba(240,180,97,0.28)",
+          background: "rgba(93,211,160,0.08)",
+          border: "1px solid rgba(93,211,160,0.28)",
           borderRadius: 12,
           padding: "14px 16px",
           display: "flex",
@@ -121,17 +121,16 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
           alignItems: "flex-start",
         }}
       >
-        <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>⚠</span>
+        <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>●</span>
         <div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: HQ.amber, marginBottom: 4 }}>
-            Do not populate tier or override rates yet
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: HQ.green, marginBottom: 4 }}>
+            Per-participant commission grain is live
           </div>
           <div style={{ fontSize: 12, color: HQ.inkMuted, lineHeight: 1.55 }}>
-            Tier-specific rates and per-tenant overrides are not safe for cross-tenant
-            inquiries until the booking-granularity fix ships (see execution plan #2).
-            Until then, keep all tier fields blank and do not apply per-tenant overrides
-            for workspaces that receive cross-tenant inquiries. The default flat rate is
-            safe to edit.
+            As of ADR 2026-05-22, commission resolves per `inquiry_participants`
+            row from each talent&apos;s frozen `owning_party_*`. Tier-specific rates
+            and per-tenant overrides now resolve correctly for cross-tenant inquiries
+            — safe to populate.
           </div>
         </div>
       </div>
@@ -221,8 +220,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
         </div>
         <p style={{ fontSize: 12, color: HQ.inkMuted, margin: "0 0 14px" }}>
           Leave blank to inherit the default rate above. Non-blank values override
-          the default for that plan tier only. Do not populate until the cross-tenant
-          booking-granularity fix ships.
+          the default for that plan tier only.
         </p>
         <div
           style={{
