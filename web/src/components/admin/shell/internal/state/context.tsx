@@ -509,8 +509,8 @@ function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
   return {
     id: m.id,
     name: m.name,
-    email: "",
-    role: (["viewer","editor","coordinator","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
+    email: m.email ?? "",
+    role: (["viewer","editor","manager","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
     status: m.status === "pending_acceptance" ? "invited" : "active",
     initials,
   };
