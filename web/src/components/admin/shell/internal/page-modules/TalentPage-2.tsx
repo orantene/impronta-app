@@ -390,8 +390,11 @@ function RosterCard({
         textAlign: "left",
         fontFamily: FONTS.body,
         overflow: "hidden",
-        transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s",
+        transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s",
         boxShadow: hover ? "0 6px 20px -10px rgba(11,11,13,0.18)" : "0 1px 2px rgba(11,11,13,0.03)",
+        // Talent has globally hidden themselves — render the card "deactivated"
+        // so the agency sees at a glance it is off everywhere, not just here.
+        opacity: profile.talentHidden ? 0.6 : 1,
       }}
     >
       {/* Photo */}

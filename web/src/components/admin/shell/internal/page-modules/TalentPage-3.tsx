@@ -289,7 +289,9 @@ function RosterRow({
         borderTop: isFirst ? "none" : `1px solid ${COLORS.borderSoft}`,
         cursor: "pointer",
         background: hover ? "rgba(11,11,13,0.02)" : selected ? "rgba(15,79,62,0.04)" : "transparent",
-        transition: "background 0.12s",
+        transition: "background 0.12s, opacity 0.15s",
+        // Globally hidden by the talent → render the row "deactivated".
+        opacity: profile.talentHidden ? 0.6 : 1,
       }}
     >
       {/* Selection checkbox */}

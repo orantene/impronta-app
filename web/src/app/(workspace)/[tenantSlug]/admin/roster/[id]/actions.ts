@@ -527,7 +527,7 @@ export async function setRosterTalentSiteVisibility(
   const ctx = await resolveEditContext(tenantSlug, talentId);
   if (!ctx.ok) return { error: ctx.error };
 
-  const { admin, userId, rosterRowId, currentAgencyVisibility } = ctx;
+  const { admin, userId, tenantId, rosterRowId, currentAgencyVisibility } = ctx;
   const next = visible ? "site_visible" : "roster_only";
 
   // 'featured' already counts as visible — don't demote a featured talent
@@ -547,6 +547,7 @@ export async function setRosterTalentSiteVisibility(
 
   try {
     await admin.from("talent_workflow_events").insert({
+      tenant_id: tenantId,
       talent_profile_id: talentId,
       actor_user_id: userId,
       event_type: "agency_visibility_changed",

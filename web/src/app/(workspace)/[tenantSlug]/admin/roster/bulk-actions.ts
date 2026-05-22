@@ -106,10 +106,14 @@ export async function bulkSetWorkflowStatus(
   try {
     await admin.from("talent_workflow_events").insert(
       confirmedIds.map((talentId) => ({
+        tenant_id: scope.tenantId,
         talent_profile_id: talentId,
         actor_user_id: session.user!.id,
-        event_type: "workflow_status_changed",
-        payload: { to: targetStatus === "publish" ? "approved" : "hidden", note: "bulk action" },
+        event_type: "agency_visibility_changed",
+        payload: {
+          to: targetStatus === "publish" ? "site_visible" : "roster_only",
+          note: "bulk roster visibility",
+        },
       })),
     );
   } catch (e) {
