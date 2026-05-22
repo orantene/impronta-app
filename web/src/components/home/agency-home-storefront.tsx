@@ -144,7 +144,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       ) : null}
       <PublicDiscoveryStateProvider>
         <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} />
-        {actor.user ? <MergeGuestFavorites /> : null}
+        {actor.user ? <MergeGuestFavorites serverFavoriteIds={favoriteIds} /> : null}
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />

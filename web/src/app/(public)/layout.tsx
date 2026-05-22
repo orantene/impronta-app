@@ -48,7 +48,7 @@ export default async function PublicLayout({
         <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} />
         {/* Runs once per session for authed visitors — sweeps any guest-mode
             cart + inquiries + localStorage favorites into the authed account. */}
-        {actor.user ? <MergeGuestFavorites /> : null}
+        {actor.user ? <MergeGuestFavorites serverFavoriteIds={favoriteIds} /> : null}
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>
             <PublicFlashHost dismissAria={dismissFlashAria} />

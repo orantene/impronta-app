@@ -686,6 +686,11 @@ export async function loadAdminDiscoverInquiries(
  * embedded. Used by the /client/favorites page. Mirror of GET
  * /api/discover/favorites — talent details denormalized so the page
  * renders without per-row roundtrips.
+ *
+ * A4 (cross-tenant): client_favorites is keyed by client_user_id only —
+ * no tenant scope — so favorites saved on any agency storefront appear
+ * here. This is intentional: a client builds one global favorites list
+ * that follows them across agencies.
  */
 export async function loadClientFavoritesForUser(
   userId: string,
