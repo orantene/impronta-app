@@ -34,6 +34,10 @@ import type { ServerActionResult } from "./result";
  *      existing member's workspace role. The owner role is transfer-only
  *      and cannot be set or cleared here.
  *
+ *   6. setInquiryCoordinatorTalent(talentProfileIds) — owner/admin picks
+ *      the roster talent who are auto-added as coordinators on every new
+ *      inquiry. Replaces the full set (agency_inquiry_coordinators).
+ *
  * All actions are tenant-scoped via requireStaffTenantAction.
  */
 
@@ -450,6 +454,103 @@ export async function changeTeamMemberRole(
     return { ok: true, data: undefined };
   } catch (err) {
     logServerError("team-management.changeTeamMemberRole", err);
+    return { ok: false, error: "Unexpected error.", reason: "unexpected" };
+  }
+}
+
+// ─── 6. Inquiry-coordinator talent (multi-select roster picker) ────────────
+
+/**
+ * Replace the tenant's set of inquiry-coordinator talent. Every roster
+ * talent in this set is auto-added as a `coordinator` participant on every
+ * new inquiry (see inquiry-engine-submit), so they join the message thread
+ * and can manage the inquiry → booking flow. Owner/admin only.
+ */
+export async function setInquiryCoordinatorTalent(
+  talentProfileIds: string[],
+): Promise<ServerActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
+    const { tenantId, user } = auth;
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
+
+    // Owner/admin only — this shapes inquiry routing for the whole workspace.
+    const { data: myMembership } = await tenantScopedQuery(
+      admin,
+      "agency_memberships",
+      tenantId,
+    )
+      .select("role")
+      .eq("profile_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    const myRole = (myMembership as { role?: string } | null)?.role;
+    if (myRole !== "owner" && myRole !== "admin") {
+      return { ok: false, error: "Only an owner or admin can change this.", reason: "forbidden" };
+    }
+
+    // De-dup, then confirm every id is on this tenant's active roster — a
+    // coordinator must be a talent this workspace actually represents.
+    const ids = Array.from(new Set(talentProfileIds.filter(Boolean)));
+    if (ids.length > 0) {
+      const { data: rosterRows } = await tenantScopedQuery(
+        admin,
+        "agency_talent_roster",
+        tenantId,
+      )
+        .select("talent_profile_id")
+        .in("talent_profile_id", ids)
+        .eq("status", "active");
+      const onRoster = new Set(
+        ((rosterRows ?? []) as Array<{ talent_profile_id: string }>).map(
+          (r) => r.talent_profile_id,
+        ),
+      );
+      if (ids.some((id) => !onRoster.has(id))) {
+        return {
+          ok: false,
+          error: "One or more selected talent are not on this workspace's roster.",
+          reason: "validation_failed",
+        };
+      }
+    }
+
+    // Replace the set: clear the tenant's rows, then insert the new ones.
+    // N is small (one row per coordinator) so a full replace is simplest.
+    const { error: delErr } = await tenantScopedQuery(
+      admin,
+      "agency_inquiry_coordinators",
+      tenantId,
+    ).delete();
+    if (delErr) {
+      logServerError("team-management.setInquiryCoordinatorTalent.delete", delErr);
+      return { ok: false, error: "Couldn't update coordinators.", reason: "unexpected" };
+    }
+
+    if (ids.length > 0) {
+      const { error: insErr } = await tenantScopedQuery(
+        admin,
+        "agency_inquiry_coordinators",
+        tenantId,
+      ).insert(
+        ids.map((talentProfileId) => ({
+          talent_profile_id: talentProfileId,
+          added_by_user_id: user.id,
+        })),
+      );
+      if (insErr) {
+        logServerError("team-management.setInquiryCoordinatorTalent.insert", insErr);
+        return { ok: false, error: "Couldn't save coordinators.", reason: "unexpected" };
+      }
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    logServerError("team-management.setInquiryCoordinatorTalent", err);
     return { ok: false, error: "Unexpected error.", reason: "unexpected" };
   }
 }

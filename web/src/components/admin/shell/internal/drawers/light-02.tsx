@@ -31,7 +31,7 @@ import {
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TeamDrawer() {
-  const { state, closeDrawer, toast, effectiveTeamMembers, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTeamMembers, effectiveRoster, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
   const router = useRouter();
   // Phase 3.12 — use live team members when available, fall back to mock.
   const isLiveTeam = effectiveTeamMembers.length > 0;
@@ -45,12 +45,15 @@ export function TeamDrawer() {
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ url: string; expiresAt: string } | null>(null);
 
-  // F.1 — auto-coordinator selector state (Agency-tier only).
+  // Phase 5 — multi-select inquiry-coordinator talent (Agency-tier only).
+  // Roster talent designated here auto-join every new inquiry as a
+  // coordinator. Optimistic: the local set updates immediately and reverts
+  // if the save fails.
   const isAgencyTier = state.plan === "agency" || state.plan === "network";
-  const [coordinatorSetting, setCoordinatorSetting] = useState<string | "">(
-    bridgeTenantIdentity?.defaultCoordinatorUserId ?? "",
+  const [coordinatorTalentIds, setCoordinatorTalentIds] = useState<string[]>(
+    bridgeTenantIdentity?.inquiryCoordinatorTalentIds ?? [],
   );
-  const [savingCoordinator, setSavingCoordinator] = useState(false);
+  const [savingCoordinators, setSavingCoordinators] = useState(false);
 
   // Inline role editing for existing members. `roleOverrides` holds the
   // optimistic value while the server action is in flight; it reverts on
@@ -102,21 +105,28 @@ export function TeamDrawer() {
     }
   };
 
-  const handleCoordinatorChange = async (next: string) => {
-    setCoordinatorSetting(next);
-    setSavingCoordinator(true);
+  const handleToggleCoordinatorTalent = async (talentProfileId: string) => {
+    const prev = coordinatorTalentIds;
+    const next = prev.includes(talentProfileId)
+      ? prev.filter((id) => id !== talentProfileId)
+      : [...prev, talentProfileId];
+    setCoordinatorTalentIds(next);
+    setSavingCoordinators(true);
     try {
-      const { setDefaultCoordinator } = await import("@/lib/server-actions/team-management");
-      const r = await setDefaultCoordinator(next === "" ? null : next);
+      const { setInquiryCoordinatorTalent } = await import("@/lib/server-actions/team-management");
+      const r = await setInquiryCoordinatorTalent(next);
       if (r.ok) {
-        toast(next === "" ? "Auto-coordinator cleared. Owner will catch new inquiries." : "Auto-coordinator updated.");
+        toast(
+          next.length === 0
+            ? "Inquiry coordinators cleared. The workspace owner catches new inquiries."
+            : `${next.length} inquiry coordinator${next.length === 1 ? "" : "s"} saved.`,
+        );
       } else {
         toast(r.error);
-        // Revert local state on failure.
-        setCoordinatorSetting(bridgeTenantIdentity?.defaultCoordinatorUserId ?? "");
+        setCoordinatorTalentIds(prev); // revert on failure
       }
     } finally {
-      setSavingCoordinator(false);
+      setSavingCoordinators(false);
     }
   };
 
@@ -298,35 +308,74 @@ export function TeamDrawer() {
       {canManage && isAgencyTier && (
         <Section
           title="Auto-coordinator"
-          description="When a client submits a new inquiry, the coordinator is auto-assigned to this person. They become the first responder on the message thread and manage the booking during the event. Owner is the default; pick someone else to delegate."
+          description="Pick the roster talent who auto-join every new inquiry as coordinators. They land on the message thread and can manage the inquiry → booking flow. Pick as many as you need."
         >
-          <FieldRow label="Default coordinator">
-            <select
-              value={coordinatorSetting}
-              onChange={(e) => handleCoordinatorChange(e.currentTarget.value)}
-              disabled={savingCoordinator}
-              style={{
-                padding: "9px 12px",
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                background: "#fff",
-                color: COLORS.ink,
-                minWidth: 220,
-              }}
+          {effectiveRoster.length === 0 ? (
+            <div
+              className="text-admin-ink-muted"
+              style={{ fontSize: 12.5, fontFamily: FONTS.body }}
             >
-              <option value="">— Workspace owner (default)</option>
-              {team
-                .filter((m) => m.status === "active")
-                .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "manager")
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} · {m.role}
-                  </option>
-                ))}
-            </select>
-          </FieldRow>
+              No talent on the roster yet. Add talent first, then designate
+              coordinators here.
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  maxHeight: 260,
+                  overflowY: "auto",
+                  paddingRight: 2,
+                }}
+              >
+                {effectiveRoster.map((tp) => {
+                  const checked = coordinatorTalentIds.includes(tp.id);
+                  return (
+                    <label
+                      key={tp.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "8px 10px",
+                        background: checked ? "rgba(15,79,62,0.05)" : "#fff",
+                        border: `1px solid ${
+                          checked ? "rgba(15,79,62,0.22)" : COLORS.borderSoft
+                        }`,
+                        borderRadius: 8,
+                        cursor: savingCoordinators ? "wait" : "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={savingCoordinators}
+                        onChange={() => handleToggleCoordinatorTalent(tp.id)}
+                      />
+                      <span
+                        className="text-admin-ink"
+                        style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }}
+                      >
+                        {tp.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div
+                className="text-admin-ink-muted"
+                style={{ fontSize: 11, marginTop: 8, fontFamily: FONTS.body }}
+              >
+                {coordinatorTalentIds.length === 0
+                  ? "No coordinators set — the workspace owner catches new inquiries."
+                  : `${coordinatorTalentIds.length} coordinator${
+                      coordinatorTalentIds.length === 1 ? "" : "s"
+                    } auto-join every new inquiry.`}
+              </div>
+            </>
+          )}
         </Section>
       )}
 
