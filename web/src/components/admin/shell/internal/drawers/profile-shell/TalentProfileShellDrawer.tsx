@@ -2196,7 +2196,7 @@ export function TalentProfileShellDrawer() {
                   const items = group.ids.filter(visible) as Exclude<ProfileSectionId, "">[];
                   if (items.length === 0) return null;
                   return (
-                    <div key={group.label} style={{ marginBottom: 4 }} className="bg-admin-accent">
+                    <div key={group.label} style={{ marginBottom: 4 }}>
                       <div style={{
                         padding: "6px 12px 4px",
                         fontSize: 9.5, fontWeight: 700,
