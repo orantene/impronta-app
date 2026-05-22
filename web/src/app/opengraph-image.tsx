@@ -40,7 +40,8 @@ async function loadAgencyOgData(): Promise<AgencyOgData | null> {
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", ctx.tenantId)
         .eq("status", "active")
-        .in("agency_visibility", ["site_visible", "featured"]),
+        .in("agency_visibility", ["site_visible", "featured"])
+        .eq("talent_site_hidden", false),
     ]);
 
     const identity = identityRes.data as { public_name?: string | null; tagline?: string | null } | null;

@@ -103,6 +103,7 @@ async function loadTalent(slug: string): Promise<LoadedTalent | null> {
     .eq("talent_profile_id", typedProfile.id)
     .eq("status", "active")
     .in("agency_visibility", ["site_visible", "featured"])
+    .eq("talent_site_hidden", false)
     .limit(1);
 
   const roster = (rosterRows ?? [])[0] as RosterRow | undefined;
