@@ -77,11 +77,11 @@ test("phase-5 capabilities: editor has edit, not publish", () => {
 
 test("phase-5 capabilities: coordinator can publish pages, not design", () => {
   assert.equal(
-    rolePhase5HasCapability("coordinator", "agency.site_admin.pages.publish"),
+    rolePhase5HasCapability("manager", "agency.site_admin.pages.publish"),
     true,
   );
   assert.equal(
-    rolePhase5HasCapability("coordinator", "agency.site_admin.design.publish"),
+    rolePhase5HasCapability("manager", "agency.site_admin.design.publish"),
     false,
   );
 });
@@ -113,7 +113,7 @@ test("phase-5 capabilities: sections.publish is coordinator+, not editor", () =>
   );
   assert.equal(
     rolePhase5HasCapability(
-      "coordinator",
+      "manager",
       "agency.site_admin.sections.publish",
     ),
     true,

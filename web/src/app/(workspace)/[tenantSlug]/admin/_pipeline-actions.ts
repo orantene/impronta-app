@@ -1785,7 +1785,7 @@ export async function loadWorkspaceCoordinatorCandidates(
       )
       .eq("tenant_id", tenantId)
       .in("status", ["active", "pending_acceptance"])
-      .in("role", ["owner", "admin", "coordinator"]);
+      .in("role", ["owner", "admin", "manager"]);
     if (error) {
       logServerError("loadWorkspaceCoordinatorCandidates/memberships", error);
       return { ok: false, error: error.message };

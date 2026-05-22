@@ -567,7 +567,7 @@ export async function loadTenantManagementDetail(
   const ROLE_RANK: Record<string, number> = {
     owner: 5,
     admin: 4,
-    coordinator: 3,
+    manager: 3,
     editor: 2,
     viewer: 1,
   };

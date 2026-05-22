@@ -283,7 +283,7 @@ test("navigation.publish: editor NO, viewer NO", () => {
 });
 
 test("navigation.publish: coordinator/admin/owner YES", () => {
-  for (const role of ["coordinator", "admin", "owner"] as const) {
+  for (const role of ["manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.navigation.publish"),
       true,

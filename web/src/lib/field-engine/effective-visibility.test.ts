@@ -416,7 +416,7 @@ test("platform floor re-applied: admin_only + default_visibility=['public'] → 
 // 6. canViewerSee — every role × every visibility
 // ─────────────────────────────────────────────────────────────────────────────
 
-const roles: ViewerRole[] = ["public", "client", "talent", "coordinator", "agency_admin", "platform_admin"];
+const roles: ViewerRole[] = ["public", "client", "talent", "manager", "agency_admin", "platform_admin"];
 
 // public visibility
 test("canViewerSee: public visibility — all roles can see", () => {
@@ -439,7 +439,7 @@ test("canViewerSee: admin visibility — talent CAN see (own field)", () => {
 });
 
 test("canViewerSee: admin visibility — coordinator can see", () => {
-  assert.equal(canViewerSee("admin", "coordinator"), true);
+  assert.equal(canViewerSee("admin", "manager"), true);
 });
 
 test("canViewerSee: admin visibility — agency_admin can see", () => {
@@ -464,7 +464,7 @@ test("canViewerSee: hidden visibility — talent cannot see", () => {
 });
 
 test("canViewerSee: hidden visibility — coordinator can see", () => {
-  assert.equal(canViewerSee("hidden", "coordinator"), true);
+  assert.equal(canViewerSee("hidden", "manager"), true);
 });
 
 test("canViewerSee: hidden visibility — agency_admin can see", () => {

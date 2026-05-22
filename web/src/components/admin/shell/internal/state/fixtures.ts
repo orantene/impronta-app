@@ -12,7 +12,7 @@ import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", "client", "platform"];
 export const PLANS: Plan[] = ["free", "studio", "agency", "network"];
-export const ROLES: Role[] = ["viewer", "editor", "coordinator", "admin", "owner"];
+export const ROLES: Role[] = ["viewer", "editor", "manager", "admin", "owner"];
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
 export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
@@ -228,7 +228,7 @@ export const ENTITY_TYPE_META: Record<
 export const ROLE_META: Record<Role, { label: string; rank: number }> = {
   viewer: { label: "Viewer", rank: 0 },
   editor: { label: "Editor", rank: 1 },
-  coordinator: { label: "Coordinator", rank: 2 },
+  manager: { label: "Manager", rank: 2 },
   admin: { label: "Admin", rank: 3 },
   owner: { label: "Owner", rank: 4 },
 };
@@ -1400,7 +1400,7 @@ export const CLIENTS_FREE: Client[] = [
 export const TEAM_AGENCY: TeamMember[] = [
   { id: "u1", name: "Oran Tene", email: "oran@acme-models.com", role: "owner", status: "active", initials: "OT" },
   { id: "u2", name: "Sara Bianchi", email: "sara@acme-models.com", role: "admin", status: "active", initials: "SB" },
-  { id: "u3", name: "Daniel Ferrer", email: "daniel@acme-models.com", role: "coordinator", status: "active", initials: "DF" },
+  { id: "u3", name: "Daniel Ferrer", email: "daniel@acme-models.com", role: "manager", status: "active", initials: "DF" },
   { id: "u4", name: "Mira Soto", email: "mira@acme-models.com", role: "viewer", status: "active", initials: "MS" },
   { id: "u5", name: "Andrés Lopez", email: "andres@acme-models.com", role: "editor", status: "invited", initials: "AL" },
 ];
@@ -3926,7 +3926,7 @@ export const PLATFORM_HQ_TEAM: TeamMember[] = [
   { id: "hq1", name: "Oran Tene", email: "oran@tulala.digital", role: "owner", status: "active", initials: "OT" },
   { id: "hq2", name: "Eli Park", email: "eli@tulala.digital", role: "admin", status: "active", initials: "EP" },
   { id: "hq3", name: "Sam Liu", email: "sam@tulala.digital", role: "admin", status: "active", initials: "SL" },
-  { id: "hq4", name: "Nora Diaz", email: "nora@tulala.digital", role: "coordinator", status: "active", initials: "ND" },
+  { id: "hq4", name: "Nora Diaz", email: "nora@tulala.digital", role: "manager", status: "active", initials: "ND" },
 ];
 
 /** Default visibility per built-in field. Defines the "shipped" privacy

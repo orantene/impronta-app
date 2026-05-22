@@ -342,13 +342,13 @@ function useQuickCreateItems(): QuickCreateItem[] {
       id: "new-inquiry", label: "New inquiry", emoji: "📨",
       sub: "Capture a lead from a client",
       drawer: "new-inquiry", shortcut: "G I",
-      canDo: meetsRole(state.role, "coordinator") || state.plan === "free",
+      canDo: meetsRole(state.role, "manager") || state.plan === "free",
     },
     {
       id: "new-booking", label: "New booking", emoji: "📅",
       sub: "Confirmed job — skip the inquiry",
       drawer: "new-booking", shortcut: "G B",
-      canDo: meetsRole(state.role, "coordinator"),
+      canDo: meetsRole(state.role, "manager"),
     },
     {
       id: "new-talent", label: "Add talent", emoji: "👤",
@@ -360,7 +360,7 @@ function useQuickCreateItems(): QuickCreateItem[] {
       id: "new-client", label: "Add client", emoji: "🏷",
       sub: "Track a relationship",
       drawer: "client-profile", drawerPayload: { id: "new" }, shortcut: "G C",
-      canDo: meetsRole(state.role, "coordinator") && state.plan !== "free",
+      canDo: meetsRole(state.role, "manager") && state.plan !== "free",
     },
     {
       id: "invite-team", label: "Invite teammate", emoji: "👥",
@@ -372,13 +372,13 @@ function useQuickCreateItems(): QuickCreateItem[] {
       id: "snippets", label: "New snippet", emoji: "💬",
       sub: "Reusable reply for the message composer",
       drawer: "inbox-snippets", shortcut: "G S",
-      canDo: meetsRole(state.role, "coordinator"),
+      canDo: meetsRole(state.role, "manager"),
     },
     {
       id: "share-card", label: "Share talent", emoji: "🔗",
       sub: "Send a client-facing standalone link",
       drawer: "talent-share-card", shortcut: "G H",
-      canDo: meetsRole(state.role, "coordinator"),
+      canDo: meetsRole(state.role, "manager"),
     },
   ];
 }
@@ -430,7 +430,7 @@ function QuickCreateMenu() {
       sub: "Capture a lead from a client",
       drawer: "new-inquiry",
       shortcut: "G I",
-      canDo: meetsRole(state.role, "coordinator") || state.plan === "free",
+      canDo: meetsRole(state.role, "manager") || state.plan === "free",
     },
     {
       id: "new-booking",
@@ -438,7 +438,7 @@ function QuickCreateMenu() {
       sub: "Confirmed job — skip the inquiry",
       drawer: "new-booking",
       shortcut: "G B",
-      canDo: meetsRole(state.role, "coordinator"),
+      canDo: meetsRole(state.role, "manager"),
     },
     {
       id: "new-talent",
@@ -454,7 +454,7 @@ function QuickCreateMenu() {
       sub: "Track a relationship",
       drawer: "client-profile",
       shortcut: "G C",
-      canDo: meetsRole(state.role, "coordinator") && state.plan !== "free",
+      canDo: meetsRole(state.role, "manager") && state.plan !== "free",
     },
     {
       id: "invite-team",
@@ -470,7 +470,7 @@ function QuickCreateMenu() {
       sub: "Reusable reply for the message composer",
       drawer: "inbox-snippets",
       shortcut: "G S",
-      canDo: meetsRole(state.role, "coordinator"),
+      canDo: meetsRole(state.role, "manager"),
     },
     {
       id: "share-card",
@@ -478,7 +478,7 @@ function QuickCreateMenu() {
       sub: "Send a client-facing standalone link",
       drawer: "talent-share-card",
       shortcut: "G H",
-      canDo: meetsRole(state.role, "coordinator"),
+      canDo: meetsRole(state.role, "manager"),
     },
   ];
 

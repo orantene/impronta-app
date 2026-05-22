@@ -19,7 +19,7 @@ export function ClientsPage() {
   // Phase 3.12 — use bridge clients when available, fall back to mock.
   // importedClients (CSV imports from proto state) are always merged in.
   const clients = [...effectiveClients, ...importedClients];
-  const canEdit = meetsRole(state.role, "coordinator");
+  const canEdit = meetsRole(state.role, "manager");
   const isFree = state.plan === "free";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant">("all");

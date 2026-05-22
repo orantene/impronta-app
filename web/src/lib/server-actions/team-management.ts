@@ -33,9 +33,9 @@ import type { ServerActionResult } from "./result";
  * All actions are tenant-scoped via requireStaffTenantAction.
  */
 
-type Role = "admin" | "coordinator" | "editor" | "viewer";
+type Role = "admin" | "manager" | "editor" | "viewer";
 
-const VALID_ROLES = new Set<Role>(["admin", "coordinator", "editor", "viewer"]);
+const VALID_ROLES = new Set<Role>(["admin", "manager", "editor", "viewer"]);
 
 // ─── 1. Email invite ──────────────────────────────────────────────────────
 

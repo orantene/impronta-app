@@ -286,7 +286,7 @@ test("homepageRestoreRevisionSchema rejects non-uuid revisionId", () => {
 // ---- capability matrix ----------------------------------------------------
 
 test("homepage.compose: editor/coordinator/admin/owner YES, viewer NO", () => {
-  for (const role of ["editor", "coordinator", "admin", "owner"] as const) {
+  for (const role of ["editor", "manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.homepage.compose"),
       true,
@@ -307,7 +307,7 @@ test("homepage.publish: editor/viewer NO, coordinator/admin/owner YES", () => {
       `role=${role} should NOT have homepage.publish`,
     );
   }
-  for (const role of ["coordinator", "admin", "owner"] as const) {
+  for (const role of ["manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.homepage.publish"),
       true,

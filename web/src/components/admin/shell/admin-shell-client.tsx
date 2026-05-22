@@ -614,19 +614,19 @@ function BottomActionFab() {
     }
     // workspace (default)
     const create: Item[] = [
-      { id: "new-inquiry",    label: "New inquiry",       sub: "Capture a lead from a client",        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "coordinator") || state.plan === "free",
+      { id: "new-inquiry",    label: "New inquiry",       sub: "Capture a lead from a client",        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "manager") || state.plan === "free",
         run: () => openDrawer("new-inquiry") },
-      { id: "new-booking",    label: "New booking",       sub: "Confirmed job — skip the inquiry",    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "coordinator"),
+      { id: "new-booking",    label: "New booking",       sub: "Confirmed job — skip the inquiry",    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("new-booking") },
       { id: "new-talent",     label: "Add talent",        sub: "Create a roster profile",             icon: "user",     shortcut: "G T", canDo: meetsRole(state.role, "editor"),
         run: () => openDrawer("new-talent") },
-      { id: "new-client",     label: "Add client",        sub: "Track a relationship",                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "coordinator") && state.plan !== "free",
+      { id: "new-client",     label: "Add client",        sub: "Track a relationship",                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "manager") && state.plan !== "free",
         run: () => openDrawer("client-profile", { id: "new" }) },
       { id: "invite-team",    label: "Invite teammate",   sub: "Coordinator or editor",               icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
         run: () => openDrawer("team") },
-      { id: "snippets",       label: "New snippet",       sub: "Reusable reply for the composer",     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "coordinator"),
+      { id: "snippets",       label: "New snippet",       sub: "Reusable reply for the composer",     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("inbox-snippets") },
-      { id: "share-card",     label: "Share talent",      sub: "Send a client-facing standalone link", icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "coordinator"),
+      { id: "share-card",     label: "Share talent",      sub: "Send a client-facing standalone link", icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("talent-share-card") },
     ];
     const nav: Item[] = WORKSPACE_PAGES.map((p) => ({

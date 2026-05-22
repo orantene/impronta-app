@@ -50,7 +50,7 @@ export type ResolverViewerRole =
   | "agency_admin"
   | "platform_admin"
   | "talent"
-  | "coordinator";
+  | "manager";
 
 export type ResolvedField = {
   field_definition_id: string;

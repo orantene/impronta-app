@@ -99,7 +99,7 @@ const ES_TEXT: Record<string, string> = {
   "Enterprise": "Enterprise",
   "viewer": "lector",
   "editor": "editor",
-  "coordinator": "coordinador",
+  "manager": "gerente",
   "admin": "admin",
   "owner": "propietario",
   "agency": "agencia",

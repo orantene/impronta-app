@@ -61,7 +61,7 @@ const EDITOR_CAPS: readonly Phase5Capability[] = [
   "agency.site_admin.media.upload",
 ];
 
-const COORDINATOR_CAPS: readonly Phase5Capability[] = [
+const MANAGER_CAPS: readonly Phase5Capability[] = [
   ...EDITOR_CAPS,
   "agency.site_admin.pages.publish",
   "agency.site_admin.sections.publish",
@@ -71,7 +71,7 @@ const COORDINATOR_CAPS: readonly Phase5Capability[] = [
 ];
 
 const ADMIN_CAPS: readonly Phase5Capability[] = [
-  ...COORDINATOR_CAPS,
+  ...MANAGER_CAPS,
   "agency.site_admin.identity.edit",
   "agency.site_admin.branding.edit",
   "agency.site_admin.design.edit",
@@ -83,7 +83,7 @@ const OWNER_CAPS: readonly Phase5Capability[] = ADMIN_CAPS;
 const ROLE_PHASE5_CAPS: Record<MembershipRole, ReadonlySet<Phase5Capability>> = {
   viewer: new Set(VIEWER_CAPS),
   editor: new Set(EDITOR_CAPS),
-  coordinator: new Set(COORDINATOR_CAPS),
+  manager: new Set(MANAGER_CAPS),
   admin: new Set(ADMIN_CAPS),
   owner: new Set(OWNER_CAPS),
 };

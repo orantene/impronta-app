@@ -38,7 +38,7 @@ export function TeamDrawer() {
 
   // F.1 — invite form local state.
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"viewer" | "editor" | "coordinator" | "admin">("editor");
+  const [inviteRole, setInviteRole] = useState<"viewer" | "editor" | "manager" | "admin">("editor");
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ url: string; expiresAt: string } | null>(null);
 
@@ -165,7 +165,7 @@ export function TeamDrawer() {
             >
               <option value="viewer">Viewer</option>
               <option value="editor">Editor</option>
-              <option value="coordinator">Coordinator</option>
+              <option value="manager">Manager</option>
               <option value="admin">Admin</option>
             </select>
           </FieldRow>
@@ -251,7 +251,7 @@ export function TeamDrawer() {
               <option value="">— Workspace owner (default)</option>
               {team
                 .filter((m) => m.status === "active")
-                .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "coordinator")
+                .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "manager")
                 .map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} · {m.role}

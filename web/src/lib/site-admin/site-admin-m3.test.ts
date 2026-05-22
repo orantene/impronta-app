@@ -246,7 +246,7 @@ test("pagePreviewStartSchema requires pageId + tenantId uuids", () => {
 // ---- capability matrix ----------------------------------------------------
 
 test("pages.edit: editor/coordinator/admin/owner YES, viewer NO", () => {
-  for (const role of ["editor", "coordinator", "admin", "owner"] as const) {
+  for (const role of ["editor", "manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.pages.edit"),
       true,
@@ -267,7 +267,7 @@ test("pages.publish: editor/viewer NO, coordinator/admin/owner YES", () => {
       `role=${role} should NOT have pages.publish`,
     );
   }
-  for (const role of ["coordinator", "admin", "owner"] as const) {
+  for (const role of ["manager", "admin", "owner"] as const) {
     assert.equal(
       rolePhase5HasCapability(role, "agency.site_admin.pages.publish"),
       true,

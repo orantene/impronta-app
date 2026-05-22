@@ -342,7 +342,7 @@ export async function loadWorkspaceTeamMembers(
     const ROLE_RANK: Record<string, number> = {
       owner: 4,
       admin: 3,
-      coordinator: 2,
+      manager: 2,
       editor: 1,
       viewer: 0,
     };

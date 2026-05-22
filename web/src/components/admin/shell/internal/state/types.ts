@@ -10,7 +10,7 @@ import type { DrawerId } from "./drawer-ids";
 
 export type Surface = "workspace" | "talent" | "client" | "platform";
 export type Plan = "free" | "studio" | "agency" | "network";
-export type Role = "viewer" | "editor" | "coordinator" | "admin" | "owner";
+export type Role = "viewer" | "editor" | "manager" | "admin" | "owner";
 /**
  * Tenant entity model. Orthogonal to Plan tier — both shapes can exist on
  * any plan, though hubs lean to higher tiers. Drives roster vocabulary,

@@ -849,7 +849,7 @@ export function AuditLogDrawer() {
 // AND Coordinator in a different agency someone else owns AND Admin in a
 // network hub. The switcher needs to surface BOTH dimensions per row.
 type TenantTier = "free" | "studio" | "agency" | "network";
-type TenantRole = "Owner" | "Admin" | "Coordinator" | "Editor" | "Talent";
+type TenantRole = "Owner" | "Admin" | "Manager" | "Editor" | "Talent";
 
 // Tone palette per tier — Free is neutral, Studio is amber-warm,
 // Agency is indigo (premium), Network is emerald (federation).
@@ -866,7 +866,7 @@ const TENANT_TIER_PALETTE: Record<TenantTier, { bg: string; fg: string; label: s
 const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
   Owner:       { fg: "#3B4A7C" },
   Admin:       { fg: "#7C5A3B" },
-  Coordinator: { fg: COLORS.inkMuted },
+  Manager: { fg: COLORS.inkMuted },
   Editor:      { fg: COLORS.inkMuted },
   Talent:      { fg: COLORS.inkMuted },
 };
@@ -940,7 +940,7 @@ export function TenantSwitcherDrawer() {
             of an Agency they founded AND Coordinator in someone else's
             agency — these are operationally distinct and shouldn't be
             jumbled together. */}
-        {!wsLoading && (["Owner", "Admin", "Coordinator", "Editor", "Talent"] as const).map((roleGroup) => {
+        {!wsLoading && (["Owner", "Admin", "Manager", "Editor", "Talent"] as const).map((roleGroup) => {
           const tenants = realWorkspaces
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => ({
@@ -957,14 +957,14 @@ export function TenantSwitcherDrawer() {
           if (tenants.length === 0) return null;
           const groupHeading = roleGroup === "Owner" ? "Workspaces you own"
             : roleGroup === "Admin" ? "Where you're an admin"
-            : roleGroup === "Coordinator" ? "Where you coordinate"
+            : roleGroup === "Manager" ? "Where you coordinate"
             : roleGroup === "Editor" ? "Where you can edit"
             : "Where you're talent";
           const groupSub = roleGroup === "Owner"
             ? "You set the tier, billing, and team. Workspace identity is yours."
             : roleGroup === "Admin"
             ? "You can manage members + assign coordinators. Owner controls billing."
-            : roleGroup === "Coordinator"
+            : roleGroup === "Manager"
             ? "You manage projects assigned to you. Add or remove talent within them."
             : roleGroup === "Editor"
             ? "Read-only on projects, can edit talent profiles."
@@ -1436,7 +1436,7 @@ export function WorkspaceProfileDrawer() {
   // so Admin permissions read off Owner for now; introducing Admin as a
   // first-class role is Phase 3 of the System User direction.
   const myRole: TenantRole = state.role === "owner" ? "Owner"
-    : state.role === "coordinator" ? "Coordinator"
+    : state.role === "manager" ? "Manager"
     : "Editor";
   const canEditIdentity = (myRole as TenantRole) === "Owner" || (myRole as TenantRole) === "Admin";
   const canEditPlan = myRole === "Owner";
@@ -3817,7 +3817,7 @@ export function DrawerCopyLink() {
  * Mock teammate list — production reads from `tenant_members`.
  */
 const MOCK_MENTIONS = [
-  { id: "u1", name: "Lina Park", role: "Coordinator" },
+  { id: "u1", name: "Lina Park", role: "Manager" },
   { id: "u2", name: "Andrés López", role: "Editor" },
   { id: "u3", name: "Marta Reyes", role: "Talent" },
   { id: "u4", name: "Estudio Solé", role: "Client" },

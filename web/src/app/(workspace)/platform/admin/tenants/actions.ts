@@ -364,7 +364,7 @@ export async function actionRemovePlanOverride(input: {
 
 // ─── Membership management ──────────────────────────────────────────────────
 
-const ASSIGNABLE_ROLES = ["admin", "coordinator", "editor", "viewer"] as const;
+const ASSIGNABLE_ROLES = ["admin", "manager", "editor", "viewer"] as const;
 
 export async function actionAddWorkspaceMember(input: {
   tenantId: string;
