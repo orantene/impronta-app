@@ -1,36 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { strict as assert } from "node:assert";
+import { describe, it } from "node:test";
 import { humanizeEnumLabel } from "./humanize-enum-label";
 
 describe("humanizeEnumLabel", () => {
   it("converts underscores to spaces and title-cases", () => {
-    expect(humanizeEnumLabel("dark_brown")).toBe("Dark Brown");
-    expect(humanizeEnumLabel("light_blonde")).toBe("Light Blonde");
+    assert.equal(humanizeEnumLabel("dark_brown"), "Dark Brown");
+    assert.equal(humanizeEnumLabel("light_blonde"), "Light Blonde");
   });
 
   it("converts hyphens to spaces and title-cases", () => {
-    expect(humanizeEnumLabel("full-time")).toBe("Full Time");
+    assert.equal(humanizeEnumLabel("full-time"), "Full Time");
   });
 
   it("applies overrides for known special cases", () => {
-    expect(humanizeEnumLabel("salt_and_pepper")).toBe("Salt & Pepper");
-    expect(humanizeEnumLabel("blue_green")).toBe("Blue-Green");
-    expect(humanizeEnumLabel("non_binary")).toBe("Non-Binary");
-    expect(humanizeEnumLabel("semi_exclusive")).toBe("Semi-Exclusive");
-    expect(humanizeEnumLabel("uk_based")).toBe("UK-Based");
+    assert.equal(humanizeEnumLabel("salt_and_pepper"), "Salt & Pepper");
+    assert.equal(humanizeEnumLabel("blue_green"), "Blue-Green");
+    assert.equal(humanizeEnumLabel("non_binary"), "Non-Binary");
+    assert.equal(humanizeEnumLabel("semi_exclusive"), "Semi-Exclusive");
+    assert.equal(humanizeEnumLabel("uk_based"), "UK-Based");
   });
 
   it("is idempotent on already-humanized strings", () => {
-    expect(humanizeEnumLabel("Dark Brown")).toBe("Dark Brown");
-    expect(humanizeEnumLabel("Available")).toBe("Available");
+    assert.equal(humanizeEnumLabel("Dark Brown"), "Dark Brown");
+    assert.equal(humanizeEnumLabel("Available"), "Available");
   });
 
   it("handles empty strings gracefully", () => {
-    expect(humanizeEnumLabel("")).toBe("");
-    expect(humanizeEnumLabel("  ")).toBe("");
+    assert.equal(humanizeEnumLabel(""), "");
+    assert.equal(humanizeEnumLabel("  "), "");
   });
 
   it("title-cases generic unknown slugs", () => {
-    expect(humanizeEnumLabel("new_category")).toBe("New Category");
-    expect(humanizeEnumLabel("some_random_value")).toBe("Some Random Value");
+    assert.equal(humanizeEnumLabel("new_category"), "New Category");
+    assert.equal(humanizeEnumLabel("some_random_value"), "Some Random Value");
   });
 });
