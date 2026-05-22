@@ -40,6 +40,7 @@ import {
   submitInquiryNowAction,
   type InquiryIntentActionState,
 } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
@@ -100,6 +101,20 @@ export type InquiryDrawerProps = {
   roster?: RosterLiteItem[];
   /** Whether to enable draft autosave. Disabled for guest path. */
   enableDraftAutosave?: boolean;
+  /**
+   * Lane B / B2 — bind the selected talent to the canonical inquiry cart
+   * (`useInquiryCart`). When set, the drawer keeps `intent.talent.selected_ids`
+   * in sync with the public-discovery `saved_talent` cart, and talent
+   * chip-removal writes back to the cart. Used by the directory so a
+   * shortlist built on the grid stays live inside the composer.
+   */
+  bindToInquiryCart?: boolean;
+  /**
+   * Optional content rendered at the top of the compose body — used by the
+   * directory to keep its AI-draft strip + talent quick-add inside the
+   * canonical composer (execution-plan risk #3: don't strip those features).
+   */
+  composeHeaderSlot?: React.ReactNode;
   onClose: () => void;
 };
 
@@ -112,6 +127,8 @@ export function InquiryDrawer({
   client,
   roster = [],
   enableDraftAutosave,
+  bindToInquiryCart = false,
+  composeHeaderSlot,
   onClose,
 }: InquiryDrawerProps) {
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
@@ -132,6 +149,38 @@ export function InquiryDrawer({
 
   const [step, setStep] = useState<"compose" | "review">("compose");
 
+  // ─ Inquiry-cart binding (B2 — directory shortlist ⟷ composer) ─────────────
+  // `useInquiryCart` is provider-optional: on the client dashboard (no
+  // PublicDiscoveryState) it is inert and the sync effect below no-ops.
+  const cart = useInquiryCart();
+  const cartKey = cart.cartIds.join(",");
+  useEffect(() => {
+    if (!bindToInquiryCart) return;
+    setIntent((cur) => {
+      const next = cartKey ? cartKey.split(",") : [];
+      const curIds = cur.talent?.selected_ids ?? [];
+      if (
+        curIds.length === next.length
+        && curIds.every((id, i) => id === next[i])
+      ) {
+        return cur;
+      }
+      return {
+        ...cur,
+        talent: {
+          ...cur.talent,
+          selected_ids: next,
+          selection_mode: cur.talent?.selection_mode ?? "i_know_who",
+        },
+      };
+    });
+  }, [bindToInquiryCart, cartKey]);
+
+  const removeTalentFromCart = bindToInquiryCart
+    ? (id: string) =>
+        cart.setInCart({ talentProfileId: id, profileCode: "" }, false)
+    : undefined;
+
   // ─ Submit ────────────────────────────────────────────────────────────────
   const [submitState, submitFormAction, submitting] = useActionState<
     InquiryIntentActionState,
@@ -147,7 +196,11 @@ export function InquiryDrawer({
   );
   const [draftId, setDraftId] = useState<string | null>(null);
   const intentRef = useRef(intent);
-  intentRef.current = intent;
+  // Keep the ref current outside render — `triggerAutosave` reads the
+  // latest intent from event/interval callbacks, never during render.
+  useEffect(() => {
+    intentRef.current = intent;
+  });
 
   // Pick up the new draftId after a save resolves.
   useEffect(() => {
@@ -170,8 +223,7 @@ export function InquiryDrawer({
       if (draftId) fd.set("draftId", draftId);
       startAutosave(() => { saveAction(fd); });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveAction is a stable useActionState dispatch; startAutosave is a stable useTransition dispatch; intentRef/lastSavedJSONRef are refs
-  }, [autosaveEnabled, tenantSlug, draftId]);
+  }, [autosaveEnabled, tenantSlug, draftId, saveAction, startAutosave]);
 
   // Periodic autosave + on-blur + on visibility change. Stops once the
   // inquiry is submitted so a post-submit tick can't spawn an orphan draft.
@@ -318,6 +370,9 @@ export function InquiryDrawer({
               setLinks={(v) => update("links", v)}
               roster={roster}
               client={client}
+              headerSlot={composeHeaderSlot}
+              boundToCart={bindToInquiryCart}
+              onRemoveTalent={removeTalentFromCart}
             />
           ) : (
             <Review intent={intent} agencyName={agencyName} />
@@ -400,10 +455,17 @@ function Compose(props: {
   setLinks: (v: string[] | undefined) => void;
   roster: RosterLiteItem[];
   client: InquiryDrawerProps["client"];
+  /** B2 — optional content above the sections (directory AI strip + quick-add). */
+  headerSlot?: React.ReactNode;
+  /** B2 — selected talent is driven by the inquiry cart, not local edits. */
+  boundToCart?: boolean;
+  /** B2 — when cart-bound, removing a chip writes back to the cart. */
+  onRemoveTalent?: (id: string) => void;
 }) {
   const { intent } = props;
   return (
     <div className="flex flex-col gap-4">
+      {props.headerSlot}
       <RequesterSection
         value={intent.requester}
         onChange={props.setRequester}
@@ -420,6 +482,8 @@ function Compose(props: {
         value={intent.talent ?? {}}
         onChange={props.setTalent}
         roster={props.roster}
+        boundToCart={props.boundToCart}
+        onRemoveTalent={props.onRemoveTalent}
       />
       <BudgetSection
         value={intent.budget ?? {}}
@@ -687,14 +751,26 @@ function DateSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TalentSection({
-  value, onChange, roster,
+  value, onChange, roster, boundToCart = false, onRemoveTalent,
 }: {
   value: InquiryTalent;
   onChange: (v: InquiryTalent) => void;
   roster: RosterLiteItem[];
+  /** B2 — selected talent mirrors the inquiry cart; manage it from there. */
+  boundToCart?: boolean;
+  /** B2 — cart-bound removal handler. */
+  onRemoveTalent?: (id: string) => void;
 }) {
   const selected = value.selected_ids ?? [];
   const isAgencyMode = value.selection_mode === "agency_recommends" || selected.length === 0;
+
+  const removeTalent = (id: string) => {
+    if (boundToCart && onRemoveTalent) {
+      onRemoveTalent(id);
+      return;
+    }
+    onChange({ ...value, selected_ids: selected.filter((x) => x !== id) });
+  };
 
   return (
     <Section title="Talent" subtitle="Pick specific talent, or let the agency recommend.">
@@ -730,7 +806,7 @@ function TalentSection({
                 <button
                   type="button"
                   aria-label={`Remove ${r?.name ?? "talent"}`}
-                  onClick={() => onChange({ ...value, selected_ids: selected.filter((x) => x !== id) })}
+                  onClick={() => removeTalent(id)}
                   style={{ marginLeft: 6, border: "none", background: "transparent", cursor: "pointer", color: C.inkMuted }}
                 >×</button>
               </span>
@@ -739,7 +815,7 @@ function TalentSection({
         </div>
       )}
 
-      {value.selection_mode === "i_know_who" && roster.length > 0 && (
+      {!boundToCart && value.selection_mode === "i_know_who" && roster.length > 0 && (
         <FieldRow>
           <Field label="Add talent">
             <Select
