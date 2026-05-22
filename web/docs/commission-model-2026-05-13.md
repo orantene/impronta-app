@@ -2,8 +2,9 @@
 ## Binding spec for platform / workspace / talent revenue split
 
 **Date:** 2026-05-13
-**Status:** Binding direction once ratified. Drives Phase B (Money) of the 2026 execution plan. Replaces ad-hoc commission assumptions scattered across `project_agency_exclusivity_model.md` (which only spoke to workspace take) and the SaaS Build Charter Phase 8.
+**Status:** Ratified and operative. Drives Phase B (Money) of the 2026 execution plan. **Supersedes** all commission-rate statements in `project_agency_exclusivity_model.md` and the SaaS Build Charter Phase 8. If any other doc states a platform-fee rate for any plan tier, this doc is the authority.
 **Origin:** captured directly from the user 2026-05-13.
+**Reconcile note (2026-05-22):** `project_agency_exclusivity_model.md` lists "Free = 0% commission" for Free-plan workspaces. That figure refers to the **workspace's own agency cut** (what the agency takes), not the Tulala platform fee. The platform fee is flat 5% for **all plan tiers in v1** — confirmed by the user 2026-05-22. The live `platform_commission_config` row encodes this as `default_take_bps = 500`, `plan_tier_bps = {}`. Free-plan workspaces remain a "friend-link" use-case where the agency takes 0% for themselves; Tulala's 5% still applies to any booking they process. See §9.1 and §11 item 2 for details.
 
 ---
 
@@ -387,7 +388,11 @@ This isn't punitive theatre — it protects the platform from running an unpaid 
 ## 9. How this integrates with the rest of the plan
 
 ### 9.1 vs. `project_agency_exclusivity_model.md`
-That doc says agency take-rate is set per plan (Free 0%, Studio 10-12%, Agency 15-20%). This doc says the same, but **the rate is now expressed per-line-item via the offer model**, not as a single workspace-wide percentage. The plan-tier numbers in the exclusivity doc become **suggested defaults** in the offer drafter — pre-fills `talent_cost` at `unit_price × (1 - planTierTake)`. The coordinator can adjust per-line.
+That doc says agency take-rate is set per plan (Free 0%, Studio 10-12%, Agency 15-20%). **This refers to the workspace's own cut, not the Tulala platform fee.** Two separate lanes: the exclusivity doc governs how much an agency earns from a booking; this doc governs how much Tulala earns.
+
+**Platform-fee authority:** this doc supersedes any implicit or explicit statement in the exclusivity doc about the Tulala platform fee. For v1, the platform fee is **flat 5% across all plan tiers**, including Free. Free-plan workspaces take 0% for themselves but still route through Tulala infrastructure, so the 5% platform fee applies.
+
+The workspace take-rates from the exclusivity doc (0% / 10-12% / 15-20%) become **suggested defaults** in the offer drafter — pre-fills `talent_cost` at `unit_price × (1 - planTierTake)`. The coordinator can adjust per-line. Those numbers are expressed per-line-item via the offer model (§2), not as a single workspace-wide percentage stored by the commission engine.
 
 ### 9.2 vs. `project_talent_subscriptions.md`
 Orthogonal. Talent subs ($12/mo Pro, $29/mo Portfolio) are direct-to-talent SaaS. The commission model is per-booking. Both exist. Both bill via Stripe but on different products.
@@ -424,10 +429,10 @@ When tax lands in Phase Z:
 
 ## 11. Open decisions (with my lean)
 
-| # | Decision | Options | Lean |
+| # | Decision | Options | Lean / Ratified |
 |---|----------|---------|------|
 | 1 | Platform default take % | 3% / 5% / 7% | **5%** — covers Stripe processing (~2.9%) + leaves margin |
-| 2 | Plan-tier discount structure | Flat 5% everywhere / tiered (Studio 5% / Agency 3.5% / Network 2.5%) | **Tiered** — incentivizes upgrade + reflects volume economics |
+| 2 | Plan-tier discount structure | Flat 5% everywhere / tiered (Studio 5% / Agency 3.5% / Network 2.5%) | **RATIFIED v1: flat 5% for all plan tiers** (`plan_tier_bps = {}`). Tiered structure (Studio 5% / Agency 3.5% / Network 2.5%) is the aspirational direction but deferred until volume warrants it. A plan_tier_bps.studio, .agency, .network override can be set via the platform admin UI (Phase B PR 5) without a migration. Free-plan workspaces pay the same 5% platform fee; "Free = 0%" in the exclusivity model refers to the workspace's own cut, not Tulala's fee — confirmed 2026-05-22. |
 | 3 | Cash settlement threshold | $25 / $50 / $100 | **$50 equivalent** — small enough to settle promptly, big enough to skip tip-style one-offs |
 | 4 | Settlement cadence | Daily / Weekly / Monthly | **Auto when threshold + monthly catch-up** for sub-threshold balances |
 | 5 | Refund handling | Refund pulls money back proportionally / Workspace eats it / Platform forgives | **Proportional reversal** — `refund_reversal` movement, all parties refund their slice |
