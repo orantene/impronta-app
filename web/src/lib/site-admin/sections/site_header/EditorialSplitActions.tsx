@@ -33,6 +33,9 @@ import { usePathname } from "next/navigation";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
+// Favorite-icon token swap (heart ⇄ bookmark) — shared with <TalentCardActions>
+// so the header favorites icon is always identical to the talent-card icon.
+import "@/components/talent-cards/talent-card-actions.css";
 
 export interface EditorialSplitNavItem {
   label: string;
@@ -251,7 +254,20 @@ export function EditorialSplitActions({
           data-active={hasFavorites ? "true" : undefined}
           onClick={() => favoritesDrawer.open()}
         >
+          {/* Both glyphs render; the per-tenant favoriteIcon token
+              (<html data-token-favorite-icon>) shows exactly one — so this
+              header icon always matches the talent-card favorite icon. */}
           <svg
+            data-favorite-glyph="heart"
+            viewBox="0 0 24 24"
+            fill={hasFavorites ? "currentColor" : "none"}
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.49 4.04 3 5.5l7 7Z" />
+          </svg>
+          <svg
+            data-favorite-glyph="bookmark"
             viewBox="0 0 24 24"
             fill={hasFavorites ? "currentColor" : "none"}
             stroke="currentColor"
@@ -270,7 +286,10 @@ export function EditorialSplitActions({
           data-tip={copy.saved}
           aria-label={copy.saved}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <svg data-favorite-glyph="heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.49 4.04 3 5.5l7 7Z" />
+          </svg>
+          <svg data-favorite-glyph="bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
             <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
           {liveFavoritesCount > 0 ? (
