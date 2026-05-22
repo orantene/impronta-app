@@ -52,6 +52,12 @@ export function SettingsPage() {
           tenantSlug={tenantSlug}
           talentId={bridgeTalentSelfProfile.id}
           initialHidden={bridgeTalentSelfProfile.isPubliclyHidden}
+          agencies={(bridgeTalentAgencies ?? []).map((a) => ({
+            id: a.id,
+            agencyName: a.agencyName,
+            agencyVisibility: a.agencyVisibility,
+            talentSiteHidden: a.talentSiteHidden,
+          }))}
         />
       )}
 
@@ -169,14 +175,14 @@ export function SettingsPage() {
       <Grid cols="2">
         <SecondaryCard
           title="Plan · coming soon"
-          description="Talent subscription tiers (Basic / Pro / Portfolio) will appear here once billing is live."
+          description="Talent subscription tiers (Free / Pro / Max) will appear here once billing is live."
           meta={<><StatDot tone="dim" /> Demo · coming soon</>}
           affordance="Compare plans"
           onClick={() => openDrawer("talent-tier-compare")}
         />
         <SecondaryCard
           title="Personal page builder"
-          description="Templates, sections, embeds and (Portfolio) custom domain. Coexists with all your agency rosters."
+          description="Templates, sections, embeds and a Max custom domain. Coexists with all your agency rosters."
           meta={<><StatDot tone="dim" /> Coming soon</>}
           affordance="Choose template"
           onClick={() => openDrawer("talent-page-template")}

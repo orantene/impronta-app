@@ -240,6 +240,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                 <Th label="Workspace" column="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Plan" column="plan" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label="Language" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Owner" column="owner" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Talents" column="talents" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Types" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
@@ -253,7 +254,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     style={{
                       padding: 36,
                       textAlign: "center",
@@ -313,6 +314,9 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                           />
                         )}
                       </span>
+                    </td>
+                    <td className="hqt-lo" style={{ padding: "10px 12px", color: HQ.inkDim, fontFamily: HQ_FM, fontSize: 11 }}>
+                      {r.languageSummary}
                     </td>
                     <td style={{ padding: "10px 12px" }}>
                       {r.hasOwner ? (

@@ -844,12 +844,12 @@ export function AuditLogDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 // Each tenant carries BOTH a plan tier (Free / Studio / Agency / Network)
-// AND the user's role inside that workspace (Owner / Admin / Coordinator
+// AND the user's role inside that workspace (Owner / Admin / Manager
 // / Editor / Talent). One person can be Owner of an Agency they founded
-// AND Coordinator in a different agency someone else owns AND Admin in a
+// AND Manager in a different agency someone else owns AND Admin in a
 // network hub. The switcher needs to surface BOTH dimensions per row.
 type TenantTier = "free" | "studio" | "agency" | "network";
-type TenantRole = "Owner" | "Admin" | "Coordinator" | "Editor" | "Talent";
+type TenantRole = "Owner" | "Admin" | "Manager" | "Editor" | "Talent";
 
 // Tone palette per tier — Free is neutral, Studio is amber-warm,
 // Agency is indigo (premium), Network is emerald (federation).
@@ -866,13 +866,57 @@ const TENANT_TIER_PALETTE: Record<TenantTier, { bg: string; fg: string; label: s
 const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
   Owner:       { fg: "#3B4A7C" },
   Admin:       { fg: "#7C5A3B" },
-  Coordinator: { fg: COLORS.inkMuted },
+  Manager: { fg: COLORS.inkMuted },
   Editor:      { fg: COLORS.inkMuted },
   Talent:      { fg: COLORS.inkMuted },
 };
 
+// Style objects for the switcher's "Platform" section. Held at module
+// scope (not inline `style={{…}}`) so the components/admin/shell inline-
+// style ratchet stays at its frozen baseline — the HQ console's dark
+// palette has no token-class equivalent, so a const object is the
+// sanctioned channel. Dark values mirror the /platform/admin layout's
+// HQ tokens so the row reads as that surface, not a workspace.
+const PLATFORM_SWITCHER_STYLES = {
+  section:  { display: "flex", flexDirection: "column", gap: 6 } as const,
+  header:   { display: "flex", flexDirection: "column", gap: 1, marginBottom: 2 } as const,
+  eyebrow:  { fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" } as const,
+  subhead:  { fontSize: 11, lineHeight: 1.4 } as const,
+  row: {
+    display: "flex", alignItems: "center", gap: 12,
+    padding: "12px 14px",
+    background: "#16161A",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontFamily: FONTS.body,
+    textAlign: "left",
+  } as const,
+  glyph: {
+    width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    background: "rgba(93,211,160,0.12)", color: "#5DD3A0",
+    fontSize: 15, fontWeight: 700, fontFamily: FONTS.display,
+  } as const,
+  titleRow: { display: "flex", alignItems: "center", gap: 7, minWidth: 0 } as const,
+  title: {
+    fontSize: 14, fontWeight: 600, color: "#F5F2EB",
+    minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+  } as const,
+  badge: {
+    flexShrink: 0,
+    fontSize: 9.5, fontWeight: 700,
+    padding: "1px 7px", borderRadius: 999,
+    background: "rgba(93,211,160,0.14)", color: "#5DD3A0",
+    textTransform: "uppercase", letterSpacing: 0.4,
+  } as const,
+  caption: { marginTop: 3, fontSize: 11.5, lineHeight: 1.4, color: "rgba(245,242,235,0.55)" } as const,
+  chevron: { flexShrink: 0, color: "rgba(245,242,235,0.45)" } as const,
+};
+
 export function TenantSwitcherDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useAdminShell();
+  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const isPlatformAdmin = Boolean(bridgeSessionIdentity?.isPlatformAdmin);
   const open = state.drawer.drawerId === "tenant-switcher";
   const [realWorkspaces, setRealWorkspaces] = useState<UserWorkspace[]>([]);
   const [wsLoading, setWsLoading] = useState(false);
@@ -925,6 +969,50 @@ export function TenantSwitcherDrawer() {
       )}
     >
       <div className="flex flex-col gap-3.5">
+        {/* Platform section — only rendered for platform admins. The HQ
+            console is NOT a tenant, so it never appears in the
+            agency_memberships list below. Without this row a platform
+            admin has no in-product way to reach /platform/admin and has
+            to type the URL by hand. Styled dark to echo the HQ console's
+            own theme and read as a distinct surface, not a workspace. */}
+        {isPlatformAdmin && (
+          <section style={PLATFORM_SWITCHER_STYLES.section}>
+            <header style={PLATFORM_SWITCHER_STYLES.header}>
+              <span style={PLATFORM_SWITCHER_STYLES.eyebrow} className="text-admin-ink-muted">
+                Platform
+              </span>
+              <span style={PLATFORM_SWITCHER_STYLES.subhead} className="text-admin-ink-dim">
+                Tulala HQ — operate any tenant, users, billing, and network.
+              </span>
+            </header>
+            <button
+              type="button"
+              data-tulala-row
+              onClick={() => { closeDrawer(); window.location.href = "/platform/admin"; }}
+              style={PLATFORM_SWITCHER_STYLES.row}
+            >
+              <span style={PLATFORM_SWITCHER_STYLES.glyph}>
+                T
+              </span>
+              <div className="flex-1 min-w-0">
+                <div style={PLATFORM_SWITCHER_STYLES.titleRow}>
+                  <span style={PLATFORM_SWITCHER_STYLES.title}>
+                    Tulala HQ Console
+                  </span>
+                  <span style={PLATFORM_SWITCHER_STYLES.badge}>
+                    Super admin
+                  </span>
+                </div>
+                <div style={PLATFORM_SWITCHER_STYLES.caption}>
+                  Platform-wide operations console
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden style={PLATFORM_SWITCHER_STYLES.chevron}>
+                <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </section>
+        )}
         {wsLoading && (
           <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-dim">
             Loading workspaces…
@@ -937,10 +1025,10 @@ export function TenantSwitcherDrawer() {
         )}
         {/* Group workspaces by role-class so the user reads "what I own"
             vs "where I'm a member" at a glance. Same person can be Owner
-            of an Agency they founded AND Coordinator in someone else's
+            of an Agency they founded AND Manager in someone else's
             agency — these are operationally distinct and shouldn't be
             jumbled together. */}
-        {!wsLoading && (["Owner", "Admin", "Coordinator", "Editor", "Talent"] as const).map((roleGroup) => {
+        {!wsLoading && (["Owner", "Admin", "Manager", "Editor", "Talent"] as const).map((roleGroup) => {
           const tenants = realWorkspaces
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => ({
@@ -957,14 +1045,14 @@ export function TenantSwitcherDrawer() {
           if (tenants.length === 0) return null;
           const groupHeading = roleGroup === "Owner" ? "Workspaces you own"
             : roleGroup === "Admin" ? "Where you're an admin"
-            : roleGroup === "Coordinator" ? "Where you coordinate"
+            : roleGroup === "Manager" ? "Where you coordinate"
             : roleGroup === "Editor" ? "Where you can edit"
             : "Where you're talent";
           const groupSub = roleGroup === "Owner"
             ? "You set the tier, billing, and team. Workspace identity is yours."
             : roleGroup === "Admin"
             ? "You can manage members + assign coordinators. Owner controls billing."
-            : roleGroup === "Coordinator"
+            : roleGroup === "Manager"
             ? "You manage projects assigned to you. Add or remove talent within them."
             : roleGroup === "Editor"
             ? "Read-only on projects, can edit talent profiles."
@@ -1146,7 +1234,7 @@ export function TenantSwitcherDrawer() {
         {/* Create-workspace footer — shows the four tier choices so the
             user knows the ladder before clicking. Each one starts you as
             Owner of that new workspace; existing memberships in OTHER
-            workspaces (where you may be Coordinator / Admin) are
+            workspaces (where you may be Manager / Admin) are
             unaffected.
 
             Anti-abuse rule: an owner can only have ONE Free workspace at
@@ -1436,7 +1524,7 @@ export function WorkspaceProfileDrawer() {
   // so Admin permissions read off Owner for now; introducing Admin as a
   // first-class role is Phase 3 of the System User direction.
   const myRole: TenantRole = state.role === "owner" ? "Owner"
-    : state.role === "coordinator" ? "Coordinator"
+    : state.role === "manager" ? "Manager"
     : "Editor";
   const canEditIdentity = (myRole as TenantRole) === "Owner" || (myRole as TenantRole) === "Admin";
   const canEditPlan = myRole === "Owner";
@@ -1686,7 +1774,7 @@ export function WorkspaceProfileDrawer() {
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">Members + roles</div>
               <div style={{ fontSize: 11.5, marginTop: 2, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                Manage Owners, Admins, Coordinators, Editors, and Talent.
+                Manage Owners, Admins, Managers, Editors, and Talent.
               </div>
             </div>
             <button type="button"
@@ -3817,7 +3905,7 @@ export function DrawerCopyLink() {
  * Mock teammate list — production reads from `tenant_members`.
  */
 const MOCK_MENTIONS = [
-  { id: "u1", name: "Lina Park", role: "Coordinator" },
+  { id: "u1", name: "Lina Park", role: "Manager" },
   { id: "u2", name: "Andrés López", role: "Editor" },
   { id: "u3", name: "Marta Reyes", role: "Talent" },
   { id: "u4", name: "Estudio Solé", role: "Client" },

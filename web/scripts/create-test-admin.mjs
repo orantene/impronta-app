@@ -1,5 +1,11 @@
 /**
- * Create a fixed QA super_admin account (auth + profiles).
+ * Create a fixed QA workspace-admin account (auth + profiles).
+ *
+ * NOTE: this account is intentionally NOT a platform super_admin. Platform
+ * super_admin is reserved for the real platform owner (orantene@gmail.com).
+ * A QA account with a documented password must never hold platform-wide
+ * powers — it is seeded as `agency_staff` and gets its workspace access
+ * from `agency_memberships` instead.
  *
  * From `web/`:
  *   npm run create:test-admin
@@ -95,7 +101,7 @@ async function main() {
       .from("profiles")
       .update({
         display_name: profile.display_name?.trim() ? profile.display_name : displayName,
-        app_role: "super_admin",
+        app_role: "agency_staff",
         account_status: "active",
         onboarding_completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

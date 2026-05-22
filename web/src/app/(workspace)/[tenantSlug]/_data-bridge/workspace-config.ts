@@ -292,7 +292,9 @@ export type WorkspaceTeamMember = {
   /** profile_id from agency_memberships */
   id: string;
   name: string;
-  /** Membership role: viewer | editor | coordinator | admin | owner */
+  /** Account email (`profiles.email`) — shown on the member identity card. */
+  email?: string;
+  /** Membership role: viewer | editor | manager | admin | owner */
   role: string;
   /** Membership status: active | pending_acceptance */
   status: string;
@@ -316,7 +318,7 @@ export async function loadWorkspaceTeamMembers(
     const { data, error } = await supabase
       .from("agency_memberships")
       .select(
-        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name)",
+        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name, email)",
       )
       .eq("tenant_id", tenantId)
       .in("status", ["active", "pending_acceptance"])
@@ -334,15 +336,15 @@ export async function loadWorkspaceTeamMembers(
       accepted_at: string | null;
       created_at: string;
       profiles:
-        | { display_name: string | null }
-        | { display_name: string | null }[]
+        | { display_name: string | null; email: string | null }
+        | { display_name: string | null; email: string | null }[]
         | null;
     };
 
     const ROLE_RANK: Record<string, number> = {
       owner: 4,
       admin: 3,
-      coordinator: 2,
+      manager: 2,
       editor: 1,
       viewer: 0,
     };
@@ -355,6 +357,7 @@ export async function loadWorkspaceTeamMembers(
       return {
         id: row.profile_id,
         name,
+        email: profile?.email?.trim() || undefined,
         role: row.role,
         status: row.status,
         joinedAt: row.accepted_at ?? row.created_at,

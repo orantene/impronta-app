@@ -183,7 +183,7 @@ export async function loadPayoutReceiverCandidatesForBooking(opts: {
         .select("profile_id, role")
         .eq("tenant_id", opts.tenantId)
         .eq("status", "active")
-        .in("role", ["owner", "admin", "coordinator"]),
+        .in("role", ["owner", "admin", "manager"]),
       sb
         .from("booking_talent")
         .select("talent_profile_id")
@@ -204,8 +204,8 @@ export async function loadPayoutReceiverCandidatesForBooking(opts: {
       return [];
     }
 
-    const roleByProfileId = new Map<string, "owner" | "admin" | "coordinator">();
-    for (const row of (membersRes.data ?? []) as { profile_id: string; role: "owner" | "admin" | "coordinator" }[]) {
+    const roleByProfileId = new Map<string, "owner" | "admin" | "manager">();
+    for (const row of (membersRes.data ?? []) as { profile_id: string; role: "owner" | "admin" | "manager" }[]) {
       roleByProfileId.set(row.profile_id, row.role);
     }
 
@@ -242,7 +242,7 @@ export async function loadPayoutReceiverCandidatesForBooking(opts: {
           ownerType: row.owner_type,
           ownerId: row.owner_id,
           displayName: row.display_name,
-          receiverKind: role === "coordinator" ? "coordinator" : "admin",
+          receiverKind: role === "manager" ? "coordinator" : "admin",
         });
         continue;
       }

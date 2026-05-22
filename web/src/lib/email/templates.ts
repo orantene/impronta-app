@@ -164,14 +164,14 @@ export function bookingConfirmedEmail(data: {
 export function teamInviteEmail(data: {
   inviterName: string;
   agencyName: string;
-  role: "admin" | "coordinator" | "editor" | "viewer";
+  role: "admin" | "manager" | "editor" | "viewer";
   redeemUrl: string;
   expiresAtIso: string;
   brand?: EmailBrand;
 }): { subject: string; html: string } {
   const roleLabel =
     data.role === "admin" ? "Admin"
-    : data.role === "coordinator" ? "Coordinator"
+    : data.role === "manager" ? "Manager"
     : data.role === "editor" ? "Editor"
     : "Viewer";
   const expiresDate = new Date(data.expiresAtIso).toLocaleDateString(undefined, {

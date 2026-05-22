@@ -318,7 +318,7 @@ export function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
   //     between team members — privileged operation)
   //   • Free workspaces have no team to reassign to, so reassign hides
   //     regardless of role.
-  const canViewLineup = meetsRole(state.role, "coordinator");
+  const canViewLineup = meetsRole(state.role, "manager");
   const canReassign = meetsRole(state.role, "admin")
     && planTier !== "free"
     && !!currentCoord;

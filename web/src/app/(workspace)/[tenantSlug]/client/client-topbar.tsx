@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createTranslator } from "@/i18n/messages";
 
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
 
@@ -19,19 +20,26 @@ const C = {
 } as const;
 
 const NAV_ITEMS = [
-  { label: "Messages",   path: "messages"   },
-  { label: "Today",      path: "today"      },
-  { label: "Discover",   path: "discover"   },
-  { label: "Favorites",  path: "favorites"  },
-  { label: "Shortlists", path: "shortlists" },
-  { label: "Pitches",    path: "pitches"    },
-  { label: "Inquiries",  path: "inquiries"  },
-  { label: "Bookings",   path: "bookings"   },
-  { label: "Settings",   path: "settings"   },
+  { key: "messages",   path: "messages"   },
+  { key: "today",      path: "today"      },
+  { key: "discover",   path: "discover"   },
+  { key: "favorites",  path: "favorites"  },
+  { key: "shortlists", path: "shortlists" },
+  { key: "pitches",    path: "pitches"    },
+  { key: "inquiries",  path: "inquiries"  },
+  { key: "bookings",   path: "bookings"   },
+  { key: "settings",   path: "settings"   },
 ] as const;
 
-export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
+export function ClientTopbar({
+  tenantSlug,
+  locale = "en",
+}: {
+  tenantSlug: string;
+  locale?: string;
+}) {
   const pathname = usePathname();
+  const t = createTranslator(locale);
   // D4 — favorites count comes from the canonical useFavorites() store
   // (seeded SSR by DiscoveryStateBridge), so the pill updates live the
   // moment a talent is favorited/unfavorited anywhere in the dashboard.
@@ -103,9 +111,10 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
           minWidth: "100%",
         }}
       >
-        {NAV_ITEMS.map(({ label, path }) => {
+        {NAV_ITEMS.map(({ key, path }) => {
           const href = `/${tenantSlug}/client/${path}`;
           const active = pathname === href || pathname.startsWith(href + "/");
+          const label = t(`dashboard.clientNav.${key}`);
           return (
             <Link
               key={path}

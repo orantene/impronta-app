@@ -64,7 +64,7 @@ export function InquiryPeekDrawer() {
         date: richInq.date ?? undefined,
       }
     : (getInquiries(state.plan).find((i) => i.id === id) ?? getInquiries(state.plan)[0]);
-  const canEdit = meetsRole(state.role, "coordinator");
+  const canEdit = meetsRole(state.role, "manager");
   const onSend = useSaveAndClose("Offer sent to client");
 
   return (

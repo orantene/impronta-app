@@ -100,6 +100,7 @@ export type PlatformTenantListRow = {
   hasOwner: boolean;
   hasActiveOverride: boolean;
   overrideExpiresAt: string | null;
+  languageSummary: string;
   publicUrl: string;
   adminUrl: string;
   createdAt: string | null;
@@ -140,7 +141,7 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
   const ids = agencies.map((r: { id: string }) => r.id);
   if (ids.length === 0) return [];
 
-  const [rosterRes, membershipRes, overrideRes, domainRes] = await Promise.all([
+  const [rosterRes, membershipRes, overrideRes, domainRes, identityRes] = await Promise.all([
     sb
       .from("agency_talent_roster")
       .select("tenant_id, status, talent_profile_id")
@@ -159,6 +160,10 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
     sb
       .from("agency_domains")
       .select("tenant_id, hostname, kind, is_primary")
+      .in("tenant_id", ids),
+    sb
+      .from("agency_business_identity")
+      .select("tenant_id, default_locale, supported_locales, show_language_switcher")
       .in("tenant_id", ids),
   ]);
 
@@ -264,6 +269,14 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
     list.push({ hostname: d.hostname, kind: d.kind, is_primary: d.is_primary });
     domainsByTenant.set(d.tenant_id, list);
   }
+  const languageByTenant = new Map<string, {
+    default_locale: string | null; supported_locales: string[] | null; show_language_switcher: boolean | null;
+  }>();
+  for (const row of (identityRes.data ?? []) as Array<{
+    tenant_id: string; default_locale: string | null; supported_locales: string[] | null; show_language_switcher: boolean | null;
+  }>) {
+    languageByTenant.set(row.tenant_id, row);
+  }
 
   return (agencies as Array<{
     id: string;
@@ -289,6 +302,12 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
       pickPrimaryHost(domains),
       pickCustomHost(domains),
     );
+    const lang = languageByTenant.get(r.id);
+    const activeLocales = Array.isArray(lang?.supported_locales) && lang.supported_locales.length > 0
+      ? lang.supported_locales
+      : ["en"];
+    const defaultLocale = lang?.default_locale ?? activeLocales[0] ?? "en";
+    const showLanguageSwitcher = lang?.show_language_switcher ?? true;
     return {
       id: r.id,
       name: r.display_name ?? r.slug,
@@ -306,6 +325,12 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
       hasOwner: Boolean(ownerId),
       hasActiveOverride: overrideByTenant.has(r.id),
       overrideExpiresAt: overrideByTenant.get(r.id) ?? null,
+      languageSummary:
+        activeLocales.length > 1 && showLanguageSwitcher
+          ? `${defaultLocale.toUpperCase()} default · ${activeLocales.map((l) => l.toUpperCase()).join("/")}`
+          : activeLocales.length > 1
+            ? `${defaultLocale.toUpperCase()} default · switcher off`
+          : `${defaultLocale.toUpperCase()} only`,
       publicUrl: urls.publicSite,
       adminUrl: urls.adminDashboard,
       createdAt: r.created_at,
@@ -358,6 +383,15 @@ export type TenantManagementDetail = {
   bookingCount: number;
   domainCount: number;
   owner: { profileId: string; displayName: string; email: string } | null;
+  language: {
+    defaultLocale: string;
+    activeLocales: string[];
+    switcherStatus: "shown" | "hidden";
+    showLanguageSwitcher: boolean;
+    mode: "tenant-managed" | "fallback";
+    updatedAt: string | null;
+    updatedAtLabel: string;
+  };
   billing: {
     effectivePlan: WorkspacePlanTier;
     basePlan: WorkspacePlanTier | null;
@@ -463,6 +497,7 @@ export async function loadTenantManagementDetail(
     auditRes,
     inquiryCountRes,
     bookingCountRes,
+    identityRes,
   ] = await Promise.all([
     sb
       .from("agency_memberships")
@@ -508,6 +543,11 @@ export async function loadTenantManagementDetail(
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenantId),
+    sb
+      .from("agency_business_identity")
+      .select("default_locale, supported_locales, show_language_switcher, updated_at")
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
   ]);
 
   // Members — resolve emails via the auth admin API.
@@ -567,7 +607,7 @@ export async function loadTenantManagementDetail(
   const ROLE_RANK: Record<string, number> = {
     owner: 5,
     admin: 4,
-    coordinator: 3,
+    manager: 3,
     editor: 2,
     viewer: 1,
   };
@@ -637,6 +677,18 @@ export async function loadTenantManagementDetail(
   } | null;
 
   const effectivePlan = coerceTier(agency.plan_tier);
+  const identity = identityRes.data as {
+    default_locale: string | null;
+    supported_locales: string[] | null;
+    show_language_switcher: boolean | null;
+    updated_at: string | null;
+  } | null;
+  const activeLocales =
+    Array.isArray(identity?.supported_locales) && identity.supported_locales.length > 0
+      ? identity.supported_locales
+      : ["en"];
+  const defaultLocale = identity?.default_locale ?? activeLocales[0] ?? "en";
+  const showLanguageSwitcher = identity?.show_language_switcher ?? true;
 
   return {
     id: agency.id,
@@ -665,6 +717,16 @@ export async function loadTenantManagementDetail(
           email: ownerMember.email,
         }
       : null,
+    language: {
+      defaultLocale,
+      activeLocales,
+      switcherStatus:
+        activeLocales.length > 1 && showLanguageSwitcher ? "shown" : "hidden",
+      showLanguageSwitcher,
+      mode: identity ? "tenant-managed" : "fallback",
+      updatedAt: identity?.updated_at ?? null,
+      updatedAtLabel: formatDate(identity?.updated_at),
+    },
     billing: {
       effectivePlan,
       basePlan: activeOverride ? activeOverride.basePlanTier : null,

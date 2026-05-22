@@ -114,7 +114,7 @@ function MemberRow({
             }
             style={{ ...inputStyle, width: "auto", padding: "4px 6px" }}
           >
-            {["admin", "coordinator", "editor", "viewer"].map((r) => (
+            {["admin", "manager", "editor", "viewer"].map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
@@ -270,7 +270,7 @@ function AddMemberForm({
           onChange={(e) => setRole(e.target.value)}
           style={{ ...inputStyle, width: "auto" }}
         >
-          {["admin", "coordinator", "editor", "viewer"].map((r) => (
+          {["admin", "manager", "editor", "viewer"].map((r) => (
             <option key={r} value={r}>
               {r}
             </option>

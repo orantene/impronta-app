@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { roleGrantsCapability } from "@/lib/access/roles";
 
 test("coordinator has receiver-select and request-payment caps", () => {
-  assert.equal(roleGrantsCapability("coordinator", "booking.payment.select_receiver"), true);
-  assert.equal(roleGrantsCapability("coordinator", "booking.payment.request"), true);
-  assert.equal(roleGrantsCapability("coordinator", "booking.payment.change_receiver"), false);
+  assert.equal(roleGrantsCapability("manager", "booking.payment.select_receiver"), true);
+  assert.equal(roleGrantsCapability("manager", "booking.payment.request"), true);
+  assert.equal(roleGrantsCapability("manager", "booking.payment.change_receiver"), false);
 });
 
 test("admin has elevated booking payment capabilities", () => {

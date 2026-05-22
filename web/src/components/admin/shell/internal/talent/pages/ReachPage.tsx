@@ -302,11 +302,11 @@ function ReachPage() {
 
       <div style={{ height: 24 }} />
 
-      {/* Pro tier value card (E6) — only when on a non-Portfolio tier.
+      {/* Pro tier value card (E6) — only when on a non-Max tier.
           Audit #40 — dismissible per-session. Shown until the talent
           dismisses it or upgrades; then a compact "Pro unlocks 3 modules
           → Compare" sticky strip lives at the bottom of Reach instead. */}
-      {MY_TALENT_PROFILE.subscription.tier !== "portfolio" && (
+      {MY_TALENT_PROFILE.subscription.tier !== "max" && (
         proTierDismissed ? (
           <ProTierCompactStrip
             currentTier={MY_TALENT_PROFILE.subscription.tier}

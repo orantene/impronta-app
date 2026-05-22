@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
-import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { logServerError } from "@/lib/server/safe-error";
 import { requireSession } from "@/lib/server/action-guards";
+import { createTranslator } from "@/i18n/messages";
 
 export type PasswordRecoveryActionState =
   | { error?: string; success?: boolean; message?: string }
@@ -18,6 +19,8 @@ export async function completeRecoveryPasswordUpdate(
   _prev: PasswordRecoveryActionState,
   formData: FormData,
 ): Promise<PasswordRecoveryActionState> {
+  const locale = String(formData.get("locale") ?? "en");
+  const t = createTranslator(locale === "es" ? "es" : "en");
   const session = await requireSession();
   if (!session.ok) return { error: session.error };
 
@@ -25,13 +28,13 @@ export async function completeRecoveryPasswordUpdate(
   const confirm_password = String(formData.get("confirm_password") ?? "");
 
   if (!new_password || !confirm_password) {
-    return { error: "Enter and confirm your new password." };
+    return { error: t("public.auth.actions.confirmPassword") };
   }
   if (new_password.length < MIN_LEN) {
-    return { error: `Password must be at least ${MIN_LEN} characters.` };
+    return { error: t("public.auth.actions.passwordTooShort") };
   }
   if (new_password !== confirm_password) {
-    return { error: "Password and confirmation do not match." };
+    return { error: t("public.auth.actions.passwordMismatch") };
   }
 
   const { error } = await session.supabase.auth.updateUser({
@@ -39,7 +42,7 @@ export async function completeRecoveryPasswordUpdate(
   });
   if (error) {
     logServerError("auth/password/completeRecovery", error);
-    return { error: CLIENT_ERROR.generic };
+    return { error: t("public.auth.actions.generic") };
   }
 
   const profile = await loadAccessProfile(session.supabase, session.user.id);

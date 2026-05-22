@@ -10,7 +10,7 @@ import type { DrawerId } from "./drawer-ids";
 
 export type Surface = "workspace" | "talent" | "client" | "platform";
 export type Plan = "free" | "studio" | "agency" | "network";
-export type Role = "viewer" | "editor" | "coordinator" | "admin" | "owner";
+export type Role = "viewer" | "editor" | "manager" | "admin" | "owner";
 /**
  * Tenant entity model. Orthogonal to Plan tier — both shapes can exist on
  * any plan, though hubs lean to higher tiers. Drives roster vocabulary,
@@ -458,6 +458,15 @@ export type TalentProfile = {
    *  admins can reference a talent by a stable short id. */
   profileCode?: string;
   name: string;
+  /** Real legal/given name from `talent_profiles.first_name` / `last_name`.
+   *  Surfaced alongside the stage `name` so admins can identify a talent
+   *  on cards (e.g. the Team drawer coordinator picker). Optional —
+   *  incomplete profiles may not have them. */
+  firstName?: string;
+  lastName?: string;
+  /** Talent contact email (`talent_profiles.invitation_email`). Shown on
+   *  identity cards. Optional. */
+  email?: string;
   state: "draft" | "invited" | "published" | "awaiting-approval" | "claimed";
   height?: string;
   city?: string;
@@ -1068,11 +1077,11 @@ export type MyTalentProfile = {
 //                is RESERVED FOR PORTFOLIO ONLY — Pro stays on the
 //                canonical tulala.digital/t/<slug> route.
 //
-// Tiers are ADDITIVE, not exclusive. A talent on Portfolio still
+// Tiers are ADDITIVE, not exclusive. A talent on Max still
 // appears on agency rosters and hubs the same way — the personal
 // page is a parallel surface, not a replacement.
 
-export type TalentSubscriptionTier = "basic" | "pro" | "portfolio";
+export type TalentSubscriptionTier = "free" | "pro" | "max";
 
 /** Atomic feature flag — used to render lock badges on premium modules. */
 export type TalentTierFeature =
@@ -1086,7 +1095,27 @@ export type TalentTierFeature =
   | "seo-controls"
   | "priority-discovery";
 
-/** Page-builder template — only the "Roster" template ships at Basic. */
+/** A section grouping for the tier comparison matrix. */
+export type TalentTierGroup = "page" | "discovery" | "money" | "tools";
+
+/** One cell of the tier matrix: `true` = included, `false` = not
+ *  included, `string` = a qualifying label (e.g. "Up to 6"). */
+export type TalentTierCell = boolean | string;
+
+/** One row of the talent tier catalog — the single source that drives
+ *  the compare-drawer matrix AND the per-feature gates (`tierAllows`).
+ *  Rows that gate a premium module carry `feature` + `unlockedAt`. */
+export type TalentTierCatalogRow = {
+  label: string;
+  group: TalentTierGroup;
+  free: TalentTierCell;
+  pro: TalentTierCell;
+  max: TalentTierCell;
+  feature?: TalentTierFeature;
+  unlockedAt?: TalentSubscriptionTier;
+};
+
+/** Page-builder template — only the "Roster" template ships at Free. */
 export type TalentPageTemplate = {
   id: string;
   label: string;
@@ -1132,14 +1161,14 @@ export type TalentSubscription = {
   template: string;
   /** Personal page enabled? Even on Basic the page exists, just simpler. */
   personalPageEnabled: boolean;
-  /** Custom domain (Portfolio only). */
+  /** Custom domain (Max only). */
   customDomain?: string;
   /** Custom-domain verification state. */
   customDomainStatus?: "verified" | "pending" | "failed" | "not-set";
   /** Personal page URL — what the talent can share. Falls back to
    *  the canonical Tulala /t/<slug> path when no custom domain is set.
-   *  All tiers (Basic / Pro / Portfolio) use the same canonical route;
-   *  custom domain is reserved for Portfolio only. */
+   *  All tiers (Free / Pro / Max) use the same canonical route;
+   *  custom domain is reserved for Max only. */
   personalPageUrl: string;
   /** Embedded media. */
   embeds: TalentMediaEmbed[];

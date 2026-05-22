@@ -20,7 +20,7 @@ export type ViewerRole =
   | "public"
   | "client"
   | "talent"
-  | "coordinator"
+  | "manager"
   | "agency_admin"
   | "platform_admin";
 
@@ -142,7 +142,7 @@ export function effectiveFieldVisibility(
 export function canViewerSee(v: FieldVisibility, role: ViewerRole): boolean {
   if (v === "public") return true;
   const isStaff =
-    role === "coordinator" ||
+    role === "manager" ||
     role === "agency_admin" ||
     role === "platform_admin";
   if (v === "admin") {

@@ -45,7 +45,8 @@ export interface EditorialSplitNavItem {
 
 export interface EditorialSplitActionsProps {
   /** Canonical, server-computed locale hrefs (no client locale guessing). */
-  localeHrefs: { en: string; es: string };
+  localeHrefs?: { en: string; es: string };
+  localeLinks?: Array<{ code: string; label: string; href: string }>;
   activeLocale: string;
   navItems: EditorialSplitNavItem[];
   /** Operator's real primary CTA (drawer "Start an Inquiry" + Inquiry icon). */
@@ -72,6 +73,7 @@ export interface EditorialSplitActionsProps {
 
 export function EditorialSplitActions({
   localeHrefs,
+  localeLinks,
   activeLocale,
   navItems,
   primaryCta,
@@ -136,7 +138,13 @@ export function EditorialSplitActions({
   }, [open]);
 
   const inquiryHref = primaryCta?.href ?? directoryHref;
-  const isEs = activeLocale === "es";
+  const fallbackLocaleLinks = localeHrefs
+    ? [
+        { code: "en", label: "EN", href: localeHrefs.en },
+        { code: "es", label: "ES", href: localeHrefs.es },
+      ]
+    : [];
+  const effectiveLocaleLinks = localeLinks ?? fallbackLocaleLinks;
 
   const drawer = (
     <div
@@ -214,32 +222,36 @@ export function EditorialSplitActions({
   return (
     <>
     <div className="site-header__es-acct">
-      {/* EN · ES — real canonical locale switch (server-computed hrefs) */}
-      <span
-        className="site-header__es-loc"
-        role="group"
-        aria-label={copy.language}
-      >
-        <a
-          href={localeHrefs.en}
-          className="site-header__es-loc-btn"
-          data-on={!isEs ? "true" : undefined}
-          aria-current={!isEs ? "true" : undefined}
+      {/* Real canonical locale switch (server-computed hrefs). */}
+      {effectiveLocaleLinks.length > 1 ? (
+        <span
+          className="site-header__es-loc"
+          role="group"
+          aria-label={copy.language}
         >
-          EN
-        </a>
-        <span aria-hidden="true" className="site-header__es-loc-sep">
-          ·
+          {effectiveLocaleLinks.map((link, index) => {
+            const active = link.code === activeLocale;
+            return (
+              <span key={link.code} className="contents">
+                {index > 0 ? (
+                  <span aria-hidden="true" className="site-header__es-loc-sep">
+                    ·
+                  </span>
+                ) : null}
+                <a
+                  href={link.href}
+                  className="site-header__es-loc-btn"
+                  data-on={active ? "true" : undefined}
+                  aria-current={active ? "true" : undefined}
+                  aria-label={link.label}
+                >
+                  {link.code.toUpperCase()}
+                </a>
+              </span>
+            );
+          })}
         </span>
-        <a
-          href={localeHrefs.es}
-          className="site-header__es-loc-btn"
-          data-on={isEs ? "true" : undefined}
-          aria-current={isEs ? "true" : undefined}
-        >
-          ES
-        </a>
-      </span>
+      ) : null}
 
       {/* Saved — bookmark glyph (prototype `.ai-saved`). Opens favorites
           drawer when the drawer context is available; falls back to a

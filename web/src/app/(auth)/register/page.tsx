@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { normalizeOptionalNextPath } from "@/lib/auth-flow";
 import {
   buildWorkspaceOnboardingPath,
@@ -38,6 +40,8 @@ export default async function RegisterPage({
   }>;
 }) {
   const { error, intent, lead, next } = await searchParams;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const workspaceLeadId = typeof lead === "string" && lead ? lead : null;
   const workspaceIntent = intent === WORKSPACE_SIGNUP_INTENT && workspaceLeadId;
   const nextPath = workspaceIntent
@@ -49,21 +53,23 @@ export default async function RegisterPage({
   const inviterAgencyName = isInviteFlow ? await loadInviterAgencyName() : null;
 
   const title = workspaceIntent
-    ? "Create your operator account"
+    ? t("public.auth.register.operatorTitle")
     : inviterAgencyName
-      ? `Join ${inviterAgencyName}`
-      : "Create your account";
+      ? t("public.auth.register.inviteTitle").replace("{agency}", inviterAgencyName)
+      : t("public.auth.register.title");
   const description = workspaceIntent
-    ? "Use the same email you used on Get Started. We'll open your free workspace and create its Tulala URL automatically after signup."
+    ? t("public.auth.register.operatorDescription")
     : inviterAgencyName
-      ? `${inviterAgencyName} invited you to join their roster. Create a Tulala account to claim your profile and start receiving bookings.`
-      : "After signing up you'll choose whether you're Talent (join the agency roster) or a Client (book talent for events).";
-  const googleLabel = workspaceIntent ? "Continue with Google" : "Sign up with Google";
+      ? t("public.auth.register.inviteDescription").replace("{agency}", inviterAgencyName)
+      : t("public.auth.register.description");
+  const googleLabel = workspaceIntent
+    ? t("public.auth.register.googleContinue")
+    : t("public.auth.register.google");
   const emailLabel = workspaceIntent
-    ? "Create account and open workspace"
+    ? t("public.auth.register.operatorSubmit")
     : inviterAgencyName
-      ? "Create account & claim profile"
-      : "Sign up with email";
+      ? t("public.auth.register.inviteSubmit")
+      : t("public.auth.register.emailSubmit");
 
   return (
     <div className="space-y-6">
@@ -76,16 +82,24 @@ export default async function RegisterPage({
           {decodeURIComponent(error)}
         </p>
       ) : null}
-      <GoogleAuthButton nextPath={nextPath}>{googleLabel}</GoogleAuthButton>
+      <GoogleAuthButton
+        nextPath={nextPath}
+        pendingLabel={t("public.auth.googleOpening")}
+        failedLabel={t("public.auth.googleFailed")}
+        popupBlockedMessage={t("public.auth.googlePopupBlocked")}
+        unableToStartMessage={t("public.auth.googleUnableToStart")}
+      >
+        {googleLabel}
+      </GoogleAuthButton>
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-sm uppercase">
-          <span className="bg-card px-2 text-muted-foreground">or</span>
+          <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
         </div>
       </div>
-      <RegisterForm nextPath={nextPath} submitLabel={emailLabel} />
+      <RegisterForm nextPath={nextPath} submitLabel={emailLabel} locale={locale} />
     </div>
   );
 }

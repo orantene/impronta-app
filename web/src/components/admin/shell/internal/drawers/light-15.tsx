@@ -603,7 +603,7 @@ export function ConversionFunnelDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
       defaultSize="half"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }} className="bg-admin-accent">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
         {/* Summary KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           {[

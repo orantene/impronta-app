@@ -16,7 +16,7 @@ import { PageHeader } from "./pages-shared";
 
 export function WorkPage() {
   const { state, openDrawer, setPage, openUpgrade, toast, effectiveMessagesInquiries, effectiveBookings } = useAdminShell();
-  const canEdit = meetsRole(state.role, "coordinator");
+  const canEdit = meetsRole(state.role, "manager");
   const isFree = state.plan === "free";
 
   // Normalise real RichInquiry rows to the flat shape the list rows need.

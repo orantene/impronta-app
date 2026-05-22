@@ -19,6 +19,7 @@
  */
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { isPostgrestMissingColumnError } from "@/lib/server/safe-error";
 import {
   DEFAULT_PLATFORM_LOCALE,
   type Locale,
@@ -28,11 +29,13 @@ import {
 export interface TenantLocaleSettings {
   defaultLocale: Locale;
   supportedLocales: readonly Locale[];
+  showLanguageSwitcher: boolean;
 }
 
 const PLATFORM_FALLBACK: TenantLocaleSettings = {
   defaultLocale: DEFAULT_PLATFORM_LOCALE,
   supportedLocales: [DEFAULT_PLATFORM_LOCALE],
+  showLanguageSwitcher: false,
 };
 
 const TTL_MS = 60_000;
@@ -42,22 +45,29 @@ const cache = new Map<string, { loadedAt: number; value: TenantLocaleSettings }>
 type LocaleRow = {
   default_locale: string;
   supported_locales: string[];
+  show_language_switcher?: boolean | null;
 };
 
 function normalize(row: LocaleRow | null): TenantLocaleSettings {
   if (!row) return PLATFORM_FALLBACK;
   const supported = (row.supported_locales ?? []).filter(isLocale);
+  const showLanguageSwitcher = row.show_language_switcher ?? true;
   const fallbackDefault: Locale = isLocale(row.default_locale)
     ? row.default_locale
     : DEFAULT_PLATFORM_LOCALE;
   if (supported.length === 0) {
-    return { defaultLocale: fallbackDefault, supportedLocales: [fallbackDefault] };
+    return {
+      defaultLocale: fallbackDefault,
+      supportedLocales: [fallbackDefault],
+      showLanguageSwitcher: false,
+    };
   }
   return {
     defaultLocale: supported.includes(fallbackDefault)
       ? fallbackDefault
       : supported[0]!,
     supportedLocales: supported,
+    showLanguageSwitcher,
   };
 }
 
@@ -84,11 +94,21 @@ export async function loadTenantLocaleSettings(
   const supabase = createPublicSupabaseClient();
   if (!supabase) return PLATFORM_FALLBACK;
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("agency_business_identity")
-    .select("default_locale, supported_locales")
+    .select("default_locale, supported_locales, show_language_switcher")
     .eq("tenant_id", tenantId)
     .maybeSingle<LocaleRow>();
+
+  if (error && isPostgrestMissingColumnError(error)) {
+    const fallbackRead = await supabase
+      .from("agency_business_identity")
+      .select("default_locale, supported_locales")
+      .eq("tenant_id", tenantId)
+      .maybeSingle<LocaleRow>();
+    data = fallbackRead.data;
+    error = fallbackRead.error;
+  }
 
   const value = error ? PLATFORM_FALLBACK : normalize(data ?? null);
   cache.set(tenantId, { loadedAt: now, value });

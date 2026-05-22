@@ -220,7 +220,7 @@ const VIEW_LABELS: Record<ViewerRole, string> = {
   agency_admin: "Agency admin",
   talent: "Talent",
   client: "Client",
-  coordinator: "Coordinator",
+  manager: "Manager",
 };
 const VIEW_PICKER: ReadonlyArray<{ role: ViewerRole; label: string }> = [
   { role: "platform_admin", label: VIEW_LABELS.platform_admin },
@@ -234,7 +234,7 @@ function parseView(raw: string | undefined): ViewerRole {
     case "agency_admin":
     case "talent":
     case "client":
-    case "coordinator":
+    case "manager":
     case "platform_admin":
       return raw;
     default:

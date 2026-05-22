@@ -254,7 +254,7 @@ export default async function WorkspaceAccountPage({
       })
     : null;
   const canManagePayout = canManageWorkspacePayout || canManageBilling;
-  const canCreateSelfPayout = ["owner", "admin", "coordinator"].includes(scope.membership.role);
+  const canCreateSelfPayout = ["owner", "admin", "manager"].includes(scope.membership.role);
 
   const stripeEnabled = isStripeConfigured();
   const planMeta = summary ? PLAN_META[summary.plan] : PLAN_META.free;

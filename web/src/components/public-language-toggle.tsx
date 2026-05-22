@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import type { Locale } from "@/i18n/config";
+import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
 
 const linkClass =
@@ -17,16 +18,30 @@ export function PublicLanguageToggle({
   className,
   activeLocale,
   pathnameWithoutLocale,
+  availableLocales = ["en", "es"],
+  defaultLocale = "en",
+  showLanguageSwitcher = true,
 }: {
   className?: string;
   activeLocale: Locale;
   pathnameWithoutLocale: string;
+  availableLocales?: readonly Locale[];
+  defaultLocale?: Locale;
+  showLanguageSwitcher?: boolean;
 }) {
   const search = useSearchParams();
   const qs = search?.toString();
   const suffix = qs ? `?${qs}` : "";
-  const enHref = `${withLocalePath(pathnameWithoutLocale, "en")}${suffix}`;
-  const esHref = `${withLocalePath(pathnameWithoutLocale, "es")}${suffix}`;
+  const locales = Array.from(
+    new Set([defaultLocale, ...availableLocales].filter(Boolean)),
+  );
+  if (!showLanguageSwitcher || locales.length <= 1) return null;
+
+  const pathSettings = {
+    ...FALLBACK_LANGUAGE_SETTINGS,
+    defaultLocale,
+    publicLocales: locales,
+  };
 
   return (
     <div
@@ -37,31 +52,32 @@ export function PublicLanguageToggle({
       role="group"
       aria-label="Language"
     >
-      <a
-        href={enHref}
-        className={cn(
-          linkClass,
-          activeLocale === "en"
-            ? "bg-muted text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        EN
-      </a>
-      <span className="text-border" aria-hidden>
-        |
-      </span>
-      <a
-        href={esHref}
-        className={cn(
-          linkClass,
-          activeLocale === "es"
-            ? "bg-muted text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        ES
-      </a>
+      {locales.map((code, index) => {
+        const active = activeLocale === code;
+        const meta = getLocaleMetadata(code);
+        return (
+          <span key={code} className="inline-flex items-center gap-1">
+            {index > 0 ? (
+              <span className="text-border" aria-hidden>
+                |
+              </span>
+            ) : null}
+            <a
+              href={`${withLocalePath(pathnameWithoutLocale, code, pathSettings)}${suffix}`}
+              className={cn(
+                linkClass,
+                active
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              aria-current={active ? "true" : undefined}
+              aria-label={meta.label}
+            >
+              {code.toUpperCase()}
+            </a>
+          </span>
+        );
+      })}
     </div>
   );
 }

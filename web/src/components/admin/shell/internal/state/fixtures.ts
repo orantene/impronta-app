@@ -7,12 +7,12 @@
 // ─────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
-import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierFeature, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteDomain, WebsitePageRow, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
+import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteDomain, WebsitePageRow, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", "client", "platform"];
 export const PLANS: Plan[] = ["free", "studio", "agency", "network"];
-export const ROLES: Role[] = ["viewer", "editor", "coordinator", "admin", "owner"];
+export const ROLES: Role[] = ["viewer", "editor", "manager", "admin", "owner"];
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
 export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
@@ -50,10 +50,10 @@ export function resolveWorkspacePage(raw: string): WorkspacePage {
 export const TALENT_PAGES: TalentPage[] = [
   "today",
   "messages",
+  "public-page",
   "profile",
   "calendar",
   "agencies",
-  "public-page",
   "settings",
 ];
 // Messages replaces Inquiries as the canonical chat-first surface for
@@ -228,7 +228,7 @@ export const ENTITY_TYPE_META: Record<
 export const ROLE_META: Record<Role, { label: string; rank: number }> = {
   viewer: { label: "Viewer", rank: 0 },
   editor: { label: "Editor", rank: 1 },
-  coordinator: { label: "Coordinator", rank: 2 },
+  manager: { label: "Manager", rank: 2 },
   admin: { label: "Admin", rank: 3 },
   owner: { label: "Owner", rank: 4 },
 };
@@ -276,7 +276,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   activity:    { label: "Activity" },      // legacy — redirects to settings
   reach:       { label: "Reach" },         // legacy — redirects to agencies
   agencies:    { label: "Agencies" },      // WS-8.2
-  "public-page": { label: "Public page" }, // WS-8.2
+  "public-page": { label: "My Pages" }, // WS-8.2 · renamed from "Public page"
   settings:    { label: "Settings" },
 };
 
@@ -1400,7 +1400,7 @@ export const CLIENTS_FREE: Client[] = [
 export const TEAM_AGENCY: TeamMember[] = [
   { id: "u1", name: "Oran Tene", email: "oran@acme-models.com", role: "owner", status: "active", initials: "OT" },
   { id: "u2", name: "Sara Bianchi", email: "sara@acme-models.com", role: "admin", status: "active", initials: "SB" },
-  { id: "u3", name: "Daniel Ferrer", email: "daniel@acme-models.com", role: "coordinator", status: "active", initials: "DF" },
+  { id: "u3", name: "Daniel Ferrer", email: "daniel@acme-models.com", role: "manager", status: "active", initials: "DF" },
   { id: "u4", name: "Mira Soto", email: "mira@acme-models.com", role: "viewer", status: "active", initials: "MS" },
   { id: "u5", name: "Andrés Lopez", email: "andres@acme-models.com", role: "editor", status: "invited", initials: "AL" },
 ];
@@ -2155,56 +2155,85 @@ export const TALENT_TIER_META: Record<
     accent: "ink" | "gold" | "deep";
   }
 > = {
-  basic: {
-    label: "Basic",
-    tagline: "Standard public profile",
+  free: {
+    label: "Free",
+    tagline: "Be on Tulala",
     monthlyPrice: "Free",
-    blurb: "Roster-style profile. Good for agency-led talent who don't need a personal destination.",
+    blurb: "Everything you need to be found and hired — a public profile, agency rosters, and a personal Tulala page.",
     accent: "ink",
   },
   pro: {
     label: "Pro",
-    tagline: "Richer personal page",
+    tagline: "Get seen, keep more",
     monthlyPrice: "$12 / mo",
-    blurb: "Template choices, larger gallery, social + video embeds, press band, downloadable media kit.",
+    blurb: "Template choices, video + social embeds, press band, media kit, priority discovery — and a lower Tulala fee on direct bookings.",
     accent: "gold",
   },
-  portfolio: {
-    label: "Portfolio",
-    tagline: "Mini personal site",
+  max: {
+    label: "Max",
+    tagline: "Your own brand",
     monthlyPrice: "$29 / mo",
-    blurb: "Multi-section page-builder, custom domain, EPK kit, SEO controls, priority discover placement.",
+    blurb: "A multi-section page builder, custom domain, SEO controls, branded invoices, full analytics — and the lowest fee on direct bookings.",
     accent: "deep",
   },
 };
 
-/** Lookup: which feature is first available at which tier. */
-export const TALENT_TIER_FEATURE_AT: Record<TalentTierFeature, TalentSubscriptionTier> = {
-  "template-picker": "pro",
-  "media-embeds": "pro",
-  "press-band": "pro",
-  "media-kit": "pro",
-  "video-hero": "portfolio",
-  "custom-domain": "portfolio",
-  "extra-sections": "portfolio",
-  "seo-controls": "portfolio",
-  "priority-discovery": "portfolio",
+/**
+ * The single talent-tier catalog — the source of truth for the
+ * Free / Pro / Max split. Drives the compare-drawer matrix, the
+ * per-feature gates (`tierAllows`), and per-plan lock states. Change
+ * a feature's split here and every consumer follows.
+ */
+export const TALENT_TIER_CATALOG: TalentTierCatalogRow[] = [
+  // ── Your Tulala page ──
+  { group: "page", label: "Personal page at tulala.digital/t/<code>", free: true, pro: true, max: true },
+  { group: "page", label: "Page templates", free: "Roster only", pro: "+ Editorial, Studio", max: "All 6 templates", feature: "template-picker", unlockedAt: "pro" },
+  { group: "page", label: "Photo gallery", free: "Standard", pro: "Large", max: "Unlimited" },
+  { group: "page", label: "Video + social embeds", free: false, pro: "Up to 6", max: "Unlimited", feature: "media-embeds", unlockedAt: "pro" },
+  { group: "page", label: "Animated cover", free: false, pro: true, max: true, feature: "video-hero", unlockedAt: "pro" },
+  { group: "page", label: "Press / clippings band", free: false, pro: true, max: true, feature: "press-band", unlockedAt: "pro" },
+  { group: "page", label: "Soften / hide agency branding", free: false, pro: true, max: true },
+  { group: "page", label: "Multi-section page builder", free: false, pro: false, max: true, feature: "extra-sections", unlockedAt: "max" },
+  { group: "page", label: "Custom domain (yourname.com)", free: false, pro: false, max: true, feature: "custom-domain", unlockedAt: "max" },
+  { group: "page", label: "SEO controls + meta", free: false, pro: false, max: true, feature: "seo-controls", unlockedAt: "max" },
+  // ── Getting found ──
+  { group: "discovery", label: "Listed in Tulala Discover", free: "Standard", pro: "Priority", max: "Top + featured", feature: "priority-discovery", unlockedAt: "pro" },
+  { group: "discovery", label: "Plan badge on cards & inquiries", free: false, pro: "Pro badge", max: "Max badge" },
+  // ── Bookings & money ──
+  { group: "money", label: "Inquiry inbox + bookings", free: true, pro: true, max: true },
+  { group: "money", label: "Tulala fee on direct bookings", free: "Standard", pro: "Reduced", max: "Lowest" },
+  { group: "money", label: "Deposit requests", free: false, pro: true, max: true },
+  { group: "money", label: "Branded invoices / quotes", free: false, pro: false, max: true },
+  { group: "money", label: "Page analytics", free: false, pro: "Basic", max: "Full" },
+  // ── Pro tools ──
+  { group: "tools", label: "Auto media kit (EPK PDF)", free: false, pro: true, max: "Branded", feature: "media-kit", unlockedAt: "pro" },
+  { group: "tools", label: "Priority support", free: false, pro: false, max: true },
+];
+
+/** Section headers for the tier matrix, in render order. */
+export const TALENT_TIER_GROUP_LABELS: Record<TalentTierGroup, string> = {
+  page: "Your Tulala page",
+  discovery: "Getting found",
+  money: "Bookings & money",
+  tools: "Pro tools",
 };
+
+const TALENT_TIER_RANK: Record<TalentSubscriptionTier, number> = { free: 0, pro: 1, max: 2 };
 
 /** Returns true if the talent's current tier unlocks the given feature. */
 export function tierAllows(current: TalentSubscriptionTier, feature: TalentTierFeature): boolean {
-  const order: TalentSubscriptionTier[] = ["basic", "pro", "portfolio"];
-  const required = TALENT_TIER_FEATURE_AT[feature];
-  return order.indexOf(current) >= order.indexOf(required);
+  const row = TALENT_TIER_CATALOG.find((r) => r.feature === feature);
+  if (!row || !row.unlockedAt) return false;
+  return TALENT_TIER_RANK[current] >= TALENT_TIER_RANK[row.unlockedAt];
 }
 
 export const TALENT_PAGE_TEMPLATES: TalentPageTemplate[] = [
-  { id: "roster", label: "Roster", blurb: "Classic comp-card layout — what agencies use.", thumb: "🎴", availableAt: "basic" },
+  { id: "roster", label: "Roster", blurb: "Classic comp-card layout — what agencies use.", thumb: "🎴", availableAt: "free" },
   { id: "editorial", label: "Editorial", blurb: "Magazine spread feel — large hero, generous white space.", thumb: "📰", availableAt: "pro" },
   { id: "studio", label: "Studio", blurb: "Tight grid, big imagery — for fashion + lifestyle.", thumb: "🖼️", availableAt: "pro" },
-  { id: "stage", label: "Stage", blurb: "Video-first hero with show / tour / gig dates.", thumb: "🎤", availableAt: "portfolio" },
-  { id: "creator", label: "Creator", blurb: "Social-first — TikTok / IG / YouTube embeds drive the page.", thumb: "📱", availableAt: "portfolio" },
-  { id: "epk", label: "EPK", blurb: "Press-kit feel — bio, credits, downloads, contact CTA.", thumb: "📄", availableAt: "portfolio" },
+  { id: "stage", label: "Stage", blurb: "Video-first hero with show / tour / gig dates.", thumb: "🎤", availableAt: "max" },
+  { id: "creator", label: "Creator", blurb: "Social-first — TikTok / IG / YouTube embeds drive the page.", thumb: "📱", availableAt: "max" },
+  { id: "epk", label: "EPK", blurb: "Press-kit feel — bio, credits, downloads, contact CTA.", thumb: "📄", availableAt: "max" },
 ];
 
 export const REPRESENTATION_META: Record<
@@ -2520,7 +2549,7 @@ export const MY_TALENT_PROFILE: MyTalentProfile = {
   subscription: {
     // Marta is currently on Pro — she trialled it after agency-side
     // told her "your IG following deserves a real page." Pro gives
-    // her embeds + a press band. Portfolio would unlock a custom
+    // her embeds + a press band. Max would unlock a custom
     // domain (marta-reyes.com) + EPK + extra layout sections.
     tier: "pro",
     template: "editorial",
@@ -2723,7 +2752,7 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     toggleable: true,
     badge: "Pro tier",
     description:
-      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Portfolio tier.",
+      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Max tier.",
     feeRate: 0,
   },
   // 2 — Tulala Hub
@@ -3926,7 +3955,7 @@ export const PLATFORM_HQ_TEAM: TeamMember[] = [
   { id: "hq1", name: "Oran Tene", email: "oran@tulala.digital", role: "owner", status: "active", initials: "OT" },
   { id: "hq2", name: "Eli Park", email: "eli@tulala.digital", role: "admin", status: "active", initials: "EP" },
   { id: "hq3", name: "Sam Liu", email: "sam@tulala.digital", role: "admin", status: "active", initials: "SL" },
-  { id: "hq4", name: "Nora Diaz", email: "nora@tulala.digital", role: "coordinator", status: "active", initials: "ND" },
+  { id: "hq4", name: "Nora Diaz", email: "nora@tulala.digital", role: "manager", status: "active", initials: "ND" },
 ];
 
 /** Default visibility per built-in field. Defines the "shipped" privacy
@@ -4479,7 +4508,7 @@ export function buildFreshTalentProfile(bridge: {
     portfolioVideos: [],
     showreelUrl: undefined,
     subscription: {
-      tier: "basic",
+      tier: "free",
       template: "roster",
       personalPageEnabled: false,
       customDomain: undefined,

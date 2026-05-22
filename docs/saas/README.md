@@ -40,6 +40,7 @@ Each phase ships on its own branch, its own PR, and its own acceptance gate. Sil
 - `open-decisions.md` — O1–O7 live tracker. Phase 1 cannot start until all are Locked.
 - `transitional-debt.md` — Post-M8 freeze-queue items (AdminInquiryWorkspaceV2, `uses_new_engine` stub, `warnLegacyInquiryV2Render`) and SaaS-era transitional fallbacks with removal tickets (Charter §9, Plan §22.8).
 - `validation-queries.md` — Evidence log. Every Phase 1 PR description carries a `SELECT COUNT(*) … WHERE tenant_id IS NULL = 0` result; this is the canonical index of those runs.
+- `localization-tenant-model.md` — Tenant-level EN/ES settings, public switcher rules, multilingual content model, and plan-gating recommendation.
 
 ---
 

@@ -58,7 +58,7 @@ export function AdminMessageStream({
   // workspace name comes from the Tulala TENANT identity. Free
   // workspaces don't surface the toggle (no abstraction to choose).
   const wsName = effectiveTenant.name;
-  const canSendAsWs = meetsRole(state.role, "coordinator") && state.plan !== "free";
+  const canSendAsWs = meetsRole(state.role, "manager") && state.plan !== "free";
   const allMessages: Array<{
     id: string;
     body: string;

@@ -299,7 +299,7 @@ export function TalentEmergencyContactDrawer() {
 //   1. **Distribution links** — the actual surfaces the public can see
 //      this talent on at the selected tier. Copy + Open per row.
 //   2. **What this tier unlocks** — concrete features added vs. the
-//      previous tier. Always shown for context, even on Basic.
+//      previous tier. Always shown for context, even on Free.
 //
 // We do NOT try to render a faked-mockup of the public page inside the
 // drawer — that's brittle (image rendering issues) and never matches
@@ -326,13 +326,13 @@ export function TalentPublicPreviewDrawer() {
     const rows: LinkRow[] = [];
 
     // Tulala personal page — always present. Custom domain only on
-    // Portfolio (and only if verified).
-    const hasCustomDomain = previewTier === "portfolio" && p.subscription.customDomain && p.subscription.customDomainStatus === "verified";
+    // Max (and only if verified).
+    const hasCustomDomain = previewTier === "max" && p.subscription.customDomain && p.subscription.customDomainStatus === "verified";
     if (hasCustomDomain) {
       rows.push({
         id: "personal-custom",
         label: "Your custom domain",
-        sub: "Portfolio tier · your own URL, no Tulala branding",
+        sub: "Max tier · your own URL, no Tulala branding",
         url: `https://${p.subscription.customDomain}`,
         icon: "globe",
         primary: true,
@@ -340,13 +340,13 @@ export function TalentPublicPreviewDrawer() {
     } else {
       rows.push({
         id: "personal-tulala",
-        label: previewTier === "portfolio" ? "Tulala personal page (fallback)" : "Tulala personal page",
-        sub: previewTier === "portfolio"
+        label: previewTier === "max" ? "Tulala personal page (fallback)" : "Tulala personal page",
+        sub: previewTier === "max"
           ? "Active until you connect a custom domain"
           : `${TALENT_TIER_META[previewTier].label} tier · canonical URL`,
         url: `https://tulala.digital/t/${slug}`,
         icon: "globe",
-        primary: previewTier !== "portfolio",
+        primary: previewTier !== "max",
       });
     }
 
@@ -387,7 +387,7 @@ export function TalentPublicPreviewDrawer() {
   // Each list is what THIS tier unlocks ON TOP of the tier below it.
   // Drives the "what this tier gives you" panel.
   const tierFeatures: Record<TalentSubscriptionTier, { headline: string; bullets: string[] }> = {
-    basic: {
+    free: {
       headline: "Default canonical page on Tulala",
       bullets: [
         `Canonical URL: tulala.digital/t/${slug}`,
@@ -406,7 +406,7 @@ export function TalentPublicPreviewDrawer() {
         "Priority on hub search results",
       ],
     },
-    portfolio: {
+    max: {
       headline: "Custom domain + full personal site",
       bullets: [
         "Connect your own domain (e.g. your-name.com)",
@@ -421,8 +421,8 @@ export function TalentPublicPreviewDrawer() {
 
   const features = tierFeatures[previewTier];
   const tierAheadOfCurrent = (
-    previewTier === "portfolio" && currentTier !== "portfolio"
-  ) || (previewTier === "pro" && currentTier === "basic");
+    previewTier === "max" && currentTier !== "max"
+  ) || (previewTier === "pro" && currentTier === "free");
 
   return (
     <DrawerShell
@@ -454,7 +454,7 @@ export function TalentPublicPreviewDrawer() {
           width: "fit-content",
         }}
       >
-        {(["basic", "pro", "portfolio"] as const).map((t) => {
+        {(["free", "pro", "max"] as const).map((t) => {
           const isActive = previewTier === t;
           const isCurrent = currentTier === t;
           return (
@@ -490,7 +490,7 @@ export function TalentPublicPreviewDrawer() {
 
       {/* ── Distribution links ─────────────────────────────────────
           The actual surfaces a client can see this talent on. Copy +
-          Open per row. Custom domain only appears on Portfolio when
+          Open per row. Custom domain only appears on Max when
           verified — otherwise the canonical Tulala URL is the active
           one. */}
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">

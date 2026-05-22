@@ -7,32 +7,38 @@ import {
 } from "@/lib/auth-flow";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { loadAccessProfile } from "@/lib/access-profile";
-import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { createTranslator } from "@/i18n/messages";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export type AuthActionState = { error?: string; message?: string } | void;
 
+function authT(formData: FormData) {
+  const locale = String(formData.get("locale") ?? "en");
+  return createTranslator(locale === "es" ? "es" : "en");
+}
+
 /** Maps Supabase auth error codes to actionable user-facing messages. */
-function mapSignUpError(error: unknown): string {
+function mapSignUpError(error: unknown, t: ReturnType<typeof createTranslator>): string {
   const code = (error as { code?: string })?.code;
   switch (code) {
     case "email_address_invalid":
-      return "That email address doesn't look right. Check the format and try again.";
+      return t("public.auth.actions.signupEmailInvalid");
     case "email_address_not_authorized":
-      return "Signups aren't allowed for that email domain. Try a different address.";
+      return t("public.auth.actions.signupDomainBlocked");
     case "weak_password":
-      return "Password is too weak. Use at least 8 characters, ideally mixing letters, numbers, and symbols.";
+      return t("public.auth.actions.signupWeakPassword");
     case "over_email_send_rate_limit":
-      return "Too many signup attempts for this address. Wait a few minutes and try again.";
+      return t("public.auth.actions.signupRateLimited");
     case "user_already_exists":
     case "email_exists":
-      return "An account with that email already exists. Try signing in, or reset your password if you've forgotten it.";
+      return t("public.auth.actions.signupExists");
     case "signup_disabled":
-      return "New account signups are temporarily disabled. Contact us for access.";
+      return t("public.auth.actions.signupDisabled");
     default:
-      return CLIENT_ERROR.signUp;
+      return t("public.auth.actions.signupGeneric");
   }
 }
 
@@ -41,9 +47,10 @@ export async function requestPasswordReset(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { error: "Enter a valid email address." };
+    return { error: t("public.auth.actions.invalidEmail") };
   }
 
   const supabase = await getCachedServerSupabase();
@@ -62,8 +69,7 @@ export async function requestPasswordReset(
   }
 
   return {
-    message:
-      "If an account exists for that address, we sent a link to reset your password. Check your inbox and spam folder.",
+    message: t("public.auth.actions.resetSent"),
   };
 }
 
@@ -71,10 +77,11 @@ export async function signInWithEmail(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   if (!email || !password) {
-    return { error: "Email and password are required." };
+    return { error: t("public.auth.actions.emailPasswordRequired") };
   }
 
   const supabase = await getCachedServerSupabase();
@@ -84,7 +91,7 @@ export async function signInWithEmail(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     logServerError("auth/signInWithPassword", error);
-    return { error: CLIENT_ERROR.signIn };
+    return { error: t("public.auth.actions.signInGeneric") };
   }
 
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
@@ -103,13 +110,14 @@ export async function signUpWithEmail(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   if (!email || !password) {
-    return { error: "Email and password are required." };
+    return { error: t("public.auth.actions.emailPasswordRequired") };
   }
   if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." };
+    return { error: t("public.auth.actions.passwordTooShort") };
   }
 
   const supabase = await getCachedServerSupabase();
@@ -127,13 +135,12 @@ export async function signUpWithEmail(
   });
   if (error) {
     logServerError("auth/signUpWithEmail", error);
-    return { error: mapSignUpError(error) };
+    return { error: mapSignUpError(error, t) };
   }
 
   if (!data.session) {
     return {
-      message:
-        "Account created. Check your email for the confirmation link, then continue signing in.",
+      message: t("public.auth.actions.signupConfirmation"),
     };
   }
 
