@@ -6,14 +6,13 @@
  * Spec: web/docs/inquiry-engine-spec-2026-05-14.md §15 + §18
  * Plan: web/docs/client-execution-plan-2026-05-14.md §21.2
  *
- * Three entry points the UI calls:
+ * Two entry points the UI calls:
  *   • saveDraftAction          — autosave a draft (10s + blur + visibility)
- *   • submitDraftAction        — submit a previously saved draft
  *   • submitInquiryNowAction   — one-shot submit without a draft (fast path)
  *
- * All three funnel into the canonical engine
- * (createInquiryFromIntent / saveInquiryDraft / submitInquiryDraft) so the
- * UI never assembles SubmitInquiryInput by hand.
+ * Both funnel into the canonical engine
+ * (createInquiryFromIntent / saveInquiryDraft) so the UI never assembles
+ * SubmitInquiryInput by hand.
  *
  * Returns flat ActionState objects compatible with React's useActionState.
  */
@@ -31,7 +30,6 @@ import {
 import {
   createInquiryFromIntent,
   saveInquiryDraft,
-  submitInquiryDraft,
   type CreateInquiryFromIntentResult,
 } from "@/lib/inquiry/inquiry-intent-engine";
 import { logServerError } from "@/lib/server/safe-error";
@@ -165,31 +163,7 @@ export async function saveDraftAction(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. Submit a draft (load → validate → submit → redirect).
-// ─────────────────────────────────────────────────────────────────────────────
-
-export async function submitDraftAction(
-  _prev: InquiryIntentActionState,
-  formData: FormData,
-): Promise<InquiryIntentActionState> {
-  const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
-  const draftId = String(formData.get("draftId") ?? "").trim();
-  if (!tenantSlug) return { kind: "error", message: "Missing tenant slug." };
-  if (!draftId) return { kind: "error", message: "Missing draft id." };
-
-  const ctx = await resolveSubmitContext(tenantSlug);
-  if (!ctx.ok) return { kind: "error", message: ctx.error };
-
-  const result = await submitInquiryDraft(ctx.writeClient, draftId, {
-    actor_user_id: ctx.actorUserId,
-    client_user_id: ctx.actorUserId,
-  });
-  // Drafts are an authenticated-only feature, so this is never a guest.
-  return finalizeSubmit(result, tenantSlug, { isGuest: false });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. One-shot submit — no draft persisted (fast path used by guests + the
+// 2. One-shot submit — no draft persisted (fast path used by guests + the
 //    review step when the user hits "Send" without ever saving a draft).
 // ─────────────────────────────────────────────────────────────────────────────
 

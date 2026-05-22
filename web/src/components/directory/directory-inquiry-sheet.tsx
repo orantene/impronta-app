@@ -82,6 +82,7 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     const roster: RosterLiteItem[] = ready.orderedTalent.map((t) => ({
       id: t.id,
       name: t.display_name ?? s.talentFallbackName,
+      photoUrl: t.photo_url,
     }));
     const isClient = ready.mode === "client";
 

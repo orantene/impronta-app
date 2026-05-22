@@ -26,6 +26,8 @@ export type TalentProfileInquirePayload = {
   defaultName?: string;
   defaultPhone?: string;
   defaultCompany?: string;
+  /** Auth user id when logged in — drives the drawer's logged-in trust card. */
+  userId?: string;
 };
 
 export async function getTalentProfileInquireData(): Promise<TalentProfileInquirePayload> {
@@ -82,5 +84,6 @@ export async function getTalentProfileInquireData(): Promise<TalentProfileInquir
     defaultName,
     defaultPhone: clientProfile?.phone ?? undefined,
     defaultCompany: clientProfile?.company_name ?? undefined,
+    userId: user?.id,
   };
 }

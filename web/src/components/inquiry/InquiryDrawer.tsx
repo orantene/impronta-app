@@ -22,6 +22,7 @@
 
 import { useState, useEffect, useRef, useTransition, useMemo } from "react";
 import { useActionState } from "react";
+import Image from "next/image";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -72,6 +73,8 @@ export type RosterLiteItem = {
   name: string;
   primaryTypeLabel?: string;
   city?: string;
+  /** Public card-thumbnail URL — renders the talent's face in the picker. */
+  photoUrl?: string | null;
 };
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
@@ -810,20 +813,52 @@ function TalentSection({
       </div>
 
       {selected.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+            gap: 10,
+            marginBottom: 10,
+          }}
+        >
           {selected.map((id) => {
             const r = roster.find((r) => r.id === id);
+            const name = r?.name ?? "Talent";
             return (
-              <span key={id} style={chipStyle}>
-                {r?.name ?? id.slice(0, 8)}
-                {r?.primaryTypeLabel && <span style={{ color: C.inkMuted }}> · {r.primaryTypeLabel}</span>}
-                <button
-                  type="button"
-                  aria-label={`Remove ${r?.name ?? "talent"}`}
-                  onClick={() => removeTalent(id)}
-                  style={{ marginLeft: 6, border: "none", background: "transparent", cursor: "pointer", color: C.inkMuted }}
-                >×</button>
-              </span>
+              <div key={id} style={talentMiniCard}>
+                <div style={talentMiniPhotoWrap}>
+                  {r?.photoUrl ? (
+                    <Image
+                      src={r.photoUrl}
+                      alt={name}
+                      fill
+                      sizes="160px"
+                      style={{ objectFit: "cover" }}
+                    />
+                  ) : (
+                    <div style={talentMiniFallback}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.inkDim} strokeWidth={1.5}>
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => removeTalent(id)}
+                    style={talentMiniRemove}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ padding: "7px 9px 9px" }}>
+                  <div style={talentMiniName}>{name}</div>
+                  {r?.primaryTypeLabel && (
+                    <div style={talentMiniType}>{r.primaryTypeLabel}</div>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -1444,17 +1479,68 @@ const primaryLinkStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
-const chipStyle: React.CSSProperties = {
+// ─── Talent mini-card (selected-talent grid) ─────────────────────────────────
+const talentMiniCard: React.CSSProperties = {
+  background: "#fff",
+  border: `1px solid ${C.borderSoft}`,
+  borderRadius: 12,
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+};
+
+const talentMiniPhotoWrap: React.CSSProperties = {
+  position: "relative",
+  width: "100%",
+  aspectRatio: "4 / 5",
+  background: C.surfaceAlt,
+};
+
+const talentMiniFallback: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "linear-gradient(160deg, #F2F1EC, #E7E6DE)",
+};
+
+const talentMiniRemove: React.CSSProperties = {
+  position: "absolute",
+  top: 6,
+  right: 6,
+  width: 22,
+  height: 22,
+  borderRadius: 999,
+  border: "none",
+  background: "rgba(11,11,13,0.55)",
+  color: "#fff",
+  fontSize: 14,
+  lineHeight: 1,
+  cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
-  padding: "5px 10px",
-  background: "#fff",
-  border: `1px solid ${C.border}`,
-  borderRadius: 999,
+  justifyContent: "center",
+};
+
+const talentMiniName: React.CSSProperties = {
   fontSize: 12.5,
-  fontFamily: FONT,
+  fontWeight: 600,
   color: C.ink,
+  fontFamily: FONT,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const talentMiniType: React.CSSProperties = {
+  fontSize: 11,
+  color: C.inkMuted,
+  fontFamily: FONT,
+  marginTop: 1,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
 
 const checkboxRow: React.CSSProperties = {

@@ -162,7 +162,9 @@ export function DirectoryCardAdapter({
           <Bookmark className="size-4" fill={favorited ? "currentColor" : "none"} />
         </button>
       </div>
-      {/* INQUIRE / ADDED ✓ — toggles inquiry cart membership. */}
+      {/* ADD TO INQUIRY / ADDED ✓ — toggles inquiry cart membership.
+          (Label says "Add to inquiry", not "Inquire", so it reads as a
+          list-builder action — the composer opens from the header.) */}
       <button
         type="button"
         onClick={toggleCart}
@@ -177,7 +179,7 @@ export function DirectoryCardAdapter({
         data-card-inquiry-toggle
         data-in-cart={inCart ? "true" : "false"}
       >
-        {inCart ? "Added ✓" : "Inquire"}
+        {inCart ? "Added ✓" : "Add to inquiry"}
       </button>
     </div>
   );
