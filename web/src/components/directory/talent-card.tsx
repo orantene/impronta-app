@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { TalentCardActions } from "@/components/talent-card-actions";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
 import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
@@ -327,10 +327,12 @@ export function TalentCard({
         {/* Top-right: save (TalentCardActions) + share */}
         <div className="absolute right-1.5 top-1.5 z-[1] flex flex-col gap-1">
           <TalentCardActions
-            talentId={card.id}
+            talentProfileId={card.id}
+            profileCode={card.profileCode}
+            displayName={card.displayName}
             sourcePage={sourcePage}
-            variant="overlay"
-            showCart={false}
+            variant="compact"
+            hideInquiry
           />
           <Button
             type="button"
@@ -530,12 +532,13 @@ export function TalentCard({
           >
             <Link href={profileHref}>{c.viewPortfolio}</Link>
           </Button>
-          {/* Inquiry-cart toggle — canonical TalentCardActions (bar variant). */}
+          {/* Inquiry-cart toggle — canonical TalentCardActions. */}
           <TalentCardActions
-            talentId={card.id}
+            talentProfileId={card.id}
+            profileCode={card.profileCode}
+            displayName={card.displayName}
             sourcePage={sourcePage}
-            variant="bar"
-            showFavorite={false}
+            hideFavorite
           />
         </div>
 

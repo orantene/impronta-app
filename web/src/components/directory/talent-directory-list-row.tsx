@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { TalentCardActions } from "@/components/talent-card-actions";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
 import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
 import type { DirectoryAiCardOverlay, DirectoryCardDTO } from "@/lib/directory/types";
@@ -117,9 +117,11 @@ export function TalentDirectoryListRow({
         <div className="flex flex-wrap items-center gap-2">
           {/* Favorite + inquiry — canonical TalentCardActions. */}
           <TalentCardActions
-            talentId={card.id}
+            talentProfileId={card.id}
+            profileCode={card.profileCode}
+            displayName={card.displayName}
             sourcePage={sourcePage}
-            variant="bar"
+            variant="compact"
           />
           <Button
             asChild

@@ -28,7 +28,7 @@ import { DIRECTORY_PAGE_SIZE_DEFAULT } from "@/lib/directory/types";
 import { MAX_CARD_FIT_LABELS } from "@/lib/directory/talent-card-dto";
 import type { DirectoryFieldFacetSelection, DirectorySortValue } from "@/lib/directory/types";
 
-import { TalentCardActions } from "@/components/talent-card-actions";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { TalentCard } from "./talent-card";
 import { TalentDirectoryListRow } from "./talent-directory-list-row";
 import { usePublicDiscoveryState } from "./public-discovery-state";
@@ -557,11 +557,12 @@ export function DirectoryInfiniteGrid({
               </p>
             ) : null}
             <div className="flex flex-col gap-2">
-              {/* Favorite + inquiry-cart — canonical TalentCardActions (bar). */}
+              {/* Favorite + inquiry-cart — canonical TalentCardActions. */}
               <TalentCardActions
-                talentId={preview.id}
+                talentProfileId={preview.id}
+                profileCode={preview.profileCode}
+                displayName={preview.displayName}
                 sourcePage={discoveryState.searchContext?.sourcePage ?? "/directory"}
-                variant="bar"
                 className="w-full"
               />
               <Button asChild variant="ghost" className="w-full">

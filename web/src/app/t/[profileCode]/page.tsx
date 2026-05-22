@@ -69,7 +69,7 @@ import {
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
-import { TalentCardActions } from "@/components/talent-card-actions";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1980,9 +1980,12 @@ export default async function PublicTalentProfilePage({
                       </Link>
                       {/* Canonical favorite + inquiry affordances */}
                       <TalentCardActions
-                        talentId={st.id}
+                        talentProfileId={st.id}
+                        profileCode={st.profileCode}
+                        displayName={st.displayName}
                         sourcePage={profileSourcePage}
-                        variant="overlay"
+                        variant="compact"
+                        className="absolute right-2.5 top-2.5 z-[2]"
                       />
                     </div>
                   );

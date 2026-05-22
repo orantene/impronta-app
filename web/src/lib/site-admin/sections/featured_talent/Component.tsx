@@ -4,7 +4,7 @@ import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 import { fetchFeaturedTalentForSection } from "./fetch";
-import { TalentCardActions } from "@/components/talent-card-actions";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { FeaturedTalentCard } from "./FeaturedTalentCard";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import type { CSSProperties } from "react";
@@ -716,9 +716,12 @@ export async function FeaturedTalentComponent({
                   }
                 />
                 <TalentCardActions
-                  talentId={card.id}
+                  talentProfileId={card.id}
+                  profileCode={card.profileCode}
+                  displayName={card.displayName}
                   sourcePage="/featured-talent"
-                  variant="overlay"
+                  variant="compact"
+                  className="absolute right-2.5 top-2.5 z-[2]"
                 />
               </div>
             ))}
