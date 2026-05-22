@@ -210,6 +210,25 @@ export default async function PlatformBillingPage() {
           >
             Discount codes →
           </Link>
+          <Link
+            href="/platform/admin/billing/commission"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 12px",
+              borderRadius: 8,
+              background: "rgba(155,168,183,0.12)",
+              border: "1px solid rgba(155,168,183,0.28)",
+              color: HQ.amber,
+              fontSize: 12.5,
+              fontWeight: 600,
+              fontFamily: F,
+              textDecoration: "none",
+            }}
+          >
+            Commission config →
+          </Link>
         </div>
       </div>
 

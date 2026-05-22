@@ -383,15 +383,7 @@ export type TenantManagementDetail = {
   bookingCount: number;
   domainCount: number;
   owner: { profileId: string; displayName: string; email: string } | null;
-  language: {
-    defaultLocale: string;
-    activeLocales: string[];
-    switcherStatus: "shown" | "hidden";
-    showLanguageSwitcher: boolean;
-    mode: "tenant-managed" | "fallback";
-    updatedAt: string | null;
-    updatedAtLabel: string;
-  };
+  language: { defaultLocale: string; activeLocales: string[]; switcherStatus: "shown" | "hidden"; showLanguageSwitcher: boolean; mode: "tenant-managed" | "fallback"; updatedAt: string | null; updatedAtLabel: string };
   billing: {
     effectivePlan: WorkspacePlanTier;
     basePlan: WorkspacePlanTier | null;
@@ -402,14 +394,10 @@ export type TenantManagementDetail = {
     currentPeriodEnd: string | null;
     trialEnd: string | null;
   };
+  commission: { override: { platformTakeBps: number | null; platformTakeFloorCents: number | null; overrideNote: string; setAt: string } | null; openRequest: { requestedPlatformTakeBps: number | null; requestedNote: string | null; requestedAt: string | null; requestStatus: string } | null };
   override: WorkspacePlanOverride | null;
   overrideHistory: WorkspacePlanOverride[];
-  urls: {
-    publicSite: string;
-    adminDashboard: string;
-    billing: string;
-    customDomain: string | null;
-  };
+  urls: { publicSite: string; adminDashboard: string; billing: string; customDomain: string | null };
   members: TenantManagementMember[];
   recentAudit: TenantManagementAuditEntry[];
 };
@@ -498,6 +486,7 @@ export async function loadTenantManagementDetail(
     inquiryCountRes,
     bookingCountRes,
     identityRes,
+    commissionRes,
   ] = await Promise.all([
     sb
       .from("agency_memberships")
@@ -548,6 +537,7 @@ export async function loadTenantManagementDetail(
       .select("default_locale, supported_locales, show_language_switcher, updated_at")
       .eq("tenant_id", tenantId)
       .maybeSingle(),
+    sb.from("workspace_commission_overrides").select("platform_take_bps, platform_take_floor_cents, override_note, set_at, requested_platform_take_bps, requested_note, requested_at, request_status").eq("tenant_id", tenantId).maybeSingle(),
   ]);
 
   // Members — resolve emails via the auth admin API.
@@ -677,6 +667,12 @@ export async function loadTenantManagementDetail(
   } | null;
 
   const effectivePlan = coerceTier(agency.plan_tier);
+
+  type CommRow = { platform_take_bps: number | null; platform_take_floor_cents: number | null; override_note: string | null; set_at: string | null; requested_platform_take_bps: number | null; requested_note: string | null; requested_at: string | null; request_status: string | null };
+  const cr = commissionRes.data as CommRow | null;
+  const commissionOverride = cr && (cr.platform_take_bps !== null || cr.platform_take_floor_cents !== null) ? { platformTakeBps: cr.platform_take_bps, platformTakeFloorCents: cr.platform_take_floor_cents, overrideNote: cr.override_note ?? "", setAt: cr.set_at ?? "" } : null;
+  const commissionOpenRequest = cr?.request_status === "open" ? { requestedPlatformTakeBps: cr.requested_platform_take_bps, requestedNote: cr.requested_note ?? null, requestedAt: cr.requested_at ?? null, requestStatus: cr.request_status } : null;
+
   const identity = identityRes.data as {
     default_locale: string | null;
     supported_locales: string[] | null;
@@ -736,6 +732,10 @@ export async function loadTenantManagementDetail(
       stripeSubscriptionId: sub?.stripe_subscription_id ?? null,
       currentPeriodEnd: sub?.current_period_end ?? null,
       trialEnd: sub?.trial_end ?? null,
+    },
+    commission: {
+      override: commissionOverride,
+      openRequest: commissionOpenRequest,
     },
     override: activeOverride,
     overrideHistory,

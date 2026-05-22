@@ -31,6 +31,7 @@ import {
   MembersSection,
   PlanOverrideSection,
 } from "./tenant-sections-manage";
+import { CommissionSection } from "./tenant-commission-section";
 import type { TenantManagementDetail } from "../../tenant-management-data";
 
 // ─── Shared mini-primitives ────────────────────────────────────────────────────
@@ -620,6 +621,12 @@ export function TenantSectionStack({
         detail={detail}
         onChanged={onChanged}
         defaultOpen
+      />,
+      <CommissionSection
+        key="commission"
+        detail={detail}
+        onChanged={onChanged}
+        defaultOpen={false}
       />,
       <LanguageLocalizationSection
         key="lang"
