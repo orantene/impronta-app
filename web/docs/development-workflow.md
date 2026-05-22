@@ -166,3 +166,9 @@ Before the cutover, development happened directly on a shared `phase-1` branch,
 production was promoted by hand, and the GitHub default branch (`stable-work`)
 had drifted weeks behind reality — three different branches each acting as a
 partial "source of truth". This workflow collapses that into one: `main`.
+
+## Pipeline verification
+
+- **2026-05-21** — End-to-end pipeline test: a commit pushed to `main`
+  auto-built and promoted to a `production` deployment on Vercel, with the
+  live domains serving it. The `main` → production sync is confirmed working.
