@@ -72,6 +72,7 @@ const BRANDING_READ_COLUMNS = `
   brand_mark_svg,
   theme_json,
   theme_preset_slug,
+  favorite_icon,
   version,
   updated_by,
   created_at,

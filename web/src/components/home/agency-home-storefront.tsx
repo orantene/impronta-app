@@ -26,7 +26,7 @@ import {
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
-import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isLocale } from "@/lib/site-admin/locales";
 import { homepageMeta } from "@/lib/site-admin/templates/homepage/meta";
@@ -91,6 +91,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     savedIds,
     favoriteIds,
     actor,
+    publicBranding,
   ] = await Promise.all([
     cmsLocale
       ? loadHomepageForRender(tenantId, cmsLocale)
@@ -108,7 +109,9 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     getSavedTalentIds(),
     getFavoriteTalentIds(),
     getCachedActorSession(),
+    loadPublicBranding(tenantId),
   ]);
+  const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
   const tenantBrand = identity?.public_name?.trim() ?? null;
   const directoryUi = buildDirectoryUiCopy(t, tenantBrand);
   // Suppress the draft banner when the in-place edit chrome is engaged — the
@@ -143,7 +146,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         </div>
       ) : null}
       <PublicDiscoveryStateProvider>
-        <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} />
+        <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} favoriteIcon={favoriteIcon} />
         {actor.user ? <MergeGuestFavorites serverFavoriteIds={favoriteIds} /> : null}
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>

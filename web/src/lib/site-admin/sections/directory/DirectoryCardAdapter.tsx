@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark } from "lucide-react";
+import { Bookmark, Heart } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
 
@@ -143,7 +143,8 @@ export function DirectoryCardAdapter({
           priority={priority}
           index={index}
         />
-        {/* Bookmark icon overlay — toggles personal favorite (♥). */}
+        {/* Favorite icon overlay — toggles personal favorite (♥/🔖). Icon
+            shape is configured per-tenant via agency_branding.favorite_icon. */}
         <button
           type="button"
           onClick={toggleFavorite}
@@ -159,7 +160,11 @@ export function DirectoryCardAdapter({
           data-card-favorite-toggle
           data-favorited={favorited ? "true" : "false"}
         >
-          <Bookmark className="size-4" fill={favorited ? "currentColor" : "none"} />
+          {discovery.favoriteIcon === "heart" ? (
+            <Heart className="size-4" fill={favorited ? "currentColor" : "none"} />
+          ) : (
+            <Bookmark className="size-4" fill={favorited ? "currentColor" : "none"} />
+          )}
         </button>
       </div>
       {/* INQUIRE / ADDED ✓ — toggles inquiry cart membership. */}

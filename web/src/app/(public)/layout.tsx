@@ -15,7 +15,7 @@ import {
   getSavedTalentIds,
 } from "@/lib/public-discovery";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 export default async function PublicLayout({
   children,
@@ -36,16 +36,22 @@ export default async function PublicLayout({
 
   // SSR seed both lists so the bookmark+plane badges in the header render
   // with the right counts on first paint (no flicker from 0 → N).
-  const [savedIds, favoriteIds, actor] = await Promise.all([
+  const tenantId =
+    ctx.kind === "agency" || ctx.kind === "hub" ? ctx.tenantId : null;
+
+  const [savedIds, favoriteIds, actor, publicBranding] = await Promise.all([
     getSavedTalentIds(),
     getFavoriteTalentIds(),
     getCachedActorSession(),
+    tenantId ? loadPublicBranding(tenantId) : Promise.resolve(null),
   ]);
+
+  const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
       <PublicDiscoveryStateProvider>
-        <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} />
+        <DiscoveryStateBridge savedIds={savedIds} favoriteIds={favoriteIds} favoriteIcon={favoriteIcon} />
         {/* Runs once per session for authed visitors — sweeps any guest-mode
             cart + inquiries + localStorage favorites into the authed account. */}
         {actor.user ? <MergeGuestFavorites serverFavoriteIds={favoriteIds} /> : null}

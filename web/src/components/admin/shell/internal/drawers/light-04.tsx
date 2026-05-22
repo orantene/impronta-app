@@ -285,6 +285,8 @@ export function BrandingDrawer() {
   const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
     setWm(prev => ({ ...prev, [k]: v }));
 
+  const [favoriteIcon, setFavoriteIcon] = useState<"heart" | "bookmark">("bookmark");
+
   const [isSaving, setIsSaving] = useState(false);
 
   // Load saved branding settings on open
@@ -301,6 +303,7 @@ export function BrandingDrawer() {
           if (d.tagline) setTagline(d.tagline);
           if (d.description) setDescription(d.description);
           if (d.watermarkPreset) setWm(d.watermarkPreset);
+          if (d.favoriteIcon) setFavoriteIcon(d.favoriteIcon);
         }
       } finally {
         setLoadingSettings(false);
@@ -345,6 +348,7 @@ export function BrandingDrawer() {
         accent_color: /^#[0-9a-fA-F]{6}$/u.test(accentColor) ? accentColor : undefined,
         logo_url: logoUrl,
         watermark_preset: isStudioPlus ? wm : undefined,
+        favorite_icon: favoriteIcon,
       });
       if (!result.ok) { toast(result.error || "Couldn't save. Try again."); return; }
       toast("Branding saved");
@@ -420,6 +424,22 @@ export function BrandingDrawer() {
             <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
               style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
             <TextInput value={accentColor} onChange={(e) => setAccentColor(e.target.value)} />
+          </div>
+        </FieldRow>
+      </Section>
+
+      <Section title="Directory cards" framed>
+        <FieldRow label="Favorite icon" hint="Icon shown on talent cards for saving to favorites.">
+          <div className="flex gap-2">
+            {(["bookmark", "heart"] as const).map((v) => (
+              <button key={v} type="button" onClick={() => setFavoriteIcon(v)} style={{
+                padding: "5px 14px", borderRadius: 999, border: `1.5px solid ${favoriteIcon === v ? COLORS.fill : COLORS.border}`,
+                cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                textTransform: "capitalize",
+                background: favoriteIcon === v ? COLORS.fill : "transparent",
+                color: favoriteIcon === v ? "#fff" : COLORS.ink,
+              }}>{v === "bookmark" ? "🔖 Bookmark" : "♥ Heart"}</button>
+            ))}
           </div>
         </FieldRow>
       </Section>
