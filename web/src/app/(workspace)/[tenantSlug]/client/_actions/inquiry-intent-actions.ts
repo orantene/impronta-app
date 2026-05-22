@@ -19,11 +19,12 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import {
   type InquiryIntent,
 } from "@/lib/inquiry/inquiry-intent";
@@ -39,11 +40,26 @@ import { logServerError } from "@/lib/server/safe-error";
 // Action result shape — flat object compatible with useActionState.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Guest-account provisioning outcome — drives the success-panel copy. */
+export type GuestActivationStatus = "matched" | "created" | "unlinked";
+
 export type InquiryIntentActionState =
   | { kind: "idle" }
   | { kind: "saved"; draftId: string; savedAt: string }
-  | { kind: "submitted"; inquiryId: string; tenantSlug: string }
+  | {
+      kind: "submitted";
+      inquiryId: string;
+      tenantSlug: string;
+      /** True when the submitter had no auth session (public guest path). */
+      isGuest: boolean;
+      /** Guest-account provisioning result — null for authed clients. */
+      guestActivation?: GuestActivationStatus | null;
+      /** Email the guest submitted with — used for the magic-link CTA. */
+      guestEmail?: string | null;
+    }
   | { kind: "error"; message: string; missingFields?: string[] };
+
+const GUEST_HEADER = "x-impronta-guest";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared resolver: pull tenant + actor session + supabase client.
@@ -64,6 +80,25 @@ async function resolveSubmitContext(tenantSlug: string) {
   // inquiry-row INSERT for fresh client accounts.
   const writeClient = admin ?? supabase;
 
+  // Guest path — resolve the guest_sessions row keyed by the
+  // middleware-injected `x-impronta-guest` header. The id links the
+  // inquiry to the unauthenticated visitor (magic-link claim later) and
+  // is the rate-limit key the engine uses when actorUserId is null.
+  let guestSessionId: string | null = null;
+  if (!session.user) {
+    const guestKey = (await headers()).get(GUEST_HEADER);
+    if (guestKey) {
+      const guestDb = admin ?? supabase;
+      await guestDb.rpc("ensure_guest_session", { p_session_key: guestKey });
+      const { data: guestRow } = await guestDb
+        .from("guest_sessions")
+        .select("id")
+        .eq("session_key", guestKey)
+        .maybeSingle();
+      guestSessionId = (guestRow?.id as string | undefined) ?? null;
+    }
+  }
+
   return {
     ok: true as const,
     tenantSlug,
@@ -72,6 +107,7 @@ async function resolveSubmitContext(tenantSlug: string) {
     writeClient,
     actorUserId: session.user?.id ?? null,
     actorEmail: session.user?.email ?? null,
+    guestSessionId,
   };
 }
 
@@ -148,7 +184,8 @@ export async function submitDraftAction(
     actor_user_id: ctx.actorUserId,
     client_user_id: ctx.actorUserId,
   });
-  return finalizeSubmit(result, tenantSlug);
+  // Drafts are an authenticated-only feature, so this is never a guest.
+  return finalizeSubmit(result, tenantSlug, { isGuest: false });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,19 +212,40 @@ export async function submitInquiryNowAction(
   if (!ctx.ok) return { kind: "error", message: ctx.error };
 
   // For logged-in clients the intent.requester.user_id should be the
-  // actor's user_id. For guests (no actor) the requester carries
-  // name/email/phone but no user_id; the engine creates a guest_sessions
-  // row internally.
+  // actor's user_id.
   if (ctx.actorUserId && !intent.requester.user_id) {
     intent.requester.user_id = ctx.actorUserId;
+  }
+
+  // Guest path — provision (or match) a client account by email so the
+  // inquiry carries a real client participant and the visitor can claim
+  // and track it later via a magic link. Mirrors the legacy directory
+  // `submitGuestInquiry` flow so the canonical drawer is on parity.
+  let clientUserId: string | null = ctx.actorUserId;
+  let guestActivation: GuestActivationStatus | null = null;
+  const guestEmail = intent.requester.email?.trim() ?? "";
+  if (!ctx.actorUserId && guestEmail) {
+    const provisioned = await ensureGuestClientByEmail({
+      email: guestEmail,
+      name: intent.requester.name?.trim() ?? "",
+      company: intent.client?.company?.trim() ?? "",
+      phone: intent.requester.phone?.trim() ?? "",
+    });
+    clientUserId = provisioned.clientUserId;
+    guestActivation = provisioned.status;
   }
 
   const result = await createInquiryFromIntent(ctx.writeClient, intent, {
     tenant_id: ctx.tenantId,
     actor_user_id: ctx.actorUserId,
-    client_user_id: ctx.actorUserId,
+    client_user_id: clientUserId,
+    guest_session_id: ctx.guestSessionId,
   });
-  return finalizeSubmit(result, tenantSlug);
+  return finalizeSubmit(result, tenantSlug, {
+    isGuest: !ctx.actorUserId,
+    guestActivation,
+    guestEmail: guestEmail || null,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -197,6 +255,11 @@ export async function submitInquiryNowAction(
 function finalizeSubmit(
   result: CreateInquiryFromIntentResult,
   tenantSlug: string,
+  opts: {
+    isGuest: boolean;
+    guestActivation?: GuestActivationStatus | null;
+    guestEmail?: string | null;
+  },
 ): InquiryIntentActionState {
   if (!result.ok) {
     if (result.reason === "validation_failed") {
@@ -220,10 +283,20 @@ function finalizeSubmit(
   revalidatePath(`/${tenantSlug}/client/today`);
   revalidatePath(`/${tenantSlug}/client/inquiries`);
 
-  // Per spec §15 — redirect to the Messages shell pinned on this inquiry.
-  redirect(
-    `/${tenantSlug}/client/messages?inquiry=${encodeURIComponent(result.inquiryId)}&just_submitted=1`,
-  );
+  // Per spec §15 the inquiry opens in the Messages shell — but the drawer
+  // is also mounted on public guest surfaces (directory, /t/[code]) where
+  // a server redirect into an authed route would bounce the visitor to
+  // login. So we return a `submitted` state and let the drawer render an
+  // in-place confirmation: authed clients get a "View in Messages" CTA,
+  // guests get magic-link activation copy.
+  return {
+    kind: "submitted",
+    inquiryId: result.inquiryId,
+    tenantSlug,
+    isGuest: opts.isGuest,
+    guestActivation: opts.guestActivation ?? null,
+    guestEmail: opts.guestEmail ?? null,
+  };
 }
 
 function validationMessage(missing: string[]): string {
