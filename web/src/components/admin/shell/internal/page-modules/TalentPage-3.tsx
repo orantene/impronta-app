@@ -1,10 +1,134 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Avatar, ProfilePhotoBadgeOverlay, TrustBadgeGroup } from "../primitives";
 import { COLORS, FONTS, TAXONOMY, useAdminShell } from "../state";
 import type { TalentProfile } from "../state";
-import { rosterWorkflowStateLabel } from "./TalentPage-1";
+import { setRosterTalentSiteVisibility } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/actions";
+
+
+// ── Directory-visibility eye toggle ─────────────────────────────────
+// The agency's single public-visibility control for a roster talent.
+// ON  → talent is listed in this agency's directory / search / page.
+// OFF → talent stays on the roster but is not shown publicly.
+// Replaces the old Draft/Published workflow chip + status pill.
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.39-1.61" />
+      <path d="m2 2 20 20" />
+      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+    </svg>
+  );
+}
+
+/**
+ * Roster-card / row directory-visibility toggle. Optimistically flips the
+ * agency eye and persists via `setRosterTalentSiteVisibility`. When the
+ * talent has globally hidden themselves, the agency eye is overridden — a
+ * non-interactive "Hidden by talent" marker is shown instead.
+ */
+export function RosterEyeToggle({
+  talentId,
+  tenantSlug,
+  siteVisible,
+  talentHidden,
+}: {
+  talentId: string;
+  tenantSlug: string | undefined;
+  siteVisible: boolean;
+  talentHidden: boolean;
+}) {
+  const [visible, setVisible] = useState(siteVisible);
+  const [pending, startTransition] = useTransition();
+
+  if (talentHidden) {
+    return (
+      <div
+        title="This talent has hidden their profile across all of Tulala. It will not appear publicly until they unhide it."
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 8px",
+          borderRadius: 999,
+          background: COLORS.amberDeep,
+          color: "#fff",
+          fontSize: 9.5,
+          fontWeight: 700,
+          letterSpacing: 0.2,
+          whiteSpace: "nowrap",
+          boxShadow: "0 1px 4px rgba(11,11,13,0.18)",
+          backdropFilter: "blur(6px)",
+        }}
+      >
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="11" width="16" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+        Hidden by talent
+      </div>
+    );
+  }
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pending || !tenantSlug) return;
+    const next = !visible;
+    setVisible(next); // optimistic
+    startTransition(async () => {
+      const res = await setRosterTalentSiteVisibility(tenantSlug, talentId, next);
+      if (res && "error" in res && res.error) {
+        setVisible(!next); // revert on failure
+      }
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={pending || !tenantSlug}
+      aria-pressed={visible}
+      aria-label={
+        visible
+          ? "Visible in your directory — click to hide"
+          : "Hidden from your directory — click to show"
+      }
+      title={
+        visible
+          ? "Shown in your directory, search and on a public page. Click to hide."
+          : "Not shown publicly — on your roster only. Click to show in your directory."
+      }
+      style={{
+        width: 30,
+        height: 30,
+        borderRadius: 999,
+        border: `1px solid ${visible ? COLORS.accent : "rgba(11,11,13,0.14)"}`,
+        background: visible ? COLORS.accent : "rgba(255,255,255,0.95)",
+        color: visible ? "#fff" : COLORS.inkMuted,
+        cursor: pending || !tenantSlug ? "default" : "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+        flexShrink: 0,
+        boxShadow: "0 1px 4px rgba(11,11,13,0.16)",
+        backdropFilter: "blur(6px)",
+        opacity: pending ? 0.65 : 1,
+        transition: "background .15s, border-color .15s, color .15s",
+      }}
+    >
+      <EyeIcon open={visible} />
+    </button>
+  );
+}
 
 
 /** Resolves trust state for a talent and renders compact admin-surface badges. */
@@ -132,7 +256,7 @@ function RosterRow({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const { t } = useAdminShell();
+  const { tenantSlug, t } = useAdminShell();
 
   const typeMeta = (() => {
     if (!profile.primaryType) return null;
@@ -143,14 +267,6 @@ function RosterRow({
     return null;
   })();
   const typeLabel = typeMeta?.label ?? null;
-
-  const stateTone = ({
-    published: COLORS.green,
-    draft: COLORS.inkMuted,
-    invited: COLORS.indigoDeep,
-    "awaiting-approval": COLORS.amber,
-    claimed: COLORS.ink,
-  } as const)[profile.state];
 
   return (
     <div
@@ -258,30 +374,13 @@ function RosterRow({
         </div>
       )}
 
-      {/* State pill */}
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "3px 9px",
-          borderRadius: 999,
-          background: profile.state === "published" ? COLORS.successSoft :
-                       profile.state === "awaiting-approval" ? COLORS.amberSoft :
-                       profile.state === "invited" ? COLORS.indigoSoft :
-                       "rgba(11,11,13,0.05)",
-          color: profile.state === "published" ? COLORS.successDeep :
-                 profile.state === "awaiting-approval" ? COLORS.amberDeep :
-                 profile.state === "invited" ? COLORS.indigoDeep :
-                 COLORS.inkMuted,
-          fontSize: 10.5,
-          fontWeight: 600,
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
-        {rosterWorkflowStateLabel(t, profile.state)}
-      </div>
+      {/* Directory-visibility eye toggle */}
+      <RosterEyeToggle
+        talentId={profile.id}
+        tenantSlug={tenantSlug}
+        siteVisible={profile.siteVisible ?? false}
+        talentHidden={profile.talentHidden ?? false}
+      />
     </div>
   );
 }

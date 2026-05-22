@@ -279,8 +279,7 @@ async function fetchByServiceCategory(
     .from("talent_profiles")
     .select(FEATURED_TALENT_SELECT)
     .in("id", roster)
-    .eq("workflow_status", "approved")
-    .eq("visibility", "public")
+    .eq("is_publicly_hidden", false)
     .eq("service_category_slug", serviceSlug)
     .is("deleted_at", null)
     .order("is_featured", { ascending: false })
@@ -311,8 +310,7 @@ async function fetchRecentOrFeaturedDirect(
     .from("talent_profiles")
     .select(FEATURED_TALENT_SELECT)
     .in("id", roster)
-    .eq("workflow_status", "approved")
-    .eq("visibility", "public")
+    .eq("is_publicly_hidden", false)
     .is("deleted_at", null);
 
   if (sort === "featured") {
@@ -349,8 +347,7 @@ async function fetchByDestination(
     .from("talent_profiles")
     .select(FEATURED_TALENT_SELECT)
     .in("id", roster)
-    .eq("workflow_status", "approved")
-    .eq("visibility", "public")
+    .eq("is_publicly_hidden", false)
     .contains("destinations", [destinationSlug])
     .is("deleted_at", null)
     .order("is_featured", { ascending: false })
@@ -381,8 +378,7 @@ async function fetchByProfileCodes(
     .select(FEATURED_TALENT_SELECT)
     .in("id", roster)
     .in("profile_code", codes)
-    .eq("workflow_status", "approved")
-    .eq("visibility", "public")
+    .eq("is_publicly_hidden", false)
     .is("deleted_at", null);
 
   if (error) {

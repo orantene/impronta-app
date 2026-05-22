@@ -104,8 +104,7 @@ type TalentProfile = {
   short_bio: string | null;
   bio_en: string | null;
   bio_es: string | null;
-  workflow_status: string | null;
-  visibility: string | null;
+  is_publicly_hidden: boolean | null;
   is_featured: boolean | null;
   height_cm: number | null;
   residence_city: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
@@ -238,8 +237,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             short_bio,
             bio_en,
             bio_es,
-            workflow_status,
-            visibility,
+            is_publicly_hidden,
             is_featured,
             height_cm,
             residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
@@ -299,8 +297,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       short_bio,
       bio_en,
       bio_es,
-      workflow_status,
-      visibility,
+      is_publicly_hidden,
       is_featured,
       height_cm,
       residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
@@ -960,12 +957,12 @@ export default async function PublicTalentProfilePage({
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
 
   // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
-  // the freelancer/app surface requires workflow_status='approved' AND
-  // visibility='public' AND deleted_at IS NULL. RLS enforces the same rule
-  // for anon reads; the resolver makes the contract code-visible and
-  // protects authenticated-but-unauthorised readers from unapproved rows
-  // leaking through. (Agency surface continues to rely on roster RLS for
-  // M2; a roster-join resolver call wires in when overlays land.)
+  // the freelancer/app surface requires is_publicly_hidden = false AND
+  // deleted_at IS NULL. RLS enforces the same rule for anon reads; the
+  // resolver makes the contract code-visible and protects authenticated-
+  // but-unauthorised readers from globally hidden rows leaking through.
+  // (Agency surface continues to rely on roster RLS for M2; a roster-join
+  // resolver call wires in when overlays land.)
   if (!resolvedPreview && surface === "freelancer") {
     // RLS already filters soft-deleted rows for anon reads, so the row we
     // have here has deleted_at=null by construction; pass it explicitly so
@@ -973,8 +970,7 @@ export default async function PublicTalentProfilePage({
     const decision = resolveTalentVisibility(
       {
         profile: {
-          workflow_status: profile.workflow_status,
-          visibility: profile.visibility,
+          is_publicly_hidden: profile.is_publicly_hidden ?? false,
           deleted_at: null,
         },
       },

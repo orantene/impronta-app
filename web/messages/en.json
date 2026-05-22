@@ -936,7 +936,9 @@
         "pending": "Pending",
         "invited": "Invited",
         "draft": "Draft",
-        "claimed": "Claimed"
+        "claimed": "Claimed",
+        "visible": "Visible",
+        "hidden": "Hidden"
       },
       "filters": {
         "searchAria": "Search roster",

@@ -310,6 +310,7 @@ type RosterRow = {
     first_name: string | null;
     last_name: string | null;
     workflow_status: string | null;
+    is_publicly_hidden: boolean | null;
     height_cm: number | null;
     updated_at: string | null;
     talent_profile_taxonomy:
@@ -565,6 +566,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
           first_name,
           last_name,
           workflow_status,
+          is_publicly_hidden,
           height_cm,
           updated_at,
           talent_profile_taxonomy (
@@ -628,6 +630,12 @@ export async function loadWorkspaceRosterForCurrentTenant(
         thumb: thumbUrl,
         primaryType: derivePrimaryType(profile),
         portfolioCount,
+        // Agency directory visibility — the roster-card eye toggle.
+        siteVisible:
+          row.agency_visibility === "site_visible" ||
+          row.agency_visibility === "featured",
+        // Talent's own global hide switch — overrides the agency eye.
+        talentHidden: profile.is_publicly_hidden ?? false,
         createdAt: row.created_at ?? undefined,
         updatedAt: profile.updated_at ?? undefined,
         // `completeness`, `availability`, `lastActive` are derived UI

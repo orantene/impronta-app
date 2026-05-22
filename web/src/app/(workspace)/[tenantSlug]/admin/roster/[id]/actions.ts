@@ -13,6 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -501,5 +502,62 @@ export async function updateRosterTalentWorkflow(
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
+  return { success: true };
+}
+
+// ─── Agency directory visibility — the roster-card "eye" toggle ──────────────
+
+/**
+ * Flip a roster talent's agency directory visibility.
+ *
+ *   visible = true  → agency_visibility = 'site_visible'
+ *                     (listed in this agency's directory + search + public page)
+ *   visible = false → agency_visibility = 'roster_only'
+ *                     (kept on the roster, not shown publicly)
+ *
+ * This is the agency-side public gate that replaces the old Draft/Published
+ * workflow. A talent whose `is_publicly_hidden` is true stays hidden publicly
+ * regardless — that global kill-switch belongs to the talent, not the agency.
+ */
+export async function setRosterTalentSiteVisibility(
+  tenantSlug: string,
+  talentId: string,
+  visible: boolean,
+): Promise<RosterTalentEditState> {
+  const ctx = await resolveEditContext(tenantSlug, talentId);
+  if (!ctx.ok) return { error: ctx.error };
+
+  const { admin, userId, rosterRowId, currentAgencyVisibility } = ctx;
+  const next = visible ? "site_visible" : "roster_only";
+
+  // 'featured' already counts as visible — don't demote a featured talent
+  // just because the eye was clicked "on".
+  if (visible && currentAgencyVisibility === "featured") return { success: true };
+  if (currentAgencyVisibility === next) return { success: true };
+
+  const { error } = await admin
+    .from("agency_talent_roster")
+    .update({ agency_visibility: next })
+    .eq("id", rosterRowId);
+
+  if (error) {
+    logServerError("roster/[id].setRosterTalentSiteVisibility", error);
+    return { error: "Could not update visibility. Try again." };
+  }
+
+  try {
+    await admin.from("talent_workflow_events").insert({
+      talent_profile_id: talentId,
+      actor_user_id: userId,
+      event_type: "agency_visibility_changed",
+      payload: { from: currentAgencyVisibility, to: next, note: "roster eye toggle" },
+    });
+  } catch (e) {
+    logServerError("roster/[id].setRosterTalentSiteVisibility/events", e);
+  }
+
+  revalidatePath(`/${tenantSlug}/admin/roster`);
+  revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
+  revalidateDirectoryListing();
   return { success: true };
 }

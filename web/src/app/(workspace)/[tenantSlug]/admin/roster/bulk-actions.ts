@@ -8,6 +8,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -24,8 +25,13 @@ export type BulkWorkflowResult =
  * Returns the number of profiles actually updated.
  */
 /**
- * "publish" sets workflow_status='approved' + visibility='public'.
- * "archive" sets workflow_status='hidden'.
+ * Public visibility is governed by the agency directory eye
+ * (`agency_talent_roster.agency_visibility`):
+ *   "publish" → agency_visibility='site_visible' (shown in directory + search)
+ *   "archive" → agency_visibility='roster_only'  (on the roster, not public)
+ *
+ * The legacy `talent_profiles.workflow_status` / `visibility` columns are kept
+ * coherent for audit/claim flows but no longer gate public display.
  */
 export async function bulkSetWorkflowStatus(
   tenantSlug: string,
@@ -65,6 +71,23 @@ export async function bulkSetWorkflowStatus(
 
   if (confirmedIds.length === 0) return { ok: true, updatedCount: 0 };
 
+  // Public gate — flip the agency directory eye on the roster rows.
+  const { error: rosterUpdErr } = await admin
+    .from("agency_talent_roster")
+    .update({
+      agency_visibility: targetStatus === "publish" ? "site_visible" : "roster_only",
+    })
+    .eq("tenant_id", scope.tenantId)
+    .in("talent_profile_id", confirmedIds)
+    .neq("status", "removed");
+
+  if (rosterUpdErr) {
+    logServerError("roster.bulkSetWorkflowStatus/rosterUpdate", rosterUpdErr);
+    return { ok: false, error: "Could not update visibility. Try again." };
+  }
+
+  // Keep the legacy lifecycle column coherent (audit / claim flows still
+  // read it) — best-effort, non-fatal if it fails.
   const updatePayload =
     targetStatus === "publish"
       ? { workflow_status: "approved", visibility: "public", updated_at: new Date().toISOString() }
@@ -77,7 +100,6 @@ export async function bulkSetWorkflowStatus(
 
   if (updateErr) {
     logServerError("roster.bulkSetWorkflowStatus/update", updateErr);
-    return { ok: false, error: "Could not update profiles. Try again." };
   }
 
   // Bulk audit event (best-effort — non-fatal)
@@ -95,5 +117,6 @@ export async function bulkSetWorkflowStatus(
   }
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
+  revalidateDirectoryListing();
   return { ok: true, updatedCount: count ?? confirmedIds.length };
 }

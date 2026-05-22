@@ -1,7 +1,8 @@
 "use client";
 
+import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { PasskeysCard } from "../../modern-features";
-import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot, Toggle } from "../../primitives";
+import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_AGENCIES, MY_TALENT_PROFILE, useAdminShell } from "../../state";
 import { Grid, PageHeader } from "../shared/page-chrome-1";
 import { ContactPolicySummary, MOCK_CIRCLE_PREVIEW_COUNT, TalentTrustCard } from "../shared/settings-1";
@@ -9,7 +10,7 @@ import { ContactPolicySummary, MOCK_CIRCLE_PREVIEW_COUNT, TalentTrustCard } from
 
 
 export function SettingsPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug } = useAdminShell();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const settingsAgencies = bridgeTalentAgencies !== null
     ? bridgeTalentAgencies.map((a) => ({
@@ -42,6 +43,17 @@ export function SettingsPage() {
           </SecondaryButton>
         }
       />
+
+      {/* Profile visibility — the talent's own global show/hide switch.
+          Overrides every agency's directory listing. Live only when we have
+          a real bridged profile (mock prototype mode has no DB row). */}
+      {bridgeTalentSelfProfile && tenantSlug && (
+        <ProfileVisibilityCard
+          tenantSlug={tenantSlug}
+          talentId={bridgeTalentSelfProfile.id}
+          initialHidden={bridgeTalentSelfProfile.isPubliclyHidden}
+        />
+      )}
 
       {/* Trust & Verification — talent's view of their own trust state */}
       <TalentTrustCard onOpenDetail={() => openDrawer("talent-trust-detail")} primaryAgencyName={primaryAgencyName} />

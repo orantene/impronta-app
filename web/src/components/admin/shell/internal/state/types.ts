@@ -490,6 +490,16 @@ export type TalentProfile = {
    *  shown on the roster card so admins can see at-a-glance which
    *  talents are surfaced platform-wide. See project_discover_unified.md. */
   isDiscoverable?: boolean;
+  /** Agency directory visibility — the roster-card "eye" toggle. true when
+   *  `agency_talent_roster.agency_visibility` is `site_visible` or `featured`,
+   *  i.e. this agency lists the talent in their directory / search / page.
+   *  false = roster-only (on the roster, not shown publicly). */
+  siteVisible?: boolean;
+  /** Talent's own global kill-switch (`talent_profiles.is_publicly_hidden`).
+   *  true = the talent has hidden their profile across all of Tulala — this
+   *  overrides any agency's `siteVisible` choice. Drives the "Hidden by
+   *  talent" indicator on the roster card. */
+  talentHidden?: boolean;
   // ── WS-31.6 / WS-34.8 Minor protections ────────────────────────────
   // Talent under 18 carries a guardian + protection block. Surfaced on
   // every offer, inquiry workspace, and roster card via
