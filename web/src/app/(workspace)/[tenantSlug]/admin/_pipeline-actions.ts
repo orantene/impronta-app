@@ -20,9 +20,12 @@ import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   persistBookingCommissionSnapshot,
-  loadBookingCommissionSnapshot,
+  loadBookingCommissionSnapshots,
 } from "@/lib/billing/commission-engine";
-import type { PaymentMethod, BookingCommissionSnapshot } from "@/lib/billing/commission";
+import type {
+  PaymentMethod,
+  PersistedBookingCommissionSnapshot,
+} from "@/lib/billing/commission";
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
@@ -2024,13 +2027,17 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 /**
- * Load the commission snapshot for a booking — for UI consumption
+ * Load the commission snapshots for a booking — for UI consumption
  * (admin Money settings, offer-drafter breakdown, talent earnings view).
+ *
+ * Returns an ARRAY: per-participant grain (ADR 2026-05-22) means one
+ * booking has N snapshot rows. The UI must aggregate (e.g. SUM the lane
+ * fields) for "booking-total" displays.
  */
 export async function loadBookingCommissionSnapshotAction(
   _tenantSlug: string,
   bookingId: string,
-): Promise<PipelineActionResult<BookingCommissionSnapshot | null>> {
+): Promise<PipelineActionResult<PersistedBookingCommissionSnapshot[]>> {
   try {
     const auth = await requireStaffTenantAction();
     if (!auth.ok) return { ok: false, error: auth.error };
@@ -2049,8 +2056,8 @@ export async function loadBookingCommissionSnapshotAction(
     }
     if (!booking) return { ok: false, error: "Booking not found in this workspace." };
 
-    const snap = await loadBookingCommissionSnapshot(supabase, bookingId);
-    return { ok: true, data: snap };
+    const snaps = await loadBookingCommissionSnapshots(supabase, bookingId);
+    return { ok: true, data: snaps };
   } catch (err) {
     logServerError("admin._pipeline-actions.loadBookingCommissionSnapshotAction", err);
     return { ok: false, error: "Unexpected error." };
@@ -2077,7 +2084,7 @@ export async function markBookingPaymentMethodAction(
   bookingId: string,
   method: PaymentMethod,
   reason?: string | null,
-): Promise<PipelineActionResult<{ snapshot: BookingCommissionSnapshot }>> {
+): Promise<PipelineActionResult<{ snapshots: PersistedBookingCommissionSnapshot[] }>> {
   try {
     if (!VALID_PAYMENT_METHODS.includes(method)) {
       return { ok: false, error: "Invalid payment method." };
@@ -2099,11 +2106,12 @@ export async function markBookingPaymentMethodAction(
     }
     if (!booking) return { ok: false, error: "Booking not found in this workspace." };
 
-    // Check current snapshot state. If no snapshot exists, create one with
-    // the chosen method (catches edge cases where the booking landed but
-    // the post-commit commission step failed).
-    const existing = await loadBookingCommissionSnapshot(supabase, bookingId);
-    if (!existing) {
+    // Check current snapshot state. If NO snapshots exist, create them
+    // (catches edge cases where the booking landed but the post-commit
+    // commission step failed). One PaymentMethod applies to every
+    // participant row — v1 invariant from ADR 2026-05-22.
+    const existing = await loadBookingCommissionSnapshots(supabase, bookingId);
+    if (existing.length === 0) {
       const result = await persistBookingCommissionSnapshot(
         supabase, bookingId, method, reason ?? null,
       );
@@ -2111,10 +2119,14 @@ export async function markBookingPaymentMethodAction(
         return { ok: false, error: `Could not record commission: ${result.detail ?? result.reason}` };
       }
       revalidatePath(`/${tenantSlug}`, "layout");
-      return { ok: true, data: { snapshot: result.snapshot } };
+      // Re-load to get the persisted shape (with participant_id, etc.)
+      const persisted = await loadBookingCommissionSnapshots(supabase, bookingId);
+      return { ok: true, data: { snapshots: persisted } };
     }
-    if (existing.payment_method === method) {
-      return { ok: true, data: { snapshot: existing } };
+    // All rows on a booking share the same payment_method (one PI per
+    // booking). Sampling the first row is safe.
+    if (existing[0].payment_method === method) {
+      return { ok: true, data: { snapshots: existing } };
     }
     // Reclassification path — blocked in v1. Returns the immutability
     // message; UI surfaces support hand-off.

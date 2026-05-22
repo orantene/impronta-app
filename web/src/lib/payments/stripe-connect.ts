@@ -465,18 +465,23 @@ export function getApplicationFeeForAgency(
 
 /**
  * Phase B PR 3 — pulls the platform_fee_cents from the booking's
- * commission snapshot (persisted by `convertToBooking` via the engine
+ * commission snapshots (persisted by `convertToBooking` via the engine
  * RPC, see `lib/billing/commission-engine.ts`).
  *
+ * Since the per-participant grain shipped (ADR 2026-05-22), one booking
+ * has N snapshot rows — one per active talent participant. The Stripe
+ * application fee is the SUM of every row's platform_fee_cents, since
+ * a single PaymentIntent settles the whole booking and the platform's
+ * total take is the union of every participant's take.
+ *
  * Returns 0 when:
- *   - The booking has no snapshot (rare — the snapshot persist is
+ *   - The booking has no snapshots (rare — the snapshot persist is
  *     best-effort post-commit, but if it failed the booking still
  *     exists). Logged so we notice.
  *   - The supabase client is unavailable (dev / misconfigured env).
  *
  * The math itself is enforced at the DB layer (`CHECK lanes_sum_to_gross`
- * on `booking_commission_snapshot`) so the value we read here is
- * guaranteed consistent with the gross + workspace + talent split.
+ * applies per row) so each row's split is consistent.
  */
 export async function getApplicationFeeForBooking(
   bookingId: string,
@@ -484,7 +489,7 @@ export async function getApplicationFeeForBooking(
   if (!bookingId) return 0;
   // Lazy import — keeps the lib graph clean (commission-engine pulls in
   // its own server-only deps).
-  const { loadBookingCommissionSnapshot } = await import(
+  const { sumBookingPlatformFeeCents } = await import(
     "@/lib/billing/commission-engine"
   );
   const { createClient: createSupabaseServerClient } = await import(
@@ -492,14 +497,7 @@ export async function getApplicationFeeForBooking(
   );
   const supabase = await createSupabaseServerClient();
   if (!supabase) return 0;
-  const snapshot = await loadBookingCommissionSnapshot(supabase, bookingId);
-  if (!snapshot) {
-    // Snapshot missing — booking pre-dates the commission engine OR
-    // the post-commit snapshot failed. Either way the application fee
-    // is 0 today; future repair can backfill via a manual flow.
-    return 0;
-  }
-  return snapshot.platform_fee_cents;
+  return sumBookingPlatformFeeCents(supabase, bookingId);
 }
 
 /**

@@ -1,12 +1,23 @@
 /**
- * Commission engine — Phase B PR 2.
+ * Commission engine — Phase B PR 2 (per-participant grain, ADR 2026-05-22).
  *
  * Bridges the pure resolver (`./commission.ts`) and the booking-conversion
  * engine path (`@/lib/inquiry/inquiry-engine-booking`). Two SECURITY DEFINER
  * RPCs do the IO; this module orchestrates and surfaces non-fatal results
  * so a snapshot failure NEVER blocks a booking from being created.
  *
- * Spec: `web/docs/commission-model-2026-05-13.md`.
+ * **Per-participant grain (2026-05-22):** one booking now produces N
+ * `booking_commission_snapshot` rows — one per active talent participant
+ * (`inquiry_participants`, role='talent'). Each row's commission is
+ * resolved from the participant's frozen `owning_party_*`, so cross-tenant
+ * inquiries are commissioned correctly per owning tenant.
+ *
+ * v1 invariant: all participants on a booking share the same payment
+ * method (one Stripe PI per booking). The `paymentMethod` argument applies
+ * uniformly to every row written by a single call.
+ *
+ * Spec: `web/docs/commission-model-2026-05-13.md`,
+ *       `web/docs/adr-xtenant-commission-2026-05-22.md`.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -20,15 +31,21 @@ import {
   type WorkspacePlanTier,
   type OfferLineItemForResolver,
   type BookingCommissionSnapshot,
+  type PersistedBookingCommissionSnapshot,
 } from "./commission";
 
-interface CommissionContext {
-  tenant_id: string;
-  workspace_plan: string;
-  platform_config: PlatformCommissionConfig;
+/** One element of the participants array returned by
+ *  `engine_load_commission_context`. */
+interface ParticipantContext {
+  participant_id: string;
+  talent_profile_id: string;
+  owning_party_type: "agency" | "workspace" | "talent";
+  owning_party_id: string;
+  /** NULL when owning_party_type='talent' (independent). */
+  tenant_id: string | null;
+  /** NULL when owning_party_type='talent' (resolver falls to platform_default). */
+  workspace_plan: string | null;
   tenant_override: WorkspaceCommissionOverride | null;
-  offer_id: string;
-  currency_code: string;
   offer_line_items: Array<{
     units: number;
     unit_price_cents: number;
@@ -36,10 +53,21 @@ interface CommissionContext {
   }>;
 }
 
+/** Per-participant context shape returned by the new
+ *  `engine_load_commission_context` RPC. */
+interface CommissionContext {
+  booking_id: string;
+  home_tenant_id: string;
+  offer_id: string;
+  currency_code: string;
+  platform_config: PlatformCommissionConfig;
+  participants: ParticipantContext[];
+}
+
 /** Normalize `workspace_plan` strings from the DB into the typed union the
- *  resolver expects. The DB column `agencies.plan` historically allows
+ *  resolver expects. The DB column `agencies.plan_tier` historically allows
  *  more strings than the resolver's narrow type; we map and default. */
-function normalizePlan(raw: string): WorkspacePlanTier {
+function normalizePlan(raw: string | null): WorkspacePlanTier {
   switch (raw) {
     case "free":
     case "studio":
@@ -50,12 +78,24 @@ function normalizePlan(raw: string): WorkspacePlanTier {
     case "hub_network":
       return "network";
     default:
+      // Includes null (independent talents): plan_tier_bps lookup will
+      // miss and the resolver falls to platform_default, which is the
+      // correct behaviour for independents.
       return "free";
   }
 }
 
+/** Per-row snapshot the engine persists. Pairs the pure-resolver output
+ *  with the freeze fields (participant_id + owning_party_*) the snapshot
+ *  table now carries. */
+interface ParticipantSnapshot extends BookingCommissionSnapshot {
+  participant_id: string;
+  owning_party_type: "agency" | "workspace" | "talent";
+  owning_party_id: string;
+}
+
 export type CommissionEngineResult =
-  | { ok: true; snapshot: BookingCommissionSnapshot }
+  | { ok: true; snapshots: ParticipantSnapshot[] }
   | { ok: false; reason:
       | "context_load_failed"
       | "resolver_failed"
@@ -63,17 +103,18 @@ export type CommissionEngineResult =
       | "skipped_no_offer"; detail?: string };
 
 /**
- * Compute + persist a commission snapshot for a freshly-converted booking.
+ * Compute + persist commission snapshots for a freshly-converted booking.
  *
- * Called from `convertToBooking` after the booking row exists. Failures
+ * One call writes N rows (one per active talent participant). Failures
  * are surfaced as non-fatal results — the booking has already happened;
  * commission errors are logged and the result returned to the caller for
  * downstream handling (e.g. surfacing in the admin UI). The booking is
  * NEVER reverted because commissions couldn't be snapshotted.
  *
- * @param paymentMethod  v1 default 'card'. Workspace marks off-platform
- *                       via the separate `setBookingPaymentMethod` action
- *                       (lands in a future PR; updates the snapshot).
+ * @param paymentMethod  v1 default 'card', applied uniformly to every
+ *                       participant row on the booking (one PI per booking).
+ *                       Workspace marks off-platform via the separate
+ *                       `setBookingPaymentMethod` action.
  */
 export async function persistBookingCommissionSnapshot(
   supabase: SupabaseClient,
@@ -96,42 +137,62 @@ export async function persistBookingCommissionSnapshot(
 
   // Defensive cast — the RPC returns JSONB with the shape we encoded.
   const ctx = ctxRaw as CommissionContext;
+  if (!Array.isArray(ctx.participants) || ctx.participants.length === 0) {
+    return { ok: false, reason: "context_load_failed", detail: "no_participants" };
+  }
 
-  // 2. Resolve (pure function — no IO).
-  let snapshot: BookingCommissionSnapshot;
+  // 2. Resolve per participant (pure — no IO inside the loop).
+  const snapshots: ParticipantSnapshot[] = [];
   try {
-    snapshot = resolveBookingCommissions({
-      tenantId: ctx.tenant_id,
-      workspacePlan: normalizePlan(ctx.workspace_plan),
-      offerLineItems: ctx.offer_line_items as OfferLineItemForResolver[],
-      currencyCode: ctx.currency_code,
-      paymentMethod,
-      offPlatformReason,
-      platformConfig: ctx.platform_config,
-      tenantOverride: ctx.tenant_override,
-      bookingPlatformTakeBpsOverride,
-    });
+    for (const p of ctx.participants) {
+      const base = resolveBookingCommissions({
+        // tenantId is an input field but isn't consumed by the math.
+        // For independents we pass the owning_party_id (the talent's id)
+        // so traceability still has a value to surface.
+        tenantId: p.tenant_id ?? p.owning_party_id,
+        workspacePlan: normalizePlan(p.workspace_plan),
+        offerLineItems: p.offer_line_items as OfferLineItemForResolver[],
+        currencyCode: ctx.currency_code,
+        paymentMethod,
+        offPlatformReason,
+        platformConfig: ctx.platform_config,
+        tenantOverride: p.tenant_override,
+        bookingPlatformTakeBpsOverride,
+      });
+      snapshots.push({
+        ...base,
+        participant_id: p.participant_id,
+        owning_party_type: p.owning_party_type,
+        owning_party_id: p.owning_party_id,
+      });
+    }
   } catch (err) {
     const code = err instanceof CommissionResolutionError ? err.code : "unknown";
     logServerError(`commission-engine/resolve_failed[${code}][booking=${bookingId}]`, err);
     return { ok: false, reason: "resolver_failed", detail: code };
   }
 
-  // 3. Persist via the engine RPC (atomic — snapshot + (if off-platform)
-  //    accrual movement + balance bump).
+  // 3. Persist via the engine RPC (atomic — N snapshot rows + (for any
+  //    off-platform rows) per-row accrual + balance bump against the
+  //    OWNING tenant). Single round-trip with the JSONB array payload.
   const { error: persistError } = await supabase
     .rpc("engine_persist_booking_commission_snapshot", {
       p_booking_id: bookingId,
-      p_platform_take_bps: snapshot.platform_take_bps,
-      p_platform_take_floor_cents: snapshot.platform_take_floor_cents,
-      p_gross_cents: snapshot.gross_cents,
-      p_platform_fee_cents: snapshot.platform_fee_cents,
-      p_workspace_fee_cents: snapshot.workspace_fee_cents,
-      p_talent_net_cents: snapshot.talent_net_cents,
-      p_currency_code: snapshot.currency_code,
-      p_payment_method: snapshot.payment_method,
-      p_off_platform_reason: snapshot.off_platform_reason,
-      p_resolved_from: snapshot.resolved_from,
+      p_rows: snapshots.map((s) => ({
+        participant_id: s.participant_id,
+        owning_party_type: s.owning_party_type,
+        owning_party_id: s.owning_party_id,
+        platform_take_bps: s.platform_take_bps,
+        platform_take_floor_cents: s.platform_take_floor_cents,
+        gross_cents: s.gross_cents,
+        platform_fee_cents: s.platform_fee_cents,
+        workspace_fee_cents: s.workspace_fee_cents,
+        talent_net_cents: s.talent_net_cents,
+        currency_code: s.currency_code,
+        payment_method: s.payment_method,
+        off_platform_reason: s.off_platform_reason,
+        resolved_from: s.resolved_from,
+      })),
     });
 
   if (persistError) {
@@ -139,8 +200,17 @@ export async function persistBookingCommissionSnapshot(
     return { ok: false, reason: "persist_failed", detail: persistError.message };
   }
 
-  // Audit emit — fire-and-forget. Resolve inquiry_id from the booking so the
-  // emit lands on the correct audit thread. Failure must never surface to callers.
+  // Audit emit — fire-and-forget. Aggregate the lane totals across
+  // participants so the audit payload stays stable for any consumers.
+  // Failure must never surface to callers.
+  const totals = snapshots.reduce(
+    (acc, s) => ({
+      platform_fee_cents: acc.platform_fee_cents + s.platform_fee_cents,
+      workspace_fee_cents: acc.workspace_fee_cents + s.workspace_fee_cents,
+      talent_fee_cents: acc.talent_fee_cents + s.talent_net_cents,
+    }),
+    { platform_fee_cents: 0, workspace_fee_cents: 0, talent_fee_cents: 0 },
+  );
   const { data: bk } = await supabase
     .from("agency_bookings")
     .select("source_inquiry_id")
@@ -153,34 +223,54 @@ export async function persistBookingCommissionSnapshot(
       p_kind: "commission_split_changed",
       p_payload: {
         booking_id: bookingId,
-        platform_fee_cents: snapshot.platform_fee_cents,
-        workspace_fee_cents: snapshot.workspace_fee_cents,
-        talent_fee_cents: snapshot.talent_net_cents,
+        participant_count: snapshots.length,
+        ...totals,
       },
     }).then((r) => { if (r.error) logServerError("audit.emit.commission_split_changed", r.error); });
   }
 
-  return { ok: true, snapshot };
+  return { ok: true, snapshots };
 }
 
-/** Load the snapshot for a booking — for UI consumption (offer drafter
- *  breakdown, talent view, settings → money). Reads through normal RLS
- *  (no SECURITY DEFINER) because the read policy already covers the
- *  appropriate audiences. */
-export async function loadBookingCommissionSnapshot(
+/** Load all per-participant snapshots for a booking. Reads through normal
+ *  RLS (the policy already covers platform admins + home-tenant staff +
+ *  owning-tenant staff). Ordered by participant_id for deterministic UI. */
+export async function loadBookingCommissionSnapshots(
   supabase: SupabaseClient,
   bookingId: string,
-): Promise<BookingCommissionSnapshot | null> {
+): Promise<PersistedBookingCommissionSnapshot[]> {
   const { data, error } = await supabase
     .from("booking_commission_snapshot")
     .select("*")
     .eq("booking_id", bookingId)
-    .maybeSingle();
+    .order("participant_id", { ascending: true });
 
   if (error) {
-    logServerError(`commission-engine/load_snapshot[booking=${bookingId}]`, error);
-    return null;
+    logServerError(`commission-engine/load_snapshots[booking=${bookingId}]`, error);
+    return [];
   }
-  if (!data) return null;
-  return data as BookingCommissionSnapshot;
+  return (data ?? []) as PersistedBookingCommissionSnapshot[];
+}
+
+/** Single-row legacy helper — returns the first snapshot row for a booking,
+ *  or null. Maintained for callers that only need to know whether *any*
+ *  commission has been recorded (e.g. the "payment method already set"
+ *  guard). For lane totals, use {@link loadBookingCommissionSnapshots} and
+ *  sum. */
+export async function loadBookingCommissionSnapshot(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<PersistedBookingCommissionSnapshot | null> {
+  const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
+  return rows[0] ?? null;
+}
+
+/** Sum the platform_fee_cents across every participant snapshot on a
+ *  booking. This is what Stripe needs as the application fee. */
+export async function sumBookingPlatformFeeCents(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<number> {
+  const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
+  return rows.reduce((sum, r) => sum + r.platform_fee_cents, 0);
 }

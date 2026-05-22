@@ -84,7 +84,9 @@ export interface ResolveBookingCommissionsInput {
 }
 
 /** Result — matches the shape of `booking_commission_snapshot` minus the
- *  booking_id (which the engine attaches when persisting). */
+ *  booking_id / participant_id / owning_party_* (the engine attaches those
+ *  per-row when persisting). The pure resolver still computes per-row;
+ *  per-participant orchestration lives in `commission-engine.ts`. */
 export interface BookingCommissionSnapshot {
   platform_take_bps: number;
   platform_take_floor_cents: number;
@@ -96,6 +98,18 @@ export interface BookingCommissionSnapshot {
   payment_method: PaymentMethod;
   off_platform_reason: string | null;
   resolved_from: CommissionResolvedFrom;
+}
+
+/** Persisted shape returned by the DB once the per-participant grain is
+ *  written. Used by readers (Stripe app-fee, admin UI) — every commission
+ *  snapshot row carries the participant + frozen owning_party that drove
+ *  the rate. */
+export interface PersistedBookingCommissionSnapshot extends BookingCommissionSnapshot {
+  booking_id: string;
+  participant_id: string;
+  owning_party_type: "agency" | "workspace" | "talent";
+  owning_party_id: string;
+  created_at: string;
 }
 
 /** Errors that the resolver throws — caller surfaces friendly messages. */
