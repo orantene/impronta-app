@@ -509,7 +509,10 @@ function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
   return {
     id: m.id,
     name: m.name,
-    email: m.email ?? "",
+    // `public.profiles` carries no email column — staff email isn't
+    // surfaced on the card (talent cards get email from talent_profiles).
+    email: "",
+    photoUrl: m.photoUrl,
     role: (["viewer","editor","manager","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
     status: m.status === "pending_acceptance" ? "invited" : "active",
     initials,

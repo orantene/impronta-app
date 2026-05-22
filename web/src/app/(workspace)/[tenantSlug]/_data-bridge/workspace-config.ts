@@ -292,8 +292,9 @@ export type WorkspaceTeamMember = {
   /** profile_id from agency_memberships */
   id: string;
   name: string;
-  /** Account email (`profiles.email`) — shown on the member identity card. */
-  email?: string;
+  /** Member headshot URL from `profiles.avatar_url`, when it is an http(s)
+   *  URL. Shown on the identity card; falls back to an initial avatar. */
+  photoUrl?: string;
   /** Membership role: viewer | editor | manager | admin | owner */
   role: string;
   /** Membership status: active | pending_acceptance */
@@ -318,7 +319,7 @@ export async function loadWorkspaceTeamMembers(
     const { data, error } = await supabase
       .from("agency_memberships")
       .select(
-        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name, email)",
+        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name, avatar_url)",
       )
       .eq("tenant_id", tenantId)
       .in("status", ["active", "pending_acceptance"])
@@ -336,8 +337,8 @@ export async function loadWorkspaceTeamMembers(
       accepted_at: string | null;
       created_at: string;
       profiles:
-        | { display_name: string | null; email: string | null }
-        | { display_name: string | null; email: string | null }[]
+        | { display_name: string | null; avatar_url: string | null }
+        | { display_name: string | null; avatar_url: string | null }[]
         | null;
     };
 
@@ -354,10 +355,13 @@ export async function loadWorkspaceTeamMembers(
       const profileJoin = row.profiles;
       const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
       const name = profile?.display_name?.trim() || row.profile_id.slice(0, 8);
+      const avatar = profile?.avatar_url?.trim();
       return {
         id: row.profile_id,
         name,
-        email: profile?.email?.trim() || undefined,
+        // Only http(s) avatars render as <img>; storage-path avatars are
+        // skipped so the card falls back to an initial avatar cleanly.
+        photoUrl: avatar && /^https?:\/\//i.test(avatar) ? avatar : undefined,
         role: row.role,
         status: row.status,
         joinedAt: row.accepted_at ?? row.created_at,

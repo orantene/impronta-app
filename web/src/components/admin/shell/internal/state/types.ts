@@ -577,6 +577,9 @@ export type TeamMember = {
   id: string;
   name: string;
   email: string;
+  /** Member headshot URL (`profiles.avatar_url`). Optional — falls back
+   *  to an initial-tinted avatar on the identity card. */
+  photoUrl?: string;
   role: Role;
   status: "active" | "invited";
   initials: string;
