@@ -470,7 +470,7 @@ export function WorkspacePageView() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Team members</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {effectiveTeamMembers.length} members · viewer / editor / coordinator / admin / owner
+                    {effectiveTeamMembers.length} members · viewer / editor / manager / admin / owner
                   </div>
                 </div>
                 <Affordance label="Manage" />

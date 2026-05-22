@@ -39,6 +39,13 @@ export type TenantIdentityPayload = {
    * UI surfaces a dropdown to change this only on Agency-tier workspaces.
    */
   defaultCoordinatorUserId: string | null;
+  /**
+   * Phase 5 — roster talent designated as default inquiry coordinators.
+   * Every new inquiry adds all of them as `coordinator` participants so
+   * they join the thread and manage the inquiry → booking flow. Empty
+   * array when none are set.
+   */
+  inquiryCoordinatorTalentIds: string[];
 };
 
 export async function loadTenantIdentity(
@@ -46,8 +53,9 @@ export async function loadTenantIdentity(
 ): Promise<TenantIdentityPayload | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  // Run agency, branding, and verified-custom-domain lookups in parallel.
-  const [agencyRes, brandingRes, domainRes] = await Promise.all([
+  // Run agency, branding, verified-custom-domain, and inquiry-coordinator
+  // lookups in parallel.
+  const [agencyRes, brandingRes, domainRes, coordTalentRes] = await Promise.all([
     admin
       .from("agencies")
       .select("id, slug, display_name, plan_tier, kind, default_coordinator_user_id")
@@ -71,6 +79,11 @@ export async function loadTenantIdentity(
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Phase 5 — roster talent designated as default inquiry coordinators.
+    admin
+      .from("agency_inquiry_coordinators")
+      .select("talent_profile_id")
+      .eq("tenant_id", tenantId),
   ]);
   if (agencyRes.error || !agencyRes.data) {
     if (agencyRes.error) {
@@ -99,6 +112,9 @@ export async function loadTenantIdentity(
     verifiedDomain,
     defaultCoordinatorUserId:
       (data as { default_coordinator_user_id?: string | null }).default_coordinator_user_id ?? null,
+    inquiryCoordinatorTalentIds: (
+      (coordTalentRes.data ?? []) as Array<{ talent_profile_id: string }>
+    ).map((r) => r.talent_profile_id),
   };
 }
 

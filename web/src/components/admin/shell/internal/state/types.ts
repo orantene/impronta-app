@@ -458,6 +458,15 @@ export type TalentProfile = {
    *  admins can reference a talent by a stable short id. */
   profileCode?: string;
   name: string;
+  /** Real legal/given name from `talent_profiles.first_name` / `last_name`.
+   *  Surfaced alongside the stage `name` so admins can identify a talent
+   *  on cards (e.g. the Team drawer coordinator picker). Optional —
+   *  incomplete profiles may not have them. */
+  firstName?: string;
+  lastName?: string;
+  /** Talent contact email (`talent_profiles.invitation_email`). Shown on
+   *  identity cards. Optional. */
+  email?: string;
   state: "draft" | "invited" | "published" | "awaiting-approval" | "claimed";
   height?: string;
   city?: string;

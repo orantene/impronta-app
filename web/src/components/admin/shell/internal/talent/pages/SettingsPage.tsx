@@ -52,6 +52,12 @@ export function SettingsPage() {
           tenantSlug={tenantSlug}
           talentId={bridgeTalentSelfProfile.id}
           initialHidden={bridgeTalentSelfProfile.isPubliclyHidden}
+          agencies={(bridgeTalentAgencies ?? []).map((a) => ({
+            id: a.id,
+            agencyName: a.agencyName,
+            agencyVisibility: a.agencyVisibility,
+            talentSiteHidden: a.talentSiteHidden,
+          }))}
         />
       )}
 

@@ -30,11 +30,114 @@ import {
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
+/** Two-initial fallback for an avatar when no photo is available. */
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return (first + last).toUpperCase() || "?";
+}
+
+/**
+ * Shared identity card — photo/avatar + primary name + a secondary detail
+ * line + an optional trailing control. Used for BOTH the Members list and
+ * the coordinator picker so a person reads identically in either place
+ * (an admin can't recognise a talent from a stage name alone — they need
+ * the headshot, real name, and email). When `onClick` is set the whole
+ * row acts as a toggle button.
+ */
+function PersonRow({
+  photoUrl,
+  initials,
+  hashSeed,
+  primary,
+  secondary,
+  trailing,
+  selected,
+  onClick,
+  disabled,
+}: {
+  photoUrl?: string;
+  initials: string;
+  hashSeed: string;
+  primary: string;
+  secondary?: string;
+  trailing?: ReactNode;
+  selected?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  const interactive = typeof onClick === "function";
+  return (
+    <div
+      onClick={onClick}
+      role={interactive ? "button" : undefined}
+      aria-pressed={interactive ? Boolean(selected) : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 10px",
+        background: selected ? "rgba(15,79,62,0.06)" : "#fff",
+        border: `1px solid ${selected ? "rgba(15,79,62,0.30)" : COLORS.borderSoft}`,
+        borderRadius: 10,
+        cursor: interactive ? (disabled ? "wait" : "pointer") : "default",
+      }}
+    >
+      <Avatar
+        photoUrl={photoUrl}
+        initials={initials}
+        hashSeed={hashSeed}
+        tone="auto"
+        size={36}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          className="text-admin-ink"
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {primary}
+        </div>
+        {secondary ? (
+          <div
+            className="text-admin-ink-muted"
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {secondary}
+          </div>
+        ) : null}
+      </div>
+      {trailing ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {trailing}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function TeamDrawer() {
-  const { state, closeDrawer, toast, effectiveTeamMembers, bridgeTenantIdentity } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTeamMembers, effectiveRoster, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const router = useRouter();
   // Phase 3.12 — use live team members when available, fall back to mock.
-  const team = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
+  const isLiveTeam = effectiveTeamMembers.length > 0;
+  const team = isLiveTeam ? effectiveTeamMembers : getTeam(state.plan);
   const canManage = meetsRole(state.role, "admin");
+  const selfUserId = bridgeSessionIdentity?.userId ?? null;
 
   // F.1 — invite form local state.
   const [inviteEmail, setInviteEmail] = useState("");
@@ -42,12 +145,58 @@ export function TeamDrawer() {
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ url: string; expiresAt: string } | null>(null);
 
-  // F.1 — auto-coordinator selector state (Agency-tier only).
+  // Phase 5 — multi-select inquiry-coordinator talent (Agency-tier only).
+  // Roster talent designated here auto-join every new inquiry as a
+  // coordinator. Optimistic: the local set updates immediately and reverts
+  // if the save fails.
   const isAgencyTier = state.plan === "agency" || state.plan === "network";
-  const [coordinatorSetting, setCoordinatorSetting] = useState<string | "">(
-    bridgeTenantIdentity?.defaultCoordinatorUserId ?? "",
+  const [coordinatorTalentIds, setCoordinatorTalentIds] = useState<string[]>(
+    bridgeTenantIdentity?.inquiryCoordinatorTalentIds ?? [],
   );
-  const [savingCoordinator, setSavingCoordinator] = useState(false);
+  const [savingCoordinators, setSavingCoordinators] = useState(false);
+  const [coordinatorSearch, setCoordinatorSearch] = useState("");
+
+  // Roster filtered by the coordinator-picker search box — matches stage
+  // name, real name, email, or profile code.
+  const coordinatorRoster = (() => {
+    const q = coordinatorSearch.trim().toLowerCase();
+    if (!q) return effectiveRoster;
+    return effectiveRoster.filter((tp) => {
+      const hay = [tp.name, tp.firstName, tp.lastName, tp.email, tp.profileCode]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  })();
+
+  // Inline role editing for existing members. `roleOverrides` holds the
+  // optimistic value while the server action is in flight; it reverts on
+  // failure and a router.refresh() reconciles on success.
+  const [roleOverrides, setRoleOverrides] = useState<Record<string, Role>>({});
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
+
+  const handleRoleChange = async (
+    memberId: string,
+    nextRole: "viewer" | "editor" | "manager" | "admin",
+    prevRole: Role,
+  ) => {
+    setRoleOverrides((o) => ({ ...o, [memberId]: nextRole }));
+    setSavingRoleId(memberId);
+    try {
+      const { changeTeamMemberRole } = await import("@/lib/server-actions/team-management");
+      const r = await changeTeamMemberRole(memberId, nextRole);
+      if (r.ok) {
+        toast(`Role updated to ${nextRole}.`);
+        router.refresh();
+      } else {
+        toast(r.error);
+        setRoleOverrides((o) => ({ ...o, [memberId]: prevRole }));
+      }
+    } finally {
+      setSavingRoleId(null);
+    }
+  };
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
@@ -71,21 +220,28 @@ export function TeamDrawer() {
     }
   };
 
-  const handleCoordinatorChange = async (next: string) => {
-    setCoordinatorSetting(next);
-    setSavingCoordinator(true);
+  const handleToggleCoordinatorTalent = async (talentProfileId: string) => {
+    const prev = coordinatorTalentIds;
+    const next = prev.includes(talentProfileId)
+      ? prev.filter((id) => id !== talentProfileId)
+      : [...prev, talentProfileId];
+    setCoordinatorTalentIds(next);
+    setSavingCoordinators(true);
     try {
-      const { setDefaultCoordinator } = await import("@/lib/server-actions/team-management");
-      const r = await setDefaultCoordinator(next === "" ? null : next);
+      const { setInquiryCoordinatorTalent } = await import("@/lib/server-actions/team-management");
+      const r = await setInquiryCoordinatorTalent(next);
       if (r.ok) {
-        toast(next === "" ? "Auto-coordinator cleared. Owner will catch new inquiries." : "Auto-coordinator updated.");
+        toast(
+          next.length === 0
+            ? "Inquiry coordinators cleared. The workspace owner catches new inquiries."
+            : `${next.length} inquiry coordinator${next.length === 1 ? "" : "s"} saved.`,
+        );
       } else {
         toast(r.error);
-        // Revert local state on failure.
-        setCoordinatorSetting(bridgeTenantIdentity?.defaultCoordinatorUserId ?? "");
+        setCoordinatorTalentIds(prev); // revert on failure
       }
     } finally {
-      setSavingCoordinator(false);
+      setSavingCoordinators(false);
     }
   };
 
@@ -94,7 +250,7 @@ export function TeamDrawer() {
       open
       onClose={closeDrawer}
       title="Team"
-      description={`${team.length} members. Roles: viewer / editor / coordinator / admin / owner.`}
+      description={`${team.length} members. Roles: viewer / editor / manager / admin / owner.`}
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
@@ -106,34 +262,58 @@ export function TeamDrawer() {
             const payoutCandidate = PAYOUT_RECEIVER_CANDIDATES.find(
               (c) => c.displayName === m.name,
             );
+            const displayRole: Role = roleOverrides[m.id] ?? m.role;
+            // Editable only on a live team, for admin+, and never the
+            // owner row or your own row (owner = transfer-only; self =
+            // foot-gun). Mock-mode rows stay read-only chips.
+            const canEditThisRole =
+              canManage && isLiveTeam && m.role !== "owner" && m.id !== selfUserId;
             return (
-              <div
+              <PersonRow
                 key={m.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
-                  background: "#fff",
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 10,
-                }}
-              >
-                <Avatar initials={m.initials} tone={m.role === "owner" ? "ink" : "neutral"} />
-                <div className="flex-1 min-w-0">
-                  <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
-                    {m.name}
-                  </div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
-                    {m.email}
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                  {payoutCandidate && <PayoutStatusChip status={payoutCandidate.status} />}
-                  <RoleChip role={m.role} />
-                  {m.status === "invited" && <StateChipMini label="Invited" tone="amber" />}
-                </div>
-              </div>
+                initials={m.initials || initialsFromName(m.name)}
+                hashSeed={m.name}
+                primary={m.name}
+                secondary={m.email}
+                trailing={
+                  <>
+                    {payoutCandidate && <PayoutStatusChip status={payoutCandidate.status} />}
+                    {canEditThisRole ? (
+                      <select
+                        value={displayRole}
+                        disabled={savingRoleId === m.id}
+                        aria-label={`Role for ${m.name}`}
+                        onChange={(e) =>
+                          handleRoleChange(
+                            m.id,
+                            e.currentTarget.value as "viewer" | "editor" | "manager" | "admin",
+                            m.role,
+                          )
+                        }
+                        style={{
+                          padding: "5px 8px",
+                          fontFamily: FONTS.body,
+                          fontSize: 12,
+                          border: `1px solid ${COLORS.border}`,
+                          borderRadius: 7,
+                          background: "#fff",
+                          color: COLORS.ink,
+                          textTransform: "capitalize",
+                          cursor: savingRoleId === m.id ? "wait" : "pointer",
+                        }}
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      <RoleChip role={displayRole} />
+                    )}
+                    {m.status === "invited" && <StateChipMini label="Invited" tone="amber" />}
+                  </>
+                }
+              />
             );
           })}
         </div>
@@ -149,7 +329,7 @@ export function TeamDrawer() {
               onChange={(e) => setInviteEmail(e.currentTarget.value)}
             />
           </FieldRow>
-          <FieldRow label="Role" hint="Owners change billing. Admins manage team and branding. Coordinators move work and message clients during events. Editors draft. Viewers watch.">
+          <FieldRow label="Role" hint="Owners change billing. Admins manage team and branding. Managers move work and message clients during events. Editors draft. Viewers watch.">
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.currentTarget.value as typeof inviteRole)}
@@ -230,35 +410,84 @@ export function TeamDrawer() {
       {canManage && isAgencyTier && (
         <Section
           title="Auto-coordinator"
-          description="When a client submits a new inquiry, the coordinator is auto-assigned to this person. They become the first responder on the message thread and manage the booking during the event. Owner is the default; pick someone else to delegate."
+          description="Pick the roster talent who auto-join every new inquiry as coordinators. They land on the message thread and can manage the inquiry → booking flow. Pick as many as you need."
         >
-          <FieldRow label="Default coordinator">
-            <select
-              value={coordinatorSetting}
-              onChange={(e) => handleCoordinatorChange(e.currentTarget.value)}
-              disabled={savingCoordinator}
-              style={{
-                padding: "9px 12px",
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                background: "#fff",
-                color: COLORS.ink,
-                minWidth: 220,
-              }}
+          {effectiveRoster.length === 0 ? (
+            <div
+              className="text-admin-ink-muted"
+              style={{ fontSize: 12.5, fontFamily: FONTS.body }}
             >
-              <option value="">— Workspace owner (default)</option>
-              {team
-                .filter((m) => m.status === "active")
-                .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "manager")
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} · {m.role}
-                  </option>
-                ))}
-            </select>
-          </FieldRow>
+              No talent on the roster yet. Add talent first, then designate
+              coordinators here.
+            </div>
+          ) : (
+            <>
+              <TextInput
+                type="text"
+                placeholder="Search talent by name or email…"
+                value={coordinatorSearch}
+                onChange={(e) => setCoordinatorSearch(e.currentTarget.value)}
+              />
+              <div
+                className="flex flex-col"
+                style={{ gap: 6, maxHeight: 300, overflowY: "auto", paddingRight: 2, marginTop: 8 }}
+              >
+                {coordinatorRoster.length === 0 ? (
+                  <div
+                    className="text-admin-ink-muted"
+                    style={{ fontSize: 12, fontFamily: FONTS.body, padding: "4px 2px" }}
+                  >
+                    No talent match that search.
+                  </div>
+                ) : (
+                  coordinatorRoster.map((tp) => {
+                    const realName =
+                      [tp.firstName, tp.lastName].filter(Boolean).join(" ").trim() ||
+                      tp.name;
+                    const checked = coordinatorTalentIds.includes(tp.id);
+                    const subBits = [
+                      tp.name && tp.name !== realName ? `“${tp.name}”` : null,
+                      tp.email,
+                    ].filter(Boolean) as string[];
+                    return (
+                      <PersonRow
+                        key={tp.id}
+                        photoUrl={tp.thumb}
+                        initials={initialsFromName(realName)}
+                        hashSeed={tp.name || realName}
+                        primary={realName}
+                        secondary={subBits.length ? subBits.join("  ·  ") : undefined}
+                        selected={checked}
+                        disabled={savingCoordinators}
+                        onClick={() => handleToggleCoordinatorTalent(tp.id)}
+                        trailing={
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            readOnly
+                            disabled={savingCoordinators}
+                            tabIndex={-1}
+                          />
+                        }
+                      />
+                    );
+                  })
+                )}
+              </div>
+              <div
+                className="text-admin-ink-muted"
+                style={{ fontSize: 11, marginTop: 8, fontFamily: FONTS.body }}
+              >
+                {coordinatorTalentIds.length === 0
+                  ? "No coordinators set — the workspace owner catches new inquiries."
+                  : `${coordinatorTalentIds.length} coordinator${
+                      coordinatorTalentIds.length === 1 ? "" : "s"
+                    } auto-join${
+                      coordinatorTalentIds.length === 1 ? "s" : ""
+                    } every new inquiry.`}
+              </div>
+            </>
+          )}
         </Section>
       )}
 

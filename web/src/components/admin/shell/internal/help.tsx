@@ -373,10 +373,10 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Coordinators, editors, and other admins on your workspace — and what each can do.",
+      "Managers, editors, and other admins on your workspace — and what each can do.",
     youCanHere: [
       "Invite teammates by email",
-      "Assign roles (admin, coordinator, editor)",
+      "Assign roles (admin, manager, editor)",
       "Revoke access when someone leaves",
       "See last-active timestamps for each member",
     ],

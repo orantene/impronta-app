@@ -364,7 +364,7 @@ function useQuickCreateItems(): QuickCreateItem[] {
     },
     {
       id: "invite-team", label: "Invite teammate", emoji: "👥",
-      sub: "Add a coordinator or editor",
+      sub: "Add a manager or editor",
       drawer: "team", shortcut: "G U",
       canDo: meetsRole(state.role, "admin"),
     },
@@ -459,7 +459,7 @@ function QuickCreateMenu() {
     {
       id: "invite-team",
       label: "Invite teammate",
-      sub: "Add a coordinator or editor",
+      sub: "Add a manager or editor",
       drawer: "team",
       shortcut: "G U",
       canDo: meetsRole(state.role, "admin"),

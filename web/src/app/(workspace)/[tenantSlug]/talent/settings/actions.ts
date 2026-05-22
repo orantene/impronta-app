@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -66,6 +67,70 @@ export async function setTalentProfileVisibility(
     return { ok: true };
   } catch (err) {
     logServerError("talent.setProfileVisibility", err);
+    return { ok: false, error: "Unexpected error" };
+  }
+}
+
+/**
+ * Talent per-agency-site visibility switch.
+ *
+ * `hidden = true`  → agency_talent_roster.talent_site_hidden = true for this
+ * (tenant, talent) row. The talent opts out of THAT agency's public site only;
+ * other agencies and the global switch are untouched.
+ * `hidden = false` → the talent appears on that agency's site again (subject to
+ * the agency's own eye and the talent's global switch).
+ *
+ * The talent has no RLS write access to agency_talent_roster, so the write
+ * elevates to the service-role client after verifying profile ownership —
+ * scoped to the verified (tenant, talent) row.
+ */
+export async function setTalentSiteVisibility(
+  tenantSlug: string,
+  talentProfileId: string,
+  agencyTenantId: string,
+  hidden: boolean,
+): Promise<SaveContactPrefsResult> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Not authenticated" };
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { ok: false, error: "Database unavailable" };
+
+    // Verify this user owns the talent profile (RLS-bound read).
+    const { data: tp, error: tpErr } = await supabase
+      .from("talent_profiles")
+      .select("id, user_id")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    if (tpErr || !tp) {
+      logServerError("talent.setSiteVisibility.verify", tpErr);
+      return { ok: false, error: "Profile not found" };
+    }
+    if (tp.user_id !== session.user.id) {
+      return { ok: false, error: "Forbidden" };
+    }
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error" };
+
+    const { error } = await admin
+      .from("agency_talent_roster")
+      .update({ talent_site_hidden: hidden })
+      .eq("tenant_id", agencyTenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed");
+
+    if (error) {
+      logServerError("talent.setSiteVisibility.update", error);
+      return { ok: false, error: "Failed to update visibility" };
+    }
+
+    revalidatePath(`/${tenantSlug}/talent/settings`);
+    revalidateDirectoryListing();
+    return { ok: true };
+  } catch (err) {
+    logServerError("talent.setSiteVisibility", err);
     return { ok: false, error: "Unexpected error" };
   }
 }

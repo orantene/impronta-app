@@ -324,6 +324,12 @@ type Ctx = {
      * Agency-tier workspaces.
      */
     defaultCoordinatorUserId?: string | null;
+    /**
+     * Phase 5 — roster talent designated as default inquiry coordinators
+     * (agency_inquiry_coordinators). All of them auto-join every new
+     * inquiry as `coordinator` participants. Empty array when none set.
+     */
+    inquiryCoordinatorTalentIds?: string[];
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls

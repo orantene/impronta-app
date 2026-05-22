@@ -155,7 +155,7 @@ const ES_TEXT: Record<string, string> = {
   "Add client": "Agregar cliente",
   "Track a relationship": "Registrar una relación",
   "Invite teammate": "Invitar al equipo",
-  "Add a coordinator or editor": "Agregar coordinador o editor",
+  "Add a manager or editor": "Agregar gerente o editor",
   "New snippet": "Nuevo fragmento",
   "Reusable reply for the message composer": "Respuesta reutilizable para el compositor",
   "Share talent": "Compartir talento",

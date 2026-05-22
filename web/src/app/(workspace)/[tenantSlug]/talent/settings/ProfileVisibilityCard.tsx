@@ -1,31 +1,30 @@
 "use client";
 
 /**
- * ProfileVisibilityCard — the talent's own global show/hide switch.
+ * ProfileVisibilityCard — launcher for the talent's visibility controls.
  *
- * When hidden, the talent is removed from every directory, agency site and
- * public page across all of Tulala — this overrides any agency's per-roster
- * `agency_visibility` ("eye") setting. Writes `talent_profiles.is_publicly_hidden`
- * via `setTalentProfileVisibility`.
+ * Shows a one-line summary of the talent's current visibility and opens
+ * ProfileVisibilityDrawer, which holds the two talent-controlled layers:
+ *   - global   → talent_profiles.is_publicly_hidden
+ *   - per-site → agency_talent_roster.talent_site_hidden (one per agency)
  *
+ * This card owns all the state so its summary stays in sync with the drawer.
  * Lives in the talent/settings route folder (not under components/admin/shell)
- * so it can use inline styles freely — same pattern as ContactPrefsShell.
+ * so inline styles are unconstrained.
  */
 
-import { useState, useTransition } from "react";
-import { Toggle } from "@/components/admin/shell/internal/primitives";
-import { setTalentProfileVisibility } from "./actions";
+import { useState } from "react";
+import { setTalentProfileVisibility, setTalentSiteVisibility } from "./actions";
+import { ProfileVisibilityDrawer, type AgencySite } from "./ProfileVisibilityDrawer";
 
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.62)",
   borderSoft: "rgba(24,24,27,0.08)",
-  accentSoft: "rgba(15,79,62,0.10)",
   accentDeep: "#093328",
-  slate:      "#52606D",
+  accentSoft: "rgba(15,79,62,0.10)",
   slateDeep:  "#3A4651",
   slateSoft:  "rgba(82,96,109,0.10)",
-  error:      "#c0392b",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -34,57 +33,90 @@ export function ProfileVisibilityCard({
   tenantSlug,
   talentId,
   initialHidden,
+  agencies,
 }: {
   tenantSlug: string;
   talentId: string;
   initialHidden: boolean;
+  agencies: AgencySite[];
 }) {
   const [hidden, setHidden] = useState(initialHidden);
-  const [pending, startTransition] = useTransition();
+  const [siteHidden, setSiteHidden] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(agencies.map((a) => [a.id, a.talentSiteHidden])),
+  );
+  const [globalPending, setGlobalPending] = useState(false);
+  const [sitePendingId, setSitePendingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const visible = !hidden;
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const apply = (nextVisible: boolean) => {
-    if (pending) return;
+  const toggleGlobal = async (nextVisible: boolean) => {
+    if (globalPending) return;
     const nextHidden = !nextVisible;
     setHidden(nextHidden);
     setErrorMsg(null);
-    startTransition(async () => {
-      const res = await setTalentProfileVisibility(tenantSlug, talentId, nextHidden);
-      if (!res.ok) {
-        setHidden(!nextHidden); // revert
-        setErrorMsg(res.error);
-      }
-    });
+    setGlobalPending(true);
+    const res = await setTalentProfileVisibility(tenantSlug, talentId, nextHidden);
+    setGlobalPending(false);
+    if (!res.ok) {
+      setHidden(!nextHidden); // revert
+      setErrorMsg(res.error);
+    }
   };
 
+  const toggleSite = async (agency: AgencySite, nextVisible: boolean) => {
+    if (sitePendingId) return;
+    const nextHidden = !nextVisible;
+    setSiteHidden((s) => ({ ...s, [agency.id]: nextHidden }));
+    setErrorMsg(null);
+    setSitePendingId(agency.id);
+    const res = await setTalentSiteVisibility(tenantSlug, talentId, agency.id, nextHidden);
+    setSitePendingId(null);
+    if (!res.ok) {
+      setSiteHidden((s) => ({ ...s, [agency.id]: !nextHidden })); // revert
+      setErrorMsg(res.error);
+    }
+  };
+
+  // Summary line.
+  const shownSites = agencies.filter((a) => !(siteHidden[a.id] ?? a.talentSiteHidden)).length;
+  const summary = hidden
+    ? "Hidden everywhere"
+    : agencies.length > 0
+      ? `Visible across Tulala · on ${shownSites} of ${agencies.length} agency site${agencies.length === 1 ? "" : "s"}`
+      : "Visible across Tulala";
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: "14px 16px",
-        marginBottom: 16,
-        borderRadius: 12,
-        background: hidden ? C.slateSoft : "#fff",
-        border: `1px solid ${hidden ? "rgba(82,96,109,0.28)" : C.borderSoft}`,
-        fontFamily: FONT,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <>
+      <button
+        type="button"
+        onClick={() => setDrawerOpen(true)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+          textAlign: "left",
+          padding: "14px 16px",
+          marginBottom: 16,
+          borderRadius: 12,
+          background: hidden ? C.slateSoft : "#fff",
+          border: `1px solid ${hidden ? "rgba(82,96,109,0.28)" : C.borderSoft}`,
+          cursor: "pointer",
+          fontFamily: FONT,
+        }}
+      >
         <span
           aria-hidden
           style={{
             width: 32,
             height: 32,
             borderRadius: 8,
-            background: hidden ? "rgba(82,96,109,0.16)" : C.accentSoft,
-            color: hidden ? C.slateDeep : C.accentDeep,
+            flexShrink: 0,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            flexShrink: 0,
+            background: hidden ? "rgba(82,96,109,0.16)" : C.accentSoft,
+            color: hidden ? C.slateDeep : C.accentDeep,
           }}
         >
           {hidden ? (
@@ -102,29 +134,28 @@ export function ProfileVisibilityCard({
           )}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
-            Profile visibility
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Profile visibility</div>
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1, lineHeight: 1.45 }}>
-            {visible
-              ? "Visible across Tulala — agencies can list you in their directories, search and public pages."
-              : "Hidden everywhere — you won't appear in any directory, agency site or public page until you turn this back on."}
+            {summary}
           </div>
         </div>
-        <Toggle
-          on={visible}
-          onChange={(v) => apply(v)}
-          label="Profile visible across Tulala"
-        />
-      </div>
-      {pending && (
-        <div style={{ fontSize: 11, color: C.inkMuted }}>Saving…</div>
-      )}
-      {errorMsg && (
-        <div role="alert" style={{ fontSize: 11.5, color: C.error }}>
-          {errorMsg}
-        </div>
-      )}
-    </div>
+        <span style={{ fontSize: 12, fontWeight: 600, color: C.accentDeep, flexShrink: 0 }}>
+          Manage →
+        </span>
+      </button>
+
+      <ProfileVisibilityDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        globalHidden={hidden}
+        globalPending={globalPending}
+        onToggleGlobal={toggleGlobal}
+        agencies={agencies}
+        siteHidden={siteHidden}
+        sitePendingId={sitePendingId}
+        onToggleSite={toggleSite}
+        errorMsg={errorMsg}
+      />
+    </>
   );
 }
