@@ -26,6 +26,9 @@ export type TalentSelfProfile = {
   homeCity: string | null;
   /** workflow_status: draft | published | invited */
   workflowStatus: string;
+  /** Talent's global hide kill-switch (`talent_profiles.is_publicly_hidden`).
+   *  true = the talent has hidden their profile across all of Tulala. */
+  isPubliclyHidden: boolean;
   /** Roster status: active | pending | paused */
   rosterStatus: string;
   /** The talent's public profile URL code (profile_code) */
@@ -64,6 +67,7 @@ export async function loadTalentSelfProfile(
         first_name,
         last_name,
         workflow_status,
+        is_publicly_hidden,
         profile_code,
         short_bio,
         bio_en,
@@ -92,6 +96,7 @@ export async function loadTalentSelfProfile(
       first_name: string | null;
       last_name: string | null;
       workflow_status: string | null;
+      is_publicly_hidden: boolean | null;
       profile_code: string | null;
       short_bio: string | null;
       bio_en: string | null;
@@ -170,6 +175,7 @@ export async function loadTalentSelfProfile(
       primaryTypeLabel,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
+      isPubliclyHidden: p.is_publicly_hidden ?? false,
       rosterStatus: roster.status,
       profileCode: p.profile_code ?? null,
       agencyName: agencyRow?.display_name ?? "Agency",

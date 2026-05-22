@@ -40,6 +40,7 @@ import {
   submitInquiryNowAction,
   type InquiryIntentActionState,
 } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
@@ -100,6 +101,20 @@ export type InquiryDrawerProps = {
   roster?: RosterLiteItem[];
   /** Whether to enable draft autosave. Disabled for guest path. */
   enableDraftAutosave?: boolean;
+  /**
+   * Lane B / B2 — bind the selected talent to the canonical inquiry cart
+   * (`useInquiryCart`). When set, the drawer keeps `intent.talent.selected_ids`
+   * in sync with the public-discovery `saved_talent` cart, and talent
+   * chip-removal writes back to the cart. Used by the directory so a
+   * shortlist built on the grid stays live inside the composer.
+   */
+  bindToInquiryCart?: boolean;
+  /**
+   * Optional content rendered at the top of the compose body — used by the
+   * directory to keep its AI-draft strip + talent quick-add inside the
+   * canonical composer (execution-plan risk #3: don't strip those features).
+   */
+  composeHeaderSlot?: React.ReactNode;
   onClose: () => void;
 };
 
@@ -112,6 +127,8 @@ export function InquiryDrawer({
   client,
   roster = [],
   enableDraftAutosave,
+  bindToInquiryCart = false,
+  composeHeaderSlot,
   onClose,
 }: InquiryDrawerProps) {
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
@@ -132,6 +149,45 @@ export function InquiryDrawer({
 
   const [step, setStep] = useState<"compose" | "review">("compose");
 
+  // ─ Inquiry-cart binding (B2 — directory shortlist ⟷ composer) ─────────────
+  // `useInquiryCart` is provider-optional: on the client dashboard (no
+  // PublicDiscoveryState) it is inert and the sync effect below no-ops.
+  const cart = useInquiryCart();
+  const cartKey = cart.cartIds.join(",");
+  useEffect(() => {
+    if (!bindToInquiryCart) return;
+    setIntent((cur) => {
+      const next = cartKey ? cartKey.split(",") : [];
+      const curIds = cur.talent?.selected_ids ?? [];
+      if (
+        curIds.length === next.length
+        && curIds.every((id, i) => id === next[i])
+      ) {
+        return cur;
+      }
+      return {
+        ...cur,
+        talent: {
+          ...cur.talent,
+          selected_ids: next,
+          selection_mode: cur.talent?.selection_mode ?? "i_know_who",
+        },
+      };
+    });
+  }, [bindToInquiryCart, cartKey]);
+
+  const removeTalentFromCart = bindToInquiryCart
+    ? (id: string) =>
+        cart.setInCart({ talentProfileId: id, profileCode: "" }, false)
+    : undefined;
+
+  // ─ Submit ────────────────────────────────────────────────────────────────
+  const [submitState, submitFormAction, submitting] = useActionState<
+    InquiryIntentActionState,
+    FormData
+  >(submitInquiryNowAction, { kind: "idle" });
+  const submitted = submitState.kind === "submitted";
+
   // ─ Autosave (logged-in only) ──────────────────────────────────────────────
   const autosaveEnabled = (enableDraftAutosave ?? !!client?.user_id) && !!client?.user_id;
   const [saveState, saveAction] = useActionState<InquiryIntentActionState, FormData>(
@@ -140,7 +196,11 @@ export function InquiryDrawer({
   );
   const [draftId, setDraftId] = useState<string | null>(null);
   const intentRef = useRef(intent);
-  intentRef.current = intent;
+  // Keep the ref current outside render — `triggerAutosave` reads the
+  // latest intent from event/interval callbacks, never during render.
+  useEffect(() => {
+    intentRef.current = intent;
+  });
 
   // Pick up the new draftId after a save resolves.
   useEffect(() => {
@@ -163,12 +223,12 @@ export function InquiryDrawer({
       if (draftId) fd.set("draftId", draftId);
       startAutosave(() => { saveAction(fd); });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- saveAction is a stable useActionState dispatch; startAutosave is a stable useTransition dispatch; intentRef/lastSavedJSONRef are refs
-  }, [autosaveEnabled, tenantSlug, draftId]);
+  }, [autosaveEnabled, tenantSlug, draftId, saveAction, startAutosave]);
 
-  // Periodic autosave + on-blur + on visibility change.
+  // Periodic autosave + on-blur + on visibility change. Stops once the
+  // inquiry is submitted so a post-submit tick can't spawn an orphan draft.
   useEffect(() => {
-    if (!autosaveEnabled) return;
+    if (!autosaveEnabled || submitted) return;
     const t = setInterval(triggerAutosave, INQUIRY_DRAFT_AUTOSAVE_MS);
     const onBlur = () => triggerAutosave();
     const onVisibility = () => { if (document.hidden) triggerAutosave(); };
@@ -179,13 +239,7 @@ export function InquiryDrawer({
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [autosaveEnabled, triggerAutosave]);
-
-  // ─ Submit ────────────────────────────────────────────────────────────────
-  const [submitState, submitFormAction, submitting] = useActionState<
-    InquiryIntentActionState,
-    FormData
-  >(submitInquiryNowAction, { kind: "idle" });
+  }, [autosaveEnabled, submitted, triggerAutosave]);
 
   const validation = validateIntentForSubmit(intent);
   const canSubmit = validation.ok;
@@ -250,18 +304,24 @@ export function InquiryDrawer({
         >
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-              {step === "compose" ? "New inquiry" : "Review & send"}
+              {submitted ? "Sent" : step === "compose" ? "New inquiry" : "Review & send"}
             </div>
             <h2 style={{ margin: "3px 0 0", fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
-              {step === "compose" ? "Start a new project" : "Looks good — ready to send?"}
+              {submitted
+                ? "Inquiry sent"
+                : step === "compose"
+                  ? "Start a new project"
+                  : "Looks good — ready to send?"}
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
-              {step === "compose"
-                ? <>Tell <strong>{agencyName}</strong> what you need. We&apos;ll match talent + draft an offer.</>
-                : <>One last check before <strong>{agencyName}</strong> picks this up.</>
+              {submitted
+                ? <>Your request is with <strong>{agencyName}</strong>.</>
+                : step === "compose"
+                  ? <>Tell <strong>{agencyName}</strong> what you need. We&apos;ll match talent + draft an offer.</>
+                  : <>One last check before <strong>{agencyName}</strong> picks this up.</>
               }
             </p>
-            {autosaveEnabled && (
+            {autosaveEnabled && !submitted && (
               <div style={{ marginTop: 8, fontSize: 11, color: saveState.kind === "saved" ? C.success : C.inkDim }}>
                 {saveState.kind === "saved"
                   ? `Draft saved ${formatRelative(saveState.savedAt)}`
@@ -294,7 +354,9 @@ export function InquiryDrawer({
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
-          {step === "compose" ? (
+          {submitState.kind === "submitted" ? (
+            <SubmittedView state={submitState} agencyName={agencyName} />
+          ) : step === "compose" ? (
             <Compose
               intent={intent}
               setRequester={(v) => update("requester", v)}
@@ -308,6 +370,9 @@ export function InquiryDrawer({
               setLinks={(v) => update("links", v)}
               roster={roster}
               client={client}
+              headerSlot={composeHeaderSlot}
+              boundToCart={bindToInquiryCart}
+              onRemoveTalent={removeTalentFromCart}
             />
           ) : (
             <Review intent={intent} agencyName={agencyName} />
@@ -328,15 +393,21 @@ export function InquiryDrawer({
           }}
         >
           <div style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.35, maxWidth: 320 }}>
-            {!canSubmit && step === "compose"
-              ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
-              : submitState.kind === "error"
-                ? <span style={{ color: C.amber }}>{submitState.message}</span>
-                : <>By sending, you&apos;ll start a coordinator-led conversation with {agencyName}.</>
+            {submitted
+              ? <>Thanks — {agencyName} will be in touch.</>
+              : !canSubmit && step === "compose"
+                ? <>Add at least <strong>your name</strong>, <strong>email or phone</strong>, and a <strong>brief</strong> to send.</>
+                : submitState.kind === "error"
+                  ? <span style={{ color: C.amber }}>{submitState.message}</span>
+                  : <>By sending, you&apos;ll start a coordinator-led conversation with {agencyName}.</>
             }
           </div>
           <div style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
-            {step === "compose" ? (
+            {submitted ? (
+              <button type="button" onClick={onClose} style={primaryBtn(true)}>
+                Done
+              </button>
+            ) : step === "compose" ? (
               <button
                 type="button"
                 onClick={() => setStep("review")}
@@ -384,10 +455,17 @@ function Compose(props: {
   setLinks: (v: string[] | undefined) => void;
   roster: RosterLiteItem[];
   client: InquiryDrawerProps["client"];
+  /** B2 — optional content above the sections (directory AI strip + quick-add). */
+  headerSlot?: React.ReactNode;
+  /** B2 — selected talent is driven by the inquiry cart, not local edits. */
+  boundToCart?: boolean;
+  /** B2 — when cart-bound, removing a chip writes back to the cart. */
+  onRemoveTalent?: (id: string) => void;
 }) {
   const { intent } = props;
   return (
     <div className="flex flex-col gap-4">
+      {props.headerSlot}
       <RequesterSection
         value={intent.requester}
         onChange={props.setRequester}
@@ -404,6 +482,8 @@ function Compose(props: {
         value={intent.talent ?? {}}
         onChange={props.setTalent}
         roster={props.roster}
+        boundToCart={props.boundToCart}
+        onRemoveTalent={props.onRemoveTalent}
       />
       <BudgetSection
         value={intent.budget ?? {}}
@@ -671,14 +751,26 @@ function DateSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TalentSection({
-  value, onChange, roster,
+  value, onChange, roster, boundToCart = false, onRemoveTalent,
 }: {
   value: InquiryTalent;
   onChange: (v: InquiryTalent) => void;
   roster: RosterLiteItem[];
+  /** B2 — selected talent mirrors the inquiry cart; manage it from there. */
+  boundToCart?: boolean;
+  /** B2 — cart-bound removal handler. */
+  onRemoveTalent?: (id: string) => void;
 }) {
   const selected = value.selected_ids ?? [];
   const isAgencyMode = value.selection_mode === "agency_recommends" || selected.length === 0;
+
+  const removeTalent = (id: string) => {
+    if (boundToCart && onRemoveTalent) {
+      onRemoveTalent(id);
+      return;
+    }
+    onChange({ ...value, selected_ids: selected.filter((x) => x !== id) });
+  };
 
   return (
     <Section title="Talent" subtitle="Pick specific talent, or let the agency recommend.">
@@ -714,7 +806,7 @@ function TalentSection({
                 <button
                   type="button"
                   aria-label={`Remove ${r?.name ?? "talent"}`}
-                  onClick={() => onChange({ ...value, selected_ids: selected.filter((x) => x !== id) })}
+                  onClick={() => removeTalent(id)}
                   style={{ marginLeft: 6, border: "none", background: "transparent", cursor: "pointer", color: C.inkMuted }}
                 >×</button>
               </span>
@@ -723,7 +815,7 @@ function TalentSection({
         </div>
       )}
 
-      {value.selection_mode === "i_know_who" && roster.length > 0 && (
+      {!boundToCart && value.selection_mode === "i_know_who" && roster.length > 0 && (
         <FieldRow>
           <Field label="Add talent">
             <Select
@@ -1043,6 +1135,109 @@ function statusLabel(s: string | undefined): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Submitted step — in-drawer confirmation (works for guest + authed client).
+// ─────────────────────────────────────────────────────────────────────────────
+
+type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
+
+function SubmittedView({
+  state, agencyName,
+}: {
+  state: SubmittedState;
+  agencyName: string;
+}) {
+  const messagesHref =
+    `/${state.tenantSlug}/client/messages`
+    + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
+  const loginHref = state.guestEmail
+    ? `/login?email=${encodeURIComponent(state.guestEmail)}`
+    : "/login";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+        gap: 14,
+        padding: "28px 12px",
+        fontFamily: FONT,
+      }}
+    >
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 999,
+          background: C.successSoft,
+          color: C.success,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 26,
+        }}
+      >
+        ✓
+      </div>
+      <div>
+        <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
+          Your inquiry is on its way
+        </div>
+        <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
+          {agencyName} has it now. A coordinator will review your brief, match
+          talent, and reply with an offer — no commitment until you approve it.
+        </p>
+      </div>
+
+      {state.isGuest ? (
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            background: C.card,
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 10,
+            padding: "14px 16px",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
+            {state.guestActivation === "matched"
+              ? "We found your account"
+              : state.guestActivation === "created"
+                ? "We set up an account for you"
+                : "Track this inquiry"}
+          </div>
+          <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
+            {state.guestEmail ? (
+              <>
+                Sign in with <strong>{state.guestEmail}</strong> to follow this
+                inquiry — offers, messages, and updates all land in one place.
+              </>
+            ) : (
+              <>
+                Sign in any time to follow this inquiry — offers, messages, and
+                updates all land in one place.
+              </>
+            )}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            <a href={loginHref} style={primaryLinkStyle}>
+              Sign in to track
+            </a>
+          </div>
+        </div>
+      ) : (
+        <a href={messagesHref} style={primaryLinkStyle}>
+          View in Messages
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Primitives
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1193,6 +1388,15 @@ const ghostBtn: React.CSSProperties = {
   fontFamily: FONT,
   fontSize: 13,
   fontWeight: 600,
+};
+
+/** primaryBtn rendered as an <a> — used by the submitted-step CTAs. */
+const primaryLinkStyle: React.CSSProperties = {
+  ...primaryBtn(true),
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
 };
 
 const chipStyle: React.CSSProperties = {

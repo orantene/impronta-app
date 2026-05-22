@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   COLORS,
   CapsLabel,
@@ -480,11 +480,44 @@ export function InviteFlowDrawer() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
+  const tenantSlug = pathname?.split("/").filter(Boolean)[0] ?? "";
 
-  const handleSend = () => {
-    if (!email.trim()) { toast("Enter an email address"); return; }
-    setSent(true);
-    toast(`Invite sent to ${email}`);
+  const handleSend = async () => {
+    setError(null);
+    if (tab !== "talent") {
+      setError(
+        "Client and agency invites aren't wired up yet — use the Talent tab to invite roster talent.",
+      );
+      return;
+    }
+    if (!email.trim()) {
+      setError("Enter an email address.");
+      return;
+    }
+    if (!tenantSlug) {
+      setError("Couldn't resolve the current workspace. Reload and try again.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { inviteRosterTalent } = await import(
+        "@/lib/server-actions/roster-invite"
+      );
+      const res = await inviteRosterTalent(tenantSlug, name, email);
+      if (res.ok) {
+        setSent(true);
+        toast(`Invite sent to ${email}`);
+      } else {
+        setError(res.error);
+      }
+    } catch {
+      setError("Something went wrong sending the invite. Try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const tabMeta: Record<typeof tab, { label: string; placeholder: string; note: string }> = {
@@ -496,24 +529,25 @@ export function InviteFlowDrawer() {
   return (
     <DrawerShell
       open={open}
-      onClose={() => { setSent(false); setEmail(""); setName(""); closeDrawer(); }}
+      onClose={() => { setSent(false); setEmail(""); setName(""); setError(null); setBusy(false); closeDrawer(); }}
       title="Send invite"
       description="Invite talent, clients, or partner agencies to join your workspace network."
       footer={
         sent ? (
-          <SecondaryButton onClick={() => { setSent(false); setEmail(""); setName(""); }}>Send another</SecondaryButton>
+          <SecondaryButton onClick={() => { setSent(false); setEmail(""); setName(""); setError(null); }}>Send another</SecondaryButton>
         ) : (
           <div className="flex gap-2">
             <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
             <button
-              type="button" onClick={handleSend}
+              type="button" onClick={handleSend} disabled={busy}
               style={{
                 padding: "9px 18px", background: COLORS.fill, border: "none",
                 borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
-                fontSize: 13, fontWeight: 600, cursor: "pointer",
+                fontSize: 13, fontWeight: 600,
+                cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1,
               }}
             >
-              Send invite
+              {busy ? "Sending…" : "Send invite"}
             </button>
           </div>
         )
@@ -525,11 +559,16 @@ export function InviteFlowDrawer() {
           <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)`, display: "flex", flexDirection: "column", gap: 6 }} className="bg-admin-success-soft rounded-admin-lg">
             <div className="text-admin-success-deep text-admin-13 font-bold">✓ Invite sent</div>
             <div className="text-admin-success-deep text-admin-12h">
-              {name ? name : email} will receive an invite email shortly with a personalized onboarding link.
+              {name ? name : email} has been added to your roster as Invited. We&apos;ve emailed {email} a link to claim their profile.
             </div>
           </div>
         ) : (
           <>
+            {error && (
+              <div className="bg-admin-surface-alt rounded-admin-md border px-3 py-2 text-admin-12h font-semibold">
+                {error}
+              </div>
+            )}
             {/* Tab */}
             <div style={{ display: "flex", gap: 4, padding: 3 }} className="bg-admin-surface-alt rounded-admin-md">
               {(["talent", "client", "agency"] as const).map((t) => (

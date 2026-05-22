@@ -53,6 +53,8 @@ const updateBrandingSchema = z
     logo_url:         z.string().url().optional(),
     sender_email:     z.string().email().optional(),
     watermark_preset: watermarkPresetSchema,
+    /** A1 — per-tenant favorite icon: 'heart' | 'bookmark'. Default 'bookmark'. */
+    favorite_icon:    z.enum(["heart", "bookmark"]).optional(),
   })
   .strict();
 
@@ -120,10 +122,10 @@ export async function updateAgencyBranding(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // Also sync watermark preset + logo URL into agency_branding.theme_json so
-  // the public-readable agency_branding table has the latest watermark config.
-  // agency_branding is publicly readable; agencies.settings is staff-only.
-  if (v.watermark_preset !== undefined || v.logo_url !== undefined) {
+  // Sync select fields into agency_branding so the public-readable table
+  // (agency_branding) stays consistent. agencies.settings is staff-only so
+  // storefront code cannot read it directly.
+  if (v.watermark_preset !== undefined || v.logo_url !== undefined || v.favorite_icon !== undefined) {
     const { data: brandingRow } = await supabase
       .from("agency_branding")
       .select("theme_json")
@@ -136,10 +138,18 @@ export async function updateAgencyBranding(
     const themeUpdate: Record<string, unknown> = { ...currentTheme };
     if (v.watermark_preset !== undefined) themeUpdate.watermark_preset = v.watermark_preset;
     if (v.logo_url !== undefined) themeUpdate.logo_url = v.logo_url;
+    const publicBrandingPatch: Record<string, unknown> = {
+      tenant_id: tenantId,
+      theme_json: themeUpdate,
+      updated_at: new Date().toISOString(),
+    };
+    // A1/A2 — favorite_icon goes in its own typed column (not theme_json) so
+    // the storefront can read it without parsing theme_json.
+    if (v.favorite_icon !== undefined) publicBrandingPatch.favorite_icon = v.favorite_icon;
     // Non-fatal if this fails — settings are still saved
     await supabase
       .from("agency_branding")
-      .upsert({ tenant_id: tenantId, theme_json: themeUpdate, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
+      .upsert(publicBrandingPatch, { onConflict: "tenant_id" });
   }
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
@@ -467,6 +477,8 @@ export type AgencyBrandingSettings = {
   tagline: string | null;
   description: string | null;
   watermarkPreset: WatermarkPreset | null;
+  /** A1 — per-tenant favorite icon preference. */
+  favoriteIcon: "heart" | "bookmark" | null;
 };
 
 export type LoadBrandingResult =
@@ -496,6 +508,10 @@ export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> 
     ? settings.branding
     : {}) as Record<string, unknown>;
 
+  const rawFavIcon = branding.favorite_icon;
+  const favoriteIcon: "heart" | "bookmark" | null =
+    rawFavIcon === "heart" || rawFavIcon === "bookmark" ? rawFavIcon : null;
+
   return {
     ok: true,
     data: {
@@ -507,6 +523,7 @@ export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> 
       watermarkPreset: (branding.watermark_preset && typeof branding.watermark_preset === "object"
         ? branding.watermark_preset as WatermarkPreset
         : null),
+      favoriteIcon,
     },
   };
 }

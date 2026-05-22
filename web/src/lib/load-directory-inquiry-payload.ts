@@ -5,6 +5,7 @@ import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { getPublicHostContext } from "@/lib/saas/scope";
 
 export type DirectoryInquiryOrderedTalent = {
   id: string;
@@ -28,6 +29,14 @@ export type DirectoryInquiryPayload =
       talentIds: string[];
       orderedTalent: DirectoryInquiryOrderedTalent[];
       eventTypes: { id: string; name_en: string }[];
+      /**
+       * Lane B / B2 — the tenant slug + display name the canonical
+       * InquiryDrawer needs to route the submit and render header copy.
+       * Empty slug ⇒ the host did not resolve to an agency tenant; the
+       * directory inquiry sheet falls back to a closed state.
+       */
+      tenantSlug: string;
+      agencyName: string;
     };
 
 /**
@@ -41,6 +50,22 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   const pub = createPublicSupabaseClient()!;
   const publicSettings = await getPublicSettings();
   const guestKey = await getGuestSessionKey();
+
+  // Lane B / B2 — resolve the tenant slug + display name so the canonical
+  // InquiryDrawer can route its submit (`submitInquiryNowAction` is
+  // slug-keyed) and render header copy.
+  const hostCtx = await getPublicHostContext();
+  const tenantSlug = hostCtx.kind === "agency" ? hostCtx.tenantSlug : "";
+  let agencyName = "the agency";
+  if (hostCtx.tenantId) {
+    const { data: agencyRow } = await pub
+      .from("agencies")
+      .select("display_name")
+      .eq("id", hostCtx.tenantId)
+      .maybeSingle();
+    const displayName = (agencyRow?.display_name as string | null)?.trim();
+    if (displayName) agencyName = displayName;
+  }
   if (guestKey) {
     await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
   }
@@ -125,5 +150,7 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     talentIds,
     orderedTalent,
     eventTypes: eventTypes ?? [],
+    tenantSlug,
+    agencyName,
   };
 }

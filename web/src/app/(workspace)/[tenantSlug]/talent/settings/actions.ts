@@ -6,10 +6,69 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 
 export type SaveContactPrefsResult =
   | { ok: true }
   | { ok: false; error: string };
+
+/**
+ * Talent self-service global visibility switch.
+ *
+ * `hidden = true`  → talent_profiles.is_publicly_hidden = true. The talent
+ * disappears from every directory, agency site and public page across all of
+ * Tulala — this overrides any agency's per-roster `agency_visibility` eye.
+ * `hidden = false` → the talent is publicly visible again wherever an agency
+ * has them site-visible.
+ *
+ * Only the talent themselves (matched by `user_id` on their talent_profile)
+ * may call this.
+ */
+export async function setTalentProfileVisibility(
+  tenantSlug: string,
+  talentProfileId: string,
+  hidden: boolean,
+): Promise<SaveContactPrefsResult> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.user) return { ok: false, error: "Not authenticated" };
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { ok: false, error: "Database unavailable" };
+
+    // Verify this user owns the talent profile.
+    const { data: tp, error: tpErr } = await supabase
+      .from("talent_profiles")
+      .select("id, user_id")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+
+    if (tpErr || !tp) {
+      logServerError("talent.setProfileVisibility.verify", tpErr);
+      return { ok: false, error: "Profile not found" };
+    }
+    if (tp.user_id !== session.user.id) {
+      return { ok: false, error: "Forbidden" };
+    }
+
+    const { error } = await supabase
+      .from("talent_profiles")
+      .update({ is_publicly_hidden: hidden, updated_at: new Date().toISOString() })
+      .eq("id", talentProfileId);
+
+    if (error) {
+      logServerError("talent.setProfileVisibility.update", error);
+      return { ok: false, error: "Failed to update visibility" };
+    }
+
+    revalidatePath(`/${tenantSlug}/talent/settings`);
+    revalidateDirectoryListing();
+    return { ok: true };
+  } catch (err) {
+    logServerError("talent.setProfileVisibility", err);
+    return { ok: false, error: "Unexpected error" };
+  }
+}
 
 /**
  * Upsert the talent's contact preferences for all four trust tiers.

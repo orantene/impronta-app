@@ -316,22 +316,6 @@ export function SitePage() {
           }
         />
         <TierCard
-          title="Theme & foundations"
-          description="Editorial Noir"
-          icon="palette"
-          requiredPlan="agency"
-          currentPlan={state.plan}
-          onClick={() => openDrawer("theme-foundations")}
-          onUpgrade={() =>
-            openUpgrade({
-              feature: "Theme & foundations",
-              why: "Take full control of typography, color, density, and layout.",
-              requiredPlan: "agency",
-              unlocks: ["Theme presets", "Color tokens", "Type scale", "Density"],
-            })
-          }
-        />
-        <TierCard
           title="SEO & defaults"
           description="Meta · Sitemap · 2 redirects"
           icon="search"

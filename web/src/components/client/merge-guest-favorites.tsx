@@ -12,6 +12,19 @@ import { mergeGuestActivity } from "@/lib/server-actions/client-guest-merge";
 
 const FAVORITE_IDS_KEY = "impronta.public.favorite-ids";
 
+function readGuestFavoriteIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(FAVORITE_IDS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x): x is string => typeof x === "string" && x.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Runs once on first authed render of any public page that mounts this
  * component. Three sweeps in `mergeGuestActivity`:
@@ -20,53 +33,80 @@ const FAVORITE_IDS_KEY = "impronta.public.favorite-ids";
  *   2. Inquiries (guest_session_id → client_user_id)
  *   3. Personal favorites (localStorage → `client_favorites`)
  *
- * Step 3 needs the IDs to be read CLIENT-side first (server can't see
- * localStorage); we pass them to the server action as an argument.
- * After success, we also clear the localStorage key + rehydrate state
- * so the bookmark badge shows the merged count.
+ * Step 3 needs the IDs read CLIENT-side before the server action runs.
+ *
+ * WHY the render-phase capture (Lane A / A3): `DiscoveryStateBridge` is a
+ * JSX sibling that appears BEFORE this component in the public layout.
+ * React fires sibling effects in JSX order, so `hydrateFavoriteIds([])`
+ * runs first and overwrites FAVORITE_IDS_KEY with the server's (initially
+ * empty) list. Capturing here — synchronously in the render phase, before
+ * any effects — preserves the guest IDs across that race.
+ *
+ * WHY we diff against serverFavoriteIds (Lane A / A3): localStorage may
+ * contain IDs that DiscoveryStateBridge wrote on a previous authed visit.
+ * Those are already in `client_favorites` and must not be treated as
+ * guest saves (which would cause a spurious clearFavoriteIds() flash on
+ * every page load for a returning authed user).
+ *
+ * Hardening (Lane G / G2): the guest localStorage key is cleared ONLY
+ * after the server confirms the merge landed (`result.ok`). A transient
+ * failure used to clear the key unconditionally, silently destroying the
+ * visitor's saved favorites. On failure the key is left intact, so the
+ * next authed navigation (a fresh component instance, fresh `ran` guard)
+ * retries the merge — the sweep is self-healing.
+ *
+ * Integration note (Lane E): A3 and G2 independently rewrote this file.
+ * This is the merged resolution — A's render-phase race fix kept whole,
+ * with G's result.ok-gated clear folded into the merge callback. Both
+ * lane agents should sanity-check.
  */
-export function MergeGuestFavorites() {
+export function MergeGuestFavorites({
+  serverFavoriteIds,
+}: {
+  serverFavoriteIds: string[];
+}) {
   const ran = useRef(false);
   const router = useRouter();
   const discovery = usePublicDiscoveryStateOptional();
+
+  // Read localStorage synchronously during the render phase (before any
+  // effects) and subtract IDs already present on the server — those were
+  // seeded by a prior authed visit, not by the current guest session.
+  const capturedGuestIds = useRef<string[] | null>(null);
+  if (capturedGuestIds.current === null) {
+    const raw = readGuestFavoriteIds();
+    const serverSet = new Set(serverFavoriteIds);
+    capturedGuestIds.current = raw.filter((id) => !serverSet.has(id));
+  }
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
 
-    // Read localStorage favorites BEFORE calling the server action;
-    // they'll be cleared after merge.
-    let guestFavoriteIds: string[] = [];
-    try {
-      const raw = window.localStorage.getItem(FAVORITE_IDS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown;
-        if (Array.isArray(parsed)) {
-          guestFavoriteIds = parsed.filter(
-            (x): x is string => typeof x === "string" && x.length > 0,
-          );
-        }
-      }
-    } catch {
-      guestFavoriteIds = [];
-    }
+    const guestFavoriteIds = capturedGuestIds.current ?? [];
 
-    void mergeGuestActivity(guestFavoriteIds).then(() => {
-      // Clear the localStorage favorites — they now live in
-      // `client_favorites` and will be reloaded from the SSR seed on
-      // the next render.
-      if (guestFavoriteIds.length > 0) {
-        try {
-          window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify([]));
-        } catch {
-          /* ignore */
+    void mergeGuestActivity(guestFavoriteIds)
+      .then((result) => {
+        // Only clear the guest favorites once the server confirms the
+        // upsert into `client_favorites` succeeded — otherwise a failed
+        // merge would lose them. On failure, leave the key for a retry.
+        if (result.ok && guestFavoriteIds.length > 0) {
+          try {
+            window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify([]));
+          } catch {
+            /* ignore */
+          }
+          if (discovery) {
+            discovery.clearFavoriteIds();
+          }
         }
-        if (discovery) {
-          discovery.clearFavoriteIds();
-        }
-      }
-      router.refresh();
-    });
+        router.refresh();
+      })
+      .catch(() => {
+        // Network/unexpected error — keep localStorage intact so a later
+        // authed navigation re-attempts the merge.
+        router.refresh();
+      });
   }, [discovery, router]);
   return null;
 }

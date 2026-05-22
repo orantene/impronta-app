@@ -1,6 +1,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Images,
@@ -68,6 +69,7 @@ import {
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,8 +106,7 @@ type TalentProfile = {
   short_bio: string | null;
   bio_en: string | null;
   bio_es: string | null;
-  workflow_status: string | null;
-  visibility: string | null;
+  is_publicly_hidden: boolean | null;
   is_featured: boolean | null;
   height_cm: number | null;
   residence_city: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
@@ -238,8 +239,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             short_bio,
             bio_en,
             bio_es,
-            workflow_status,
-            visibility,
+            is_publicly_hidden,
             is_featured,
             height_cm,
             residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
@@ -299,8 +299,7 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       short_bio,
       bio_en,
       bio_es,
-      workflow_status,
-      visibility,
+      is_publicly_hidden,
       is_featured,
       height_cm,
       residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
@@ -808,6 +807,110 @@ function mediaUrl(
 }
 
 // ---------------------------------------------------------------------------
+// Similar-talent mini cards (D3 — Lane D site-wide card adoption)
+// ---------------------------------------------------------------------------
+
+type SimilarTalentMini = {
+  id: string;
+  profileCode: string;
+  displayName: string;
+  primaryType: string | null;
+  thumbnailUrl: string | null;
+};
+
+/**
+ * Fetches up to `limit` published talent from the same agency roster,
+ * excluding the currently-viewed profile. Used to render the "More from
+ * this roster" strip at the bottom of every agency talent profile page.
+ *
+ * Safe: uses the public anon client; RLS ensures only active, published
+ * rows are visible. Returns [] on any error so the page degrades silently.
+ */
+async function fetchSimilarTalent(
+  supabase: SupabaseClient,
+  tenantId: string,
+  excludeId: string,
+  limit = 4,
+): Promise<SimilarTalentMini[]> {
+  // Step 1 — get active roster talent IDs for this tenant (overfetch ×4 to
+  // allow for non-published profiles that will be filtered in step 2).
+  const { data: rosterRows } = await supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "active")
+    .neq("talent_profile_id", excludeId)
+    .limit(limit * 4);
+
+  const profileIds = ((rosterRows ?? []) as { talent_profile_id: string }[])
+    .map((r) => r.talent_profile_id)
+    .filter(Boolean);
+  if (!profileIds.length) return [];
+
+  // Step 2 — fetch profile data + thumbnail assets for those IDs.
+  const { data: profiles } = await supabase
+    .from("talent_profiles")
+    .select(
+      `id, profile_code, display_name, first_name, last_name, workflow_status,
+       talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_en, name_es ) ),
+       media_assets ( bucket_id, storage_path, variant_kind, sort_order )`,
+    )
+    .in("id", profileIds)
+    .in("workflow_status", ["published", "approved"])
+    .is("deleted_at", null)
+    .limit(limit);
+
+  if (!profiles?.length) return [];
+
+  type RawProfile = {
+    id: string;
+    profile_code: string;
+    display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    talent_profile_taxonomy: TaxonomyRow[];
+    media_assets: {
+      bucket_id: string | null;
+      storage_path: string | null;
+      variant_kind: string | null;
+      sort_order: number | null;
+    }[];
+  };
+
+  return (profiles as RawProfile[]).slice(0, limit).map((p) => {
+    const dn =
+      p.display_name?.trim() ||
+      [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
+      p.profile_code;
+
+    const pType = primaryTalentType("en", p.talent_profile_taxonomy ?? []);
+
+    const assets = (p.media_assets ?? []).sort(
+      (a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999),
+    );
+    const thumb =
+      assets.find((a) => a.variant_kind === "thumbnail") ??
+      assets.find((a) => a.storage_path) ??
+      null;
+
+    const thumbUrl =
+      thumb?.bucket_id && thumb.storage_path
+        ? supabase.storage
+            .from(thumb.bucket_id)
+            .getPublicUrl(thumb.storage_path).data.publicUrl
+        : null;
+
+    return {
+      id: p.id,
+      profileCode: p.profile_code,
+      displayName: dn,
+      primaryType: pType,
+      thumbnailUrl: thumbUrl,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Route segment config — a public talent profile MUST reflect the agency's
 // latest edits. Without this, Next's Data Cache memoises the supabase-js
 // fetches (and persists across Vercel deploys), so newly-public fields
@@ -960,12 +1063,12 @@ export default async function PublicTalentProfilePage({
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
 
   // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
-  // the freelancer/app surface requires workflow_status='approved' AND
-  // visibility='public' AND deleted_at IS NULL. RLS enforces the same rule
-  // for anon reads; the resolver makes the contract code-visible and
-  // protects authenticated-but-unauthorised readers from unapproved rows
-  // leaking through. (Agency surface continues to rely on roster RLS for
-  // M2; a roster-join resolver call wires in when overlays land.)
+  // the freelancer/app surface requires is_publicly_hidden = false AND
+  // deleted_at IS NULL. RLS enforces the same rule for anon reads; the
+  // resolver makes the contract code-visible and protects authenticated-
+  // but-unauthorised readers from globally hidden rows leaking through.
+  // (Agency surface continues to rely on roster RLS for M2; a roster-join
+  // resolver call wires in when overlays land.)
   if (!resolvedPreview && surface === "freelancer") {
     // RLS already filters soft-deleted rows for anon reads, so the row we
     // have here has deleted_at=null by construction; pass it explicitly so
@@ -973,8 +1076,7 @@ export default async function PublicTalentProfilePage({
     const decision = resolveTalentVisibility(
       {
         profile: {
-          workflow_status: profile.workflow_status,
-          visibility: profile.visibility,
+          is_publicly_hidden: profile.is_publicly_hidden ?? false,
           deleted_at: null,
         },
       },
@@ -1047,6 +1149,13 @@ export default async function PublicTalentProfilePage({
   basicInfoDetailRows.sort(sortDetail);
   otherDetailRows.sort(sortDetail);
   const initialSavedIds = await getSavedTalentIds();
+
+  // D3 — similar talent strip (agency surface only; free-tier / no roster = []).
+  const similarTalent: SimilarTalentMini[] =
+    surface === "agency" && hostCtx.kind === "agency" && pub && !resolvedPreview
+      ? await fetchSimilarTalent(pub, hostCtx.tenantId, profile.id, 4)
+      : [];
+
   const portalInquiryNext = prefixPublicHref(
     `/client/inquiries/new?talent=${encodeURIComponent(profile.id)}`,
     publicPathPrefix,
@@ -1817,6 +1926,74 @@ export default async function PublicTalentProfilePage({
             </div>
           </div>
         </section>
+
+        {/* ----------------------------------------------------------------
+            D3 — "More from this roster" similar-talent strip
+            Only rendered on agency surfaces when ≥1 sibling profile exists.
+        ---------------------------------------------------------------- */}
+        {similarTalent.length > 0 ? (
+          <section
+            aria-label="More talent from this roster"
+            className="border-t border-[var(--impronta-gold-border)]/30 bg-[var(--impronta-black)] px-4 py-12 sm:px-6 lg:px-8"
+          >
+            <div className="mx-auto max-w-5xl">
+              <p className="mb-6 font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-[var(--impronta-gold)]">
+                More from this roster
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {similarTalent.map((st) => {
+                  const href = prefixPublicHref(
+                    `/t/${encodeURIComponent(st.profileCode)}`,
+                    publicPathPrefix,
+                  );
+                  return (
+                    <div key={st.id} className="group/similartile relative">
+                      <Link
+                        href={href}
+                        className="block overflow-hidden rounded-xl bg-zinc-900"
+                      >
+                        <div className="relative aspect-[3/4] w-full">
+                          {st.thumbnailUrl ? (
+                            <Image
+                              src={st.thumbnailUrl}
+                              alt=""
+                              fill
+                              className="object-cover transition-transform duration-300 group-hover/similartile:scale-[1.02]"
+                              sizes="(min-width: 640px) 25vw, 50vw"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center font-[family-name:var(--font-cinzel)] text-[10px] tracking-widest text-[var(--impronta-muted)]">
+                              {ui.common.brand}
+                            </div>
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                            <p className="truncate font-[family-name:var(--font-cinzel)] text-sm font-semibold text-white">
+                              {st.displayName}
+                            </p>
+                            {st.primaryType ? (
+                              <p className="truncate text-[10px] uppercase tracking-[0.14em] text-[var(--impronta-muted)]">
+                                {st.primaryType}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </Link>
+                      {/* Canonical favorite + inquiry affordances */}
+                      <TalentCardActions
+                        talentProfileId={st.id}
+                        profileCode={st.profileCode}
+                        displayName={st.displayName}
+                        sourcePage={profileSourcePage}
+                        variant="compact"
+                        className="absolute right-2.5 top-2.5 z-[2]"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : null}
       </main>
 
       {/* M8 — Sticky inquiry bar (only visible when the tenant has

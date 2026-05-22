@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bookmark, Send } from "lucide-react";
+import { Bookmark, Heart, Send } from "lucide-react";
 import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
@@ -13,6 +13,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+// Favorite-icon token swap (heart ⇄ bookmark) — shared with <TalentCardActions>
+// so the header favorites icon is always identical to the card favorites icon.
+import "@/components/talent-cards/talent-card-actions.css";
 
 export type DirectoryDiscoveryHeaderCopy = {
   /** Bookmark icon (opens favorites drawer). */
@@ -84,7 +87,19 @@ export function DirectoryDiscoveryHeaderActions({
               aria-label={copy.favoritesAria}
               data-discovery-header-favorites
             >
+              {/* Both glyphs render; the per-tenant favoriteIcon token
+                  (via <html data-token-favorite-icon>) shows exactly one.
+                  Keeps this header icon identical to the card icon. */}
+              <Heart
+                data-favorite-glyph="heart"
+                className={cn(
+                  "size-5",
+                  hasFavorites && "text-[var(--impronta-gold)]",
+                )}
+                fill={hasFavorites ? "currentColor" : "none"}
+              />
               <Bookmark
+                data-favorite-glyph="bookmark"
                 className={cn(
                   "size-5",
                   hasFavorites && "text-[var(--impronta-gold)]",

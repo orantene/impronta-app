@@ -49,11 +49,6 @@
       "count": 1
     }
   },
-  "src/app/(workspace)/[tenantSlug]/client/inquiries/new/new-inquiry-form.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    }
-  },
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": {
     "max-lines": {
       "count": 1
@@ -131,7 +126,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 42
+      "count": 29
     }
   },
   "src/components/admin/shell/internal/drawers/light-02.tsx": {
@@ -626,7 +621,7 @@
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 37
+      "count": 36
     }
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-3.tsx": {
@@ -1286,16 +1281,8 @@
       "count": 1
     }
   },
-  "src/components/inquiry-cart/InquiryCartForm.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    }
-  },
   "src/components/inquiry/InquiryDrawer.tsx": {
     "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-hook-deps-disable": {
       "count": 1
     }
   },

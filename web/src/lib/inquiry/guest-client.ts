@@ -1,0 +1,170 @@
+/**
+ * guest-client.ts — provision (or match) a client account for a guest
+ * inquiry submission.
+ *
+ * Lane B / B1 (2026-05-22): extracted out of
+ * `app/(public)/directory/actions.ts` so the canonical InquiryDrawer
+ * submit path (`submitInquiryNowAction`) and the legacy directory
+ * actions share ONE implementation. When a guest submits an inquiry we
+ * need a `client_user_id` so the inquiry has a real client participant
+ * and the visitor can later claim / track it via a magic link.
+ *
+ * Behaviour:
+ *   • email already belongs to a client (or an unclaimed account) →
+ *     "matched" — reuse that user, refresh the client profile.
+ *   • email belongs to staff / talent / super_admin → "unlinked" — never
+ *     silently convert a privileged account into a client.
+ *   • email is new → "created" — provision a fresh client auth user.
+ *
+ * The caller submits the inquiry regardless: an "unlinked" result simply
+ * means the inquiry has a null client_user_id (guest_session_id still
+ * links it for the magic-link merge).
+ */
+
+import { randomBytes } from "crypto";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
+
+export type GuestClientProvisionResult =
+  | { status: "matched"; clientUserId: string }
+  | { status: "created"; clientUserId: string }
+  | { status: "unlinked"; clientUserId: null };
+
+function generateGuestClientPassword() {
+  return randomBytes(18).toString("base64url");
+}
+
+export async function ensureGuestClientByEmail(args: {
+  email: string;
+  name: string;
+  company: string;
+  phone: string;
+}): Promise<GuestClientProvisionResult> {
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const normalizedEmail = args.email.trim().toLowerCase();
+  const { data: matchRows, error: matchErr } = await admin.rpc(
+    "find_auth_user_identity_by_email",
+    { p_email: normalizedEmail },
+  );
+
+  if (matchErr) {
+    logServerError("inquiry/ensureGuestClientByEmail/find", matchErr);
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const match = Array.isArray(matchRows) ? matchRows[0] : null;
+  if (match?.user_id) {
+    const role = match.app_role as string | null;
+    if (role === "super_admin" || role === "agency_staff" || role === "talent") {
+      return { status: "unlinked", clientUserId: null };
+    }
+
+    const userId = match.user_id as string;
+    const nextDisplayName =
+      (match.display_name as string | null)?.trim() || args.name;
+    const profilePatch: Record<string, unknown> = {
+      display_name: nextDisplayName,
+      app_role: "client",
+      account_status:
+        match.account_status === "active" ? "active" : "onboarding",
+      updated_at: new Date().toISOString(),
+    };
+    if (match.account_status !== "active") {
+      profilePatch.onboarding_completed_at = null;
+    }
+
+    const { error: profileErr } = await admin
+      .from("profiles")
+      .update(profilePatch)
+      .eq("id", userId);
+
+    if (profileErr) {
+      logServerError("inquiry/ensureGuestClientByEmail/profileUpdate", profileErr);
+      return { status: "unlinked", clientUserId: null };
+    }
+
+    const { error: clientProfileErr } = await admin
+      .from("client_profiles")
+      .upsert(
+        {
+          user_id: userId,
+          company_name: args.company || null,
+          phone: args.phone || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+
+    if (clientProfileErr) {
+      logServerError(
+        "inquiry/ensureGuestClientByEmail/clientProfileUpsert",
+        clientProfileErr,
+      );
+      return { status: "unlinked", clientUserId: null };
+    }
+
+    return { status: "matched", clientUserId: userId };
+  }
+
+  const created = await admin.auth.admin.createUser({
+    email: normalizedEmail,
+    password: generateGuestClientPassword(),
+    email_confirm: true,
+    user_metadata: {
+      full_name: args.name,
+      name: args.name,
+    },
+  });
+
+  if (created.error || !created.data.user?.id) {
+    logServerError("inquiry/ensureGuestClientByEmail/createUser", created.error);
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const userId = created.data.user.id;
+
+  const { error: profileErr } = await admin
+    .from("profiles")
+    .update({
+      display_name: args.name,
+      app_role: "client",
+      account_status: "onboarding",
+      onboarding_completed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (profileErr) {
+    logServerError(
+      "inquiry/ensureGuestClientByEmail/profileCreatePatch",
+      profileErr,
+    );
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const { error: clientProfileErr } = await admin
+    .from("client_profiles")
+    .upsert(
+      {
+        user_id: userId,
+        company_name: args.company || null,
+        phone: args.phone || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+  if (clientProfileErr) {
+    logServerError(
+      "inquiry/ensureGuestClientByEmail/clientProfileCreate",
+      clientProfileErr,
+    );
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  return { status: "created", clientUserId: userId };
+}

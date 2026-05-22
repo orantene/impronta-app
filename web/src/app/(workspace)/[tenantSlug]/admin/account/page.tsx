@@ -30,6 +30,7 @@ import {
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { loadWorkspaceOverrideBanner } from "../../../platform/tenant-management-data";
 
 export const dynamic = "force-dynamic";
 
@@ -227,13 +228,31 @@ export default async function WorkspaceAccountPage({
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
 
-  const [canManageBilling, canManageWorkspacePayout, summary, billingState, payout] = await Promise.all([
+  const [
+    canManageBilling,
+    canManageWorkspacePayout,
+    summary,
+    billingState,
+    payout,
+    overrideBanner,
+  ] = await Promise.all([
     userHasCapability("manage_billing", scope.tenantId),
     userHasCapability("agency.payout_account.manage", scope.tenantId),
     loadWorkspaceAgencySummary(scope.tenantId),
     loadWorkspaceBillingState(scope.tenantId),
     loadWorkspacePayoutSnapshot(scope.tenantId, session.user.id),
+    loadWorkspaceOverrideBanner(scope.tenantId),
   ]);
+
+  // Platform-granted plan override (comp / trial) — explains why the plan
+  // badge above may differ from any paid subscription.
+  const overrideExpiryLabel = overrideBanner?.expiresAt
+    ? new Date(overrideBanner.expiresAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
   const canManagePayout = canManageWorkspacePayout || canManageBilling;
   const canCreateSelfPayout = ["owner", "admin", "coordinator"].includes(scope.membership.role);
 
@@ -280,6 +299,42 @@ export default async function WorkspaceAccountPage({
       {perr ? (
         <div style={{ border: `1px solid ${C.border}`, background: C.amberSoft, color: C.amber, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
           {perr}
+        </div>
+      ) : null}
+
+      {/* ── Plan override notice (platform-granted comp / trial) ── */}
+      {overrideBanner ? (
+        <div
+          style={{
+            border: `1px solid ${C.border}`,
+            background: C.accentSoft,
+            borderRadius: 12,
+            padding: "13px 15px",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.accent }}>
+            ★ {PLAN_META[overrideBanner.overridePlanTier].label} access — granted
+            by Tulala
+          </div>
+          <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 4 }}>
+            {overrideExpiryLabel ? (
+              <>
+                Your workspace has full{" "}
+                {PLAN_META[overrideBanner.overridePlanTier].label} features at no
+                charge until <strong>{overrideExpiryLabel}</strong>. After that
+                it returns to the{" "}
+                {PLAN_META[overrideBanner.basePlanTier].label} plan unless a paid
+                subscription is in place.
+              </>
+            ) : (
+              <>
+                Your workspace has full{" "}
+                {PLAN_META[overrideBanner.overridePlanTier].label} features at no
+                charge, with no set end date.
+              </>
+            )}
+            {overrideBanner.reason ? ` — ${overrideBanner.reason}` : ""}
+          </div>
         </div>
       ) : null}
 

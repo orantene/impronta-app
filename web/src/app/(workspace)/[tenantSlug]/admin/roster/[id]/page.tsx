@@ -57,7 +57,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     admin
       .from("talent_profiles")
       .select(
-        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at, height_cm, gender, date_of_birth, invitation_email, home_city_text, social_links, user_id",
+        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, is_publicly_hidden, profile_code, created_at, height_cm, gender, date_of_birth, invitation_email, home_city_text, social_links, user_id",
       )
       .eq("id", talentId)
       .is("deleted_at", null)
@@ -102,6 +102,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     phone: string | null;
     workflow_status: string | null;
     visibility: string | null;
+    is_publicly_hidden: boolean | null;
     profile_code: string | null;
     created_at: string | null;
     height_cm: number | null;
@@ -138,6 +139,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     phone: p.phone ?? null,
     workflow_status: p.workflow_status ?? "draft",
     visibility: p.visibility ?? "hidden",
+    is_publicly_hidden: p.is_publicly_hidden ?? false,
     profile_code: p.profile_code ?? null,
     created_at: p.created_at ?? null,
     agency_visibility: r.agency_visibility ?? "roster_only",
@@ -229,6 +231,7 @@ export default async function WorkspaceRosterTalentPage({
     workflow_status: talent.workflow_status,
     visibility: talent.visibility,
     agency_visibility: talent.agency_visibility,
+    is_publicly_hidden: talent.is_publicly_hidden,
     primary_type_term_id: talent.primary_type_term_id,
     profile_code: talent.profile_code,
     photo_url: talent.photo_url,

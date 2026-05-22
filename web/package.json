@@ -11,7 +11,7 @@
     "dev:fresh": "rm -rf .next && NODE_OPTIONS=--max-old-space-size=6144 next dev -p ${PORT:-3000}",
     "dev:webpack": "next dev --webpack -p ${PORT:-3000}",
     "prebuild": "node scripts/check-migrations-applied.mjs",
-    "build": "next build",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 next build",
     "check:migrations-applied": "node scripts/check-migrations-applied.mjs",
     "start": "next start",
     "lint": "node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --suppressions-location eslint-suppressions.json",

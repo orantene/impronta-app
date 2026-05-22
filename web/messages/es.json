@@ -936,7 +936,9 @@
         "pending": "Pendiente",
         "invited": "Invitado",
         "draft": "Borrador",
-        "claimed": "Reclamado"
+        "claimed": "Reclamado",
+        "visible": "Visible",
+        "hidden": "Oculto"
       },
       "filters": {
         "searchAria": "Buscar en la lista",

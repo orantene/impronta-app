@@ -50,8 +50,9 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
 
   /**
    * Product exception — marketing / curated discovery:
-   * Featured strip uses the same **talent row** gates as public directory listings (`workflow_status=approved`,
-   * `visibility=public`, `deleted_at` null). Role shortcuts, fit-label pills, and location boxes read taxonomy
+   * Featured strip uses the same **talent row** gate as public directory listings
+   * (`is_publicly_hidden=false`, `deleted_at` null; the agency directory eye is
+   * enforced via `agency_talent_roster` RLS). Role shortcuts, fit-label pills, and location boxes read taxonomy
    * and locations directly. Widgets do **not** mirror Admin → Fields visibility for card attributes (unlike
    * directory cards / public profile field rules). Rationale: homepage is agency-controlled promotion; full
    * field-definition parity would risk hiding featured talent entirely. Future alignment can be per-widget.
@@ -119,8 +120,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
           )
         `)
         .in("id", rosterTalentIds)
-        .eq("workflow_status", "approved")
-        .eq("visibility", "public")
+        .eq("is_publicly_hidden", false)
         .eq("is_featured", true)
         .is("deleted_at", null)
         .order("featured_level", { ascending: false })
@@ -239,8 +239,7 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
       .from("talent_profiles")
       .select("id, residence_city_id, location_id, is_featured, featured_level")
       .in("id", rosterTalentIds)
-      .eq("workflow_status", "approved")
-      .eq("visibility", "public")
+      .eq("is_publicly_hidden", false)
       .is("deleted_at", null)
       .or(
         `residence_city_id.in.(${locationIds.join(",")}),location_id.in.(${locationIds.join(",")})`,

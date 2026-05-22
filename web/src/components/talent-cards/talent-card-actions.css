@@ -1,0 +1,36 @@
+/* Lane G / G4 + G5 + Lane E — favorite-icon token rendering & favorited state.
+ *
+ * Any element pair tagged `data-favorite-glyph="heart" | "bookmark"` —
+ * the <TalentCardActions> favorite control AND the public-header
+ * favorites button — shows ONLY the glyph the per-tenant `favoriteIcon`
+ * branding token selects, via <html data-token-favorite-icon="…">.
+ * CSS-only swap — SSR-safe, no JS, no hydration flash. Default (token
+ * absent or "heart") shows the heart. This is what keeps the card icon
+ * and the header icon identical site-wide. */
+
+[data-favorite-glyph="bookmark"] {
+  display: none;
+}
+
+[data-token-favorite-icon="bookmark"] [data-favorite-glyph="heart"] {
+  display: none;
+}
+
+[data-token-favorite-icon="bookmark"] [data-favorite-glyph="bookmark"] {
+  display: inline-block;
+}
+
+/* Lane E — favorited state.
+ *
+ * The circle stays constant between saved / not-saved; only the glyph
+ * changes — hollow + muted when not saved, SOLID + accent-coloured when
+ * saved. That single colour change is the unambiguous "saved" signal
+ * (the old design inverted the whole button, which read as neither).
+ *
+ * Colour = the tenant's Branding → Accent token (`--token-color-accent`),
+ * so it is admin-configurable and auto-matches the site theme. Falls
+ * back to the brand gold when a tenant has no accent token set. */
+.talent-card-actions__favorite[data-favorited="true"] {
+  color: var(--token-color-accent, var(--impronta-gold, #c8a04a));
+  border-color: var(--token-color-accent, var(--impronta-gold, #c8a04a));
+}

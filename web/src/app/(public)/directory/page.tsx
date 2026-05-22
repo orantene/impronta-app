@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
-import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryAnalyticsMount } from "@/components/analytics/directory-analytics-mount";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
 import { DiscoveryStateBridge } from "@/components/directory/public-discovery-state";
@@ -10,7 +9,6 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
-import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -87,7 +85,6 @@ export default async function DirectoryPage() {
   }
 
   const initialSavedIds = await getSavedTalentIds();
-  const actor = await getCachedActorSession();
 
   // Phase 3 Step 2 — try the seeded `__directory__` builder page; fall
   // back to the direct component when absent (zero-regression until the
@@ -103,7 +100,6 @@ export default async function DirectoryPage() {
       <PublicHeader />
       <DirectoryAnalyticsMount locale={locale} />
       <DiscoveryStateBridge savedIds={initialSavedIds} />
-      {actor.user ? <MergeGuestFavorites /> : null}
       <Suspense fallback={null}>
         <DirectoryInquiryUrlSync />
       </Suspense>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useActionState, useEffect, useRef, useState, useCallback } from "react";
+import { useActionState, useEffect, useRef, useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTranslator } from "@/i18n/messages";
 import { createClient } from "@/lib/supabase/client";
@@ -9,7 +9,7 @@ import {
   type RosterTalentEditState,
   type RegisterPhotoResult,
   updateRosterTalentProfile,
-  updateRosterTalentWorkflow,
+  setRosterTalentSiteVisibility,
   registerRosterTalentPhoto,
 } from "./actions";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
@@ -53,6 +53,8 @@ export type TalentEditInitial = {
   workflow_status: string;
   visibility: string;
   agency_visibility: string;
+  /** Talent's global hide kill-switch (`talent_profiles.is_publicly_hidden`). */
+  is_publicly_hidden: boolean;
   primary_type_term_id: string | null;
   profile_code: string | null;
   photo_url: string | null;
@@ -395,125 +397,6 @@ function UploadStatus({
   );
 }
 
-// ─── Workflow status helpers ───────────────────────────────────────────────────
-
-const WORKFLOW_META: Record<string, { label: string; dot: string; bg: string; textColor: string }> = {
-  draft:     { label: "Draft",     dot: "rgba(11,11,13,0.35)", bg: "rgba(11,11,13,0.05)", textColor: C.inkMuted },
-  invited:   { label: "Invited",   dot: "#3B5E9E",              bg: "rgba(59,94,158,0.10)", textColor: "#3B5E9E" },
-  approved:  { label: "Approved",  dot: C.green,                bg: C.greenSoft,            textColor: C.greenDeep },
-  published: { label: "Published", dot: C.green,                bg: C.greenSoft,            textColor: C.greenDeep },
-  hidden:    { label: "Hidden",    dot: C.amber,                bg: C.amberSoft,            textColor: C.amber },
-};
-
-// Statuses an admin can pick directly from the sidebar. `invited` is set
-// automatically by the Add-Talent drawer "Send claim invite" flow + needs the
-// matching enum value to land in `profile_workflow_status` (deferred — see
-// remediation report), so it stays out of the picker. `archived` is intentionally
-// reachable through Remove-from-roster only, not via this quick toggle.
-const PICKABLE_STATUSES: { value: "draft" | "approved" | "published" | "hidden"; visibility: "hidden" | "public" | "private" }[] = [
-  { value: "draft",     visibility: "hidden" },
-  { value: "approved",  visibility: "public" },
-  { value: "published", visibility: "public" },
-  { value: "hidden",    visibility: "hidden" },
-];
-
-function StatusPicker({
-  action,
-  pending,
-  currentStatus,
-}: {
-  action: (formData: FormData) => void;
-  pending: boolean;
-  currentStatus: string;
-}) {
-  const [next, setNext] = useState<string>(
-    PICKABLE_STATUSES.find((s) => s.value === currentStatus)?.value ?? "draft",
-  );
-
-  // Keep local select state in sync if the server-refresh changes the status
-  // out from under us (e.g. a sibling action publishes the profile).
-  useEffect(() => {
-    if (PICKABLE_STATUSES.find((s) => s.value === currentStatus)) setNext(currentStatus);
-  }, [currentStatus]);
-
-  const visibility =
-    PICKABLE_STATUSES.find((s) => s.value === next)?.visibility ?? "hidden";
-  const dirty = next !== currentStatus;
-
-  return (
-    <form action={action} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <input type="hidden" name="workflow_status" value={next} />
-      <input type="hidden" name="visibility" value={visibility} />
-      <select
-        name="workflow_status_picker"
-        value={next}
-        onChange={(e) => setNext(e.target.value)}
-        disabled={pending}
-        aria-label="Change status"
-        style={{
-          width: "100%",
-          padding: "8px 11px",
-          borderRadius: 8,
-          border: `1px solid ${C.border}`,
-          background: "#fff",
-          fontSize: 13,
-          fontFamily: F,
-          color: C.ink,
-          appearance: "auto",
-        }}
-      >
-        <option value="draft">Draft — internal only</option>
-        <option value="approved">Approved — live publicly</option>
-        <option value="published">Published — live publicly</option>
-        <option value="hidden">Hidden — taken down</option>
-      </select>
-      <button
-        type="submit"
-        disabled={pending || !dirty}
-        style={{
-          width: "100%",
-          background: dirty ? C.accent : "transparent",
-          color: dirty ? "#fff" : C.inkMuted,
-          border: dirty ? "none" : `1px solid ${C.border}`,
-          padding: "9px 0",
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 600,
-          fontFamily: F,
-          cursor: pending || !dirty ? "not-allowed" : "pointer",
-          opacity: pending || !dirty ? 0.6 : 1,
-        }}
-      >
-        {pending ? "Saving…" : dirty ? "Save status" : "No change"}
-      </button>
-    </form>
-  );
-}
-
-function WorkflowBadge({ status, t }: { status: string; t: (key: string) => string }) {
-  const m = WORKFLOW_META[status] ?? WORKFLOW_META.draft;
-  const label = t(`admin.talent.edit.status.${status}`);
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "3px 9px",
-        borderRadius: 999,
-        background: m.bg,
-        color: m.textColor,
-        fontSize: 11.5,
-        fontWeight: 600,
-        fontFamily: F,
-      }}
-    >
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.dot }} />
-      {label}
-    </span>
-  );
-}
-
 // ─── Three-slot photo panel for standalone form ───────────────────────────────
 
 function ThreeSlotPhotoPanel({
@@ -756,38 +639,44 @@ function SlotButton({
 function WorkflowSidebar({
   tenantSlug,
   talentId,
-  workflowStatus,
-  visibility,
   agencyVisibility,
+  talentHidden,
   profileCode,
   locale,
 }: {
   tenantSlug: string;
   talentId: string;
-  workflowStatus: string;
-  visibility: string;
   agencyVisibility: string;
+  talentHidden: boolean;
   profileCode: string | null;
   locale: string;
 }) {
   const t = createTranslator(locale);
   const router = useRouter();
-  const boundAction = updateRosterTalentWorkflow.bind(null, tenantSlug, talentId);
-  const [state, action, pending] = useActionState<RosterTalentEditState, FormData>(
-    boundAction,
-    undefined,
+
+  const [visible, setVisible] = useState(
+    agencyVisibility === "site_visible" || agencyVisibility === "featured",
   );
-
-  // Refresh page data when workflow action succeeds so sidebar reflects new state.
-  useEffect(() => {
-    if (state?.success) router.refresh();
-  }, [state, router]);
-
-  // Approve: set workflow_status=approved, visibility=public
-  // Hide: set workflow_status=draft, visibility=hidden
-  const isLive = workflowStatus === "published" || workflowStatus === "approved";
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const isFeatured = agencyVisibility === "featured";
 
   const publicUrl = profileCode ? `https://tulala.digital/t/${profileCode}` : null;
+
+  const apply = (next: boolean) => {
+    if (pending) return;
+    setVisible(next); // optimistic
+    setErrorMsg(null);
+    startTransition(async () => {
+      const res = await setRosterTalentSiteVisibility(tenantSlug, talentId, next);
+      if (res && "error" in res && res.error) {
+        setVisible(!next); // revert
+        setErrorMsg(res.error);
+      } else {
+        router.refresh();
+      }
+    });
+  };
 
   return (
     <div
@@ -798,7 +687,8 @@ function WorkflowSidebar({
         fontFamily: F,
       }}
     >
-      {/* Status card */}
+      {/* Directory visibility card — the agency's single public-visibility
+          control. Replaces the old Draft/Published workflow picker. */}
       <div
         style={{
           background: C.card,
@@ -807,19 +697,74 @@ function WorkflowSidebar({
           padding: "16px 18px",
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }}>
-          {t("admin.talent.edit.workflow.statusLabel")}
-        </div>
-        <div className="mb-3">
-          <WorkflowBadge status={workflowStatus} t={t} />
-        </div>
-        <div style={{ fontSize: 11.5, color: C.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
-          {isLive
-            ? t("admin.talent.edit.workflow.liveMessage")
-            : t("admin.talent.edit.workflow.draftMessage")}
+        <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 12 }}>
+          {t("admin.talent.edit.workflow.visibilityLabel")}
         </div>
 
-        {state?.error && (
+        {talentHidden && (
+          <div
+            style={{
+              background: C.amberSoft,
+              border: `1px solid rgba(212,160,23,0.28)`,
+              borderRadius: 8,
+              padding: "9px 11px",
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 2 }}>
+              Hidden by talent
+            </div>
+            <div style={{ fontSize: 11, color: C.inkMuted, lineHeight: 1.45 }}>
+              This talent has hidden their profile across all of Tulala. They
+              will not appear publicly until they unhide it — your setting below
+              is saved but has no effect meanwhile.
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: visible ? C.accent : "rgba(11,11,13,0.05)",
+              color: visible ? "#fff" : C.inkMuted,
+              border: `1px solid ${visible ? C.accent : C.border}`,
+            }}
+          >
+            {visible ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68" />
+                <path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.39-1.61" />
+                <path d="m2 2 20 20" />
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+              </svg>
+            )}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
+              {visible ? (isFeatured ? "Featured" : "Visible") : "Roster only"}
+            </div>
+            <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4 }}>
+              {visible
+                ? "Shown in your directory, search and on a public page."
+                : "On your roster — not shown publicly."}
+            </div>
+          </div>
+        </div>
+
+        {errorMsg && (
           <div
             role="alert"
             style={{
@@ -829,47 +774,38 @@ function WorkflowSidebar({
               padding: "8px 11px",
               fontSize: 12,
               color: C.error,
-              marginBottom: 10,
+              marginTop: 12,
             }}
           >
-            {state.error}
+            {errorMsg}
           </div>
         )}
 
-        {/* Status picker — admins pick any valid workflow status; visibility
-            follows the picked status so the public surface stays in sync.
-            Replaces the previous binary Approve/Hide buttons that couldn't
-            move a profile to e.g. Hidden directly from Approved, or back to
-            Draft from Published, in one step. */}
-        <StatusPicker
-          action={action}
-          pending={pending}
-          currentStatus={workflowStatus}
-        />
-      </div>
-
-      {/* Agency visibility card */}
-      <div
-        style={{
-          background: C.card,
-          border: `1px solid ${C.border}`,
-          borderRadius: 14,
-          padding: "16px 18px",
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }}>
-          {t("admin.talent.edit.workflow.visibilityLabel")}
-        </div>
-        <div style={{ fontSize: 12.5, color: C.inkMuted, marginBottom: 4, lineHeight: 1.5 }}>
-          {agencyVisibility === "featured"
-            ? t("admin.talent.edit.workflow.featured")
-            : agencyVisibility === "site_visible"
-              ? t("admin.talent.edit.workflow.siteVisible")
-              : t("admin.talent.edit.workflow.rosterOnly")}
-        </div>
-        <div style={{ fontSize: 11, color: C.inkDim, lineHeight: 1.4 }}>
-          {t("admin.talent.edit.workflow.visibilityHint")}
-        </div>
+        <button
+          type="button"
+          onClick={() => apply(!visible)}
+          disabled={pending}
+          style={{
+            width: "100%",
+            marginTop: 12,
+            background: visible ? "transparent" : C.accent,
+            color: visible ? C.inkMuted : "#fff",
+            border: visible ? `1px solid ${C.border}` : "none",
+            padding: "9px 0",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            fontFamily: F,
+            cursor: pending ? "not-allowed" : "pointer",
+            opacity: pending ? 0.6 : 1,
+          }}
+        >
+          {pending
+            ? "Saving…"
+            : visible
+              ? "Hide from directory"
+              : "Show in directory"}
+        </button>
       </div>
 
       {/* Public profile link */}
@@ -1134,9 +1070,8 @@ export function TalentEditForm({
         <WorkflowSidebar
           tenantSlug={tenantSlug}
           talentId={talentId}
-          workflowStatus={initial.workflow_status}
-          visibility={initial.visibility}
           agencyVisibility={initial.agency_visibility}
+          talentHidden={initial.is_publicly_hidden}
           profileCode={initial.profile_code}
           locale={locale}
         />

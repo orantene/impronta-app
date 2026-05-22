@@ -30,10 +30,12 @@ export type TalentSurface = "freelancer" | "agency" | "hub" | "admin";
 /**
  * Minimal shape of a `talent_profiles` row the resolver needs. Callers pass
  * the subset they've loaded — the resolver does not reach into other columns.
+ *
+ * `is_publicly_hidden` is the talent-controlled global kill-switch. The legacy
+ * `workflow_status` / `visibility` lifecycle no longer gates public display.
  */
 export interface TalentVisibilityProfile {
-  workflow_status: string | null;
-  visibility: string | null;
+  is_publicly_hidden: boolean;
   deleted_at: string | null;
 }
 
@@ -68,13 +70,12 @@ export type TalentVisibilityResult =
 
 /**
  * Baseline freelancer-surface rules: a talent is publicly visible on the app
- * host iff their profile itself is approved + public + not soft-deleted.
+ * host iff they have not globally hidden themselves and are not soft-deleted.
  * Agency and hub surfaces layer their own roster checks on top of this rule.
  */
 function freelancerRulesPass(p: TalentVisibilityProfile): boolean {
   if (p.deleted_at !== null) return false;
-  if (p.workflow_status !== "approved") return false;
-  if (p.visibility !== "public") return false;
+  if (p.is_publicly_hidden) return false;
   return true;
 }
 
@@ -84,7 +85,7 @@ function freelancerRulesPass(p: TalentVisibilityProfile): boolean {
  * Contract summary (§11.2):
  *
  *   freelancer (app host /t/[code])
- *     visible iff workflow_status='approved' AND visibility='public' AND deleted_at IS NULL.
+ *     visible iff is_publicly_hidden = false AND deleted_at IS NULL.
  *
  *   agency (storefront)
  *     freelancer rules AND roster row where

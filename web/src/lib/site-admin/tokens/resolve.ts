@@ -158,6 +158,7 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "density.section-padding": "data-token-density-section-padding",
   "density.container-width": "data-token-density-container-width",
   "icon.family": "data-token-icon-family",
+  "favorite.icon": "data-token-favorite-icon",
   "shell.header-variant": "data-token-shell-header-variant",
   "shell.header-sticky": "data-token-shell-header-sticky",
   "shell.header-transparent-on-hero": "data-token-shell-header-transparent-on-hero",

@@ -28,7 +28,6 @@ export type DrawerId =
   // WS-25.2 — Bulk client import via CSV (mirrors talent import)
   | "client-csv-bulk-add"
   | "my-profile"
-  | "design"
   | "homepage"
   | "pages"
   | "posts"
@@ -72,7 +71,6 @@ export type DrawerId =
   | "activation-checklist"
   | "tenant-summary"
   | "site-setup"
-  | "theme-foundations"
   | "widgets"
   | "api-keys"
   | "notifications"

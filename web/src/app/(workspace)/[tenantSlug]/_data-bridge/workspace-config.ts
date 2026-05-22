@@ -57,6 +57,17 @@ export async function loadWorkspaceAgencySummary(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
+    // Self-heal an expired platform plan override before reading the plan,
+    // so the workspace's own dashboard / billing / gates stay honest. The
+    // RPC is SECURITY DEFINER + idempotent — a no-op when nothing expired.
+    try {
+      await supabase.rpc("reconcile_expired_plan_overrides", {
+        p_tenant_id: tenantId,
+      });
+    } catch {
+      // Non-fatal — the platform-side sweep reconciles too.
+    }
+
     const [agencyRes, identityRes, rosterCountRes] = await Promise.all([
       supabase
         .from("agencies")

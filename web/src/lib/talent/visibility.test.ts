@@ -12,12 +12,11 @@ import {
 // Fixture builders
 // ---------------------------------------------------------------------------
 
-function publicApprovedProfile(
+function visibleProfile(
   overrides: Partial<TalentVisibilityProfile> = {},
 ): TalentVisibilityProfile {
   return {
-    workflow_status: "approved",
-    visibility: "public",
+    is_publicly_hidden: false,
     deleted_at: null,
     ...overrides,
   };
@@ -43,9 +42,9 @@ const HUB_ID = "00000000-0000-0000-0000-000000000002";
 // Freelancer surface (app host /t/[code])
 // ---------------------------------------------------------------------------
 
-test("freelancer: approved+public talent is visible; overlays disallowed", () => {
+test("freelancer: non-hidden talent is visible; overlays disallowed", () => {
   const r = resolveTalentVisibility(
-    { profile: publicApprovedProfile() },
+    { profile: visibleProfile() },
     "freelancer",
   );
   assert.equal(r.visible, true);
@@ -55,17 +54,9 @@ test("freelancer: approved+public talent is visible; overlays disallowed", () =>
   }
 });
 
-test("freelancer: non-approved talent is hidden", () => {
+test("freelancer: globally hidden talent is hidden", () => {
   const r = resolveTalentVisibility(
-    { profile: publicApprovedProfile({ workflow_status: "pending" }) },
-    "freelancer",
-  );
-  assert.equal(r.visible, false);
-});
-
-test("freelancer: hidden-visibility talent is hidden", () => {
-  const r = resolveTalentVisibility(
-    { profile: publicApprovedProfile({ visibility: "hidden" }) },
+    { profile: visibleProfile({ is_publicly_hidden: true }) },
     "freelancer",
   );
   assert.equal(r.visible, false);
@@ -74,7 +65,7 @@ test("freelancer: hidden-visibility talent is hidden", () => {
 test("freelancer: soft-deleted talent is hidden", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile({
+      profile: visibleProfile({
         deleted_at: "2026-01-01T00:00:00Z",
       }),
     },
@@ -89,7 +80,7 @@ test("freelancer: soft-deleted talent is hidden", () => {
 
 test("agency: requires orgId", () => {
   const r = resolveTalentVisibility(
-    { profile: publicApprovedProfile(), roster: roster() },
+    { profile: visibleProfile(), roster: roster() },
     "agency",
   );
   assert.equal(r.visible, false);
@@ -98,7 +89,7 @@ test("agency: requires orgId", () => {
 test("agency: site_visible roster row grants visibility + overlays", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({ agency_visibility: "site_visible" }),
     },
     "agency",
@@ -114,7 +105,7 @@ test("agency: site_visible roster row grants visibility + overlays", () => {
 test("agency: featured roster row grants visibility + overlays", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({ agency_visibility: "featured" }),
     },
     "agency",
@@ -126,8 +117,20 @@ test("agency: featured roster row grants visibility + overlays", () => {
 test("agency: roster_only hides from storefront", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({ agency_visibility: "roster_only" }),
+    },
+    "agency",
+    TENANT_A,
+  );
+  assert.equal(r.visible, false);
+});
+
+test("agency: globally hidden talent is hidden even when site_visible", () => {
+  const r = resolveTalentVisibility(
+    {
+      profile: visibleProfile({ is_publicly_hidden: true }),
+      roster: roster({ agency_visibility: "site_visible" }),
     },
     "agency",
     TENANT_A,
@@ -138,7 +141,7 @@ test("agency: roster_only hides from storefront", () => {
 test("agency: tenant mismatch hides talent", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({ tenant_id: TENANT_A }),
     },
     "agency",
@@ -149,7 +152,7 @@ test("agency: tenant mismatch hides talent", () => {
 
 test("agency: no roster row hides talent", () => {
   const r = resolveTalentVisibility(
-    { profile: publicApprovedProfile(), roster: null },
+    { profile: visibleProfile(), roster: null },
     "agency",
     TENANT_A,
   );
@@ -163,7 +166,7 @@ test("agency: no roster row hides talent", () => {
 test("hub: approved hub_visibility_status grants visibility; overlays disallowed", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({
         tenant_id: HUB_ID,
         hub_visibility_status: "approved",
@@ -183,7 +186,7 @@ test("hub: approved hub_visibility_status grants visibility; overlays disallowed
 test("hub: not_submitted hides talent", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({
         tenant_id: HUB_ID,
         hub_visibility_status: "not_submitted",
@@ -198,7 +201,7 @@ test("hub: not_submitted hides talent", () => {
 test("hub: pending hides talent", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile(),
+      profile: visibleProfile(),
       roster: roster({
         tenant_id: HUB_ID,
         hub_visibility_status: "pending",
@@ -217,10 +220,7 @@ test("hub: pending hides talent", () => {
 test("admin: always visible (caller pre-authorised)", () => {
   const r = resolveTalentVisibility(
     {
-      profile: publicApprovedProfile({
-        workflow_status: "pending",
-        visibility: "hidden",
-      }),
+      profile: visibleProfile({ is_publicly_hidden: true }),
     },
     "admin",
   );
