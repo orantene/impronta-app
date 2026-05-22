@@ -6,14 +6,13 @@
  * Spec: web/docs/inquiry-engine-spec-2026-05-14.md §15 + §18
  * Plan: web/docs/client-execution-plan-2026-05-14.md §21.2
  *
- * Three entry points the UI calls:
+ * Two entry points the UI calls:
  *   • saveDraftAction          — autosave a draft (10s + blur + visibility)
- *   • submitDraftAction        — submit a previously saved draft
  *   • submitInquiryNowAction   — one-shot submit without a draft (fast path)
  *
- * All three funnel into the canonical engine
- * (createInquiryFromIntent / saveInquiryDraft / submitInquiryDraft) so the
- * UI never assembles SubmitInquiryInput by hand.
+ * Both funnel into the canonical engine
+ * (createInquiryFromIntent / saveInquiryDraft) so the UI never assembles
+ * SubmitInquiryInput by hand.
  *
  * Returns flat ActionState objects compatible with React's useActionState.
  */
@@ -241,6 +240,43 @@ export async function submitInquiryNowAction(
     client_user_id: clientUserId,
     guest_session_id: ctx.guestSessionId,
   });
+
+  // Upload any attached files (non-fatal — inquiry is already created).
+  if (result.ok) {
+    const rawFiles = formData.getAll("files[]");
+    const files = rawFiles.filter(
+      (v): v is File => v instanceof File && v.size > 0 && v.size <= 20 * 1024 * 1024,
+    );
+    if (files.length > 0) {
+      // ctx.writeClient is already the service-role client (see resolveSubmitContext).
+      const uploadClient = ctx.writeClient;
+      for (const file of files) {
+        const objectId = crypto.randomUUID();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const storagePath = `${ctx.tenantId}/${result.inquiryId}/${objectId}-${safeName}`;
+        const buf = await file.arrayBuffer();
+        const { error: uploadErr } = await uploadClient.storage
+          .from("inquiry-files")
+          .upload(storagePath, buf, { contentType: file.type || "application/octet-stream", upsert: false });
+        if (uploadErr) {
+          logServerError("inquiry-intent-actions.uploadFile", new Error(uploadErr.message));
+          continue;
+        }
+        await uploadClient.from("inquiry_attachments").insert({
+          tenant_id: ctx.tenantId,
+          inquiry_id: result.inquiryId,
+          storage_path: storagePath,
+          filename: file.name,
+          mime_type: file.type || "application/octet-stream",
+          byte_size: file.size,
+          attachment_kind: "moodboard",
+          visibility: "agency_and_client",
+        });
+      }
+    }
+  }
+
+
   return finalizeSubmit(result, tenantSlug, {
     isGuest: !ctx.actorUserId,
     guestActivation,

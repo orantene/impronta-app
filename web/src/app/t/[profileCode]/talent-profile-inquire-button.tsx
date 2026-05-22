@@ -51,6 +51,7 @@ type InquireData = {
   defaultName?: string;
   defaultPhone?: string;
   defaultCompany?: string;
+  userId?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -80,6 +81,7 @@ export function TalentProfileInquireButton({
         defaultName: result.defaultName,
         defaultPhone: result.defaultPhone,
         defaultCompany: result.defaultCompany,
+        userId: result.userId,
       });
     });
   }, []);
@@ -128,6 +130,7 @@ export function TalentProfileInquireButton({
               name: data.defaultName ?? "",
               email: data.defaultEmail ?? "",
               phone: data.defaultPhone ?? "",
+              user_id: isLoggedIn ? data.userId ?? null : null,
               trust_level: isLoggedIn ? "verified" : "basic",
             },
             client: {
@@ -149,7 +152,7 @@ export function TalentProfileInquireButton({
           client={
             isLoggedIn
               ? {
-                  user_id: undefined, // server-resolved at submit time
+                  user_id: data.userId ?? null,
                   displayName: data.defaultName,
                   email: data.defaultEmail,
                   phone: data.defaultPhone,

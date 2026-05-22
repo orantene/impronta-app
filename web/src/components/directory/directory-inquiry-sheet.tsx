@@ -5,16 +5,18 @@
  *
  * Lane B / B2 (2026-05-22): the form body is now the canonical
  * `InquiryDrawer` (→ `submitInquiryNowAction` → `submitInquiry` engine),
- * replacing the legacy `InquiryCartForm` divergence. The directory's
- * value-add features survive the swap (execution-plan risk #3):
- *   • AI-draft strip + talent quick-add ride in via the drawer's
- *     `composeHeaderSlot`.
- *   • The shortlist (saved_talent cart) stays live inside the composer
- *     via `bindToInquiryCart` — the canonical `useInquiryCart` contract.
+ * replacing the legacy `InquiryCartForm` divergence.
  *
- * Auxiliary states (loading / unconfigured / inquiries-paused / the
- * email-deep-link success panel) render in a light side sheet; the
- * compose state renders the full `InquiryDrawer`.
+ * The directory's talent quick-add survives the swap (execution-plan
+ * risk #3): it rides in through the drawer's `talentToolsSlot`, rendered
+ * inside the Talent section right beside the selected-talent chips. The
+ * shortlist (saved_talent cart) stays live inside the composer via
+ * `bindToInquiryCart` — the canonical `useInquiryCart` contract.
+ *
+ * The payload is prefetched on mount so the composer opens instantly
+ * (no loading-sheet flash). Auxiliary states (unconfigured /
+ * inquiries-paused / the email-deep-link success panel) render in a
+ * light side sheet; the compose state renders the full `InquiryDrawer`.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -24,17 +26,9 @@ import { getDirectoryInquirySheetData } from "@/app/(public)/directory/get-inqui
 import { DirectoryInquirySuccessPanel } from "@/components/directory/directory-inquiry-success-panel";
 import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
-import { InquiryAiStrip } from "@/components/directory/inquiry-ai-strip";
 import { InquiryTalentQuickAdd } from "@/components/directory/inquiry-talent-quick-add";
-import { InquiryDrawer, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
+import { InquiryDrawer, InquiryDrawerShell, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { Locale } from "@/i18n/config";
 import type { DirectoryInquiryPayload } from "@/lib/load-directory-inquiry-payload";
@@ -56,9 +50,11 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     });
   }, []);
 
-  // Load (and refresh) the payload whenever the sheet opens for composing.
+  // Prefetch on mount + refresh whenever the sheet opens. The mount
+  // prefetch means the canonical InquiryDrawer is ready the instant the
+  // user clicks "Your inquiry" — no transient loading sheet, no swap from
+  // one drawer to another.
   useEffect(() => {
-    if (!open) return;
     if (success) return;
     refreshPayload();
   }, [open, success, refreshPayload]);
@@ -79,7 +75,9 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
     const roster: RosterLiteItem[] = ready.orderedTalent.map((t) => ({
       id: t.id,
       name: t.display_name ?? s.talentFallbackName,
+      photoUrl: t.photo_url,
     }));
+    const isClient = ready.mode === "client";
 
     return (
       <InquiryDrawer
@@ -87,9 +85,8 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
         tenantSlug={ready.tenantSlug}
         agencyName={ready.agencyName}
         client={
-          ready.mode === "client"
+          isClient
             ? {
-                // user_id is resolved server-side from the session at submit.
                 displayName: ready.defaultName,
                 email: ready.defaultEmail,
                 phone: ready.defaultPhone,
@@ -106,7 +103,7 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             name: ready.defaultName ?? "",
             email: ready.defaultEmail ?? "",
             phone: ready.defaultPhone ?? "",
-            trust_level: ready.mode === "client" ? "verified" : "basic",
+            trust_level: isClient ? "verified" : "basic",
           },
           client: {
             company: ready.defaultCompany ?? "",
@@ -127,62 +124,52 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             },
           },
         }}
-        composeHeaderSlot={
-          <div className="flex flex-col gap-3">
-            <InquiryAiStrip
-              title={ui.inquirySheet.aiAssistTitle}
-              body={ui.inquirySheet.aiAssistBody}
-            />
-            <InquiryTalentQuickAdd copy={ui.inquiryQuickAdd} />
-          </div>
-        }
+        talentToolsSlot={<InquiryTalentQuickAdd copy={ui.inquiryQuickAdd} />}
         onClose={() => handleOpenChange(false)}
       />
     );
   }
 
+  // Prefetch in-flight: don't render the auxiliary shell while the payload
+  // is still loading. Only fall through when there's a definite reason
+  // (success, unconfigured, or paused — all require `payload` to be set).
+  if (!success && !payload) return null;
+
+  // ── Auxiliary states — InquiryDrawerShell for visual consistency ──
+  const auxTitle = success ? s.titleThankYou : s.titleStartInquiry;
+  const auxSubtitle = success ? s.descThankYou : s.descEmptyShortlist;
+
   // ── Auxiliary states — light side sheet ──────────────────────────────────
   return (
-    <Drawer open={open} onOpenChange={handleOpenChange}>
-      <DrawerContent
-        side="right"
-        className="flex w-full max-w-lg flex-col border-l border-border/80 bg-background p-0 sm:max-w-xl"
-      >
-        <div className="border-b border-border/60 px-6 pb-4 pt-6 pr-14">
-          <DrawerHeader className="space-y-1 p-0 text-left">
-            <DrawerTitle className="font-display text-xl tracking-wide">
-              {success ? s.titleThankYou : s.titleStartInquiry}
-            </DrawerTitle>
-            <DrawerDescription className="text-m text-muted-foreground">
-              {success ? s.descThankYou : s.descEmptyShortlist}
-            </DrawerDescription>
-          </DrawerHeader>
-        </div>
+    <InquiryDrawerShell
+      label="Inquiry"
+      title={auxTitle}
+      subtitle={auxSubtitle}
+      onClose={() => handleOpenChange(false)}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {success ? (
+          <DirectoryInquirySuccessPanel
+            success={success}
+            signedIn={success.email === null}
+            copy={ui.inquirySuccess}
+          />
+        ) : payload?.kind === "unconfigured" ? (
+          <p className="text-sm text-destructive">{s.unconfigured}</p>
+        ) : !ready ? (
+          <p className="text-sm text-muted-foreground">{s.loading}</p>
+        ) : !ready.tenantSlug ? (
+          <p className="text-sm text-destructive">{s.unconfigured}</p>
+        ) : (
+          <p className="rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-m text-muted-foreground">
+            {s.inquiriesPausedNotice}
+          </p>
+        )}
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
-          {success ? (
-            <DirectoryInquirySuccessPanel
-              success={success}
-              signedIn={success.email === null}
-              copy={ui.inquirySuccess}
-            />
-          ) : payload?.kind === "unconfigured" ? (
-            <p className="text-sm text-destructive">{s.unconfigured}</p>
-          ) : !ready ? (
-            <p className="text-sm text-muted-foreground">{s.loading}</p>
-          ) : !ready.tenantSlug ? (
-            <p className="text-sm text-destructive">{s.unconfigured}</p>
-          ) : (
-            <p className="rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-m text-muted-foreground">
-              {s.inquiriesPausedNotice}
-            </p>
-          )}
-
-          <Button variant="ghost" className="w-full text-muted-foreground" asChild>
-            <Link href="/directory">{s.backToDirectory}</Link>
-          </Button>
-        </div>
-      </DrawerContent>
-    </Drawer>
+        <Button variant="ghost" className="w-full text-muted-foreground" asChild>
+          <Link href="/directory">{s.backToDirectory}</Link>
+        </Button>
+      </div>
+    </InquiryDrawerShell>
   );
 }

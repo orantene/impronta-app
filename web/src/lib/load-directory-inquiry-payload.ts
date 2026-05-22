@@ -6,11 +6,14 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 export type DirectoryInquiryOrderedTalent = {
   id: string;
   profile_code: string;
   display_name: string | null;
+  /** Public card-thumbnail URL — drives the composer's talent mini-cards. */
+  photo_url: string | null;
 };
 
 export type DirectoryInquiryPayload =
@@ -58,13 +61,12 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   const tenantSlug = hostCtx.kind === "agency" ? hostCtx.tenantSlug : "";
   let agencyName = "the agency";
   if (hostCtx.tenantId) {
-    const { data: agencyRow } = await pub
-      .from("agencies")
-      .select("display_name")
-      .eq("id", hostCtx.tenantId)
-      .maybeSingle();
-    const displayName = (agencyRow?.display_name as string | null)?.trim();
-    if (displayName) agencyName = displayName;
+    // The storefront brand name lives in `agency_business_identity.public_name`
+    // (the same source the public header uses). The `agencies` table is not
+    // readable by the anon client, so resolve it via loadPublicIdentity.
+    const identity = await loadPublicIdentity(hostCtx.tenantId);
+    const publicName = identity?.public_name?.trim();
+    if (publicName) agencyName = publicName;
   }
   if (guestKey) {
     await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
@@ -107,14 +109,47 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
           .from("talent_profiles")
           .select("id, profile_code, display_name")
           .in("id", talentIds)
-      : { data: [] as DirectoryInquiryOrderedTalent[] };
+      : { data: [] as { id: string; profile_code: string; display_name: string | null }[] };
+
+  // Card-thumbnail per talent — so the composer can render a face, not a
+  // bare name chip. `variant_kind = 'card'` is the directory card crop;
+  // pick the first approved, non-deleted one per talent.
+  const photoByTalent = new Map<string, string>();
+  if (talentIds.length > 0) {
+    const { data: mediaRows } = await pub
+      .from("media_assets")
+      .select("owner_talent_profile_id, bucket_id, storage_path, variant_kind, sort_order")
+      .in("owner_talent_profile_id", talentIds)
+      .eq("variant_kind", "card")
+      .eq("approval_state", "approved")
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true });
+    for (const m of mediaRows ?? []) {
+      const ownerId = m.owner_talent_profile_id as string;
+      if (photoByTalent.has(ownerId)) continue;
+      if (!m.bucket_id || !m.storage_path) continue;
+      const { data: pubUrl } = pub.storage
+        .from(m.bucket_id as string)
+        .getPublicUrl(m.storage_path as string);
+      if (pubUrl?.publicUrl) photoByTalent.set(ownerId, pubUrl.publicUrl);
+    }
+  }
 
   const talentMap = new Map(
     (talentRows ?? []).map((t) => [t.id, t] as const),
   );
-  const orderedTalent = talentIds
-    .map((id) => talentMap.get(id))
-    .filter(Boolean) as DirectoryInquiryOrderedTalent[];
+  const orderedTalent: DirectoryInquiryOrderedTalent[] = talentIds
+    .map((id) => {
+      const row = talentMap.get(id);
+      if (!row) return null;
+      return {
+        id: row.id,
+        profile_code: row.profile_code,
+        display_name: row.display_name,
+        photo_url: photoByTalent.get(id) ?? null,
+      };
+    })
+    .filter((t): t is DirectoryInquiryOrderedTalent => t !== null);
 
   const { data: eventTypes } = await pub
     .from("taxonomy_terms")

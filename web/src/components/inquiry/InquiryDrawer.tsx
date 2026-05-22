@@ -20,8 +20,9 @@
  * Per spec §10 the desktop layout uses 2 columns; mobile collapses to 1.
  */
 
-import { useState, useEffect, useRef, useTransition, useMemo } from "react";
+import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
+import Image from "next/image";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -72,6 +73,8 @@ export type RosterLiteItem = {
   name: string;
   primaryTypeLabel?: string;
   city?: string;
+  /** Public card-thumbnail URL — renders the talent's face in the picker. */
+  photoUrl?: string | null;
 };
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
@@ -110,11 +113,11 @@ export type InquiryDrawerProps = {
    */
   bindToInquiryCart?: boolean;
   /**
-   * Optional content rendered at the top of the compose body — used by the
-   * directory to keep its AI-draft strip + talent quick-add inside the
-   * canonical composer (execution-plan risk #3: don't strip those features).
+   * Optional tools rendered inside the Talent section, beside the
+   * selected-talent chips — used by the directory to host its talent
+   * quick-add search next to the chips it populates.
    */
-  composeHeaderSlot?: React.ReactNode;
+  talentToolsSlot?: React.ReactNode;
   onClose: () => void;
 };
 
@@ -128,7 +131,7 @@ export function InquiryDrawer({
   roster = [],
   enableDraftAutosave,
   bindToInquiryCart = false,
-  composeHeaderSlot,
+  talentToolsSlot,
   onClose,
 }: InquiryDrawerProps) {
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
@@ -148,6 +151,57 @@ export function InquiryDrawer({
   const [intent, setIntent] = useState<InquiryIntent>(defaults);
 
   const [step, setStep] = useState<"compose" | "review">("compose");
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+
+  // ─ Inquiry-cart binding (B2 — directory shortlist ⟷ composer) ─────────────
+  // `useInquiryCart` is provider-optional: on the client dashboard (no
+  // PublicDiscoveryState) it is inert and the sync effect below no-ops.
+  const cart = useInquiryCart();
+  const cartKey = cart.cartIds.join(",");
+  useEffect(() => {
+    if (!bindToInquiryCart) return;
+    setIntent((cur) => {
+      const next = cartKey ? cartKey.split(",") : [];
+      const curIds = cur.talent?.selected_ids ?? [];
+      if (
+        curIds.length === next.length
+        && curIds.every((id, i) => id === next[i])
+      ) {
+        return cur;
+      }
+      return {
+        ...cur,
+        talent: {
+          ...cur.talent,
+          selected_ids: next,
+          selection_mode: cur.talent?.selection_mode ?? "i_know_who",
+        },
+      };
+    });
+  }, [bindToInquiryCart, cartKey]);
+
+  const removeTalentFromCart = bindToInquiryCart
+    ? (id: string) =>
+        cart.setInCart({ talentProfileId: id, profileCode: "" }, false)
+    : undefined;
+
+  // ─ Submit ────────────────────────────────────────────────────────────────
+  const [submitState, submitFormAction, submitting] = useActionState<
+    InquiryIntentActionState,
+    FormData
+  >(submitInquiryNowAction, { kind: "idle" });
+  const submitted = submitState.kind === "submitted";
+
+  // B2 — once the inquiry is submitted, empty the inquiry cart so the next
+  // inquiry doesn't pre-load this one's now-consumed shortlist. Runs once.
+  const cartClearedRef = useRef(false);
+  useEffect(() => {
+    if (!bindToInquiryCart || !submitted || cartClearedRef.current) return;
+    cartClearedRef.current = true;
+    for (const id of cart.cartIds) {
+      cart.setInCart({ talentProfileId: id, profileCode: "" }, false);
+    }
+  }, [bindToInquiryCart, submitted, cart]);
 
   // ─ Inquiry-cart binding (B2 — directory shortlist ⟷ composer) ─────────────
   // `useInquiryCart` is provider-optional: on the client dashboard (no
@@ -249,6 +303,7 @@ export function InquiryDrawer({
     const fd = new FormData();
     fd.set("tenantSlug", tenantSlug);
     fd.set("intent", JSON.stringify(intent));
+    stagedFiles.forEach((f) => fd.append("files[]", f));
     submitFormAction(fd);
   };
 
@@ -368,14 +423,16 @@ export function InquiryDrawer({
               setBrief={(v) => update("brief", v)}
               setFiles={(v) => update("files", v)}
               setLinks={(v) => update("links", v)}
+              stagedFiles={stagedFiles}
+              onStagedFiles={setStagedFiles}
               roster={roster}
               client={client}
-              headerSlot={composeHeaderSlot}
+              talentToolsSlot={talentToolsSlot}
               boundToCart={bindToInquiryCart}
               onRemoveTalent={removeTalentFromCart}
             />
           ) : (
-            <Review intent={intent} agencyName={agencyName} />
+            <Review intent={intent} agencyName={agencyName} stagedFiles={stagedFiles} />
           )}
         </div>
 
@@ -453,10 +510,12 @@ function Compose(props: {
   setBrief: (v: InquiryBrief) => void;
   setFiles: (v: InquiryAttachment[] | undefined) => void;
   setLinks: (v: string[] | undefined) => void;
+  stagedFiles: File[];
+  onStagedFiles: (v: File[]) => void;
   roster: RosterLiteItem[];
   client: InquiryDrawerProps["client"];
-  /** B2 — optional content above the sections (directory AI strip + quick-add). */
-  headerSlot?: React.ReactNode;
+  /** B2 — extra tools rendered inside the Talent section (directory quick-add). */
+  talentToolsSlot?: React.ReactNode;
   /** B2 — selected talent is driven by the inquiry cart, not local edits. */
   boundToCart?: boolean;
   /** B2 — when cart-bound, removing a chip writes back to the cart. */
@@ -484,6 +543,7 @@ function Compose(props: {
         roster={props.roster}
         boundToCart={props.boundToCart}
         onRemoveTalent={props.onRemoveTalent}
+        toolsSlot={props.talentToolsSlot}
       />
       <BudgetSection
         value={intent.budget ?? {}}
@@ -493,12 +553,26 @@ function Compose(props: {
       <BriefSection
         value={intent.brief ?? {}}
         onChange={props.setBrief}
+        context={{
+          talentNames: (intent.talent?.selected_ids ?? [])
+            .map((id) => props.roster.find((r) => r.id === id)?.name ?? "")
+            .filter(Boolean),
+          eventLocation: [intent.location?.city, intent.location?.country]
+            .filter(Boolean)
+            .join(", "),
+          eventDate: intent.date?.event_date ?? "",
+          talentCount: intent.talent?.count_needed != null
+            ? String(intent.talent.count_needed)
+            : "",
+        }}
       />
       <FilesLinksSection
         files={intent.files ?? []}
         links={intent.links ?? []}
         onFiles={props.setFiles}
         onLinks={props.setLinks}
+        stagedFiles={props.stagedFiles}
+        onStagedFiles={props.onStagedFiles}
       />
     </div>
   );
@@ -557,7 +631,8 @@ function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: Inquir
     <div style={trustCardStyle(C.amberSoft, C.amber)}>
       <div className="font-bold">New client</div>
       <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
-        Contact info required so the agency can follow up. You&apos;ll get a magic-link to track this inquiry after submit.
+        Your contact info lets the agency follow up. You can set up a free account
+        right after sending to track this inquiry.
       </div>
     </div>
   );
@@ -634,8 +709,121 @@ function ClientSection({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section: Location (spec §5) — basic text + status, Google Places hookup TODO
+// Section: Location (spec §5) — City autocomplete via /api/location-cities
 // ─────────────────────────────────────────────────────────────────────────────
+
+type CitySuggestion = {
+  name_en: string;
+  country_iso2: string;
+  country_name_en: string;
+  subtitle?: string | null;
+};
+
+function CityAutocomplete({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (city: string, countryIso2: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Guard: onMouseDown on a suggestion fires before the input's onBlur.
+  // Without this flag, onBlur would call onSelect(draft, "") and clobber
+  // the country that handleSelect just set via onSelect(city, iso2).
+  const justSelectedRef = useRef(false);
+
+  // Sync external value changes (e.g. intent reset).
+  useEffect(() => { setDraft(value); }, [value]);
+
+  const fetchSuggestions = useCallback((q: string) => {
+    if (q.trim().length < 2) { setSuggestions([]); setOpen(false); return; }
+    void fetch(`/api/location-cities?query=${encodeURIComponent(q)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list: CitySuggestion[] = (data.cities ?? []).slice(0, 6);
+        setSuggestions(list);
+        setOpen(list.length > 0);
+      })
+      .catch(() => { setSuggestions([]); setOpen(false); });
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setDraft(q);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => fetchSuggestions(q), 300);
+  };
+
+  const handleSelect = (s: CitySuggestion) => {
+    justSelectedRef.current = true;
+    setDraft(s.name_en);
+    setSuggestions([]);
+    setOpen(false);
+    onSelect(s.name_en, s.country_iso2);
+  };
+
+  // Close on outside click; clear debounce on unmount.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      <input
+        type="text"
+        value={draft}
+        onChange={handleChange}
+        onBlur={() => {
+          // If the user just clicked a suggestion, handleSelect already called
+          // onSelect with the correct countryIso2 — skip the free-text flush
+          // to avoid a second setState that would clobber the country.
+          if (justSelectedRef.current) { justSelectedRef.current = false; return; }
+          if (draft !== value) onSelect(draft, "");
+        }}
+        placeholder="e.g. Tulum"
+        style={inputStyle}
+      />
+      {open && suggestions.length > 0 && (
+        <ul style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+          zIndex: 200, margin: 0, padding: "4px 0", listStyle: "none",
+          background: "#fff", borderRadius: 8, border: `1px solid ${C.border}`,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.10)", fontFamily: FONT,
+        }}>
+          {suggestions.map((s, i) => (
+            <li
+              key={i}
+              onMouseDown={() => handleSelect(s)}
+              style={{
+                padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.ink,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.surfaceAlt)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+            >
+              <span style={{ fontWeight: 500 }}>{s.name_en}</span>
+              <span style={{ marginLeft: 6, fontSize: 11.5, color: C.inkMuted }}>
+                {s.subtitle ?? s.country_name_en}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function LocationSection({
   value, onChange,
@@ -653,10 +841,15 @@ function LocationSection({
       </FieldRow>
       <FieldRow>
         <Field label="City">
-          <Input
+          <CityAutocomplete
             value={value.city ?? ""}
-            onChange={(v) => onChange({ ...value, city: v })}
-            placeholder="e.g. Tulum"
+            onSelect={(city, countryIso2) =>
+              onChange({
+                ...value,
+                city,
+                ...(countryIso2 ? { country: countryIso2 } : {}),
+              })
+            }
           />
         </Field>
         <Field label="Country (optional)">
@@ -751,7 +944,7 @@ function DateSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TalentSection({
-  value, onChange, roster, boundToCart = false, onRemoveTalent,
+  value, onChange, roster, boundToCart = false, onRemoveTalent, toolsSlot,
 }: {
   value: InquiryTalent;
   onChange: (v: InquiryTalent) => void;
@@ -760,6 +953,8 @@ function TalentSection({
   boundToCart?: boolean;
   /** B2 — cart-bound removal handler. */
   onRemoveTalent?: (id: string) => void;
+  /** B2 — extra add-talent tools (directory quick-add) shown with the list. */
+  toolsSlot?: React.ReactNode;
 }) {
   const selected = value.selected_ids ?? [];
   const isAgencyMode = value.selection_mode === "agency_recommends" || selected.length === 0;
@@ -796,20 +991,52 @@ function TalentSection({
       </div>
 
       {selected.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+            gap: 10,
+            marginBottom: 10,
+          }}
+        >
           {selected.map((id) => {
             const r = roster.find((r) => r.id === id);
+            const name = r?.name ?? "Talent";
             return (
-              <span key={id} style={chipStyle}>
-                {r?.name ?? id.slice(0, 8)}
-                {r?.primaryTypeLabel && <span style={{ color: C.inkMuted }}> · {r.primaryTypeLabel}</span>}
-                <button
-                  type="button"
-                  aria-label={`Remove ${r?.name ?? "talent"}`}
-                  onClick={() => removeTalent(id)}
-                  style={{ marginLeft: 6, border: "none", background: "transparent", cursor: "pointer", color: C.inkMuted }}
-                >×</button>
-              </span>
+              <div key={id} style={talentMiniCard}>
+                <div style={talentMiniPhotoWrap}>
+                  {r?.photoUrl ? (
+                    <Image
+                      src={r.photoUrl}
+                      alt={name}
+                      fill
+                      sizes="160px"
+                      style={{ objectFit: "cover" }}
+                    />
+                  ) : (
+                    <div style={talentMiniFallback}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.inkDim} strokeWidth={1.5}>
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => removeTalent(id)}
+                    style={talentMiniRemove}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ padding: "7px 9px 9px" }}>
+                  <div style={talentMiniName}>{name}</div>
+                  {r?.primaryTypeLabel && (
+                    <div style={talentMiniType}>{r.primaryTypeLabel}</div>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -838,6 +1065,11 @@ function TalentSection({
           </Field>
         </FieldRow>
       )}
+
+      {/* B2 — caller-supplied add-talent tools (directory quick-add search),
+          rendered right where the selected talent appears so adding a
+          talent and seeing it land are in the same place. */}
+      {toolsSlot && <div style={{ marginTop: 2 }}>{toolsSlot}</div>}
 
       {isAgencyMode && (
         <FieldRow>
@@ -932,10 +1164,56 @@ function BudgetSection({
 // Section: Brief / logistics (spec §9)
 // ─────────────────────────────────────────────────────────────────────────────
 
+type BriefContext = {
+  talentNames: string[];
+  eventLocation: string;
+  eventDate: string;
+  talentCount: string;
+};
+
 function BriefSection({
-  value, onChange,
-}: { value: InquiryBrief; onChange: (v: InquiryBrief) => void }) {
+  value, onChange, context,
+}: {
+  value: InquiryBrief;
+  onChange: (v: InquiryBrief) => void;
+  context: BriefContext;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const hasText = (value.summary ?? "").trim().length > 20;
+
+  const runAi = useCallback(async (action: "generate" | "polish") => {
+    setAiState("loading");
+    setAiError(null);
+    try {
+      const res = await fetch("/api/ai/inquiry-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          talentNames: context.talentNames,
+          eventLocation: context.eventLocation,
+          eventDate: context.eventDate,
+          quantity: context.talentCount,
+          currentMessage: value.summary ?? "",
+        }),
+      });
+      const data = await res.json() as { draft?: string; error?: string };
+      if (!res.ok || !data.draft) {
+        setAiError(data.error ?? "Couldn't generate a draft right now.");
+        setAiState("error");
+        return;
+      }
+      onChange({ ...value, summary: data.draft });
+      setAiState("idle");
+    } catch {
+      setAiError("Network error — try again.");
+      setAiState("error");
+    }
+  }, [context, value, onChange]);
+
   return (
     <Section title="What you need" subtitle="A short brief is enough to start.">
       <FieldRow>
@@ -948,6 +1226,54 @@ function BriefSection({
           />
         </Field>
       </FieldRow>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {!hasText && (
+          <button
+            type="button"
+            disabled={aiState === "loading"}
+            onClick={() => void runAi("generate")}
+            style={{
+              padding: "5px 10px",
+              background: C.accentSoft,
+              border: `1px solid rgba(29,78,216,0.18)`,
+              borderRadius: 7,
+              color: C.accent,
+              fontSize: 11.5,
+              fontWeight: 600,
+              fontFamily: FONT,
+              cursor: aiState === "loading" ? "not-allowed" : "pointer",
+              opacity: aiState === "loading" ? 0.6 : 1,
+            }}
+          >
+            {aiState === "loading" ? "Writing…" : "✦ Write a brief for me"}
+          </button>
+        )}
+        {hasText && (
+          <button
+            type="button"
+            disabled={aiState === "loading"}
+            onClick={() => void runAi("polish")}
+            style={{
+              padding: "5px 10px",
+              background: C.accentSoft,
+              border: `1px solid rgba(29,78,216,0.18)`,
+              borderRadius: 7,
+              color: C.accent,
+              fontSize: 11.5,
+              fontWeight: 600,
+              fontFamily: FONT,
+              cursor: aiState === "loading" ? "not-allowed" : "pointer",
+              opacity: aiState === "loading" ? 0.6 : 1,
+            }}
+          >
+            {aiState === "loading" ? "Polishing…" : "✦ Polish this brief"}
+          </button>
+        )}
+        {aiState === "error" && aiError && (
+          <span style={{ fontSize: 11.5, color: C.amber }}>{aiError}</span>
+        )}
+      </div>
 
       <button
         type="button"
@@ -1012,17 +1338,108 @@ function BriefSection({
 // Section: Files + links
 // ─────────────────────────────────────────────────────────────────────────────
 
+const FILE_MAX_BYTES = 20 * 1024 * 1024; // 20 MB client-side guard
+const FILE_MAX_COUNT = 10;
+const FILE_ACCEPT = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip";
+
 function FilesLinksSection({
-  files, links, onFiles, onLinks,
+  files, links, onFiles, onLinks, stagedFiles, onStagedFiles,
 }: {
   files: InquiryAttachment[];
   links: string[];
   onFiles: (v: InquiryAttachment[] | undefined) => void;
   onLinks: (v: string[] | undefined) => void;
+  stagedFiles: File[];
+  onStagedFiles: (v: File[]) => void;
 }) {
   const [linkDraft, setLinkDraft] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileWarning, setFileWarning] = useState<string | null>(null);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    const combined = [...stagedFiles, ...picked];
+    const oversized = picked.filter((f) => f.size > FILE_MAX_BYTES);
+    if (oversized.length > 0) {
+      setFileWarning(`${oversized.map((f) => f.name).join(", ")} ${oversized.length === 1 ? "is" : "are"} over 20 MB and won't be uploaded.`);
+    } else {
+      setFileWarning(null);
+    }
+    const valid = combined.filter((f) => f.size <= FILE_MAX_BYTES).slice(0, FILE_MAX_COUNT);
+    onStagedFiles(valid);
+    // Reset so the same file can be re-selected after removal.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [stagedFiles, onStagedFiles]);
+
+  const removeFile = useCallback((idx: number) => {
+    onStagedFiles(stagedFiles.filter((_, i) => i !== idx));
+  }, [stagedFiles, onStagedFiles]);
+
+  void files; void onFiles; // reserved for post-submit attachment display
+
   return (
     <Section title="Files & references" subtitle="Optional — moodboards, briefs, reference posts.">
+      {/* File picker */}
+      <div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={FILE_ACCEPT}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+          aria-label="Attach files"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={stagedFiles.length >= FILE_MAX_COUNT}
+          style={{
+            ...ghostBtn,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12.5,
+            opacity: stagedFiles.length >= FILE_MAX_COUNT ? 0.5 : 1,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>📎</span>
+          Attach files
+        </button>
+        <span style={{ marginLeft: 8, fontSize: 11, color: C.inkDim }}>
+          PDF, images, docs — up to 20 MB each, {FILE_MAX_COUNT} max
+        </span>
+      </div>
+
+      {stagedFiles.length > 0 && (
+        <ul style={{ margin: "4px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+          {stagedFiles.map((f, i) => (
+            <li
+              key={i}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: C.surfaceAlt, borderRadius: 6,
+                padding: "6px 10px", fontSize: 12.5, color: C.ink,
+              }}
+            >
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              <span style={{ fontSize: 11, color: C.inkMuted, flexShrink: 0 }}>{formatBytes(f.size)}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                aria-label={`Remove ${f.name}`}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: C.inkMuted, fontSize: 14, lineHeight: 1, padding: "0 2px" }}
+              >×</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {fileWarning && (
+        <div style={{ fontSize: 11.5, color: C.amber, marginTop: 2 }}>{fileWarning}</div>
+      )}
+
+      {/* Reference links */}
       <FieldRow>
         <Field label="Reference link">
           <div className="flex gap-2">
@@ -1046,7 +1463,7 @@ function FilesLinksSection({
         </Field>
       </FieldRow>
       {links.length > 0 && (
-        <ul style={{ margin: "6px 0 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+        <ul style={{ margin: "2px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
           {links.map((l, i) => (
             <li key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: C.inkMuted }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
@@ -1059,10 +1476,6 @@ function FilesLinksSection({
           ))}
         </ul>
       )}
-      <div style={{ fontSize: 11, color: C.inkDim, marginTop: 4 }}>
-        File uploads coming soon — for now, link-share via the references field.
-      </div>
-      {/* files + onFiles reserved for the upload UI shipping in B-4.1 */}
     </Section>
   );
 }
@@ -1071,7 +1484,7 @@ function FilesLinksSection({
 // Review step
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Review({ intent, agencyName }: { intent: InquiryIntent; agencyName: string }) {
+function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; agencyName: string; stagedFiles: File[] }) {
   const sameAsRequester = intent.client?.same_as_requester !== false;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13.5, color: C.ink, fontFamily: FONT }}>
@@ -1116,6 +1529,19 @@ function Review({ intent, agencyName }: { intent: InquiryIntent; agencyName: str
           {intent.brief?.summary ?? "—"}
         </span>
       </ReviewRow>
+      {(stagedFiles.length > 0 || (intent.links ?? []).length > 0) && (
+        <ReviewRow label="References">
+          {stagedFiles.length > 0 && (
+            <span>{stagedFiles.length} file{stagedFiles.length !== 1 ? "s" : ""} attached</span>
+          )}
+          {stagedFiles.length > 0 && (intent.links ?? []).length > 0 && (
+            <span style={{ color: C.inkMuted }}> · </span>
+          )}
+          {(intent.links ?? []).length > 0 && (
+            <span style={{ color: C.inkMuted }}>{(intent.links ?? []).length} link{(intent.links ?? []).length !== 1 ? "s" : ""}</span>
+          )}
+        </ReviewRow>
+      )}
     </div>
   );
 }
@@ -1149,9 +1575,24 @@ function SubmittedView({
   const messagesHref =
     `/${state.tenantSlug}/client/messages`
     + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
-  const loginHref = state.guestEmail
-    ? `/login?email=${encodeURIComponent(state.guestEmail)}`
-    : "/login";
+
+  // Guest follow-up CTA. The route is activation-dependent so the visitor
+  // never lands on a dead end:
+  //  • created  → a fresh account with no password yet → set-password flow.
+  //  • matched  → an existing account → password sign-in.
+  //  • unlinked → no account was linked → let them register.
+  const guestEmailQuery = state.guestEmail
+    ? `?email=${encodeURIComponent(state.guestEmail)}`
+    : "";
+  const guestCta =
+    state.guestActivation === "matched"
+      ? { href: `/login${guestEmailQuery}`, label: "Sign in to track" }
+      : state.guestActivation === "created"
+        ? {
+            href: `/forgot-password${guestEmailQuery}`,
+            label: "Set a password to track",
+          }
+        : { href: `/register${guestEmailQuery}`, label: "Create an account" };
 
   return (
     <div
@@ -1210,21 +1651,32 @@ function SubmittedView({
                 : "Track this inquiry"}
           </div>
           <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-            {state.guestEmail ? (
+            {state.guestActivation === "created" ? (
               <>
-                Sign in with <strong>{state.guestEmail}</strong> to follow this
-                inquiry — offers, messages, and updates all land in one place.
+                We started a free account for{" "}
+                {state.guestEmail ? <strong>{state.guestEmail}</strong> : "you"}.
+                Set a password to follow this inquiry — offers, messages, and
+                updates all land in one place.
+              </>
+            ) : state.guestActivation === "matched" ? (
+              <>
+                Sign in
+                {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
+                to follow this inquiry — offers, messages, and updates all land
+                in one place.
               </>
             ) : (
               <>
-                Sign in any time to follow this inquiry — offers, messages, and
-                updates all land in one place.
+                Create a free account
+                {state.guestEmail ? <> with <strong>{state.guestEmail}</strong></> : ""}{" "}
+                to follow this inquiry — offers, messages, and updates all land
+                in one place.
               </>
             )}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-            <a href={loginHref} style={primaryLinkStyle}>
-              Sign in to track
+            <a href={guestCta.href} style={primaryLinkStyle}>
+              {guestCta.label}
             </a>
           </div>
         </div>
@@ -1399,17 +1851,68 @@ const primaryLinkStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
-const chipStyle: React.CSSProperties = {
+// ─── Talent mini-card (selected-talent grid) ─────────────────────────────────
+const talentMiniCard: React.CSSProperties = {
+  background: "#fff",
+  border: `1px solid ${C.borderSoft}`,
+  borderRadius: 12,
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+};
+
+const talentMiniPhotoWrap: React.CSSProperties = {
+  position: "relative",
+  width: "100%",
+  aspectRatio: "4 / 5",
+  background: C.surfaceAlt,
+};
+
+const talentMiniFallback: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "linear-gradient(160deg, #F2F1EC, #E7E6DE)",
+};
+
+const talentMiniRemove: React.CSSProperties = {
+  position: "absolute",
+  top: 6,
+  right: 6,
+  width: 22,
+  height: 22,
+  borderRadius: 999,
+  border: "none",
+  background: "rgba(11,11,13,0.55)",
+  color: "#fff",
+  fontSize: 14,
+  lineHeight: 1,
+  cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
-  gap: 4,
-  padding: "5px 10px",
-  background: "#fff",
-  border: `1px solid ${C.border}`,
-  borderRadius: 999,
+  justifyContent: "center",
+};
+
+const talentMiniName: React.CSSProperties = {
   fontSize: 12.5,
-  fontFamily: FONT,
+  fontWeight: 600,
   color: C.ink,
+  fontFamily: FONT,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const talentMiniType: React.CSSProperties = {
+  fontSize: 11,
+  color: C.inkMuted,
+  fontFamily: FONT,
+  marginTop: 1,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
 
 const checkboxRow: React.CSSProperties = {
@@ -1494,4 +1997,124 @@ function formatRelative(iso: string): string {
   if (m < 60) return `${m} minutes ago`;
   const h = Math.floor(m / 60);
   return h === 1 ? "1 hour ago" : `${h} hours ago`;
+}
+
+function formatBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InquiryDrawerShell — reusable overlay + slide-in panel used by both the
+// full composer and the auxiliary states (loading / paused / unconfigured).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function InquiryDrawerShell({
+  label,
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+}: {
+  label?: string;
+  title: string;
+  subtitle?: React.ReactNode;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={label ?? title}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        display: "flex", justifyContent: "flex-end",
+        background: "rgba(11,11,13,0.48)",
+        backdropFilter: "blur(2px)",
+      }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          width: "min(720px, 100vw)",
+          height: "100dvh",
+          background: C.surface,
+          display: "flex", flexDirection: "column",
+          boxShadow: "-12px 0 40px rgba(0,0,0,0.18)",
+          fontFamily: FONT,
+          animation: "iq-drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <style dangerouslySetInnerHTML={{ __html: keyframesCSS }} />
+        <header
+          style={{
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+            padding: "16px 22px", borderBottom: `1px solid ${C.borderSoft}`,
+            background: "#fff", flexShrink: 0,
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            {label && (
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                {label}
+              </div>
+            )}
+            <h2 style={{ margin: label ? "3px 0 0" : 0, fontSize: 19, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
+              {title}
+            </h2>
+            {subtitle && (
+              <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: `1px solid ${C.borderSoft}`,
+              background: "transparent", color: C.ink, fontSize: 16,
+              cursor: "pointer", display: "inline-flex", alignItems: "center",
+              justifyContent: "center", flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </header>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
+          {children}
+        </div>
+        {footer && (
+          <footer
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 10, padding: "12px 22px",
+              borderTop: `1px solid ${C.borderSoft}`,
+              background: "#fff", flexShrink: 0,
+            }}
+          >
+            {footer}
+          </footer>
+        )}
+      </div>
+    </div>
+  );
 }
