@@ -77,11 +77,9 @@ function TalentTopbar() {
   const talentNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(talentNavRef, "button", { orientation: "horizontal" });
 
-  // Current talent plan tier for the "Plan" nav badge. Phase 1: a real
-  // signed-in talent is Free (billing not live); the standalone
-  // prototype shows the demo fixture tier. When billing ships, resolve
-  // from `talent_plan_key` on the bridge profile instead.
-  const tier = bridgeTalentSelfProfile ? "free" : MY_TALENT_PROFILE.subscription.tier;
+  // Current talent plan tier for the "Plan" nav badge — read from shared
+  // shell state so the badge reflects live plan switches.
+  const tier = state.talentTier;
   const tierLabel = TALENT_TIER_META[tier].label;
   const planBadge =
     tier === "max"

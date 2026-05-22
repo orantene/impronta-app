@@ -140,7 +140,7 @@ function WorkspaceAppearanceCard({
 }
 
 export function PublicPageEditor() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
+  const { openDrawer, setTalentPage, state, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   // Prefer the real bridge profile so a freshly-provisioned talent sees
   // their own canonical /t/<profile_code> URL, not Marta's. Standalone
   // prototype mode (no bridge) keeps the demo MY_TALENT_PROFILE.
@@ -154,7 +154,7 @@ export function PublicPageEditor() {
     ?? profile.name.toLowerCase().replace(/\s+/g, "-");
   const [preview, setPreview] = useState(false);
 
-  const tier: TalentSubscriptionTier = profile.subscription?.tier ?? "free";
+  const tier = state.talentTier;
   const isPro = tier === "pro" || tier === "max";
   const isMax = tier === "max";
 

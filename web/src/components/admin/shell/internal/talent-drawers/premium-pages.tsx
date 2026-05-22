@@ -69,9 +69,9 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 // is the single source for the rows below AND the per-feature gates.
 
 export function TalentTierCompareDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, setTalentTier } = useAdminShell();
   const open = state.drawer.drawerId === "talent-tier-compare";
-  const current = MY_TALENT_PROFILE.subscription.tier;
+  const current = state.talentTier;
 
   return (
     <DrawerShell
@@ -86,6 +86,11 @@ export function TalentTierCompareDrawer() {
         </>
       }
     >
+      {process.env.NODE_ENV !== "production" && (
+        <div style={{ marginBottom: 10, fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-dim">
+          Dev — switch tier to preview plan gating live across the talent surface.
+        </div>
+      )}
       {/* Tier columns */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
         {(["free", "pro", "max"] as const).map((t) => {
@@ -151,6 +156,27 @@ export function TalentTierCompareDrawer() {
               >
                 {meta.blurb}
               </p>
+              {process.env.NODE_ENV !== "production" && !isCurrent && (
+                <button
+                  type="button"
+                  onClick={() => setTalentTier(t)}
+                  style={{
+                    marginTop: 12,
+                    width: "100%",
+                    padding: "6px 10px",
+                    background: "transparent",
+                    color: t === "max" ? "#fff" : COLORS.ink,
+                    border: `1px solid ${t === "max" ? "rgba(255,255,255,0.4)" : COLORS.border}`,
+                    borderRadius: 8,
+                    fontFamily: FONTS.body,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Switch to {meta.label}
+                </button>
+              )}
             </div>
           );
         })}
@@ -349,7 +375,7 @@ export function TalentPersonalPageDrawer() {
 export function TalentPageTemplateDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-page-template";
-  const tier = MY_TALENT_PROFILE.subscription.tier;
+  const tier = state.talentTier;
   const active = MY_TALENT_PROFILE.subscription.template;
 
   return (

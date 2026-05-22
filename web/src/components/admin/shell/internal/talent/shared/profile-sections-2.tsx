@@ -13,12 +13,11 @@ import { Grid } from "./page-chrome-1";
 // rather than disabled controls, so the ladder is always visible.
 
 export function PersonalPageBand() {
-  const { openDrawer, toast } = useAdminShell();
+  const { openDrawer, toast, state } = useAdminShell();
   const p = MY_TALENT_PROFILE;
   const sub = p.subscription;
-  // Phase 1.5: hard-code Free for launch — no subscription field wired yet.
-  // Phase 2: derive from real talent.subscription.tier once billing ships.
-  const tier: "free" | "pro" | "max" = "free";
+  // Tier from shared shell state — reflects live plan switches.
+  const tier = state.talentTier;
 
   // Free talent: hide the full premium band and show a single "coming soon" card instead.
   if (tier === "free") {
@@ -70,9 +69,9 @@ export function PersonalPageBand() {
     );
   }
 
-  // Pro / Max talent: show the full premium band (unchanged).
-  // Cast needed because TypeScript narrows `tier` to `never` after the Free early-return guard.
-  const resolvedTier = tier as "pro" | "max";
+  // Pro / Max talent: show the full premium band. `tier` is narrowed to
+  // "pro" | "max" by the Free early-return guard above.
+  const resolvedTier = tier;
   const meta = TALENT_TIER_META[resolvedTier];
   const activeTemplate = TALENT_PAGE_TEMPLATES.find((t) => t.id === sub.template) ?? TALENT_PAGE_TEMPLATES[0];
   const allowEmbeds = tierAllows(resolvedTier, "media-embeds");
