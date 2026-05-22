@@ -28,7 +28,7 @@
  * Four dev dimensions (set via the dark ControlBar at the top):
  *   Surface           — workspace · talent · client · platform
  *   Plan              — free · studio · agency · network
- *   Role              — viewer → editor → coordinator → admin → owner
+ *   Role              — viewer → editor → manager → admin → owner
  *   TalentRelationship — alsoTalent on/off (am I a talent on this roster?)
  *
  * State is bidirectionally synced with the URL query string via
@@ -622,7 +622,7 @@ function BottomActionFab() {
         run: () => openDrawer("new-talent") },
       { id: "new-client",     label: "Add client",        sub: "Track a relationship",                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "manager") && state.plan !== "free",
         run: () => openDrawer("client-profile", { id: "new" }) },
-      { id: "invite-team",    label: "Invite teammate",   sub: "Coordinator or editor",               icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
+      { id: "invite-team",    label: "Invite teammate",   sub: "Manager or editor",                   icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
         run: () => openDrawer("team") },
       { id: "snippets",       label: "New snippet",       sub: "Reusable reply for the composer",     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("inbox-snippets") },

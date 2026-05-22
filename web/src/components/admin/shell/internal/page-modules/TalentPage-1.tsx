@@ -236,6 +236,9 @@ export function TalentPage() {
                     openDrawer("talent-types");
                   }}
                 />
+                {meetsRole(state.role, "admin") && (
+                  <GhostButton onClick={() => openDrawer("team")}>Team</GhostButton>
+                )}
                 <GhostButton onClick={() => openDrawer("invite-flow")}>{t("admin.roster.list.invite")}</GhostButton>
                 <PrimaryButton onClick={() => openDrawer("new-talent")}>
                   {state.entityType === "hub" ? t("admin.roster.list.inviteMember") : t("admin.roster.list.addTalent")}

@@ -30,6 +30,10 @@ import type { ServerActionResult } from "./result";
  *   4. removeTeamMember(profileId) — sets membership.status='removed'.
  *      Cannot remove the only active owner.
  *
+ *   5. changeTeamMemberRole(profileId, role) — owner/admin re-assigns an
+ *      existing member's workspace role. The owner role is transfer-only
+ *      and cannot be set or cleared here.
+ *
  * All actions are tenant-scoped via requireStaffTenantAction.
  */
 
@@ -367,6 +371,85 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
     return { ok: true, data: undefined };
   } catch (err) {
     logServerError("team-management.removeTeamMember", err);
+    return { ok: false, error: "Unexpected error.", reason: "unexpected" };
+  }
+}
+
+// ─── 5. Change an existing member's role ──────────────────────────────────
+
+export async function changeTeamMemberRole(
+  profileId: string,
+  role: Role,
+): Promise<ServerActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
+    const { tenantId, user } = auth;
+
+    if (!VALID_ROLES.has(role)) {
+      return { ok: false, error: "Invalid role.", reason: "validation_failed" };
+    }
+    // Block self-edits — an admin demoting themselves mid-session is a
+    // foot-gun (instant loss of the very surface they're standing on).
+    if (profileId === user.id) {
+      return { ok: false, error: "You can't change your own role.", reason: "forbidden" };
+    }
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
+
+    // Caller must be an active owner or admin of this tenant.
+    const { data: myMembership } = await tenantScopedQuery(
+      admin,
+      "agency_memberships",
+      tenantId,
+    )
+      .select("role")
+      .eq("profile_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    const myRole = (myMembership as { role?: string } | null)?.role;
+    if (myRole !== "owner" && myRole !== "admin") {
+      return { ok: false, error: "Only an owner or admin can change roles.", reason: "forbidden" };
+    }
+
+    // Target must be an active member. The owner role is transfer-only —
+    // it can never be set or cleared through this action.
+    const { data: target } = await tenantScopedQuery(
+      admin,
+      "agency_memberships",
+      tenantId,
+    )
+      .select("id, role")
+      .eq("profile_id", profileId)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!target) {
+      return { ok: false, error: "That person isn't an active member of this workspace.", reason: "not_found" };
+    }
+    if ((target as { role: string }).role === "owner") {
+      return { ok: false, error: "Transfer ownership to change the workspace owner.", reason: "forbidden" };
+    }
+    if ((target as { role: string }).role === role) {
+      return { ok: true, data: undefined }; // already that role — no-op
+    }
+
+    const { error: updateErr } = await tenantScopedQuery(
+      admin,
+      "agency_memberships",
+      tenantId,
+    )
+      .update({ role })
+      .eq("id", (target as { id: string }).id);
+    if (updateErr) {
+      logServerError("team-management.changeTeamMemberRole.update", updateErr);
+      return { ok: false, error: "Couldn't update role.", reason: "unexpected" };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    logServerError("team-management.changeTeamMemberRole", err);
     return { ok: false, error: "Unexpected error.", reason: "unexpected" };
   }
 }

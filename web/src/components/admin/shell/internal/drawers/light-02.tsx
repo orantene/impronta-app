@@ -31,10 +31,13 @@ import {
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TeamDrawer() {
-  const { state, closeDrawer, toast, effectiveTeamMembers, bridgeTenantIdentity } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTeamMembers, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
+  const router = useRouter();
   // Phase 3.12 — use live team members when available, fall back to mock.
-  const team = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
+  const isLiveTeam = effectiveTeamMembers.length > 0;
+  const team = isLiveTeam ? effectiveTeamMembers : getTeam(state.plan);
   const canManage = meetsRole(state.role, "admin");
+  const selfUserId = bridgeSessionIdentity?.userId ?? null;
 
   // F.1 — invite form local state.
   const [inviteEmail, setInviteEmail] = useState("");
@@ -48,6 +51,34 @@ export function TeamDrawer() {
     bridgeTenantIdentity?.defaultCoordinatorUserId ?? "",
   );
   const [savingCoordinator, setSavingCoordinator] = useState(false);
+
+  // Inline role editing for existing members. `roleOverrides` holds the
+  // optimistic value while the server action is in flight; it reverts on
+  // failure and a router.refresh() reconciles on success.
+  const [roleOverrides, setRoleOverrides] = useState<Record<string, Role>>({});
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
+
+  const handleRoleChange = async (
+    memberId: string,
+    nextRole: "viewer" | "editor" | "manager" | "admin",
+    prevRole: Role,
+  ) => {
+    setRoleOverrides((o) => ({ ...o, [memberId]: nextRole }));
+    setSavingRoleId(memberId);
+    try {
+      const { changeTeamMemberRole } = await import("@/lib/server-actions/team-management");
+      const r = await changeTeamMemberRole(memberId, nextRole);
+      if (r.ok) {
+        toast(`Role updated to ${nextRole}.`);
+        router.refresh();
+      } else {
+        toast(r.error);
+        setRoleOverrides((o) => ({ ...o, [memberId]: prevRole }));
+      }
+    } finally {
+      setSavingRoleId(null);
+    }
+  };
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
@@ -94,7 +125,7 @@ export function TeamDrawer() {
       open
       onClose={closeDrawer}
       title="Team"
-      description={`${team.length} members. Roles: viewer / editor / coordinator / admin / owner.`}
+      description={`${team.length} members. Roles: viewer / editor / manager / admin / owner.`}
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
@@ -106,6 +137,12 @@ export function TeamDrawer() {
             const payoutCandidate = PAYOUT_RECEIVER_CANDIDATES.find(
               (c) => c.displayName === m.name,
             );
+            const displayRole: Role = roleOverrides[m.id] ?? m.role;
+            // Editable only on a live team, for admin+, and never the
+            // owner row or your own row (owner = transfer-only; self =
+            // foot-gun). Mock-mode rows stay read-only chips.
+            const canEditThisRole =
+              canManage && isLiveTeam && m.role !== "owner" && m.id !== selfUserId;
             return (
               <div
                 key={m.id}
@@ -130,7 +167,38 @@ export function TeamDrawer() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   {payoutCandidate && <PayoutStatusChip status={payoutCandidate.status} />}
-                  <RoleChip role={m.role} />
+                  {canEditThisRole ? (
+                    <select
+                      value={displayRole}
+                      disabled={savingRoleId === m.id}
+                      aria-label={`Role for ${m.name}`}
+                      onChange={(e) =>
+                        handleRoleChange(
+                          m.id,
+                          e.currentTarget.value as "viewer" | "editor" | "manager" | "admin",
+                          m.role,
+                        )
+                      }
+                      style={{
+                        padding: "5px 8px",
+                        fontFamily: FONTS.body,
+                        fontSize: 12,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 7,
+                        background: "#fff",
+                        color: COLORS.ink,
+                        textTransform: "capitalize",
+                        cursor: savingRoleId === m.id ? "wait" : "pointer",
+                      }}
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="editor">Editor</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  ) : (
+                    <RoleChip role={displayRole} />
+                  )}
                   {m.status === "invited" && <StateChipMini label="Invited" tone="amber" />}
                 </div>
               </div>
@@ -149,7 +217,7 @@ export function TeamDrawer() {
               onChange={(e) => setInviteEmail(e.currentTarget.value)}
             />
           </FieldRow>
-          <FieldRow label="Role" hint="Owners change billing. Admins manage team and branding. Coordinators move work and message clients during events. Editors draft. Viewers watch.">
+          <FieldRow label="Role" hint="Owners change billing. Admins manage team and branding. Managers move work and message clients during events. Editors draft. Viewers watch.">
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.currentTarget.value as typeof inviteRole)}

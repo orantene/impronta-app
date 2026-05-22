@@ -719,7 +719,7 @@ function OverviewFree() {
           onClick={() =>
             openUpgrade({
               feature: "Team",
-              why: "Invite teammates with viewer / editor / coordinator / admin roles.",
+              why: "Invite teammates with viewer / editor / manager / admin roles.",
               requiredPlan: "agency",
             })
           }

@@ -257,7 +257,7 @@ export type BridgeData = {
   sessionIdentity?: {
     userId: string;
     email: string;
-    role: string; // membership role: 'owner' | 'admin' | 'coordinator' | etc.
+    role: string; // membership role: 'owner' | 'admin' | 'manager' | etc.
     displayName: string | null;
   } | null;
 

@@ -844,9 +844,9 @@ export function AuditLogDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 // Each tenant carries BOTH a plan tier (Free / Studio / Agency / Network)
-// AND the user's role inside that workspace (Owner / Admin / Coordinator
+// AND the user's role inside that workspace (Owner / Admin / Manager
 // / Editor / Talent). One person can be Owner of an Agency they founded
-// AND Coordinator in a different agency someone else owns AND Admin in a
+// AND Manager in a different agency someone else owns AND Admin in a
 // network hub. The switcher needs to surface BOTH dimensions per row.
 type TenantTier = "free" | "studio" | "agency" | "network";
 type TenantRole = "Owner" | "Admin" | "Manager" | "Editor" | "Talent";
@@ -937,7 +937,7 @@ export function TenantSwitcherDrawer() {
         )}
         {/* Group workspaces by role-class so the user reads "what I own"
             vs "where I'm a member" at a glance. Same person can be Owner
-            of an Agency they founded AND Coordinator in someone else's
+            of an Agency they founded AND Manager in someone else's
             agency — these are operationally distinct and shouldn't be
             jumbled together. */}
         {!wsLoading && (["Owner", "Admin", "Manager", "Editor", "Talent"] as const).map((roleGroup) => {
@@ -1146,7 +1146,7 @@ export function TenantSwitcherDrawer() {
         {/* Create-workspace footer — shows the four tier choices so the
             user knows the ladder before clicking. Each one starts you as
             Owner of that new workspace; existing memberships in OTHER
-            workspaces (where you may be Coordinator / Admin) are
+            workspaces (where you may be Manager / Admin) are
             unaffected.
 
             Anti-abuse rule: an owner can only have ONE Free workspace at
@@ -1686,7 +1686,7 @@ export function WorkspaceProfileDrawer() {
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">Members + roles</div>
               <div style={{ fontSize: 11.5, marginTop: 2, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                Manage Owners, Admins, Coordinators, Editors, and Talent.
+                Manage Owners, Admins, Managers, Editors, and Talent.
               </div>
             </div>
             <button type="button"
