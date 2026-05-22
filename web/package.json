@@ -32,6 +32,7 @@
     "test:components": "vitest run",
     "test:components:watch": "vitest",
     "test:billing": "tsx --test src/lib/billing/commission.test.ts src/lib/billing/commission.characterization.test.ts src/lib/inquiry/owning-party-resolver.test.ts src/lib/inquiry/owning-party-resolver-single.test.ts",
+    "test:commission-pipeline": "tsx --test src/lib/billing/commission-pipeline.integration.test.ts",
     "test:auth-routing": "tsx --test src/lib/auth-routing.test.ts",
     "test:access": "tsx --test src/lib/access/parity.test.ts",
     "test:csv-parser": "tsx --test src/components/admin/shell/internal/csv-parser.test.ts",
