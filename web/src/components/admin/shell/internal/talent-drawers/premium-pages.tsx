@@ -215,7 +215,7 @@ export function TalentTierCompareDrawer() {
         you&apos;re on now. The tier only affects your direct Tulala destination page.
       </div>
 
-      {/* Phase 1.5: Pro & Portfolio not yet available for launch — waitlist card replaces trial CTA */}
+      {/* Phase 1.5: Pro & Max not yet available for launch — waitlist card replaces trial CTA */}
       <div
         style={{
           marginTop: 16,
@@ -231,7 +231,7 @@ export function TalentTierCompareDrawer() {
       >
         <div className="flex-1 min-w-0">
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }} className="text-admin-indigo-deep">
-            Pro &amp; Portfolio launching soon
+            Pro &amp; Max launching soon
           </div>
           <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
             Join the waitlist and you&apos;ll be first to know — plus an early-access discount when billing opens.
@@ -276,7 +276,7 @@ function FeatureCell({ value }: { value: TalentTierCell }) {
   );
 }
 
-// ─── Personal page (page-builder lite, Portfolio) ──────────────────
+// ─── Personal page (page-builder lite, Max) ────────────────────────
 
 export function TalentPersonalPageDrawer() {
   const { state, closeDrawer } = useAdminShell();
@@ -445,7 +445,7 @@ export function TalentMediaEmbedsDrawer() {
       width={580}
       footer={
         <>
-          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Basic */}
+          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Free */}
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -539,7 +539,7 @@ export function TalentPressDrawer() {
       width={580}
       footer={
         <>
-          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Basic */}
+          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Free */}
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -653,7 +653,7 @@ export function TalentMediaKitDrawer() {
 // ─── Custom domain ──────────────────────────────────────────────────
 
 export function TalentCustomDomainDrawer() {
-  // Phase 1.5 STRIP: Portfolio only — save CTA removed; drawer kept for Phase 2 re-wiring
+  // Phase 1.5 STRIP: Max only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-custom-domain";
   const sub = MY_TALENT_PROFILE.subscription;
@@ -666,7 +666,7 @@ export function TalentCustomDomainDrawer() {
       description="Point your own domain at your Tulala personal page. Visitors see yourname.com — Tulala handles SSL + redirects."
       width={580}
       footer={
-        // Phase 1.5 STRIP: save removed — Portfolio-only feature, not wired for Basic
+        // Phase 1.5 STRIP: save removed — Max-only feature, not wired for Free
         <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
       }
     >

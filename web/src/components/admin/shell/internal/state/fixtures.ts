@@ -2752,7 +2752,7 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     toggleable: true,
     badge: "Pro tier",
     description:
-      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Portfolio tier.",
+      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Max tier.",
     feeRate: 0,
   },
   // 2 — Tulala Hub

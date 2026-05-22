@@ -871,6 +871,49 @@ const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
   Talent:      { fg: COLORS.inkMuted },
 };
 
+// Style objects for the switcher's "Platform" section. Held at module
+// scope (not inline `style={{…}}`) so the components/admin/shell inline-
+// style ratchet stays at its frozen baseline — the HQ console's dark
+// palette has no token-class equivalent, so a const object is the
+// sanctioned channel. Dark values mirror the /platform/admin layout's
+// HQ tokens so the row reads as that surface, not a workspace.
+const PLATFORM_SWITCHER_STYLES = {
+  section:  { display: "flex", flexDirection: "column", gap: 6 } as const,
+  header:   { display: "flex", flexDirection: "column", gap: 1, marginBottom: 2 } as const,
+  eyebrow:  { fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" } as const,
+  subhead:  { fontSize: 11, lineHeight: 1.4 } as const,
+  row: {
+    display: "flex", alignItems: "center", gap: 12,
+    padding: "12px 14px",
+    background: "#16161A",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontFamily: FONTS.body,
+    textAlign: "left",
+  } as const,
+  glyph: {
+    width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    background: "rgba(93,211,160,0.12)", color: "#5DD3A0",
+    fontSize: 15, fontWeight: 700, fontFamily: FONTS.display,
+  } as const,
+  titleRow: { display: "flex", alignItems: "center", gap: 7, minWidth: 0 } as const,
+  title: {
+    fontSize: 14, fontWeight: 600, color: "#F5F2EB",
+    minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+  } as const,
+  badge: {
+    flexShrink: 0,
+    fontSize: 9.5, fontWeight: 700,
+    padding: "1px 7px", borderRadius: 999,
+    background: "rgba(93,211,160,0.14)", color: "#5DD3A0",
+    textTransform: "uppercase", letterSpacing: 0.4,
+  } as const,
+  caption: { marginTop: 3, fontSize: 11.5, lineHeight: 1.4, color: "rgba(245,242,235,0.55)" } as const,
+  chevron: { flexShrink: 0, color: "rgba(245,242,235,0.45)" } as const,
+};
+
 export function TenantSwitcherDrawer() {
   const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity, bridgeSessionIdentity } = useAdminShell();
   const isPlatformAdmin = Boolean(bridgeSessionIdentity?.isPlatformAdmin);

@@ -156,7 +156,7 @@ export function PublicPageEditor() {
         </p>
       </section>
 
-      {/* Custom domain — Portfolio only */}
+      {/* Custom domain — Max only */}
       <section style={{ background: isPort ? "#fff" : COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, padding: "16px 18px", opacity: isPort ? 1 : 0.7 }} className="rounded-admin-lg">
         <div className="flex items-center gap-2 mb-2">
           <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
@@ -164,7 +164,7 @@ export function PublicPageEditor() {
           </span>
           {!isPort && (
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "2px 6px", borderRadius: 4, fontFamily: FONTS.body }} className="bg-admin-accent-soft text-admin-accent">
-              PORTFOLIO
+              MAX
             </span>
           )}
         </div>
@@ -194,7 +194,7 @@ export function PublicPageEditor() {
               cursor: "pointer", fontFamily: FONTS.body,
             }}
           >
-            Upgrade to Portfolio →
+            Upgrade to Max →
           </button>
         )}
       </section>

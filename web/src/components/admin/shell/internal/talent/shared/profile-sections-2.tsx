@@ -123,7 +123,7 @@ export function PersonalPageBand() {
             description={
               allowEmbeds
                 ? `Active: ${activeTemplate.label}. ${activeTemplate.blurb}`
-                : "Roster style only on Basic. Pro unlocks Editorial / Studio. Portfolio adds Stage / Creator / EPK."
+                : "Roster style only on Free. Pro unlocks Editorial / Studio. Max adds Stage / Creator / EPK."
             }
             meta={
               tierAllows(resolvedTier, "template-picker")
@@ -179,7 +179,7 @@ export function PersonalPageBand() {
                 ? sub.customDomain
                   ? `Live at ${sub.customDomain} · ${sub.customDomainStatus}`
                   : "Connect your own domain — yourname.com → personal page."
-                : "Personal domain (yourname.com) routed straight to your Tulala page. Portfolio only."
+                : "Personal domain (yourname.com) routed straight to your Tulala page. Max only."
             }
             meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {sub.customDomain ? "Live" : "Not set"}</> : <LockedBadge requiredTier="max" />}
             affordance={allowDomain ? "Manage domain" : "Unlock custom domain"}
@@ -190,7 +190,7 @@ export function PersonalPageBand() {
             description={
               allowExtraSections
                 ? "Bio · About · Press · Tour dates · Show calendar · Contact CTA. Drag to re-order."
-                : "Multi-section page — story, tour dates, show calendar, contact CTA. Portfolio only."
+                : "Multi-section page — story, tour dates, show calendar, contact CTA. Max only."
             }
             meta={allowExtraSections ? <><StatDot tone="green" /> 6 sections</> : <LockedBadge requiredTier="max" />}
             affordance={allowExtraSections ? "Edit sections" : "Unlock sections"}

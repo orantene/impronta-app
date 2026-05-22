@@ -299,7 +299,7 @@ export function TalentEmergencyContactDrawer() {
 //   1. **Distribution links** — the actual surfaces the public can see
 //      this talent on at the selected tier. Copy + Open per row.
 //   2. **What this tier unlocks** — concrete features added vs. the
-//      previous tier. Always shown for context, even on Basic.
+//      previous tier. Always shown for context, even on Free.
 //
 // We do NOT try to render a faked-mockup of the public page inside the
 // drawer — that's brittle (image rendering issues) and never matches
@@ -490,7 +490,7 @@ export function TalentPublicPreviewDrawer() {
 
       {/* ── Distribution links ─────────────────────────────────────
           The actual surfaces a client can see this talent on. Copy +
-          Open per row. Custom domain only appears on Portfolio when
+          Open per row. Custom domain only appears on Max when
           verified — otherwise the canonical Tulala URL is the active
           one. */}
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
