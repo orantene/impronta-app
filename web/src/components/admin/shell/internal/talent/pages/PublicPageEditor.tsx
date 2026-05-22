@@ -1,17 +1,146 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { GalleryFxCard } from "../../modern-features";
-import { COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, TALENT_PAGE_TEMPLATES, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, useAdminShell, type TalentSubscriptionTier } from "../../state";
+import { COLORS, FONTS, MY_AGENCIES, MY_TALENT_PROFILE, RADIUS, TALENT_PAGE_TEMPLATES, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, useAdminShell, type TalentSubscriptionTier } from "../../state";
 
 
 
 // ════════════════════════════════════════════════════════════════════
-// WS-8.2 Public page editor (split from ReachPage)
+// My Pages — talent presence hub (WS-8.2; renamed from "Public page").
+//   Block 1 · "Your Tulala page"  — the personal /t/<code> page editor.
+//   Block 2 · "Where you appear" — every Tulala workspace the talent is on.
 // ════════════════════════════════════════════════════════════════════
+
+/** Section eyebrow label — uppercase, heads each hub block. */
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 10 }}
+      className="text-admin-ink-dim"
+    >
+      {children}
+    </div>
+  );
+}
+
+/** One workspace the talent's profile appears on — normalised from the
+ *  bridge (`agency_talent_roster`) or the standalone fixture. */
+type WorkspaceAppearance = {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  isPrimary: boolean;
+  visibility: string;
+  planTier: string;
+};
+
+function workspaceKindLabel(planTier: string): string {
+  return planTier === "free" ? "Free workspace" : "Agency";
+}
+
+function visibilityLabel(visibility: string): string {
+  switch (visibility) {
+    case "featured":     return "Featured on their site";
+    case "site_visible": return "Shown on their public site";
+    default:             return "On their roster";
+  }
+}
+
+function rosterStatusLabel(status: string): string {
+  switch (status) {
+    case "exclusive":     return "Exclusive";
+    case "non-exclusive": return "Non-exclusive";
+    case "pending":       return "Pending";
+    case "ended":         return "Ended";
+    case "active":        return "Active";
+    default:              return status || "Active";
+  }
+}
+
+/** One card in the "Where you appear" list. Presentation only —
+ *  relationship management (exclusivity, leaving) lives on Agencies. */
+function WorkspaceAppearanceCard({
+  workspace,
+  onManage,
+}: {
+  workspace: WorkspaceAppearance;
+  onManage: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: 12,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: RADIUS.lg,
+        padding: "14px 16px",
+      }}
+    >
+      {/* Workspace avatar — initial */}
+      <div
+        style={{ width: 38, height: 38, borderRadius: RADIUS.md, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, fontFamily: FONTS.body, flexShrink: 0 }}
+        className="bg-admin-accent-soft text-admin-accent"
+      >
+        {workspace.name.charAt(0).toUpperCase()}
+      </div>
+
+      {/* Identity */}
+      <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
+            {workspace.name}
+          </span>
+          {workspace.isPrimary && (
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999, fontFamily: FONTS.body }} className="bg-admin-accent-soft text-admin-accent">
+              Primary
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 11.5, fontFamily: FONTS.body, marginTop: 2 }} className="text-admin-ink-muted">
+          {workspaceKindLabel(workspace.planTier)} · {rosterStatusLabel(workspace.status)} · {visibilityLabel(workspace.visibility)}
+        </div>
+      </div>
+
+      {/* Actions — presentation only; "Manage" deep-links to Agencies */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <a
+          href={workspacePathUrl(workspace.slug)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            background: "transparent", color: COLORS.ink,
+            border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm,
+            padding: "5px 11px", fontSize: 11.5, fontWeight: 600,
+            fontFamily: FONTS.body, textDecoration: "none", whiteSpace: "nowrap",
+          }}
+        >
+          View live page ↗
+        </a>
+        <button
+          type="button"
+          onClick={onManage}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 600,
+            fontFamily: FONTS.body, whiteSpace: "nowrap", padding: "5px 4px",
+          }}
+        >
+          Manage →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function PublicPageEditor() {
-  const { openDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   // Prefer the real bridge profile so a freshly-provisioned talent sees
   // their own canonical /t/<profile_code> URL, not Marta's. Standalone
   // prototype mode (no bridge) keeps the demo MY_TALENT_PROFILE.
@@ -25,23 +154,46 @@ export function PublicPageEditor() {
     ?? profile.name.toLowerCase().replace(/\s+/g, "-");
   const [preview, setPreview] = useState(false);
 
-  const tier = profile.subscription?.tier ?? "free";
-  const isPro  = tier === "pro"  || tier === "max";
-  const isPort = tier === "max";
+  const tier: TalentSubscriptionTier = profile.subscription?.tier ?? "free";
+  const isPro = tier === "pro" || tier === "max";
+  const isMax = tier === "max";
+
+  // Every Tulala workspace the talent's profile appears on. Agencies,
+  // friends' free studios, and a self-owned workspace all land in
+  // agency_talent_roster, so one source covers the whole list.
+  const workspaces: WorkspaceAppearance[] = bridgeTalentAgencies !== null
+    ? bridgeTalentAgencies.map((a) => ({
+        id: a.id,
+        name: a.agencyName,
+        slug: a.agencySlug,
+        status: a.rosterStatus,
+        isPrimary: a.isPrimary,
+        visibility: a.agencyVisibility,
+        planTier: a.plan,
+      }))
+    : MY_AGENCIES.map((a) => ({
+        id: a.id,
+        name: a.name,
+        slug: a.slug,
+        status: a.status,
+        isPrimary: a.isPrimary,
+        visibility: "roster_only",
+        planTier: a.planTier,
+      }));
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 0" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
-        <div className="flex-1">
+      {/* ── Header ── */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 12, marginBottom: 24 }}>
+        <div style={{ flex: "1 1 240px" }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, fontFamily: FONTS.body, margin: 0 }} className="text-admin-ink">
-            Public page
+            My Pages
           </h2>
           <p style={{ fontSize: 13, fontFamily: FONTS.body, margin: "4px 0 0" }} className="text-admin-ink-muted">
-            tulala.digital/t/{publicSlug}
+            Your Tulala page, and every workspace your profile appears on.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button
             type="button"
             onClick={() => setPreview((v) => !v)}
@@ -72,11 +224,29 @@ export function PublicPageEditor() {
         </div>
       </div>
 
+      {/* ════════ Block 1 — Your Tulala page ════════ */}
+      <SectionLabel>Your Tulala page</SectionLabel>
+
+      {/* URL identity card */}
+      <div
+        style={{
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: RADIUS.lg, padding: "14px 16px", marginBottom: 16,
+        }}
+      >
+        <div style={{ fontFamily: FONTS.mono, fontSize: 13, fontWeight: 600 }} className="text-admin-ink">
+          tulala.digital/t/{publicSlug}
+        </div>
+        <div style={{ fontSize: 11.5, fontFamily: FONTS.body, marginTop: 3, lineHeight: 1.5 }} className="text-admin-ink-muted">
+          Your personal page — yours on every plan, and the destination behind every roster you join.
+        </div>
+      </div>
+
       {/* Tier gate banner */}
       {!isPro && (
-        <div style={{ background: "rgba(79,70,229,0.06)", border: "1px solid rgba(79,70,229,0.18)", padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }} className="rounded-admin-lg">
+        <div style={{ background: "rgba(79,70,229,0.06)", border: "1px solid rgba(79,70,229,0.18)", padding: "12px 16px", marginBottom: 20, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }} className="rounded-admin-lg">
           <span className="text-xl">✨</span>
-          <div className="flex-1">
+          <div style={{ flex: "1 1 240px" }}>
             <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
               Unlock Pro to customise your page
             </div>
@@ -99,8 +269,7 @@ export function PublicPageEditor() {
         </div>
       )}
 
-      {/* Animated cover (Pro only) — WebGPU shader. Falls back to a
-          static gradient when WebGPU isn't available. */}
+      {/* Animated cover (Pro+) — WebGPU shader; static gradient fallback. */}
       {isPro && <GalleryFxCard />}
 
       {/* Layout selector */}
@@ -108,7 +277,7 @@ export function PublicPageEditor() {
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 10 }} className="text-admin-ink-dim">
           Page template
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} data-tulala-template-grid>
           {TALENT_PAGE_TEMPLATES.map((tpl) => {
             const tierOrder: TalentSubscriptionTier[] = ["free", "pro", "max"];
             const locked = tierOrder.indexOf(tier) < tierOrder.indexOf(tpl.availableAt);
@@ -137,13 +306,14 @@ export function PublicPageEditor() {
                 <div style={{ fontSize: 10, marginTop: 2 }} className="text-admin-ink-muted">{tpl.blurb}</div>
                 {locked && (
                   <div style={{ position: "absolute", top: 6, right: 6, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "2px 5px", borderRadius: 4 }} className="bg-admin-accent-soft text-admin-accent">
-                    PRO
+                    {tpl.availableAt === "max" ? "MAX" : "PRO"}
                   </div>
                 )}
               </button>
             );
           })}
         </div>
+        <style>{`@media (max-width: 480px) { [data-tulala-template-grid] { grid-template-columns: repeat(2, 1fr) !important; } }`}</style>
       </section>
 
       {/* Visibility + contact settings — coming in Phase 2 */}
@@ -157,12 +327,12 @@ export function PublicPageEditor() {
       </section>
 
       {/* Custom domain — Max only */}
-      <section style={{ background: isPort ? "#fff" : COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, padding: "16px 18px", opacity: isPort ? 1 : 0.7 }} className="rounded-admin-lg">
+      <section style={{ background: isMax ? "#fff" : COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, padding: "16px 18px", opacity: isMax ? 1 : 0.7 }} className="rounded-admin-lg">
         <div className="flex items-center gap-2 mb-2">
           <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
             Custom domain
           </span>
-          {!isPort && (
+          {!isMax && (
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "2px 6px", borderRadius: 4, fontFamily: FONTS.body }} className="bg-admin-accent-soft text-admin-accent">
               MAX
             </span>
@@ -171,7 +341,7 @@ export function PublicPageEditor() {
         <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: "0 0 10px" }} className="text-admin-ink-muted">
           Point your own domain (e.g. yourname.com) to your Tulala public page.
         </p>
-        {isPort ? (
+        {isMax ? (
           <button
             type="button"
             onClick={() => openDrawer("talent-custom-domain")}
@@ -199,16 +369,42 @@ export function PublicPageEditor() {
         )}
       </section>
 
+      {/* ════════ Block 2 — Where you appear ════════ */}
+      <div style={{ marginTop: 28 }}>
+        <SectionLabel>Where you appear · {workspaces.length}</SectionLabel>
+        <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: "0 0 12px", lineHeight: 1.5 }} className="text-admin-ink-muted">
+          Every Tulala workspace your profile is published on — agencies, studios, and hubs. The page above is the same wherever you appear.
+        </p>
+        {workspaces.length === 0 ? (
+          <div style={{ background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, borderRadius: RADIUS.lg, padding: "20px 18px", textAlign: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
+              Not on any workspace yet
+            </div>
+            <p style={{ fontSize: 12, fontFamily: FONTS.body, margin: "4px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
+              Agencies and studios that add you to their roster will appear here, each linking to your live page on their site.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {workspaces.map((w) => (
+              <WorkspaceAppearanceCard
+                key={w.id}
+                workspace={w}
+                onManage={() => setTalentPage("agencies")}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Mobile preview pane — appears when "Preview" toggle is on.
           Renders an iPhone-shaped card showing what tulala.digital/t/<slug>
-          looks like on a phone. Pure CSS frame; no iframe (we don't have
-          the public-page route in the prototype yet, so we render a
-          stylized mock from the same MY_TALENT_PROFILE data). */}
+          looks like on a phone. Pure CSS frame; no iframe. */}
       {preview && (
         <section
           aria-label="Mobile preview"
           style={{
-            marginTop: 24,
+            marginTop: 28,
             padding: 20,
             background: COLORS.surfaceAlt,
             borderRadius: RADIUS.lg,
@@ -300,7 +496,7 @@ export function PublicPageEditor() {
             </div>
           </div>
           <div style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-            This is what visitors see at <strong>tulala.digital/t/{profile.name.toLowerCase().replace(/\s+/g, "-")}</strong>
+            This is what visitors see at <strong>tulala.digital/t/{publicSlug}</strong>
           </div>
         </section>
       )}
