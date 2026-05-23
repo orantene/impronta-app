@@ -21,7 +21,13 @@ import type { Offer } from "./machinery-9";
  * Renders nothing while loading or when no live lineup exists (mock UI
  * still renders the demo lineup chips).
  */
-export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
+export function LiveLineupPanel({
+  inquiryId,
+  defaultExpanded = false,
+}: {
+  inquiryId: string;
+  defaultExpanded?: boolean;
+}) {
   const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +39,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   // even on inquiries with two participants. We now render a compact
   // 32px avatar-stack strip and reveal the manage UI only on demand.
   // Existing data loading + add/remove/reorder logic is preserved.
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   // Skip the DB roundtrip entirely for synthetic mock inquiry ids — the
   // demo conversations use "RI-XXX" / "c1" style ids that won't resolve.
@@ -110,6 +116,9 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   const MAX_AVATARS = 5;
   const visibleAvatars = lineup.slice(0, MAX_AVATARS);
   const overflowCount = Math.max(0, lineup.length - MAX_AVATARS);
+  const activeCount = lineup.filter((p) => p.status === "active").length;
+  const invitedCount = lineup.filter((p) => p.status === "invited").length;
+  const declinedCount = lineup.filter((p) => p.status === "declined").length;
 
   return (
     <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: expanded ? 12 : "6px 10px", marginBottom: 10, fontFamily: FONTS.body, fontSize: 12, transition: "padding 0.12s ease" }} className="bg-admin-surface-alt rounded-admin-md">
@@ -175,6 +184,11 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
           </span>
         )}
         <span style={{ flex: 1 }} />
+        {lineup.length > 0 && (
+          <span className="text-admin-ink-muted text-admin-11">
+            {activeCount} active · {invitedCount} invited{declinedCount > 0 ? ` · ${declinedCount} declined` : ""}
+          </span>
+        )}
         <span
           aria-hidden
           style={{
@@ -195,7 +209,7 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
         <div id={`lineup-panel-${inquiryId}`} style={{ marginTop: 10 }}>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-admin-ink-muted text-admin-11">
-              inquiry_participants · drag to reorder
+              Drag to prioritize. Invited talent see this inquiry in Messages.
             </span>
             <span style={{ flex: 1 }} />
             <button
@@ -249,8 +263,30 @@ export function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
                 <div style={{ fontWeight: 600 }} className="text-admin-ink">
                   {p.talentDisplayName ?? "(unnamed talent)"}
                 </div>
-                <div className="text-admin-ink-muted text-admin-11">
-                  {p.status}{p.invitedAt ? ` · invited ${new Date(p.invitedAt).toLocaleDateString()}` : ""}
+                <div className="text-admin-ink-muted text-admin-11" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "1px 6px",
+                      borderRadius: 999,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.3,
+                      background:
+                        p.status === "active" ? COLORS.successSoft
+                        : p.status === "declined" ? COLORS.coralSoft
+                        : "rgba(245,158,11,0.12)",
+                      color:
+                        p.status === "active" ? COLORS.successDeep
+                        : p.status === "declined" ? COLORS.coralDeep
+                        : COLORS.amberDeep,
+                    }}
+                  >
+                    {p.status === "active" ? "Active" : p.status === "declined" ? "Declined" : "Invited"}
+                  </span>
+                  {p.invitedAt ? `Invited ${new Date(p.invitedAt).toLocaleDateString()}` : "Added to inquiry"}
                 </div>
               </div>
               <button

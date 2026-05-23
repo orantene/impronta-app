@@ -30,6 +30,13 @@
       "autoPort": false
     },
     {
+      "name": "E3 QA Dev Server (3000)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-e3/web && npm run dev -- -p 3000"],
+      "port": 3000,
+      "autoPort": false
+    },
+    {
       "name": "Next.js Dev Server",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev"],

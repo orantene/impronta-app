@@ -1,9 +1,8 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { INQUIRY_CLOSED_STATUSES } from "./inquiries-workspace";
+export { loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
 
 /**
  * _data-bridge/inquiries-messages.ts — admin Messages inbox loader.
@@ -22,9 +21,12 @@ export type WorkspaceMessage = {
   id: string;
   sender_user_id: string;
   sender_name: string;
+  sender_role?: "you" | "client" | "coordinator" | "system" | "talent" | null;
   body: string;
   created_at: string;
   is_mine: boolean;
+  /** Thread this row belongs to when returned in mixed-thread projections. */
+  thread_type?: ThreadType;
   /** Discriminator for structured cards — "text" or one of the enum
    * values in `inquiry_messages.message_kind` (offer_event, payment_request,
    * payment_paid, coordinator_request, call_sheet_update, system_event, etc.).
@@ -87,6 +89,7 @@ export type WorkspaceInquiryForMessages = {
   trustLevel: string | null;
 
   // ── Coordinator ──────────────────────────────────────────────────────────────
+  coordinatorUserId: string | null;
   coordinatorName: string | null;
   coordinatorInitials: string | null;
   coordinatorAcceptedAt: string | null;
@@ -96,6 +99,11 @@ export type WorkspaceInquiryForMessages = {
   lineupPending: number;
   lineupDeclined: number;
   lineupTotal: number;
+  lineupTalent: Array<{
+    talentProfileId: string | null;
+    displayName: string;
+    status: string;
+  }>;
 
   // ── Offer ────────────────────────────────────────────────────────────────────
   currentOfferId: string | null;
@@ -120,6 +128,8 @@ export type WorkspaceInquiryForMessages = {
   lastMessageAt: string | null;
   lastMessageRole: "you" | "client" | "coordinator" | "system" | "talent" | null;
   lastMessageThreadType: "private" | "group" | null;
+  /** Recent real messages across both inquiry threads, chronological. */
+  threadMessages: WorkspaceMessage[];
 };
 
 /** Statuses considered "open" for the messages inbox (active surface). */
@@ -187,6 +197,31 @@ function truncate(s: string | null | undefined, n: number): string | null {
   return clean.length > n ? clean.slice(0, n - 1) + "…" : clean;
 }
 
+function displayNameFromTalentProfile(
+  profile:
+    | { display_name: string | null; first_name: string | null; last_name: string | null }
+    | { display_name: string | null; first_name: string | null; last_name: string | null }[]
+    | null,
+): string {
+  const row = Array.isArray(profile) ? profile[0] : profile;
+  return (
+    row?.display_name?.trim()
+    || `${row?.first_name ?? ""} ${row?.last_name ?? ""}`.trim()
+    || "Talent"
+  );
+}
+
+function displayNameFromProfile(
+  profile:
+    | { display_name: string | null }
+    | { display_name: string | null }[]
+    | null,
+  fallback: string,
+): string {
+  const row = Array.isArray(profile) ? profile[0] : profile;
+  return row?.display_name?.trim() || fallback;
+}
+
 /**
  * Load every open inquiry for the Messages inbox enriched with unread,
  * lineup, coordinator, offer, source, last-message preview, and per-user
@@ -206,7 +241,7 @@ export async function loadInquiriesForMessages(
     const inquiryRes = await supabase
       .from("inquiries")
       .select(`
-        id, status, contact_name, contact_email, company,
+        id, status, contact_name, contact_email, company, message,
         event_date, event_location, quantity,
         created_at, updated_at, expires_at, booked_at,
         next_action_by, priority, trust_level_at_submission,
@@ -230,6 +265,7 @@ export async function loadInquiriesForMessages(
       contact_name: string | null;
       contact_email: string | null;
       company: string | null;
+      message: string | null;
       event_date: string | null;
       event_location: string | null;
       quantity: number | null;
@@ -290,7 +326,10 @@ export async function loadInquiriesForMessages(
       // Lineup participants.
       supabase
         .from("inquiry_participants")
-        .select("inquiry_id, status")
+        .select(`
+          inquiry_id, role, status, talent_profile_id, user_id,
+          talent_profiles:talent_profile_id(display_name, first_name, last_name)
+        `)
         .eq("tenant_id", tenantId)
         .in("inquiry_id", inquiryIds),
 
@@ -323,7 +362,11 @@ export async function loadInquiriesForMessages(
       // Last-message-per-inquiry preview (most recent across both threads).
       supabase
         .from("inquiry_messages")
-        .select("inquiry_id, thread_type, sender_user_id, body, created_at")
+        .select(`
+          id, inquiry_id, thread_type, sender_user_id, body, created_at,
+          message_kind, card_payload,
+          profiles:sender_user_id(display_name)
+        `)
         .eq("tenant_id", tenantId)
         .is("deleted_at", null)
         .in("inquiry_id", inquiryIds)
@@ -368,14 +411,38 @@ export async function loadInquiriesForMessages(
     }
 
     // 3c. Lineup counts
-    const lineup = new Map<string, { confirmed: number; pending: number; declined: number; total: number }>();
-    for (const row of (participantsRes.data ?? []) as { inquiry_id: string; status: string }[]) {
-      const cur = lineup.get(row.inquiry_id) ?? { confirmed: 0, pending: 0, declined: 0, total: 0 };
+    const lineup = new Map<string, {
+      confirmed: number;
+      pending: number;
+      declined: number;
+      total: number;
+      talent: Array<{ talentProfileId: string | null; displayName: string; status: string }>;
+    }>();
+    const participantRoleByInquiryUser = new Map<string, "client" | "coordinator" | "talent">();
+    for (const row of (participantsRes.data ?? []) as Array<{
+      inquiry_id: string;
+      role: "client" | "coordinator" | "talent";
+      status: string;
+      talent_profile_id: string | null;
+      user_id: string | null;
+      talent_profiles:
+        | { display_name: string | null; first_name: string | null; last_name: string | null }
+        | { display_name: string | null; first_name: string | null; last_name: string | null }[]
+        | null;
+    }>) {
+      if (row.user_id) participantRoleByInquiryUser.set(`${row.inquiry_id}:${row.user_id}`, row.role);
+      if (row.role !== "talent") continue;
+      const cur = lineup.get(row.inquiry_id) ?? { confirmed: 0, pending: 0, declined: 0, total: 0, talent: [] };
       cur.total += 1;
       const s = (row.status ?? "").toLowerCase();
       if (s === "accepted" || s === "confirmed") cur.confirmed += 1;
       else if (s === "declined" || s === "removed") cur.declined += 1;
       else cur.pending += 1;
+      cur.talent.push({
+        talentProfileId: row.talent_profile_id,
+        displayName: displayNameFromTalentProfile(row.talent_profiles),
+        status: row.status ?? "pending",
+      });
       lineup.set(row.inquiry_id, cur);
     }
 
@@ -417,21 +484,58 @@ export async function loadInquiriesForMessages(
       role: WorkspaceInquiryForMessages["lastMessageRole"];
       threadType: "private" | "group";
     }>();
+    const messagesByInquiry = new Map<string, WorkspaceMessage[]>();
     for (const row of (lastMessagesRes.data ?? []) as {
-      inquiry_id: string; thread_type: "private" | "group"; sender_user_id: string | null; body: string; created_at: string;
+      id: string;
+      inquiry_id: string;
+      thread_type: "private" | "group";
+      sender_user_id: string | null;
+      body: string;
+      created_at: string;
+      message_kind: string | null;
+      card_payload: Record<string, unknown> | null;
+      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     }[]) {
-      if (lastMessageById.has(row.inquiry_id)) continue; // ordered DESC, first hit wins
       let role: WorkspaceInquiryForMessages["lastMessageRole"];
       if (row.sender_user_id === myUserId) role = "you";
       else if (!row.sender_user_id) role = "system";
-      else if (row.thread_type === "private") role = "client";
-      else role = "coordinator";
-      lastMessageById.set(row.inquiry_id, {
-        preview: truncate(row.body, 140) ?? "",
-        at: row.created_at,
-        role,
-        threadType: row.thread_type,
+      else {
+        const participantRole = participantRoleByInquiryUser.get(`${row.inquiry_id}:${row.sender_user_id}`);
+        role = participantRole === "coordinator" ? "coordinator"
+          : participantRole === "talent" ? "talent"
+          : participantRole === "client" ? "client"
+          : row.thread_type === "private" ? "client"
+          : "talent";
+      }
+      if (!lastMessageById.has(row.inquiry_id)) {
+        lastMessageById.set(row.inquiry_id, {
+          preview: truncate(row.body, 140) ?? "",
+          at: row.created_at,
+          role,
+          threadType: row.thread_type,
+        });
+      }
+      const senderName =
+        !row.sender_user_id ? "System"
+        : row.sender_user_id === myUserId ? "You"
+        : displayNameFromProfile(row.profiles, role === "talent" ? "Talent" : "Client");
+      const current = messagesByInquiry.get(row.inquiry_id) ?? [];
+      current.push({
+        id: row.id,
+        sender_user_id: row.sender_user_id ?? "",
+        sender_name: senderName,
+        sender_role: role,
+        body: row.body,
+        created_at: row.created_at,
+        is_mine: !!row.sender_user_id && row.sender_user_id === myUserId,
+        thread_type: row.thread_type,
+        message_kind: row.message_kind ?? "text",
+        card_payload: row.card_payload ?? null,
+        reactions: [],
+        seen_at: null,
+        starred: false,
       });
+      messagesByInquiry.set(row.inquiry_id, current);
     }
 
     // ── 4. Compose final rows ────────────────────────────────────────────────
@@ -439,10 +543,12 @@ export async function loadInquiriesForMessages(
       const upr = unreadPrivate.get(row.id) ?? 0;
       const ugr = unreadGroup.get(row.id) ?? 0;
       const flags = flagsById.get(row.id);
-      const lineupCounts = lineup.get(row.id) ?? { confirmed: 0, pending: 0, declined: 0, total: 0 };
+      const lineupCounts = lineup.get(row.id) ?? { confirmed: 0, pending: 0, declined: 0, total: 0, talent: [] };
       const offer = row.current_offer_id ? offersById.get(row.current_offer_id) : null;
       const coord = row.coordinator_id ? coordinatorsById.get(row.coordinator_id) : null;
       const lastMsg = lastMessageById.get(row.id);
+      const threadMessages = (messagesByInquiry.get(row.id) ?? [])
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
       const lastActivityAt =
         lastActivityMap.get(row.id) ??
         row.updated_at ??
@@ -454,6 +560,7 @@ export async function loadInquiriesForMessages(
       const briefTitle =
         (row.company?.trim()) ||
         (row.contact_name?.trim()) ||
+        truncate(row.message, 90) ||
         "Untitled inquiry";
 
       return {
@@ -483,6 +590,7 @@ export async function loadInquiriesForMessages(
         sourcePage: row.source_page,
         trustLevel: row.trust_level_at_submission,
 
+        coordinatorUserId: row.coordinator_id ?? null,
         coordinatorName: coord?.name ?? null,
         coordinatorInitials: coord?.initials ?? null,
         coordinatorAcceptedAt: row.coordinator_accepted_at,
@@ -491,6 +599,7 @@ export async function loadInquiriesForMessages(
         lineupPending:   lineupCounts.pending,
         lineupDeclined:  lineupCounts.declined,
         lineupTotal:     lineupCounts.total,
+        lineupTalent:    lineupCounts.talent,
 
         currentOfferId:     row.current_offer_id ?? null,
         currentOfferStatus: (offer?.status as WorkspaceInquiryForMessages["currentOfferStatus"]) ?? null,
@@ -516,225 +625,11 @@ export async function loadInquiriesForMessages(
         lastMessageAt:         lastMsg?.at ?? null,
         lastMessageRole:       lastMsg?.role ?? null,
         lastMessageThreadType: lastMsg?.threadType ?? null,
+        threadMessages,
       };
     });
   } catch (err) {
     logServerError("workspace.loadInquiriesForMessages", err);
-    return [];
-  }
-}
-
-/**
- * Count total unread messages across all open inquiries for the current user.
- * Used by the workspace nav to show a badge on the Messages tab.
- * Returns 0 on any error (badge is non-critical).
- */
-export async function loadTotalUnreadMessages(tenantId: string): Promise<number> {
-  try {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return 0;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const myUserId = user?.id ?? null;
-    if (!myUserId) return 0;
-
-    // Only count open inquiries
-    const { data: inquiryRows, error: inquiryErr } = await supabase
-      .from("inquiries")
-      .select("id")
-      .eq("tenant_id", tenantId)
-      .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`);
-
-    if (inquiryErr || !inquiryRows?.length) return 0;
-    const inquiryIds = inquiryRows.map((r: { id: string }) => r.id);
-
-    const [readsRes, messagesRes] = await Promise.all([
-      supabase
-        .from("inquiry_message_reads")
-        .select("inquiry_id, thread_type, last_read_at")
-        .eq("tenant_id", tenantId)
-        .eq("user_id", myUserId)
-        .in("inquiry_id", inquiryIds),
-      supabase
-        .from("inquiry_messages")
-        .select("inquiry_id, thread_type, sender_user_id, created_at")
-        .eq("tenant_id", tenantId)
-        .is("deleted_at", null)
-        .neq("sender_user_id", myUserId)
-        .in("inquiry_id", inquiryIds),
-    ]);
-
-    if (messagesRes.error) {
-      logServerError("workspace.loadTotalUnreadMessages", messagesRes.error);
-      return 0;
-    }
-
-    // Build read watermark map: "inquiryId:threadType" → last_read_at
-    const readAtMap = new Map<string, string>();
-    for (const r of (readsRes.data ?? []) as {
-      inquiry_id: string; thread_type: string; last_read_at: string | null;
-    }[]) {
-      if (r.last_read_at) readAtMap.set(`${r.inquiry_id}:${r.thread_type}`, r.last_read_at);
-    }
-
-    let total = 0;
-    for (const m of (messagesRes.data ?? []) as {
-      inquiry_id: string; thread_type: string; created_at: string;
-    }[]) {
-      const key = `${m.inquiry_id}:${m.thread_type}`;
-      const lastRead = readAtMap.get(key);
-      if (!lastRead || new Date(m.created_at).getTime() > new Date(lastRead).getTime()) {
-        total += 1;
-      }
-    }
-    return total;
-  } catch (err) {
-    logServerError("workspace.loadTotalUnreadMessages", err);
-    return 0;
-  }
-}
-
-/**
- * Load messages for a specific inquiry thread (private or group).
- * Returns messages with sender display_name resolved.
- */
-export async function loadInquiryMessages(
-  tenantId: string,
-  inquiryId: string,
-  threadType: ThreadType,
-): Promise<WorkspaceMessage[]> {
-  try {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return [];
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const myUserId = user?.id ?? null;
-
-    // 2026-05-14 — self-elevate SELECT after the caller has already
-    // permission-gated. RLS on `inquiry_messages` blocks reads even for
-    // the inquiry's own client (and even for the message's own sender),
-    // mirroring the same issue we hit on INSERT in sendMessage. Every
-    // caller of this loader already verifies the actor's role on this
-    // inquiry (admin layout: staff scope; client/api route: client_user_id
-    // match; talent loader: participant check) so it's safe to escalate.
-    const admin = createServiceRoleClient();
-    const readClient = admin ?? supabase;
-
-    const { data, error } = await readClient
-      .from("inquiry_messages")
-      .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
-      .eq("inquiry_id", inquiryId)
-      .eq("thread_type", threadType)
-      .eq("tenant_id", tenantId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true })
-      .limit(200);
-
-    if (error) {
-      logServerError("workspace.loadInquiryMessages", error);
-      return [];
-    }
-
-    type MsgRow = {
-      id: string;
-      sender_user_id: string;
-      body: string;
-      created_at: string;
-      message_kind: string | null;
-      card_payload: Record<string, unknown> | null;
-      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
-    };
-
-    const rows = (data ?? []) as unknown as (MsgRow & { sender_user_id: string | null })[];
-
-    // Fetch reactions for these messages in one shot. RLS allows
-    // participants of an inquiry to read reactions on that inquiry's
-    // messages (per message_reactions migration policy).
-    const messageIds = rows.map((r) => r.id);
-    const reactionsByMessage = new Map<string, Map<string, { count: number; mine: boolean }>>();
-    if (messageIds.length > 0) {
-      const { data: reactionRows } = await readClient
-        .from("message_reactions")
-        .select("message_id, emoji, user_id")
-        .in("message_id", messageIds);
-      for (const r of ((reactionRows ?? []) as Array<{ message_id: string; emoji: string; user_id: string }>)) {
-        let perMsg = reactionsByMessage.get(r.message_id);
-        if (!perMsg) {
-          perMsg = new Map();
-          reactionsByMessage.set(r.message_id, perMsg);
-        }
-        const entry = perMsg.get(r.emoji) ?? { count: 0, mine: false };
-        entry.count += 1;
-        if (myUserId && r.user_id === myUserId) entry.mine = true;
-        perMsg.set(r.emoji, entry);
-      }
-    }
-
-    // Read-receipt fetch — latest last_read_at on this thread by users
-    // OTHER than me. UI uses this to render "Seen" on my own messages
-    // whose created_at <= that timestamp.
-    let counterpartyLastRead: string | null = null;
-    if (myUserId) {
-      const { data: readsRows } = await readClient
-        .from("inquiry_message_reads")
-        .select("user_id, last_read_at")
-        .eq("inquiry_id", inquiryId)
-        .eq("thread_type", threadType)
-        .neq("user_id", myUserId);
-      for (const r of ((readsRows ?? []) as Array<{ user_id: string; last_read_at: string }>)) {
-        if (!counterpartyLastRead || r.last_read_at > counterpartyLastRead) {
-          counterpartyLastRead = r.last_read_at;
-        }
-      }
-    }
-
-    // Per-user starred set. Use the user-scoped client (NOT admin) so
-    // RLS filters to just this user's stars even if admin escalation is
-    // active for the message read.
-    const starredSet = new Set<string>();
-    if (myUserId && messageIds.length > 0) {
-      const { data: starsRows } = await supabase
-        .from("inquiry_message_stars")
-        .select("message_id")
-        .eq("user_id", myUserId)
-        .in("message_id", messageIds);
-      for (const r of ((starsRows ?? []) as Array<{ message_id: string }>)) {
-        starredSet.add(r.message_id);
-      }
-    }
-
-    return rows.map((row) => {
-      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-      // System events have sender_user_id = null (e.g. auto-ack on submit).
-      // Fall back to "System" so we never crash on `.slice` of null.
-      const senderName =
-        profile?.display_name?.trim()
-        || (row.sender_user_id ? row.sender_user_id.slice(0, 8) : "System");
-      const reactionAgg = reactionsByMessage.get(row.id);
-      const reactions = reactionAgg
-        ? [...reactionAgg.entries()].map(([emoji, v]) => ({ emoji, count: v.count, mine: v.mine }))
-        : [];
-      const is_mine = !!row.sender_user_id && row.sender_user_id === myUserId;
-      const seen_at =
-        is_mine && counterpartyLastRead && counterpartyLastRead >= row.created_at
-          ? counterpartyLastRead
-          : null;
-      return {
-        id: row.id,
-        sender_user_id: row.sender_user_id ?? "",
-        sender_name: senderName,
-        body: row.body,
-        created_at: row.created_at,
-        is_mine,
-        message_kind: row.message_kind ?? "text",
-        card_payload: row.card_payload ?? null,
-        reactions,
-        seen_at,
-        starred: starredSet.has(row.id),
-      };
-    });
-  } catch (err) {
-    logServerError("workspace.loadInquiryMessages", err);
     return [];
   }
 }

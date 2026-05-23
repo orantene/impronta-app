@@ -14,7 +14,7 @@ import { ageLabel, stageStyle, useScrollIntoViewWhenActive } from "./messages-sh
 import { InboxRowHoverActions, initialsOf } from "./shared/inbox-identity-1";
 import { MobileInboxTab } from "./shared/inbox-layout-1";
 import type { Offer } from "./shared/machinery-9";
-import { JobStageFunnel, sourceChipMeta } from "./talent-1";
+import { JobStageFunnel } from "./talent-1";
 import { withWeekday } from "./TalentJobShell";
 
 
@@ -301,17 +301,6 @@ export function AdminInquiryRow({
   })();
   const isActionNeeded = surfaceNeedsMe;
 
-  // Stage word — uppercase pipeline label that lives next to the funnel
-  // dots in row 4. Mirrors ClientProjectRow's stageWord pattern.
-  const stageWord = inquiry.stage === "offer_pending" ? "Offer"
-    : inquiry.stage === "approved"     ? "Approved"
-    : inquiry.stage === "coordination" ? "Coordinating"
-    : inquiry.stage === "submitted"    ? "Inquiry"
-    : inquiry.stage === "draft"        ? "Draft"
-    : inquiry.stage === "rejected"     ? "Rejected"
-    : inquiry.stage === "expired"      ? "Expired"
-    : inquiry.stage.charAt(0).toUpperCase() + inquiry.stage.slice(1);
-
   // Same seen + tint logic as the talent + client inboxes so the
   // row pattern reads identically across all three roles.
   // Manual-unread (user toggled "Mark unread" in hover actions)
@@ -327,22 +316,10 @@ export function AdminInquiryRow({
 
   const rowRef = useScrollIntoViewWhenActive(active);
 
-  // Build a "source"-shaped chip from inquiry.source so we can reuse
-  // sourceChipMeta. RichInquiry.source.kind uses the canonical schema
-  // names ("hub" / "direct" / "manual" / "marketplace" / "talent-page");
-  // sourceChipMeta speaks the conversation-side shape ("tulala-hub" /
-  // "direct" / "agency-referral" / "instagram-dm" / "email"). Map
-  // here so the same chip component renders for both surfaces.
-  const sourceMeta = (() => {
-    const src = inquiry.source;
-    if (!src) return null;
-    if (src.kind === "hub")          return sourceChipMeta({ kind: "tulala-hub", label: src.hubName });
-    if (src.kind === "direct")       return sourceChipMeta({ kind: "direct", label: src.domain });
-    if (src.kind === "manual")       return sourceChipMeta({ kind: src.channel === "email" ? "email" : "direct" });
-    if (src.kind === "marketplace")  return sourceChipMeta({ kind: "tulala-hub", label: src.platform });
-    if (src.kind === "talent-page")  return sourceChipMeta({ kind: "direct", label: src.customDomain ?? src.talentSlug });
-    return null;
-  })();
+  // Source chip ("Cold email" / "Direct" / "Hub") removed from the
+  // row — it was an opaque admin-metadata signal that crowded the
+  // tiny rail without telling the user anything actionable. The same
+  // info is still visible inside the inquiry detail header.
 
   return (
     <button
@@ -411,7 +388,7 @@ export function AdminInquiryRow({
             Lineup count is admin-specific operational signal that lives
             INLINE in this row (rather than the old separate ops-meta
             row) so the row is no taller than the client's. */}
-        {(subtitleParts.length > 0 || sourceMeta || lineupTotal > 0) && (
+        {(subtitleParts.length > 0 || lineupTotal > 0) && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, lineHeight: 1.4, minWidth: 0 }} className="text-admin-ink-muted">
             <span style={{
               minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
@@ -441,19 +418,6 @@ export function AdminInquiryRow({
                 }}>{lineupAccepted}/{lineupTotal}</span>
               );
             })()}
-            {sourceMeta && (
-              <span title={sourceMeta.tooltip} style={{
-                flexShrink: 0,
-                display: "inline-flex", alignItems: "center", gap: 3,
-                padding: "1px 6px", borderRadius: 999,
-                background: sourceMeta.bg, color: sourceMeta.fg,
-                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
-                textTransform: "uppercase",
-              }}>
-                <span aria-hidden style={{ display: "inline-flex" }}>{sourceMeta.icon}</span>
-                {sourceMeta.label}
-              </span>
-            )}
           </div>
         )}
 
@@ -483,17 +447,12 @@ export function AdminInquiryRow({
           )}
         </div>
 
-        {/* Row 4 — funnel dots + stage word + coordinator owner chip. */}
+        {/* Row 4 — funnel dots + coordinator owner chip. The uppercase
+            stage word is intentionally dropped: the funnel's current-
+            dot position is the same signal in a more compact form. */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
           <span style={{ flex: "0 0 auto", maxWidth: 130 }}>
             <JobStageFunnel currentStage={inquiry.stage} compact={true} />
-          </span>
-          <span style={{
-            fontSize: 10, fontWeight: 700,
-            color: sc.fg, letterSpacing: 0.3, textTransform: "uppercase",
-            flexShrink: 0,
-          }}>
-            {stageWord}
           </span>
           <span style={{ flex: 1 }} />
           {coord && (

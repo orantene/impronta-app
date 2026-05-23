@@ -29,19 +29,36 @@ export const stageStyle = (stage: string): { bg: string; fg: string } => {
 };
 
 export const ageLabel = (hrs: number) =>
-  hrs < 1 ? "now" : hrs < 24 ? `${hrs}h` : `${Math.floor(hrs / 24)}d`;
+  hrs < 1 ? "now" : hrs < 24 ? `${Math.floor(hrs)}h` : `${Math.floor(hrs / 24)}d`;
 
 // Active-row scroll-into-view. Pass the active flag; returns a ref to
-// attach to the row's outer button. When active flips true, the row
-// scrolls itself into the visible area of its scroll container with a
-// gentle "nearest" alignment (no jarring center-snap).
+// attach to the row's outer button. Only triggers when the row is NOT
+// already visible in its scroll container — clicking a row that's
+// already on screen must not scroll (jarring + unexpected). Useful
+// path: deep-linking to an inquiry that's far down the list, or
+// arrow-key navigation through a long inbox.
 export function useScrollIntoViewWhenActive(active: boolean) {
   const ref = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (!active || !ref.current) return;
     const el = ref.current;
-    // requestAnimationFrame so layout has settled — otherwise the
-    // newly-mounted row hasn't been positioned yet on conv switch.
+    // Find the nearest scrollable ancestor — for the inbox that's the
+    // overflow:auto list pane. Compare bounding rects: if the row's
+    // top and bottom both fall inside the container's visible band,
+    // it's already in view and we should not scroll.
+    const isFullyVisible = (() => {
+      let parent: HTMLElement | null = el.parentElement;
+      while (parent) {
+        const overflowY = getComputedStyle(parent).overflowY;
+        if (overflowY === "auto" || overflowY === "scroll") break;
+        parent = parent.parentElement;
+      }
+      if (!parent) return true; // no scroll container → assume in view
+      const elRect = el.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      return elRect.top >= parentRect.top && elRect.bottom <= parentRect.bottom;
+    })();
+    if (isFullyVisible) return;
     const r = requestAnimationFrame(() => {
       el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });

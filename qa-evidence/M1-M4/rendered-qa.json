@@ -1,0 +1,28 @@
+{
+  "chatAssertions": {
+    "url": "http://impronta.local:3000/impronta/admin/messages",
+    "hasInbox": true,
+    "hasChat": true,
+    "hasVisibilityBanner": true,
+    "visibilityBannerY": 368.390625,
+    "noFractionalHours": true,
+    "noSystemBodyCollision": true,
+    "coordinatorButtonVisible": true,
+    "coordinatorButtonText": "Coord: Oran"
+  },
+  "lineupAssertions": {
+    "hasLineupTab": true,
+    "hasLiveLineupCopy": true,
+    "hasStatus": true
+  },
+  "offerAssertions": {
+    "hasOfferTab": true,
+    "hasOfferState": true
+  },
+  "coordinatorAssertions": {
+    "hasButton": true,
+    "opened": true,
+    "label": "Coord: Oran"
+  },
+  "consoleErrors": []
+}

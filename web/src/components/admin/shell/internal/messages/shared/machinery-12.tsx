@@ -90,7 +90,7 @@ export function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: Off
 }
 
 export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
-  const { toast, effectiveTenant } = useAdminShell();
+  const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
   const router = useRouter();
   // B7 — talent counter-rate handler. Sends a tagged [Counter request]
   // message via the engine. Coordinator-side picks it up from the
@@ -124,6 +124,8 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   }, [pov.kind]);
   const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
+  const liveInquiry = effectiveMessagesInquiries.find((r) => r.id === conv.id);
+  const liveOffer = liveInquiry?.offer ?? null;
   const isClient = pov.kind === "client";
   const isAdmin = pov.kind === "admin";
   const isTalent = pov.kind === "talent";
@@ -183,9 +185,29 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       );
     }
     return (
-      <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-dim">
-        No offer yet for this inquiry.
-        {isAdmin && <CreateOfferButton inquiryId={conv.id} />}
+      <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
+        {liveOffer ? (
+          <>
+            <LiveOfferPanel inquiryId={conv.id} pov={pov} />
+            <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: 14, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
+              <div style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 4 }}>
+                Offer is live
+              </div>
+              <div>
+                Status <strong style={{ color: COLORS.ink }}>{liveOffer.status}</strong>
+                {liveOffer.total ? <> · Total <strong style={{ color: COLORS.ink }}>{liveOffer.total}</strong></> : null}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                This inquiry is using the database-backed offer flow. Draft, send, approve, reject, and counter actions run through the engine above.
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: 24, textAlign: "center", fontSize: 13 }} className="text-admin-ink-dim">
+            No offer yet for this inquiry.
+            {isAdmin && <CreateOfferButton inquiryId={conv.id} />}
+          </div>
+        )}
       </div>
     );
   }

@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useTransition } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
@@ -194,12 +195,18 @@ export function ClientMessagesShell({
               a.created_at.localeCompare(b.created_at),
             );
           });
+          // Server data is fresh — re-pull the inbox so the row that
+          // just received a new message bubbles to the top (the bridge
+          // sorts by last_message_at desc, see clients.ts). This keeps
+          // the list ordering aligned with the user's mental model:
+          // the conversation they last engaged with is on top.
+          router.refresh();
         })
         .catch(() => { /* leave optimistic bubble; user will see it reconcile on next switch */ });
     }
     window.addEventListener("client-message-send-ok", onOk);
     return () => window.removeEventListener("client-message-send-ok", onOk);
-  }, [activeId]);
+  }, [activeId, router]);
 
   // Toast for the just-submitted inquiry — fades after 4 seconds.
   const [showJustSubmittedToast, setShowJustSubmittedToast] = useState(!!justSubmittedInquiryId);
@@ -258,6 +265,62 @@ export function ClientMessagesShell({
       .finally(() => { if (!cancelled) setLoadingDetails(false); });
     return () => { cancelled = true; };
   }, [activeId, initialActiveId]);
+
+  // Viewer user ID — fetched once for is_mine determination in realtime events.
+  const viewerUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data }) => {
+      viewerUserIdRef.current = data.user?.id ?? null;
+    });
+  }, []);
+
+  // Realtime — push incoming messages into state as they arrive on the
+  // active inquiry's private thread. Channel is torn down and recreated
+  // on inquiry switch. Own messages are skipped (handled by the optimistic /
+  // reconcile path in ChatComposer to avoid dedup conflicts with tmp- ids).
+  useEffect(() => {
+    if (!activeId) return;
+    const supabase = createClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`client_msg:${activeId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "inquiry_messages", filter: `inquiry_id=eq.${activeId}` },
+        (payload) => {
+          const row = payload.new as {
+            id: string; sender_user_id: string | null; body: string;
+            created_at: string; thread_type: string;
+          };
+          if (row.thread_type !== "private") return;
+          let appended = false;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            const isMine = viewerUserIdRef.current != null && row.sender_user_id === viewerUserIdRef.current;
+            if (isMine) return prev;
+            const knownName = prev.find((m) => m.sender_user_id === row.sender_user_id)?.sender_name;
+            appended = true;
+            return [...prev, {
+              id: row.id,
+              sender_user_id: row.sender_user_id ?? "",
+              sender_name: knownName ?? (row.sender_user_id?.slice(0, 8) ?? "Unknown"),
+              body: row.body,
+              created_at: row.created_at,
+              is_mine: false,
+            }];
+          });
+          // Pull the inbox again so the just-updated thread bubbles to
+          // top, the preview line refreshes, and the unread badge ticks.
+          if (appended) router.refresh();
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel).catch(() => {}); };
+  }, [activeId, router]);
 
   // Filter predicate lifted VERBATIM into the client role adapter
   // (client-thread-adapter.ts) — pure + oracle-pinned, behaviour
@@ -434,6 +497,11 @@ export function ClientMessagesShell({
               display: "grid",
               ["--tulala-shell-cols" as never]: "340px 1fr",
               gridTemplateColumns: "var(--tulala-shell-cols)",
+              // Constrain the single row to the container height — without this
+              // `grid-auto-rows: auto` lets the thread column grow to its
+              // natural content height (~1065px), which overflows the shell
+              // and clips the composer below the visible 720px area.
+              gridTemplateRows: "minmax(0, 1fr)",
               background: "#fff",
               border: `1px solid ${C.borderSoft}`,
               borderRadius: 14,
@@ -542,6 +610,14 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   const needsMe = inq.next_action_by === "client";
   const unread = inq.unreadCount > 0;
 
+  // Build the last-message preview line. "You: …" when the client sent
+  // the newest message, plain body otherwise. Truncated to ~70 chars so
+  // it never wraps in the 340px list column.
+  const preview = inq.last_message_body
+    ? (inq.last_message_from_me ? `You: ${inq.last_message_body}` : inq.last_message_body)
+    : null;
+  const previewTime = inq.last_message_at ? formatRelativeShort(inq.last_message_at) : null;
+
   return (
     <button
       type="button"
@@ -555,7 +631,7 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        gap: 5,
+        gap: 4,
         fontFamily: FONT,
         position: "relative",
       }}
@@ -563,6 +639,7 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
       {unread && (
         <span style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", width: 6, height: 6, borderRadius: "50%", background: C.accent }} />
       )}
+      {/* Row 1 — Company + stage pill */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
         <div style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
           {company}
@@ -571,12 +648,39 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
           {stage.label}
         </span>
       </div>
+      {/* Row 2 — Event date + location (only when set) */}
       {(dateLabel || location) && (
         <div style={{ fontSize: 11.5, color: C.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {[dateLabel, location].filter(Boolean).join(" · ")}
         </div>
       )}
-      {needsMe && (
+      {/* Row 3 — Last-message preview + relative time. This is what
+          makes the row feel like a real conversation list (familiar
+          WhatsApp / iMessage pattern): user sees the last thing said
+          and roughly when it happened without opening the thread. */}
+      {preview && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>
+          <span style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 12,
+            color: unread ? C.ink : C.inkMuted,
+            fontWeight: unread ? 500 : 400,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontStyle: inq.last_message_from_me ? "normal" : "normal",
+          }}>
+            {preview}
+          </span>
+          {previewTime && (
+            <span style={{ flexShrink: 0, fontSize: 10.5, color: C.inkDim, fontVariantNumeric: "tabular-nums" }}>
+              {previewTime}
+            </span>
+          )}
+        </div>
+      )}
+      {needsMe && !preview && (
         <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 2 }}>
           <span style={{ fontSize: 10.5, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.3 }}>
             Action needed
@@ -684,6 +788,12 @@ function ThreadPaneWithTabs({
               {inq.event_location && <span>· {inq.event_location}</span>}
             </div>
           </div>
+          {details?.coordinator?.assigned && details.coordinator.name && (
+            <CoordinatorChip
+              name={details.coordinator.name}
+              avatarUrl={details.coordinator.avatar_url}
+            />
+          )}
           <ClientThreadSearchTrigger
             messages={messages}
             onJumpOffer={details?.offer?.exists ? () => onTabChange("offer") : undefined}
@@ -949,6 +1059,74 @@ function ClientThreadSearchTrigger({
         onClose={() => setOpen(false)}
       />
     </>
+  );
+}
+
+// ─── Coordinator chip ────────────────────────────────────────────────────
+//
+// Tiny avatar + first-name chip rendered in the thread header so the
+// client always knows *who* on the agency side is handling their
+// inquiry. Avatar falls back to initials when no photo is on file.
+function CoordinatorChip({
+  name,
+  avatarUrl,
+}: {
+  name: string;
+  avatarUrl: string | null;
+}) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  const firstName = name.split(/\s+/)[0] ?? name;
+  return (
+    <div
+      title={`${name} is coordinating your inquiry`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "3px 9px 3px 3px",
+        borderRadius: 999,
+        background: "rgba(11,11,13,0.04)",
+        border: `1px solid ${C.borderSoft}`,
+        flexShrink: 0,
+      }}
+    >
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt=""
+          aria-hidden
+          style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover" }}
+        />
+      ) : (
+        <span
+          aria-hidden
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            background: C.accent,
+            color: "#fff",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: 0.2,
+          }}
+        >
+          {initials || "?"}
+        </span>
+      )}
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: C.ink, fontFamily: FONT }}>
+        {firstName}
+      </span>
+    </div>
   );
 }
 
@@ -2572,6 +2750,40 @@ function formatDate(d: string): string {
     return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   } catch {
     return d;
+  }
+}
+
+/**
+ * Short relative timestamp for inbox-row previews:
+ *   • <60s     → "now"
+ *   • <60m     → "5m"
+ *   • <24h     → "3h"  /  same-day clock when sent today
+ *   • <7d      → weekday ("Mon")
+ *   • otherwise → "Oct 1" / "Oct 1, 2025"
+ * Keeps the row scannable — no second component wraps.
+ */
+function formatRelativeShort(iso: string): string {
+  try {
+    const dt = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - dt.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 1) return "now";
+    if (diffMin < 60) return `${diffMin}m`;
+    const isSameDay = dt.toDateString() === now.toDateString();
+    if (isSameDay) {
+      return dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    }
+    const diffDays = Math.floor(diffMs / 86_400_000);
+    if (diffDays < 7) {
+      return dt.toLocaleDateString(undefined, { weekday: "short" });
+    }
+    if (dt.getFullYear() === now.getFullYear()) {
+      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return "";
   }
 }
 

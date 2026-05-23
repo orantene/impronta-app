@@ -280,6 +280,12 @@ export type ClientInquiryRow = {
    * 'pitch_conversion'. Used by the page to surface a source pill.
    */
   source_channel: string | null;
+  /** Newest message timestamp in the private thread (null = no messages). */
+  last_message_at: string | null;
+  /** First ~80 chars of the newest message body, for the inbox preview. */
+  last_message_body: string | null;
+  /** True when the newest message was sent by this client themselves. */
+  last_message_from_me: boolean;
 };
 
 /**
@@ -307,7 +313,7 @@ export async function loadClientInquiries(
       return [];
     }
 
-    const rows = (data ?? []) as Omit<ClientInquiryRow, "unreadCount">[];
+    const rows = (data ?? []) as Omit<ClientInquiryRow, "unreadCount" | "last_message_at" | "last_message_body" | "last_message_from_me">[];
     if (rows.length === 0) return [];
 
     const inquiryIds = rows.map((row) => row.id);
@@ -321,7 +327,7 @@ export async function loadClientInquiries(
         .in("inquiry_id", inquiryIds),
       supabase
         .from("inquiry_messages")
-        .select("inquiry_id, sender_user_id, created_at")
+        .select("inquiry_id, sender_user_id, body, created_at")
         .eq("tenant_id", tenantId)
         .eq("thread_type", "private")
         .is("deleted_at", null)
@@ -346,11 +352,27 @@ export async function loadClientInquiries(
     }
 
     const unreadByInquiry = new Map<string, number>();
+    // Track the newest message per inquiry so the inbox can show a
+    // preview ("You: hola · 1:52 PM") and sort by activity rather than
+    // by inquiry creation date. Sender + body + created_at are all
+    // retained from the single message scan above.
+    const lastMessageByInquiry = new Map<string, { at: string; body: string; senderUserId: string | null }>();
     for (const row of (messagesRes.data ?? []) as {
       inquiry_id: string;
       sender_user_id: string | null;
+      body: string | null;
       created_at: string;
     }[]) {
+      // Newest-wins running max for the preview map.
+      const prev = lastMessageByInquiry.get(row.inquiry_id);
+      if (!prev || row.created_at > prev.at) {
+        lastMessageByInquiry.set(row.inquiry_id, {
+          at: row.created_at,
+          body: row.body ?? "",
+          senderUserId: row.sender_user_id,
+        });
+      }
+      // Unread counting (skip own messages + already-read).
       if (row.sender_user_id && row.sender_user_id === userId) continue;
       const lastReadAt = lastReadAtByInquiry.get(row.inquiry_id);
       if (lastReadAt && new Date(row.created_at).getTime() <= new Date(lastReadAt).getTime()) {
@@ -362,10 +384,27 @@ export async function loadClientInquiries(
       );
     }
 
-    return rows.map((row) => ({
-      ...row,
-      unreadCount: unreadByInquiry.get(row.id) ?? 0,
-    }));
+    const enriched = rows.map((row) => {
+      const last = lastMessageByInquiry.get(row.id) ?? null;
+      return {
+        ...row,
+        unreadCount: unreadByInquiry.get(row.id) ?? 0,
+        last_message_at: last?.at ?? null,
+        last_message_body: last?.body ?? null,
+        last_message_from_me: !!last && last.senderUserId === userId,
+      };
+    });
+
+    // Sort by last-activity desc (last_message_at if present, otherwise
+    // created_at) so a new message bubbles its inquiry to the top of
+    // the inbox — the behaviour every messaging UI conditions users to.
+    enriched.sort((a, b) => {
+      const aT = a.last_message_at ?? a.created_at;
+      const bT = b.last_message_at ?? b.created_at;
+      return bT.localeCompare(aT);
+    });
+
+    return enriched;
   } catch (err) {
     logServerError("client.loadInquiries", err);
     return [];
