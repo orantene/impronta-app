@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { HybridModeSwitcher } from "@/components/hybrid-identity/HybridModeSwitcher";
-import { loadHybridSwitcherProps } from "@/lib/server-actions/hybrid-identity-self";
-import type { HybridSwitcherProps } from "@/lib/server-actions/hybrid-identity-self";
 import { useDashboardText } from "../dashboard-i18n";
 import { FloatingFab, Icon, Popover, useRovingTabindex } from "../primitives";
 import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, NOTIFICATIONS, PAGE_META, PENDING_TALENT, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
@@ -17,21 +14,6 @@ import { ControlBar } from "./ControlBar";
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useAdminShell();
   const copy = useDashboardText();
-  // Item #8 wiring: load hybrid identity for the signed-in user so
-  // the HybridModeSwitcher knows whether to render + where to route.
-  // Renders nothing on non-hybrids automatically. Lazy-loaded after
-  // mount to avoid blocking the topbar render.
-  const [hybridProps, setHybridProps] = useState<HybridSwitcherProps>({
-    canTalent: false, canWorkspace: false, current: "workspace",
-    talentHref: "#", workspaceHref: "#",
-  });
-  useEffect(() => {
-    let cancelled = false;
-    loadHybridSwitcherProps().then((p) => {
-      if (!cancelled) setHybridProps(p);
-    });
-    return () => { cancelled = true; };
-  }, []);
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
   ).length;
@@ -205,13 +187,6 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
         {/* Right side — search chip + settings + sidebar layout toggle.
             "+ New" + AI assistant unified into BottomActionFab (bottom-right). */}
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Item #8 wiring: Talent ⇄ Workspace switcher for hybrid
-              identities. Renders nothing when the user isn't a hybrid
-              (canTalent && canWorkspace both required). Data plumbing:
-              the topbar's parent should consume resolveActorIdentity
-              and pass the props down. Placeholder defaults render
-              nothing — wire when hybrid identity data is in scope. */}
-          <HybridModeSwitcher {...hybridProps} />
           {/* #2 — Global search chip. Opens the existing CommandPalette
               (⌘K) so power-users can find anything instantly. */}
           {onOpenSearch && (
