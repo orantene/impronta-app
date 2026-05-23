@@ -142,7 +142,17 @@ export function ClientKeyboardShortcuts({
       }
     }
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    // Allow the account-menu "Keyboard shortcuts" item (and anywhere else
+    // we want a programmatic trigger) to open the help overlay without
+    // having to share React state across the layout.
+    function onOpenHelp() {
+      setHelpOpen(true);
+    }
+    document.addEventListener("client:open-help", onOpenHelp as EventListener);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("client:open-help", onOpenHelp as EventListener);
+    };
   }, [router, tenantSlug, gMode, helpOpen]);
 
   if (!helpOpen) return null;

@@ -26,8 +26,8 @@ import {
 } from "@/components/directory/public-discovery-state";
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { loadClientSelfProfile } from "../_data-bridge";
-import { signOut } from "@/app/auth/actions";
 import { ClientTopbar } from "./client-topbar";
+import { ClientAccountMenu } from "./_components/ClientAccountMenu";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -204,72 +204,36 @@ export default async function ClientLayout({
 
             <div className="client-hd-divider" style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
 
-            {/* Client identity */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 8px",
-                borderRadius: 999,
+            {/* Account menu — clickable identity (avatar + name + caret).
+                Folds: profile · notifications · language · shortcuts · sign-out.
+                Replaces the prior dead avatar + dead role chip + duplicate
+                "Client" pill + orphan ↩ icon. */}
+            <ClientAccountMenu
+              tenantSlug={tenantSlug}
+              userName={clientProfile.displayName}
+              userEmail={session.user.email ?? ""}
+              userInitials={userInitials}
+              company={clientProfile.company ?? null}
+              labels={{
+                signedInAs: t("dashboard.signedInAs"),
+                profile: t("dashboard.accountMenu.profile"),
+                profileSub: t("dashboard.accountMenu.profileSub"),
+                notifications: t("dashboard.accountMenu.notifications"),
+                notificationsSub: t("dashboard.accountMenu.notificationsSub"),
+                language: t("dashboard.accountMenu.language"),
+                languageSub: t("dashboard.accountMenu.languageSub"),
+                shortcuts: t("dashboard.accountMenu.shortcuts"),
+                shortcutsSub: t("dashboard.accountMenu.shortcutsSub"),
+                signOut: t("dashboard.signOut"),
+                signingOut: t("dashboard.signingOut"),
+                openMenu: t("dashboard.accountMenu.openMenu"),
               }}
-            >
-              {/* Avatar */}
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: "50%",
-                  background: C.blueSoft,
-                  color: C.blueDeep,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  fontFamily: FONT_BODY,
-                  letterSpacing: 0.5,
-                }}
-              >
-                {userInitials}
-              </div>
-              <div className="min-w-0">
-                <div
-                  style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    color: C.ink,
-                    letterSpacing: -0.1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: 200,
-                  }}
-                >
-                  {clientProfile.displayName}
-                </div>
-                {clientProfile.company && (
-                  <div
-                    className="client-hd-company"
-                    style={{
-                      fontFamily: FONT_BODY,
-                      fontSize: 11,
-                      color: C.inkMuted,
-                      letterSpacing: 0.1,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {clientProfile.company}
-                  </div>
-                )}
-              </div>
-            </div>
+            />
 
             <span className="client-hd-slash" aria-hidden style={{ fontSize: 14, color: C.inkDim, flexShrink: 0 }}>/</span>
 
-            {/* Role chip */}
+            {/* Role chip — single surface indicator. Drops on narrow widths
+                (the menu header still shows full identity). */}
             <div
               className="client-hd-role-chip"
               style={{
@@ -303,55 +267,6 @@ export default async function ClientLayout({
             </div>
 
             <div style={{ flex: 1 }} />
-
-            {/* ── Right-side utilities ── */}
-            <div className="flex items-center gap-1">
-
-              {/* Client pill — current surface indicator */}
-              <div
-                className="client-hd-pill"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 30,
-                  padding: "0 12px",
-                  borderRadius: 999,
-                  background: C.ink,
-                  color: "#fff",
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: 0.1,
-                }}
-              >
-                {t("dashboard.roleClient")}
-              </div>
-
-              {/* Sign-out */}
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  title={t("dashboard.signOut")}
-                  aria-label={t("dashboard.signOut")}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 44,
-                    height: 44,
-                    borderRadius: 10,
-                    border: `1px solid ${C.borderSoft}`,
-                    background: "transparent",
-                    color: C.inkMuted,
-                    fontSize: 15,
-                    cursor: "pointer",
-                    fontFamily: FONT_BODY,
-                  }}
-                >
-                  ↩
-                </button>
-              </form>
-            </div>
           </div>
         </header>
 
