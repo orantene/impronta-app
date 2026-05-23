@@ -570,6 +570,19 @@
   "dashboard": {
     "loadingNav": "Loading nav…",
     "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "signedInAs": "Signed in as",
+    "accountMenu": {
+      "openMenu": "Open account menu",
+      "profile": "Profile",
+      "profileSub": "Name, company, account",
+      "notifications": "Notifications",
+      "notificationsSub": "Email, push, digest",
+      "language": "Language",
+      "languageSub": "Dashboard display language",
+      "shortcuts": "Keyboard shortcuts",
+      "shortcutsSub": "Press ? anywhere"
+    },
     "exitToSite": "Exit to site",
     "exit": "Exit",
     "sheetDashboardTitle": "Dashboard",

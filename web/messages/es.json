@@ -570,6 +570,19 @@
   "dashboard": {
     "loadingNav": "Cargando menú…",
     "signOut": "Cerrar sesión",
+    "signingOut": "Cerrando sesión…",
+    "signedInAs": "Sesión iniciada como",
+    "accountMenu": {
+      "openMenu": "Abrir menú de cuenta",
+      "profile": "Perfil",
+      "profileSub": "Nombre, empresa, cuenta",
+      "notifications": "Notificaciones",
+      "notificationsSub": "Email, push, resumen",
+      "language": "Idioma",
+      "languageSub": "Idioma del panel",
+      "shortcuts": "Atajos de teclado",
+      "shortcutsSub": "Pulsa ? en cualquier sitio"
+    },
     "exitToSite": "Salir al sitio",
     "exit": "Salir",
     "sheetDashboardTitle": "Panel",

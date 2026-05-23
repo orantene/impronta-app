@@ -67,6 +67,11 @@ const SUPPRESSION_DESTINATIONS: Record<string, string | null> = {
   // Languages now lives inside the About accordion
   "languages":               "about",
 
+  // Services owns taxonomy-backed skills/strengths. The legacy `skills`
+  // catalog row is a migration alias and must not render as a free-text
+  // Details field, especially before any talent type is selected.
+  "skills":                  "services",
+
   // Location accordion
   "service.has_drivers_license": "location",
   "service.owns_vehicle":        "location",
@@ -121,14 +126,20 @@ const SUPPRESSED_GROUP_SLUGS: Record<string, string> = {
 // as "Travel preferences" / "Service area" / "Availability extras" cards
 // next to the dedicated Location / Availability rail items — the same
 // bleed, one layer down. Suppress by field_key namespace prefix too, for
-// the namespaces that wholly belong to a dedicated section. Only includes
-// namespaces with NO legitimate type-specific fields (consent/emergency/
-// performer/ops/equipment are deliberately absent — they have no home).
+// the namespaces that wholly belong to a dedicated section. This is also
+// the fallback for global rows that have a platform field_group, but no
+// active taxonomy group yet, so the resolver may return field_group_slug
+// as null for an untyped profile. Only includes namespaces with NO
+// legitimate type-specific fields (consent/emergency/performer/ops/
+// equipment are deliberately absent — they have no home).
 const SUPPRESSED_NAMESPACES: Record<string, string> = {
   travel:       "logistics",
   serviceArea:  "logistics",
   service:      "logistics",
   availability: "availability",
+  creator:      "media",
+  media:        "media",
+  experience:   "credits",
 };
 
 /** A field is suppressed if its key has a dedicated home OR its whole
@@ -1112,9 +1123,10 @@ export function LiveCategoryFieldsEditor({
   }
 
   if (fields.length === 0) {
+    if (scope === "general") return null;
     return (
       <div style={{ padding: 12, fontFamily: F, fontSize: 12, color: T.inkMuted }}>
-        No category-specific fields yet. Pick a primary type in Services.
+        Select a talent type in Services to see type-specific fields.
       </div>
     );
   }

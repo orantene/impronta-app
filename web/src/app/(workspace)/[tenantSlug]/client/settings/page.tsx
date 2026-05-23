@@ -10,6 +10,7 @@ import { isStripeConfigured } from "@/lib/stripe/client";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
 import { loadUserPrefs } from "@/lib/server-actions/user-prefs";
 import { NotificationPrefsPanel } from "./NotificationPrefsPanel";
+import { ProfileFields, AccountFields } from "./_components/AccountFormsClient";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -17,41 +18,11 @@ type PageParams = Promise<{ tenantSlug: string }>;
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
   borderSoft: "rgba(24,24,27,0.08)",
   cardBg:     "#ffffff",
-  surface:    "rgba(11,11,13,0.02)",
-  accent:     "#1D4ED8",
-  accentSoft: "rgba(29,78,216,0.08)",
-  blue:       "#2563EB",
-  blueDeep:   "#1D4ED8",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-function SettingRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        padding: "14px 0",
-        borderBottom: `1px solid ${C.borderSoft}`,
-        fontFamily: FONT,
-      }}
-    >
-      <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{label}</div>
-        {hint && <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>{hint}</div>}
-      </div>
-      <div style={{ fontSize: 13, color: C.inkMuted, flexShrink: 0, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {value}
-      </div>
-    </div>
-  );
-}
 
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -93,11 +64,6 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   const userEmail =
     (session.user.email as string | undefined) ?? "—";
 
-  const userName =
-    (session.user.user_metadata?.full_name as string | undefined) ??
-    (session.user.user_metadata?.name as string | undefined) ??
-    userEmail.split("@")[0];
-
   const rawProvider =
     (session.user.app_metadata?.provider as string | undefined) ??
     (Array.isArray(session.user.app_metadata?.providers)
@@ -124,55 +90,33 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 680 }}>
-        {/* Profile */}
+        {/* Profile — now editable. `EditableTextRow` writes to
+            profiles.display_name + client_profiles.company_name via the
+            client self-edit server actions; RLS already permits
+            (`client_profiles_write_own`). */}
         <Card
           title="Profile"
-          subtitle="Your display name and company shown to the agency."
+          subtitle="Your display name and company shown on inquiries and bookings."
         >
-          <SettingRow
-            label="Name"
-            value={clientProfile.displayName}
+          <ProfileFields
+            tenantSlug={tenantSlug}
+            initialDisplayName={clientProfile.displayName}
+            initialCompany={clientProfile.company ?? ""}
+            agencyName={clientProfile.agencyName}
           />
-          <SettingRow
-            label="Company"
-            value={clientProfile.company ?? "—"}
-            hint="Used on inquiries and bookings."
-          />
-          <div
-            style={{
-              padding: "12px 0 0",
-              fontSize: 12,
-              color: C.inkMuted,
-              fontFamily: FONT,
-            }}
-          >
-            Contact {clientProfile.agencyName} to update your profile details.
-          </div>
         </Card>
 
-        {/* Account */}
+        {/* Account — email + password are now editable via Supabase
+            auth.updateUser. Email triggers a two-sided confirmation; the
+            password change applies immediately. */}
         <Card
           title="Account"
-          subtitle="Your login credentials."
+          subtitle="Your sign-in credentials."
         >
-          <SettingRow
-            label="Email"
-            value={userEmail}
+          <AccountFields
+            initialEmail={userEmail}
+            signInMethodLabel={signInMethodLabel}
           />
-          <SettingRow
-            label="Sign-in method"
-            value={signInMethodLabel}
-          />
-          <div
-            style={{
-              padding: "12px 0 0",
-              fontSize: 12,
-              color: C.inkMuted,
-              fontFamily: FONT,
-            }}
-          >
-            To change your email or password, visit your account settings or contact support.
-          </div>
         </Card>
 
         {/* Notifications — placeholder */}
