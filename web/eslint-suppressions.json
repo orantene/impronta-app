@@ -420,7 +420,7 @@
   },
   "src/components/admin/shell/internal/messages/admin-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 17
+      "count": 19
     }
   },
   "src/components/admin/shell/internal/messages/admin-3.tsx": {
@@ -430,7 +430,7 @@
   },
   "src/components/admin/shell/internal/messages/admin-4.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 16
+      "count": 17
     }
   },
   "src/components/admin/shell/internal/messages/client-1.tsx": {
@@ -460,12 +460,12 @@
   },
   "src/components/admin/shell/internal/messages/shared/machinery-11.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 43
+      "count": 45
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-12.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 32
+      "count": 38
     }
   },
   "src/components/admin/shell/internal/messages/shared/machinery-13.tsx": {

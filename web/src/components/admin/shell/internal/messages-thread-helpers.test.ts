@@ -180,7 +180,7 @@ describe("ageLabel", () => {
     [1, "1h"],
     [2, "2h"],
     [23, "23h"],
-    [23.999, "23.999h"], // QUIRK: non-integer hrs is interpolated verbatim
+    [23.999, "23h"],
     [24, "1d"],
     [25, "1d"], // QUIRK: Math.floor(25/24) === 1
     [47, "1d"],

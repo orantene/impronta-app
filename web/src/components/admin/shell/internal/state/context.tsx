@@ -409,7 +409,7 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
 
   const coordinator: CoordinatorAssignment | null = w.coordinatorName
     ? {
-        id: w.id + "-coord",
+        id: w.coordinatorUserId ?? w.id + "-coord",
         name: w.coordinatorName,
         initials:
           w.coordinatorInitials ??
@@ -423,9 +423,27 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
   const nextActionBy: RichInquiry["nextActionBy"] =
     w.nextActionBy === "system" ? "ops" : w.nextActionBy ?? null;
 
+  const mapParticipantStatus = (status: string): RequirementGroup["talents"][number]["status"] => {
+    const s = status.toLowerCase();
+    if (s === "accepted" || s === "confirmed" || s === "active" || s === "booked") return "accepted";
+    if (s === "declined" || s === "removed" || s === "withdrawn") return "declined";
+    if (s === "hold" || s === "superseded") return "superseded";
+    return "pending";
+  };
+
   const requirementGroups: RequirementGroup[] =
     w.lineupTotal > 0
-      ? [{ id: w.id + "-rg", role: "talent", needed: w.lineupTotal, approved: w.lineupConfirmed, talents: [] }]
+      ? [{
+          id: w.id + "-rg",
+          role: "talent",
+          needed: w.lineupTotal,
+          approved: w.lineupConfirmed,
+          talents: w.lineupTalent.map((talent) => ({
+            name: talent.displayName,
+            thumb: "",
+            status: mapParticipantStatus(talent.status),
+          })),
+        }]
       : [];
 
   const offer: Offer | null = w.currentOfferStatus
@@ -444,24 +462,55 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
       }
     : null;
 
-  const messages: ThreadMessage[] = w.lastMessagePreview
-    ? [{
-        id: w.id + "-m0",
-        threadType: (w.lastMessageThreadType ?? "private") as ThreadType,
-        senderName: w.lastMessageRole === "you" ? "You" : w.clientName,
-        senderRole: (
-          w.lastMessageRole === "you"    ? "coordinator" :
-          w.lastMessageRole === "system" ? "system" :
-          w.lastMessageRole ?? "client"
-        ) as MessageSenderRole,
-        senderInitials: w.clientInitials,
-        body: w.lastMessagePreview,
-        ts: w.lastMessageAt
-          ? new Date(w.lastMessageAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })
-          : "",
-        isYou: w.lastMessageRole === "you",
-      }]
-    : [];
+  const messages: ThreadMessage[] = (w.threadMessages.length > 0
+    ? w.threadMessages.map((message) => {
+        const threadType = (message as { thread_type?: ThreadType }).thread_type ?? "private";
+        const senderRole: MessageSenderRole =
+          !message.sender_user_id ? "system"
+          : message.is_mine ? "coordinator"
+          : message.sender_role === "coordinator" ? "coordinator"
+          : message.sender_role === "talent" ? "talent"
+          : message.sender_role === "client" ? "client"
+          : threadType === "private" ? "client"
+          : "talent";
+        const senderName = senderRole === "system"
+          ? "System"
+          : message.sender_name || (senderRole === "talent" ? "Talent" : w.clientName);
+        return {
+          id: message.id,
+          threadType,
+          senderName,
+          senderRole,
+          senderInitials: senderRole === "system" ? "SY" : shortInitialsForBridge(senderName),
+          body: message.body,
+          ts: new Date(message.created_at).toLocaleString("en-US", {
+            weekday: "short",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+          isYou: message.is_mine,
+          messageKind: message.message_kind ?? "text",
+          cardPayload: message.card_payload ?? null,
+        } as ThreadMessage & { messageKind?: string; cardPayload?: Record<string, unknown> | null };
+      })
+    : w.lastMessagePreview
+      ? [{
+          id: w.id + "-m0",
+          threadType: (w.lastMessageThreadType ?? "private") as ThreadType,
+          senderName: w.lastMessageRole === "system" ? "System" : w.lastMessageRole === "you" ? "You" : w.clientName,
+          senderRole: (
+            w.lastMessageRole === "you"    ? "coordinator" :
+            w.lastMessageRole === "system" ? "system" :
+            w.lastMessageRole ?? "client"
+          ) as MessageSenderRole,
+          senderInitials: w.lastMessageRole === "system" ? "SY" : w.clientInitials,
+          body: w.lastMessagePreview,
+          ts: w.lastMessageAt
+            ? new Date(w.lastMessageAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })
+            : "",
+          isYou: w.lastMessageRole === "you",
+        }]
+      : []);
 
   return {
     id: w.id,
@@ -518,6 +567,13 @@ function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
     status: m.status === "pending_acceptance" ? "invited" : "active",
     initials,
   };
+}
+
+function shortInitialsForBridge(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 const AdminShellContext = createContext<Ctx | null>(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { OverflowMenu } from "@/components/chat-interactions";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
@@ -18,6 +18,7 @@ import { AdminMessageStream } from "./admin-4";
 import { stageStyle } from "./messages-shared";
 import { isFirstConvWith } from "./shared/inbox-identity-1";
 import { buildInquiryTabs } from "./shared/machinery-1";
+import { ReassignCoordinatorSheet } from "./shared/machinery-4";
 import { getOffer } from "./shared/machinery-10";
 import { LiveLineupPanel } from "./shared/machinery-11";
 import { OfferTab } from "./shared/machinery-12";
@@ -38,11 +39,13 @@ import type { ShellHeaderInput } from "./talent-1";
 // Tab content adapts per active tab.
 export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
   const { toast, state, effectiveTenant } = useAdminShell();
+  const router = useRouter();
   // Slice B (Messages consolidation v2): admin lands on the unified
   // Chat tab; Client is the default sub-thread (client conversation
   // is the primary sales surface for admin/coord).
   const [activeTab, setActiveTab] = useState<ThreadTabId>("chat");
   const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>("client");
+  const [coordinatorSheetOpen, setCoordinatorSheetOpen] = useState(false);
   // Slice P wiring: Status sheet state — opens on header status pill tap.
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
 
@@ -76,6 +79,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
   // immediately when the user opens a Client or Talent thread. Skipped
   // for synthetic mock inquiry ids (the demo data isn't in DB).
   const inquiryIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiry.id);
+  const coordinatorFirstName = inquiry.coordinator?.name.split(" ")[0] ?? null;
   useEffect(() => {
     if (!inquiryIsUuid) return;
     // Slice B (Messages consolidation v2): unified Chat tab — mark read
@@ -169,6 +173,32 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         onStatusClick={() => setStatusSheetOpen(true)}
         rightSlot={(
           <div className="flex items-center gap-2">
+            {inquiryIsUuid && (
+              <button
+                type="button"
+                onClick={() => setCoordinatorSheetOpen(true)}
+                title={inquiry.coordinator ? `Reassign coordinator: ${inquiry.coordinator.name}` : "Assign a talent coordinator"}
+                style={{
+                  height: 32,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  background: "#fff",
+                  color: COLORS.ink,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: inquiry.coordinator ? COLORS.success : COLORS.amber, display: "inline-block" }} />
+                {coordinatorFirstName ? `Coord: ${coordinatorFirstName}` : "Assign coord"}
+              </button>
+            )}
             <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
             <ThreadSearchTrigger
               inquiryId={inquiry.id}
@@ -371,6 +401,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   inquiryId={inquiry.id}
                   tenantSlug={effectiveTenant.slug}
                   threadType="private"
+                  topInset={42}
                 />
               )}
               {showGroupStream && (
@@ -386,6 +417,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
                   inquiryId={inquiry.id}
                   tenantSlug={effectiveTenant.slug}
                   threadType="group"
+                  topInset={42}
                 />
               )}
               {showDmStream && (
@@ -400,7 +432,7 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         {/* Slice B: new universal Lineup tab — DB-backed roster manager */}
         {activeTab === "lineup" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
-            <LiveLineupPanel inquiryId={inquiry.id} />
+            <LiveLineupPanel inquiryId={inquiry.id} defaultExpanded />
           </div>
         )}
         {activeTab === "offer" && (
@@ -445,6 +477,17 @@ export function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; 
         onClose={() => setStatusSheetOpen(false)}
         data={deriveAdminStatusSheetData(inquiry, stageBucket, allTalents, offerLabel)}
       />
+      {inquiryIsUuid && (
+        <ReassignCoordinatorSheet
+          open={coordinatorSheetOpen}
+          onClose={() => setCoordinatorSheetOpen(false)}
+          inquiryId={inquiry.id}
+          currentCoordName={inquiry.coordinator?.name ?? "Unassigned"}
+          currentCoordUserId={inquiry.coordinator?.id ?? null}
+          onSuccess={() => router.refresh()}
+          mode="swap"
+        />
+      )}
     </div>
   );
 }

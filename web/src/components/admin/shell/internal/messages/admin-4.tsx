@@ -17,7 +17,7 @@ import { ConversationTab, DraftComposer, SMART_REPLIES_FOR_LAST } from "./shared
 
 export function AdminMessageStream({
   messages, placeholder, closed, closedNotice, threadKey, smartReplyContext = "default",
-  firstTimeClientName, inquiryId, tenantSlug, threadType,
+  firstTimeClientName, inquiryId, tenantSlug, threadType, topInset = 0,
 }: {
   messages: RichInquiry["messages"];
   placeholder: string;
@@ -44,6 +44,8 @@ export function AdminMessageStream({
   tenantSlug: string;
   /** DB thread type for this stream: "private" = client, "group" = talent. */
   threadType: ThreadType;
+  /** Extra top space for shells with an overlaid chat sub-toggle. */
+  topInset?: number;
 }) {
   const { toast, state, effectiveTenant } = useAdminShell();
   const [, startTransition] = useTransition();
@@ -112,6 +114,7 @@ export function AdminMessageStream({
     <div style={{
       display: "flex", flexDirection: "column",
       flex: 1, minHeight: 0,
+      paddingTop: topInset,
       fontFamily: FONTS.body,
     }}>
       {/* Items 1-3 wiring: bubble hover-actions reveal rule. Desktop:
@@ -127,8 +130,8 @@ export function AdminMessageStream({
       )}
       {/* S0.11 — Message visibility label. Tells the admin what audience
           will see messages they send into this stream. private =
-          staff-internal; group = everyone on the thread (client +
-          coordinator + talent). */}
+          client + workspace staff; group = selected talent + workspace
+          coordinators. */}
       <div
         data-msg-visibility-banner
         style={{
@@ -149,11 +152,11 @@ export function AdminMessageStream({
         }}
         title={
           threadType === "private"
-            ? "Private thread — only your workspace staff can read or post here."
-            : "Group thread — visible to client, coordinator, and any invited talent."
+            ? "Client thread — visible to the client and workspace staff."
+            : "Talent group — visible to selected talent and workspace coordinators."
         }
       >
-        {threadType === "private" ? "🔒 Internal — staff only" : "👥 Group — client + talent"}
+        {threadType === "private" ? "Client thread" : "Talent group"}
       </div>
       <div style={{
         flex: 1, minHeight: 0, overflowY: "auto",
@@ -302,7 +305,7 @@ export function AdminMessageStream({
                   fontSize: 13, lineHeight: 1.45,
                 }}>
                   {!mine && (
-                    <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
+                    <div style={{ fontSize: 10.5, fontWeight: 700, marginBottom: 3, display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }} className="text-admin-ink-muted">
                       <span>{m.senderName} <span className="font-medium">· {m.senderRole}</span></span>
                       {m.senderRole === "workspace" && (
                         <span title="Workspace System User" style={{
@@ -320,8 +323,10 @@ export function AdminMessageStream({
                       )}
                     </div>
                   )}
-                  {m.body}
-                  <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                    {m.body}
+                  </div>
+                  <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
                     {m.ts}
                     {mine && (
                       <span aria-hidden style={{ display: "inline-flex" }}>
