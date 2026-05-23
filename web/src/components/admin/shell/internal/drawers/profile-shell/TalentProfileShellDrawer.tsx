@@ -2228,9 +2228,9 @@ export function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Profile", ids: ["identity", "about", "services", "profile_fields"] },
+              { label: "Profile", ids: ["identity", "location", "about", "services", "profile_fields"] },
               { label: "Craft", ids: ["physical", "wardrobe", "details"] },
-              { label: "Where & when", ids: ["location", "logistics", "availability"] },
+              { label: "Logistics", ids: ["logistics", "availability"] },
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
               { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
