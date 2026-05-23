@@ -129,7 +129,11 @@ export default async function ClientLayout({
           --muted-foreground:    ${C.inkMuted};
           --border:              rgba(24,24,27,0.10);
         }
-        .client-hd-row { overflow: hidden; }
+        /* Clip horizontally so the bar can't overflow the viewport on
+           narrow widths, but stay visible vertically so the account-menu
+           dropdown can escape the 56px bar. overflow-x: clip is the
+           modern primitive that does NOT force overflow-y to auto. */
+        .client-hd-row { overflow-x: clip; overflow-y: visible; }
         .client-hd-main { padding: 0 16px; }
         /* Narrow viewports: drop secondary utilities so the row fits. */
         @media (max-width: 640px) {
