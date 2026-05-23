@@ -1,0 +1,20 @@
+  269 |   };
+  270 |
+  271 |   // ─ Section updaters ────────────────────────────────────────────────────── (src/components/inquiry/InquiryDrawer.tsx:268:5)
+ POST /directory 200 in 2.3s (next.js: 1819µs, proxy.ts: 2ms, application-code: 2.3s)
+  └─ ƒ getDirectoryInquirySheetData() in 2294ms src/app/(public)/directory/get-inquiry-sheet-data.ts
+{"ns":"impronta","event":"ai_search_pipeline","requestId":"req-51f668c6-acd7-47b4-956c-2d8e562ea41b","ts":"2026-05-23T03:23:51.916Z","vector_active":false,"merge_strategy":"classic_only","fallback_reason":"empty_or_whitespace_query","classic_fetched":9,"vector_neighbors":0,"post_merge":9,"results_returned":9,"wall_time_ms":2124,"quality_v2":true}
+ POST /directory 200 in 4.1s (next.js: 4ms, proxy.ts: 7ms, application-code: 4.1s)
+  └─ ƒ setTalentSaved("42b0d16f-de76-49f3-bc98-f80b5bba377d", true) in 612ms src/app/(public)/directory/actions.ts
+{"ns":"impronta","event":"inquiry_engine.observability","requestId":"req-403eeff1-b285-4249-9f2a-0c9cecce2e95","ts":"2026-05-23T03:23:55.078Z","action":"inquiry.submitted","inquiryId":"bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da","actorUserId":null,"priority":"high"}
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-0d2e3c29-c68c-4dea-abf0-1c0317e97ffb","ts":"2026-05-23T03:23:55.081Z","action":"submitInquiry","inquiryId":"","actorUserId":"guest","result":"success","durationMs":2194,"errorReason":""}
+{"ns":"impronta","event":"email.warn","requestId":"req-dc0175aa-f482-4f1d-a476-8c47a7f9dbc2","ts":"2026-05-23T03:23:55.573Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"Your inquiry to Impronta Models is received"}
+{"ns":"impronta","event":"email.warn","requestId":"req-30c6375e-6196-4232-84f8-25b84b40d0e9","ts":"2026-05-23T03:23:55.878Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"You've been assigned to QA E3 Guest"}
+ GET /api/dev/signin?email=qa-guest-1779506614%40impronta.test&password=Impronta-QA-Guest-2026!&next=/impronta/client/inquiries 307 in 757ms (next.js: 1685µs, proxy.ts: 1899µs, application-code: 754ms)
+{"ns":"impronta","event":"ai_search_pipeline","requestId":"req-622e5482-8cf1-434d-aab8-7f6c97ab8f82","ts":"2026-05-23T03:23:58.828Z","vector_active":false,"merge_strategy":"classic_only","fallback_reason":"empty_or_whitespace_query","classic_fetched":9,"vector_neighbors":0,"post_merge":9,"results_returned":9,"wall_time_ms":2233,"quality_v2":true}
+ POST /directory 200 in 8.0s (next.js: 3ms, proxy.ts: 3ms, application-code: 8.0s)
+  └─ ƒ submitInquiryNowAction({"kind":"idle"}, {}) in 4219ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions.ts
+ POST /directory 200 in 4.8s (next.js: 3ms, proxy.ts: 2ms, application-code: 4.8s)
+  └─ ƒ setTalentSaved("42b0d16f-de76-49f3-bc98-f80b5bba377d", false) in 221ms src/app/(public)/directory/actions.ts
+ GET /impronta/client/inquiries 307 in 4.0s (next.js: 3.3s, proxy.ts: 220ms, application-code: 459ms)
+ GET /login?next=/impronta/client 200 in 2.2s (next.js: 1836ms, proxy.ts: 3ms, application-code: 329ms)

@@ -1,0 +1,22 @@
+{
+  "client_profiles": [
+    {
+      "id": "7ba9bccb-ac57-4fd3-8adb-ba997d793a1a",
+      "user_id": "688787f4-7a3e-48ba-82ef-8454ff3b0bc6"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "a9f37c54-c4c1-4321-b0fd-534677934520",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "client_profile_id": "7ba9bccb-ac57-4fd3-8adb-ba997d793a1a",
+      "source_type": "inquiry",
+      "status": "active",
+      "first_inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "last_interaction_at": "2026-05-23T03:38:56.13+00:00",
+      "source_workspace_id": "00000000-0000-0000-0000-000000000001",
+      "origin_domain": null
+    }
+  ],
+  "error": null
+}
