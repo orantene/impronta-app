@@ -128,6 +128,13 @@ export default async function ClientLayout({
           --card-foreground:     ${C.ink};
           --muted-foreground:    ${C.inkMuted};
           --border:              rgba(24,24,27,0.10);
+          /* Override the dark-theme tokens that leak from .site-theme-dark
+             on ancestor surfaces — otherwise shared components that use
+             bg-muted (e.g. DashboardLocaleToggle's active EN/ES pill)
+             render as a solid black square with invisible text. */
+          --muted:               #f1f1ee;
+          --popover:             #ffffff;
+          --popover-foreground:  ${C.ink};
         }
         /* Clip horizontally so the bar can't overflow the viewport on
            narrow widths, but stay visible vertically so the account-menu
