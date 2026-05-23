@@ -197,6 +197,7 @@ export type TalentInquiryRow = {
   status: string;
   contact_name: string;
   company: string | null;
+  message: string | null;
   event_date: string | null;
   event_location: string | null;
   created_at: string;
@@ -284,6 +285,7 @@ export async function loadTalentInquiries(
           status,
           contact_name,
           company,
+          message,
           event_date,
           event_location,
           created_at,
@@ -312,6 +314,7 @@ export async function loadTalentInquiries(
         status: string;
         contact_name: string;
         company: string | null;
+        message: string | null;
         event_date: string | null;
         event_location: string | null;
         created_at: string;
@@ -328,6 +331,7 @@ export async function loadTalentInquiries(
         status: r.inquiries!.status,
         contact_name: r.inquiries!.contact_name,
         company: r.inquiries!.company,
+        message: r.inquiries!.message,
         event_date: r.inquiries!.event_date,
         event_location: r.inquiries!.event_location,
         created_at: r.inquiries!.created_at,

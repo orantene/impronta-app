@@ -340,7 +340,11 @@ describe("intentToSubmitInquiryInput", () => {
       },
       source_page: "/client/discover?x=1",
       source_channel: "discover_single_talent",
-      source_context: { talent_profile_id: "tp1", referrer_page: "/client/discover?x=1" },
+      source_context: {
+        talent_profile_id: "tp1",
+        referrer_page: "/client/discover?x=1",
+        talent_ids: ["tp1", "tp2"],
+      },
       origin_domain: "improntamodels.com",
       source_workspace_id: "ws1",
       // ctx.trust_level_at_submission wins over requester.trust_level

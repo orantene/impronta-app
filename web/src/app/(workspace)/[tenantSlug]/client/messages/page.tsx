@@ -62,14 +62,13 @@ export default async function ClientMessagesPage({
     ? inquiries.find((i) => i.id === pinnedInquiry)?.id ?? inquiries[0]?.id ?? null
     : inquiries[0]?.id ?? null;
 
-  // Phase C — load Details payload + group-thread messages in parallel for
+  // Phase C — load Details payload + private-thread messages in parallel for
   // the initial active inquiry. The shell mounts Details tab content from
   // server data so the first paint is rich (no spinner-and-fetch).
-  // Group thread = client + coordinator + talent. Private thread is
-  // staff-internal (clients must never see it).
+  // Private thread = agency + client; group thread is the talent fan-out.
   const [initialMessages, initialDetails] = await Promise.all([
     initialActiveId
-      ? loadInquiryMessages(scope.tenantId, initialActiveId, "group")
+      ? loadInquiryMessages(scope.tenantId, initialActiveId, "private")
       : Promise.resolve([]),
     initialActiveId
       ? loadClientInquiryDetails(scope.tenantId, initialActiveId)
