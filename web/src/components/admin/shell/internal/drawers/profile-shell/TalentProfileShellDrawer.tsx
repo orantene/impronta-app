@@ -62,6 +62,7 @@ import {
   actionRevertCropToSource,
   actionUploadAndAssignMedia,
   addPendingReview,
+  addTalentToRoster,
   assignTalentTaxonomyBySlug,
   clearPendingReview,
   clearProfileDraft,
@@ -725,8 +726,95 @@ export function TalentProfileShellDrawer() {
   // reads from it so we can keep `state` out of this callback's dep array.
 
   const saveAll = React.useCallback(async (): Promise<boolean> => {
-    const tid = payload.talentId;
-    if (!tid || mode === "create") {
+    let tid = payload.talentId;
+
+    // ── Create-mode bridge ─────────────────────────────────────────────
+    // The drawer is now also the "Add talent" entry point. When opened in
+    // `create` mode with no talentId, the first save inserts the row via
+    // `addTalentToRoster` (same server action the QuickAdd used) and then
+    // transitions the drawer to `edit-admin` mode with the new id so all
+    // subsequent saves flow through the normal commit path.
+    if (!tid && mode === "create" && !isSelf) {
+      if (!tenantSlug) {
+        setSaveError(copy.t("No workspace context."));
+        setSaveStatus("error");
+        return false;
+      }
+      const s = stateRef.current;
+      const stageName = (s.stageName ?? "").trim();
+      const homeBase = (s.serviceArea?.homeBase ?? "").trim();
+      const primaryType = s.primaryType ?? null;
+      // Same minimum gate as the legacy QuickAdd drawer (`minimumValid`
+      // in new-talent-drawer.tsx) — admins know they need name + primary
+      // type + home base to mint a profile.
+      if (!stageName) {
+        setSaveError(copy.t("Add a stage / professional name first."));
+        setSaveStatus("error");
+        return false;
+      }
+      if (!primaryType) {
+        setSaveError(copy.t("Pick a primary talent type to continue."));
+        setSaveStatus("error");
+        return false;
+      }
+      if (!homeBase) {
+        setSaveError(copy.t("Enter a home base to continue."));
+        setSaveStatus("error");
+        return false;
+      }
+      setSaveStatus("saving");
+      setSaveError(null);
+      // Derive first/last from the explicit identity fields if filled,
+      // otherwise split the stage name as a best-effort fallback.
+      const explicitFirst = (s.identity?.firstName ?? "").trim();
+      const explicitLast = (s.identity?.lastName ?? "").trim();
+      const stageParts = stageName.split(/\s+/);
+      const firstName = explicitFirst || (stageParts[0] ?? "");
+      const lastName = explicitLast || stageParts.slice(1).join(" ");
+      const email = (s.identity?.contactEmail ?? "").trim();
+      const phone = (s.identity?.contactPhone ?? "").trim();
+      const createRes = await addTalentToRoster({
+        tenantSlug,
+        firstName,
+        lastName,
+        displayName: stageName,
+        email,
+        phone,
+        homeBase,
+        primaryTypeSlugorId: primaryType,
+        secondaryTypeSlugorIds: s.secondaryTypes ?? [],
+        managementMethod: "agency",
+      });
+      if (!createRes.ok || !createRes.talentProfileId) {
+        // ActionResult is a discriminated union — inside this OR-guard
+        // TS can't narrow to the !ok branch, so use the `in` operator.
+        const createErr = "error" in createRes ? createRes.error : null;
+        setSaveError(createErr ?? copy.t("Could not create the talent profile."));
+        setSaveStatus("error");
+        return false;
+      }
+      tid = createRes.talentProfileId;
+      // Hand off to edit-admin mode with the new talentId. The drawer
+      // remounts with full hydration so the user keeps editing the same
+      // talent without losing context. Fields the user already typed
+      // (bio, photos, rates, etc.) are preserved server-side because the
+      // commit step below runs against the new tid in the same save.
+      clearProfileDraft("default");
+      setSaveStatus("saved");
+      setSavedAt(new Date());
+      // Reopen the drawer in edit-admin mode so showHeaderSave gates,
+      // hydration, and section-specific saves all use the real talent id.
+      closeDrawer();
+      openDrawer("talent-profile-shell", {
+        mode: "edit-admin",
+        talentId: tid,
+        seed: { stageName, primaryType, homeBase },
+      });
+      queueShellRouterRefresh();
+      return true;
+    }
+
+    if (!tid) {
       setSaveError(copy.t("No talent context yet — finish creating first."));
       setSaveStatus("error");
       return false;
@@ -1580,8 +1668,13 @@ export function TalentProfileShellDrawer() {
   void historyUiEpoch;
   const canUndoStack = historyIdxRef.current > 0;
   const canRedoStack = historyIdxRef.current < historyRef.current.length - 1;
-  const showHeaderSave =
-    !!payload.talentId && (dirty || saveStatus === "saving" || saveStatus === "error");
+  // In `create` mode the drawer has no talentId yet, but the header CTA
+  // (now "Create profile") still needs to render — clicking it is what
+  // inserts the row. Showing the button as soon as the user opens the
+  // drawer (in create mode) gives them an obvious commit affordance.
+  const showHeaderSave = mode === "create"
+    ? !isSelf
+    : !!payload.talentId && (dirty || saveStatus === "saving" || saveStatus === "error");
   const saveSubtitle = copy.profileDrawerSaveSubtitle({
     saveStatus,
     savedAt,
@@ -1893,8 +1986,9 @@ export function TalentProfileShellDrawer() {
                   animation: "tulala-spin 0.8s linear infinite",
                 }} />
               )}
-              {saveStatus === "saving" ? copy.t("Saving…")
+              {saveStatus === "saving" ? (mode === "create" ? copy.t("Creating…") : copy.t("Saving…"))
                 : saveStatus === "error" ? `⚠ ${(saveError ?? (copy.isSpanish ? "No se pudo guardar" : "Couldn't save")).slice(0, 40)}`
+                : mode === "create" ? copy.t("Create profile")
                 : copy.t("Save")}
               <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
             </button>
