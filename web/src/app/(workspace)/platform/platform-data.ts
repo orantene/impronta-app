@@ -27,16 +27,33 @@ export type PlatformTenantRow = {
   createdAt: string;
 };
 
+export type PlatformUserMembership = {
+  tenantId: string;
+  name: string;
+  slug: string;
+  kind: "agency" | "hub" | string;
+  plan: string;
+  role: string;
+};
+
 export type PlatformUserRow = {
   id: string;
   displayName: string;
   email: string;
   appRole: string | null;
   accountStatus: string | null;
+  /** Total active memberships (agencies + hubs). */
   tenantCount: number;
-  primaryTenant: string | null;
+  /** Count of agency-kind memberships where role IN ('owner','admin'). */
+  workspaceAdminCount: number;
+  /** Count of agency-kind memberships (any role). */
+  workspaceCount: number;
+  /** Count of hub-kind memberships. */
+  hubCount: number;
+  memberships: PlatformUserMembership[];
   isTalent: boolean;
   createdAt: string;
+  createdAtIso: string | null;
   emailConfirmed: boolean;
 };
 
@@ -162,41 +179,45 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
     }
   }
 
-  // Fetch membership counts per user
+  // Fetch every active membership per user, with the org's display name, slug,
+  // kind (agency vs hub) and plan tier — so the table + drawer can show full
+  // workspace context without a second fetch.
   const profileIds = data.map((r: { id: string }) => r.id);
-  let tenantCounts: Record<string, number> = {};
-  let primaryTenants: Record<string, string> = {};
+  const membershipsByUser: Record<string, PlatformUserMembership[]> = {};
   if (profileIds.length > 0) {
     const { data: memberships } = await sb
       .from("agency_memberships")
       // Note: the column is `profile_id` (= auth.users.id), not `user_id`.
-      .select("profile_id, tenant_id, agencies!inner(display_name, slug)")
+      .select(
+        "profile_id, tenant_id, role, agencies!inner(display_name, slug, kind, plan_tier)",
+      )
       .in("profile_id", profileIds)
       .eq("status", "active");
 
     if (memberships) {
-      const primaryMap: Record<string, string> = {};
       for (const m of memberships as Array<{
         profile_id: string;
         tenant_id: string;
+        role: string | null;
         agencies: unknown;
       }>) {
-        tenantCounts[m.profile_id] = (tenantCounts[m.profile_id] ?? 0) + 1;
-        if (!primaryMap[m.profile_id]) {
-          // Supabase returns the join as an array or single object depending on
-          // the relationship type — handle both.
-          const ag = m.agencies;
-          const agFirst = Array.isArray(ag) ? ag[0] : ag;
-          const name =
-            (agFirst as { display_name?: string; slug?: string } | null)
-              ?.display_name ??
-            (agFirst as { display_name?: string; slug?: string } | null)?.slug ??
-            m.tenant_id;
-          primaryMap[m.profile_id] = name;
-        }
-      }
-      for (const [uid, name] of Object.entries(primaryMap)) {
-        primaryTenants[uid] = name;
+        const ag = m.agencies;
+        const agFirst = Array.isArray(ag) ? ag[0] : ag;
+        const a = agFirst as {
+          display_name?: string;
+          slug?: string;
+          kind?: string;
+          plan_tier?: string;
+        } | null;
+        const entry: PlatformUserMembership = {
+          tenantId: m.tenant_id,
+          name: a?.display_name ?? a?.slug ?? m.tenant_id,
+          slug: a?.slug ?? "",
+          kind: a?.kind ?? "agency",
+          plan: a?.plan_tier ?? "free",
+          role: m.role ?? "viewer",
+        };
+        (membershipsByUser[m.profile_id] ??= []).push(entry);
       }
     }
   }
@@ -207,18 +228,38 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
     app_role: string | null;
     account_status: string | null;
     created_at: string | null;
-  }) => ({
-    id: r.id,
-    displayName: r.display_name ?? emailById[r.id]?.split("@")[0] ?? "Unknown",
-    email: emailById[r.id] ?? "—",
-    appRole: r.app_role,
-    accountStatus: r.account_status,
-    tenantCount: tenantCounts[r.id] ?? 0,
-    primaryTenant: primaryTenants[r.id] ?? null,
-    isTalent: r.app_role === "talent",
-    createdAt: formatDate(r.created_at),
-    emailConfirmed: confirmedById[r.id] ?? true,
-  }));
+  }) => {
+    const ms = membershipsByUser[r.id] ?? [];
+    const workspaceMs = ms.filter((m) => m.kind === "agency");
+    const hubMs = ms.filter((m) => m.kind === "hub");
+    const adminMs = workspaceMs.filter(
+      (m) => m.role === "owner" || m.role === "admin",
+    );
+    // Sort: owners first, then admins, then by org name.
+    const roleRank: Record<string, number> = {
+      owner: 0, admin: 1, manager: 2, coordinator: 2, editor: 3, viewer: 4,
+    };
+    ms.sort((a, b) => {
+      const r = (roleRank[a.role] ?? 9) - (roleRank[b.role] ?? 9);
+      return r !== 0 ? r : a.name.localeCompare(b.name);
+    });
+    return {
+      id: r.id,
+      displayName: r.display_name ?? emailById[r.id]?.split("@")[0] ?? "Unknown",
+      email: emailById[r.id] ?? "—",
+      appRole: r.app_role,
+      accountStatus: r.account_status,
+      tenantCount: ms.length,
+      workspaceAdminCount: adminMs.length,
+      workspaceCount: workspaceMs.length,
+      hubCount: hubMs.length,
+      memberships: ms,
+      isTalent: r.app_role === "talent",
+      createdAt: formatDate(r.created_at),
+      createdAtIso: r.created_at,
+      emailConfirmed: confirmedById[r.id] ?? true,
+    };
+  });
 }
 
 // ─── Stats (Today page) ───────────────────────────────────────────────────────
