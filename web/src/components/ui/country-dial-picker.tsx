@@ -59,22 +59,47 @@ function ranked(query: string): CountryDial[] {
     const rest = COUNTRY_DIAL_CODES.filter((c) => !POPULAR_SET.has(c.iso));
     return [...popular, ...rest];
   }
+  // Buckets, most-specific first. The key fix vs the previous version:
+  // a query like "1" or "+1" must rank the EXACT-dial rows (US, Canada)
+  // above the NANP siblings whose dial is "+1684" / "+1264" / "+1268"
+  // etc. Without this, the alphabetical source order surfaces American
+  // Samoa first — the bug the QA caught.
+  const exactDialMatches: CountryDial[] = [];
   const isoMatches: CountryDial[] = [];
-  const dialMatches: CountryDial[] = [];
+  const dialPrefixMatches: CountryDial[] = [];
   const nameMatches: CountryDial[] = [];
   const qDial = q.startsWith("+") ? q : `+${q}`;
   for (const row of COUNTRY_DIAL_CODES) {
     const iso = row.iso.toLowerCase();
     const name = row.name.toLowerCase();
-    if (iso === q || iso.startsWith(q)) {
+    if (row.dial === qDial) {
+      exactDialMatches.push(row);
+    } else if (iso === q || iso.startsWith(q)) {
       isoMatches.push(row);
-    } else if (row.dial === qDial || row.dial.startsWith(qDial)) {
-      dialMatches.push(row);
+    } else if (row.dial.startsWith(qDial)) {
+      dialPrefixMatches.push(row);
     } else if (name.includes(q)) {
       nameMatches.push(row);
     }
   }
-  return [...isoMatches, ...dialMatches, ...nameMatches];
+  // For exact-dial matches, hoist `POPULAR_DIAL_ISOS` ahead so the
+  // ambiguous "+1" lands on United States + Canada before the smaller
+  // NANP territories.
+  exactDialMatches.sort((a, b) => {
+    const aPop = POPULAR_SET.has(a.iso) ? 0 : 1;
+    const bPop = POPULAR_SET.has(b.iso) ? 0 : 1;
+    if (aPop !== bPop) return aPop - bPop;
+    // Within the same popularity tier, popular order wins; otherwise
+    // alphabetical (stable from the source list).
+    if (aPop === 0) {
+      return POPULAR_DIAL_ISOS.indexOf(a.iso) - POPULAR_DIAL_ISOS.indexOf(b.iso);
+    }
+    return a.name.localeCompare(b.name);
+  });
+  // For dial-prefix matches, shorter dials come first — so "+12…"
+  // narrows in length order, not alphabetical-by-country.
+  dialPrefixMatches.sort((a, b) => a.dial.length - b.dial.length || a.name.localeCompare(b.name));
+  return [...exactDialMatches, ...isoMatches, ...dialPrefixMatches, ...nameMatches];
 }
 
 export function CountryDialPicker({
