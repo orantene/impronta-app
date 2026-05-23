@@ -393,7 +393,7 @@ export const TENANT_HEADER_NAME = ACTIVE_TENANT_HEADER;
 
 const HOST_CONTEXT_HEADER = "x-impronta-host-context";
 const HOST_NAME_HEADER = "x-impronta-host-name";
-const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
+export const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
 export const PUBLIC_PATH_PREFIX_HEADER = "x-impronta-public-path-prefix";
 
 /**

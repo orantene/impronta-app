@@ -34,7 +34,7 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
-import { PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { HOST_TENANT_SLUG_HEADER, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
 import { loadTenantSiteLabelForEditChrome } from "@/lib/site-admin/edit-mode/tenant-site-label";
 import { EditChrome } from "./edit-chrome";
@@ -77,8 +77,33 @@ export async function EditChromeMount() {
   const reqHeaders = await headers();
   const rawPathname = reqHeaders.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
 
+  // On tenant hosts the URL can legitimately carry the tenant slug as the
+  // first segment (e.g. `improntamodels.com/impronta/admin/roster/[id]`).
+  // The `(workspace)/[tenantSlug]` route resolves the same way for both
+  // path-based access (`tulala.digital/impronta/...`) and custom-domain
+  // access — so admins reach the dashboard with the slug in the path on
+  // BOTH host kinds. Strip a leading `/<tenantSlug>` (or the path-mode
+  // PUBLIC_PATH_PREFIX_HEADER) before the NON_STOREFRONT_PREFIXES check
+  // so admin / talent / client / auth routes are detected even when the
+  // tenant slug is in front. Without this the check would silently miss
+  // `/impronta/admin/...` and the editor would mount over the dashboard.
+  const publicPathPrefix = reqHeaders.get(PUBLIC_PATH_PREFIX_HEADER) ?? "";
+  const tenantSlug = reqHeaders.get(HOST_TENANT_SLUG_HEADER) ?? "";
+  let normalizedPath = rawPathname;
+  if (publicPathPrefix && normalizedPath.startsWith(publicPathPrefix)) {
+    normalizedPath = normalizedPath.slice(publicPathPrefix.length) || "/";
+  } else if (tenantSlug) {
+    const slugPrefix = `/${tenantSlug}`;
+    if (
+      normalizedPath === slugPrefix ||
+      normalizedPath.startsWith(`${slugPrefix}/`)
+    ) {
+      normalizedPath = normalizedPath.slice(slugPrefix.length) || "/";
+    }
+  }
+
   const isNonStorefront = NON_STOREFRONT_PREFIXES.some(
-    (prefix) => rawPathname === prefix.replace(/\/$/, "") || rawPathname.startsWith(prefix),
+    (prefix) => normalizedPath === prefix.replace(/\/$/, "") || normalizedPath.startsWith(prefix),
   );
   if (isNonStorefront) return null;
 
@@ -141,7 +166,6 @@ export async function EditChromeMount() {
   //   /t/TAL-...          → profile public surface (no mount)
   // rawPathname is already resolved above.
   const supportedLocales = localeContext.settings.supportedLocales as ReadonlyArray<string>;
-  const publicPathPrefix = reqHeaders.get(PUBLIC_PATH_PREFIX_HEADER);
   const ownership = resolvePublicSurfaceOwnershipFromPath({
     rawPathname,
     supportedLocales,

@@ -425,10 +425,19 @@ export function makeInitialProfileState(
   // their identity field with "Marta Reyes".
   const draftDisplay = draft.displayName?.trim()
     || `${draft.firstName?.trim() ?? ""} ${draft.lastName?.trim() ?? ""}`.trim();
+  // In `create` mode the drawer is the Add-talent entry point — the admin
+  // expects empty inputs, not a placeholder name. Skip BOTH the bridge
+  // self-profile fallback (admin's own talent name) AND the fixture
+  // fallback ("Sofia Lupo"); the fixture path is only for prototype /
+  // preview routes that open the shell without a talentId AND without
+  // create mode.
+  const isCreate = payload.mode === "create";
   const stageName = seed.stageName
-    ?? (draftDisplay
-      || (bridgeProfile && !isFixtureTalent ? bridgeProfile.displayName : null)
-      || (payload.talentId ? canonicalProfile.name : "Sofia Lupo"));
+    ?? (isCreate
+      ? (draftDisplay || "")
+      : (draftDisplay
+        || (bridgeProfile && !isFixtureTalent ? bridgeProfile.displayName : null)
+        || (payload.talentId ? canonicalProfile.name : "Sofia Lupo")));
   // Bridge MY_TALENT_PROFILE → ProfileState for the canonical demo
   // talent (Marta). When the workspace admin opens "her" or the talent
   // Phase B — bridge canonical profile → ProfileState. Works for any

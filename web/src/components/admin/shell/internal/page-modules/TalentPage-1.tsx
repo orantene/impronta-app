@@ -240,7 +240,7 @@ export function TalentPage() {
                   <GhostButton onClick={() => openDrawer("team")}>Team</GhostButton>
                 )}
                 <GhostButton onClick={() => openDrawer("invite-flow")}>{t("admin.roster.list.invite")}</GhostButton>
-                <PrimaryButton onClick={() => openDrawer("new-talent")}>
+                <PrimaryButton onClick={() => openDrawer("talent-profile-shell", { mode: "create", seed: {} })}>
                   {state.entityType === "hub" ? t("admin.roster.list.inviteMember") : t("admin.roster.list.addTalent")}
                 </PrimaryButton>
               </>
@@ -360,7 +360,7 @@ export function TalentPage() {
             setStateFilter("all");
             setTypeFilter("all");
           }}
-          onAdd={canEdit ? () => openDrawer("new-talent") : undefined}
+          onAdd={canEdit ? () => openDrawer("talent-profile-shell", { mode: "create", seed: {} }) : undefined}
         />
       ) : view === "grid" ? (
         <RosterGrid
