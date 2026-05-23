@@ -1,0 +1,13 @@
+{
+  "cell": "X4",
+  "test": "Save on directory → appears in /client/favorites without reload",
+  "result": "PASS",
+  "talentFavoritedOnDirectory": "Lanco (TAL-00031)",
+  "navigationType": "client-side (Next.js router via nav link click)",
+  "favoritesBeforeAdd": 7,
+  "favoritesAfterAdd": 8,
+  "hasLanco": true,
+  "localStorageUpdated": true,
+  "localStorageCount": 8,
+  "note": "Optimistic update fired immediately on directory; client-side nav to /client/favorites shows Lanco as first card, count badge updated in nav tab"
+}

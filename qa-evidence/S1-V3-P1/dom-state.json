@@ -1,0 +1,16 @@
+{
+  "cell": "S1-V3-P1",
+  "surface": "Homepage Featured Talent",
+  "persona": "Guest (localStorage session, 7 guest favorites)",
+  "viewport": "1440x900",
+  "result": "PASS",
+  "talentCardActionsCount": 4,
+  "favoriteButtonCount": 4,
+  "heartsFilled": 3,
+  "guestFavoriteIdsInLS": 7,
+  "hasOldDrawerCopy": false,
+  "hasNewDrawerCopy": false,
+  "dialogCount": 2,
+  "innerWidth": 1440,
+  "note": "4 cards in Featured Talent section all show heart+plane TalentCardActions; hearts filled for 3 already-saved cards"
+}

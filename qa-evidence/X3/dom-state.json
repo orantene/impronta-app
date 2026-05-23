@@ -1,0 +1,11 @@
+{
+  "cell": "X3",
+  "test": "Favorite sync — client_favorites appears in client dashboard",
+  "result": "PASS",
+  "talentCardActionsCount": 7,
+  "favoritesShown": 7,
+  "hasAnto": true,
+  "hasTina": true,
+  "hideInquiry": true,
+  "note": "All 7 original client favorites present including cross-tenant talents (Carmen Díaz, Sofía Herrera, Alba Reyes, Marco Sánchez from non-Impronta tenant)"
+}

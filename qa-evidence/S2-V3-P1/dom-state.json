@@ -1,0 +1,21 @@
+{
+  "cell": "S2-V3-P1",
+  "surface": "Public directory /directory",
+  "persona": "Guest (localStorage, 7 guest favorites)",
+  "viewport": "1440x900",
+  "result": "PASS",
+  "talentCardActionsCount": 18,
+  "noteOnCount": "18 = 9 grid + 9 list (both rendered simultaneously, CSS hides list view)",
+  "visibleFavoriteButtonCount": 9,
+  "visibleInquiryButtonCount": 9,
+  "headerInquiryButtonCount": 1,
+  "totalInquiryButtonsInDOM": 10,
+  "heartsFilled": 3,
+  "guestFavoriteIdsInLS": 7,
+  "hasOldDrawerCopy": false,
+  "hasOldAgencyCopy": false,
+  "hasNewDrawerCopy": false,
+  "dialogCount": 2,
+  "innerWidth": 1440,
+  "note": "All 9 cards have heart icon (top-right) + INQUIRE bar below. 3 hearts filled from localStorage favorites."
+}

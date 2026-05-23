@@ -1,0 +1,13 @@
+{
+  "cell": "Z2-S2",
+  "test": "Inquiry composer no-flash regression — directory",
+  "result": "PASS",
+  "dialogCount": 3,
+  "hasOldCopy_ContactTheAgency": false,
+  "hasOldCopy_WeWillComeBack": false,
+  "hasNewCopy_StartANewProject": true,
+  "drawerHeading": "Start a new project",
+  "drawerSubheading": "Tell Impronta what you need. We'll match talent + draft an offer.",
+  "prefilledEmail": "qa-client-1@impronta.test",
+  "note": "Canonical InquiryDrawer opened on click of cart CTA; no flash of legacy aux shell; client email pre-filled"
+}
