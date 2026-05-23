@@ -1,0 +1,63 @@
+  267 |     stagedFiles.forEach((f) => fd.append("files[]", f));
+> 268 |     submitFormAction(fd);
+      |     ^
+  269 |   };
+  270 |
+  271 |   // ─ Section updaters ────────────────────────────────────────────────────── (src/components/inquiry/InquiryDrawer.tsx:268:5)
+ POST /directory 200 in 2.3s (next.js: 3ms, proxy.ts: 483ms, application-code: 1813ms)
+  └─ ƒ getDirectoryInquirySheetData() in 1773ms src/app/(public)/directory/get-inquiry-sheet-data.ts
+{"ns":"impronta","event":"inquiry_engine.observability","requestId":"req-33faf729-f8c6-450d-9361-4d603313f0bb","ts":"2026-05-23T03:38:58.068Z","action":"inquiry.submitted","inquiryId":"b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a","actorUserId":"688787f4-7a3e-48ba-82ef-8454ff3b0bc6","priority":"high"}
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-34c01568-8db7-4d12-b9f4-30a52dad6713","ts":"2026-05-23T03:38:58.069Z","action":"submitInquiry","inquiryId":"","actorUserId":"688787f4-7a3e-48ba-82ef-8454ff3b0bc6","result":"success","durationMs":3396,"errorReason":""}
+{"ns":"impronta","event":"email.warn","requestId":"req-db34ce3d-e4d7-4b26-831c-0ea0804befe3","ts":"2026-05-23T03:38:58.365Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"Your inquiry to Impronta Models is received"}
+{"ns":"impronta","event":"email.warn","requestId":"req-04289cb6-c0cb-4e9c-bab6-ea263926d375","ts":"2026-05-23T03:38:58.516Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"You've been assigned to QA Client Two"}
+ POST /directory 200 in 4.9s (next.js: 3ms, proxy.ts: 648ms, application-code: 4.2s)
+  └─ ƒ submitInquiryNowAction({"kind":"idle"}, {}) in 3540ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions.ts
+{"ns":"impronta","event":"email.warn","requestId":"req-09149b17-8ccb-4e31-8a27-a10a8bac3d7f","ts":"2026-05-23T03:38:58.817Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"You've been added to QA Client Two"}
+{"ns":"impronta","event":"email.warn","requestId":"req-11514fe8-dc0e-4908-a5fa-6bfd9f588a97","ts":"2026-05-23T03:38:58.827Z","message":"[email] RESEND_API_KEY not set — skipping email:","input":"You've been added to QA Client Two"}
+{"ns":"impronta","event":"ai_search_pipeline","requestId":"req-9caa0a06-b05a-440f-8c86-b84b33dfece9","ts":"2026-05-23T03:39:00.853Z","vector_active":false,"merge_strategy":"classic_only","fallback_reason":"empty_or_whitespace_query","classic_fetched":10,"vector_neighbors":0,"post_merge":10,"results_returned":10,"wall_time_ms":1662,"quality_v2":true}
+ GET /api/dev/signin?email=qa-client-2%40impronta.test&password=Impronta-QA-Client-2026!&next=%2Fclient%2Fmessages%3Finquiry%3Db9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 307 in 609ms (next.js: 8ms, proxy.ts: 3ms, application-code: 598ms)
+ GET /login?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a&next=%2Fclient%2Fmessages 200 in 571ms (next.js: 15ms, proxy.ts: 4ms, application-code: 551ms)
+ GET /api/discover/shortlists 200 in 671ms (next.js: 3ms, proxy.ts: 448ms, application-code: 220ms)
+ GET /api/client/pitches/count 200 in 814ms (next.js: 4ms, proxy.ts: 616ms, application-code: 194ms)
+ GET /client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 4.4s (next.js: 21ms, proxy.ts: 1138ms, application-code: 3.2s)
+ POST /client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 1257ms (next.js: 5ms, proxy.ts: 479ms, application-code: 773ms)
+  └─ ƒ mergeGuestActivity([]) in 737ms src/lib/server-actions/client-guest-merge.ts
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-3997c97a-e3db-40d3-978f-03614e9e80ae","ts":"2026-05-23T03:39:38.883Z","action":"markThreadRead","inquiryId":"b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a","actorUserId":"688787f4-7a3e-48ba-82ef-8454ff3b0bc6","result":"success","durationMs":713,"errorReason":""}
+ POST /client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 2.0s (next.js: 7ms, proxy.ts: 462ms, application-code: 1541ms)
+  └─ ƒ markClientThreadReadAction("impronta", "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a", "42939941-4c19-4b2a-8382-8562030771d4") in 1504ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-d7054113-86ca-4feb-9dfa-9a0fdf545b57","ts":"2026-05-23T03:39:41.079Z","action":"markThreadRead","inquiryId":"b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a","actorUserId":"688787f4-7a3e-48ba-82ef-8454ff3b0bc6","result":"success","durationMs":678,"errorReason":""}
+ POST /client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 2.2s (next.js: 6ms, proxy.ts: 661ms, application-code: 1526ms)
+  └─ ƒ markClientThreadReadAction("impronta", "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a", "42939941-4c19-4b2a-8382-8562030771d4") in 1482ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts
+ GET /client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 2.9s (next.js: 6ms, proxy.ts: 553ms, application-code: 2.3s)
+ GET /api/dev/signin?email=more%40impronta.test&password=Impronta-QA-Talent-2026!&next=%2Ftalent%2Finbox 307 in 945ms (next.js: 6ms, proxy.ts: 25ms, application-code: 913ms)
+ GET /login?next=%2Ftalent%2Finbox 200 in 465ms (next.js: 6ms, proxy.ts: 3ms, application-code: 457ms)
+ GET /talent/inbox 200 in 2.9s (next.js: 28ms, proxy.ts: 788ms, application-code: 2.1s)
+ GET /api/dev/signin?email=qa-talent-dashboard-audit%40impronta.test&password=Impronta-QA-Talent-2026!&next=%2Ftalent%2Finbox 307 in 480ms (next.js: 2ms, proxy.ts: 1704µs, application-code: 477ms)
+ GET /login?next=%2Ftalent%2Finbox 200 in 573ms (next.js: 6ms, proxy.ts: 2ms, application-code: 565ms)
+ GET /talent/inbox 200 in 4.0s (next.js: 12ms, proxy.ts: 670ms, application-code: 3.3s)
+ GET /api/dev/signin?email=qa-client-1%40impronta.test&password=Impronta-QA-Client-2026!&next=%2Fclient%2Fmessages%3Fnew%3D1 307 in 668ms (next.js: 15ms, proxy.ts: 8ms, application-code: 645ms)
+ GET /login?new=1&next=%2Fclient%2Fmessages 200 in 5.4s (next.js: 7ms, proxy.ts: 3ms, application-code: 5.4s)
+--
+  └─ ƒ mergeGuestActivity([]) in 614ms src/lib/server-actions/client-guest-merge.ts
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-be58d83e-dd3b-405d-a04d-3547dd898992","ts":"2026-05-23T03:41:55.941Z","action":"markThreadRead","inquiryId":"e44a38dc-90f4-4ca4-9625-c9db5f2ff18c","actorUserId":"bb31fa4c-bfcf-4e87-a7d7-67e28d048b78","result":"success","durationMs":711,"errorReason":""}
+ POST /client/messages?inquiry=e44a38dc-90f4-4ca4-9625-c9db5f2ff18c 200 in 2.4s (next.js: 18ms, proxy.ts: 444ms, application-code: 1911ms)
+  └─ ƒ markClientThreadReadAction("impronta", "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c", "3b2ac626-d938-477e-a4e1-7a1c687e4768") in 1872ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts
+ GET /client/messages?inquiry=e44a38dc-90f4-4ca4-9625-c9db5f2ff18c 200 in 3.1s (next.js: 6ms, proxy.ts: 643ms, application-code: 2.5s)
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-03c6fc20-b977-4c9a-a6ac-e94074fcecc2","ts":"2026-05-23T03:41:57.921Z","action":"markThreadRead","inquiryId":"e44a38dc-90f4-4ca4-9625-c9db5f2ff18c","actorUserId":"bb31fa4c-bfcf-4e87-a7d7-67e28d048b78","result":"success","durationMs":674,"errorReason":""}
+ POST /client/messages?inquiry=e44a38dc-90f4-4ca4-9625-c9db5f2ff18c 200 in 1978ms (next.js: 9ms, proxy.ts: 468ms, application-code: 1501ms)
+  └─ ƒ markClientThreadReadAction("impronta", "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c", "3b2ac626-d938-477e-a4e1-7a1c687e4768") in 1455ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts
+ GET /api/dev/signin?email=qa-client-2%40impronta.test&password=Impronta-QA-Client-2026!&next=%2Fimpronta%2Fclient%2Fmessages%3Finquiry%3Db9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 307 in 690ms (next.js: 10ms, proxy.ts: 16ms, application-code: 665ms)
+ GET /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 307 in 1079ms (next.js: 13ms, proxy.ts: 484ms, application-code: 583ms)
+ GET /login?next=/impronta/client 200 in 276ms (next.js: 27ms, proxy.ts: 3ms, application-code: 246ms)
+ GET /api/client/pitches/count 200 in 704ms (next.js: 54ms, proxy.ts: 477ms, application-code: 173ms)
+ GET /api/discover/shortlists 200 in 706ms (next.js: 5ms, proxy.ts: 476ms, application-code: 225ms)
+ POST /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 769ms (next.js: 114ms, proxy.ts: 465ms, application-code: 191ms)
+  └─ ƒ mergeGuestActivity([]) in 155ms src/lib/server-actions/client-guest-merge.ts
+ GET /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 3.2s (next.js: 11ms, proxy.ts: 1014ms, application-code: 2.2s)
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-db24b8b2-aba8-4ce6-b3e0-0bcb72c71813","ts":"2026-05-23T03:42:23.776Z","action":"markThreadRead","inquiryId":"b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a","actorUserId":"688787f4-7a3e-48ba-82ef-8454ff3b0bc6","result":"success","durationMs":699,"errorReason":""}
+ POST /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 1490ms (next.js: 7ms, proxy.ts: 414ms, application-code: 1069ms)
+  └─ ƒ markClientThreadReadAction("impronta", "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a", "42939941-4c19-4b2a-8382-8562030771d4") in 1027ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts
+ GET /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 2.5s (next.js: 5ms, proxy.ts: 787ms, application-code: 1662ms)
+{"ns":"impronta","event":"inquiry_engine","requestId":"req-c3c9d3a9-b1bf-413e-b744-4f3f09798d11","ts":"2026-05-23T03:42:25.311Z","action":"markThreadRead","inquiryId":"b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a","actorUserId":"688787f4-7a3e-48ba-82ef-8454ff3b0bc6","result":"success","durationMs":714,"errorReason":""}
+ POST /impronta/client/messages?inquiry=b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a 200 in 1532ms (next.js: 9ms, proxy.ts: 441ms, application-code: 1082ms)
+  └─ ƒ markClientThreadReadAction("impronta", "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a", "42939941-4c19-4b2a-8382-8562030771d4") in 1022ms src/app/(workspace)/[tenantSlug]/client/_actions/inquiry-message-actions.ts

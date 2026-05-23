@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // Group thread — client must never see staff-internal "private" thread.
-  const messages = await loadInquiryMessages(inq.tenant_id as string, inquiryId, "group");
+  // Private thread — agency + client. Talent fan-out lives on the group thread.
+  const messages = await loadInquiryMessages(inq.tenant_id as string, inquiryId, "private");
   return NextResponse.json({ messages });
 }

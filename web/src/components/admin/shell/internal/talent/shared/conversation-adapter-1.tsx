@@ -24,6 +24,7 @@ import { TALENT_INQUIRY_TO_CONV } from "./today-1";
 
 function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversation {
   const clientName = row.company ?? row.contact_name;
+  const brief = row.message?.trim() || (row.company ? `${row.company} inquiry` : "Direct inquiry");
   const stage: MsgStage =
     row.status === "booked" || row.status === "converted"
       ? "booked"
@@ -45,7 +46,7 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
     client:        clientName,
     clientInitials: initials || clientName.slice(0, 2).toUpperCase(),
     clientTrust:   (row.trustLevel ?? "basic") as ClientTrustLevel,
-    brief:         row.company ? `${row.company} inquiry` : "Direct inquiry",
+    brief,
     stage,
     agency:        agencyName,
     leader: {

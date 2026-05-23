@@ -1,0 +1,30 @@
+{
+  "email": "qa-guest-1779506614@impronta.test",
+  "inquiry": {
+    "id": "bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da",
+    "client_user_id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+    "contact_email": "qa-guest-1779506614@impronta.test",
+    "status": "submitted",
+    "source_context": {
+      "talent_ids": [
+        "42b0d16f-de76-49f3-bc98-f80b5bba377d"
+      ],
+      "referrer_page": "/directory",
+      "directory_search": {
+        "q": "",
+        "sort": "recommended",
+        "locationSlug": "",
+        "taxonomyTermIds": []
+      }
+    },
+    "message": "Quick test — need one host for a brand video shoot in CDMX, August 8."
+  },
+  "authUser": {
+    "id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+    "email": "qa-guest-1779506614@impronta.test"
+  },
+  "successHasActivate": true,
+  "clientInquiriesHasInquiry": false,
+  "successText": "+52 984 000 0000\nDISCOVER\nTALENT\nLOCATIONS\nABOUT\nCONTACT\nAPPLY AS TALENT\nEN\n·\nES\nFind Talent\nALL\nART MODEL · 3\nCOMMERCIAL MODEL · 3\nCONTENT CREATOR · 3\nEDITORIAL MODEL · 3\nLIFESTYLE MODEL · 3\nMORE · 12\nFILTERS\nSearch filters\nCITY\nSearch city\nINDUSTRIES\nWeddings(1)\nHEIGHT (CM)\n100\n230\nMIN CM\nMAX CM\nReset height\nAVAILABILITY STATUS\nAvailable Now(16)\nAvailable This Week(5)\nBy Request(3)\nWILLING TO TRAVEL\nYes(24)\nTRAVEL SCOPE\nRegion(5)\nNational(16)\nInternational(3)\nDATE OF BIRTH\n18 yrs\n70 yrs\nMIN AGE\nMAX AGE\nReset age\nEXPERIENCE LEVEL\nExperienced(5)\nProfessional(16)\nHighly Experienced(3)\nGENDER\nFemale(8)\nMale(2)\n9 talent profiles available\nRecommended\nFeatured\nRecently added\nRecently updated\nImpronta Models\nAnto\n\nCommercial Model\n\nAvailable from May 23\nINQUIRE\nImpronta Models\nTina\n\nEvent Hostess · Playa del Carmen, MX\n\nAvailable from May 23\nINQUIRE\nImpronta Models\nNalea\n\nArt Model · Playa del Carmen, MX\n\nAvailable from May 23\nINQUIRE\nImpronta Models\nLanco\n\nInfluencer\n\nAvailable from May 23\nINQUIRE\nImpronta Models\nAnnher\n\nBrand Ambassador\n\nAvailable from May 23\nINQUIRE\nImpronta Models\nAsia\n\nArt Model\n\nAvailable from May 23\nINQUIRE\nIndependent\nMore\n\nEditorial Model\n\nAvailability unknown — ask to confirm\nINQUIRE\nIndependent\nRulo\n\nPromotional Model\n\nAvailability unknown — ask to confirm\nINQUIRE\nIndependent\nMile\n\nBeauty Model\n\nAvailability unknown — ask to confirm\nINQUIRE\nSENT\nInquiry sent\n\nYour request is with Impronta.\n\n×\n✓\nYour inquiry is on its way\n\nImpronta has it now. A coordinator will review your brief, match talent, and reply with an offer — no commitment until you approve it.\n\nWe set up an account for you\n\nWe started a free account for qa-guest-1779506614@impronta.test. Set a password to follow this inquiry — offers, messages, and updates all land in one place.\n\nSet a password to track\nThanks — Impronta will be in touch.\nDone\nYour saved talents\n\nNo favorites yet\n\nTap the bookmark on any talent card to save them here. Your list stays with you across sessions.",
+  "clientText": "How will you use Impronta?\n\nChoose your role — you can't change this later from here.\n\nI'm Talent\nModel, performer, artist, or creative — join the agency roster and receive bookings.\nI'm a Client\nBrand, production company, or event organiser — browse the directory and send booking requests.\n\nStaff accounts are assigned by the agency directly."
+}

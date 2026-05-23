@@ -1,0 +1,106 @@
+{
+  "inquiries": [
+    {
+      "id": "bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-05-23T03:23:53.434533+00:00",
+      "status": "submitted",
+      "source_page": "/directory",
+      "source_channel": "agency_site",
+      "source_context": {
+        "talent_ids": [
+          "42b0d16f-de76-49f3-bc98-f80b5bba377d"
+        ],
+        "referrer_page": "/directory",
+        "directory_search": {
+          "q": "",
+          "sort": "recommended",
+          "locationSlug": "",
+          "taxonomyTermIds": []
+        }
+      },
+      "contact_name": "QA E3 Guest",
+      "contact_email": "qa-guest-1779506614@impronta.test",
+      "client_user_id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+      "guest_session_id": "e92f085b-ed88-4b11-93f1-f785226cbb51",
+      "message": "Quick test — need one host for a brand video shoot in CDMX, August 8."
+    }
+  ],
+  "participants": [
+    {
+      "inquiry_id": "bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da",
+      "role": "client",
+      "status": "active",
+      "user_id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da",
+      "role": "coordinator",
+      "status": "invited",
+      "user_id": "bfe72e1e-6a9e-401a-9b7a-44b032a28810",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da",
+      "role": "talent",
+      "status": "invited",
+      "user_id": null,
+      "talent_profile_id": "42b0d16f-de76-49f3-bc98-f80b5bba377d",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001",
+      "sort_order": 0
+    }
+  ],
+  "talent_profiles": [
+    {
+      "id": "42b0d16f-de76-49f3-bc98-f80b5bba377d",
+      "profile_code": "TAL-00036",
+      "display_name": "Anto",
+      "first_name": "Antonela",
+      "last_name": "Heredia",
+      "user_id": null
+    }
+  ],
+  "messages": [
+    {
+      "inquiry_id": "bdc64a4e-3ad5-45a2-a8cd-8253b1fb58da",
+      "thread_type": "private",
+      "body": "Thanks — we'll get back to you within 4 hours.",
+      "metadata": {
+        "system_event_type": "workspace_auto_ack"
+      },
+      "sender_user_id": null,
+      "created_at": "2026-05-23T03:23:56.36389+00:00"
+    }
+  ],
+  "client_profiles": [
+    {
+      "id": "dc6a989c-92db-4a7b-8832-88cdb335cf5c",
+      "user_id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+      "phone": "+52 999 999 9999",
+      "trust_tier": "basic",
+      "verification_status": "none"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+      "display_name": "QA E3 Guest",
+      "app_role": "client",
+      "account_status": "onboarding"
+    }
+  ],
+  "auth_users": [
+    {
+      "id": "a52c37ab-f9e4-4a24-9726-ac6078cbe01e",
+      "email": "qa-guest-1779506614@impronta.test"
+    }
+  ]
+}

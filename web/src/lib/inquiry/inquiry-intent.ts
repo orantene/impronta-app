@@ -355,6 +355,10 @@ export function intentToSubmitInquiryInput(
   // shortlist; the caller is responsible for resolving shortlist_id →
   // talent_ids before calling the adapter (cheaper than a join in here).
   const talent_profile_ids = intent.talent?.selected_ids ?? [];
+  const source_context =
+    talent_profile_ids.length > 0
+      ? { ...(intent.source_context ?? {}), talent_ids: talent_profile_ids }
+      : intent.source_context ?? null;
 
   return {
     tenant_id: ctx.tenant_id,
@@ -371,7 +375,7 @@ export function intentToSubmitInquiryInput(
     interpreted_query,
     source_page: sourceToPagePath(intent),
     source_channel: intent.source,
-    source_context: intent.source_context ?? null,
+    source_context,
     origin_domain: ctx.origin_domain ?? null,
     source_workspace_id: ctx.source_workspace_id ?? null,
     trust_level_at_submission:

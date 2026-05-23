@@ -1,0 +1,139 @@
+{
+  "inquiries": [
+    {
+      "id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-05-23T03:38:55.475154+00:00",
+      "status": "submitted",
+      "source_page": "/directory",
+      "source_channel": "agency_site",
+      "source_context": {
+        "talent_ids": [
+          "1d6bcec0-874d-427d-90ce-9f9c8f0e8929",
+          "42b0d16f-de76-49f3-bc98-f80b5bba377d",
+          "eb97dc64-af2b-4996-a48c-913a143cfa59"
+        ],
+        "referrer_page": "/directory",
+        "directory_search": {
+          "q": null,
+          "sort": null,
+          "locationSlug": null,
+          "taxonomyTermIds": []
+        }
+      },
+      "contact_name": "QA Client Two",
+      "contact_email": "qa-client-2@impronta.test",
+      "client_user_id": "688787f4-7a3e-48ba-82ef-8454ff3b0bc6",
+      "guest_session_id": null,
+      "message": "Need three bilingual hosts for a luxury resort launch in Tulum on September 18. Full-day availability preferred."
+    }
+  ],
+  "participants": [
+    {
+      "inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "role": "client",
+      "status": "active",
+      "user_id": "688787f4-7a3e-48ba-82ef-8454ff3b0bc6",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "role": "coordinator",
+      "status": "invited",
+      "user_id": "bfe72e1e-6a9e-401a-9b7a-44b032a28810",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "role": "talent",
+      "status": "invited",
+      "user_id": "da74b80e-2ff7-4613-973e-073e45aa684b",
+      "talent_profile_id": "1d6bcec0-874d-427d-90ce-9f9c8f0e8929",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001",
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "role": "talent",
+      "status": "invited",
+      "user_id": null,
+      "talent_profile_id": "42b0d16f-de76-49f3-bc98-f80b5bba377d",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001",
+      "sort_order": 1
+    },
+    {
+      "inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "role": "talent",
+      "status": "invited",
+      "user_id": "4dc52f97-140b-4dc9-a722-4e915f3f86da",
+      "talent_profile_id": "eb97dc64-af2b-4996-a48c-913a143cfa59",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001",
+      "sort_order": 2
+    }
+  ],
+  "talent_profiles": [
+    {
+      "id": "1d6bcec0-874d-427d-90ce-9f9c8f0e8929",
+      "profile_code": "TAL-00045",
+      "display_name": "More",
+      "first_name": "Morena",
+      "last_name": "Frezza",
+      "user_id": "da74b80e-2ff7-4613-973e-073e45aa684b"
+    },
+    {
+      "id": "42b0d16f-de76-49f3-bc98-f80b5bba377d",
+      "profile_code": "TAL-00036",
+      "display_name": "Anto",
+      "first_name": "Antonela",
+      "last_name": "Heredia",
+      "user_id": null
+    },
+    {
+      "id": "eb97dc64-af2b-4996-a48c-913a143cfa59",
+      "profile_code": "TAL-AUDIT-0512",
+      "display_name": "QA Talent Dashboard Audit",
+      "first_name": "QA",
+      "last_name": "Talent Audit",
+      "user_id": "4dc52f97-140b-4dc9-a722-4e915f3f86da"
+    }
+  ],
+  "messages": [
+    {
+      "inquiry_id": "b9948cb5-84bf-4ca2-a5f2-972a4a7dd57a",
+      "thread_type": "private",
+      "body": "Thanks — we'll get back to you within 4 hours.",
+      "metadata": {
+        "system_event_type": "workspace_auto_ack"
+      },
+      "sender_user_id": null,
+      "created_at": "2026-05-23T03:38:59.099826+00:00"
+    }
+  ],
+  "client_profiles": [
+    {
+      "id": "7ba9bccb-ac57-4fd3-8adb-ba997d793a1a",
+      "user_id": "688787f4-7a3e-48ba-82ef-8454ff3b0bc6",
+      "phone": null,
+      "trust_tier": "basic",
+      "verification_status": "none"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "688787f4-7a3e-48ba-82ef-8454ff3b0bc6",
+      "display_name": "QA Client Two",
+      "app_role": "client",
+      "account_status": "active"
+    }
+  ],
+  "auth_users": []
+}

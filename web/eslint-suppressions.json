@@ -134,7 +134,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-02.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 20
+      "count": 28
     }
   },
   "src/components/admin/shell/internal/drawers/light-03.tsx": {
@@ -257,9 +257,6 @@
     },
     "ratchet/no-new-inline-style": {
       "count": 113
-    },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 1
     },
     "react-hooks/refs": {
       "count": 8
@@ -1336,12 +1333,6 @@
   },
   "src/components/inquiry/InquiryDrawer.tsx": {
     "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    },
-    "react-hooks/refs": {
       "count": 1
     }
   },

@@ -1,0 +1,73 @@
+{
+  "inquiries": [
+    {
+      "id": "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-05-23T03:41:21.616113+00:00",
+      "status": "submitted",
+      "source_page": "/client",
+      "source_channel": "direct_client_dashboard",
+      "source_context": {
+        "entry_point": "messages_drawer"
+      },
+      "contact_name": "QA Client One",
+      "contact_email": "qa-client-1@impronta.test",
+      "client_user_id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "guest_session_id": null,
+      "message": "Need a small crew (2-3 people) for a 1-day brand activation, open to suggestions."
+    }
+  ],
+  "participants": [
+    {
+      "inquiry_id": "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c",
+      "role": "client",
+      "status": "active",
+      "user_id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c",
+      "role": "coordinator",
+      "status": "invited",
+      "user_id": "bfe72e1e-6a9e-401a-9b7a-44b032a28810",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    }
+  ],
+  "talent_profiles": [],
+  "messages": [
+    {
+      "inquiry_id": "e44a38dc-90f4-4ca4-9625-c9db5f2ff18c",
+      "thread_type": "private",
+      "body": "Thanks — we'll get back to you within 4 hours.",
+      "metadata": {
+        "system_event_type": "workspace_auto_ack"
+      },
+      "sender_user_id": null,
+      "created_at": "2026-05-23T03:41:24.090773+00:00"
+    }
+  ],
+  "client_profiles": [
+    {
+      "id": "8425f1e7-aa3b-49f9-84b4-0dd43e8c6f47",
+      "user_id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "phone": null,
+      "trust_tier": "basic",
+      "verification_status": "none"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "display_name": "QA Client One",
+      "app_role": "client",
+      "account_status": "active"
+    }
+  ],
+  "auth_users": []
+}

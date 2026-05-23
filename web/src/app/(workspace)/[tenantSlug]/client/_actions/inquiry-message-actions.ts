@@ -3,8 +3,8 @@
 /**
  * inquiry-message-actions.ts — client-side message send.
  *
- * Wraps engine `sendMessage` for the client surface. Clients can only
- * send on the GROUP thread (private thread is staff-internal).
+ * Wraps engine `sendMessage` for the client surface. Clients send on the
+ * agency-client private thread; talent fan-out lives on the group thread.
  *
  * Used by the inline composer in ClientMessagesShell's Chat tab.
  */
@@ -56,7 +56,7 @@ export async function sendClientMessageAction(
     }
 
     // Self-elevate INSERT — RLS on inquiry_messages blocks even legitimate
-    // clients on group thread (see engine-internal comment + RLS walk).
+    // clients on the agency-client thread (see engine-internal comment + RLS walk).
     const supabase = createSupabaseServerClient ? await createSupabaseServerClient() : null;
     const admin = createServiceRoleClient();
     const write = admin ?? supabase ?? session.supabase;
@@ -65,7 +65,7 @@ export async function sendClientMessageAction(
       inquiryId,
       tenantId,
       actorUserId: session.user.id,
-      threadType: "group",
+      threadType: "private",
       body: trimmed,
     });
 
@@ -83,7 +83,7 @@ export async function sendClientMessageAction(
 }
 
 /**
- * Mark the group thread on this inquiry read up to lastMessageId.
+ * Mark the agency-client private thread on this inquiry read up to lastMessageId.
  * Called when the client opens the Chat tab (or selects a thread row).
  * Fire-and-forget — UI never blocks on this; errors are silent.
  */
@@ -113,7 +113,7 @@ export async function markClientThreadReadAction(
       inquiryId,
       tenantId: scope.tenantId,
       actorUserId: session.user.id,
-      threadType: "group",
+      threadType: "private",
       lastMessageId,
     });
     return { ok: res.success };

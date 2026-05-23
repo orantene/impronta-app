@@ -1,0 +1,120 @@
+{
+  "inquiries": [
+    {
+      "id": "a20a5b5a-4ab1-41df-a976-8794d1cd1269",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-05-23T03:14:51.184802+00:00",
+      "status": "submitted",
+      "source_page": "/directory",
+      "source_channel": "agency_site",
+      "source_context": {
+        "talent_ids": [
+          "1d6bcec0-874d-427d-90ce-9f9c8f0e8929",
+          "eb97dc64-af2b-4996-a48c-913a143cfa59"
+        ],
+        "referrer_page": "/directory",
+        "directory_search": {
+          "q": null,
+          "sort": null,
+          "locationSlug": null,
+          "taxonomyTermIds": []
+        }
+      },
+      "contact_name": "QA Client One",
+      "contact_email": "qa-client-1@impronta.test",
+      "client_user_id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "guest_session_id": null,
+      "message": "Need 2 hosts for Tulum brand event on July 12. Day rate flexible."
+    }
+  ],
+  "participants": [
+    {
+      "inquiry_id": "a20a5b5a-4ab1-41df-a976-8794d1cd1269",
+      "role": "client",
+      "status": "active",
+      "user_id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "a20a5b5a-4ab1-41df-a976-8794d1cd1269",
+      "role": "coordinator",
+      "status": "invited",
+      "user_id": "bfe72e1e-6a9e-401a-9b7a-44b032a28810",
+      "talent_profile_id": null,
+      "owning_party_type": null,
+      "owning_party_id": null,
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "a20a5b5a-4ab1-41df-a976-8794d1cd1269",
+      "role": "talent",
+      "status": "invited",
+      "user_id": "da74b80e-2ff7-4613-973e-073e45aa684b",
+      "talent_profile_id": "1d6bcec0-874d-427d-90ce-9f9c8f0e8929",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001",
+      "sort_order": 0
+    },
+    {
+      "inquiry_id": "a20a5b5a-4ab1-41df-a976-8794d1cd1269",
+      "role": "talent",
+      "status": "invited",
+      "user_id": "4dc52f97-140b-4dc9-a722-4e915f3f86da",
+      "talent_profile_id": "eb97dc64-af2b-4996-a48c-913a143cfa59",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001",
+      "sort_order": 1
+    }
+  ],
+  "talent_profiles": [
+    {
+      "id": "1d6bcec0-874d-427d-90ce-9f9c8f0e8929",
+      "profile_code": "TAL-00045",
+      "display_name": "More",
+      "first_name": "Morena",
+      "last_name": "Frezza",
+      "user_id": "da74b80e-2ff7-4613-973e-073e45aa684b"
+    },
+    {
+      "id": "eb97dc64-af2b-4996-a48c-913a143cfa59",
+      "profile_code": "TAL-AUDIT-0512",
+      "display_name": "QA Talent Dashboard Audit",
+      "first_name": "QA",
+      "last_name": "Talent Audit",
+      "user_id": "4dc52f97-140b-4dc9-a722-4e915f3f86da"
+    }
+  ],
+  "messages": [
+    {
+      "inquiry_id": "a20a5b5a-4ab1-41df-a976-8794d1cd1269",
+      "thread_type": "private",
+      "body": "Thanks — we'll get back to you within 4 hours.",
+      "metadata": {
+        "system_event_type": "workspace_auto_ack"
+      },
+      "sender_user_id": null,
+      "created_at": "2026-05-23T03:14:55.864058+00:00"
+    }
+  ],
+  "client_profiles": [
+    {
+      "id": "8425f1e7-aa3b-49f9-84b4-0dd43e8c6f47",
+      "user_id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "phone": null,
+      "trust_tier": "basic",
+      "verification_status": "none"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "bb31fa4c-bfcf-4e87-a7d7-67e28d048b78",
+      "display_name": "QA Client One",
+      "app_role": "client",
+      "account_status": "active"
+    }
+  ],
+  "auth_users": []
+}
