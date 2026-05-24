@@ -21,6 +21,9 @@ type SortKey = "joined" | "name" | "type" | "workspaces" | "sites";
 type TypeFilter = "all" | "talent" | "client" | "staff" | "super_admin";
 type PowerFilter = "any" | "admin" | "member" | "none";
 type EmailFilter = "all" | "unconfirmed";
+type StatusFilter = "any" | "claimed" | "unclaimed" | "suspended" | "test";
+type OriginFilter = "any" | "agency" | "studio" | "platform" | "self" | "claim_invite";
+type PlanFilter = "any" | "free" | "studio" | "agency";
 
 const selectStyle: React.CSSProperties = {
   background: HQ.card,
@@ -88,6 +91,10 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter | "all">("all");
   const [power, setPower] = useState<PowerFilter>("any");
   const [emailFilter, setEmailFilter] = useState<EmailFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("any");
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("any");
+  const [planFilter, setPlanFilter] = useState<PlanFilter>("any");
+  // TODO B.2: HasStripe filter — needs stripe_customer_id on row
   const [sortKey, setSortKey] = useState<SortKey>("joined");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -116,6 +123,44 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
       if (emailFilter === "unconfirmed") {
         // Unclaimed talent has no email to confirm — exclude from this filter.
         if (r.kind !== "human" || r.emailConfirmed) return false;
+      }
+      // Status filter
+      if (statusFilter !== "any") {
+        if (statusFilter === "unclaimed") {
+          if (r.kind !== "unclaimed_talent") return false;
+        } else if (statusFilter === "claimed") {
+          if (r.kind !== "human" || !r.isTalent || !r.talentProfileId) return false;
+        } else if (statusFilter === "suspended") {
+          if (r.kind !== "human" || r.accountStatus !== "suspended") return false;
+        } else if (statusFilter === "test") {
+          if (!r.isTestAccount) return false;
+        }
+      }
+      // Origin filter
+      if (originFilter !== "any") {
+        const originKindMap: Record<OriginFilter, string> = {
+          any: "",
+          agency: "agency_signup",
+          studio: "studio_signup",
+          platform: "platform_admin_signup",
+          self: "self_signup",
+          claim_invite: "claim_invite",
+        };
+        if (r.originKind !== originKindMap[originFilter]) return false;
+      }
+      // Plan tier filter
+      if (planFilter !== "any") {
+        const adminMs = r.memberships.filter(
+          (m) => m.role === "owner" || m.role === "admin",
+        );
+        if (planFilter === "free") {
+          // No admin membership OR all admin memberships are plan "free"
+          if (adminMs.some((m) => m.plan !== "free")) return false;
+        } else if (planFilter === "studio") {
+          if (!adminMs.some((m) => m.plan === "studio")) return false;
+        } else if (planFilter === "agency") {
+          if (!adminMs.some((m) => m.plan === "agency" || m.plan === "network")) return false;
+        }
       }
       return true;
     });
@@ -150,7 +195,7 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return out;
-  }, [rows, search, typeFilter, power, emailFilter, sortKey, sortDir]);
+  }, [rows, search, typeFilter, power, emailFilter, statusFilter, originFilter, planFilter, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -220,6 +265,39 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
         >
           <option value="all">Email: any</option>
           <option value="unconfirmed">Email: unconfirmed</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          style={selectStyle}
+        >
+          <option value="any">Any status</option>
+          <option value="claimed">Claimed</option>
+          <option value="unclaimed">Unclaimed</option>
+          <option value="suspended">Suspended</option>
+          <option value="test">Test</option>
+        </select>
+        <select
+          value={originFilter}
+          onChange={(e) => setOriginFilter(e.target.value as OriginFilter)}
+          style={selectStyle}
+        >
+          <option value="any">Any origin</option>
+          <option value="agency">Agency-added</option>
+          <option value="studio">Studio-added</option>
+          <option value="platform">Platform-added</option>
+          <option value="self">Self-signup</option>
+          <option value="claim_invite">Claim invite</option>
+        </select>
+        <select
+          value={planFilter}
+          onChange={(e) => setPlanFilter(e.target.value as PlanFilter)}
+          style={selectStyle}
+        >
+          <option value="any">Any plan</option>
+          <option value="free">Free</option>
+          <option value="studio">Studio</option>
+          <option value="agency">Agency / Network</option>
         </select>
       </div>
 
