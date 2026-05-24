@@ -9,7 +9,7 @@
  * loaded in the parent — no extra fetch.
  */
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useTransition, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, SectionLabel } from "../tenants/hq-kit";
@@ -270,6 +270,9 @@ export function UserDrawer({
             )}
           </section>
 
+          {/* Origin & Provenance */}
+          <OriginSection user={user} />
+
           {/* Workspaces */}
           <section style={{ marginBottom: 18 }}>
             <SectionLabel>
@@ -409,5 +412,157 @@ function MembershipList({
         </li>
       ))}
     </ul>
+  );
+}
+
+function OriginSection({ user }: { user: PlatformUserRow }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const originLabel = user.originKind
+    ? {
+        agency_signup: "Agency-added",
+        studio_signup: "Studio-added",
+        platform_admin_signup: "Platform",
+        self_signup: "Self-signup",
+        claim_invite: "Claim invite",
+      }[user.originKind] ?? "Unknown"
+    : "Unknown";
+
+  const originColor = user.originKind
+    ? {
+        agency_signup: HQ.green,
+        studio_signup: HQ.inkMuted,
+        platform_admin_signup: HQ.inkMuted,
+        self_signup: HQ.inkMuted,
+        claim_invite: HQ.amber,
+      }[user.originKind] ?? HQ.inkDim
+    : HQ.inkDim;
+
+  const hasOriginData =
+    user.originKind || user.originCreatedByUserId || user.originWorkspaceId;
+
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          fontWeight: 600,
+          color: HQ.ink,
+          fontFamily: HQ_FM,
+          letterSpacing: 0.2,
+          textTransform: "uppercase",
+          marginBottom: 8,
+          userSelect: "none",
+        }}
+      >
+        <span style={{ fontSize: 11 }}>{isOpen ? "▼" : "▶"}</span>
+        Origin & Provenance
+      </div>
+
+      {isOpen && (
+        <div
+          style={{
+            background: HQ.cardSoft,
+            border: `1px solid ${HQ.borderSoft}`,
+            borderRadius: 10,
+            padding: "10px 12px",
+            fontSize: 12.5,
+            color: HQ.inkMuted,
+            display: "grid",
+            gridTemplateColumns: "auto 1fr",
+            gap: "6px 12px",
+          }}
+        >
+          {!hasOriginData ? (
+            <span
+              style={{
+                gridColumn: "1 / -1",
+                color: HQ.inkDim,
+                textAlign: "center",
+                padding: "6px 0",
+              }}
+            >
+              Origin data not available
+            </span>
+          ) : (
+            <>
+              <span style={{ color: HQ.inkDim }}>Origin</span>
+              <div>
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    background: `${originColor}15`,
+                    color: originColor,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {originLabel}
+                </span>
+              </div>
+
+              <span style={{ color: HQ.inkDim }}>Created by</span>
+              <span
+                style={{
+                  color: HQ.ink,
+                  fontFamily: HQ_FM,
+                  fontSize: 11.5,
+                  wordBreak: "break-all",
+                }}
+                title={user.originCreatedByUserId ?? undefined}
+              >
+                {user.originCreatedByUserId ?? "—"}
+              </span>
+
+              <span style={{ color: HQ.inkDim }}>Via workspace</span>
+              <span
+                style={{
+                  color: HQ.ink,
+                  fontFamily: HQ_FM,
+                  fontSize: 11.5,
+                  wordBreak: "break-all",
+                }}
+                title={user.originWorkspaceId ?? undefined}
+              >
+                {user.originWorkspaceId ?? "—"}
+              </span>
+
+              <span style={{ color: HQ.inkDim }}>Created at</span>
+              <span style={{ color: HQ.ink }}>
+                {user.createdAtIso
+                  ? (() => {
+                      const d = new Date(user.createdAtIso);
+                      const abs = d.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                      const now = new Date();
+                      const diffMs = now.getTime() - d.getTime();
+                      const diffDays = Math.floor(diffMs / 86400000);
+                      let rel = "today";
+                      if (diffDays === 1) rel = "yesterday";
+                      else if (diffDays > 1 && diffDays < 7) rel = `${diffDays}d ago`;
+                      else if (diffDays >= 7 && diffDays < 30)
+                        rel = `${Math.floor(diffDays / 7)}w ago`;
+                      else if (diffDays >= 30) rel = `${Math.floor(diffDays / 30)}mo ago`;
+                      return `${abs} (${rel})`;
+                    })()
+                  : "—"}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
