@@ -248,9 +248,9 @@ Per the integrator protocol (memory `project_multi_agent_integrator_protocol.md`
 | ~~E.tier2 reversible actions~~ | ~~7 server actions + status writes~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~M0.1, M0.2, M0.6~~ | **DONE** `42ee0e843` PR #26 |
 | ~~E.tier3 destructive actions~~ | ~~3 server actions, cascade-aware, typed-name confirm~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~M~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
 | ~~F audit-log page~~ | ~~Standalone page~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
-| G.1 federated-loader smoke test | Jest/Vitest | Mid | Sonnet 4.6 | S | A.1 |
-| G.2 today-page test-account exclusion | Tweak counts | Junior | Haiku 4.5 | XS | M0.6 |
-| G.3 docs (CLAUDE.md, README, runbook) | Prose | Junior | Haiku 4.5 | S | all above |
+| ~~G.1 federated-loader smoke test~~ | ~~Jest/Vitest~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~S~~ | ~~A.1~~ | **DONE** `a42604b9c` PR #29 |
+| ~~G.2 today-page test-account exclusion~~ | ~~Tweak counts~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~M0.6~~ | **DONE** `a42604b9c` PR #29 |
+| ~~G.3 docs (CLAUDE.md, README, runbook)~~ | ~~Prose~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~all above~~ | **DONE** `a42604b9c` PR #29 |
 
 ---
 
@@ -274,8 +274,8 @@ C.3 (hide globally + per-site) + C.5 (workspace role/remove) + C.8 (action panel
 **Wave 6 — billing** (~2 agents, 1 day)
 D.1 → D.2, D.3, then C.4. Senior+mid pair.
 
-**Wave 7 — QA + docs** (~2 agents, ½ day)
-G.1 + G.2 + G.3.
+**~~Wave 7 — QA + docs~~** ~~(~2 agents, ½ day)~~ **DONE** PR #29 `a42604b9c`
+~~G.1 + G.2 + G.3.~~
 
 **Realistic calendar with 4–5 agents in parallel + the integrator chat: 5–7 working days.**
 
