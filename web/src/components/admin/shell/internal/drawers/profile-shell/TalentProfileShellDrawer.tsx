@@ -169,6 +169,31 @@ import {
   profileReducer
 } from "./profile-shell-internal";
 
+function detailsGroupHelperText(label: string): string {
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("physical") || normalized.includes("casting")) {
+    return "Casting facts, measurements, and profile details used for matching.";
+  }
+  if (normalized.includes("equipment") || normalized.includes("tools")) {
+    return "Gear, tools, and setup details clients need before booking.";
+  }
+  if (normalized.includes("operational")) {
+    return "Practical requirements that keep bookings clear and predictable.";
+  }
+  if (normalized.includes("music")) {
+    return "Genres, set format, and music-specific booking details.";
+  }
+  if (normalized.includes("performer")) {
+    return "Act format, performance style, and production needs.";
+  }
+  if (normalized.includes("singer")) {
+    return "Vocal, repertoire, and live performance details.";
+  }
+
+  return "Type-specific profile fields for this category.";
+}
+
 // Phase 1d (remediation §4): the 3,546-LOC unified profile shell (its own
 // profileReducer + history/undo refs). Extracted LAST AND ALONE. Byte-for-byte;
 // irreducible — max-lines grandfathered via mandated scoped suppression regen.
@@ -1257,6 +1282,16 @@ export function TalentProfileShellDrawer() {
       setProfileFieldRailOpen(true);
     }
   }, [activeSection, profileFieldNavGroups.length]);
+  const activeProfileFieldGroup = useMemo(() => {
+    if (profileFieldNavGroups.length === 0) return null;
+    return profileFieldNavGroups.find((group) => group.key === activeProfileFieldGroupKey)
+      ?? profileFieldNavGroups[0]
+      ?? null;
+  }, [profileFieldNavGroups, activeProfileFieldGroupKey]);
+  const profileFieldHeaderTitle = activeProfileFieldGroup?.label ?? "Details";
+  const profileFieldHeaderDescription = activeProfileFieldGroup
+    ? detailsGroupHelperText(activeProfileFieldGroup.label)
+    : "Select a talent type in Services to see type-specific fields.";
   const [refinementTab, setRefinementTab] = useState<"skills" | "contexts">("skills");
   const [viewAsClient, setViewAsClient] = useState(false);
 
@@ -3166,10 +3201,10 @@ export function TalentProfileShellDrawer() {
                 }}>
                   <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: -0.1 }} className="text-admin-ink">
-                      {copy.t("Details")}
+                      {copy.t(profileFieldHeaderTitle)}
                     </div>
                     <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                      {copy.t("Type-specific fields for this talent's categories.")}
+                      {copy.t(profileFieldHeaderDescription)}
                     </div>
                   </div>
                 </div>

@@ -1230,6 +1230,11 @@ export function LiveCategoryFieldsEditor({
   const totalFilled = fields.reduce((n, f) => {
     return isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n;
   }, 0);
+  const activeGroupFilled = activeTabData?.fields.reduce((n, f) => {
+    return isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n;
+  }, 0);
+  const progressFilled = scope === "specialty" && activeTabData ? activeGroupFilled ?? 0 : totalFilled;
+  const progressTotal = scope === "specialty" && activeTabData ? activeTabData.fields.length : fields.length;
 
   // B9 — Fill-required wizard. Switch the active tab to the first group
   // that still has an unfilled required field.
@@ -1273,7 +1278,7 @@ export function LiveCategoryFieldsEditor({
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
           textTransform: "uppercase", fontWeight: 600, lineHeight: 1.35,
         }}>
-          {scope === "general" ? "General · " : ""}{totalFilled}/{fields.length} complete · auto-saved
+          {scope === "general" ? "General · " : ""}{progressFilled}/{progressTotal} complete · auto-saved
         </div>
         <div className="flex gap-1.5">
           {requiredMissing > 0 && (
