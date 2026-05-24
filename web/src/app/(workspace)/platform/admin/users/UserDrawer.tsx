@@ -17,6 +17,10 @@ import { MembershipRoleChip, TypeChip } from "./user-chips";
 import { confirmPlatformUserEmail } from "./actions";
 import { ActivitySection } from "./UserActivitySection";
 import { AdminNotesSection } from "./AdminNotesSection";
+import { AuditHistorySection } from "./AuditHistorySection";
+import { TalentRecordSection } from "./TalentRecordSection";
+import { WorkspaceMembershipsSection } from "./WorkspaceMembershipsSection";
+import { AdminActionsSection } from "./AdminActionsSection";
 import type { PlatformUserRow } from "../../platform-data";
 
 function classifyType(appRole: string | null): string {
@@ -48,8 +52,6 @@ export function UserDrawer({
   if (!user) return null;
 
   const t = classifyType(user.appRole);
-  const workspaces = user.memberships.filter((m) => m.kind === "agency");
-  const hubs = user.memberships.filter((m) => m.kind === "hub");
 
   return (
     <div
@@ -337,25 +339,23 @@ export function UserDrawer({
           {/* Origin & Provenance */}
           <OriginSection user={user} />
 
-          {/* Workspaces */}
-          <section style={{ marginBottom: 18 }}>
-            <SectionLabel>
-              Workspaces · {workspaces.length}
-            </SectionLabel>
-            <MembershipList items={workspaces} empty="Not a member of any workspace." />
-          </section>
+          {/* Talent Record (C.3) */}
+          <TalentRecordSection user={user} />
 
-          {/* Hubs */}
-          <section style={{ marginBottom: 18 }}>
-            <SectionLabel>Hubs · {hubs.length}</SectionLabel>
-            <MembershipList items={hubs} empty="Not a member of any hub." />
-          </section>
+          {/* Workspace & Hub Memberships (C.5) */}
+          <WorkspaceMembershipsSection user={user} />
 
           {/* Activity & Support Context */}
           <ActivitySection user={user} />
 
           {/* Admin Notes */}
           <AdminNotesSection user={user} />
+
+          {/* Audit History (C.9) */}
+          <AuditHistorySection user={user} />
+
+          {/* Admin Actions (C.8) */}
+          <AdminActionsSection user={user} />
         </div>
       </aside>
     </div>

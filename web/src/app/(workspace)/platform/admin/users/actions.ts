@@ -438,3 +438,67 @@ export async function sendPlatformClaimInvite(
   revalidatePath("/platform/admin/users");
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// C.9 — Per-person audit log
+// ---------------------------------------------------------------------------
+
+export type AuditEntry = {
+  id: string;
+  action: string;
+  actorUserId: string | null;
+  beforeJsonb: Record<string, unknown> | null;
+  afterJsonb: Record<string, unknown> | null;
+  contextJsonb: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+/**
+ * Load the last 20 audit-log entries for a specific person.
+ * targetId = profiles.id (human) or talent_profiles.id (unclaimed_talent).
+ */
+export async function getPlatformUserAuditLog(
+  targetId: string,
+): Promise<AuditEntry[]> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return [];
+  if (!targetId?.trim()) return [];
+
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  try {
+    const { data, error } = await admin
+      .from("platform_audit_log")
+      .select("id, action, actor_user_id, before_jsonb, after_jsonb, context_jsonb, created_at")
+      .eq("target_id", targetId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      logServerError("platform/getPlatformUserAuditLog", error);
+      return [];
+    }
+
+    return (data ?? []).map((r: {
+      id: string;
+      action: string;
+      actor_user_id: string | null;
+      before_jsonb: Record<string, unknown> | null;
+      after_jsonb: Record<string, unknown> | null;
+      context_jsonb: Record<string, unknown> | null;
+      created_at: string;
+    }) => ({
+      id: r.id,
+      action: r.action,
+      actorUserId: r.actor_user_id,
+      beforeJsonb: r.before_jsonb,
+      afterJsonb: r.after_jsonb,
+      contextJsonb: r.context_jsonb,
+      createdAt: r.created_at,
+    }));
+  } catch (err) {
+    logServerError("platform/getPlatformUserAuditLog", err);
+    return [];
+  }
+}
