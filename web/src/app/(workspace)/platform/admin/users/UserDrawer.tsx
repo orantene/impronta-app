@@ -16,6 +16,7 @@ import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, SectionLabel } from "../tenants/hq-ki
 import { MembershipRoleChip, TypeChip } from "./user-chips";
 import { confirmPlatformUserEmail } from "./actions";
 import { ActivitySection } from "./UserActivitySection";
+import { AdminNotesSection } from "./AdminNotesSection";
 import type { PlatformUserRow } from "../../platform-data";
 
 function classifyType(appRole: string | null): string {
@@ -352,6 +353,9 @@ export function UserDrawer({
 
           {/* Activity & Support Context */}
           <ActivitySection user={user} />
+
+          {/* Admin Notes */}
+          <AdminNotesSection user={user} />
         </div>
       </aside>
     </div>

@@ -580,3 +580,111 @@ export async function loadPlatformNetworkStats(): Promise<PlatformNetworkStats> 
     hubsActive: hubsActive.count ?? 0,
   };
 }
+
+// ─── Audit Log (Audit Log page) ──────────────────────────────────────────────
+
+export type PlatformAuditLogRow = {
+  id: string;
+  actorUserId: string | null;
+  actorDisplayName: string | null;
+  targetKind: string | null;
+  targetId: string | null;
+  action: string;
+  beforeJsonb: Record<string, unknown> | null;
+  afterJsonb: Record<string, unknown> | null;
+  contextJsonb: Record<string, unknown> | null;
+  createdAt: string;
+  createdAtIso: string;
+};
+
+export async function loadPlatformAuditLog(opts?: {
+  actorUserId?: string;
+  targetKind?: string;
+  targetId?: string;
+  action?: string;
+  limit?: number;
+}): Promise<PlatformAuditLogRow[]> {
+  const sb = createServiceRoleClient();
+  if (!sb) return [];
+
+  const limit = opts?.limit ?? 200;
+
+  let query = sb
+    .from("platform_audit_log")
+    .select(
+      `
+      id,
+      actor_user_id,
+      target_kind,
+      target_id,
+      action,
+      before_jsonb,
+      after_jsonb,
+      context_jsonb,
+      created_at,
+      profiles (
+        display_name
+      )
+    `,
+      { count: "exact" }
+    );
+
+  // Apply filters if provided
+  if (opts?.actorUserId) {
+    query = query.eq("actor_user_id", opts.actorUserId);
+  }
+  if (opts?.targetKind) {
+    query = query.eq("target_kind", opts.targetKind);
+  }
+  if (opts?.targetId) {
+    query = query.eq("target_id", opts.targetId);
+  }
+  if (opts?.action) {
+    query = query.eq("action", opts.action);
+  }
+
+  // Order by created_at DESC, limit results
+  query = query.order("created_at", { ascending: false }).limit(limit);
+
+  const { data, error } = await query;
+
+  if (error || !data) {
+    logServerError(
+      "Failed to load platform audit log",
+      error ?? new Error("No data returned")
+    );
+    return [];
+  }
+
+  // Supabase returns joined rows as Array<T> even for FK-keyed joins;
+  // cast through unknown to align with our normalized shape.
+  type RawRow = {
+    id: string;
+    actor_user_id: string | null;
+    target_kind: string | null;
+    target_id: string | null;
+    action: string;
+    before_jsonb: Record<string, unknown> | null;
+    after_jsonb: Record<string, unknown> | null;
+    context_jsonb: Record<string, unknown> | null;
+    created_at: string;
+    profiles: Array<{ display_name: string | null }> | { display_name: string | null } | null;
+  };
+
+  return (data as unknown as RawRow[]).map((r) => {
+    const profileRecord = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    return {
+    id: r.id,
+    actorUserId: r.actor_user_id,
+    actorDisplayName: profileRecord?.display_name ?? r.actor_user_id?.slice(0, 8) ?? "—",
+    targetKind: r.target_kind,
+    targetId: r.target_id,
+    action: r.action,
+    beforeJsonb: r.before_jsonb,
+    afterJsonb: r.after_jsonb,
+    contextJsonb: r.context_jsonb,
+    createdAt: formatDate(r.created_at),
+    createdAtIso: r.created_at,
+    };
+  });
+}

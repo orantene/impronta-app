@@ -31,6 +31,7 @@ const TABS = [
   { id: "operations", label: "Operations",  segment: "operations" },
   { id: "catalog",    label: "Catalog",     segment: "catalog"    },
   { id: "settings",   label: "Settings",    segment: "settings"   },
+  { id: "audit-log", label: "Audit Log",   segment: "audit-log" },
 ] as const;
 
 const BASE = "/platform/admin";
