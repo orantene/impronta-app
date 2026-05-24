@@ -57,3 +57,112 @@ export async function confirmPlatformUserEmail(
   revalidatePath("/platform/admin/users");
   return { ok: true };
 }
+
+export type UserActivitySnapshot = {
+  inquiryCount: number;
+  bookingCount: number;
+  lastFiveInquiries: Array<{
+    id: string;
+    title: string | null;
+    status: string | null;
+    createdAt: string;
+    workspaceName: string | null;
+  }>;
+};
+
+/**
+ * Get activity snapshot for a platform user: inquiry/booking counts and recent inquiries.
+ *
+ * For `human`: queries inquiries where client_user_id matches the user.
+ * For `unclaimed_talent`: returns empty (unclaimed talent profiles don't appear as inquiry clients).
+ *
+ * Returns null only on auth failure; returns zero snapshot on DB errors.
+ */
+export async function getPlatformUserActivity(
+  targetId: string,
+  targetKind: "human" | "unclaimed_talent",
+): Promise<UserActivitySnapshot | null> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return null;
+
+  if (!targetId?.trim()) return { inquiryCount: 0, bookingCount: 0, lastFiveInquiries: [] };
+
+  // Unclaimed talent profiles don't create inquiries as clients.
+  if (targetKind === "unclaimed_talent") {
+    return { inquiryCount: 0, bookingCount: 0, lastFiveInquiries: [] };
+  }
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { inquiryCount: 0, bookingCount: 0, lastFiveInquiries: [] };
+
+  try {
+    // Fetch inquiry count and last 5 inquiries for this client
+    const { data: inquiries, error: inquiryError } = await admin
+      .from("inquiries")
+      .select(
+        "id, contact_name, status, created_at, tenant_id",
+        { count: "exact" },
+      )
+      .eq("client_user_id", targetId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (inquiryError) {
+      logServerError("platform/getPlatformUserActivity.inquiries", inquiryError);
+      return { inquiryCount: 0, bookingCount: 0, lastFiveInquiries: [] };
+    }
+
+    const inquiryCount = inquiries?.length ?? 0;
+
+    // Fetch booking count
+    let bookingCount = 0;
+    if (inquiryCount > 0 && inquiries) {
+      const inquiryIds = inquiries.map((i) => i.id);
+      const { count, error: bookingCountError } = await admin
+        .from("agency_bookings")
+        .select("id", { count: "exact", head: true })
+        .in("inquiry_id", inquiryIds);
+
+      if (bookingCountError) {
+        logServerError("platform/getPlatformUserActivity.bookings", bookingCountError);
+      } else {
+        bookingCount = count ?? 0;
+      }
+    }
+
+    // Fetch workspace names for the inquiries
+    const workspaceLookup: Record<string, string> = {};
+    if (inquiryCount > 0 && inquiries) {
+      const tenantIds = [...new Set(inquiries.map((i) => i.tenant_id).filter(Boolean))];
+      if (tenantIds.length > 0) {
+        const { data: tenants, error: tenantError } = await admin
+          .from("tenants")
+          .select("id, display_name")
+          .in("id", tenantIds);
+
+        if (!tenantError && tenants) {
+          tenants.forEach((t: { id: string; display_name: string }) => {
+            workspaceLookup[t.id] = t.display_name;
+          });
+        }
+      }
+    }
+
+    const lastFiveInquiries = (inquiries ?? []).map((inq: { id: string; contact_name: string; status: string; created_at: string; tenant_id: string }) => ({
+      id: inq.id,
+      title: inq.contact_name || null,
+      status: inq.status,
+      createdAt: inq.created_at,
+      workspaceName: inq.tenant_id ? (workspaceLookup[inq.tenant_id] ?? null) : null,
+    }));
+
+    return {
+      inquiryCount,
+      bookingCount,
+      lastFiveInquiries,
+    };
+  } catch (err) {
+    logServerError("platform/getPlatformUserActivity", err);
+    return { inquiryCount: 0, bookingCount: 0, lastFiveInquiries: [] };
+  }
+}
