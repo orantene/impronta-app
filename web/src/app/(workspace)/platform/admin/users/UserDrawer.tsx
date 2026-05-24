@@ -240,6 +240,68 @@ export function UserDrawer({
               <span style={{ color: HQ.inkMuted, fontFamily: HQ_FM, fontSize: 11 }}>
                 {user.id}
               </span>
+              {user.kind === "human" && (
+                <>
+                  <span style={{ color: HQ.inkDim }}>Last seen</span>
+                  <span
+                    style={{ color: HQ.ink }}
+                    title={user.lastSignInAtIso ?? undefined}
+                  >
+                    {user.lastSignInAt ?? "—"}
+                  </span>
+                </>
+              )}
+              {user.kind === "human" && (
+                <>
+                  <span style={{ color: HQ.inkDim }}>Email</span>
+                  <span style={{ color: HQ.ink, fontFamily: HQ_FM, fontSize: 11 }}>
+                    {user.email}
+                  </span>
+                </>
+              )}
+              {user.kind === "human" && (
+                <>
+                  <span style={{ color: HQ.inkDim }}>Email confirmed</span>
+                  <span
+                    style={{
+                      color: user.emailConfirmed ? HQ.green : HQ.amber,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {user.emailConfirmed ? "Yes" : "No ← unconfirmed"}
+                  </span>
+                </>
+              )}
+              <span style={{ color: HQ.inkDim }}>Test account</span>
+              <span
+                style={{
+                  color: user.isTestAccount ? HQ.amber : HQ.ink,
+                  fontWeight: user.isTestAccount ? 600 : undefined,
+                }}
+              >
+                {user.isTestAccount ? "Yes" : "No"}
+              </span>
+              {user.publishedGlobally !== null && (
+                <>
+                  <span style={{ color: HQ.inkDim }}>Profile published</span>
+                  <span
+                    style={{
+                      color: user.publishedGlobally ? HQ.green : HQ.inkDim,
+                      fontWeight: user.publishedGlobally ? 600 : undefined,
+                    }}
+                  >
+                    {user.publishedGlobally ? "Yes" : "No"}
+                  </span>
+                </>
+              )}
+              {user.talentProfileId && (
+                <>
+                  <span style={{ color: HQ.inkDim }}>Talent profile ID</span>
+                  <span style={{ color: HQ.ink, fontFamily: HQ_FM, fontSize: 11 }}>
+                    {user.talentProfileId}
+                  </span>
+                </>
+              )}
             </div>
             {user.kind === "human" && !user.emailConfirmed && (
               <button
