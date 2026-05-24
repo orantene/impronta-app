@@ -235,15 +235,15 @@ Per the integrator protocol (memory `project_multi_agent_integrator_protocol.md`
 | ~~C.1 identity & access~~ | ~~Drawer render~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `831767d48` PR #22 |
 | ~~C.2 origin section~~ | ~~Drawer section + clickable links~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `63fc5aa63` PR #23 |
 | ~~C.3 talent record + global-hide~~ | ~~Drawer + write action~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~M0.3, E.tier1, E.tier2~~ | **DONE** `5bf57fc64` PR #27 |
-| C.4 billing surface | Stripe read + plan override extension | Senior | Opus 4.7 | L | D.1, D.2 |
+| ~~C.4 billing surface~~ | ~~Stripe read + plan override extension~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~L~~ | ~~D.1, D.2~~ | **DONE** `0bce18fa4` PR #28 |
 | ~~C.5 workspaces remove/role~~ | ~~Drawer + 2 write actions~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~E.tier2~~ | **DONE** `5bf57fc64` PR #27 |
 | ~~C.6 activity context~~ | ~~Read-only joins~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~M~~ | ~~—~~ | **DONE** `16082ece4` PR #24 |
 | ~~C.7 admin notes~~ | ~~CRUD on user_admin_notes~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~M0.5~~ | **DONE** `42ee0e843` PR #26 |
 | ~~C.8 action panel UI~~ | ~~Wire E actions to buttons + confirm modals~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~E (all tiers)~~ | **DONE** `5bf57fc64` PR #27 |
 | ~~C.9 per-person audit view~~ | ~~Read-only render~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~M0.1, E~~ | **DONE** `5bf57fc64` PR #27 |
-| D.1 billing read snapshot | Stripe SDK + subscription joins | Senior | Opus 4.7 | M | — |
-| D.2 plan-override extension | Reuse tenant override system | Mid | Sonnet 4.6 | M | D.1 |
-| D.3 Stripe deep-links | One-liner | Junior | Haiku 4.5 | XS | D.1 |
+| ~~D.1 billing read snapshot~~ | ~~Stripe SDK + subscription joins~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~M~~ | ~~—~~ | **DONE** `0bce18fa4` PR #28 |
+| ~~D.2 plan-override extension~~ | ~~Reuse tenant override system~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~D.1~~ | **DONE** `0bce18fa4` PR #28 |
+| ~~D.3 Stripe deep-links~~ | ~~One-liner~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~D.1~~ | **DONE** `0bce18fa4` PR #28 |
 | ~~E.tier1 safe actions~~ | ~~7 server actions~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
 | ~~E.tier2 reversible actions~~ | ~~7 server actions + status writes~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~M0.1, M0.2, M0.6~~ | **DONE** `42ee0e843` PR #26 |
 | ~~E.tier3 destructive actions~~ | ~~3 server actions, cascade-aware, typed-name confirm~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~M~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
