@@ -83,12 +83,13 @@ export async function getPlatformUserNotes(
         body: string;
         author_user_id: string;
         created_at: string;
-        profiles: { display_name: string | null } | null;
+        // Supabase returns joined rows as array even for FK-based joins
+        profiles: Array<{ display_name: string | null }> | null;
       }) => ({
         id: note.id,
         body: note.body,
         authorUserId: note.author_user_id,
-        authorDisplayName: note.profiles?.display_name ?? null,
+        authorDisplayName: note.profiles?.[0]?.display_name ?? null,
         createdAt: note.created_at,
       }),
     );
