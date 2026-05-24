@@ -225,7 +225,7 @@ Per the integrator protocol (memory `project_multi_agent_integrator_protocol.md`
 | ~~M0.1 platform_audit_log~~ | ~~Migration + RLS + helper fn~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~S~~ | ~~—~~ | **DONE** `083566453` |
 | ~~M0.2 user_visibility_overrides~~ | ~~Migration + RLS~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~S~~ | ~~—~~ | **DONE** `36e31f243` |
 | ~~M0.3 talent_profiles published_globally~~ | ~~Migration + backfill~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~XS~~ | ~~—~~ | **DONE** `55c54ffe7` |
-| M0.4 user origin denorm | Resolver fn + columns/view | Senior | Opus 4.7 | M | M0.3 | in progress |
+| ~~M0.4 user origin denorm~~ | ~~Resolver fn + columns/view~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~M~~ | ~~M0.3~~ | **DONE** `f418808d7` PR #18 `485f9080a` |
 | ~~M0.5 user_admin_notes~~ | ~~Migration + RLS~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~—~~ | **DONE** `b3711cd92` |
 | ~~M0.6 is_test_account flag~~ | ~~Migration on 2 tables~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~—~~ | **DONE** `80e3b6138` |
 | A.1+A.2+A.3 federated loader | Core data layer refactor, dedup logic, origin resolver | Senior | Opus 4.7 | L | M0.4 |
