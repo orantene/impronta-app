@@ -10,6 +10,24 @@ import {
   type FieldDetailRisk,
   type FieldDetailWorkspace,
 } from "../../../catalog-field-detail-data";
+import {
+  setPlatformFieldLifecycleAction,
+  updatePlatformFieldAction,
+  updatePlatformFieldRecommendationAction,
+} from "../actions";
+import {
+  Check,
+  FIELD_KINDS,
+  FIELD_SECTIONS,
+  FIELD_TIERS,
+  FieldInput,
+  FieldSelect,
+  FieldTextarea,
+  MappingRow,
+  SaveNotice,
+  SubmitButton,
+  optionsJson,
+} from "./field-detail-editor-parts";
 
 export const dynamic = "force-dynamic";
 
@@ -268,10 +286,13 @@ function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolea
 
 export default async function PlatformCatalogFieldDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ fieldKey: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { fieldKey } = await params;
+  const { saved, error } = await searchParams;
   const decoded = decodeURIComponent(fieldKey);
   const detail = await loadPlatformCatalogFieldDetail(decoded);
 
@@ -318,10 +339,12 @@ export default async function PlatformCatalogFieldDetailPage({
   }
 
   const f = detail.field;
+  const fieldOptions = optionsJson(f.options);
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       {breadcrumb}
+      <SaveNotice saved={saved} error={error} />
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 4 }}>
         <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>
@@ -423,6 +446,197 @@ export default async function PlatformCatalogFieldDetailPage({
             “{f.helper}”
           </div>
         )}
+      </HqCard>
+
+      <HqCard
+        title="Engine editor"
+        subtitle="Edits the canonical profile_field_definitions row. Save writes audit history and refreshes every resolved catalog surface."
+      >
+        <form action={updatePlatformFieldAction} style={{ display: "grid", gap: 14 }}>
+          <input type="hidden" name="id" value={f.id} />
+          <input type="hidden" name="current_field_key" value={f.field_key} />
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <FieldInput label="Field key" name="field_key" defaultValue={f.field_key} />
+            <FieldSelect label="Field group" name="field_group_id" defaultValue={f.field_group_id}>
+              <option value="">Ungrouped</option>
+              {detail.fieldGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name_en}{g.is_active ? "" : " (archived)"}
+                </option>
+              ))}
+            </FieldSelect>
+            <FieldInput label="Label EN" name="label" defaultValue={f.label} />
+            <FieldInput label="Label ES" name="label_es" defaultValue={f.label_es} />
+            <FieldTextarea label="Helper EN" name="helper" defaultValue={f.helper} />
+            <FieldTextarea label="Helper ES" name="helper_es" defaultValue={f.helper_es} />
+            <FieldInput label="Placeholder" name="placeholder" defaultValue={f.placeholder} />
+            <FieldInput label="Unit" name="unit" defaultValue={f.unit} placeholder="cm, kg, people…" />
+            <FieldSelect label="Tier" name="tier" defaultValue={f.tier}>
+              {FIELD_TIERS.map((tier) => (
+                <option key={tier} value={tier}>{tier}</option>
+              ))}
+            </FieldSelect>
+            <FieldSelect label="Input type" name="kind" defaultValue={f.kind}>
+              {FIELD_KINDS.map((kind) => (
+                <option key={kind} value={kind}>{kind}</option>
+              ))}
+            </FieldSelect>
+            <FieldSelect label="Editor section" name="section" defaultValue={f.section}>
+              {[...new Set([...FIELD_SECTIONS, f.section ?? ""])].filter(Boolean).map((section) => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </FieldSelect>
+            <FieldInput label="Subsection" name="subsection" defaultValue={f.subsection} />
+            <FieldInput label="Display order" name="display_order" type="number" defaultValue={f.display_order} />
+            <FieldInput label="Minimum count" name="count_min" type="number" defaultValue={f.count_min} />
+          </div>
+
+          <FieldTextarea
+            label="Options JSON"
+            name="options_json"
+            defaultValue={fieldOptions}
+            placeholder='["Option A", "Option B"]'
+            rows={fieldOptions ? 8 : 3}
+          />
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 12,
+              padding: 12,
+              border: `1px solid ${HQ.borderSoft}`,
+              borderRadius: 10,
+              background: HQ.cardSoft,
+            }}
+          >
+            <div style={{ display: "grid", gap: 7 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: HQ.ink }}>Default visibility</div>
+              <Check name="default_visibility_public" label="Public" defaultChecked={f.default_visibility.includes("public")} />
+              <Check name="default_visibility_agency" label="Agency/admin" defaultChecked={f.default_visibility.includes("agency")} />
+              <Check name="default_visibility_private" label="Private" defaultChecked={f.default_visibility.includes("private")} />
+            </div>
+            <div style={{ display: "grid", gap: 7 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: HQ.ink }}>Surface flags</div>
+              <Check name="show_in_public" label="Public profile" defaultChecked={f.show_in_public} tone={f.is_sensitive || f.admin_only ? "danger" : undefined} />
+              <Check name="show_in_directory" label="Directory/search" defaultChecked={f.show_in_directory} />
+              <Check name="show_in_registration" label="Registration" defaultChecked={f.show_in_registration} />
+              <Check name="show_in_edit_drawer" label="Profile editor" defaultChecked={f.show_in_edit_drawer} />
+            </div>
+            <div style={{ display: "grid", gap: 7 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: HQ.ink }}>Safety flags</div>
+              <Check name="admin_only" label="Admin only" defaultChecked={f.admin_only} tone="danger" />
+              <Check name="is_sensitive" label="Sensitive" defaultChecked={f.is_sensitive} tone="danger" />
+              <Check name="talent_editable" label="Talent editable" defaultChecked={f.talent_editable} />
+              <Check name="requires_review_on_change" label="Review on change" defaultChecked={f.requires_review_on_change} />
+              <Check name="is_searchable" label="Searchable" defaultChecked={f.is_searchable} />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <SubmitButton>Save field definition</SubmitButton>
+            <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
+              Platform safety floors still apply in the resolver and public visibility engine.
+            </span>
+          </div>
+        </form>
+      </HqCard>
+
+      <HqCard
+        title="Lifecycle"
+        subtitle="Soft archive only. Stored values remain intact; archived fields stop appearing for new input."
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
+            Status:{" "}
+            <strong style={{ color: f.deprecated ? HQ.red : HQ.green }}>
+              {f.deprecated ? `Deprecated since ${f.deprecated_at}` : "Active"}
+            </strong>
+            {" · "}
+            {f.total_value_count} stored live value{f.total_value_count === 1 ? "" : "s"}
+          </div>
+          <form action={setPlatformFieldLifecycleAction}>
+            <input type="hidden" name="id" value={f.id} />
+            <input type="hidden" name="field_key" value={f.field_key} />
+            <input type="hidden" name="mode" value={f.deprecated ? "restore" : "archive"} />
+            <SubmitButton tone={f.deprecated ? "neutral" : "danger"}>
+              {f.deprecated ? "Restore field" : "Archive field"}
+            </SubmitButton>
+          </form>
+        </div>
+      </HqCard>
+
+      <HqCard
+        title="Field-to-taxonomy mapping"
+        subtitle="Controls when type-specific fields appear in Details, registration, and publish requirements."
+      >
+        {detail.recommendations.length === 0 ? (
+          <div style={{ fontSize: 12, color: HQ.inkDim, marginBottom: 12 }}>
+            No taxonomy mapping yet. Universal/global fields may still appear from tier rules; type-specific fields need mappings.
+          </div>
+        ) : (
+          <div style={{ marginBottom: 14 }}>
+            {detail.recommendations.map((rec) => (
+              <MappingRow key={rec.id} rec={rec} fieldKey={f.field_key} />
+            ))}
+          </div>
+        )}
+
+        <form
+          action={updatePlatformFieldRecommendationAction}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.5fr) 160px 110px",
+            gap: 10,
+            alignItems: "end",
+            paddingTop: 12,
+            borderTop: `1px solid ${HQ.borderSoft}`,
+          }}
+        >
+          <input type="hidden" name="field_definition_id" value={f.id} />
+          <input type="hidden" name="field_key" value={f.field_key} />
+          <FieldSelect label="Taxonomy term" name="taxonomy_term_id">
+            <option value="">Choose a category/type…</option>
+            {detail.taxonomyTerms.map((term) => (
+              <option key={term.id} value={term.id}>
+                {"  ".repeat(Math.max(0, term.level - 1))}
+                {term.name_en} · {term.term_type}
+              </option>
+            ))}
+          </FieldSelect>
+          <FieldSelect label="Relationship" name="relationship" defaultValue="applies">
+            <option value="applies">applies</option>
+            <option value="recommended">recommended</option>
+            <option value="required">required</option>
+          </FieldSelect>
+          <FieldInput label="Order" name="display_order" type="number" defaultValue={100} />
+          <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: 14 }}>
+            <Check name="required_at_registration" label="Required at registration" />
+            <Check name="required_before_publish" label="Required before publish" />
+            <Check name="required_before_verification" label="Required before verification" />
+            <Check name="requires_verification" label="Requires verification" />
+            <Check name="is_admin_only" label="Admin-only mapping" tone="danger" />
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <SubmitButton>Save mapping</SubmitButton>
+          </div>
+        </form>
+      </HqCard>
+
+      <HqCard
+        title="Impact preview"
+        subtitle="Use this before changing lifecycle, visibility, required flags, or taxonomy mappings."
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+          <Stat label="Stored values" value={f.total_value_count} tone={f.total_value_count > 0 ? HQ.green : HQ.inkDim} />
+          <Stat label="Tenant overrides" value={f.total_override_count} tone={f.total_override_count > 0 ? HQ.amber : HQ.inkDim} />
+          <Stat label="Mapped terms" value={detail.recommendations.length} tone={detail.recommendations.length > 0 ? HQ.green : HQ.inkDim} />
+          <Stat label="Risk warnings" value={detail.risks.length} tone={detail.risks.length > 0 ? HQ.red : HQ.green} />
+        </div>
+        <div style={{ marginTop: 12, fontSize: 12, color: HQ.inkMuted }}>
+          Archive and visibility changes are intentionally soft: tenant settings, stored values, public exposure, and publish/completion behavior remain inspectable here before and after save.
+        </div>
       </HqCard>
 
       {detail.risks.length > 0 && (

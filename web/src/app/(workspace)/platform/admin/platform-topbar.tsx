@@ -30,6 +30,7 @@ const TABS = [
   { id: "billing",    label: "Billing",     segment: "billing"    },
   { id: "operations", label: "Operations",  segment: "operations" },
   { id: "catalog",    label: "Catalog",     segment: "catalog"    },
+  { id: "taxonomy",   label: "Taxonomy",    segment: "taxonomy"   },
   { id: "settings",   label: "Settings",    segment: "settings"   },
   { id: "audit-log", label: "Audit Log",   segment: "audit-log" },
 ] as const;

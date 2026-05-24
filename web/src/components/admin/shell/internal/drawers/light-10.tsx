@@ -181,7 +181,7 @@ export function FieldCatalogDrawer() {
       open
       onClose={closeDrawer}
       title="Field catalog"
-      description="Every field this workspace captures on talent profiles. Toggle what you collect, rename for your team, and mark what's required."
+      description="Resolved Tulala engine fields for this workspace. Toggle what you collect, rename for your team, and mark what is required within platform safety rules."
       width={680}
       footer={
         <>
@@ -554,7 +554,7 @@ export function FieldPrivacyDrawer() {
       open
       onClose={closeDrawer}
       title="Field privacy"
-      description="What's public on your storefront, what admins can see, and what's hidden. Talent sees this before they sign up."
+      description="The same effective visibility used by the profile editor, registration, public profile, and directory."
       width={680}
       footer={
         <>
@@ -641,4 +641,3 @@ export function FieldPrivacyDrawer() {
     </DrawerShell>
   );
 }
-

@@ -1239,6 +1239,7 @@ export function TalentProfileShellDrawer() {
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
   const [historyOpen, setHistoryOpen] = useState(false);
+  const showPolaroidsSection = (bridgeTenantIdentity?.slug ?? tenantSlug) !== "impronta";
   const [activeSection, setActiveSection] = useState<ProfileSectionId>(() => {
     // Resolution order: payload.section (drawer caller) → URL ?section=X
     // (deep-link / refresh) → mode default. The payload path is what the
@@ -1260,11 +1261,19 @@ export function TalentProfileShellDrawer() {
   useEffect(() => {
     if (!drawerOpen || !activeSection) return;
     const t = setTimeout(() => {
-      const el = document.querySelector(`[data-tulala-pshell] #pshell-${activeSection}`);
+      const selector = activeSection === "media"
+        ? "[data-tulala-pshell] [data-pshell-media-start]"
+        : `[data-tulala-pshell] #pshell-${activeSection}`;
+      const el = document.querySelector(selector);
       el?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
     return () => clearTimeout(t);
   }, [drawerOpen, activeSection]);
+  useEffect(() => {
+    if (!showPolaroidsSection && activeSection === "polaroids") {
+      setActiveSection("media");
+    }
+  }, [activeSection, showPolaroidsSection]);
   useEffect(() => {
     if (profileFieldNavGroups.length === 0) {
       if (activeProfileFieldGroupKey !== null) setActiveProfileFieldGroupKey(null);
@@ -2316,6 +2325,7 @@ export function TalentProfileShellDrawer() {
         }}>
           {(PROFILE_SECTIONS as readonly Exclude<ProfileSectionId, "">[]).map(s => {
             if (s === "admin" && !adminVisible) return null;
+            if (s === "polaroids" && !showPolaroidsSection) return null;
             if (s === "details" && dynamicGroups.length === 0) return null;
             if (s === "refinement" && bridgeTenantIdentity?.tenantId && payload.talentId) return null;
             const meta = SECTION_META[s];
@@ -2373,6 +2383,7 @@ export function TalentProfileShellDrawer() {
             const visible = (s: ProfileSectionId) => {
               if (!s) return false;
               if (s === "admin" && !adminVisible) return false;
+              if (s === "polaroids" && !showPolaroidsSection) return false;
               if ((s === "refinement" || s === "physical" || s === "wardrobe" || s === "details") && newEngineActive) return false;
               if (s === "details" && dynamicGroups.length === 0) return false;
               if (s === "physical" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical"))) return false;
@@ -2639,16 +2650,18 @@ export function TalentProfileShellDrawer() {
             )}
             {/* THREE-SLOT PHOTO BLOCK — only in visual sections to avoid
                 bleeding into Identity / Rates / Availability etc. */}
-            {(activeSection === "" || ["media", "albums", "polaroids"].includes(activeSection)) && (
-              <ThreeSlotPhotoBlock
-                avatarUrl={avatarPhotoUrl}
-                heroUrl={heroPhotoUrl}
-                galleryPhotos={galleryAssets.filter(a => a.variantKind === "gallery").map(a => a.url)}
-                onOpenSlot={(slot) => {
-                  setGalleryDrawerFocus(slot);
-                  setGalleryDrawerOpen(true);
-                }}
-              />
+            {(activeSection === "" || ["media", "albums"].includes(activeSection) || (showPolaroidsSection && activeSection === "polaroids")) && (
+              <div data-pshell-media-start>
+                <ThreeSlotPhotoBlock
+                  avatarUrl={avatarPhotoUrl}
+                  heroUrl={heroPhotoUrl}
+                  galleryPhotos={galleryAssets.filter(a => a.variantKind === "gallery").map(a => a.url)}
+                  onOpenSlot={(slot) => {
+                    setGalleryDrawerFocus(slot);
+                    setGalleryDrawerOpen(true);
+                  }}
+                />
+              </div>
             )}
 
             {/* Earned-trust ribbon — drawer-level signal (not tied to any one section) */}
@@ -3056,8 +3069,8 @@ export function TalentProfileShellDrawer() {
 
             {/* VIDEO — hello reel + social/video links */}
             <ProfileAccordionSection
-              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Video"
-              sub="Hello reel and social links. Upload photos from the photo block above."
+              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Photos & video"
+              sub="Profile photo, cover, gallery, hello reel, and social links."
               complete={sectionComplete.media} started={sectionStarted.media}
               open={activeSection === "media"}
               onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
@@ -3089,20 +3102,23 @@ export function TalentProfileShellDrawer() {
               />
             </ProfileAccordionSection>
 
-            {/* POLAROIDS — model-industry standard 5-shot set */}
-            <ProfileAccordionSection
-              id="polaroids" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Polaroids"
-              sub="5-shot set casting directors expect: front, side, back, smile, no-makeup."
-              complete={sectionComplete.polaroids} started={sectionStarted.polaroids}
-              open={activeSection === "polaroids"}
-              onToggle={() => setActiveSection(activeSection === "polaroids" ? "" : "polaroids")}
-            >
-              <PolaroidsEditor
-                polaroids={state.polaroids}
-                onChange={patchPolaroids}
-                talentProfileId={payload.talentId}
-              />
-            </ProfileAccordionSection>
+            {/* POLAROIDS — model-industry standard 5-shot set. Hidden for
+                Impronta until tenant/type-level media rules are configurable. */}
+            {showPolaroidsSection && (
+              <ProfileAccordionSection
+                id="polaroids" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Polaroids"
+                sub="5-shot set casting directors expect: front, side, back, smile, no-makeup."
+                complete={sectionComplete.polaroids} started={sectionStarted.polaroids}
+                open={activeSection === "polaroids"}
+                onToggle={() => setActiveSection(activeSection === "polaroids" ? "" : "polaroids")}
+              >
+                <PolaroidsEditor
+                  polaroids={state.polaroids}
+                  onChange={patchPolaroids}
+                  talentProfileId={payload.talentId}
+                />
+              </ProfileAccordionSection>
+            )}
 
             {/* ABOUT — locale-aware bios + tone + personality */}
             <ProfileAccordionSection

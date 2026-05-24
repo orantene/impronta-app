@@ -61,7 +61,7 @@
   },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
-      "count": 3
+      "count": 1
     }
   },
   "src/app/t/[profileCode]/page.tsx": {
@@ -397,7 +397,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 23
+      "count": 20
     }
   },
   "src/components/admin/shell/internal/messages/ClientProjectShell.tsx": {

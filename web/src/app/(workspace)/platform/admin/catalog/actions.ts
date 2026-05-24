@@ -1,0 +1,407 @@
+"use server";
+
+import { revalidatePath, revalidateTag } from "next/cache";
+import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getPlatformRole } from "@/lib/access/platform-role";
+import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
+import { logServerError } from "@/lib/server/safe-error";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+
+type PlatformActionContext = {
+  ok: true;
+  sb: SupabaseClient;
+  actorId: string;
+} | {
+  ok: false;
+  error: string;
+};
+
+const FIELD_KIND = new Set([
+  "text",
+  "number",
+  "select",
+  "multiselect",
+  "chips",
+  "date",
+  "toggle",
+  "textarea",
+]);
+
+const FIELD_TIER = new Set(["universal", "global", "type-specific"]);
+
+const VISIBILITY_CHANNELS = ["public", "agency", "private"] as const;
+
+async function requirePlatformAdmin(): Promise<PlatformActionContext> {
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, error: "You must be signed in." };
+  if (getPlatformRole(session.profile) !== "super_admin") {
+    return { ok: false, error: "Forbidden - platform admin only." };
+  }
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Platform service client unavailable." };
+  return { ok: true, sb, actorId: session.user.id };
+}
+
+async function recordEngineAudit(
+  sb: SupabaseClient,
+  args: {
+    actorId: string;
+    action: string;
+    targetType: string;
+    targetId: string | null;
+    beforeValue?: unknown;
+    afterValue?: unknown;
+    severity?: "info" | "warn" | "emergency";
+  },
+): Promise<void> {
+  try {
+    await sb.from("platform_audit_log").insert({
+      actor_profile_id: args.actorId,
+      actor_role: "super_admin",
+      action: args.action,
+      target_type: args.targetType,
+      target_id: args.targetId,
+      tenant_id: null,
+      severity: args.severity ?? "info",
+      metadata: {
+        before: args.beforeValue ?? null,
+        after: args.afterValue ?? null,
+      },
+    });
+  } catch (err) {
+    logServerError("platform.engine.audit", err);
+  }
+}
+
+function text(fd: FormData, key: string): string | null {
+  const raw = fd.get(key);
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function intOrNull(fd: FormData, key: string): number | null {
+  const raw = text(fd, key);
+  if (!raw) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function checked(fd: FormData, key: string): boolean {
+  return fd.get(key) === "on";
+}
+
+function parseDefaultVisibility(fd: FormData): string[] {
+  return VISIBILITY_CHANNELS.filter((channel) => fd.get(`default_visibility_${channel}`) === "on");
+}
+
+function parseOptions(raw: string | null): unknown {
+  if (!raw) return null;
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) {
+    throw new Error("Options must be a JSON array.");
+  }
+  return parsed;
+}
+
+function revalidateEngineSurfaces(fieldKey?: string | null): void {
+  revalidateTag(CACHE_TAG_FIELD_CATALOG, "default");
+  revalidatePath("/platform/admin/catalog");
+  revalidatePath("/platform/admin/taxonomy");
+  revalidatePath("/impronta/admin/settings");
+  revalidatePath("/impronta/admin/roster");
+  if (fieldKey) {
+    revalidatePath(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}`);
+  }
+}
+
+export async function updatePlatformFieldAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  const currentFieldKey = text(formData, "current_field_key");
+  if (!id || !currentFieldKey) redirect("/platform/admin/catalog?error=Missing%20field");
+
+  const fieldKey = text(formData, "field_key") ?? currentFieldKey;
+  const label = text(formData, "label") ?? fieldKey;
+  const tier = text(formData, "tier") ?? "global";
+  const kind = text(formData, "kind") ?? "text";
+  if (!FIELD_TIER.has(tier) || !FIELD_KIND.has(kind)) {
+    redirect(`/platform/admin/catalog/${encodeURIComponent(currentFieldKey)}?error=Invalid%20field%20type`);
+  }
+
+  let options: unknown = null;
+  try {
+    options = parseOptions(text(formData, "options_json"));
+  } catch {
+    redirect(`/platform/admin/catalog/${encodeURIComponent(currentFieldKey)}?error=Options%20must%20be%20a%20JSON%20array`);
+  }
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_definitions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  const patch = {
+    field_key: fieldKey,
+    label,
+    label_es: text(formData, "label_es"),
+    helper: text(formData, "helper"),
+    helper_es: text(formData, "helper_es"),
+    placeholder: text(formData, "placeholder"),
+    unit: text(formData, "unit"),
+    tier,
+    kind,
+    section: text(formData, "section") ?? "type-specific",
+    subsection: text(formData, "subsection"),
+    field_group_id: text(formData, "field_group_id"),
+    default_visibility: parseDefaultVisibility(formData),
+    show_in_public: checked(formData, "show_in_public"),
+    show_in_directory: checked(formData, "show_in_directory"),
+    show_in_registration: checked(formData, "show_in_registration"),
+    show_in_edit_drawer: checked(formData, "show_in_edit_drawer"),
+    admin_only: checked(formData, "admin_only"),
+    is_sensitive: checked(formData, "is_sensitive"),
+    talent_editable: checked(formData, "talent_editable"),
+    requires_review_on_change: checked(formData, "requires_review_on_change"),
+    is_searchable: checked(formData, "is_searchable"),
+    display_order: intOrNull(formData, "display_order") ?? 100,
+    count_min: intOrNull(formData, "count_min"),
+    options,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await auth.sb
+    .from("profile_field_definitions")
+    .update(patch)
+    .eq("id", id);
+
+  if (error) {
+    logServerError("platform.catalog.updateField", error);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(currentFieldKey)}?error=Could%20not%20save%20field`);
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field.update",
+    targetType: "profile_field_definition",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: patch,
+    severity: patch.admin_only || patch.is_sensitive ? "warn" : "info",
+  });
+
+  revalidateEngineSurfaces(fieldKey);
+  redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?saved=field`);
+}
+
+export async function setPlatformFieldLifecycleAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  const fieldKey = text(formData, "field_key");
+  const mode = text(formData, "mode");
+  if (!id || !fieldKey || (mode !== "archive" && mode !== "restore")) {
+    redirect("/platform/admin/catalog?error=Invalid%20lifecycle%20request");
+  }
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_definitions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  const patch =
+    mode === "archive"
+      ? {
+          deprecated_at: new Date().toISOString(),
+          show_in_public: false,
+          show_in_directory: false,
+          show_in_registration: false,
+          show_in_edit_drawer: false,
+          updated_at: new Date().toISOString(),
+        }
+      : {
+          deprecated_at: null,
+          show_in_edit_drawer: true,
+          updated_at: new Date().toISOString(),
+        };
+
+  const { error } = await auth.sb
+    .from("profile_field_definitions")
+    .update(patch)
+    .eq("id", id);
+
+  if (error) {
+    logServerError("platform.catalog.lifecycle", error);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20change%20lifecycle`);
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: mode === "archive" ? "platform.engine.field.archive" : "platform.engine.field.restore",
+    targetType: "profile_field_definition",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: patch,
+    severity: "warn",
+  });
+
+  revalidateEngineSurfaces(fieldKey);
+  redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?saved=lifecycle`);
+}
+
+export async function updatePlatformFieldRecommendationAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const fieldDefinitionId = text(formData, "field_definition_id");
+  const fieldKey = text(formData, "field_key");
+  const taxonomyTermId = text(formData, "taxonomy_term_id");
+  const relationship = text(formData, "relationship") ?? "applies";
+  if (!fieldDefinitionId || !fieldKey || !taxonomyTermId) {
+    redirect("/platform/admin/catalog?error=Missing%20mapping");
+  }
+  if (!["applies", "recommended", "required"].includes(relationship)) {
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Invalid%20mapping%20relationship`);
+  }
+
+  const { data: beforeRows } = await auth.sb
+    .from("profile_field_recommendations")
+    .select("*")
+    .eq("field_definition_id", fieldDefinitionId)
+    .eq("taxonomy_term_id", taxonomyTermId);
+
+  const displayOrder = intOrNull(formData, "display_order") ?? 100;
+  await auth.sb
+    .from("profile_field_recommendations")
+    .delete()
+    .eq("field_definition_id", fieldDefinitionId)
+    .eq("taxonomy_term_id", taxonomyTermId);
+
+  const insertRow = {
+    field_definition_id: fieldDefinitionId,
+    taxonomy_term_id: taxonomyTermId,
+    relationship,
+    display_order: displayOrder,
+    required_at_registration: checked(formData, "required_at_registration"),
+    required_before_publish: checked(formData, "required_before_publish") || relationship === "required",
+    required_before_verification: checked(formData, "required_before_verification"),
+    requires_verification: checked(formData, "requires_verification"),
+    is_admin_only: checked(formData, "is_admin_only"),
+  };
+
+  const { data: afterRow, error } = await auth.sb
+    .from("profile_field_recommendations")
+    .insert(insertRow)
+    .select("*")
+    .single();
+
+  if (error) {
+    logServerError("platform.catalog.setRecommendation", error);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20save%20mapping`);
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field.mapping.set",
+    targetType: "profile_field_recommendation",
+    targetId: afterRow?.id ?? null,
+    beforeValue: beforeRows ?? [],
+    afterValue: afterRow ?? insertRow,
+    severity: insertRow.required_before_publish ? "warn" : "info",
+  });
+
+  revalidateEngineSurfaces(fieldKey);
+  redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?saved=mapping`);
+}
+
+export async function removePlatformFieldRecommendationAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  const fieldKey = text(formData, "field_key");
+  if (!id || !fieldKey) redirect("/platform/admin/catalog?error=Missing%20mapping");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_recommendations")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  const { error } = await auth.sb
+    .from("profile_field_recommendations")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    logServerError("platform.catalog.removeRecommendation", error);
+    redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?error=Could%20not%20remove%20mapping`);
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field.mapping.remove",
+    targetType: "profile_field_recommendation",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateEngineSurfaces(fieldKey);
+  redirect(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}?saved=mapping_removed`);
+}
+
+export async function updatePlatformFieldGroupAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog/groups?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  if (!id) redirect("/platform/admin/catalog/groups?error=Missing%20group");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_groups")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  const patch = {
+    slug: text(formData, "slug") ?? beforeRow?.slug,
+    name_en: text(formData, "name_en") ?? beforeRow?.name_en,
+    name_es: text(formData, "name_es"),
+    description_en: text(formData, "description_en"),
+    description_es: text(formData, "description_es"),
+    sort_order: intOrNull(formData, "sort_order") ?? beforeRow?.sort_order ?? 100,
+    is_active: checked(formData, "is_active"),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await auth.sb
+    .from("profile_field_groups")
+    .update(patch)
+    .eq("id", id);
+
+  if (error) {
+    logServerError("platform.catalog.updateGroup", error);
+    redirect("/platform/admin/catalog/groups?error=Could%20not%20save%20group");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field_group.update",
+    targetType: "profile_field_group",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: patch,
+  });
+
+  revalidateEngineSurfaces();
+  redirect("/platform/admin/catalog/groups?saved=group");
+}

@@ -326,12 +326,12 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("workspace") && (
-          <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, custom fields, and taxonomy." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
+          <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, and workspace defaults." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
             {[
               { title: "General",     desc: "Timezone · Locale · Default currency",  drawer: "workspace-settings" as const },
-              { title: "Field catalog", desc: "Custom fields for talent, clients, bookings", drawer: "field-catalog" as const, plan: "agency" as const },
-              { title: "Field settings", desc: "Enable, require, rename catalog fields per workspace", drawer: "workspace-field-settings" as const, plan: "agency" as const },
-              { title: "Taxonomy",    desc: "Tags, niches, segments for filtering",  drawer: "taxonomy" as const, plan: "agency" as const },
+              { title: "Profile fields", desc: "Enable, require, rename talent profile fields", drawer: "field-catalog" as const, plan: "agency" as const },
+              { title: "Field settings", desc: "Workspace overrides for the resolved profile engine", drawer: "workspace-field-settings" as const, plan: "agency" as const },
+              { title: "Talent categories", desc: "Tenant-enabled categories for roster and registration",  drawer: "talent-types" as const, plan: "agency" as const },
             ].map((row) => {
               const locked = row.plan && !meetsPlan(state.plan, row.plan);
               return (
@@ -491,12 +491,12 @@ export function WorkspacePageView() {
           )}
 
           {visibleSections.has("talent-types") && (
-          <AccordionItem id="talent-types" label="Talent types & Catalog Fields" desc="Categories, field privacy and the field catalog for your roster." supportLink="/help/settings/talent-types" open={isOpen("talent-types")} onToggle={() => toggleSection("talent-types")}>
+          <AccordionItem id="talent-types" label="Talent types & Catalog Fields" desc="Live categories, field privacy, and profile-field rules for your roster." supportLink="/help/settings/talent-types" open={isOpen("talent-types")} onToggle={() => toggleSection("talent-types")}>
             <SettingsRow onClick={() => openDrawer("talent-types")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Categories on your site</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Master taxonomy · plan-tier gated
+                  Live Tulala taxonomy · enabled for Impronta registration and directory
                 </div>
               </div>
               <Affordance label="Manage" />
@@ -505,7 +505,7 @@ export function WorkspacePageView() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field privacy</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  What&apos;s public on your site, what admins see, what&apos;s hidden
+                  Resolved visibility for public site, admin view, registration, and hidden fields
                 </div>
               </div>
               <Affordance label="Configure" />
@@ -514,7 +514,7 @@ export function WorkspacePageView() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field catalog</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  Built-in fields + add agency-specific custom fields
+                  Built-in engine fields, required rules, labels, helpers, and tenant overrides
                 </div>
               </div>
               <Affordance label="Open" />

@@ -24,17 +24,34 @@ export type FieldDetailField = {
   id: string;
   field_key: string;
   label: string;
+  label_es: string | null;
   tier: string;
   section: string | null;
+  subsection: string | null;
   field_group_id: string | null;
   field_group_name: string | null;
   helper: string | null;
+  helper_es: string | null;
+  placeholder: string | null;
+  unit: string | null;
+  kind: string;
+  options: unknown;
+  default_visibility: string[];
   visibility: FieldVisibility;
   admin_only: boolean;
   is_sensitive: boolean;
   show_in_public: boolean;
+  show_in_directory: boolean;
+  show_in_registration: boolean;
+  show_in_edit_drawer: boolean;
+  talent_editable: boolean;
+  requires_review_on_change: boolean;
+  is_searchable: boolean;
+  display_order: number;
+  count_min: number | null;
   required_default: boolean;
   deprecated: boolean;
+  deprecated_at: string | null;
   total_value_count: number;
   total_override_count: number;
   /** Number of tenants with ≥1 active-roster talent that has a live value. */
@@ -72,12 +89,52 @@ export type FieldDetailRisk = {
   detail: string;
 };
 
+export type FieldDetailRecommendation = {
+  id: string;
+  taxonomy_term_id: string;
+  relationship: string;
+  display_order: number;
+  required_at_registration: boolean;
+  required_before_publish: boolean;
+  required_before_verification: boolean;
+  requires_verification: boolean;
+  is_admin_only: boolean;
+  term_slug: string;
+  term_name_en: string;
+  term_name_es: string | null;
+  term_type: string;
+  level: number;
+};
+
+export type FieldDetailTaxonomyTerm = {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_es: string | null;
+  term_type: string;
+  level: number;
+  parent_id: string | null;
+  sort_order: number;
+};
+
+export type FieldDetailGroupOption = {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_es: string | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
 export type PlatformCatalogFieldDetail = {
   ok: boolean;
   /** null when ok=true but the field_key was not found (404-ish). */
   field: FieldDetailField | null;
   workspaces: FieldDetailWorkspace[];
   risks: FieldDetailRisk[];
+  recommendations: FieldDetailRecommendation[];
+  taxonomyTerms: FieldDetailTaxonomyTerm[];
+  fieldGroups: FieldDetailGroupOption[];
 };
 
 const EMPTY: PlatformCatalogFieldDetail = {
@@ -85,22 +142,40 @@ const EMPTY: PlatformCatalogFieldDetail = {
   field: null,
   workspaces: [],
   risks: [],
+  recommendations: [],
+  taxonomyTerms: [],
+  fieldGroups: [],
 };
 
 type DefRow = {
   id: string;
   field_key: string;
   label: string | null;
+  label_es: string | null;
   tier: string | null;
   section: string | null;
+  subsection: string | null;
   field_group_id: string | null;
   default_visibility: unknown;
   admin_only: boolean | null;
   is_sensitive: boolean | null;
   show_in_public: boolean | null;
+  show_in_directory: boolean | null;
+  show_in_registration: boolean | null;
+  show_in_edit_drawer: boolean | null;
+  talent_editable: boolean | null;
+  requires_review_on_change: boolean | null;
+  is_searchable: boolean | null;
   is_optional: boolean | null;
   deprecated_at: string | null;
   helper: string | null;
+  helper_es: string | null;
+  placeholder: string | null;
+  unit: string | null;
+  kind: string | null;
+  options: unknown;
+  display_order: number | null;
+  count_min: number | null;
 };
 type OverrideRow = {
   tenant_id: string;
@@ -137,7 +212,7 @@ export async function loadPlatformCatalogFieldDetail(
 ): Promise<PlatformCatalogFieldDetail> {
   return unstable_cache(
     () => loadPlatformCatalogFieldDetailUncached(fieldKey),
-    ["platform:catalog-field-detail", "v1", fieldKey],
+    ["platform:catalog-field-detail", "v2", fieldKey],
     { tags: [CACHE_TAG_FIELD_CATALOG], revalidate: 60 },
   )();
 }
@@ -153,7 +228,7 @@ async function loadPlatformCatalogFieldDetailUncached(
     const { data: defR, error: defErr } = await sb
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, tier, section, field_group_id, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at, helper",
+        "id, field_key, label, label_es, tier, section, subsection, field_group_id, default_visibility, admin_only, is_sensitive, show_in_public, show_in_directory, show_in_registration, show_in_edit_drawer, talent_editable, requires_review_on_change, is_searchable, is_optional, deprecated_at, helper, helper_es, placeholder, unit, kind, options, display_order, count_min",
       )
       .eq("field_key", fieldKey)
       .maybeSingle();
@@ -165,7 +240,15 @@ async function loadPlatformCatalogFieldDetailUncached(
     }
     if (!defR) {
       // Field key not found — return ok with no field; page renders 404 state.
-      return { ok: true, field: null, workspaces: [], risks: [] };
+      return {
+        ok: true,
+        field: null,
+        workspaces: [],
+        risks: [],
+        recommendations: [],
+        taxonomyTerms: [],
+        fieldGroups: [],
+      };
     }
     const def = defR as DefRow;
 
@@ -188,7 +271,7 @@ async function loadPlatformCatalogFieldDetailUncached(
     //    Before this filter, total_value_count included pending/archived rows
     //    while tenants_with_values reflected only live, producing inconsistent
     //    totals on the field summary card.
-    const [valCountRes, ovsRes] = await Promise.all([
+    const [valCountRes, ovsRes, recsRes, termsRes, groupsRes] = await Promise.all([
       sb
         .from("talent_profile_field_values")
         .select("id", { count: "exact", head: true })
@@ -200,8 +283,64 @@ async function loadPlatformCatalogFieldDetailUncached(
           "tenant_id, enabled_override, required_override, custom_label, custom_helper, show_in_public_override, admin_only_override",
         )
         .eq("field_definition_id", def.id),
+      sb
+        .from("profile_field_recommendations")
+        .select(
+          "id, taxonomy_term_id, relationship, display_order, required_at_registration, required_before_publish, required_before_verification, requires_verification, is_admin_only",
+        )
+        .eq("field_definition_id", def.id),
+      sb
+        .from("taxonomy_terms")
+        .select("id, slug, name_en, name_es, term_type, level, parent_id, sort_order")
+        .is("archived_at", null)
+        .order("level", { ascending: true })
+        .order("sort_order", { ascending: true }),
+      sb
+        .from("profile_field_groups")
+        .select("id, slug, name_en, name_es, sort_order, is_active")
+        .order("sort_order", { ascending: true }),
     ]);
     const ovRows = (ovsRes.data ?? []) as OverrideRow[];
+
+    const taxonomyTerms = ((termsRes.data ?? []) as FieldDetailTaxonomyTerm[]).sort(
+      (a, b) => a.level - b.level || a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
+    );
+    const taxonomyById = new Map(taxonomyTerms.map((t) => [t.id, t] as const));
+    const recommendations = ((recsRes.data ?? []) as Array<{
+      id: string;
+      taxonomy_term_id: string;
+      relationship: string;
+      display_order: number | null;
+      required_at_registration: boolean | null;
+      required_before_publish: boolean | null;
+      required_before_verification: boolean | null;
+      requires_verification: boolean | null;
+      is_admin_only: boolean | null;
+    }>)
+      .map((r) => {
+        const term = taxonomyById.get(r.taxonomy_term_id);
+        return {
+          id: r.id,
+          taxonomy_term_id: r.taxonomy_term_id,
+          relationship: r.relationship,
+          display_order: r.display_order ?? 100,
+          required_at_registration: !!r.required_at_registration,
+          required_before_publish: !!r.required_before_publish,
+          required_before_verification: !!r.required_before_verification,
+          requires_verification: !!r.requires_verification,
+          is_admin_only: !!r.is_admin_only,
+          term_slug: term?.slug ?? r.taxonomy_term_id,
+          term_name_en: term?.name_en ?? r.taxonomy_term_id,
+          term_name_es: term?.name_es ?? null,
+          term_type: term?.term_type ?? "unknown",
+          level: term?.level ?? 0,
+        } satisfies FieldDetailRecommendation;
+      })
+      .sort((a, b) => a.display_order - b.display_order || a.term_name_en.localeCompare(b.term_name_en));
+
+    const fieldGroups = ((groupsRes.data ?? []) as FieldDetailGroupOption[]).sort(
+      (a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
+    );
 
     // 4. Slice 5 — per-tenant talent-value counts.
     //    Step A: talent_profile_ids with a live value for this field.
@@ -345,17 +484,34 @@ async function loadPlatformCatalogFieldDetailUncached(
       id: def.id,
       field_key: def.field_key,
       label: def.label ?? def.field_key,
+      label_es: def.label_es,
       tier: def.tier ?? "unknown",
       section: def.section,
+      subsection: def.subsection,
       field_group_id: def.field_group_id,
       field_group_name: groupName,
       helper: def.helper,
+      helper_es: def.helper_es,
+      placeholder: def.placeholder,
+      unit: def.unit,
+      kind: def.kind ?? "text",
+      options: def.options,
+      default_visibility: dv,
       visibility,
       admin_only: !!def.admin_only,
       is_sensitive: !!def.is_sensitive,
       show_in_public: !!def.show_in_public,
+      show_in_directory: !!def.show_in_directory,
+      show_in_registration: !!def.show_in_registration,
+      show_in_edit_drawer: !!def.show_in_edit_drawer,
+      talent_editable: def.talent_editable !== false,
+      requires_review_on_change: !!def.requires_review_on_change,
+      is_searchable: !!def.is_searchable,
+      display_order: def.display_order ?? 100,
+      count_min: def.count_min,
       required_default: def.is_optional === false,
       deprecated: isDeprecated,
+      deprecated_at: def.deprecated_at,
       total_value_count: totalValue,
       total_override_count: totalOverride,
       tenants_with_values: perTenantValueCount.size,
@@ -394,7 +550,7 @@ async function loadPlatformCatalogFieldDetailUncached(
       });
     }
 
-    return { ok: true, field, workspaces, risks };
+    return { ok: true, field, workspaces, risks, recommendations, taxonomyTerms, fieldGroups };
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("[catalog-field-detail] unexpected:", e);

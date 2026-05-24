@@ -348,7 +348,21 @@ export default async function PlatformCatalogMapPage({
         <h1 style={{ fontFamily: FD, fontSize: 20, fontWeight: 600, margin: 0 }}>
           Catalog Map
         </h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link
+            href="/platform/admin/catalog/groups"
+            style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
+          >
+            Field Groups Builder
+          </Link>
+          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
+          <Link
+            href="/platform/admin/taxonomy"
+            style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
+          >
+            Taxonomy Builder
+          </Link>
+          <span style={{ fontSize: 11, color: HQ.inkDim }}>·</span>
           <Link
             href="/platform/admin/catalog/export?format=csv"
             style={{ fontSize: 11, fontWeight: 600, color: HQ.green, textDecoration: "none", letterSpacing: 0.2 }}
@@ -365,9 +379,10 @@ export default async function PlatformCatalogMapPage({
         </div>
       </div>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 18 }}>
-        Read-only inspection of the talent field engine — every platform
-        field, its group, tier, default visibility (via the shared engine),
-        workspace adoption, value usage, and config risks. Zero mutation.
+        Platform control room for the talent field engine — every platform
+        field, group, tier, default visibility (via the shared engine),
+        workspace adoption, value usage, and config risk. Open a field to
+        edit bilingual labels, lifecycle, visibility, and taxonomy mapping.
       </div>
 
       <HqCard

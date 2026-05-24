@@ -33,7 +33,7 @@ import { WorkspaceFieldSettingsDrawer } from "./drawers/light-09";
 import { FieldCatalogDrawer, FieldPrivacyDrawer } from "./drawers/light-10";
 import { TrustVerificationQueueDrawer, DisputedClaimsDrawer } from "./drawers/light-11";
 import { TalentTrustDetailDrawer, TalentClaimInviteDrawer, PlatformVerificationMethodsDrawer } from "./drawers/light-12";
-import { TalentPhoneVerifyDrawer, TalentIdVerifyDrawer, TalentBusinessVerifyDrawer, TalentDomainVerifyDrawer, TalentPaymentVerifyDrawer, ClientCsvBulkAddDrawer, TaxonomyDrawer, WidgetsDrawer, ApiKeysDrawer, SiteHealthDrawer } from "./drawers/light-13";
+import { TalentPhoneVerifyDrawer, TalentIdVerifyDrawer, TalentBusinessVerifyDrawer, TalentDomainVerifyDrawer, TalentPaymentVerifyDrawer, ClientCsvBulkAddDrawer, WidgetsDrawer, ApiKeysDrawer, SiteHealthDrawer } from "./drawers/light-13";
 import { StorefrontVisibilityDrawer, HubDistributionDrawer, FilterConfigDrawer, DangerZoneDrawer, SimpleStubDrawer, PlanCompareDrawer, ClientTrustDetailDrawer } from "./drawers/light-14";
 import { EscrowDetailDrawer, RefundFlowDrawer, DisputeFlowDrawer, KycVerificationDrawer, ProofOfFundsDrawer, PayoutMethodFailureDrawer, SubscriptionLifecycleDrawer, NotificationDetailDrawer, AiDraftAssistDrawer, AiSearchExplainDrawer, AiWeeklyDigestDrawer, WorkspaceRevenueDrawer, ConversionFunnelDrawer } from "./drawers/light-15";
 import { TopPerformersDrawer, CoordinatorWorkloadDrawer, MyQueueDrawer, SlaTimersDrawer, RulesBuilderDrawer, SavedRepliesDrawer } from "./drawers/light-16";
@@ -179,7 +179,7 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "talent-payment-verify":
       return <TalentPaymentVerifyDrawer />;
     case "taxonomy":
-      return <TaxonomyDrawer />;
+      return <TalentTypesDrawer />;
     case "widgets":
       return <WidgetsDrawer />;
     case "api-keys":

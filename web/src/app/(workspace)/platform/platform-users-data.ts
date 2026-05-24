@@ -62,6 +62,10 @@ export type HumanUserRow = PlatformUserBase & {
   /** Formatted last-sign-in (e.g. "today", "3d ago", date). */
   lastSignInAt: string | null;
   lastSignInAtIso: string | null;
+  /** Slug of the claimed talent profile, if any. */
+  talentSlug: string | null;
+  /** Workflow status of the claimed talent profile, if any. */
+  talentWorkflowStatus: string | null;
 };
 
 export type UnclaimedTalentRow = PlatformUserBase & {
@@ -293,6 +297,8 @@ export async function loadPlatformPeopleFederated(): Promise<PlatformUserRow[]> 
         ?? null,
       lastSignInAt: formatDate(lastSignInById[r.id]),
       lastSignInAtIso: lastSignInById[r.id] ?? null,
+      talentSlug: claimedTalent?.slug ?? null,
+      talentWorkflowStatus: claimedTalent?.workflow_status ?? null,
     };
   });
 
