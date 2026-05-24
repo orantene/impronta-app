@@ -229,15 +229,15 @@ Per the integrator protocol (memory `project_multi_agent_integrator_protocol.md`
 | ~~M0.5 user_admin_notes~~ | ~~Migration + RLS~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~—~~ | **DONE** `b3711cd92` |
 | ~~M0.6 is_test_account flag~~ | ~~Migration on 2 tables~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~—~~ | **DONE** `80e3b6138` |
 | ~~A.1+A.2+A.3 federated loader~~ | ~~Core data layer refactor, dedup logic, origin resolver~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~L~~ | ~~M0.4~~ | **DONE** `b0d19bb55` PR #19 `3b643f991` |
-| B.1 new columns | Table render | Junior | Haiku 4.5 | S | A.1 |
-| B.2 new filters | Client component logic | Mid | Sonnet 4.6 | S | A.1 |
-| B.3 quick-action chips | UI sugar | Junior | Haiku 4.5 | XS | B.2 |
-| C.1 identity & access | Drawer render | Junior | Haiku 4.5 | S | A.1 |
-| C.2 origin section | Drawer section + clickable links | Junior | Haiku 4.5 | S | A.1 |
+| ~~B.1 new columns~~ | ~~Table render~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `28422e6cc` PR #20 |
+| ~~B.2 new filters~~ | ~~Client component logic~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~S~~ | ~~A.1~~ | **DONE** `a50fa6a50` PR #21 |
+| B.3 quick-action chips | UI sugar | Junior | Haiku 4.5 | XS | B.2 | in progress |
+| ~~C.1 identity & access~~ | ~~Drawer render~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `831767d48` PR #22 |
+| ~~C.2 origin section~~ | ~~Drawer section + clickable links~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `63fc5aa63` PR #23 |
 | C.3 talent record + global-hide | Drawer + write action | Mid | Sonnet 4.6 | M | M0.3, E.tier1, E.tier2 |
 | C.4 billing surface | Stripe read + plan override extension | Senior | Opus 4.7 | L | D.1, D.2 |
 | C.5 workspaces remove/role | Drawer + 2 write actions | Mid | Sonnet 4.6 | M | E.tier2 |
-| C.6 activity context | Read-only joins | Junior | Haiku 4.5 | M | — |
+| ~~C.6 activity context~~ | ~~Read-only joins~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~M~~ | ~~—~~ | **DONE** `16082ece4` PR #24 |
 | C.7 admin notes | CRUD on user_admin_notes | Junior | Haiku 4.5 | S | M0.5 |
 | C.8 action panel UI | Wire E actions to buttons + confirm modals | Mid | Sonnet 4.6 | M | E (all tiers) |
 | C.9 per-person audit view | Read-only render | Junior | Haiku 4.5 | S | M0.1, E |
