@@ -21,6 +21,7 @@ import { AuditHistorySection } from "./AuditHistorySection";
 import { TalentRecordSection } from "./TalentRecordSection";
 import { WorkspaceMembershipsSection } from "./WorkspaceMembershipsSection";
 import { AdminActionsSection } from "./AdminActionsSection";
+import { BillingSection } from "./BillingSection";
 import type { PlatformUserRow } from "../../platform-data";
 
 function classifyType(appRole: string | null): string {
@@ -341,6 +342,9 @@ export function UserDrawer({
 
           {/* Talent Record (C.3) */}
           <TalentRecordSection user={user} />
+
+          {/* Billing & Subscriptions (C.4) */}
+          <BillingSection user={user} />
 
           {/* Workspace & Hub Memberships (C.5) */}
           <WorkspaceMembershipsSection user={user} />
