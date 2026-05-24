@@ -96,7 +96,8 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
     const q = search.trim().toLowerCase();
     let out = rows.filter((r) => {
       if (q) {
-        const hay = `${r.displayName} ${r.email} ${r.memberships
+        const email = r.kind === "human" ? r.email : "";
+        const hay = `${r.displayName} ${email} ${r.memberships
           .map((m) => m.name)
           .join(" ")}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -112,7 +113,10 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
         return false;
       }
       if (power === "none" && r.tenantCount > 0) return false;
-      if (emailFilter === "unconfirmed" && r.emailConfirmed) return false;
+      if (emailFilter === "unconfirmed") {
+        // Unclaimed talent has no email to confirm — exclude from this filter.
+        if (r.kind !== "human" || r.emailConfirmed) return false;
+      }
       return true;
     });
 
@@ -284,36 +288,70 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                       }}
                     >
                       <td style={{ padding: "10px 12px" }}>
-                        <div style={{ color: HQ.ink, fontWeight: 600 }}>
+                        <div
+                          style={{
+                            color: HQ.ink,
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
                           {r.displayName}
+                          {r.kind === "unclaimed_talent" && (
+                            <span
+                              style={{
+                                padding: "1px 6px",
+                                background: "rgba(148,163,184,0.12)",
+                                color: HQ.inkDim,
+                                fontSize: 9.5,
+                                fontWeight: 600,
+                                letterSpacing: 0.3,
+                                textTransform: "uppercase",
+                                borderRadius: 999,
+                              }}
+                              title="Talent profile not yet claimed by a logged-in user"
+                            >
+                              unclaimed
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: "10px 12px" }}>
-                        <span
-                          style={{
-                            color: r.emailConfirmed ? HQ.inkMuted : HQ.amber,
-                            fontFamily: HQ_FM,
-                            fontSize: 11.5,
-                          }}
-                        >
-                          {r.email}
-                        </span>
-                        {!r.emailConfirmed && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              marginLeft: 6,
-                              padding: "1px 6px",
-                              background: "rgba(229,181,103,0.12)",
-                              color: HQ.amber,
-                              fontSize: 9.5,
-                              fontWeight: 600,
-                              letterSpacing: 0.3,
-                              textTransform: "uppercase",
-                              borderRadius: 999,
-                            }}
-                          >
-                            unconfirmed
+                        {r.kind === "human" ? (
+                          <>
+                            <span
+                              style={{
+                                color: r.emailConfirmed ? HQ.inkMuted : HQ.amber,
+                                fontFamily: HQ_FM,
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {r.email}
+                            </span>
+                            {!r.emailConfirmed && (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  marginLeft: 6,
+                                  padding: "1px 6px",
+                                  background: "rgba(229,181,103,0.12)",
+                                  color: HQ.amber,
+                                  fontSize: 9.5,
+                                  fontWeight: 600,
+                                  letterSpacing: 0.3,
+                                  textTransform: "uppercase",
+                                  borderRadius: 999,
+                                }}
+                              >
+                                unconfirmed
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
+                            no login
                           </span>
                         )}
                       </td>

@@ -112,7 +112,9 @@ export function UserDrawer({
                   whiteSpace: "nowrap",
                 }}
               >
-                {user.email}
+                {user.kind === "human"
+                  ? user.email
+                  : "No login — unclaimed talent profile"}
               </div>
             </div>
             <button
@@ -159,7 +161,7 @@ export function UserDrawer({
                 ● Workspace operator
               </span>
             )}
-            {!user.emailConfirmed && (
+            {user.kind === "human" && !user.emailConfirmed && (
               <span
                 style={{
                   fontSize: 10,
@@ -170,6 +172,20 @@ export function UserDrawer({
                 }}
               >
                 ● Email unconfirmed
+              </span>
+            )}
+            {user.kind === "unclaimed_talent" && (
+              <span
+                style={{
+                  fontSize: 10,
+                  color: HQ.inkDim,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  textTransform: "uppercase",
+                }}
+                title="Talent profile not yet claimed by a logged-in user"
+              >
+                ● Unclaimed
               </span>
             )}
           </div>
@@ -213,15 +229,19 @@ export function UserDrawer({
                 {user.appRole ?? "—"}
               </span>
               <span style={{ color: HQ.inkDim }}>Status</span>
-              <span style={{ color: HQ.ink }}>{user.accountStatus ?? "—"}</span>
+              <span style={{ color: HQ.ink }}>
+                {user.kind === "human" ? (user.accountStatus ?? "—") : "unclaimed"}
+              </span>
               <span style={{ color: HQ.inkDim }}>Joined</span>
               <span style={{ color: HQ.ink }}>{user.createdAt}</span>
-              <span style={{ color: HQ.inkDim }}>User ID</span>
+              <span style={{ color: HQ.inkDim }}>
+                {user.kind === "human" ? "User ID" : "Talent ID"}
+              </span>
               <span style={{ color: HQ.inkMuted, fontFamily: HQ_FM, fontSize: 11 }}>
                 {user.id}
               </span>
             </div>
-            {!user.emailConfirmed && (
+            {user.kind === "human" && !user.emailConfirmed && (
               <button
                 type="button"
                 disabled={pending}
