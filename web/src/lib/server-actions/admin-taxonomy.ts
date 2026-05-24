@@ -48,8 +48,9 @@
 //     is platform-curated; tenants get per-field overrides via
 //     workspace_profile_field_settings — handled elsewhere).
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
+import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { logEngineAudit } from "./engine-audit";
@@ -62,21 +63,8 @@ import type {
   ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
 
-// Re-export the resolved-field types so existing callers
-// (drawers.tsx, live-category-fields-editor.tsx, talent-field-values-catalog.ts)
-// keep their `import type { ResolvedField, ResolvedFieldGroup } from
-// "@/lib/server-actions/admin-taxonomy"` paths working after the P5-δ
-// resolver extraction. The shapes themselves are now owned by the field
-// engine module — single source of truth.
-//
-// IMPORTANT: this MUST be a direct `export type ... from ...` re-export,
-// not `export type { ... }` referencing the local imports above. Turbopack
-// SSR bundling miscompiles the mixed import-with-type-modifiers + local
-// re-export pattern: it emits a runtime reference to the type symbol that
-// fires `ReferenceError: ResolvedField is not defined` at module
-// evaluation. The direct re-export is statically known to be type-only
-// and emits no runtime code. Both this re-export and the `import type`
-// above point at the same module — duplication is intentional, not redundant.
+// Keep legacy type import paths working while the field engine owns the shapes.
+// Use direct type re-export; Turbopack emitted runtime references for local re-export.
 export type {
   ResolvedField,
   ResolvedFieldGroup,
@@ -123,6 +111,12 @@ export type TaxonomyNode = {
 export type GetTaxonomyTreeResult =
   | { ok: true; tree: TaxonomyNode[] }
   | { ok: false; error: string };
+
+function revalidateTenantTaxonomySurfaces(): void {
+  revalidateTag(CACHE_TAG_TAXONOMY, "default");
+  revalidatePath("/[tenantSlug]/admin/settings", "layout");
+  revalidatePath("/[tenantSlug]/admin/roster", "layout");
+}
 
 // ─── Read: enabled taxonomy tree ─────────────────────────────────────────────
 
@@ -528,8 +522,7 @@ export async function setTaxonomyEnabled(input: {
     afterValue: { is_enabled: parsed.data.is_enabled },
   });
 
-  revalidatePath("/[tenantSlug]/admin/settings", "layout");
-  revalidatePath("/[tenantSlug]/admin/roster", "layout");
+  revalidateTenantTaxonomySurfaces();
   return { ok: true };
 }
 
@@ -598,8 +591,7 @@ export async function setTaxonomyFlags(
     afterValue: flags,
   });
 
-  revalidatePath("/[tenantSlug]/admin/settings", "layout");
-  revalidatePath("/[tenantSlug]/admin/roster", "layout");
+  revalidateTenantTaxonomySurfaces();
   return { ok: true };
 }
 
@@ -688,7 +680,7 @@ export async function addCustomSubType(input: {
     },
   });
 
-  revalidatePath("/[tenantSlug]/admin/settings", "layout");
+  revalidateTenantTaxonomySurfaces();
   return { ok: true, id: data.id };
 }
 
@@ -745,7 +737,7 @@ export async function removeCustomSubType(input: {
     afterValue: { is_active: false },
   });
 
-  revalidatePath("/[tenantSlug]/admin/settings", "layout");
+  revalidateTenantTaxonomySurfaces();
   return { ok: true };
 }
 

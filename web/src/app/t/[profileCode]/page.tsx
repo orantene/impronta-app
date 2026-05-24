@@ -41,6 +41,10 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import {
+  resolveTalentFields,
+  type ResolvedField,
+} from "@/lib/field-engine/resolve-talent-fields";
+import {
   formatCityCountryLabel,
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
@@ -428,6 +432,9 @@ async function fetchPublicFieldValues(
   const recTermsByField = new Map<string, Set<string>>();
   const applicableTerms = new Set<string>();
   let governanceLoaded = false;
+  let resolverLoaded = false;
+  const resolvedFieldById = new Map<string, ResolvedField>();
+  const resolvedGroupOrderBySlug = new Map<string, number>();
 
   if (svc && fieldIds.length > 0) {
     try {
@@ -442,6 +449,22 @@ async function fetchPublicFieldValues(
         (rosterRow as { tenant_id?: string } | null)?.tenant_id ?? null;
 
       if (tenantId) {
+        const resolved = await resolveTalentFields({
+          supabase: svc,
+          talentProfileId,
+          tenantId,
+          viewerRole: "platform_admin",
+        });
+        if (resolved.ok) {
+          resolverLoaded = true;
+          for (const field of resolved.fields) {
+            resolvedFieldById.set(field.field_definition_id, field);
+          }
+          for (const group of resolved.groups) {
+            resolvedGroupOrderBySlug.set(group.group_slug, group.display_order);
+          }
+        }
+
         const { data: wpfs } = await svc
           .from("workspace_profile_field_settings")
           .select(
@@ -460,50 +483,52 @@ async function fetchPublicFieldValues(
         }
       }
 
-      // Talent's applicable taxonomy term set: their terms + 2 levels of
-      // parents (mirrors the resolver's term → parent → parent_category
-      // walk depth) so a field recommended at the category level matches.
-      const { data: tpt } = await svc
-        .from("talent_profile_taxonomy")
-        .select("taxonomy_term_id")
-        .eq("talent_profile_id", talentProfileId);
-      let level = Array.from(
-        new Set(
-          ((tpt ?? []) as Array<{ taxonomy_term_id: string | null }>)
-            .map((r) => r.taxonomy_term_id)
-            .filter((x): x is string => !!x),
-        ),
-      );
-      for (const id of level) applicableTerms.add(id);
-      for (let depth = 0; depth < 2 && level.length > 0; depth++) {
-        const { data: parents } = await svc
-          .from("taxonomy_terms")
-          .select("id, parent_id")
-          .in("id", level);
-        const next = Array.from(
+      if (!resolverLoaded) {
+        // Fallback only. The shared resolver is the truth source; this
+        // retained path keeps public profiles from regressing if the service
+        // resolver cannot load during local/dev misconfiguration.
+        const { data: tpt } = await svc
+          .from("talent_profile_taxonomy")
+          .select("taxonomy_term_id")
+          .eq("talent_profile_id", talentProfileId);
+        let level = Array.from(
           new Set(
-            ((parents ?? []) as Array<{ id: string; parent_id: string | null }>)
-              .map((p) => p.parent_id)
+            ((tpt ?? []) as Array<{ taxonomy_term_id: string | null }>)
+              .map((r) => r.taxonomy_term_id)
               .filter((x): x is string => !!x),
           ),
         );
-        for (const id of next) applicableTerms.add(id);
-        level = next;
-      }
+        for (const id of level) applicableTerms.add(id);
+        for (let depth = 0; depth < 2 && level.length > 0; depth++) {
+          const { data: parents } = await svc
+            .from("taxonomy_terms")
+            .select("id, parent_id")
+            .in("id", level);
+          const next = Array.from(
+            new Set(
+              ((parents ?? []) as Array<{ id: string; parent_id: string | null }>)
+                .map((p) => p.parent_id)
+                .filter((x): x is string => !!x),
+            ),
+          );
+          for (const id of next) applicableTerms.add(id);
+          level = next;
+        }
 
-      const { data: recs } = await svc
-        .from("profile_field_recommendations")
-        .select("field_definition_id, taxonomy_term_id")
-        .in("field_definition_id", fieldIds);
-      for (const r of (recs ?? []) as Array<{
-        field_definition_id: string;
-        taxonomy_term_id: string | null;
-      }>) {
-        if (!r.taxonomy_term_id) continue;
-        const s =
-          recTermsByField.get(r.field_definition_id) ?? new Set<string>();
-        s.add(r.taxonomy_term_id);
-        recTermsByField.set(r.field_definition_id, s);
+        const { data: recs } = await svc
+          .from("profile_field_recommendations")
+          .select("field_definition_id, taxonomy_term_id")
+          .in("field_definition_id", fieldIds);
+        for (const r of (recs ?? []) as Array<{
+          field_definition_id: string;
+          taxonomy_term_id: string | null;
+        }>) {
+          if (!r.taxonomy_term_id) continue;
+          const s =
+            recTermsByField.get(r.field_definition_id) ?? new Set<string>();
+          s.add(r.taxonomy_term_id);
+          recTermsByField.set(r.field_definition_id, s);
+        }
       }
       governanceLoaded = true;
     } catch {
@@ -527,6 +552,16 @@ async function fetchPublicFieldValues(
       : row.profile_field_definitions;
     if (!def) continue;
     if (def.deprecated_at) continue;
+
+    const resolvedField = resolverLoaded
+      ? (resolvedFieldById.get(row.field_definition_id) ?? null)
+      : null;
+    if (resolverLoaded && !resolvedField) {
+      if ((def.tier ?? "").toLowerCase() === "type-specific") {
+        diag.hiddenOrphan++;
+      }
+      continue;
+    }
 
     // Gap 2 — full public resolver-gate via the SINGLE shared primitive.
     // `wasPublic` = the prior Phase 1.5 decision (tenant=null), retained
@@ -570,11 +605,13 @@ async function fetchPublicFieldValues(
 
     // Rules 6/7 — 2b-soft: keep universal/global; hide orphaned
     // type-specific (the category/type that caused it is no longer on the
-    // talent). Enforced ONLY when governance data actually loaded —
-    // otherwise fail SAFE and keep showing (no regression vs Phase 1.5).
-    const tier = (def.tier ?? "").toLowerCase();
+    // talent). When the shared resolver loaded, its field set is the
+    // authority. The manual recommendation walk below is fallback-only.
+    const tier = (resolvedField?.tier ?? def.tier ?? "").toLowerCase();
     if (tier === "type-specific") {
-      if (governanceLoaded) {
+      if (resolverLoaded) {
+        diag.keptTypeSpecific++;
+      } else if (governanceLoaded) {
         const recTerms = recTermsByField.get(row.field_definition_id);
         const stillApplicable =
           !!recTerms &&
@@ -583,8 +620,8 @@ async function fetchPublicFieldValues(
           if (wasPublic) diag.hiddenOrphan++;
           continue;
         }
+        diag.keptTypeSpecific++;
       }
-      diag.keptTypeSpecific++;
     } else {
       diag.keptUniversalGlobal++;
     }
@@ -620,6 +657,10 @@ async function fetchPublicFieldValues(
     const fg = Array.isArray(def.profile_field_groups)
       ? (def.profile_field_groups[0] ?? null)
       : def.profile_field_groups;
+    const resolvedGroupSlug = resolvedField?.field_group_slug ?? fg?.slug ?? null;
+    const resolvedGroupSort = resolvedGroupSlug
+      ? (resolvedGroupOrderBySlug.get(resolvedGroupSlug) ?? fg?.sort_order ?? 0)
+      : (fg?.sort_order ?? 0);
 
     projected.push({
       id: row.id,
@@ -628,18 +669,18 @@ async function fetchPublicFieldValues(
       value_boolean,
       value_date,
       field_definitions: {
-        key: def.field_key,
-        label_en: def.label,
-        label_es: null,
-        value_type: def.kind,
+        key: resolvedField?.field_key ?? def.field_key,
+        label_en: resolvedField?.label ?? def.label,
+        label_es: resolvedField?.label_es ?? null,
+        value_type: resolvedField?.kind ?? def.kind,
         config: null,
-        sort_order: def.display_order ?? 0,
+        sort_order: resolvedField?.display_order ?? def.display_order ?? 0,
         field_group_id: def.field_group_id,
-        internal_only: false,
+        internal_only: resolvedField?.is_admin_only ?? false,
         public_visible: true,
         profile_visible: true,
-        field_groups: fg
-          ? { sort_order: fg.sort_order ?? 0, slug: fg.slug ?? undefined }
+        field_groups: resolvedGroupSlug
+          ? { sort_order: resolvedGroupSort, slug: resolvedGroupSlug }
           : null,
       },
     });
@@ -650,7 +691,7 @@ async function fetchPublicFieldValues(
   // privacy vs. orphaned type-specific, and what remains visible.
   void improntaLog("t.info", {
     message: `[public-resolver-gate] talent=${talentProfileId} ` +
-      `governance=${governanceLoaded} prevPublic=${diag.prevPublic} ` +
+      `resolver=${resolverLoaded} governance=${governanceLoaded} prevPublic=${diag.prevPublic} ` +
       `hiddenByTenant=${diag.hiddenByTenant} hiddenOrphan=${diag.hiddenOrphan} ` +
       `keptUniversalGlobal=${diag.keptUniversalGlobal} ` +
       `keptTypeSpecific=${diag.keptTypeSpecific}`,

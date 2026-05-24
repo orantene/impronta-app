@@ -6,12 +6,50 @@ import { getCachedTaxonomyFilterOptions } from "@/lib/directory/taxonomy-filters
 import { buildDirectoryRefineSuggestions } from "@/lib/ai/refine-suggestions";
 import { canonicalDirectoryQueryForAiSearch } from "@/lib/ai/normalize-search-query";
 import { MAX_REFINE_SUGGESTIONS_RETURN } from "@/lib/ai/search-performance-limits";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   buildRefineSuggestionsCacheKey,
   getCachedRefineSuggestions,
   setCachedRefineSuggestions,
 } from "@/lib/ai/refine-response-cache";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+
+async function resolveTenantIdForRefineRequest(
+  request: Request,
+): Promise<string | null> {
+  const hostContext = await getPublicHostContext();
+  if (hostContext.kind === "agency") {
+    return hostContext.tenantId;
+  }
+
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+
+  try {
+    const requestUrl = new URL(request.url);
+    const refererUrl = new URL(referer);
+    if (refererUrl.origin !== requestUrl.origin) return null;
+
+    const slug = refererUrl.pathname.split("/").filter(Boolean)[0]?.trim().toLowerCase();
+    if (!slug || !/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return null;
+
+    const svc = createServiceRoleClient();
+    if (!svc) return null;
+    const { data } = await svc
+      .from("agency_domains")
+      .select("tenant_id")
+      .eq("tenant_slug", slug)
+      .in("kind", ["subdomain", "custom"])
+      .in("status", ["active", "ssl_provisioned", "verified"])
+      .limit(1)
+      .maybeSingle();
+
+    return typeof data?.tenant_id === "string" ? data.tenant_id : null;
+  } catch {
+    return null;
+  }
+}
 
 const bodySchema = z.object({
   q: z.string().optional().nullable(),
@@ -49,7 +87,11 @@ export async function POST(request: Request) {
     }
 
     const locale = parsed.data.locale ?? "en";
-    const taxonomyOptions = await getCachedTaxonomyFilterOptions(locale);
+    const tenantId = await resolveTenantIdForRefineRequest(request);
+    const taxonomyOptions = await getCachedTaxonomyFilterOptions(
+      locale,
+      tenantId,
+    );
     const qCanon = canonicalDirectoryQueryForAiSearch(parsed.data.q ?? "");
     const selectedIds = parsed.data.taxonomyTermIds ?? [];
     const selectedIdSet = new Set(selectedIds.map((id) => id.toLowerCase()));

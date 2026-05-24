@@ -132,7 +132,7 @@ async function DirectoryDiscoverInner({
   try {
     [aiFlags, taxonomyOptions, firstPage] = await Promise.all([
       getAiFeatureFlags(),
-      getCachedTaxonomyFilterOptions(locale),
+      getCachedTaxonomyFilterOptions(locale, directoryTenantId),
       getPublicDirectoryFirstPage({
         taxonomyTermIds,
         locale,

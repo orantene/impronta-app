@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPlatformRole } from "@/lib/access/platform-role";
+import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -109,6 +110,7 @@ async function recordTaxonomyAudit(
 }
 
 function revalidateTaxonomySurfaces(termId?: string | null, fieldKey?: string | null): void {
+  revalidateTag(CACHE_TAG_TAXONOMY, "default");
   revalidateTag(CACHE_TAG_FIELD_CATALOG, "default");
   revalidatePath("/platform/admin/taxonomy");
   revalidatePath("/platform/admin/catalog");
