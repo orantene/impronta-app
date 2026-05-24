@@ -12,12 +12,12 @@
  */
 
 import { useMemo, useState } from "react";
-import { HQ, HQ_F, HQ_FM } from "../tenants/hq-kit";
+import { HQ, HQ_F, HQ_FM, Chip, PlanChip } from "../tenants/hq-kit";
 import { UserDrawer } from "./UserDrawer";
 import { TypeChip } from "./user-chips";
 import type { PlatformUserRow } from "../../platform-data";
 
-type SortKey = "joined" | "name" | "type" | "workspaces" | "sites";
+type SortKey = "joined" | "name" | "type" | "status" | "workspaces" | "sites" | "lastSeen";
 type TypeFilter = "all" | "talent" | "client" | "staff" | "super_admin";
 type PowerFilter = "any" | "admin" | "member" | "none";
 type EmailFilter = "all" | "unconfirmed";
@@ -39,6 +39,70 @@ function classifyType(appRole: string | null): TypeFilter {
   if (appRole === "client") return "client";
   // agency_staff, admin, and anything else collapse into the "staff" bucket.
   return "staff";
+}
+
+type StatusChipInfo = {
+  label: string;
+  bg: string;
+  color: string;
+};
+
+function deriveStatus(r: PlatformUserRow): StatusChipInfo {
+  if (r.isTestAccount) {
+    return { label: "Test", bg: "rgba(229,181,103,0.12)", color: HQ.amber };
+  }
+  if (r.kind === "human" && r.accountStatus === "suspended") {
+    return { label: "Suspended", bg: "rgba(243,103,114,0.12)", color: HQ.red };
+  }
+  if (r.kind === "human" && r.talentProfileId) {
+    return { label: "Claimed", bg: "rgba(93,211,160,0.12)", color: HQ.green };
+  }
+  if (r.kind === "unclaimed_talent" && r.originKind === "agency_signup") {
+    return {
+      label: "Unclaimed · Agency",
+      bg: "rgba(245,242,235,0.08)",
+      color: "rgba(245,242,235,0.62)",
+    };
+  }
+  if (r.kind === "unclaimed_talent" && r.originKind === "studio_signup") {
+    return {
+      label: "Unclaimed · Studio",
+      bg: "rgba(245,242,235,0.08)",
+      color: "rgba(245,242,235,0.62)",
+    };
+  }
+  if (r.kind === "unclaimed_talent") {
+    return {
+      label: "Unclaimed",
+      bg: "rgba(245,242,235,0.08)",
+      color: "rgba(245,242,235,0.62)",
+    };
+  }
+  // kind === "human" (default)
+  return { label: "Active", bg: "rgba(255,255,255,0.04)", color: HQ.inkMuted };
+}
+
+function derivePlan(r: PlatformUserRow): string | null {
+  if (r.kind !== "human") return null;
+  const adminMemberships = r.memberships.filter(
+    (m) => m.kind === "agency" && (m.role === "owner" || m.role === "admin"),
+  );
+  if (adminMemberships.length === 0) return null;
+
+  const planRank: Record<string, number> = {
+    agency: 0,
+    network: 1,
+    studio: 2,
+    free: 3,
+  };
+
+  let highestPlan = adminMemberships[0].plan;
+  for (const m of adminMemberships) {
+    if ((planRank[m.plan] ?? 9) < (planRank[highestPlan] ?? 9)) {
+      highestPlan = m.plan;
+    }
+  }
+  return highestPlan;
 }
 
 function Th({
@@ -135,12 +199,38 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
             (typeRank[classifyType(a.appRole)] ?? 9) -
             (typeRank[classifyType(b.appRole)] ?? 9);
           break;
+        case "status": {
+          const statusOrder: Record<string, number> = {
+            test: 0,
+            suspended: 1,
+            unclaimed: 2,
+            claimed: 3,
+            active: 4,
+          };
+          const getStatusKey = (r: PlatformUserRow) => {
+            if (r.isTestAccount) return "test";
+            if (r.kind === "human" && r.accountStatus === "suspended")
+              return "suspended";
+            if (r.kind === "human" && r.talentProfileId) return "claimed";
+            if (r.kind === "unclaimed_talent") return "unclaimed";
+            return "active";
+          };
+          const aKey = getStatusKey(a);
+          const bKey = getStatusKey(b);
+          cmp =
+            (statusOrder[aKey] ?? 9) - (statusOrder[bKey] ?? 9);
+          if (cmp === 0) cmp = a.displayName.localeCompare(b.displayName);
+          break;
+        }
         case "workspaces":
           cmp = a.workspaceAdminCount - b.workspaceAdminCount;
           if (cmp === 0) cmp = a.workspaceCount - b.workspaceCount;
           break;
         case "sites":
           cmp = a.tenantCount - b.tenantCount;
+          break;
+        case "lastSeen":
+          cmp = (a.lastSignInAtIso ?? "").localeCompare(b.lastSignInAtIso ?? "");
           break;
         case "joined":
         default:
@@ -251,9 +341,12 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
               <tr style={{ borderBottom: `1px solid ${HQ.border}` }}>
                 <Th label="Name" column="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label="Status" column="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label="Plan" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Type" column="type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Workspaces" column="workspaces" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Sites" column="sites" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label="Last seen" column="lastSeen" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <Th label="Joined" column="joined" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
@@ -261,7 +354,7 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={9}
                     style={{
                       padding: 36,
                       textAlign: "center",
@@ -356,6 +449,26 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                         )}
                       </td>
                       <td style={{ padding: "10px 12px" }}>
+                        {(() => {
+                          const status = deriveStatus(r);
+                          return (
+                            <Chip bg={status.bg} color={status.color}>
+                              {status.label}
+                            </Chip>
+                          );
+                        })()}
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
+                        {(() => {
+                          const plan = derivePlan(r);
+                          return plan ? (
+                            <PlanChip plan={plan} />
+                          ) : (
+                            <span style={{ color: HQ.inkDim }}>—</span>
+                          );
+                        })()}
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
                         <TypeChip type={t} />
                       </td>
                       <td
@@ -408,6 +521,12 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                         ) : (
                           r.tenantCount
                         )}
+                      </td>
+                      <td
+                        className="hqu-lo"
+                        style={{ padding: "10px 12px", color: HQ.inkDim, fontSize: 11.5 }}
+                      >
+                        {r.kind === "human" ? r.lastSignInAt ?? "—" : "—"}
                       </td>
                       <td
                         className="hqu-lo"
