@@ -14,6 +14,7 @@ import {
   canViewerSee,
   type ViewerRole,
 } from "@/lib/field-engine/effective-visibility";
+import { CreateFieldForm } from "./create-field-form";
 
 export const dynamic = "force-dynamic";
 
@@ -384,6 +385,13 @@ export default async function PlatformCatalogMapPage({
         workspace adoption, value usage, and config risk. Open a field to
         edit bilingual labels, lifecycle, visibility, and taxonomy mapping.
       </div>
+
+      <HqCard
+        title="Create Field"
+        subtitle="Add a canonical profile field, then map it to the talent types that should load it."
+      >
+        <CreateFieldForm groups={map.groups.map((group) => ({ id: group.id, name: group.name, slug: group.slug }))} />
+      </HqCard>
 
       <HqCard
         title="Filters"

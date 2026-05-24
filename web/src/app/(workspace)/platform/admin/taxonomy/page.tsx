@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
+  movePlatformTaxonomyTermAction,
   setPlatformTaxonomyLifecycleAction,
   updatePlatformTaxonomyTermAction,
 } from "./actions";
+import { CreateTaxonomyTermForm } from "./create-taxonomy-term-form";
+import { TaxonomyReorderPanel } from "./taxonomy-reorder-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +50,29 @@ type TaxonomyRow = {
   restriction_level: string | null;
   tenant_count: number;
   children: TaxonomyRow[];
+};
+
+type TaxonomyImpact = {
+  descendant_count: number;
+  tenant_override_count: number;
+  field_mapping_count: number;
+  required_mapping_count: number;
+  talent_assignment_count: number;
+};
+
+type TaxonomyAuditRow = {
+  id: string;
+  created_at: string;
+  action: string;
+  severity: string;
+  target_id: string | null;
+};
+
+type TaxonomyIssue = {
+  kind: "name-collision" | "group-leaf-same-label" | "spanish-missing";
+  title: string;
+  detail: string;
+  slugs: string[];
 };
 
 const inputStyle: React.CSSProperties = {
@@ -152,6 +178,32 @@ function listText(values: string[]): string {
   return values.join("\n");
 }
 
+function normalizeLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function Stat({
+  label,
+  value,
+  tone = HQ.ink,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: string;
+}) {
+  return (
+    <div style={{ background: HQ.cardSoft, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "10px 12px" }}>
+      <div style={{ color: HQ.inkMuted, fontSize: 11 }}>{label}</div>
+      <div style={{ color: tone, fontFamily: FD, fontSize: 20, fontWeight: 650 }}>{value}</div>
+    </div>
+  );
+}
+
 function TaxonomyTermForm({
   term,
   allTerms,
@@ -246,6 +298,26 @@ function TaxonomyTermForm({
           </div>
         </form>
 
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <form action={movePlatformTaxonomyTermAction}>
+            <input type="hidden" name="id" value={term.id} />
+            <input type="hidden" name="direction" value="up" />
+            <button type="submit" style={{ border: `1px solid ${HQ.borderSoft}`, background: HQ.cardSoft, color: HQ.inkMuted, borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
+              Move up
+            </button>
+          </form>
+          <form action={movePlatformTaxonomyTermAction}>
+            <input type="hidden" name="id" value={term.id} />
+            <input type="hidden" name="direction" value="down" />
+            <button type="submit" style={{ border: `1px solid ${HQ.borderSoft}`, background: HQ.cardSoft, color: HQ.inkMuted, borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
+              Move down
+            </button>
+          </form>
+          <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
+            Fast ordering controls write the same sort order used by tenants, registration, editor nav, and public filters.
+          </span>
+        </div>
+
         <form action={setPlatformTaxonomyLifecycleAction}>
           <input type="hidden" name="id" value={term.id} />
           <input type="hidden" name="mode" value={term.archived_at ? "restore" : "archive"} />
@@ -258,11 +330,17 @@ function TaxonomyTermForm({
   );
 }
 
-async function loadTaxonomy(): Promise<{ terms: TaxonomyRow[]; roots: TaxonomyRow[] } | null> {
+async function loadTaxonomy(): Promise<{
+  terms: TaxonomyRow[];
+  roots: TaxonomyRow[];
+  impacts: Map<string, TaxonomyImpact>;
+  issues: TaxonomyIssue[];
+  audits: TaxonomyAuditRow[];
+} | null> {
   const sb = createServiceRoleClient();
   if (!sb) return null;
 
-  const [termsR, settingsR] = await Promise.all([
+  const [termsR, settingsR, recsR, assignmentsR, auditsR] = await Promise.all([
     sb
       .from("taxonomy_terms")
       .select(
@@ -270,7 +348,15 @@ async function loadTaxonomy(): Promise<{ terms: TaxonomyRow[]; roots: TaxonomyRo
       )
       .order("level", { ascending: true })
       .order("sort_order", { ascending: true }),
-    sb.from("agency_taxonomy_settings").select("taxonomy_term_id"),
+    sb.from("agency_taxonomy_settings").select("taxonomy_term_id, tenant_id"),
+    sb.from("profile_field_recommendations").select("taxonomy_term_id, relationship, required_before_publish"),
+    sb.from("talent_profile_taxonomy").select("taxonomy_term_id"),
+    sb
+      .from("platform_audit_log")
+      .select("id, created_at, action, severity, target_id")
+      .eq("target_type", "taxonomy_term")
+      .order("created_at", { ascending: false })
+      .limit(8),
   ]);
 
   if (termsR.error) return null;
@@ -300,7 +386,76 @@ async function loadTaxonomy(): Promise<{ terms: TaxonomyRow[]; roots: TaxonomyRo
     for (const item of list) sortTree(item.children);
   };
   sortTree(roots);
-  return { terms, roots };
+
+  const descendantsById = new Map<string, Set<string>>();
+  const collectDescendants = (term: TaxonomyRow): Set<string> => {
+    const cached = descendantsById.get(term.id);
+    if (cached) return cached;
+    const ids = new Set<string>([term.id]);
+    for (const child of term.children) {
+      for (const childId of collectDescendants(child)) ids.add(childId);
+    }
+    descendantsById.set(term.id, ids);
+    return ids;
+  };
+  for (const term of terms) collectDescendants(term);
+
+  const recs = (recsR.data ?? []) as Array<{
+    taxonomy_term_id: string | null;
+    relationship: string | null;
+    required_before_publish: boolean | null;
+  }>;
+  const assignments = (assignmentsR.data ?? []) as Array<{ taxonomy_term_id: string | null }>;
+  const settings = (settingsR.data ?? []) as Array<{ taxonomy_term_id: string | null; tenant_id: string | null }>;
+  const impacts = new Map<string, TaxonomyImpact>();
+  for (const term of terms) {
+    const ids = descendantsById.get(term.id) ?? new Set([term.id]);
+    const fieldMappings = recs.filter((row) => row.taxonomy_term_id && ids.has(row.taxonomy_term_id));
+    impacts.set(term.id, {
+      descendant_count: Math.max(0, ids.size - 1),
+      tenant_override_count: settings.filter((row) => row.taxonomy_term_id && ids.has(row.taxonomy_term_id)).length,
+      field_mapping_count: fieldMappings.length,
+      required_mapping_count: fieldMappings.filter((row) => row.relationship === "required" || row.required_before_publish).length,
+      talent_assignment_count: assignments.filter((row) => row.taxonomy_term_id && ids.has(row.taxonomy_term_id)).length,
+    });
+  }
+
+  const active = terms.filter((term) => term.is_active && !term.archived_at);
+  const byLabel = new Map<string, TaxonomyRow[]>();
+  for (const term of active) {
+    const key = normalizeLabel(term.name_en);
+    if (!key) continue;
+    byLabel.set(key, [...(byLabel.get(key) ?? []), term]);
+  }
+  const issues: TaxonomyIssue[] = [];
+  for (const group of byLabel.values()) {
+    if (group.length < 2) continue;
+    const slugs = group.map((term) => term.slug);
+    const types = new Set(group.map((term) => term.term_type));
+    issues.push({
+      kind: types.has("category_group") && types.has("talent_type") ? "group-leaf-same-label" : "name-collision",
+      title: `Shared label: ${group[0].name_en}`,
+      detail: `${group.length} active terms share this label across ${[...types].join(", ")}.`,
+      slugs,
+    });
+  }
+  const missingSpanish = active.filter((term) => !term.name_es && ["parent_category", "category_group", "talent_type"].includes(term.term_type));
+  if (missingSpanish.length > 0) {
+    issues.push({
+      kind: "spanish-missing",
+      title: `${missingSpanish.length} active talent terms need Spanish labels`,
+      detail: "Bilingual catalog labels should be complete before talent self-edit and registration rely on this engine.",
+      slugs: missingSpanish.slice(0, 12).map((term) => term.slug),
+    });
+  }
+
+  return {
+    terms,
+    roots,
+    impacts,
+    issues,
+    audits: ((auditsR.data ?? []) as TaxonomyAuditRow[]),
+  };
 }
 
 function flattenTree(roots: TaxonomyRow[]): TaxonomyRow[] {
@@ -335,6 +490,12 @@ export default async function PlatformTaxonomyBuilderPage({
   const activeCount = flat.filter((term) => term.is_active && !term.archived_at).length;
   const publicFilters = flat.filter((term) => term.is_public_filter && !term.archived_at).length;
   const restricted = flat.filter((term) => term.is_restricted && !term.archived_at).length;
+  const selectedImpact = selectedTerm && data ? data.impacts.get(selectedTerm.id) : null;
+  const selectedSiblings = selectedTerm
+    ? flat
+        .filter((term) => term.term_type === selectedTerm.term_type && term.parent_id === selectedTerm.parent_id)
+        .sort((a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en))
+    : [];
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
@@ -396,6 +557,61 @@ export default async function PlatformTaxonomyBuilderPage({
             </div>
           </HqCard>
 
+          <HqCard
+            title="Taxonomy Health"
+            subtitle="Diagnostics for duplicate labels, bilingual readiness, and hierarchy hygiene. These do not mutate data."
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
+              <Stat label="Warnings" value={data.issues.length} tone={data.issues.length > 0 ? HQ.amber : HQ.green} />
+              <Stat
+                label="Group/leaf label collisions"
+                value={data.issues.filter((issue) => issue.kind === "group-leaf-same-label").length}
+                tone={data.issues.some((issue) => issue.kind === "group-leaf-same-label") ? HQ.amber : HQ.green}
+              />
+              <Stat
+                label="Spanish readiness"
+                value={data.issues.some((issue) => issue.kind === "spanish-missing") ? "Needs pass" : "Ready"}
+                tone={data.issues.some((issue) => issue.kind === "spanish-missing") ? HQ.amber : HQ.green}
+              />
+            </div>
+            {data.issues.length === 0 ? (
+              <div style={{ color: HQ.green, fontSize: 12 }}>No active taxonomy health warnings.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 7 }}>
+                {data.issues.slice(0, 8).map((issue) => (
+                  <div
+                    key={`${issue.kind}-${issue.title}`}
+                    style={{
+                      background: HQ.cardSoft,
+                      border: `1px solid ${HQ.borderSoft}`,
+                      borderRadius: 10,
+                      padding: "8px 10px",
+                      fontSize: 12,
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ color: issue.kind === "spanish-missing" ? HQ.amber : HQ.red, fontSize: 10, fontWeight: 800, textTransform: "uppercase", minWidth: 126 }}>
+                        {issue.kind}
+                      </span>
+                      <strong style={{ color: HQ.ink }}>{issue.title}</strong>
+                    </div>
+                    <div style={{ color: HQ.inkMuted, marginTop: 3 }}>{issue.detail}</div>
+                    <div style={{ color: HQ.inkDim, marginTop: 3, fontFamily: "ui-monospace, monospace", fontSize: 10.5 }}>
+                      {issue.slugs.join(", ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </HqCard>
+
+          <HqCard
+            title="Create Taxonomy Term"
+            subtitle="Add a platform category, group, talent type, skill, context, or credential to the canonical engine."
+          >
+            <CreateTaxonomyTermForm allTerms={flat} />
+          </HqCard>
+
           <HqCard title="Tree editor" subtitle={`${visibleTerms.length} visible term${visibleTerms.length === 1 ? "" : "s"} in this view. Select one term to edit.`}>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 0.7fr) minmax(0, 1.3fr)", gap: 16 }}>
               <div style={{ maxHeight: 620, overflow: "auto", border: `1px solid ${HQ.borderSoft}`, borderRadius: 12 }}>
@@ -439,7 +655,42 @@ export default async function PlatformTaxonomyBuilderPage({
               </div>
               <div>
                 {selectedTerm ? (
-                  <TaxonomyTermForm term={selectedTerm} allTerms={flat} open />
+                  <>
+                    <TaxonomyTermForm term={selectedTerm} allTerms={flat} open />
+                    {selectedImpact && (
+                      <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+                        <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 12, padding: 12, background: HQ.cardSoft }}>
+                          <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Impact preview</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 8 }}>
+                            <Stat label="Descendants" value={selectedImpact.descendant_count} tone={selectedImpact.descendant_count > 0 ? HQ.green : HQ.inkDim} />
+                            <Stat label="Mappings" value={selectedImpact.field_mapping_count} tone={selectedImpact.field_mapping_count > 0 ? HQ.green : HQ.inkDim} />
+                            <Stat label="Required" value={selectedImpact.required_mapping_count} tone={selectedImpact.required_mapping_count > 0 ? HQ.amber : HQ.inkDim} />
+                            <Stat label="Profiles" value={selectedImpact.talent_assignment_count} tone={selectedImpact.talent_assignment_count > 0 ? HQ.green : HQ.inkDim} />
+                            <Stat label="Tenant overrides" value={selectedImpact.tenant_override_count} tone={selectedImpact.tenant_override_count > 0 ? HQ.amber : HQ.inkDim} />
+                          </div>
+                          <div style={{ color: HQ.inkMuted, fontSize: 11.5, marginTop: 9 }}>
+                            Lifecycle and parent changes should be reviewed here before saving. Assignments and values are never deleted by this page.
+                          </div>
+                        </div>
+                        <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 12, padding: 12, background: HQ.cardSoft }}>
+                          <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Drag order</div>
+                          <TaxonomyReorderPanel
+                            siblings={selectedSiblings.map((term) => ({
+                              id: term.id,
+                              slug: term.slug,
+                              name_en: term.name_en,
+                              sort_order: term.sort_order,
+                              icon: term.icon,
+                              is_active: term.is_active,
+                              archived_at: term.archived_at,
+                            }))}
+                            selectedId={selectedTerm.id}
+                            returnTerm={selectedTerm.slug}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div style={{ color: HQ.inkMuted, fontSize: 12 }}>No taxonomy terms in this view.</div>
                 )}
@@ -466,6 +717,34 @@ export default async function PlatformTaxonomyBuilderPage({
                 <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>Sees public-filter and directory-enabled terms only.</p>
               </div>
             </div>
+          </HqCard>
+
+          <HqCard title="Recent Taxonomy Audit" subtitle="Platform mutations write audit rows so engine edits remain accountable.">
+            {data.audits.length === 0 ? (
+              <div style={{ color: HQ.inkDim, fontSize: 12 }}>No taxonomy audit events yet.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {data.audits.map((audit) => (
+                  <div
+                    key={audit.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "145px 1fr auto",
+                      gap: 10,
+                      alignItems: "center",
+                      background: HQ.cardSoft,
+                      borderRadius: 9,
+                      padding: "7px 9px",
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ color: HQ.inkDim }}>{new Date(audit.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                    <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>{audit.action}</span>
+                    <span style={{ color: audit.severity === "warn" ? HQ.amber : audit.severity === "emergency" ? HQ.red : HQ.green, fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{audit.severity}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </HqCard>
         </>
       )}

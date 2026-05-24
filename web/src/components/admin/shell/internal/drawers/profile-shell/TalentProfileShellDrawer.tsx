@@ -4,7 +4,10 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import type { LiveCategoryGroupNavItem } from "../../live-category-fields-editor";
+import type {
+  LiveCategoryGroupNavItem,
+  LiveCategoryRequiredMissingItem,
+} from "../../live-category-fields-editor";
 import {
   AvailabilityStatus,
   BioTone,
@@ -1229,6 +1232,7 @@ export function TalentProfileShellDrawer() {
     { filled: 0, total: 0 },
   );
   const [profileFieldNavGroups, setProfileFieldNavGroups] = useState<LiveCategoryGroupNavItem[]>([]);
+  const [profileFieldRequiredMissing, setProfileFieldRequiredMissing] = useState<LiveCategoryRequiredMissingItem[]>([]);
   const [activeProfileFieldGroupKey, setActiveProfileFieldGroupKey] = useState<string | null>(null);
   const [profileFieldRailOpen, setProfileFieldRailOpen] = useState(false);
   // Bumped only AFTER a taxonomy assign/remove server action resolves, so
@@ -1425,6 +1429,7 @@ export function TalentProfileShellDrawer() {
   // Required fields
   const totalPhotos = state.albumsPro.reduce((n, a) => n + a.items.length, 0);
   const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
+  const newEngineActive = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
   // I8 — catalog-driven required fields are merged into the publish gate.
   // The universal 6 below are name / type / location / photos / bio /
   // language. The catalog adds type-specific fields on top — for now
@@ -1438,13 +1443,20 @@ export function TalentProfileShellDrawer() {
     const v = state.dynFields[k];
     return Array.isArray(v) ? v.length > 0 : !!String(v ?? "").trim();
   };
-  const catalogRequired = isModel ? [
+  const catalogRequired = isModel && !newEngineActive ? [
     { id: "measurements.heightMetric", label: "height",     met: dynStr("height") || dynStr("heightMetric"), sectionId: "physical" as ProfileSectionId },
     { id: "measurements.bust",         label: "bust",       met: dynStr("bust"),                            sectionId: "physical" as ProfileSectionId },
     { id: "measurements.waist",        label: "waist",      met: dynStr("waist"),                           sectionId: "physical" as ProfileSectionId },
     { id: "measurements.hips",         label: "hips",       met: dynStr("hips"),                            sectionId: "physical" as ProfileSectionId },
     { id: "measurements.hairColor",    label: "hair color", met: dynStr("hair") || dynStr("hairColor"),     sectionId: "physical" as ProfileSectionId },
   ] : [];
+  const resolverRequired = profileFieldRequiredMissing.map((item) => ({
+    id: item.id,
+    label: item.label,
+    met: false,
+    sectionId: "profile_fields" as ProfileSectionId,
+    groupKey: item.groupKey,
+  }));
   const required = [
     { id: "stageName",   label: "stage name",   met: !!state.stageName.trim(),       sectionId: "services" as ProfileSectionId },
     { id: "primaryType", label: "Talent Type",  met: !!state.primaryType,            sectionId: "services" as ProfileSectionId },
@@ -1458,6 +1470,7 @@ export function TalentProfileShellDrawer() {
     { id: "bio",         label: "a bio",        met: (activeBio?.text.trim().length ?? 0) >= 30, sectionId: "about" as ProfileSectionId },
     { id: "language",    label: "1 language",   met: state.languages.length > 0,     sectionId: "languages" as ProfileSectionId },
     ...catalogRequired,
+    ...resolverRequired,
   ];
   const missing = required.filter(r => !r.met);
   const completeness = Math.round((required.filter(r => r.met).length / required.length) * 100);
@@ -1718,6 +1731,10 @@ export function TalentProfileShellDrawer() {
     const r = required.find(x => x.id === id);
     if (!r) return;
     setActiveSection(r.sectionId);
+    if (r.sectionId === "profile_fields" && "groupKey" in r && typeof r.groupKey === "string") {
+      setProfileFieldRailOpen(true);
+      setActiveProfileFieldGroupKey(r.groupKey);
+    }
     setTimeout(() => {
       const sel = `[data-tulala-pshell] [data-pshell-field="${id}"]`;
       const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel);
@@ -2379,7 +2396,6 @@ export function TalentProfileShellDrawer() {
             // underlying field_values data is untouched — Discover and
             // the public profile still read it; this only stops the
             // drawer double-rendering the same concepts.
-            const newEngineActive = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
             const visible = (s: ProfileSectionId) => {
               if (!s) return false;
               if (s === "admin" && !adminVisible) return false;
@@ -3230,6 +3246,7 @@ export function TalentProfileShellDrawer() {
                     refreshKey={taxonomyVersion}
                     onCountsChange={setProfileFieldCounts}
                     onGroupNavChange={setProfileFieldNavGroups}
+                    onRequiredMissingChange={setProfileFieldRequiredMissing}
                     activeGroupKey={activeProfileFieldGroupKey}
                     onActiveGroupChange={setActiveProfileFieldGroupKey}
                     hideInlineCategoryNav

@@ -811,6 +811,14 @@ export type LiveCategoryGroupNavItem = {
   missing: number;
 };
 
+export type LiveCategoryRequiredMissingItem = {
+  id: string;
+  fieldDefinitionId: string;
+  label: string;
+  groupKey: string;
+  groupLabel: string;
+};
+
 // P3-phase-2 — shared per-talent field/value resolver.
 // Details and General both mount LiveCategoryFieldsEditor; `scope` is only
 // a CLIENT-SIDE render filter, so getFieldsForTalent + getTalentFieldValues
@@ -883,6 +891,7 @@ export function LiveCategoryFieldsEditor({
   talentProfileId,
   onCountsChange,
   onGroupNavChange,
+  onRequiredMissingChange,
   activeGroupKey,
   onActiveGroupChange,
   hideInlineCategoryNav = false,
@@ -900,6 +909,9 @@ export function LiveCategoryFieldsEditor({
    *  so Details can own its dynamic child navigation without a second
    *  taxonomy resolver. */
   onGroupNavChange?: (groups: LiveCategoryGroupNavItem[]) => void;
+  /** Specialty-only: exposes resolver-backed publish blockers to the parent
+   *  drawer so "Add N to publish" is fed by the same visible field engine. */
+  onRequiredMissingChange?: (items: LiveCategoryRequiredMissingItem[]) => void;
   /** Specialty-only: controlled selected category key from the parent rail. */
   activeGroupKey?: string | null;
   /** Specialty-only: tells the parent rail when the editor changes groups. */
@@ -1193,6 +1205,26 @@ export function LiveCategoryFieldsEditor({
       };
     }));
   }, [allFields, scope, tabs, valuesByDefId, onGroupNavChange]);
+
+  useEffect(() => {
+    if (allFields === null || scope !== "specialty" || !onRequiredMissingChange) return;
+    const locale = readLocale();
+    const missing: LiveCategoryRequiredMissingItem[] = [];
+    for (const tab of tabs) {
+      for (const field of tab.fields) {
+        if (!field.required_before_publish) continue;
+        if (isValueFilled(valuesByDefId.get(field.field_definition_id))) continue;
+        missing.push({
+          id: `field:${field.field_definition_id}`,
+          fieldDefinitionId: field.field_definition_id,
+          label: fieldLabel(field, locale),
+          groupKey: tab.key,
+          groupLabel: tab.label,
+        });
+      }
+    }
+    onRequiredMissingChange(missing);
+  }, [allFields, scope, tabs, valuesByDefId, onRequiredMissingChange]);
 
   useEffect(() => {
     if (allFields === null || scope !== "specialty" || !onActiveGroupChange) return;

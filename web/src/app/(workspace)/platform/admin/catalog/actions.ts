@@ -117,6 +117,89 @@ function revalidateEngineSurfaces(fieldKey?: string | null): void {
   }
 }
 
+export async function createPlatformFieldAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const fieldKey = text(formData, "field_key");
+  const label = text(formData, "label");
+  const tier = text(formData, "tier") ?? "type-specific";
+  const kind = text(formData, "kind") ?? "text";
+  if (!fieldKey || !label) {
+    redirect("/platform/admin/catalog?error=Field%20key%20and%20label%20are%20required");
+  }
+  if (!FIELD_TIER.has(tier) || !FIELD_KIND.has(kind)) {
+    redirect("/platform/admin/catalog?error=Invalid%20field%20type");
+  }
+
+  let options: unknown = null;
+  try {
+    options = parseOptions(text(formData, "options_json"));
+  } catch {
+    redirect("/platform/admin/catalog?error=Options%20must%20be%20a%20JSON%20array");
+  }
+
+  const adminOnly = checked(formData, "admin_only");
+  const sensitive = checked(formData, "is_sensitive");
+  const rawVisibility = parseDefaultVisibility(formData);
+  const defaultVisibility = adminOnly || sensitive
+    ? rawVisibility.filter((channel) => channel !== "public")
+    : rawVisibility;
+
+  const insertRow = {
+    field_key: fieldKey,
+    label,
+    label_es: text(formData, "label_es"),
+    helper: text(formData, "helper"),
+    helper_es: text(formData, "helper_es"),
+    placeholder: text(formData, "placeholder"),
+    unit: text(formData, "unit"),
+    tier,
+    kind,
+    section: text(formData, "section") ?? "type-specific",
+    subsection: text(formData, "subsection"),
+    field_group_id: text(formData, "field_group_id"),
+    default_visibility: defaultVisibility.length > 0 ? defaultVisibility : ["agency"],
+    show_in_public: checked(formData, "show_in_public") && !adminOnly && !sensitive,
+    show_in_directory: checked(formData, "show_in_directory"),
+    show_in_registration: checked(formData, "show_in_registration"),
+    show_in_edit_drawer: checked(formData, "show_in_edit_drawer"),
+    admin_only: adminOnly,
+    is_sensitive: sensitive,
+    talent_editable: checked(formData, "talent_editable"),
+    requires_review_on_change: checked(formData, "requires_review_on_change"),
+    is_searchable: checked(formData, "is_searchable"),
+    display_order: intOrNull(formData, "display_order") ?? 100,
+    count_min: intOrNull(formData, "count_min"),
+    is_optional: !checked(formData, "required_default"),
+    options,
+  };
+
+  const { data: created, error } = await auth.sb
+    .from("profile_field_definitions")
+    .insert(insertRow)
+    .select("id, field_key")
+    .single();
+
+  if (error) {
+    logServerError("platform.catalog.createField", error);
+    redirect("/platform/admin/catalog?error=Could%20not%20create%20field");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field.create",
+    targetType: "profile_field_definition",
+    targetId: created?.id ?? null,
+    beforeValue: null,
+    afterValue: insertRow,
+    severity: adminOnly || sensitive || !insertRow.is_optional ? "warn" : "info",
+  });
+
+  revalidateEngineSurfaces(created?.field_key ?? fieldKey);
+  redirect(`/platform/admin/catalog/${encodeURIComponent(created?.field_key ?? fieldKey)}?saved=create`);
+}
+
 export async function updatePlatformFieldAction(formData: FormData): Promise<void> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
