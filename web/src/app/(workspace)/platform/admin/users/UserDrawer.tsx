@@ -9,12 +9,13 @@
  * loaded in the parent — no extra fetch.
  */
 
-import { useEffect, useTransition, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, SectionLabel } from "../tenants/hq-kit";
 import { MembershipRoleChip, TypeChip } from "./user-chips";
 import { confirmPlatformUserEmail } from "./actions";
+import { ActivitySection } from "./UserActivitySection";
 import type { PlatformUserRow } from "../../platform-data";
 
 function classifyType(appRole: string | null): string {
@@ -344,10 +345,13 @@ export function UserDrawer({
           </section>
 
           {/* Hubs */}
-          <section>
+          <section style={{ marginBottom: 18 }}>
             <SectionLabel>Hubs · {hubs.length}</SectionLabel>
             <MembershipList items={hubs} empty="Not a member of any hub." />
           </section>
+
+          {/* Activity & Support Context */}
+          <ActivitySection user={user} />
         </div>
       </aside>
     </div>
