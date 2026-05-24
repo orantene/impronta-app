@@ -298,6 +298,62 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
 
   const openRow = openId ? rows.find((r) => r.id === openId) ?? null : null;
 
+  // Helper to check if a chip preset is active
+  function isChipActive(
+    targetStatus?: StatusFilter,
+    targetEmail?: EmailFilter,
+    targetPower?: PowerFilter,
+  ): boolean {
+    if (
+      search === "" &&
+      typeFilter === "all" &&
+      originFilter === "any" &&
+      planFilter === "any"
+    ) {
+      if (targetStatus !== undefined) return statusFilter === targetStatus;
+      if (targetEmail !== undefined) return emailFilter === targetEmail;
+      if (targetPower !== undefined) return power === targetPower;
+    }
+    return false;
+  }
+
+  // Helper to apply a chip preset
+  function applyChip(
+    targetStatus?: StatusFilter,
+    targetEmail?: EmailFilter,
+    targetPower?: PowerFilter,
+  ): void {
+    setSearch("");
+    setTypeFilter("all");
+    setOriginFilter("any");
+    setPlanFilter("any");
+
+    // If the chip is already active, toggle it off
+    if (isChipActive(targetStatus, targetEmail, targetPower)) {
+      setStatusFilter("any");
+      setEmailFilter("all");
+      setPower("any");
+    } else {
+      // Apply the chip
+      if (targetStatus !== undefined) setStatusFilter(targetStatus);
+      if (targetEmail !== undefined) setEmailFilter(targetEmail);
+      if (targetPower !== undefined) setPower(targetPower);
+    }
+  }
+
+  const chipButtonStyle: React.CSSProperties = {
+    padding: "4px 10px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    fontFamily: HQ_F,
+    background: "transparent",
+    border: `1px solid ${HQ.border}`,
+    color: HQ.inkMuted,
+    cursor: "pointer",
+    transition: "all 0.12s ease",
+  };
+
   return (
     <>
       <style>{`
@@ -305,6 +361,100 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
         .hqu-row:hover { background: rgba(255,255,255,0.03); }
         @media (max-width: 940px) { .hqu-lo { display: none; } }
       `}</style>
+
+      {/* Quick-action filter chips */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          flexWrap: "wrap",
+          marginBottom: 8,
+        }}
+      >
+        <button
+          onClick={() => applyChip(undefined, undefined, undefined)}
+          style={{
+            ...chipButtonStyle,
+            ...(isChipActive("unclaimed")
+              ? {
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.green}`,
+                  color: HQ.ink,
+                }
+              : {}),
+          }}
+        >
+          Unclaimed talents
+        </button>
+        <button
+          onClick={() => applyChip("suspended")}
+          style={{
+            ...chipButtonStyle,
+            ...(isChipActive("suspended")
+              ? {
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.green}`,
+                  color: HQ.ink,
+                }
+              : {}),
+          }}
+        >
+          Suspended
+        </button>
+        <button
+          onClick={() => applyChip(undefined, "unconfirmed")}
+          style={{
+            ...chipButtonStyle,
+            ...(isChipActive(undefined, "unconfirmed")
+              ? {
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.green}`,
+                  color: HQ.ink,
+                }
+              : {}),
+          }}
+        >
+          Unconfirmed email
+        </button>
+        <button
+          onClick={() => applyChip("test")}
+          style={{
+            ...chipButtonStyle,
+            ...(isChipActive("test")
+              ? {
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.green}`,
+                  color: HQ.ink,
+                }
+              : {}),
+          }}
+        >
+          Test accounts
+        </button>
+        <button
+          onClick={() => applyChip(undefined, undefined, "admin")}
+          style={{
+            ...chipButtonStyle,
+            ...(isChipActive(undefined, undefined, "admin")
+              ? {
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.green}`,
+                  color: HQ.ink,
+                }
+              : {}),
+          }}
+        >
+          Workspace operators
+        </button>
+        <button
+          title="Stripe data coming soon"
+          style={{
+            ...chipButtonStyle,
+          }}
+        >
+          Stripe connected
+        </button>
+      </div>
 
       {/* Filter bar */}
       <div
