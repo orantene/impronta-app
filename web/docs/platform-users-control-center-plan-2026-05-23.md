@@ -238,16 +238,16 @@ Per the integrator protocol (memory `project_multi_agent_integrator_protocol.md`
 | C.4 billing surface | Stripe read + plan override extension | Senior | Opus 4.7 | L | D.1, D.2 |
 | C.5 workspaces remove/role | Drawer + 2 write actions | Mid | Sonnet 4.6 | M | E.tier2 |
 | ~~C.6 activity context~~ | ~~Read-only joins~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~M~~ | ~~—~~ | **DONE** `16082ece4` PR #24 |
-| C.7 admin notes | CRUD on user_admin_notes | Junior | Haiku 4.5 | S | M0.5 |
+| ~~C.7 admin notes~~ | ~~CRUD on user_admin_notes~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~M0.5~~ | **DONE** `42ee0e843` PR #26 |
 | C.8 action panel UI | Wire E actions to buttons + confirm modals | Mid | Sonnet 4.6 | M | E (all tiers) |
 | C.9 per-person audit view | Read-only render | Junior | Haiku 4.5 | S | M0.1, E |
 | D.1 billing read snapshot | Stripe SDK + subscription joins | Senior | Opus 4.7 | M | — |
 | D.2 plan-override extension | Reuse tenant override system | Mid | Sonnet 4.6 | M | D.1 |
 | D.3 Stripe deep-links | One-liner | Junior | Haiku 4.5 | XS | D.1 |
-| E.tier1 safe actions | 7 server actions | Mid | Sonnet 4.6 | M | M0.1 |
-| E.tier2 reversible actions | 7 server actions + status writes | Mid | Sonnet 4.6 | M | M0.1, M0.2, M0.6 |
-| E.tier3 destructive actions | 3 server actions, cascade-aware, typed-name confirm | Senior | Opus 4.7 | M | M0.1 |
-| F audit-log page | Standalone page | Junior | Haiku 4.5 | S | M0.1 |
+| ~~E.tier1 safe actions~~ | ~~7 server actions~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
+| ~~E.tier2 reversible actions~~ | ~~7 server actions + status writes~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~M~~ | ~~M0.1, M0.2, M0.6~~ | **DONE** `42ee0e843` PR #26 |
+| ~~E.tier3 destructive actions~~ | ~~3 server actions, cascade-aware, typed-name confirm~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~M~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
+| ~~F audit-log page~~ | ~~Standalone page~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~M0.1~~ | **DONE** `42ee0e843` PR #26 |
 | G.1 federated-loader smoke test | Jest/Vitest | Mid | Sonnet 4.6 | S | A.1 |
 | G.2 today-page test-account exclusion | Tweak counts | Junior | Haiku 4.5 | XS | M0.6 |
 | G.3 docs (CLAUDE.md, README, runbook) | Prose | Junior | Haiku 4.5 | S | all above |
