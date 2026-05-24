@@ -143,9 +143,11 @@ export async function loadPlatformStats(): Promise<PlatformStats> {
 
   const [tenantsRes, usersRes, activeTenantsRes, talentRes] = await Promise.all([
     sb.from("agencies").select("id", { count: "exact", head: true }),
-    sb.from("profiles").select("id", { count: "exact", head: true }),
+    // Exclude test accounts so demo/QA profiles don't inflate user counts.
+    sb.from("profiles").select("id", { count: "exact", head: true }).eq("is_test_account", false),
     sb.from("agencies").select("id", { count: "exact", head: true }).eq("status", "active"),
-    sb.from("talent_profiles").select("id", { count: "exact", head: true }),
+    // Exclude test talent profiles from global talent count.
+    sb.from("talent_profiles").select("id", { count: "exact", head: true }).eq("is_test_account", false),
   ]);
 
   return {
