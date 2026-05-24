@@ -656,25 +656,27 @@ export async function loadPlatformAuditLog(opts?: {
     return [];
   }
 
-  return (
-    data as Array<{
-      id: string;
-      actor_user_id: string | null;
-      target_kind: string | null;
-      target_id: string | null;
-      action: string;
-      before_jsonb: Record<string, unknown> | null;
-      after_jsonb: Record<string, unknown> | null;
-      context_jsonb: Record<string, unknown> | null;
-      created_at: string;
-      profiles: {
-        display_name: string | null;
-      } | null;
-    }>
-  ).map((r) => ({
+  // Supabase returns joined rows as Array<T> even for FK-keyed joins;
+  // cast through unknown to align with our normalized shape.
+  type RawRow = {
+    id: string;
+    actor_user_id: string | null;
+    target_kind: string | null;
+    target_id: string | null;
+    action: string;
+    before_jsonb: Record<string, unknown> | null;
+    after_jsonb: Record<string, unknown> | null;
+    context_jsonb: Record<string, unknown> | null;
+    created_at: string;
+    profiles: Array<{ display_name: string | null }> | { display_name: string | null } | null;
+  };
+
+  return (data as unknown as RawRow[]).map((r) => {
+    const profileRecord = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    return {
     id: r.id,
     actorUserId: r.actor_user_id,
-    actorDisplayName: r.profiles?.display_name ?? r.actor_user_id?.slice(0, 8) ?? "—",
+    actorDisplayName: profileRecord?.display_name ?? r.actor_user_id?.slice(0, 8) ?? "—",
     targetKind: r.target_kind,
     targetId: r.target_id,
     action: r.action,
@@ -683,5 +685,6 @@ export async function loadPlatformAuditLog(opts?: {
     contextJsonb: r.context_jsonb,
     createdAt: formatDate(r.created_at),
     createdAtIso: r.created_at,
-  }));
+    };
+  });
 }
