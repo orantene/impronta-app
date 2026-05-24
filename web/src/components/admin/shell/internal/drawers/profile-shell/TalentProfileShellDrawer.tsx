@@ -4,6 +4,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import type { LiveCategoryGroupNavItem } from "../../live-category-fields-editor";
 import {
   AvailabilityStatus,
   BioTone,
@@ -1202,6 +1203,9 @@ export function TalentProfileShellDrawer() {
   const [profileFieldCounts, setProfileFieldCounts] = useState<{ filled: number; total: number }>(
     { filled: 0, total: 0 },
   );
+  const [profileFieldNavGroups, setProfileFieldNavGroups] = useState<LiveCategoryGroupNavItem[]>([]);
+  const [activeProfileFieldGroupKey, setActiveProfileFieldGroupKey] = useState<string | null>(null);
+  const [profileFieldRailOpen, setProfileFieldRailOpen] = useState(false);
   // Bumped only AFTER a taxonomy assign/remove server action resolves, so
   // Specialty details re-resolves exactly when the DB write is committed
   // — no blind debounce, no read-stale race.
@@ -1236,6 +1240,23 @@ export function TalentProfileShellDrawer() {
     }, 80);
     return () => clearTimeout(t);
   }, [drawerOpen, activeSection]);
+  useEffect(() => {
+    if (profileFieldNavGroups.length === 0) {
+      if (activeProfileFieldGroupKey !== null) setActiveProfileFieldGroupKey(null);
+      return;
+    }
+    if (
+      !activeProfileFieldGroupKey
+      || !profileFieldNavGroups.some((group) => group.key === activeProfileFieldGroupKey)
+    ) {
+      setActiveProfileFieldGroupKey(profileFieldNavGroups[0]?.key ?? null);
+    }
+  }, [profileFieldNavGroups, activeProfileFieldGroupKey]);
+  useEffect(() => {
+    if (activeSection === "profile_fields" && profileFieldNavGroups.length > 0) {
+      setProfileFieldRailOpen(true);
+    }
+  }, [activeSection, profileFieldNavGroups.length]);
   const [refinementTab, setRefinementTab] = useState<"skills" | "contexts">("skills");
   const [viewAsClient, setViewAsClient] = useState(false);
 
@@ -1754,6 +1775,75 @@ export function TalentProfileShellDrawer() {
             overflow-y: auto;
             padding: 10px 8px;
             display: flex; flex-direction: column; gap: 1px;
+          }
+          [data-tulala-pshell] [data-details-rail-badge] {
+            flex-shrink: 0;
+            min-width: 18px;
+            padding: 1px 5px;
+            border-radius: 999px;
+            background: rgba(11,11,13,0.06);
+            color: ${COLORS.inkMuted};
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.4;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+          }
+          [data-tulala-pshell] [data-details-rail-badge][data-active="true"] {
+            background: rgba(15,79,62,0.12);
+            color: ${COLORS.accentDeep};
+          }
+          [data-tulala-pshell] [data-details-rail-chevron] {
+            flex-shrink: 0;
+            color: ${COLORS.inkMuted};
+            font-size: 11px;
+          }
+          [data-tulala-pshell] [data-details-rail-children] {
+            margin: 2px 0 6px 29px;
+            padding: 2px 0 2px 7px;
+            border-left: 1px solid rgba(15,79,62,0.18);
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+          }
+          [data-tulala-pshell] [data-details-rail-child] {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: none;
+            border-radius: 7px;
+            padding: 5px 8px;
+            background: transparent;
+            color: ${COLORS.inkMuted};
+            cursor: pointer;
+            font-family: ${FONTS.body};
+            font-size: 11px;
+            font-weight: 550;
+            letter-spacing: 0;
+            text-align: left;
+          }
+          [data-tulala-pshell] [data-details-rail-child][data-active="true"] {
+            background: rgba(15,79,62,0.08);
+            color: ${COLORS.accentDeep};
+            font-weight: 700;
+          }
+          [data-tulala-pshell] [data-details-rail-child-label] {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          [data-tulala-pshell] [data-details-rail-child-count] {
+            flex-shrink: 0;
+            font-size: 10px;
+            font-weight: 700;
+            color: rgba(11,11,13,0.42);
+            font-variant-numeric: tabular-nums;
+          }
+          [data-tulala-pshell] [data-details-rail-child][data-active="true"] [data-details-rail-child-count] {
+            color: ${COLORS.accentDeep};
           }
           [data-tulala-pshell] [data-pshell-rail]::-webkit-scrollbar { width: 4px; }
           [data-tulala-pshell] [data-pshell-rail]::-webkit-scrollbar-thumb { background: rgba(11,11,13,0.10); border-radius: 4px; }
@@ -2303,33 +2393,94 @@ export function TalentProfileShellDrawer() {
                         const active = activeSection === s;
                         const done = sectionComplete[s];
                         const started = sectionStarted[s];
+                        const detailsNavCount = s === "profile_fields" ? profileFieldNavGroups.length : 0;
+                        const isDetailsSection = s === "profile_fields" && detailsNavCount > 0;
                         return (
-                          <button key={s} type="button" onClick={() => setActiveSection(s)} style={{
-                            width: "100%",
-                            display: "flex", alignItems: "center", gap: 8,
-                            padding: "7px 10px 7px 12px", borderRadius: 8,
-                            border: "none",
-                            background: active ? "rgba(15,79,62,0.10)" : "transparent",
-                            color: active ? COLORS.accentDeep : COLORS.ink,
-                            fontSize: 12.5, fontWeight: active ? 600 : 500,
-                            textAlign: "left", cursor: "pointer",
-                            fontFamily: FONTS.body,
-                            position: "relative",
-                            letterSpacing: 0.1,
-                          }}>
-                            {active && (
+                          <div key={s}>
+                            <button
+                              type="button"
+                              aria-expanded={isDetailsSection ? profileFieldRailOpen : undefined}
+                              onClick={() => {
+                                if (isDetailsSection) {
+                                  setActiveSection(s);
+                                  setProfileFieldRailOpen((open) => (active ? !open : true));
+                                  return;
+                                }
+                                setActiveSection(s);
+                              }}
+                              style={{
+                                width: "100%",
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "7px 10px 7px 12px", borderRadius: 8,
+                                border: "none",
+                                background: active ? "rgba(15,79,62,0.10)" : "transparent",
+                                color: active ? COLORS.accentDeep : COLORS.ink,
+                                fontSize: 12.5, fontWeight: active ? 600 : 500,
+                                textAlign: "left", cursor: "pointer",
+                                fontFamily: FONTS.body,
+                                position: "relative",
+                                letterSpacing: 0.1,
+                              }}
+                            >
+                              {active && (
+                                <span aria-hidden style={{
+                                  position: "absolute", left: 2, top: 7, bottom: 7, width: 2,
+                                  background: COLORS.accent, borderRadius: 2,
+                                }} />
+                              )}
                               <span aria-hidden style={{
-                                position: "absolute", left: 2, top: 7, bottom: 7, width: 2,
-                                background: COLORS.accent, borderRadius: 2,
+                                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                                background: done
+                                  ? COLORS.green
+                                  : started
+                                    ? "rgba(15,79,62,0.38)"
+                                    : "rgba(11,11,13,0.12)",
                               }} />
+                              <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
+                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t(meta.label)}</span>
+                              {isDetailsSection && (
+                                <>
+                                  <span data-details-rail-badge data-active={active ? "true" : "false"}>
+                                    {detailsNavCount}
+                                  </span>
+                                  <span aria-hidden data-details-rail-chevron>
+                                    {profileFieldRailOpen ? "⌄" : "›"}
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                            {isDetailsSection && profileFieldRailOpen && (
+                              <div
+                                data-details-rail-children
+                                role="group"
+                                aria-label="Details categories"
+                              >
+                                {profileFieldNavGroups.map((detailsGroup) => {
+                                  const childActive = active && activeProfileFieldGroupKey === detailsGroup.key;
+                                  return (
+                                    <button
+                                      key={detailsGroup.key}
+                                      type="button"
+                                      data-details-rail-child
+                                      data-active={childActive ? "true" : "false"}
+                                      onClick={() => {
+                                        setActiveSection("profile_fields");
+                                        setProfileFieldRailOpen(true);
+                                        setActiveProfileFieldGroupKey(detailsGroup.key);
+                                      }}
+                                    >
+                                      <span data-details-rail-child-label>
+                                        {detailsGroup.label}
+                                      </span>
+                                      <span data-details-rail-child-count>
+                                        {detailsGroup.filled}/{detailsGroup.total}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             )}
-                            <span aria-hidden style={{
-                              width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                              background: done ? COLORS.green : "rgba(11,11,13,0.12)",
-                            }} />
-                            <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
-                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t(meta.label)}</span>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -3027,6 +3178,10 @@ export function TalentProfileShellDrawer() {
                     talentProfileId={payload.talentId}
                     refreshKey={taxonomyVersion}
                     onCountsChange={setProfileFieldCounts}
+                    onGroupNavChange={setProfileFieldNavGroups}
+                    activeGroupKey={activeProfileFieldGroupKey}
+                    onActiveGroupChange={setActiveProfileFieldGroupKey}
+                    hideInlineCategoryNav
                   />
                 </div>
               </section>
@@ -3739,4 +3894,3 @@ export function TalentProfileShellDrawer() {
 // ════════════════════════════════════════════════════════════════════
 // Phase 4 +20 — supporting helper components
 // ════════════════════════════════════════════════════════════════════
-

@@ -803,6 +803,14 @@ export type EditorServerActions = {
     Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
+export type LiveCategoryGroupNavItem = {
+  key: string;
+  label: string;
+  filled: number;
+  total: number;
+  missing: number;
+};
+
 // P3-phase-2 — shared per-talent field/value resolver.
 // Details and General both mount LiveCategoryFieldsEditor; `scope` is only
 // a CLIENT-SIDE render filter, so getFieldsForTalent + getTalentFieldValues
@@ -874,6 +882,10 @@ function resolveTalentFieldsShared<F, V>(
 export function LiveCategoryFieldsEditor({
   talentProfileId,
   onCountsChange,
+  onGroupNavChange,
+  activeGroupKey,
+  onActiveGroupChange,
+  hideInlineCategoryNav = false,
   serverActions,
   viewMode = "admin",
   scope = "specialty",
@@ -884,6 +896,17 @@ export function LiveCategoryFieldsEditor({
    *  save). Lets the parent drawer surface a completeness dot in the rail
    *  without duplicating the data fetch. */
   onCountsChange?: (counts: { filled: number; total: number }) => void;
+  /** Specialty-only: exposes the resolved category tabs to the parent rail
+   *  so Details can own its dynamic child navigation without a second
+   *  taxonomy resolver. */
+  onGroupNavChange?: (groups: LiveCategoryGroupNavItem[]) => void;
+  /** Specialty-only: controlled selected category key from the parent rail. */
+  activeGroupKey?: string | null;
+  /** Specialty-only: tells the parent rail when the editor changes groups. */
+  onActiveGroupChange?: (key: string | null) => void;
+  /** Hide the in-panel category nav on desktop when the parent rail renders
+   *  the same categories as nested Details children. Mobile keeps it. */
+  hideInlineCategoryNav?: boolean;
   /** Optional override for the value/visibility server actions. Defaults to
    *  the admin pair. Talent-self callers pass the talent pair so writes go
    *  through `requireTalent` + ownership + editable_by_talent gate. */
@@ -1103,6 +1126,79 @@ export function LiveCategoryFieldsEditor({
     return m;
   }, [fields]);
 
+  const tabs = useMemo(() => {
+    const sortedGroups = groups.slice().sort((a, b) => a.display_order - b.display_order);
+    const otherFields = grouped.get("_other") ?? [];
+    const nextTabs: { key: string; label: string; fields: ResolvedField[] }[] = [];
+
+    for (const g of sortedGroups) {
+      const list = grouped.get(g.group_slug) ?? [];
+      if (list.length > 0) nextTabs.push({ key: g.group_slug, label: g.group_label_en, fields: list });
+    }
+    if (otherFields.length > 0) {
+      const byNs = new Map<string, ResolvedField[]>();
+      for (const f of otherFields) {
+        const ns = namespaceFor(f.field_key);
+        const l = byNs.get(ns) ?? [];
+        l.push(f);
+        byNs.set(ns, l);
+      }
+      // B10 — fold a singleton "_misc" into the largest real bucket.
+      if (byNs.size > 1 && (byNs.get("_misc")?.length ?? 0) <= 1) {
+        const misc = byNs.get("_misc") ?? [];
+        const targetNs = Array.from(byNs.keys())
+          .filter((n) => n !== "_misc")
+          .sort((a, b) => (byNs.get(b)?.length ?? 0) - (byNs.get(a)?.length ?? 0)
+            || namespaceLabel(a).localeCompare(namespaceLabel(b)))[0];
+        if (targetNs) { byNs.set(targetNs, [...(byNs.get(targetNs) ?? []), ...misc]); byNs.delete("_misc"); }
+      }
+      const sortedNs = Array.from(byNs.keys()).sort((a, b) => {
+        if (a === "_misc") return 1;
+        if (b === "_misc") return -1;
+        return namespaceLabel(a).localeCompare(namespaceLabel(b));
+      });
+      for (const ns of sortedNs) {
+        nextTabs.push({ key: `_other:${ns}`, label: namespaceLabel(ns), fields: byNs.get(ns) ?? [] });
+      }
+    }
+
+    return nextTabs;
+  }, [groups, grouped]);
+
+  const activeKey = (activeGroupKey && tabs.some((t) => t.key === activeGroupKey))
+    ? activeGroupKey
+    : (activeTab && tabs.some((t) => t.key === activeTab))
+      ? activeTab
+      : (tabs[0]?.key ?? null);
+  const activeTabData = tabs.find((t) => t.key === activeKey) ?? null;
+
+  const selectTab = (key: string) => {
+    setActiveTab(key);
+    onActiveGroupChange?.(key);
+  };
+
+  useEffect(() => {
+    if (allFields === null || scope !== "specialty" || !onGroupNavChange) return;
+    onGroupNavChange(tabs.map((t) => {
+      const filled = t.fields.reduce(
+        (n, f) => (isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n),
+        0,
+      );
+      return {
+        key: t.key,
+        label: t.label,
+        filled,
+        total: t.fields.length,
+        missing: Math.max(0, t.fields.length - filled),
+      };
+    }));
+  }, [allFields, scope, tabs, valuesByDefId, onGroupNavChange]);
+
+  useEffect(() => {
+    if (allFields === null || scope !== "specialty" || !onActiveGroupChange) return;
+    if (activeGroupKey !== activeKey) onActiveGroupChange(activeKey);
+  }, [allFields, scope, activeKey, activeGroupKey, onActiveGroupChange]);
+
   if (allFields === null) {
     return (
       <div style={{ padding: 12, fontFamily: F, fontSize: 12, color: T.inkMuted }}>
@@ -1131,53 +1227,9 @@ export function LiveCategoryFieldsEditor({
     );
   }
 
-  const sortedGroups = groups.slice().sort((a, b) => a.display_order - b.display_order);
-  const otherFields = grouped.get("_other") ?? [];
-
   const totalFilled = fields.reduce((n, f) => {
     return isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n;
   }, 0);
-
-  // ── Switcher tabs ────────────────────────────────────────────────
-  // One ordered list combining the DB-driven groups and the namespace
-  // sub-buckets of the orphan "Other" fields (same _misc-fold + sort
-  // the legacy accordions used). Each entry is one specialty group; the
-  // sticky pill switcher shows exactly one at a time.
-  const tabs: { key: string; label: string; fields: ResolvedField[] }[] = [];
-  for (const g of sortedGroups) {
-    const list = grouped.get(g.group_slug) ?? [];
-    if (list.length > 0) tabs.push({ key: g.group_slug, label: g.group_label_en, fields: list });
-  }
-  if (otherFields.length > 0) {
-    const byNs = new Map<string, ResolvedField[]>();
-    for (const f of otherFields) {
-      const ns = namespaceFor(f.field_key);
-      const l = byNs.get(ns) ?? [];
-      l.push(f);
-      byNs.set(ns, l);
-    }
-    // B10 — fold a singleton "_misc" into the largest real bucket.
-    if (byNs.size > 1 && (byNs.get("_misc")?.length ?? 0) <= 1) {
-      const misc = byNs.get("_misc") ?? [];
-      const targetNs = Array.from(byNs.keys())
-        .filter((n) => n !== "_misc")
-        .sort((a, b) => (byNs.get(b)?.length ?? 0) - (byNs.get(a)?.length ?? 0)
-          || namespaceLabel(a).localeCompare(namespaceLabel(b)))[0];
-      if (targetNs) { byNs.set(targetNs, [...(byNs.get(targetNs) ?? []), ...misc]); byNs.delete("_misc"); }
-    }
-    const sortedNs = Array.from(byNs.keys()).sort((a, b) => {
-      if (a === "_misc") return 1;
-      if (b === "_misc") return -1;
-      return namespaceLabel(a).localeCompare(namespaceLabel(b));
-    });
-    for (const ns of sortedNs) {
-      tabs.push({ key: `_other:${ns}`, label: namespaceLabel(ns), fields: byNs.get(ns) ?? [] });
-    }
-  }
-  const activeKey = (activeTab && tabs.some((t) => t.key === activeTab))
-    ? activeTab
-    : (tabs[0]?.key ?? null);
-  const activeTabData = tabs.find((t) => t.key === activeKey) ?? null;
 
   // B9 — Fill-required wizard. Switch the active tab to the first group
   // that still has an unfilled required field.
@@ -1191,11 +1243,23 @@ export function LiveCategoryFieldsEditor({
   const jumpToNextRequired = () => {
     const keysWithMissing = new Set(missingRequiredFields.map(slugForField));
     const target = tabs.find((t) => keysWithMissing.has(t.key));
-    if (target) setActiveTab(target.key);
+    if (target) selectTab(target.key);
   };
 
   return (
     <div className="mb-1">
+      {hideInlineCategoryNav && (
+        <style>{`
+          @container pshell (min-width: 481px) {
+            [data-lcfe-inline-category-nav="rail-owned"] { display: none !important; }
+          }
+          @supports not (container-type: inline-size) {
+            @media (min-width: 481px) {
+              [data-lcfe-inline-category-nav="rail-owned"] { display: none !important; }
+            }
+          }
+        `}</style>
+      )}
       {/* Audit #9 — progress/History bar + the group switcher stay
           pinned together while you scroll a long section, so you never
           lose where you are or the way out. */}
@@ -1252,15 +1316,15 @@ export function LiveCategoryFieldsEditor({
       </div>{/* /sticky — ONLY the thin status row stays pinned; the
           Categories selector below scrolls with content so the pinned
           header never eats the viewport on a short/mobile screen. */}
-      {/* In-panel VERTICAL group selector (bridge). Replaces the
-          horizontal pill rail: a clean stacked list of the talent's
-          dynamic groups + completion counts; the selected group's
-          per-field editor renders below. This is the interim step toward
-          the real nested child items under "Details" in the left rail —
-          deliberately NOT entrenching horizontal pills. Single-group
-          talents skip the selector entirely (no 1-item noise). */}
+      {/* In-panel group selector remains as the narrow/mobile fallback.
+          On desktop the profile shell owns these same resolved groups as
+          nested child items under Details in the left rail, so this block
+          is hidden when hideInlineCategoryNav is true. */}
       {tabs.length > 1 && (
-        <div style={{ padding: "2px 0 12px", borderBottom: `1px solid ${T.borderSoft}` }}>
+        <div
+          data-lcfe-inline-category-nav={hideInlineCategoryNav ? "rail-owned" : "inline"}
+          style={{ padding: "2px 0 12px", borderBottom: `1px solid ${T.borderSoft}` }}
+        >
           {/* Eyebrow + a wrapping pill row (New Inquiry "What do you
               need" language) — no tinted tray; selected pill carries the
               forest accent. */}
@@ -1290,7 +1354,7 @@ export function LiveCategoryFieldsEditor({
                   type="button"
                   role="tab"
                   aria-selected={on}
-                  onClick={() => setActiveTab(t.key)}
+                  onClick={() => selectTab(t.key)}
                   onMouseEnter={() => setHoverTab(t.key)}
                   onMouseLeave={() => setHoverTab((h) => (h === t.key ? null : h))}
                   onFocus={() => setHoverTab(t.key)}
