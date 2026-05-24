@@ -974,6 +974,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [addingForParent, setAddingForParent] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState("");
+  const [draggingTaxonomyId, setDraggingTaxonomyId] = useState<string | null>(null);
   // Lazy-loaded category detail (level-3 talent_types + recommended fields).
   // Keyed by parent_id; populated when the admin first expands a category.
   const [details, setDetails] = useState<Map<string, CategoryDetail>>(new Map());
@@ -1080,6 +1081,50 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     markSaving(node.id, false);
   };
 
+  const persistRootOrder = async (nextTree: TaxonomyNode[], previousTree: TaxonomyNode[]) => {
+    markSaving("taxonomy-order", true);
+    for (let index = 0; index < nextTree.length; index += 1) {
+      const node = nextTree[index];
+      const displayOrder = (index + 1) * 10;
+      const res = await setTaxonomyFlags({
+        taxonomy_term_id: node.id,
+        display_order: displayOrder,
+      });
+      if (!res.ok) {
+        setTree(previousTree);
+        markSaving("taxonomy-order", false);
+        toast(res.error || "Couldn't save category order");
+        return;
+      }
+    }
+    markSaving("taxonomy-order", false);
+    toast("Category order saved");
+  };
+
+  const dropRootCategory = (target: TaxonomyNode) => {
+    if (!draggingTaxonomyId || draggingTaxonomyId === target.id || !tree) return;
+    const previousTree = tree;
+    const ordered = tree
+      .slice()
+      .sort((a, b) => a.display_order - b.display_order || a.name_en.localeCompare(b.name_en));
+    const from = ordered.findIndex((node) => node.id === draggingTaxonomyId);
+    const to = ordered.findIndex((node) => node.id === target.id);
+    if (from < 0 || to < 0 || from === to) {
+      setDraggingTaxonomyId(null);
+      return;
+    }
+    const nextTree = [...ordered];
+    const [picked] = nextTree.splice(from, 1);
+    nextTree.splice(to, 0, picked);
+    const orderMap = new Map(nextTree.map((node, index) => [node.id, (index + 1) * 10] as const));
+    setTree((current) => current?.map((node) => ({
+      ...node,
+      display_order: orderMap.get(node.id) ?? node.display_order,
+    })) ?? current);
+    setDraggingTaxonomyId(null);
+    void persistRootOrder(nextTree, previousTree);
+  };
+
   const handleAddCustom = async (parent: TaxonomyNode) => {
     const name = newSubName.trim();
     if (!name) {
@@ -1167,6 +1212,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
               return (
                 <div
                   key={parent.id}
+                  draggable
+                  onDragStart={() => setDraggingTaxonomyId(parent.id)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => dropRootCategory(parent)}
+                  onDragEnd={() => setDraggingTaxonomyId(null)}
                   style={{
                     borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
                     fontFamily: FONTS.body,
@@ -1174,10 +1224,17 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", cursor: "pointer", }} onClick={() => toggleExpand(parent.id)}>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-admin-ink text-admin-13h font-semibold">
-                        {parent.custom_label ?? parent.name_en}
-                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-admin-ink text-admin-13h font-semibold">
+                          <span
+                            aria-hidden
+                            title="Drag to reorder categories"
+                            className="mr-2 select-none text-admin-ink-dim text-admin-11 font-bold"
+                          >
+                            ⋮⋮
+                          </span>
+                          {parent.custom_label ?? parent.name_en}
+                        </div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {childCount} sub-type{childCount === 1 ? "" : "s"}
                         {customCount > 0 ? ` · ${customCount} custom` : ""}

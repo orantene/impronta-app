@@ -31,7 +31,7 @@ import {
 export function FieldCatalogDrawer() {
   type CatField = {
     field_definition_id: string; field_key: string; label: string;
-    field_group_id: string | null; enabled: boolean;
+    field_group_id: string | null; display_order: number; enabled: boolean;
     required_override: boolean | null; custom_label: string | null;
     custom_helper: string | null;
   };
@@ -54,6 +54,8 @@ export function FieldCatalogDrawer() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
   const [renameHelperVal, setRenameHelperVal] = useState("");
+  const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
+  const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -68,6 +70,7 @@ export function FieldCatalogDrawer() {
 
   const mark = (id: string, on: boolean) =>
     setSaving((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
+  const bucketKeyFor = (f: Pick<CatField, "field_group_id">) => f.field_group_id ?? "__general__";
 
   // ── field ops ──────────────────────────────────────────────────────
   const toggleField = async (f: CatField) => {
@@ -123,6 +126,57 @@ export function FieldCatalogDrawer() {
     );
   };
 
+  const persistFieldOrder = async (nextItems: CatField[], previousFields: CatField[], groupKey: string) => {
+    if (!canCustomize) { toast("Upgrade to Studio to reorder fields"); return; }
+    mark(`order:${groupKey}`, true);
+    for (let index = 0; index < nextItems.length; index += 1) {
+      const field = nextItems[index];
+      const displayOrder = (index + 1) * 10;
+      const res = await setWorkspaceFieldCatalog({
+        field_definition_id: field.field_definition_id,
+        display_order: displayOrder,
+      });
+      if (!res.ok) {
+        setFields(previousFields);
+        mark(`order:${groupKey}`, false);
+        toast(res.error || "Couldn't save the field order");
+        return;
+      }
+    }
+    mark(`order:${groupKey}`, false);
+    toast("Field order saved");
+  };
+
+  const dropField = (target: CatField) => {
+    if (!draggingFieldId || draggingFieldId === target.field_definition_id) return;
+    const dragged = fields.find((f) => f.field_definition_id === draggingFieldId);
+    if (!dragged || bucketKeyFor(dragged) !== bucketKeyFor(target)) {
+      setDraggingFieldId(null);
+      return;
+    }
+    const groupKey = bucketKeyFor(target);
+    const previous = fields;
+    const currentBucket = fields
+      .filter((f) => bucketKeyFor(f) === groupKey)
+      .sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
+    const from = currentBucket.findIndex((f) => f.field_definition_id === draggingFieldId);
+    const to = currentBucket.findIndex((f) => f.field_definition_id === target.field_definition_id);
+    if (from < 0 || to < 0 || from === to) {
+      setDraggingFieldId(null);
+      return;
+    }
+    const nextBucket = [...currentBucket];
+    const [picked] = nextBucket.splice(from, 1);
+    nextBucket.splice(to, 0, picked);
+    const orderMap = new Map(nextBucket.map((field, index) => [field.field_definition_id, (index + 1) * 10] as const));
+    setFields((fs) => fs.map((field) => {
+      const nextOrder = orderMap.get(field.field_definition_id);
+      return nextOrder ? { ...field, display_order: nextOrder } : field;
+    }));
+    setDraggingFieldId(null);
+    void persistFieldOrder(nextBucket, previous, groupKey);
+  };
+
   // ── group ops ──────────────────────────────────────────────────────
   const toggleGroup = async (g: CatGroup) => {
     if (!canCustomize) { toast("Upgrade to Studio to customize the field catalog"); return; }
@@ -151,6 +205,51 @@ export function FieldCatalogDrawer() {
     toast(nextLabel ? "Section renamed for your workspace" : "Reset to the network name");
   };
 
+  const persistGroupOrder = async (nextGroups: CatGroup[], previousGroups: CatGroup[]) => {
+    if (!canCustomize) { toast("Upgrade to Studio to reorder sections"); return; }
+    mark("order:groups", true);
+    for (let index = 0; index < nextGroups.length; index += 1) {
+      const group = nextGroups[index];
+      const displayOrder = (index + 1) * 10;
+      const res = await setWorkspaceFieldGroup({
+        field_group_id: group.id,
+        display_order: displayOrder,
+      });
+      if (!res.ok) {
+        setGroups(previousGroups);
+        mark("order:groups", false);
+        toast(res.error || "Couldn't save the section order");
+        return;
+      }
+    }
+    mark("order:groups", false);
+    toast("Section order saved");
+  };
+
+  const dropGroup = (target: CatGroup) => {
+    if (!draggingGroupId || draggingGroupId === target.id) return;
+    const previous = groups;
+    const orderedGroups = groups
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+    const from = orderedGroups.findIndex((g) => g.id === draggingGroupId);
+    const to = orderedGroups.findIndex((g) => g.id === target.id);
+    if (from < 0 || to < 0 || from === to) {
+      setDraggingGroupId(null);
+      return;
+    }
+    const nextGroups = [...orderedGroups];
+    const [picked] = nextGroups.splice(from, 1);
+    nextGroups.splice(to, 0, picked);
+    const orderMap = new Map(nextGroups.map((group, index) => [group.id, (index + 1) * 10] as const));
+    setGroups((gs) => gs.map((group) => {
+      const nextOrder = orderMap.get(group.id);
+      return nextOrder ? { ...group, sort_order: nextOrder } : group;
+    }));
+    setDraggingGroupId(null);
+    void persistGroupOrder(nextGroups, previous);
+  };
+
   const startRename = (key: string, current: string) => {
     setRenameVal(current); setRenaming(key);
   };
@@ -166,6 +265,9 @@ export function FieldCatalogDrawer() {
       b = { key, group, items: [] }; byKey.set(key, b); order.push(b);
     }
     b.items.push(f);
+  }
+  for (const bucket of order) {
+    bucket.items.sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
   }
   order.sort((a, b) => {
     const ai = a.key === "__general__" ? 1e9 : (a.group?.sort_order ?? 0);
@@ -244,9 +346,16 @@ export function FieldCatalogDrawer() {
             const groupBusy = g ? saving.has(g.id) : false;
             return (
               <div key={bucket.key}>
-                <div style={{
+                <div
+                  draggable={!!g && canCustomize}
+                  onDragStart={() => { if (g && canCustomize) setDraggingGroupId(g.id); }}
+                  onDragOver={(event) => { if (g && canCustomize) event.preventDefault(); }}
+                  onDrop={() => { if (g && canCustomize) dropGroup(g); }}
+                  onDragEnd={() => setDraggingGroupId(null)}
+                  style={{
                   display: "flex", alignItems: "center", gap: 8,
                   marginBottom: 6, paddingLeft: 4,
+                  cursor: g && canCustomize ? "grab" : "default",
                 }}>
                   {renaming === groupKey && g ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
@@ -280,6 +389,12 @@ export function FieldCatalogDrawer() {
                       )}
                       {g && canCustomize && (
                         <>
+                          <span
+                            title="Drag to reorder sections"
+                            className="select-none text-admin-ink-dim text-admin-11 font-bold"
+                          >
+                            ⋮⋮
+                          </span>
                           <button type="button" onClick={() => startRename(groupKey, g.custom_label ?? g.name)} style={{
                             background: "none", border: "none", cursor: "pointer",
                             color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 10.5,
@@ -309,13 +424,30 @@ export function FieldCatalogDrawer() {
                     const required = f.required_override ?? false;
                     const busy = saving.has(f.field_definition_id);
                     return (
-                      <div key={f.field_definition_id} style={{
+                      <div
+                        key={f.field_definition_id}
+                        draggable={canCustomize && renaming !== fieldKey}
+                        onDragStart={() => { if (canCustomize) setDraggingFieldId(f.field_definition_id); }}
+                        onDragOver={(event) => { if (canCustomize) event.preventDefault(); }}
+                        onDrop={() => { if (canCustomize) dropField(f); }}
+                        onDragEnd={() => setDraggingFieldId(null)}
+                        style={{
                         display: "flex", alignItems: "center", gap: 12,
                         padding: "10px 14px",
                         borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
                         fontFamily: FONTS.body,
                         opacity: f.enabled ? 1 : 0.6,
+                        cursor: canCustomize && renaming !== fieldKey ? "grab" : "default",
                       }}>
+                        {renaming !== fieldKey && canCustomize && (
+                          <span
+                            aria-hidden
+                            title="Drag to reorder fields in this section"
+                            className="shrink-0 select-none text-admin-ink-dim text-admin-12 font-bold leading-none"
+                          >
+                            ⋮⋮
+                          </span>
+                        )}
                         <div className="flex-1 min-w-0">
                           {renaming === fieldKey ? (
                             <div className="flex flex-col gap-1.5">

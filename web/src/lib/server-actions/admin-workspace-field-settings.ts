@@ -382,6 +382,7 @@ type FieldCatalogField = {
   field_key: string;
   label: string;
   field_group_id: string | null;
+  display_order: number;
   /** effective: false only when enabled_override === false. */
   enabled: boolean;
   /** tenant override: null = inherit platform, true/false = forced. */
@@ -405,11 +406,13 @@ const catalogFieldSchema = z.object({
   required: z.boolean().nullable().optional(),
   custom_label: z.string().max(120).nullable().optional(),
   helper: z.string().max(240).nullable().optional(),
+  display_order: z.number().int().nullable().optional(),
 });
 const catalogGroupSchema = z.object({
   field_group_id: z.string().uuid(),
   is_enabled: z.boolean().optional(),
   custom_label: z.string().max(120).nullable().optional(),
+  display_order: z.number().int().nullable().optional(),
 });
 
 /** Field Catalog drawer data: every active field + its tenant catalog
@@ -424,7 +427,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
   const [defsR, groupsR, fOvR, gOvR] = await Promise.all([
     supabase
       .from("profile_field_definitions")
-      .select("id, field_key, label, field_group_id")
+      .select("id, field_key, label, field_group_id, display_order")
       .is("deprecated_at", null),
     supabase
       .from("profile_field_groups")
@@ -432,11 +435,11 @@ export async function getWorkspaceFieldCatalog(): Promise<
       .eq("is_active", true),
     supabase
       .from("workspace_profile_field_settings")
-      .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper")
+      .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override")
       .eq("tenant_id", tenantId),
     supabase
       .from("workspace_field_group_settings")
-      .select("field_group_id, is_enabled, custom_label")
+      .select("field_group_id, is_enabled, custom_label, display_order")
       .eq("tenant_id", tenantId),
   ]);
 
@@ -459,12 +462,13 @@ export async function getWorkspaceFieldCatalog(): Promise<
   const fields: FieldCatalogField[] = (defsR.data ?? []).map((d) => {
     const def = d as {
       id: string; field_key: string; label: string;
-      field_group_id: string | null;
+      field_group_id: string | null; display_order: number | null;
     };
     const o = fOv.get(def.id) as
       | {
           enabled_override: boolean | null; required_override: boolean | null;
           custom_label: string | null; custom_helper: string | null;
+          display_order_override: number | null;
         }
       | undefined;
     return {
@@ -472,6 +476,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
       field_key: def.field_key,
       label: def.label,
       field_group_id: def.field_group_id,
+      display_order: o?.display_order_override ?? def.display_order ?? 100,
       enabled: o?.enabled_override !== false,
       required_override: o?.required_override ?? null,
       custom_label: o?.custom_label ?? null,
@@ -486,12 +491,12 @@ export async function getWorkspaceFieldCatalog(): Promise<
         sort_order: number | null;
       };
       const o = gOv.get(gg.id) as
-        | { is_enabled: boolean | null; custom_label: string | null }
+        | { is_enabled: boolean | null; custom_label: string | null; display_order: number | null }
         | undefined;
       return {
         id: gg.id,
         name: gg.name_en ?? gg.slug,
-        sort_order: gg.sort_order ?? 0,
+        sort_order: o?.display_order ?? gg.sort_order ?? 0,
         enabled: o?.is_enabled !== false,
         custom_label: o?.custom_label ?? null,
       };
@@ -508,7 +513,7 @@ export async function setWorkspaceFieldCatalog(
 ): Promise<OkResult> {
   const parsed = catalogFieldSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
-  const { field_definition_id, enabled, required, custom_label, helper } = parsed.data;
+  const { field_definition_id, enabled, required, custom_label, helper, display_order } = parsed.data;
 
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -528,6 +533,7 @@ export async function setWorkspaceFieldCatalog(
   if (helper !== undefined) {
     row.custom_helper = helper && helper.trim() ? helper.trim() : null;
   }
+  if (display_order !== undefined) row.display_order_override = display_order;
 
   // Phase 7a: capture before-state + field_key for audit.
   const [beforeRowR, defR] = await Promise.all([
@@ -562,7 +568,8 @@ export async function setWorkspaceFieldCatalog(
     enabled !== undefined &&
     required === undefined &&
     custom_label === undefined &&
-    helper === undefined;
+    helper === undefined &&
+    display_order === undefined;
   const operation: "set" | "enable" | "disable" = onlyEnableToggle
     ? enabled
       ? "enable"
@@ -587,6 +594,7 @@ export async function setWorkspaceFieldCatalog(
       required_override: required,
       custom_label: row.custom_label,
       custom_helper: row.custom_helper,
+      display_order_override: display_order,
     },
   });
   return { ok: true };
@@ -598,7 +606,7 @@ export async function setWorkspaceFieldGroup(
 ): Promise<OkResult> {
   const parsed = catalogGroupSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
-  const { field_group_id, is_enabled, custom_label } = parsed.data;
+  const { field_group_id, is_enabled, custom_label, display_order } = parsed.data;
 
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -613,6 +621,7 @@ export async function setWorkspaceFieldGroup(
   if (custom_label !== undefined) {
     row.custom_label = custom_label && custom_label.trim() ? custom_label.trim() : null;
   }
+  if (display_order !== undefined) row.display_order = display_order;
 
   // Phase 7a: capture before-state + group slug for audit.
   const [beforeRowR, groupR] = await Promise.all([
@@ -642,7 +651,7 @@ export async function setWorkspaceFieldGroup(
   bustFieldCatalog(tenantId);
 
   const onlyEnableToggle =
-    is_enabled !== undefined && custom_label === undefined;
+    is_enabled !== undefined && custom_label === undefined && display_order === undefined;
   const operation: "set" | "enable" | "disable" = onlyEnableToggle
     ? is_enabled
       ? "enable"
@@ -662,6 +671,7 @@ export async function setWorkspaceFieldGroup(
     afterValue: {
       is_enabled,
       custom_label: row.custom_label,
+      display_order,
     },
   });
   return { ok: true };

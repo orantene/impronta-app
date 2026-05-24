@@ -83,6 +83,7 @@ async function recordTaxonomyAudit(
     actorId: string;
     action: string;
     targetId: string | null;
+    targetType?: string;
     beforeValue?: unknown;
     afterValue?: unknown;
     severity?: "info" | "warn" | "emergency";
@@ -93,7 +94,7 @@ async function recordTaxonomyAudit(
       actor_profile_id: args.actorId,
       actor_role: "super_admin",
       action: args.action,
-      target_type: "taxonomy_term",
+      target_type: args.targetType ?? "taxonomy_term",
       target_id: args.targetId,
       tenant_id: null,
       severity: args.severity ?? "info",
@@ -107,13 +108,14 @@ async function recordTaxonomyAudit(
   }
 }
 
-function revalidateTaxonomySurfaces(termId?: string | null): void {
+function revalidateTaxonomySurfaces(termId?: string | null, fieldKey?: string | null): void {
   revalidateTag(CACHE_TAG_FIELD_CATALOG, "default");
   revalidatePath("/platform/admin/taxonomy");
   revalidatePath("/platform/admin/catalog");
   revalidatePath("/impronta/admin/settings");
   revalidatePath("/impronta/admin/roster");
   if (termId) revalidatePath(`/platform/admin/taxonomy?term=${encodeURIComponent(termId)}`);
+  if (fieldKey) revalidatePath(`/platform/admin/catalog/${encodeURIComponent(fieldKey)}`);
 }
 
 export async function createPlatformTaxonomyTermAction(formData: FormData): Promise<void> {
@@ -433,4 +435,154 @@ export async function reorderPlatformTaxonomySiblingsAction(formData: FormData):
   revalidateTaxonomySurfaces(returnTerm);
   const termSlug = returnTerm ?? rows.find((row) => row.id === orderedIds[0])?.slug ?? "";
   redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(termSlug)}&saved=order`);
+}
+
+export async function setPlatformTaxonomyFieldMappingAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
+
+  const taxonomyTermId = text(formData, "taxonomy_term_id");
+  const returnTerm = text(formData, "return_term");
+  const fieldDefinitionId = text(formData, "field_definition_id");
+  const relationship = text(formData, "relationship") ?? "applies";
+  if (!taxonomyTermId || !fieldDefinitionId) {
+    redirect("/platform/admin/taxonomy?error=Missing%20field%20mapping");
+  }
+  if (!["applies", "recommended", "required"].includes(relationship)) {
+    redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(returnTerm ?? taxonomyTermId)}&error=Invalid%20mapping%20relationship`);
+  }
+
+  const [{ data: term }, { data: field }] = await Promise.all([
+    auth.sb
+      .from("taxonomy_terms")
+      .select("id, slug, name_en")
+      .eq("id", taxonomyTermId)
+      .maybeSingle(),
+    auth.sb
+      .from("profile_field_definitions")
+      .select("id, field_key, label, deprecated_at")
+      .eq("id", fieldDefinitionId)
+      .maybeSingle(),
+  ]);
+  if (!term || !field) {
+    redirect("/platform/admin/taxonomy?error=Field%20or%20taxonomy%20term%20not%20found");
+  }
+  if (field.deprecated_at) {
+    redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(term.slug)}&error=Archived%20fields%20cannot%20be%20mapped%20for%20new%20input`);
+  }
+
+  const { data: beforeRows } = await auth.sb
+    .from("profile_field_recommendations")
+    .select("*")
+    .eq("field_definition_id", fieldDefinitionId)
+    .eq("taxonomy_term_id", taxonomyTermId);
+
+  const insertRow = {
+    field_definition_id: fieldDefinitionId,
+    taxonomy_term_id: taxonomyTermId,
+    relationship,
+    display_order: intOrNull(formData, "display_order") ?? 100,
+    required_at_registration: checked(formData, "required_at_registration"),
+    required_before_publish: checked(formData, "required_before_publish") || relationship === "required",
+    required_before_verification: checked(formData, "required_before_verification"),
+    requires_verification: checked(formData, "requires_verification"),
+    is_admin_only: checked(formData, "is_admin_only"),
+  };
+
+  const existingId = beforeRows?.[0]?.id as string | undefined;
+  const writeQuery = existingId
+    ? auth.sb
+        .from("profile_field_recommendations")
+        .update(insertRow)
+        .eq("id", existingId)
+        .select("*")
+        .single()
+    : auth.sb
+        .from("profile_field_recommendations")
+        .insert(insertRow)
+        .select("*")
+        .single();
+  const { data: afterRow, error } = await writeQuery;
+
+  if (error) {
+    logServerError("platform.taxonomy.fieldMapping.set", error);
+    redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(term.slug)}&error=Could%20not%20save%20field%20mapping`);
+  }
+
+  const duplicateIds = (beforeRows ?? [])
+    .slice(1)
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (duplicateIds.length > 0) {
+    const { error: deleteDuplicatesError } = await auth.sb
+      .from("profile_field_recommendations")
+      .delete()
+      .in("id", duplicateIds);
+    if (deleteDuplicatesError) {
+      logServerError("platform.taxonomy.fieldMapping.dedupe", deleteDuplicatesError);
+    }
+  }
+
+  await recordTaxonomyAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.taxonomy.field_mapping.set",
+    targetType: "taxonomy_field_mapping",
+    targetId: (afterRow?.id as string | null) ?? taxonomyTermId,
+    beforeValue: beforeRows ?? [],
+    afterValue: {
+      ...afterRow,
+      field_key: field.field_key,
+      term_slug: term.slug,
+    },
+    severity: insertRow.required_before_publish ? "warn" : "info",
+  });
+
+  revalidateTaxonomySurfaces(term.slug, field.field_key);
+  redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(term.slug)}&saved=mapping`);
+}
+
+export async function removePlatformTaxonomyFieldMappingAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/taxonomy?error=${encodeURIComponent(auth.error)}`);
+
+  const id = text(formData, "id");
+  const returnTerm = text(formData, "return_term");
+  if (!id) redirect("/platform/admin/taxonomy?error=Missing%20field%20mapping");
+
+  const { data: beforeRow } = await auth.sb
+    .from("profile_field_recommendations")
+    .select("*, taxonomy_terms(slug), profile_field_definitions(field_key)")
+    .eq("id", id)
+    .maybeSingle();
+
+  const { error } = await auth.sb
+    .from("profile_field_recommendations")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    logServerError("platform.taxonomy.fieldMapping.remove", error);
+    redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(returnTerm ?? "")}&error=Could%20not%20remove%20field%20mapping`);
+  }
+
+  const termSlug =
+    (beforeRow?.taxonomy_terms as { slug?: string } | null)?.slug ??
+    returnTerm ??
+    "";
+  const fieldKey =
+    (beforeRow?.profile_field_definitions as { field_key?: string } | null)?.field_key ??
+    null;
+
+  await recordTaxonomyAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.taxonomy.field_mapping.remove",
+    targetType: "taxonomy_field_mapping",
+    targetId: id,
+    beforeValue: beforeRow,
+    afterValue: null,
+    severity: "warn",
+  });
+
+  revalidateTaxonomySurfaces(termSlug, fieldKey);
+  redirect(`/platform/admin/taxonomy?term=${encodeURIComponent(termSlug)}&saved=mapping_removed`);
 }

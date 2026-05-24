@@ -1,12 +1,9 @@
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import {
-  movePlatformTaxonomyTermAction,
-  setPlatformTaxonomyLifecycleAction,
-  updatePlatformTaxonomyTermAction,
-} from "./actions";
 import { CreateTaxonomyTermForm } from "./create-taxonomy-term-form";
+import { TaxonomyFieldMappingPanel } from "./taxonomy-field-mapping-panel";
 import { TaxonomyReorderPanel } from "./taxonomy-reorder-panel";
+import { TaxonomyTermForm } from "./taxonomy-term-form";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +62,7 @@ type TaxonomyAuditRow = {
   created_at: string;
   action: string;
   severity: string;
+  target_type: string;
   target_id: string | null;
 };
 
@@ -75,15 +73,30 @@ type TaxonomyIssue = {
   slugs: string[];
 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  border: `1px solid ${HQ.borderSoft}`,
-  borderRadius: 8,
-  background: "#101014",
-  color: HQ.ink,
-  padding: "8px 10px",
-  fontSize: 12.5,
-  fontFamily: F,
+type TaxonomyFieldOption = {
+  id: string;
+  field_key: string;
+  label: string;
+  tier: string;
+  section: string | null;
+  deprecated_at: string | null;
+};
+
+type TaxonomyFieldMapping = {
+  id: string;
+  field_definition_id: string;
+  field_key: string;
+  field_label: string;
+  field_tier: string;
+  field_section: string | null;
+  field_deprecated: boolean;
+  relationship: string;
+  display_order: number;
+  required_at_registration: boolean;
+  required_before_publish: boolean;
+  required_before_verification: boolean;
+  requires_verification: boolean;
+  is_admin_only: boolean;
 };
 
 function HqCard({
@@ -117,67 +130,6 @@ function HqCard({
   );
 }
 
-function Input({
-  label,
-  name,
-  defaultValue,
-  type = "text",
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string | number | null;
-  type?: string;
-}) {
-  return (
-    <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-      {label}
-      <input name={name} type={type} defaultValue={defaultValue ?? ""} style={inputStyle} />
-    </label>
-  );
-}
-
-function Textarea({
-  label,
-  name,
-  defaultValue,
-  rows = 3,
-}: {
-  label: string;
-  name: string;
-  defaultValue?: string | null;
-  rows?: number;
-}) {
-  return (
-    <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-      {label}
-      <textarea name={name} defaultValue={defaultValue ?? ""} rows={rows} style={{ ...inputStyle, resize: "vertical" }} />
-    </label>
-  );
-}
-
-function Check({
-  name,
-  label,
-  defaultChecked,
-  tone,
-}: {
-  name: string;
-  label: string;
-  defaultChecked?: boolean;
-  tone?: "danger" | "safe";
-}) {
-  return (
-    <label style={{ display: "inline-flex", alignItems: "center", gap: 7, color: tone === "danger" ? HQ.red : tone === "safe" ? HQ.green : HQ.inkMuted, fontSize: 11.5 }}>
-      <input type="checkbox" name={name} defaultChecked={!!defaultChecked} />
-      {label}
-    </label>
-  );
-}
-
-function listText(values: string[]): string {
-  return values.join("\n");
-}
-
 function normalizeLabel(value: string): string {
   return value
     .toLowerCase()
@@ -204,143 +156,19 @@ function Stat({
   );
 }
 
-function TaxonomyTermForm({
-  term,
-  allTerms,
-  open = false,
-}: {
-  term: TaxonomyRow;
-  allTerms: TaxonomyRow[];
-  open?: boolean;
-}) {
-  const status = term.archived_at ? "archived" : term.is_active ? "active" : "inactive";
-  const statusColor = term.archived_at || !term.is_active ? HQ.red : HQ.green;
-
-  return (
-    <details
-      open={open}
-      style={{
-        borderTop: `1px solid ${HQ.borderSoft}`,
-        padding: "10px 0",
-      }}
-    >
-      <summary
-        style={{
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          listStyle: "none",
-        }}
-      >
-        <span style={{ width: 24, color: HQ.inkDim, fontSize: 12 }}>L{term.level}</span>
-        <span style={{ minWidth: 24, textAlign: "center" }}>{term.icon ?? "•"}</span>
-        <span style={{ flex: 1, color: HQ.ink, fontWeight: 700 }}>{term.name_en}</span>
-        <span style={{ color: HQ.inkDim, fontFamily: "ui-monospace, monospace", fontSize: 10.5 }}>{term.slug}</span>
-        <span style={{ color: statusColor, fontSize: 10.5, fontWeight: 800, textTransform: "uppercase" }}>{status}</span>
-        {term.is_public_filter && <span style={{ color: HQ.green, fontSize: 10.5, fontWeight: 800 }}>PUBLIC FILTER</span>}
-        {term.is_restricted && <span style={{ color: HQ.red, fontSize: 10.5, fontWeight: 800 }}>RESTRICTED</span>}
-      </summary>
-
-      <div style={{ marginTop: 12, paddingLeft: 34, display: "grid", gap: 12 }}>
-        <form action={updatePlatformTaxonomyTermAction} style={{ display: "grid", gap: 12 }}>
-          <input type="hidden" name="id" value={term.id} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-            <Input label="Slug" name="slug" defaultValue={term.slug} />
-            <Input label="Name EN" name="name_en" defaultValue={term.name_en} />
-            <Input label="Name ES" name="name_es" defaultValue={term.name_es} />
-            <Input label="Plural name" name="plural_name" defaultValue={term.plural_name} />
-            <Input label="Icon" name="icon" defaultValue={term.icon} />
-            <Input label="Sort order" name="sort_order" type="number" defaultValue={term.sort_order} />
-            <Input label="Term type" name="term_type" defaultValue={term.term_type} />
-            <Input label="Level" name="level" type="number" defaultValue={term.level} />
-            <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-              Parent
-              <select name="parent_id" defaultValue={term.parent_id ?? ""} style={inputStyle}>
-                <option value="">No parent</option>
-                {allTerms
-                  .filter((candidate) => candidate.id !== term.id)
-                  .map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {"  ".repeat(Math.max(0, candidate.level - 1))}
-                      {candidate.name_en} · L{candidate.level}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          </div>
-
-          <Textarea label="Description" name="description" defaultValue={term.description} />
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-            <Textarea label="Aliases" name="aliases" defaultValue={listText(term.aliases)} rows={4} />
-            <Textarea label="Search synonyms" name="search_synonyms" defaultValue={listText(term.search_synonyms)} rows={4} />
-            <Textarea label="AI keywords" name="ai_keywords" defaultValue={listText(term.ai_keywords)} rows={4} />
-          </div>
-
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, padding: 12, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, background: HQ.cardSoft }}>
-            <Check name="is_active" label="Active" defaultChecked={term.is_active} tone="safe" />
-            <Check name="is_public_filter" label="Public filter" defaultChecked={term.is_public_filter} />
-            <Check name="is_visible_by_default" label="Visible by default" defaultChecked={term.is_visible_by_default} />
-            <Check name="is_profile_badge" label="Profile badge" defaultChecked={term.is_profile_badge} />
-            <Check name="is_restricted" label="Restricted/internal" defaultChecked={term.is_restricted} tone="danger" />
-            <Check name="is_generic_fallback" label="Generic fallback" defaultChecked={term.is_generic_fallback} />
-            <Input label="Restriction level" name="restriction_level" defaultValue={term.restriction_level} />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="submit" style={{ border: "1px solid rgba(93,211,160,0.35)", background: "rgba(93,211,160,0.12)", color: HQ.green, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-              Save term
-            </button>
-            <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-              {term.tenant_count} tenant override{term.tenant_count === 1 ? "" : "s"} currently reference this term.
-            </span>
-          </div>
-        </form>
-
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-          <form action={movePlatformTaxonomyTermAction}>
-            <input type="hidden" name="id" value={term.id} />
-            <input type="hidden" name="direction" value="up" />
-            <button type="submit" style={{ border: `1px solid ${HQ.borderSoft}`, background: HQ.cardSoft, color: HQ.inkMuted, borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-              Move up
-            </button>
-          </form>
-          <form action={movePlatformTaxonomyTermAction}>
-            <input type="hidden" name="id" value={term.id} />
-            <input type="hidden" name="direction" value="down" />
-            <button type="submit" style={{ border: `1px solid ${HQ.borderSoft}`, background: HQ.cardSoft, color: HQ.inkMuted, borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-              Move down
-            </button>
-          </form>
-          <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-            Fast ordering controls write the same sort order used by tenants, registration, editor nav, and public filters.
-          </span>
-        </div>
-
-        <form action={setPlatformTaxonomyLifecycleAction}>
-          <input type="hidden" name="id" value={term.id} />
-          <input type="hidden" name="mode" value={term.archived_at ? "restore" : "archive"} />
-          <button type="submit" style={{ border: `1px solid ${term.archived_at ? "rgba(93,211,160,0.35)" : "rgba(243,103,114,0.35)"}`, background: term.archived_at ? "rgba(93,211,160,0.12)" : "rgba(243,103,114,0.10)", color: term.archived_at ? HQ.green : HQ.red, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-            {term.archived_at ? "Restore taxonomy term" : "Archive taxonomy term"}
-          </button>
-        </form>
-      </div>
-    </details>
-  );
-}
-
 async function loadTaxonomy(): Promise<{
   terms: TaxonomyRow[];
   roots: TaxonomyRow[];
   impacts: Map<string, TaxonomyImpact>;
   issues: TaxonomyIssue[];
   audits: TaxonomyAuditRow[];
+  fieldOptions: TaxonomyFieldOption[];
+  mappingsByTerm: Map<string, TaxonomyFieldMapping[]>;
 } | null> {
   const sb = createServiceRoleClient();
   if (!sb) return null;
 
-  const [termsR, settingsR, recsR, assignmentsR, auditsR] = await Promise.all([
+  const [termsR, settingsR, recsR, assignmentsR, auditsR, fieldsR] = await Promise.all([
     sb
       .from("taxonomy_terms")
       .select(
@@ -349,17 +177,25 @@ async function loadTaxonomy(): Promise<{
       .order("level", { ascending: true })
       .order("sort_order", { ascending: true }),
     sb.from("agency_taxonomy_settings").select("taxonomy_term_id, tenant_id"),
-    sb.from("profile_field_recommendations").select("taxonomy_term_id, relationship, required_before_publish"),
+    sb
+      .from("profile_field_recommendations")
+      .select(
+        "id, field_definition_id, taxonomy_term_id, relationship, display_order, required_at_registration, required_before_publish, required_before_verification, requires_verification, is_admin_only",
+      ),
     sb.from("talent_profile_taxonomy").select("taxonomy_term_id"),
     sb
       .from("platform_audit_log")
-      .select("id, created_at, action, severity, target_id")
-      .eq("target_type", "taxonomy_term")
+      .select("id, created_at, action, severity, target_type, target_id")
+      .in("target_type", ["taxonomy_term", "taxonomy_field_mapping"])
       .order("created_at", { ascending: false })
       .limit(8),
+    sb
+      .from("profile_field_definitions")
+      .select("id, field_key, label, tier, section, deprecated_at")
+      .order("label", { ascending: true }),
   ]);
 
-  if (termsR.error) return null;
+  if (termsR.error || recsR.error || fieldsR.error) return null;
 
   const tenantCounts = new Map<string, number>();
   for (const row of (settingsR.data ?? []) as Array<{ taxonomy_term_id: string | null }>) {
@@ -400,11 +236,49 @@ async function loadTaxonomy(): Promise<{
   };
   for (const term of terms) collectDescendants(term);
 
+  const fieldOptions = ((fieldsR.data ?? []) as TaxonomyFieldOption[]).sort((a, b) =>
+    a.label.localeCompare(b.label) || a.field_key.localeCompare(b.field_key),
+  );
+  const fieldById = new Map(fieldOptions.map((field) => [field.id, field] as const));
   const recs = (recsR.data ?? []) as Array<{
+    id: string;
+    field_definition_id: string | null;
     taxonomy_term_id: string | null;
     relationship: string | null;
+    display_order: number | null;
+    required_at_registration: boolean | null;
     required_before_publish: boolean | null;
+    required_before_verification: boolean | null;
+    requires_verification: boolean | null;
+    is_admin_only: boolean | null;
   }>;
+  const mappingsByTerm = new Map<string, TaxonomyFieldMapping[]>();
+  for (const rec of recs) {
+    if (!rec.taxonomy_term_id || !rec.field_definition_id) continue;
+    const field = fieldById.get(rec.field_definition_id);
+    if (!field) continue;
+    const list = mappingsByTerm.get(rec.taxonomy_term_id) ?? [];
+    list.push({
+      id: rec.id,
+      field_definition_id: rec.field_definition_id,
+      field_key: field.field_key,
+      field_label: field.label,
+      field_tier: field.tier,
+      field_section: field.section,
+      field_deprecated: !!field.deprecated_at,
+      relationship: rec.relationship ?? "applies",
+      display_order: rec.display_order ?? 100,
+      required_at_registration: !!rec.required_at_registration,
+      required_before_publish: !!rec.required_before_publish,
+      required_before_verification: !!rec.required_before_verification,
+      requires_verification: !!rec.requires_verification,
+      is_admin_only: !!rec.is_admin_only,
+    });
+    mappingsByTerm.set(rec.taxonomy_term_id, list);
+  }
+  for (const list of mappingsByTerm.values()) {
+    list.sort((a, b) => a.display_order - b.display_order || a.field_label.localeCompare(b.field_label));
+  }
   const assignments = (assignmentsR.data ?? []) as Array<{ taxonomy_term_id: string | null }>;
   const settings = (settingsR.data ?? []) as Array<{ taxonomy_term_id: string | null; tenant_id: string | null }>;
   const impacts = new Map<string, TaxonomyImpact>();
@@ -455,6 +329,8 @@ async function loadTaxonomy(): Promise<{
     impacts,
     issues,
     audits: ((auditsR.data ?? []) as TaxonomyAuditRow[]),
+    fieldOptions,
+    mappingsByTerm,
   };
 }
 
@@ -688,6 +564,11 @@ export default async function PlatformTaxonomyBuilderPage({
                             returnTerm={selectedTerm.slug}
                           />
                         </div>
+                        <TaxonomyFieldMappingPanel
+                          term={selectedTerm}
+                          mappings={data.mappingsByTerm.get(selectedTerm.id) ?? []}
+                          fieldOptions={data.fieldOptions}
+                        />
                       </div>
                     )}
                   </>
@@ -739,7 +620,10 @@ export default async function PlatformTaxonomyBuilderPage({
                     }}
                   >
                     <span style={{ color: HQ.inkDim }}>{new Date(audit.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
-                    <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>{audit.action}</span>
+                    <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
+                      {audit.action}
+                      <span style={{ color: HQ.inkDim }}> · {audit.target_type}</span>
+                    </span>
                     <span style={{ color: audit.severity === "warn" ? HQ.amber : audit.severity === "emergency" ? HQ.red : HQ.green, fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{audit.severity}</span>
                   </div>
                 ))}

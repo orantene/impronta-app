@@ -795,6 +795,177 @@ test("resolver: fields sort by group display_order (via parent_category_field_gr
   }
 });
 
+test("resolver: workspace display_order_override reorders fields inside a group", async () => {
+  const sb = buildMockSupabase({
+    agency_talent_roster: [rosterActive()],
+    talent_profile_taxonomy: [
+      { talent_profile_id: TALENT, taxonomy_term_id: "term-model", relationship_type: "primary" },
+    ],
+    taxonomy_terms: [
+      { id: "term-model", parent_id: "cat-fashion", term_type: "talent_type" },
+      { id: "cat-fashion", parent_id: null, term_type: "parent_category" },
+    ],
+    talent_profile_field_values: [],
+    profile_field_definitions: [
+      fieldDef({
+        id: "fd-first",
+        field_key: "ordering.first",
+        tier: "global",
+        field_group_id: "grp-ordering",
+        display_order: 10,
+      }),
+      fieldDef({
+        id: "fd-second",
+        field_key: "ordering.second",
+        tier: "global",
+        field_group_id: "grp-ordering",
+        display_order: 20,
+      }),
+    ],
+    profile_field_groups: [
+      {
+        id: "grp-ordering",
+        slug: "ordering",
+        name_en: "Ordering",
+        name_es: null,
+        sort_order: 10,
+        is_active: true,
+      },
+    ],
+    parent_category_field_groups: [
+      {
+        parent_category_id: "cat-fashion",
+        field_group_id: "grp-ordering",
+        weight: "default",
+        display_order: 10,
+        in_registration_wizard: false,
+      },
+    ],
+    profile_field_recommendations: [],
+    workspace_field_group_settings: [],
+    workspace_profile_field_settings: [
+      {
+        tenant_id: TENANT,
+        field_definition_id: "fd-second",
+        enabled_override: null,
+        required_override: null,
+        custom_label: null,
+        custom_helper: null,
+        display_order_override: 5,
+        show_in_public_override: null,
+        admin_only_override: null,
+        default_visibility_override: null,
+      },
+    ],
+  });
+  const result = await resolveTalentFields({
+    supabase: sb,
+    talentProfileId: TALENT,
+    tenantId: TENANT,
+    viewerRole: "agency_admin",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(
+      result.fields.map((f) => f.field_key),
+      ["ordering.second", "ordering.first"],
+      "tenant field order override should win over platform field order",
+    );
+  }
+});
+
+test("resolver: workspace field group display_order override reorders groups", async () => {
+  const sb = buildMockSupabase({
+    agency_talent_roster: [rosterActive()],
+    talent_profile_taxonomy: [
+      { talent_profile_id: TALENT, taxonomy_term_id: "term-model", relationship_type: "primary" },
+    ],
+    taxonomy_terms: [
+      { id: "term-model", parent_id: "cat-fashion", term_type: "talent_type" },
+      { id: "cat-fashion", parent_id: null, term_type: "parent_category" },
+    ],
+    talent_profile_field_values: [],
+    profile_field_definitions: [
+      fieldDef({
+        id: "fd-alpha",
+        field_key: "alpha.field",
+        tier: "global",
+        field_group_id: "grp-alpha",
+        display_order: 10,
+      }),
+      fieldDef({
+        id: "fd-beta",
+        field_key: "beta.field",
+        tier: "global",
+        field_group_id: "grp-beta",
+        display_order: 10,
+      }),
+    ],
+    profile_field_groups: [
+      {
+        id: "grp-alpha",
+        slug: "alpha",
+        name_en: "Alpha",
+        name_es: null,
+        sort_order: 10,
+        is_active: true,
+      },
+      {
+        id: "grp-beta",
+        slug: "beta",
+        name_en: "Beta",
+        name_es: null,
+        sort_order: 20,
+        is_active: true,
+      },
+    ],
+    parent_category_field_groups: [
+      {
+        parent_category_id: "cat-fashion",
+        field_group_id: "grp-alpha",
+        weight: "default",
+        display_order: 10,
+        in_registration_wizard: false,
+      },
+      {
+        parent_category_id: "cat-fashion",
+        field_group_id: "grp-beta",
+        weight: "default",
+        display_order: 20,
+        in_registration_wizard: false,
+      },
+    ],
+    profile_field_recommendations: [],
+    workspace_field_group_settings: [
+      {
+        tenant_id: TENANT,
+        field_group_id: "grp-beta",
+        is_enabled: null,
+        show_in_registration: null,
+        show_in_profile_edit: null,
+        show_in_public_profile: null,
+        display_order: 5,
+        custom_label: null,
+      },
+    ],
+    workspace_profile_field_settings: [],
+  });
+  const result = await resolveTalentFields({
+    supabase: sb,
+    talentProfileId: TALENT,
+    tenantId: TENANT,
+    viewerRole: "agency_admin",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(
+      result.fields.map((f) => f.field_key),
+      ["beta.field", "alpha.field"],
+      "tenant group order override should win over parent category group order",
+    );
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 9. Deprecated field — excluded from the resolver output
 // ─────────────────────────────────────────────────────────────────────────────
