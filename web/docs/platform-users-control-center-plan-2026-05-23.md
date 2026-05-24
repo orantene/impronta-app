@@ -231,7 +231,7 @@ Per the integrator protocol (memory `project_multi_agent_integrator_protocol.md`
 | ~~A.1+A.2+A.3 federated loader~~ | ~~Core data layer refactor, dedup logic, origin resolver~~ | ~~Senior~~ | ~~Opus 4.7~~ | ~~L~~ | ~~M0.4~~ | **DONE** `b0d19bb55` PR #19 `3b643f991` |
 | ~~B.1 new columns~~ | ~~Table render~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `28422e6cc` PR #20 |
 | ~~B.2 new filters~~ | ~~Client component logic~~ | ~~Mid~~ | ~~Sonnet 4.6~~ | ~~S~~ | ~~A.1~~ | **DONE** `a50fa6a50` PR #21 |
-| B.3 quick-action chips | UI sugar | Junior | Haiku 4.5 | XS | B.2 | in progress |
+| ~~B.3 quick-action chips~~ | ~~UI sugar~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~XS~~ | ~~B.2~~ | **DONE** `812fc3ccc` PR #25 |
 | ~~C.1 identity & access~~ | ~~Drawer render~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `831767d48` PR #22 |
 | ~~C.2 origin section~~ | ~~Drawer section + clickable links~~ | ~~Junior~~ | ~~Haiku 4.5~~ | ~~S~~ | ~~A.1~~ | **DONE** `63fc5aa63` PR #23 |
 | C.3 talent record + global-hide | Drawer + write action | Mid | Sonnet 4.6 | M | M0.3, E.tier1, E.tier2 |
