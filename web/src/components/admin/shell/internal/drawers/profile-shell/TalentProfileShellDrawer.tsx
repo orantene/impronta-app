@@ -4,6 +4,11 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import {
+  buildCorePublishRequirements,
+  buildProfilePublishRequirements,
+  getProfilePublishCompleteness,
+} from "@/lib/field-engine/profile-publish-requirements";
 import type {
   LiveCategoryGroupNavItem,
   LiveCategoryRequiredMissingItem,
@@ -1451,50 +1456,24 @@ export function TalentProfileShellDrawer() {
   const totalPhotos = state.albumsPro.reduce((n, a) => n + a.items.length, 0);
   const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
   const newEngineActive = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
-  // I8 — catalog-driven required fields are merged into the publish gate.
-  // The universal 6 below are name / type / location / photos / bio /
-  // language. The catalog adds type-specific fields on top — for now
-  // only "models" has type-specific requireds (height / bust / waist /
-  // hips). The dyn-field storage uses short keys (height, bust, …)
-  // while the catalog uses dotted ids (measurements.heightMetric, …);
-  // we map the two here. Production: unify storage keys to catalog
-  // ids and call validateProfile() directly.
-  const isModel = state.primaryType === "models" || state.secondaryTypes.includes("models");
-  const dynStr = (k: string) => {
-    const v = state.dynFields[k];
-    return Array.isArray(v) ? v.length > 0 : !!String(v ?? "").trim();
-  };
-  const catalogRequired = isModel && !newEngineActive ? [
-    { id: "measurements.heightMetric", label: "height",     met: dynStr("height") || dynStr("heightMetric"), sectionId: "physical" as ProfileSectionId },
-    { id: "measurements.bust",         label: "bust",       met: dynStr("bust"),                            sectionId: "physical" as ProfileSectionId },
-    { id: "measurements.waist",        label: "waist",      met: dynStr("waist"),                           sectionId: "physical" as ProfileSectionId },
-    { id: "measurements.hips",         label: "hips",       met: dynStr("hips"),                            sectionId: "physical" as ProfileSectionId },
-    { id: "measurements.hairColor",    label: "hair color", met: dynStr("hair") || dynStr("hairColor"),     sectionId: "physical" as ProfileSectionId },
-  ] : [];
-  const resolverRequired = profileFieldRequiredMissing.map((item) => ({
-    id: item.id,
-    label: item.label,
-    met: false,
-    sectionId: "profile_fields" as ProfileSectionId,
-    groupKey: item.groupKey,
-  }));
-  const required = [
-    { id: "stageName",   label: "stage name",   met: !!state.stageName.trim(),       sectionId: "services" as ProfileSectionId },
-    { id: "primaryType", label: "Talent Type",  met: !!state.primaryType,            sectionId: "services" as ProfileSectionId },
-    { id: "homeBase",    label: "home base",    met: !!state.serviceArea.homeBase.trim(), sectionId: "location" as ProfileSectionId },
-    {
-      id: "photos",
-      label: totalPhotos === 0 ? "photos" : `${3 - totalPhotos} more photo${totalPhotos === 2 ? "" : "s"}`,
-      met: totalPhotos >= 3,
-      sectionId: "media" as ProfileSectionId,
-    },
-    { id: "bio",         label: "a bio",        met: (activeBio?.text.trim().length ?? 0) >= 30, sectionId: "about" as ProfileSectionId },
-    { id: "language",    label: "1 language",   met: state.languages.length > 0,     sectionId: "languages" as ProfileSectionId },
-    ...catalogRequired,
-    ...resolverRequired,
-  ];
+  // Publish gate now comes from one helper path:
+  //   - core universal floor (identity/location/media/bio/language),
+  //   - resolver-driven required detail blockers.
+  // Legacy model-only fallback blockers are intentionally removed; type-
+  // specific publish requirements should be owned by the resolver path.
+  const required = buildProfilePublishRequirements({
+    core: buildCorePublishRequirements({
+      stageName: state.stageName,
+      primaryType: state.primaryType || null,
+      homeBase: state.serviceArea.homeBase,
+      totalPhotos,
+      activeBioLength: activeBio?.text.trim().length ?? 0,
+      languageCount: state.languages.length,
+    }),
+    resolverMissing: profileFieldRequiredMissing,
+  });
   const missing = required.filter(r => !r.met);
-  const completeness = Math.round((required.filter(r => r.met).length / required.length) * 100);
+  const completeness = getProfilePublishCompleteness(required);
 
   // Per-section completeness (for tab-nav dots)
   const polaroidsFilledCount = state.polaroids.filter(p => p.url).length;
