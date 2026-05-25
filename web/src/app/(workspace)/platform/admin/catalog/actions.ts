@@ -559,3 +559,71 @@ export async function reorderPlatformFieldGroupsAction(formData: FormData): Prom
   revalidateEngineSurfaces();
   redirect("/platform/admin/catalog/groups?saved=order");
 }
+
+export async function reorderPlatformFieldsAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog?error=${encodeURIComponent(auth.error)}`);
+
+  const orderedIds = parseOrderedIds(formData);
+  const fieldGroupIdRaw = text(formData, "field_group_id");
+  const fieldGroupId = fieldGroupIdRaw === "__ungrouped__" ? null : fieldGroupIdRaw;
+  if (orderedIds.length < 2) {
+    redirect("/platform/admin/catalog?error=Add%20at%20least%20two%20fields%20to%20reorder");
+  }
+
+  const { data: rows, error } = await auth.sb
+    .from("profile_field_definitions")
+    .select("id, field_key, field_group_id, display_order")
+    .in("id", orderedIds);
+
+  if (error || !rows || rows.length !== orderedIds.length) {
+    logServerError("platform.catalog.reorderFields.readRows", error);
+    redirect("/platform/admin/catalog?error=Could%20not%20load%20fields");
+  }
+
+  const rowIds = new Set(rows.map((row) => row.id));
+  const validIds = new Set(orderedIds).size === orderedIds.length &&
+    orderedIds.every((id) => rowIds.has(id));
+  const sameGroup = rows.every((row) => row.field_group_id === fieldGroupId);
+  if (!validIds || !sameGroup) {
+    redirect("/platform/admin/catalog?error=Invalid%20field%20order");
+  }
+
+  const beforeValue = rows
+    .slice()
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.field_key.localeCompare(b.field_key))
+    .map((row) => ({
+      id: row.id,
+      field_key: row.field_key,
+      field_group_id: row.field_group_id,
+      display_order: row.display_order,
+    }));
+  const afterValue = orderedIds.map((id, i) => ({ id, display_order: (i + 1) * 10 }));
+  const now = new Date().toISOString();
+
+  const results = await Promise.all(
+    afterValue.map((row) =>
+      auth.sb
+        .from("profile_field_definitions")
+        .update({ display_order: row.display_order, updated_at: now })
+        .eq("id", row.id),
+    ),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    logServerError("platform.catalog.reorderFields.update", failed.error);
+    redirect("/platform/admin/catalog?error=Could%20not%20save%20field%20order");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field.reorder",
+    targetType: "profile_field_definition",
+    targetId: fieldGroupId ?? "ungrouped",
+    beforeValue,
+    afterValue,
+  });
+
+  revalidateEngineSurfaces();
+  redirect("/platform/admin/catalog?saved=field_order");
+}

@@ -1,13 +1,13 @@
 /**
- * Phase 9A — Read-Only Platform Catalog Map data loader.
+ * Phase 9A — Platform Catalog Map data loader.
  *
  * Platform HQ (super_admin) inspection of the talent field-engine catalog.
- * STRICTLY READ-ONLY: aggregate SELECTs over the canonical engine tables
- * + the SHARED visibility engine (`platformBaseVisibility`). No mutation,
- * no migration, never a second engine. Service-role client (bypasses
- * tenant RLS — the route is super_admin-gated by the platform layout).
- * Server-only; never import from a client component. Degrades to an
- * empty shape on failure so the page never hard-fails.
+ * Aggregate SELECTs over the canonical engine tables + the SHARED
+ * visibility engine (`platformBaseVisibility`). Mutations live in the
+ * platform catalog server actions; this loader stays query-only. Service-role
+ * client bypasses tenant RLS because the route is super_admin-gated by the
+ * platform layout. Server-only; never import from a client component.
+ * Degrades to an empty shape on failure so the page never hard-fails.
  */
 
 import { unstable_cache } from "next/cache";
@@ -25,6 +25,7 @@ export type CatalogField = {
   tier: string;
   section: string | null;
   field_group_id: string | null;
+  display_order: number;
   /** Platform-default visibility, computed via the shared engine. */
   visibility: FieldVisibility;
   admin_only: boolean;
@@ -100,6 +101,7 @@ type DefRow = {
   tier: string | null;
   section: string | null;
   field_group_id: string | null;
+  display_order: number | null;
   default_visibility: unknown;
   admin_only: boolean | null;
   is_sensitive: boolean | null;
@@ -146,7 +148,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       sb
         .from("profile_field_definitions")
         .select(
-          "id, field_key, label, tier, section, field_group_id, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at",
+          "id, field_key, label, tier, section, field_group_id, display_order, default_visibility, admin_only, is_sensitive, show_in_public, is_optional, deprecated_at",
         ),
       sb
         .from("profile_field_groups")
@@ -249,6 +251,7 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
         tier,
         section: d.section,
         field_group_id: d.field_group_id,
+        display_order: d.display_order ?? 100,
         visibility,
         admin_only: !!d.admin_only,
         is_sensitive: !!d.is_sensitive,
@@ -275,6 +278,8 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
     const groups: CatalogGroup[] = groupRows
       .map((g) => {
         const gf = (byGroupId.get(g.id) ?? []).sort((a, b) =>
+          a.display_order - b.display_order ||
+          a.label.localeCompare(b.label) ||
           a.field_key.localeCompare(b.field_key),
         );
         return {
@@ -289,7 +294,12 @@ async function loadPlatformCatalogMapUncached(): Promise<PlatformCatalogMap> {
       })
       .sort((a, b) => a.sort_order - b.sort_order);
 
-    ungrouped.sort((a, b) => a.field_key.localeCompare(b.field_key));
+    ungrouped.sort(
+      (a, b) =>
+        a.display_order - b.display_order ||
+        a.label.localeCompare(b.label) ||
+        a.field_key.localeCompare(b.field_key),
+    );
     risks.sort((a, b) => a.kind.localeCompare(b.kind));
 
     return {

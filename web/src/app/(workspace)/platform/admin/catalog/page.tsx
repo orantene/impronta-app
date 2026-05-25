@@ -1,8 +1,7 @@
-// Phase 9A — Platform HQ · Catalog Map (read-only).
+// Phase 9A — Platform HQ · Catalog Map.
 // Server Component — no "use client". Platform-admin gated by the
-// (workspace)/platform/admin layout (super_admin). Zero mutation: pure
-// inspection of the talent field-engine catalog via read-only aggregates
-// + the shared visibility engine.
+// (workspace)/platform/admin layout (super_admin). Mutations are delegated to
+// scoped server actions; this page renders the control-room overview.
 
 import Link from "next/link";
 import {
@@ -15,6 +14,7 @@ import {
   type ViewerRole,
 } from "@/lib/field-engine/effective-visibility";
 import { CreateFieldForm } from "./create-field-form";
+import { FieldOrderPanel } from "./field-order-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -181,7 +181,7 @@ function FieldRow({
             fontFamily: "ui-monospace, monospace",
           }}
         >
-          {f.field_key} · {f.tier}
+          {f.field_key} · {f.tier} · #{f.display_order}
           {f.section ? ` · ${f.section}` : ""}
         </div>
       </div>
@@ -626,7 +626,21 @@ export default async function PlatformCatalogMapPage({
             {g.fields.length === 0 ? (
               <div style={{ fontSize: 12, color: HQ.inkDim }}>No fields.</div>
             ) : (
-              g.fields.map((f) => <FieldRow key={f.id} f={f} viewAs={viewAs} />)
+              <>
+                {!filtersActive && (
+                  <FieldOrderPanel
+                    fieldGroupId={g.id}
+                    fields={g.fields.map((f) => ({
+                      id: f.id,
+                      field_key: f.field_key,
+                      label: f.label,
+                      display_order: f.display_order,
+                      deprecated: f.deprecated,
+                    }))}
+                  />
+                )}
+                {g.fields.map((f) => <FieldRow key={f.id} f={f} viewAs={viewAs} />)}
+              </>
             )}
           </div>
         </HqCard>
@@ -638,6 +652,18 @@ export default async function PlatformCatalogMapPage({
           subtitle={`${filteredUngrouped.length} field${filteredUngrouped.length === 1 ? "" : "s"} with no field group`}
         >
           <div>
+            {!filtersActive && (
+              <FieldOrderPanel
+                fieldGroupId={null}
+                fields={filteredUngrouped.map((f) => ({
+                  id: f.id,
+                  field_key: f.field_key,
+                  label: f.label,
+                  display_order: f.display_order,
+                  deprecated: f.deprecated,
+                }))}
+              />
+            )}
             {filteredUngrouped.map((f) => (
               <FieldRow key={f.id} f={f} viewAs={viewAs} />
             ))}
