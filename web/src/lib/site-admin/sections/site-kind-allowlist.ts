@@ -4,10 +4,7 @@ import {
   type SectionTypeKey,
 } from "./registry";
 import type { SectionRegistryEntry } from "./types";
-import {
-  TALENT_PERSONAL_SECTION_TYPE_KEYS,
-  isTalentPersonalSectionTypeKey,
-} from "./talent-personal-section-keys";
+import { isTalentPersonalSectionTypeKey } from "./talent-personal-section-keys";
 
 export type BuilderSiteKind = "agency" | "hub" | "talent_personal";
 

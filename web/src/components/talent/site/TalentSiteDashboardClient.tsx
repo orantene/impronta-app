@@ -20,7 +20,7 @@ type Props = {
 export function TalentSiteDashboardClient({ tenantSlug, initialState }: Props) {
   const router = useRouter();
   const { openDrawer } = useAdminShell();
-  const [state, setState] = useState(initialState);
+  const [state] = useState(initialState);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
