@@ -37,7 +37,10 @@ function makeSlot(
 
 /**
  * Builds the `talent_portfolio_starter` snapshot from public-safe profile fields only.
- * Omits rates, private notes, unapproved media, agency-private data, credits/past clients.
+ * Omits rates, private notes, unapproved media, agency-private data.
+ *
+ * Follow-up (Phase 3+): credits / past clients — include only when a dedicated
+ * public visibility flag exists on those relations; until then, omit from starter.
  */
 export function buildTalentPortfolioStarterSnapshot(
   profile: TalentPortfolioStarterProfile,
