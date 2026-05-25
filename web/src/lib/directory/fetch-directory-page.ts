@@ -250,7 +250,7 @@ export async function fetchDirectoryPage(
   const [{ fitLabelsEnabled, heightCardDef, scalarCardDefs }, heightFilterCatalog] =
     await auditTime(audit, timings, "catalogParallelMs", () =>
       Promise.all([
-        getCachedDirectoryCardDisplayCatalog(),
+        getCachedDirectoryCardDisplayCatalog({ tenantId: tenantScopeId }),
         getCachedDirectoryHeightFilterConfig(),
       ]),
     );

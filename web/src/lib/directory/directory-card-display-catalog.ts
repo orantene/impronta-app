@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export type DirectoryCardScalarDef = {
@@ -21,47 +22,119 @@ export type DirectoryCardDisplayCatalog = {
   scalarCardDefs: DirectoryCardScalarDef[];
 };
 
-async function loadDirectoryCardDisplayCatalogUncached(): Promise<DirectoryCardDisplayCatalog> {
-  const supabase = createPublicSupabaseClient();
+type DirectoryCardFieldCatalogRow = {
+  id: string;
+  key: string;
+  value_type: string;
+  taxonomy_kind: string | null;
+  sort_order: number;
+  label_en: string;
+  label_es: string | null;
+  tenant_id: string | null;
+  card_visible: boolean;
+  active: boolean;
+  archived_at: string | null;
+  internal_only: boolean;
+  public_visible: boolean;
+  profile_visible: boolean;
+};
+
+type DirectoryCardDisplayCatalogOptions = {
+  tenantId?: string | null;
+};
+
+export function pickEffectiveDirectoryCardFieldRows(
+  rows: readonly DirectoryCardFieldCatalogRow[],
+  tenantId: string | null,
+): DirectoryCardFieldCatalogRow[] {
+  const byKey = new Map<string, { canonical: DirectoryCardFieldCatalogRow | null; tenant: DirectoryCardFieldCatalogRow | null }>();
+  for (const row of rows) {
+    const existing = byKey.get(row.key) ?? { canonical: null, tenant: null };
+    if (row.tenant_id === null) {
+      existing.canonical = row;
+    } else if (tenantId !== null && row.tenant_id === tenantId) {
+      existing.tenant = row;
+    }
+    byKey.set(row.key, existing);
+  }
+
+  const merged: DirectoryCardFieldCatalogRow[] = [];
+  for (const pair of byKey.values()) {
+    const chosen = pair.tenant ?? pair.canonical;
+    if (chosen) merged.push(chosen);
+  }
+  return merged;
+}
+
+function isVisibleDirectoryCardField(row: DirectoryCardFieldCatalogRow): boolean {
+  return Boolean(
+    !row.archived_at &&
+      row.active === true &&
+      row.internal_only !== true &&
+      row.public_visible === true &&
+      row.profile_visible === true,
+  );
+}
+
+async function loadDirectoryCardDisplayCatalogUncached(
+  opts: DirectoryCardDisplayCatalogOptions = {},
+): Promise<DirectoryCardDisplayCatalog> {
+  const tenantId = opts.tenantId ?? null;
+  const publicSupabase = createPublicSupabaseClient();
+  const supabase = createServiceRoleClient() ?? publicSupabase;
   if (!supabase) {
     return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
   }
 
-  /** Same gates as scalar card traits: public + profile + card visibility (plus active / not archived / not internal). */
-  const { data: fitRow, error: fitErr } = await supabase
-    .from("field_definitions")
-    .select("card_visible, active, archived_at, internal_only, public_visible, profile_visible")
-    .eq("key", "fit_labels")
-    .maybeSingle();
+  const buildBaseQuery = () =>
+    supabase
+      .from("field_definitions")
+      .select(
+        "id, key, value_type, taxonomy_kind, sort_order, label_en, label_es, tenant_id, card_visible, active, archived_at, internal_only, public_visible, profile_visible",
+      )
+      .is("archived_at", null)
+      .eq("active", true)
+      .eq("internal_only", false)
+      .eq("public_visible", true)
+      .eq("profile_visible", true);
 
-  let fitLabelsEnabled = true;
-  if (!fitErr && fitRow) {
-    fitLabelsEnabled = Boolean(
-      !fitRow.archived_at &&
-        fitRow.active === true &&
-        fitRow.internal_only !== true &&
-        fitRow.public_visible === true &&
-        fitRow.profile_visible === true &&
-        fitRow.card_visible === true,
-    );
+  const [canonicalRes, tenantRes] = await Promise.all([
+    buildBaseQuery().is("tenant_id", null),
+    tenantId
+      ? buildBaseQuery().eq("tenant_id", tenantId)
+      : Promise.resolve({ data: [] as DirectoryCardFieldCatalogRow[], error: null }),
+  ]);
+
+  if (canonicalRes.error) {
+    return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
+  }
+  if (tenantRes.error) {
+    return { fitLabelsEnabled: true, heightCardDef: null, scalarCardDefs: [] };
   }
 
-  /** Directory card trait catalog (excluding fit_labels height special-cases above). */
-  const { data: rows, error } = await supabase
-    .from("field_definitions")
-    .select("id, key, value_type, taxonomy_kind, sort_order, label_en, label_es")
-    .is("archived_at", null)
-    .eq("active", true)
-    .eq("internal_only", false)
-    .eq("public_visible", true)
-    .eq("profile_visible", true)
-    .eq("card_visible", true);
+  const effectiveRows = pickEffectiveDirectoryCardFieldRows(
+    [
+      ...((canonicalRes.data ?? []) as DirectoryCardFieldCatalogRow[]),
+      ...((tenantRes.data ?? []) as DirectoryCardFieldCatalogRow[]),
+    ],
+    tenantId,
+  );
 
-  if (error || !rows?.length) {
+  const fitRow = effectiveRows.find((row) => row.key === "fit_labels") ?? null;
+
+  let fitLabelsEnabled = true;
+  if (fitRow) {
+    fitLabelsEnabled = isVisibleDirectoryCardField(fitRow) && fitRow.card_visible === true;
+  }
+
+  const cardVisibleRows = effectiveRows.filter(
+    (row) => isVisibleDirectoryCardField(row) && row.card_visible === true,
+  );
+  if (cardVisibleRows.length === 0) {
     return { fitLabelsEnabled, heightCardDef: null, scalarCardDefs: [] };
   }
 
-  const defs: DirectoryCardScalarDef[] = rows.map((r) => ({
+  const defs: DirectoryCardScalarDef[] = cardVisibleRows.map((r) => ({
     id: r.id,
     key: r.key,
     value_type: r.value_type,
@@ -81,10 +154,16 @@ async function loadDirectoryCardDisplayCatalogUncached(): Promise<DirectoryCardD
 }
 
 /** Cached field catalog for directory cards — invalidated with `CACHE_TAG_DIRECTORY`. */
-export function getCachedDirectoryCardDisplayCatalog(): Promise<DirectoryCardDisplayCatalog> {
+export function getCachedDirectoryCardDisplayCatalog(
+  opts: DirectoryCardDisplayCatalogOptions = {},
+): Promise<DirectoryCardDisplayCatalog> {
+  const tenantId = opts.tenantId ?? null;
+  const cacheKey = tenantId
+    ? `directory-card-display-catalog-v4:${tenantId}`
+    : "directory-card-display-catalog-v4:canonical";
   return unstable_cache(
-    () => loadDirectoryCardDisplayCatalogUncached(),
-    ["directory-card-display-catalog-v3"],
+    () => loadDirectoryCardDisplayCatalogUncached({ tenantId }),
+    [cacheKey],
     { tags: [CACHE_TAG_DIRECTORY], revalidate: 120 },
   )();
 }
