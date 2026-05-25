@@ -103,7 +103,7 @@ type TalentRow = {
   display_name: string | null;
   first_name: string | null;
   last_name: string | null;
-  slug: string | null;
+  public_slug_part: string | null;
   user_id: string | null;
   workflow_status: string | null;
   published_globally: boolean | null;
@@ -161,7 +161,7 @@ export async function loadPlatformPeopleFederated(): Promise<PlatformUserRow[]> 
       display_name,
       first_name,
       last_name,
-      slug,
+      public_slug_part,
       user_id,
       workflow_status,
       published_globally,
@@ -297,7 +297,7 @@ export async function loadPlatformPeopleFederated(): Promise<PlatformUserRow[]> 
         ?? null,
       lastSignInAt: formatDate(lastSignInById[r.id]),
       lastSignInAtIso: lastSignInById[r.id] ?? null,
-      talentSlug: claimedTalent?.slug ?? null,
+      talentSlug: claimedTalent?.public_slug_part ?? null,
       talentWorkflowStatus: claimedTalent?.workflow_status ?? null,
     };
   });
@@ -307,7 +307,7 @@ export async function loadPlatformPeopleFederated(): Promise<PlatformUserRow[]> 
     .filter((t) => !t.user_id)
     .map((t) => {
       const fullName = [t.first_name, t.last_name].filter(Boolean).join(" ").trim();
-      const displayName = t.display_name ?? (fullName || t.slug || "Unnamed talent");
+      const displayName = t.display_name ?? (fullName || t.public_slug_part || "Unnamed talent");
       return {
         kind: "unclaimed_talent" as const,
         id: t.id,
@@ -332,7 +332,7 @@ export async function loadPlatformPeopleFederated(): Promise<PlatformUserRow[]> 
         accountStatus: null,
         lastSignInAt: null,
         lastSignInAtIso: null,
-        talentSlug: t.slug,
+        talentSlug: t.public_slug_part,
         talentWorkflowStatus: t.workflow_status,
       };
     });
