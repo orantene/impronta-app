@@ -1,4 +1,5 @@
 import { chooseClientRole, chooseTalentRole } from "@/app/onboarding/actions";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { normalizeOptionalNextPath, resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
@@ -71,7 +72,7 @@ export default async function OnboardingRolePage({
       <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
         <div className="mb-8 space-y-1.5 text-center">
           <h1 className="font-[family-name:var(--font-cinzel)] text-xl font-medium tracking-wide">
-            How will you use Impronta?
+            How will you use {PLATFORM_BRAND.name}?
           </h1>
           <p className="text-sm text-muted-foreground">
             Choose your role — you can&apos;t change this later from here.

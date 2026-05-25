@@ -48,7 +48,7 @@ export function TalentLocationOnboardingForm({
 
       {/* ── Identity ── */}
       <div className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--impronta-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Identity
         </p>
 
@@ -98,7 +98,7 @@ export function TalentLocationOnboardingForm({
 
       {/* ── Contact ── */}
       <div className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--impronta-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Contact
         </p>
 
@@ -122,7 +122,7 @@ export function TalentLocationOnboardingForm({
 
       {/* ── Demographics ── */}
       <div className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--impronta-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Demographics
         </p>
 
@@ -167,7 +167,7 @@ export function TalentLocationOnboardingForm({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        You&apos;ll complete your nationality, location, and other profile details in the next step.
+        You can complete your nationality, location, and other profile details from your dashboard after signing up.
       </p>
 
       {state?.error ? (

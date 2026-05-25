@@ -112,7 +112,14 @@ export function MarketingHeader() {
 
         <div className="hidden items-center gap-2 lg:flex">
           <Link
-            href="/waitlist?intent=signin"
+            href="/talent/register"
+            className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            Join as talent
+          </Link>
+          <Link
+            href="/login"
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
@@ -180,7 +187,15 @@ export function MarketingHeader() {
               style={{ borderColor: "var(--plt-hairline)" }}
             >
               <Link
-                href="/waitlist?intent=signin"
+                href="/talent/register"
+                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+                style={{ color: "var(--plt-ink-soft)" }}
+              >
+                Join as talent
+                <ChevronGlyph />
+              </Link>
+              <Link
+                href="/login"
                 className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink-soft)" }}
               >

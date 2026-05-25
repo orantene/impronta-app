@@ -70,19 +70,44 @@ export default async function PlatformTalentRootPage({
   }
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center px-4 py-16 text-center">
-      <h1 className="font-[family-name:var(--font-cinzel)] text-xl font-medium tracking-wide">
-        Your talent profile isn&apos;t linked to an agency yet
+    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col justify-center px-4 py-16 text-center">
+      <div className="inline-flex items-center justify-center">
+        <span className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted/30 text-2xl">
+          👋
+        </span>
+      </div>
+      <h1 className="mt-5 font-[family-name:var(--font-cinzel)] text-xl font-medium tracking-wide">
+        Profile created — you&apos;re in!
       </h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        Once an agency adds you to their roster, you&apos;ll see your dashboard here. If you were expecting to see one already, your agency contact can link your profile from their roster page.
+        Your talent profile exists but isn&apos;t linked to an agency roster yet. Once an agency admin adds you, your full dashboard and booking pipeline will appear here.
       </p>
-      <p className="mt-6 text-xs text-muted-foreground">
+
+      <div className="mt-8 rounded-2xl border border-border bg-card p-5 text-left">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          What to do next
+        </p>
+        <ul className="mt-4 space-y-3">
+          <li className="flex items-start gap-3 text-sm text-foreground">
+            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[0.625rem] font-semibold text-muted-foreground">1</span>
+            <span>Share your profile link with an agency or coordinator who uses Tulala so they can add you to their roster.</span>
+          </li>
+          <li className="flex items-start gap-3 text-sm text-foreground">
+            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[0.625rem] font-semibold text-muted-foreground">2</span>
+            <span>Once added, your availability, inquiries, and bookings will appear here automatically.</span>
+          </li>
+          <li className="flex items-start gap-3 text-sm text-foreground">
+            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[0.625rem] font-semibold text-muted-foreground">3</span>
+            <span>Check your inbox — if an agency already invited you, there&apos;s a confirmation email waiting.</span>
+          </li>
+        </ul>
+      </div>
+
+      <p className="mt-8 text-xs text-muted-foreground">
         Signed in as <span className="font-medium">{session.user.email}</span>.{" "}
-        <Link href="/" className="underline">
+        <Link href="/" className="underline underline-offset-4">
           Back home
         </Link>
-        .
       </p>
     </div>
   );

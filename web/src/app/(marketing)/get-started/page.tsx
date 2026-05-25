@@ -204,7 +204,7 @@ function HeroSection({
             >
               Already have an account?{" "}
               <Link
-                href="/waitlist?intent=signin"
+                href="/login"
                 className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                 style={{ color: "var(--plt-ink)" }}
               >

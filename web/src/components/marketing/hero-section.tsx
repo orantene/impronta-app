@@ -54,6 +54,20 @@ export function HeroSection() {
               </MarketingCta>
             </div>
 
+            <p
+              className="mkt-rise mkt-rise-delay-4 mt-5 text-[0.8125rem]"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              Are you talent?{" "}
+              <a
+                href="/talent/register"
+                className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+                style={{ color: "var(--plt-ink-soft)" }}
+              >
+                Join the platform here
+              </a>
+            </p>
+
             <ul
               className="mkt-rise mkt-rise-delay-4 mt-9 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.8125rem]"
               style={{ color: "var(--plt-muted)" }}
