@@ -138,18 +138,16 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
   }
 });
 
-test("canonical talent surface: /t/* allowed on agency + app, 404 on hub + marketing", () => {
-  // Phase 5/6 M2 — /t/[profileCode] is the canonical public talent page.
-  // It renders on the app host (global canonical) and agency hosts (overlay
-  // view). Hub and marketing hosts must 404 it — the hub has its own
-  // approved-hub-directory surface, not /t, and marketing never serves
-  // tenant data.
+test("canonical talent surface: /t/* allowed on agency + app + marketing + hub", () => {
+  // Phase 2.1 — Tulala hosts (app + marketing) serve platform talent profiles at
+  // /t/<code>; agency hosts keep the agency-skinned overlay; hub allows the same
+  // canonical path on tulala.digital.
   const codes = ["/t/jane-doe", "/t/t_abc123", "/t/some-code/"];
   for (const p of codes) {
     assert.equal(isPathAllowedForHostKind("app", p), true, `app should allow ${p}`);
     assert.equal(isPathAllowedForHostKind("agency", p), true, `agency should allow ${p}`);
-    assert.equal(isPathAllowedForHostKind("hub", p), false, `hub must 404 ${p}`);
-    assert.equal(isPathAllowedForHostKind("marketing", p), false, `marketing must 404 ${p}`);
+    assert.equal(isPathAllowedForHostKind("hub", p), true, `hub should allow ${p}`);
+    assert.equal(isPathAllowedForHostKind("marketing", p), true, `marketing should allow ${p}`);
   }
   // Prefix-boundary: /talent (workspace) is NOT /t (canonical).
   assert.equal(isPathAllowedForHostKind("app", "/talent"), true);
@@ -182,7 +180,6 @@ test("hub host: auth + workspace slug paths + shared routes allowed", () => {
 
   const blocked = [
     "/directory",
-    "/t/jane-doe",
     "/admin",
     "/client",
     "/talent",
@@ -255,6 +252,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/robots.txt",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
+    "/t/jane-doe",
     "/get-started",
     "/operators",
     "/agencies",
@@ -278,7 +276,6 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
 
   const blocked = [
     "/directory",
-    "/t/jane-doe",
     "/admin",
     "/client",
     "/talent",

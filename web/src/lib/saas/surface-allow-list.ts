@@ -13,7 +13,7 @@
  *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |     ✓      |       ✓        |    ✓    |           |       ✓
  *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |           |       ✓
  *   hub        |  ✓   |   ✓    |      ✓       |  ✓   | path-slug  |  slugs ✓   |                |         |           |
- *   marketing  |  ✓   |   ✓    |      ✓       |      | path-slug  |            |                |         |    ✓      |
+ *   marketing  |  ✓   |   ✓    |      ✓       |      | path-slug  |            |                |         |    ✓      |       ✓
  *
  *   static        → `/sitemap.xml`, `/robots.txt` (handlers generate their
  *                   own host-appropriate output)
@@ -164,10 +164,9 @@ const APP_API_EXACT_PATHS = [
 ] as const;
 
 /**
- * Canonical public talent surface (`/t/[profileCode]`). Lives on the app host
- * as the global canonical view (Phase 5/6 M2) and on agency hosts as the
- * agency-overlay view. Hub and marketing hosts 404 it — talent pages on the
- * hub belong to the approved-hub-directory surface, not `/t`.
+ * Canonical public talent surface (`/t/[profileCode]`). Agency hosts render the
+ * agency-skinned roster view; app + marketing Tulala hosts render the platform
+ * profile (Max snapshot when published). Hub also allows `/t` for tulala.digital.
  */
 const CANONICAL_TALENT_PREFIX = "/t" as const;
 
