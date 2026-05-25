@@ -1,3 +1,3 @@
 "use client";
 
-export { TalentMySitePage as PublicPageEditor } from "@/components/talent-dashboard/my-site-page";
+export { TalentSiteDashboardRedirect as PublicPageEditor } from "@/components/talent/site/TalentSiteDashboardRedirect";

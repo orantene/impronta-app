@@ -226,6 +226,8 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // /<tenant>/talent/site — Talent Max personal site dashboard (Phase 2).
+  (s) => s[0] === "talent" && s[1] === "site",
   // /<tenant>/admin/roster/** — Phase 2.2: the entire Roster surface is
   // now canonical. List (no id segment) is the new server-rendered grid;
   // [id] edit page + [id]/commission (A8) + /new were already real pages
