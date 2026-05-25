@@ -239,6 +239,12 @@ export function resolvePostAuthDestination(
     if (safeNext !== "/" && isWorkspaceOnboardingPath(safeNext)) {
       return stripDefaultLocalePrefixFromPath(safeNext);
     }
+    // Talent register flow: allow direct jump to profile completion,
+    // bypassing the role-selection page (the user already chose "I'm Talent"
+    // when they navigated to /talent/register).
+    if (safeNext === "/onboarding/talent-location") {
+      return safeNext;
+    }
     if (safeNext !== "/" && isOnboardingNextAllowed(safeNext)) {
       const next = stripDefaultLocalePrefixFromPath(safeNext);
       return `/onboarding/role?next=${encodeURIComponent(next)}`;

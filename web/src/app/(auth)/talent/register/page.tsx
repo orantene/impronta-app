@@ -28,7 +28,7 @@ export default async function TalentRegisterPage({
   const defaultNext =
     hostCtx.kind === "agency" && hostCtx.tenantSlug
       ? `/${hostCtx.tenantSlug}/talent`
-      : "/talent";
+      : "/onboarding/talent-location";
 
   // Honour an explicit ?next= override only if it is a valid internal path.
   const nextPath = normalizeOptionalNextPath(next) ?? defaultNext;

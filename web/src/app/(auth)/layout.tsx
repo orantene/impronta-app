@@ -54,7 +54,7 @@ export default async function AuthLayout({
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-background">
+    <div className="site-theme-platform flex min-h-full flex-1 flex-col bg-background">
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
         <Link
           href="/"

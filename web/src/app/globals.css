@@ -175,6 +175,41 @@ html[data-public-font-preset="editorial"] {
     --ring: #b3891d;
   }
 
+  /* Platform surface (auth, onboarding, platform admin routes) — Tulala
+   * forest / parchment palette. Not Impronta noir, not the warm-gold
+   * agency light. Applied by the (auth) and onboarding layout wrappers
+   * so they paint correctly regardless of the body site-theme class. */
+  .site-theme-platform {
+    --impronta-black: #f1ede3;
+    --impronta-surface: #fffdf7;
+    --impronta-gold: #1f4a3a;
+    --impronta-gold-bright: #2d6b52;
+    --impronta-gold-dim: #4a7a66;
+    --impronta-gold-border: rgba(31, 74, 58, 0.15);
+    --impronta-foreground: #0f1714;
+    --impronta-muted: #6b766f;
+    --background: #f1ede3;
+    --foreground: #0f1714;
+    --card: #fffdf7;
+    --card-foreground: #0f1714;
+    --popover: #fffdf7;
+    --popover-foreground: #0f1714;
+    --primary: #1f4a3a;
+    --primary-foreground: #fffdf7;
+    --secondary: #e8e3d8;
+    --secondary-foreground: #0f1714;
+    --muted: #e8e3d8;
+    --muted-foreground: #6b766f;
+    --accent: rgba(31, 74, 58, 0.08);
+    --accent-foreground: #0f1714;
+    --destructive: #b42318;
+    --destructive-foreground: #fff5f5;
+    --border: rgba(15, 23, 20, 0.08);
+    --input: rgba(15, 23, 20, 0.08);
+    --ring: #1f4a3a;
+    --radius: 0.75rem;
+  }
+
   /* Dashboard shells (admin, client, talent) — monochrome neutral.
    * Gold belongs on the tenant-facing storefront. Token names kept for
    * backward compatibility with 100+ callsites that read --impronta-gold.
