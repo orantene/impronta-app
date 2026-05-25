@@ -258,7 +258,7 @@ export type PathBasedTenantPublicPath = {
   pathnameWithoutTenant: string;
 };
 
-function isTenantSlugCandidate(segment: string | undefined): segment is string {
+export function isTenantSlugCandidate(segment: string | undefined): segment is string {
   if (!segment) return false;
   if (PATH_BASED_TENANT_RESERVED_PREFIXES.has(segment)) return false;
   return /^[a-z0-9][a-z0-9-]{1,62}$/.test(segment);

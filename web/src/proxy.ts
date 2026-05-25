@@ -38,6 +38,7 @@ import {
   isPathAllowedForHostKind,
   resolvePathBasedTenantPublicPath,
 } from "@/lib/saas/surface-allow-list";
+import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import {
   loadTenantLocaleSettings,
   type TenantLocaleSettings,
@@ -430,6 +431,16 @@ export async function proxy(request: NextRequest) {
   }
 
   const originalPathname = request.nextUrl.pathname;
+
+  // Phase 2.1 — legacy /{tenantSlug}/talent/* → platform /talent/* (HTTP redirect).
+  if (request.method === "GET" || request.method === "HEAD") {
+    const legacyTalentTarget = resolveLegacyTalentPlatformPath(originalPathname);
+    if (legacyTalentTarget) {
+      const url = request.nextUrl.clone();
+      url.pathname = legacyTalentTarget;
+      return NextResponse.redirect(url, 308);
+    }
+  }
 
   if (isNonDefaultLocalePrefixedPath(originalPathname, effectiveLangSettings)) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);
