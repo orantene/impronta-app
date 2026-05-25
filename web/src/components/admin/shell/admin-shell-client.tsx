@@ -56,7 +56,6 @@ import { AdminTour } from "./internal/admin-tour";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./internal/pages";
 import { DrawerRoot, UpgradeModal } from "./internal/drawers";
 import { CommandPalette } from "./internal/palette";
-import { MOCK_CONVERSATIONS } from "./internal/talent";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
@@ -77,18 +76,26 @@ function ToastBridge() {
 /**
  * Browser tab title reflects total unread count. e.g. "(3) Tulala" so
  * the talent sees at a glance from another tab that something needs
- * them. Reads talent-surface MOCK_CONVERSATIONS for the count.
+ * them. Uses bridge unread counts when live data is wired.
  */
 function TabTitleBridge() {
+  const { state, bridgeTalentUnread, totalUnread } = useAdminShell();
+
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const unread = MOCK_CONVERSATIONS.reduce((s, c) => s + (c.unreadCount || 0), 0);
+    const unread =
+      state.surface === "talent"
+        ? (bridgeTalentUnread ?? 0)
+        : state.surface === "workspace"
+          ? totalUnread
+          : 0;
     const base = "Tulala";
     document.title = unread > 0 ? `(${unread}) ${base}` : base;
     return () => {
       document.title = base;
     };
-  }, []);
+  }, [state.surface, bridgeTalentUnread, totalUnread]);
+
   return null;
 }
 

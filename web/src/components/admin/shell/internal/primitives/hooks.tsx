@@ -46,9 +46,10 @@ function classifyViewport(): Viewport {
 }
 
 export function useViewport(): Viewport {
-  // useState lazy initializer reads matchMedia on first client render.
-  // Returns "desktop" during SSR — see file header comment.
-  const [vp, setVp] = useState<Viewport>(() => classifyViewport());
+  // Keep the first client render aligned with SSR ("desktop"). Refine after
+  // mount — a lazy initializer that calls matchMedia on first paint causes
+  // hydration mismatches whenever the real viewport is not desktop-wide.
+  const [vp, setVp] = useState<Viewport>("desktop");
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     let timer: number | null = null;
@@ -59,12 +60,9 @@ export function useViewport(): Viewport {
         timer = null;
       }, 80);
     };
-    // Listen on every breakpoint query — any of them flipping
-    // means we need to re-classify.
+    onChange();
     const mqls = VIEWPORT_QUERIES.map(({ query }) => window.matchMedia(query));
     mqls.forEach((mql) => mql.addEventListener("change", onChange));
-    // Reconcile once on mount in case state was stale.
-    onChange();
     return () => {
       if (timer !== null) window.clearTimeout(timer);
       mqls.forEach((mql) => mql.removeEventListener("change", onChange));
