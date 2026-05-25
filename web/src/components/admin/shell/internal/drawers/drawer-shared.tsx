@@ -654,6 +654,16 @@ function TabBtn({ label, count, active, onClick }: { id: CategoryTabId; label: s
   );
 }
 
+function reorderIds(ids: readonly string[], fromId: string, toId: string): string[] {
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (from < 0 || to < 0 || from === to) return [...ids];
+  const next = [...ids];
+  const [picked] = next.splice(from, 1);
+  next.splice(to, 0, picked);
+  return next;
+}
+
 export function CategoryExpandPanel({
   parent,
   detail,
@@ -668,6 +678,7 @@ export function CategoryExpandPanel({
   onAddingChange,
   onNewSubName,
   onAddCustom,
+  onReorderSubtypes,
 }: {
   parent: TaxonomyNode;
   detail: CategoryDetail | null;
@@ -682,7 +693,9 @@ export function CategoryExpandPanel({
   onAddingChange: (adding: boolean) => void;
   onNewSubName: (name: string) => void;
   onAddCustom: () => void;
+  onReorderSubtypes: (parentId: string, orderedSubTypeIds: string[]) => void;
 }) {
+  const [draggingSubId, setDraggingSubId] = useState<string | null>(null);
   const subtypeCount =
     parent.children.length +
     (detail
@@ -719,15 +732,40 @@ export function CategoryExpandPanel({
             const groupRow = detail?.groups.find((g) => g.group.id === sub.id);
             const ttList = groupRow?.talentTypes ?? [];
             return (
-              <div key={sub.id} style={{
-                marginBottom: 8, borderRadius: 8, background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden",
-                fontFamily: FONTS.body,
-              }}>
+              <div
+                key={sub.id}
+                draggable
+                onDragStart={() => setDraggingSubId(sub.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => {
+                  if (!draggingSubId || draggingSubId === sub.id) return;
+                  const ordered = reorderIds(
+                    parent.children.map((child) => child.id),
+                    draggingSubId,
+                    sub.id,
+                  );
+                  onReorderSubtypes(parent.id, ordered);
+                  setDraggingSubId(null);
+                }}
+                onDragEnd={() => setDraggingSubId(null)}
+                style={{
+                  marginBottom: 8, borderRadius: 8, background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden",
+                  fontFamily: FONTS.body,
+                  cursor: "grab",
+                }}
+              >
                 <div style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "8px 10px",
                 }}>
+                  <span
+                    aria-hidden
+                    title="Drag to reorder sub-types"
+                    className="select-none text-admin-ink-dim text-admin-11 font-bold"
+                  >
+                    ⋮⋮
+                  </span>
                   <div className="flex-1">
                     <div className="text-admin-ink text-admin-12h font-semibold">
                       {sub.custom_label ?? sub.name_en}
@@ -1100,6 +1138,59 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     toast("Category order saved");
   };
 
+  const persistSubTypeOrder = async (
+    parentId: string,
+    orderedSubTypeIds: string[],
+    previousTree: TaxonomyNode[],
+  ) => {
+    const savingKey = `taxonomy-order:${parentId}`;
+    markSaving(savingKey, true);
+    for (let index = 0; index < orderedSubTypeIds.length; index += 1) {
+      const taxonomyTermId = orderedSubTypeIds[index]!;
+      const displayOrder = (index + 1) * 10;
+      const res = await setTaxonomyFlags({
+        taxonomy_term_id: taxonomyTermId,
+        display_order: displayOrder,
+      });
+      if (!res.ok) {
+        setTree(previousTree);
+        markSaving(savingKey, false);
+        toast(res.error || "Couldn't save sub-type order");
+        return;
+      }
+    }
+    markSaving(savingKey, false);
+    toast("Sub-type order saved");
+  };
+
+  const reorderParentSubTypes = (parentId: string, orderedSubTypeIds: string[]) => {
+    if (!tree || orderedSubTypeIds.length < 2) return;
+    const previousTree = tree;
+    const orderMap = new Map(
+      orderedSubTypeIds.map((id, index) => [id, (index + 1) * 10] as const),
+    );
+    setTree((current) =>
+      current?.map((node) =>
+        node.id === parentId
+          ? {
+              ...node,
+              children: node.children
+                .map((child) => ({
+                  ...child,
+                  display_order: orderMap.get(child.id) ?? child.display_order,
+                }))
+                .sort(
+                  (a, b) =>
+                    a.display_order - b.display_order ||
+                    a.name_en.localeCompare(b.name_en),
+                ),
+            }
+          : node,
+      ) ?? current,
+    );
+    void persistSubTypeOrder(parentId, orderedSubTypeIds, previousTree);
+  };
+
   const dropRootCategory = (target: TaxonomyNode) => {
     if (!draggingTaxonomyId || draggingTaxonomyId === target.id || !tree) return;
     const previousTree = tree;
@@ -1276,6 +1367,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       onAddingChange={(adding) => setAddingForParent(adding ? parent.id : null)}
                       onNewSubName={setNewSubName}
                       onAddCustom={() => handleAddCustom(parent)}
+                      onReorderSubtypes={reorderParentSubTypes}
                     />
                   )}
                 </div>
