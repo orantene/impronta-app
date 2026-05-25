@@ -10,6 +10,7 @@ import { CalendarDayView, CalendarMonthGrid, CalendarWeekView, parseDateForCalMo
 import { CalendarEventRow, ConflictBanner, FilterChipStrip, computePayoutSpeed, parseMayDay } from "../shared/calendar-2";
 import { useTalentConversations } from "../shared/conversation-adapter-1";
 import { PageHeader } from "../shared/page-chrome-1";
+import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 
 
 
@@ -380,6 +381,8 @@ export function CalendarPage() {
           </>
         }
       />
+
+      <TalentAgencyFilterChips />
 
       {/* Conflict alert — coral banner when overlaps exist. Renders one
           line per conflict pair with three resolution actions so the

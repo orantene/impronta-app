@@ -12,7 +12,7 @@ Append-only. Newest entries at the **top**.
 
 **L43 — Talent earnings source.** Talent Money reads `talent_bookings` joined to `booking_commission_snapshot.talent_net_cents`. Realized commission rates derive from snapshot lanes (not a per-roster column). Mock `EARNINGS_ROWS` fixture is deprecated. Admin Business Financials (agency `workspace_fee_cents` lane) is a **separate surface** — never merged with `/talent/money`.
 
-**Status:** shipped (Phase A lock).
+**Status:** shipped (2026-05-25, Phases A–F).
 
 ---
 

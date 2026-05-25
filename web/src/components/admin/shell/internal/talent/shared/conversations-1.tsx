@@ -69,6 +69,8 @@ export type Conversation = {
   brief: string;
   stage: MsgStage;
   agency: string;
+  /** Agency slug when loaded from cross-agency bridge. */
+  agencySlug?: string;
   leader: { name: string; role: string; initials: string };
   /** Crew + other talents on this shoot. Surfaced on-demand via a
    *  thread-header chip; not forced into the always-visible UI. */

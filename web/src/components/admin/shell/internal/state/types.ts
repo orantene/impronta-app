@@ -56,8 +56,9 @@ export type TalentPage =
   | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
   | "activity"      // Legacy — kept for URL compat; nav routes to settings tab
-  | "reach"         // Legacy — kept for URL compat; nav routes to agencies
-  | "agencies"      // WS-8.2: split from reach
+  | "reach"         // Legacy — kept for URL compat; nav routes to money
+  | "agencies"      // Legacy — kept for URL compat; nav routes to money
+  | "money"         // Phase E — earnings + agency relationships
   | "public-page"   // WS-8.2: split from reach (personal page editor)
   | "settings";
 

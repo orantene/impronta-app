@@ -1335,6 +1335,8 @@ export function TalentAgencySwitcherDrawer() {
   const { state, closeDrawer, openDrawer, tenantSlug, bridgeTalentAgencies } = useAdminShell();
   const open = state.drawer.drawerId === "talent-agency-switcher";
 
+  if (!state.alsoTalent) return null;
+
   const agencies = bridgeTalentAgencies ?? [];
   const primary = agencies.filter(a => a.isPrimary);
   const others  = agencies.filter(a => !a.isPrimary);

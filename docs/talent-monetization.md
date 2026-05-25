@@ -533,6 +533,10 @@ Smaller decisions still pending; not blockers for any current work.
 - Pricing decisions (placeholder values throughout this doc)
 - Resolution of the 8 open questions in §14
 
+### Talent Money surface (shipped 2026-05-25)
+
+Pure talent earnings live at **`/talent/money`** on the Tulala platform app host. The page reads **`booking_commission_snapshot.talent_net_cents`** via `web/src/lib/talent/earnings.ts` and the shared helper `web/src/lib/billing/snapshot-aggregations.ts`. This is the talent's *personal* lane (what I earned). Workspace **Business Financials** — agency `workspace_fee_cents`, payouts owed, platform settlement — remains a separate admin surface and must not be merged into the talent dashboard.
+
 ---
 
 ## 16. Page-builder integration

@@ -7,10 +7,11 @@ import { TULALA_BRAND } from "@/lib/brand/tulala";
 import {
   loadTalentSelfProfile,
   loadTalentSelfProfileByUser,
-  loadTalentInquiries,
+  loadTalentInquiriesAllAgencies,
   loadTalentAgencies,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
+import { loadTalentEarnings } from "@/lib/talent/earnings";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -33,8 +34,10 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   messages: "messages",
   profile: "profile",
   calendar: "calendar",
-  agencies: "agencies",
-  reach: "agencies",
+  money: "money",
+  agencies: "money",
+  activity: "money",
+  reach: "money",
   site: "public-page",
   "public-page": "public-page",
   settings: "settings",
@@ -103,8 +106,9 @@ export default async function PlatformTalentLayout({
     tenantIdentity,
     profileDisplayName,
     talentCalendarEntries,
+    talentEarnings,
   ] = await Promise.all([
-    tenantId ? loadTalentInquiries(talentSelfProfile.id, tenantId) : Promise.resolve([]),
+    loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
     tenantId ? findTenantMembership(tenantId) : Promise.resolve(null),
     tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0),
@@ -112,6 +116,7 @@ export default async function PlatformTalentLayout({
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
     loadProfileDisplayName(session.user.id),
     loadTalentCalendarEntries(talentSelfProfile.id),
+    loadTalentEarnings(talentSelfProfile.id),
   ]);
 
   const isHybrid = membership != null;
@@ -151,9 +156,10 @@ export default async function PlatformTalentLayout({
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
         talentCalendarEntries,
+        talentEarnings,
       }}
     >
-      {agencyOptions.length > 1 ? (
+      {isHybrid && agencyOptions.length > 1 ? (
         <div
           style={{
             padding: "8px 16px 0",

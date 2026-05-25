@@ -3,7 +3,6 @@
 import { useRef, type ReactNode } from "react";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TALENT_TIER_META, TRANSITION, useAdminShell } from "./state";
-import { AgenciesPage } from "./talent/pages/AgenciesPage";
 import { CalendarPage } from "./talent/pages/CalendarPage";
 import { InboxPage } from "./talent/pages/InboxPage";
 import { MyProfilePage } from "./talent/pages/MyProfilePage";
@@ -12,6 +11,7 @@ import { SettingsPage } from "./talent/pages/SettingsPage";
 import { TalentTodayPage } from "./talent/pages/TodayPage";
 import { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 import { PageHeader } from "./talent/shared/page-chrome-1";
+import { MoneyPage } from "@/components/talent/money/MoneyPage";
 
 // ── Re-export barrel: public API preserved for external importers ──
 export { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
@@ -276,16 +276,19 @@ function TalentRouter() {
       page = <CalendarPage />;
       break;
     case "activity":
-      // WS-8.1 — activity removed from primary nav; legacy URL alias → settings
-      page = <SettingsPage />;
+      // Legacy URL alias → money (earnings absorbed into Money page)
+      page = <MoneyPage />;
       break;
     case "reach":
-      // WS-8.2 — reach split; legacy URL alias → agencies
-      page = <AgenciesPage />;
+      // Legacy URL alias → money
+      page = <MoneyPage />;
       break;
     case "agencies":
-      // WS-8.2 — new canonical page
-      page = <AgenciesPage />;
+      // Legacy URL alias → money
+      page = <MoneyPage />;
+      break;
+    case "money":
+      page = <MoneyPage />;
       break;
     case "public-page":
       // WS-8.2 — new canonical page

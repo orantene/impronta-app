@@ -83,6 +83,32 @@ test.describe("Talent platform IA — QA audit talent", () => {
     await expect(page).toHaveURL(/\/talent\/inbox/, { timeout: 60_000 });
     expect(page.url()).not.toMatch(/\/impronta\/talent/);
   });
+
+  test("pure talent does not see Agency context switcher on /talent/site", async ({ page }) => {
+    await expect(page.getByRole("combobox", { name: /agency context/i })).toHaveCount(0);
+    await expect(page.getByText(/Agency context/i)).toHaveCount(0);
+  });
+
+  test("/talent/money renders Money page with agency cards", async ({ page }) => {
+    await page.goto("/talent/money");
+    await expect(page).toHaveURL(/\/talent\/money/);
+    await expect(page.getByRole("heading", { name: "Money" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Impronta/i).first()).toBeVisible();
+  });
+
+  test("/talent/agencies redirects to /talent/money", async ({ request }) => {
+    const head = await request.fetch("/talent/agencies", { maxRedirects: 0 });
+    expect(head.status()).toBe(308);
+    expect(head.headers().location ?? "").toMatch(/\/talent\/money/);
+  });
+
+  test("unified inbox shows agency filter chips on /talent/inbox", async ({ page }) => {
+    await page.goto("/talent/inbox");
+    await expect(page.locator("[data-tulala-talent-agency-filter]")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByRole("button", { name: "All" })).toBeVisible();
+  });
 });
 
 test.describe("Talent platform IA — Tulum talent (second account)", () => {

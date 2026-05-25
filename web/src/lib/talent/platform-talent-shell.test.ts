@@ -14,3 +14,8 @@ test("platform talent layout uses profile-by-user and optional agency context", 
   assert.match(LAYOUT, /platformTalentRoutes/);
   assert.match(LAYOUT, /login\?next=\/talent\/today/);
 });
+
+test("platform talent layout hides agency switcher unless hybrid", () => {
+  assert.match(LAYOUT, /isHybrid && agencyOptions\.length > 1/);
+  assert.doesNotMatch(LAYOUT, /\{agencyOptions\.length > 1 \?/);
+});

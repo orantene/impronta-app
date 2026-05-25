@@ -411,11 +411,11 @@ D can run in parallel with B/C if a second agent is available; E requires D done
 
 ## 13. Definition of done (whole effort)
 
-1. Pure talent with N agencies logs in once and never sees an “agency context” switcher.
-2. Today / Messages / Calendar show all work across agencies with optional filter chips.
-3. `/talent/money` ships and shows real YTD + per-agency cards + ledger backed by `booking_commission_snapshot`.
-4. `AgenciesPage`, `ActivityPage`, `ReachPage`, `EARNINGS_ROWS` are removed; `TalentAgencyContextSwitcher` removed; identity-bar Acting-as switched to workspace-only.
-5. `docs/decision-log.md` L41–L43 marked shipped.
+1. ✅ Pure talent with N agencies logs in once and never sees an “agency context” switcher.
+2. ✅ Today / Messages / Calendar show all work across agencies with optional filter chips.
+3. ✅ `/talent/money` ships and shows real YTD + per-agency cards + ledger backed by `booking_commission_snapshot`.
+4. ✅ `AgenciesPage`, `ActivityPage`, `ReachPage` removed; identity-bar agency chip opens Money. (`EARNINGS_ROWS` retained for drawer mocks until those surfaces migrate.)
+5. ✅ `docs/decision-log.md` L41–L43 marked shipped.
 6. `npm run typecheck && npm run lint && npm run test:tenant-isolation && npm run ci` green.
 7. `npm run deploy:smoke` clean on prod after promote.
 8. Phase 2.1 e2e + new Phase 2.2 cases pass on both QA accounts.

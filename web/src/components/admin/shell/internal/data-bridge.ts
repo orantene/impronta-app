@@ -23,6 +23,7 @@ export {
   // Phase 3.12.2 — talent self-surface loaders
   loadTalentSelfProfile,
   loadTalentInquiries,
+  loadTalentInquiriesAllAgencies,
   loadTalentAgencies,
   // B.2 — user notifications backend
   loadUserNotifications,
@@ -51,6 +52,7 @@ export type {
   // Phase 3.12.2 — talent self-surface types
   TalentSelfProfile,
   TalentInquiryRow,
+  TalentInquiryAllAgenciesRow,
   TalentAgencyRow,
   // B.2 — user notifications backend
   UserNotification,
@@ -161,6 +163,8 @@ export type BridgeData = {
   userNotifications?: UserNotification[] | null;
   /** B.3 — talent calendar entries (bookings + holds + blocks). null = mock mode. */
   talentCalendarEntries?: TalentCalendarEntry[] | null;
+  /** Phase D — talent earnings aggregated from commission snapshots. null = mock mode. */
+  talentEarnings?: import("@/lib/talent/earnings-types").TalentEarnings | null;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**
@@ -175,7 +179,7 @@ export type BridgeData = {
    */
   talentInquiries?: TalentInquiryRow[] | null;
   /**
-   * The talent's agency relationships — feeds the /talent/agencies page
+   * The talent's agency relationships — feeds the /talent/money page
    * and the talent identity bar's "Acting as <agency>" chip. `null` means
    * the layout didn't load this (e.g. workspace-only path) and the page
    * should fall back to MY_AGENCIES mocks in standalone prototype mode.

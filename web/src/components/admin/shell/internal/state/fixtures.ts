@@ -55,7 +55,7 @@ export const TALENT_PAGES: TalentPage[] = [
   "public-page",
   "profile",
   "calendar",
-  "agencies",
+  "money",
   "settings",
 ];
 // Messages replaces Inquiries as the canonical chat-first surface for
@@ -275,9 +275,10 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   profile:     { label: "Profile" },
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },
-  activity:    { label: "Activity" },      // legacy — redirects to settings
-  reach:       { label: "Reach" },         // legacy — redirects to agencies
-  agencies:    { label: "Agencies" },      // WS-8.2
+  activity:    { label: "Activity" },      // legacy — redirects to money
+  reach:       { label: "Reach" },         // legacy — redirects to money
+  agencies:    { label: "Agencies" },      // legacy — redirects to money
+  money:       { label: "Money" },
   "public-page": { label: "My pages" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };

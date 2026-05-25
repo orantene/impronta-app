@@ -144,10 +144,16 @@ export async function getFieldPrivacyCatalog(): Promise<
   }
 
   const ovByField = new Map(
-    (ovR.data ?? []).map((o) => [o.field_definition_id as string, o]),
+    ((ovR.data ?? []) as Array<{ field_definition_id: string }>).map((o) => [
+      o.field_definition_id,
+      o,
+    ]),
   );
   const groupOvByGroup = new Map(
-    (groupOvR.data ?? []).map((o) => [o.field_group_id as string, o]),
+    ((groupOvR.data ?? []) as Array<{ field_group_id: string }>).map((o) => [
+      o.field_group_id,
+      o,
+    ]),
   );
 
   const fields: FieldPrivacyEntry[] = (defsR.data ?? []).map((d) => {
@@ -485,10 +491,16 @@ export async function getWorkspaceFieldCatalog(): Promise<
   }
 
   const fOv = new Map(
-    (fOvR.data ?? []).map((o) => [o.field_definition_id as string, o]),
+    ((fOvR.data ?? []) as Array<{ field_definition_id: string }>).map((o) => [
+      o.field_definition_id,
+      o,
+    ]),
   );
   const gOv = new Map(
-    (gOvR.data ?? []).map((o) => [o.field_group_id as string, o]),
+    ((gOvR.data ?? []) as Array<{ field_group_id: string }>).map((o) => [
+      o.field_group_id,
+      o,
+    ]),
   );
 
   const fields: FieldCatalogField[] = (defsR.data ?? []).map((d) => {

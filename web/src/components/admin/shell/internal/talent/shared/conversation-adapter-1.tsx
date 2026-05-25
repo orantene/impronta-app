@@ -8,6 +8,7 @@ import { COLORS, FONTS, INQUIRY_STAGE_META, MY_TALENT_PROFILE, useAdminShell, ty
 import { MOCK_CONVERSATIONS, type Conversation, type MsgStage } from "./conversations-1";
 import { myStatusOn, unreadOnInquiry } from "./inquiry-bridge-1";
 import { TALENT_INQUIRY_TO_CONV } from "./today-1";
+import { matchesAgencyFilter, useTalentAgencyFilter } from "./use-talent-agency-filter";
 
 
 
@@ -22,7 +23,13 @@ import { TALENT_INQUIRY_TO_CONV } from "./today-1";
 // is empty (no real data / mock-mode session) return MOCK_CONVERSATIONS.
 // ════════════════════════════════════════════════════════════════════
 
-function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversation {
+type InquiryBridgeRow = TalentInquiryRow & {
+  agencySlug?: string;
+  agencyName?: string | null;
+};
+
+function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): Conversation {
+  const agencyName = row.agencyName?.trim() || fallbackAgencyName;
   const clientName = row.company ?? row.contact_name;
   const brief = row.message?.trim() || (row.company ? `${row.company} inquiry` : "Direct inquiry");
   const stage: MsgStage =
@@ -49,6 +56,7 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
     brief,
     stage,
     agency:        agencyName,
+    agencySlug:    row.agencySlug,
     leader: {
       name:     agencyName,
       role:     "Coordinator",
@@ -76,20 +84,24 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
  */
 export function useTalentConversations(): Conversation[] {
   const { effectiveTalentInquiries, bridgeTalentSelfProfile } = useAdminShell();
+  const { filter } = useTalentAgencyFilter();
   return useMemo(() => {
     // Bridge-mode: a real talent profile is in scope. Return adapted
     // bridge data — even if it's empty (a freshly-provisioned talent
     // genuinely has zero conversations and should see an empty inbox,
     // not Marta's lookbook chatter).
     if (bridgeTalentSelfProfile) {
-      const agencyName = bridgeTalentSelfProfile.agencyName ?? "Agency";
-      return effectiveTalentInquiries.map((r) => adaptTalentInquiry(r, agencyName));
+      const fallbackAgency = bridgeTalentSelfProfile.agencyName ?? "Agency";
+      const rows = effectiveTalentInquiries.filter((r) =>
+        matchesAgencyFilter(filter, (r as InquiryBridgeRow).agencySlug),
+      );
+      return rows.map((r) => adaptTalentInquiry(r as InquiryBridgeRow, fallbackAgency));
     }
     // Standalone prototype / design-QA mode (no bridge identity at all).
     // Fall back to the demo conversation set so the prototype demo still
     // looks lively when explored without a logged-in user.
     return MOCK_CONVERSATIONS;
-  }, [effectiveTalentInquiries, bridgeTalentSelfProfile]);
+  }, [effectiveTalentInquiries, bridgeTalentSelfProfile, filter]);
 }
 
 

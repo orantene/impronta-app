@@ -12,6 +12,7 @@ import { FirstSessionChecklist, ProfileCompletenessBanner } from "../shared/toda
 import { SectionHeader, TalentTodayHero } from "../shared/today-2";
 import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
+import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 
 
 
@@ -190,6 +191,8 @@ export function TalentTodayPage() {
         }
       `}</style>
 
+      <TalentAgencyFilterChips />
+
       {/* Fresh-talent onboarding banner — only for talents who were just
           provisioned via "Create your talent page" (bridge has their
           profile but the prototype mock index doesn't). Renders ABOVE
@@ -273,7 +276,7 @@ export function TalentTodayPage() {
           payoutSet={false}
           onProfile={() => openSection("identity")}
           onPolaroids={() => openSection("polaroids")}
-          onReach={() => setTalentPage("agencies")}
+          onReach={() => setTalentPage("money")}
           onPayouts={() => openDrawer("talent-payouts")}
           onDismiss={() => setFirstSessionDismissed(true)}
         />

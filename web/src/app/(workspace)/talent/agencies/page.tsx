@@ -1,7 +1,7 @@
-import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
+import { permanentRedirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default function PlatformTalentAgenciesPage() {
-  return <TalentPageRouteSyncer page="agencies" />;
+  permanentRedirect("/talent/money");
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { COLORS, FONTS } from "../state";
 import { Avatar } from "../primitives";
 import { useTalentConversations, type Conversation } from "../talent";
+import { TalentAgencyFilterChips } from "../talent/shared/TalentAgencyFilterChips";
 import { AdminInquiryRow } from "./AdminOperationsShell";
 import { EmptyDetail } from "./client-1";
 import { consumePendingConversation, isLocallySeen, isManualUnread, markConvSeen, sortPinnedFirst, useFlagsSubscription, useSeenSubscription } from "./conversation-stash";
@@ -88,6 +89,7 @@ export function TalentJobShell() {
 
   return (
     <>
+      <TalentAgencyFilterChips />
       {/* Page header removed — inbox header inside the shell already
           says "My jobs · count", so this row was a duplicate. */}
       <div

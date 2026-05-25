@@ -8,25 +8,25 @@ overview: |
 todos:
   - id: setup-verify-baseline
     content: "Pre-flight: git clean except this phase; typecheck passes; read master plan §0–§2."
-    status: pending
+    status: completed
   - id: phase-a-decisions
     content: "Phase A — Lock L41–L43 in decision-log. Agent: read _preamble.md + phase-a.md + master plan §4."
-    status: pending
+    status: completed
   - id: phase-b-switcher
     content: "Phase B — Hide agency switcher for pure talent; fix identity bar. Agent: read _preamble.md + phase-b.md + master plan §5."
-    status: pending
+    status: completed
   - id: phase-c-unified-inbox
     content: "Phase C — loadTalentInquiriesAllAgencies + filter chips. Agent: read _preamble.md + phase-c.md + master plan §6."
-    status: pending
+    status: completed
   - id: phase-d-earnings
     content: "Phase D — loadTalentEarnings from booking_commission_snapshot. Agent: read _preamble.md + phase-d.md + master plan §7."
-    status: pending
+    status: completed
   - id: phase-e-money-page
     content: "Phase E — /talent/money replaces Agencies. Agent: read _preamble.md + phase-e.md + master plan §8."
-    status: pending
+    status: completed
   - id: phase-f-retire-smoke
     content: "Phase F — Delete dead surfaces; npm run ci; smoke if approved. Agent: read _preamble.md + phase-f.md + master plan §9."
-    status: pending
+    status: completed
 isProject: false
 ---
 

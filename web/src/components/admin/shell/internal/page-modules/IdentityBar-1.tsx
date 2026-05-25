@@ -21,10 +21,13 @@ export function TulalaIdentityBar() {
     flipMode,
     toast,
     setClientPage,
+    setTalentPage,
     totalUnread: bridgeTotalUnread,
     bridgeTenantIdentity,
     bridgeSessionIdentity,
     bridgeTalentSelfProfile,
+    bridgeTalentAgencies,
+    bridgeTalentEarnings,
     overviewMetrics,
     bridgeTalentUnread,
     bridgeWorkspaceUnread,
@@ -40,6 +43,9 @@ export function TulalaIdentityBar() {
 
   const inWorkspace = surface === "workspace";
   const inClient    = surface === "client";
+  const inTalent    = !inWorkspace && !inClient;
+  const agencyCount = bridgeTalentAgencies?.length ?? 0;
+  const isPureTalent = inTalent && !state.alsoTalent;
   // Resolve client profile from the URL/state-driven id. Two profiles
   // for QA: Martina Beach Club (business) and The Gringo (personal).
   // Inline-defined to dodge HMR cache issues with the fresh export.
@@ -97,14 +103,20 @@ export function TulalaIdentityBar() {
   const actingLabel = inWorkspace
     ? effectiveTenant.name
     : inClient ? activeClientProfile.name
-    : (bridgeTalentSelfProfile?.agencyName?.trim() || MY_TALENT_PROFILE.primaryAgency);
+    : agencyCount === 1
+      ? (bridgeTalentAgencies?.[0]?.agencyName ?? bridgeTalentSelfProfile?.agencyName?.trim() ?? MY_TALENT_PROFILE.primaryAgency)
+      : copy.isSpanish
+        ? "Tus agencias"
+        : "Your agencies";
   // Subtext stays terse — the plan tier now has its own badge inline,
   // so this just clarifies the role + entity context.
   const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
   const actingSubLabel = inWorkspace
     ? `${actingRoleLabel.charAt(0).toUpperCase() + actingRoleLabel.slice(1)} · ${entityType}`
     : inClient ? (activeClientProfile.isBusiness ? "Business client" : "Personal client")
-    : "Primary agency";
+    : inTalent
+      ? (agencyCount === 1 ? "Primary agency" : `${agencyCount} agencies`)
+      : "Primary agency";
   // Real KPI subline: when overviewMetrics is available, compose live
   // counters; otherwise fall back to the prototype's hardcoded copy.
   const actingDetail = (() => {
@@ -119,12 +131,26 @@ export function TulalaIdentityBar() {
       return `${fmtMoney(4200)} pending · 3 confirmed`;
     }
     if (inClient) return activeClientProfile.industry;
+    if (inTalent) {
+      if (bridgeTalentEarnings != null) {
+        const ytdEuros = Math.round(bridgeTalentEarnings.totals.ytdNetCents / 100);
+        return copy.isSpanish
+          ? `${fmtMoney(ytdEuros)} neto YTD`
+          : `${fmtMoney(ytdEuros)} net YTD`;
+      }
+      const n = agencyCount;
+      return copy.isSpanish
+        ? `${n} agencia${n === 1 ? "" : "s"}`
+        : `${n} agenc${n === 1 ? "y" : "ies"}`;
+    }
     return `3 confirmed · ${fmtMoney(4200)} YTD`;
   })();
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
     : inClient ? openDrawer("client-brand-switcher")
-    : openDrawer("talent-agency-switcher");
+    : isPureTalent || agencyCount !== 1
+      ? setTalentPage("money")
+      : openDrawer("talent-agency-switcher");
 
   // The notifications + help drawers differ per surface.
   const notificationsDrawerId = inWorkspace ? "notifications"
