@@ -89,6 +89,19 @@ function intOrNull(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function parseOrderedIds(fd: FormData): string[] {
+  const raw = text(fd, "ordered_ids");
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function checked(fd: FormData, key: string): boolean {
   return fd.get(key) === "on";
 }
@@ -487,4 +500,62 @@ export async function updatePlatformFieldGroupAction(formData: FormData): Promis
 
   revalidateEngineSurfaces();
   redirect("/platform/admin/catalog/groups?saved=group");
+}
+
+export async function reorderPlatformFieldGroupsAction(formData: FormData): Promise<void> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) redirect(`/platform/admin/catalog/groups?error=${encodeURIComponent(auth.error)}`);
+
+  const orderedIds = parseOrderedIds(formData);
+  if (orderedIds.length < 2) {
+    redirect("/platform/admin/catalog/groups?error=Add%20at%20least%20two%20groups%20to%20reorder");
+  }
+
+  const { data: rows, error } = await auth.sb
+    .from("profile_field_groups")
+    .select("id, name_en, sort_order")
+    .in("id", orderedIds);
+
+  if (error || !rows || rows.length !== orderedIds.length) {
+    logServerError("platform.catalog.reorderGroups.readRows", error);
+    redirect("/platform/admin/catalog/groups?error=Could%20not%20load%20field%20groups");
+  }
+
+  const rowIds = new Set(rows.map((row) => row.id));
+  if (new Set(orderedIds).size !== orderedIds.length || orderedIds.some((id) => !rowIds.has(id))) {
+    redirect("/platform/admin/catalog/groups?error=Invalid%20field%20group%20order");
+  }
+
+  const beforeValue = rows
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name_en.localeCompare(b.name_en))
+    .map((row) => ({ id: row.id, sort_order: row.sort_order }));
+  const afterValue = orderedIds.map((id, i) => ({ id, sort_order: (i + 1) * 10 }));
+  const now = new Date().toISOString();
+
+  const results = await Promise.all(
+    afterValue.map((row) =>
+      auth.sb
+        .from("profile_field_groups")
+        .update({ sort_order: row.sort_order, updated_at: now })
+        .eq("id", row.id),
+    ),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
+    logServerError("platform.catalog.reorderGroups.update", failed.error);
+    redirect("/platform/admin/catalog/groups?error=Could%20not%20save%20field%20group%20order");
+  }
+
+  await recordEngineAudit(auth.sb, {
+    actorId: auth.actorId,
+    action: "platform.engine.field_group.reorder",
+    targetType: "profile_field_group",
+    targetId: "field_groups",
+    beforeValue,
+    afterValue,
+  });
+
+  revalidateEngineSurfaces();
+  redirect("/platform/admin/catalog/groups?saved=order");
 }

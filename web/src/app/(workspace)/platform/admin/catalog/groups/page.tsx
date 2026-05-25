@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { updatePlatformFieldGroupAction } from "../actions";
+import { FieldGroupsReorderPanel } from "./field-groups-reorder-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -226,15 +227,24 @@ export default async function PlatformFieldGroupsBuilderPage({
           <div style={{ color: HQ.inkMuted, fontSize: 12 }}>Retry shortly.</div>
         </HqCard>
       ) : (
-        groups.map((group) => (
+        <>
           <HqCard
-            key={group.id}
-            title={group.name_en}
-            subtitle={`${group.slug} · ${group.field_count} field${group.field_count === 1 ? "" : "s"} · ${group.is_active ? "active" : "archived"}`}
+            title="Default group order"
+            subtitle="Drag groups into the order the resolver should use before tenant overrides."
           >
-            <GroupForm group={group} />
+            <FieldGroupsReorderPanel groups={groups} />
           </HqCard>
-        ))
+
+          {groups.map((group) => (
+            <HqCard
+              key={group.id}
+              title={group.name_en}
+              subtitle={`${group.slug} · ${group.field_count} field${group.field_count === 1 ? "" : "s"} · ${group.is_active ? "active" : "archived"}`}
+            >
+              <GroupForm group={group} />
+            </HqCard>
+          ))}
+        </>
       )}
     </div>
   );
