@@ -222,7 +222,7 @@ Conclusion:
 | Admin roster drawer Details (`/impronta/admin/roster`) | Yes | Uses live catalog resolver path (`getFieldsForTalent` / `resolveTalentFields`) via `LiveCategoryFieldsEditor`. |
 | Talent self-edit fields (`/impronta/talent/profile/fields`) | Yes | Uses `getFieldsForTalentAsTalent` which calls shared `resolveTalentFields`. |
 | Public profile (`/t/[profileCode]`) | Yes | Uses `resolveTalentFields` + visibility resolution. |
-| Tenant settings (types / catalog / privacy) | Mostly | Talent Types, Field Catalog, and Field Privacy now share tenant taxonomy scoping for available fields; still missing a complete downstream preview for registration/public/directory impact. |
+| Tenant settings (types / catalog / privacy) | Mostly | Talent Types, Field Catalog, and Field Privacy now share tenant taxonomy scoping for available fields; downstream bridge reads through `loadFieldCatalog` now also hide disabled-taxonomy type-specific fields. Still missing a complete preview for registration/public/directory impact. |
 | Publish blockers (`Add N to publish`) | Partial | Details blockers are resolver-backed; shell still includes hardcoded universal publish checks and section heuristics. |
 | Talent registration (`/register`) | No | Auth-only currently; does not yet mount resolved profile field engine for onboarding data capture. |
 | Directory filters/cards | Partial | Still relies on mixed legacy/profile data paths in parts of the stack; not fully resolver-driven. |
@@ -252,7 +252,7 @@ Conclusion:
 Phase-2 checklist items are closed. The next meaningful work is Wave-3+ productization:
 
 - move publish gating fully onto resolver requirements (status-menu draft-to-published bypass is now closed; remaining work is to centralize the save/server-side publish transition on the same requirement result),
-- unify registration and remaining directory/filter paths onto the same resolved field truth,
+- unify registration and remaining directory/filter paths onto the same resolved field truth (`profile-fields-service` now applies tenant taxonomy scoping; remaining work is replacing the static registration wizard and mixed directory skill/search paths),
 - real drag/drop ordering + richer tenant override controls,
 - stronger platform impact preview and audit history UI polish,
 - curate Impronta's enabled leaf talent-type set under the 8 enabled parent categories,

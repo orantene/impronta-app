@@ -21,6 +21,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export type FieldConsumerMode = "registration" | "editDrawer" | "public" | "dire
 
 /** Catalog field with workspace overrides merged in. */
 export type ResolvedFieldDefinition = {
+  id: string;
   fieldKey: string;
   label: string;
   tier: FieldTier;
@@ -144,6 +146,17 @@ type FieldValueRow = {
   profile_field_definitions: Array<{ field_key: string }>;
 };
 
+type TenantCatalogTermRow = {
+  id: string;
+  parent_id: string | null;
+  is_active: boolean | null;
+};
+
+type TenantCatalogSettingRow = {
+  taxonomy_term_id: string;
+  is_enabled: boolean | null;
+};
+
 // ─── Public API ────────────────────────────────────────────────────────
 
 /**
@@ -177,10 +190,32 @@ export async function loadFieldCatalog(
     overrides = (data ?? []) as WorkspaceOverrideRow[];
   }
 
-  return mergeCatalog(
+  const merged = mergeCatalog(
     (defs ?? []) as FieldDefinitionRow[],
     (recs ?? []) as unknown as RecommendationRow[],
     overrides,
+  );
+  if (!opts.tenantId) return merged;
+
+  const { data: terms, error: termsErr } = await supabase
+    .from("taxonomy_terms")
+    .select("id, parent_id, is_active")
+    .eq("is_active", true);
+  if (termsErr) throw new Error(`taxonomy_terms: ${termsErr.message}`);
+
+  const { data: taxonomySettings, error: taxonomySettingsErr } = await supabase
+    .from("agency_taxonomy_settings")
+    .select("taxonomy_term_id, is_enabled")
+    .eq("tenant_id", opts.tenantId);
+  if (taxonomySettingsErr) {
+    throw new Error(`agency_taxonomy_settings: ${taxonomySettingsErr.message}`);
+  }
+
+  return filterTenantCatalogFieldsByEnabledTaxonomy(
+    merged,
+    (recs ?? []) as unknown as RecommendationRow[],
+    (terms ?? []) as TenantCatalogTermRow[],
+    (taxonomySettings ?? []) as TenantCatalogSettingRow[],
   );
 }
 
@@ -333,6 +368,7 @@ function mergeCatalog(
     const defaultVisibility = (o?.default_visibility_override ?? d.default_visibility) as ReadonlyArray<FieldVisibilityChannel>;
 
     return {
+      id: d.id,
       fieldKey: d.field_key,
       label: o?.custom_label ?? d.label,
       tier: d.tier,
