@@ -9,6 +9,12 @@ import {
   buildProfilePublishRequirements,
   getProfilePublishCompleteness,
 } from "@/lib/field-engine/profile-publish-requirements";
+import {
+  getFieldsForTalentAsTalent,
+  getTalentFieldValuesAsTalent,
+  setTalentFieldValueAsTalent,
+  setTalentFieldVisibilityAsTalent,
+} from "@/lib/server-actions/talent-field-values-catalog";
 import type {
   LiveCategoryGroupNavItem,
   LiveCategoryRequiredMissingItem,
@@ -224,6 +230,18 @@ export function TalentProfileShellDrawer() {
   const isSelf = mode === "edit-self";
   const adminVisible = !isSelf;
   const isInvited = payload.seed?.method === "invited";
+  const talentSelfFieldActions = useMemo(
+    () =>
+      isSelf
+        ? {
+            getFields: getFieldsForTalentAsTalent,
+            getValues: getTalentFieldValuesAsTalent,
+            setValue: setTalentFieldValueAsTalent,
+            setVisibility: setTalentFieldVisibilityAsTalent,
+          }
+        : undefined,
+    [isSelf],
+  );
 
   // ── Reducer with history (undo/redo) ─────────────────────────────
   const initialState = useRef<ProfileState | null>(null);
@@ -3200,6 +3218,8 @@ export function TalentProfileShellDrawer() {
                     talentProfileId={payload.talentId}
                     scope="general"
                     refreshKey={taxonomyVersion}
+                    viewMode={isSelf ? "talent-self" : "admin"}
+                    serverActions={talentSelfFieldActions}
                   />
                 </div>
               )}
@@ -3245,6 +3265,8 @@ export function TalentProfileShellDrawer() {
                   <LiveCategoryFieldsEditor
                     talentProfileId={payload.talentId}
                     refreshKey={taxonomyVersion}
+                    viewMode={isSelf ? "talent-self" : "admin"}
+                    serverActions={talentSelfFieldActions}
                     onCountsChange={setProfileFieldCounts}
                     onGroupNavChange={setProfileFieldNavGroups}
                     onRequiredMissingChange={setProfileFieldRequiredMissing}
