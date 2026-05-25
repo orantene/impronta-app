@@ -375,7 +375,7 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
         }}
       >
         <button
-          onClick={() => applyChip(undefined, undefined, undefined)}
+          onClick={() => applyChip("unclaimed")}
           style={{
             ...chipButtonStyle,
             ...(isChipActive("unclaimed")
