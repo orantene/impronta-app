@@ -1,9 +1,6 @@
-// Phase-1f decomp — NewTalentDrawer.  The QuickAdd drawer admins reach
-// via Roster → "+ Add talent".  Stays a single component because
-// every section refers back to the same form state machine + transition.
-// Composes the catalog pickers + bulk panel from ./talent-type-picker.
+// QuickAdd drawer: single-talent entry, CSV import, then full profile handoff.
 "use client";
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -12,19 +9,20 @@ import {
   DrawerShell,
   FONTS,
   FieldRow,
-  LiveTaxonomyParent,
   PROTO_TENANT_ID,
   PrimaryButton,
   ProfileDraft,
   SecondaryButton,
   Section,
   TAXONOMY,
+  TaxonomyNode,
   TaxonomyParentId,
   WORKSPACE_TAXONOMY_DEFAULT,
   actionUploadAndAssignMedia,
   addTalentToRoster,
   bulkAddTalentToRoster,
   clearProfileDraft,
+  getEnabledTaxonomyTree,
   patchProfileDraft,
   resolvedFieldsForMode,
   useAdminShell,
@@ -38,7 +36,7 @@ import {
   PrimaryTalentTypeGrid,
   qaInputStyle,
 } from "./talent-type-picker";
-
+import { buildNewTalentPickerTaxonomy } from "./new-talent-taxonomy";
 export function NewTalentDrawer() {
   const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useAdminShell();
   const router = useRouter();
@@ -71,22 +69,39 @@ export function NewTalentDrawer() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   // #12 — Tab between single-talent quick-add and CSV bulk import.
   const [addMode, setAddMode] = useState<"single" | "csv">("single");
+  const [tenantTaxonomyTree, setTenantTaxonomyTree] = useState<TaxonomyNode[] | null>(null);
 
   // Live taxonomy (PR-A) — picker source.
   const live = useLiveTaxonomy();
-  const planRank = (p: "free" | "studio" | "agency" | "network") =>
-    ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
-  const currentRank = planRank(state.plan as "free" | "studio" | "agency" | "network");
-  const allowedParentIds = new Set(
-    WORKSPACE_TAXONOMY_DEFAULT
-      .filter(s => s.isEnabled && s.showInRegistration)
-      .map(s => s.parentId as string)
+  const fallbackAllowedParentIds = useMemo(
+    () => new Set(
+      WORKSPACE_TAXONOMY_DEFAULT
+        .filter(s => s.isEnabled && s.showInRegistration)
+        .map(s => s.parentId as string),
+    ),
+    [],
   );
-  const filterByWorkspace = (lp: LiveTaxonomyParent) =>
-    allowedParentIds.has(lp.raw.slug) || lp.display.id === lp.raw.slug;
-  const visibleParentsLP = live.visibleParents.filter(filterByWorkspace).filter(lp => planRank(lp.display.minPlan) <= currentRank);
-  const restParentsLP = live.restParents.filter(filterByWorkspace).filter(lp => planRank(lp.display.minPlan) <= currentRank);
-  const allowedParents = (showMore ? [...visibleParentsLP, ...restParentsLP] : visibleParentsLP).map(lp => lp.display);
+  useEffect(() => {
+    if (!tenantSlug) return;
+    let cancelled = false;
+    getEnabledTaxonomyTree().then((res) => {
+      if (!cancelled && res.ok) setTenantTaxonomyTree(res.tree);
+    });
+    return () => { cancelled = true; };
+  }, [tenantSlug]);
+  const {
+    visibleParents,
+    restParents,
+    allowedParents,
+    allSecondaryParents,
+  } = buildNewTalentPickerTaxonomy({
+    visibleLiveParents: live.visibleParents,
+    restLiveParents: live.restParents,
+    tenantTree: tenantTaxonomyTree,
+    fallbackAllowedParentIds,
+    currentPlan: state.plan as "free" | "studio" | "agency" | "network",
+    showMore,
+  });
 
   const computedDisplayName = displayName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim();
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -552,18 +567,18 @@ export function NewTalentDrawer() {
           What clients book this person as. Add secondary roles below — this matches what registration collects.
         </div>
         <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={(id) => setPrimaryType(id)} />
-        {restParentsLP.length > 0 && (
+        {restParents.length > 0 && (
           <button type="button" onClick={() => setShowMore(s => !s)} style={{
             marginTop: 10, padding: "6px 12px", borderRadius: 999,
             background: "transparent", border: `1px dashed ${COLORS.border}`,
             color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
             fontFamily: FONTS.body,
           }}>
-            {showMore ? `– Hide ${restParentsLP.length} more` : `+ More… (${restParentsLP.length})`}
+            {showMore ? `– Hide ${restParents.length} more` : `+ More… (${restParents.length})`}
           </button>
         )}
         <div style={{ marginTop: 6, fontSize: 10.5 }} className="text-admin-ink-dim">
-          {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible · {restParentsLP.length} more
+          {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParents.length} visible · {restParents.length} more
         </div>
       </Section>
 
@@ -572,29 +587,25 @@ export function NewTalentDrawer() {
           options stay focused. The hint links the user back to the
           parent grid for rare combinations. */}
       {primaryType && (() => {
-        // Build candidate parents EXCLUDING the parent of the primary
-        // — secondary should add NEW capabilities, not duplicate.
-        const primaryParent = TAXONOMY.find(p => p.children.some(c => c.id === primaryType))?.id;
-        const candidates = TAXONOMY
-          .filter(p => p.id !== primaryParent)
-          .filter(p => allowedParentIds.has(p.id))
-          .filter(p => planRank((WORKSPACE_TAXONOMY_DEFAULT.find(s => s.parentId === p.id)?.parentId
-            ? "free" : "free") as "free" | "studio" | "agency" | "network") <= currentRank);
+        const candidates = allSecondaryParents
+          .flatMap(parent => parent.children.map(child => ({ parent, child })))
+          .filter(({ child }) => child.id !== primaryType);
         return (
           <Section title="Secondary talent types" framed>
             <div style={{ fontSize: 11.5, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Optional. Pick categories this talent ALSO works in — e.g. a model who also hosts, or a host who also drives. Multi-role profiles surface in more searches.
+              Optional. Pick exact additional services this talent also books for. Multi-role profiles surface in more searches.
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {candidates.map(p => {
-                const active = secondaryTypes.includes(p.id);
+              {candidates.map(({ parent, child }) => {
+                const active = secondaryTypes.includes(child.id);
                 return (
                   <button
-                    key={p.id}
+                    key={`${parent.id}:${child.id}`}
                     type="button"
                     onClick={() => setSecondaryTypes(prev =>
-                      active ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                      active ? prev.filter(x => x !== child.id) : [...prev, child.id]
                     )}
+                    title={parent.label}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 5,
                       padding: "6px 12px", borderRadius: 999,
@@ -605,8 +616,8 @@ export function NewTalentDrawer() {
                       cursor: "pointer",
                     }}
                   >
-                    <span aria-hidden className="text-admin-13">{p.emoji}</span>
-                    <span>+ {p.label}</span>
+                    <span aria-hidden className="text-admin-13">{parent.emoji}</span>
+                    <span>+ {child.label}</span>
                   </button>
                 );
               })}

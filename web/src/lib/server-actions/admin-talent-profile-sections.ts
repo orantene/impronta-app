@@ -22,6 +22,7 @@ import {
 import {
   assignTaxonomyTermToProfile,
   removeTaxonomyTermFromProfile,
+  resolveTenantTalentTypeTermId,
 } from "@/lib/talent-taxonomy-service";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
@@ -974,18 +975,18 @@ export async function assignTalentTaxonomyBySlug(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  // Resolve slug → taxonomy_term id within this tenant's namespace.
-  const { data: term, error: tErr } = await supabase
-    .from("taxonomy_terms")
-    .select("id")
-    .eq("slug", input.slug)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (tErr || !term) return { ok: false, error: `Unknown taxonomy slug: ${input.slug}` };
+  const relationshipType =
+    input.relationship_type === "secondary_role" ? "secondary_role" : "primary_role";
+  const resolved = await resolveTenantTalentTypeTermId(supabase, {
+    tenantId,
+    slugOrId: input.slug,
+    relationshipType,
+  });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
 
   const result = await assignTaxonomyTermToProfile(supabase, {
     talentProfileId: input.talent_profile_id,
-    taxonomyTermId: (term as { id: string }).id,
+    taxonomyTermId: resolved.termId,
     relationshipType: input.relationship_type,
   });
   if (!result.ok) return { ok: false, error: result.error };
@@ -1005,17 +1006,17 @@ export async function removeTalentTaxonomyBySlug(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  const { data: term, error: tErr } = await supabase
-    .from("taxonomy_terms")
-    .select("id")
-    .eq("slug", input.slug)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (tErr || !term) return { ok: false, error: `Unknown taxonomy slug: ${input.slug}` };
+  const resolved = await resolveTenantTalentTypeTermId(supabase, {
+    tenantId,
+    slugOrId: input.slug,
+    relationshipType: "secondary_role",
+    enforceTenantAvailability: false,
+  });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
 
   const result = await removeTaxonomyTermFromProfile(supabase, {
     talentProfileId: input.talent_profile_id,
-    taxonomyTermId: (term as { id: string }).id,
+    taxonomyTermId: resolved.termId,
   });
   if (!result.ok) return { ok: false, error: result.error };
 

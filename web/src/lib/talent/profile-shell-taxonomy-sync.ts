@@ -8,6 +8,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   assignTaxonomyTermToProfile,
   removeTaxonomyTermFromProfile,
+  resolveTenantTalentTypeTermId,
 } from "@/lib/talent-taxonomy-service";
 
 const TALENT_TYPE_KIND = "talent_type";
@@ -70,23 +71,14 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
     }
   }
 
-  const slugToId = async (slug: string): Promise<string | null> => {
-    const { data: term, error } = await supabase
-      .from("taxonomy_terms")
-      .select("id")
-      .eq("slug", slug)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (error) {
-      logServerError("profile-shell-taxonomy/resolve", error);
-      return null;
-    }
-    return (term as { id: string } | null)?.id ?? null;
-  };
-
   if (primary) {
-    const id = await slugToId(primary);
-    if (!id) return { ok: false, error: `Unknown talent type slug: ${primary}` };
+    const resolved = await resolveTenantTalentTypeTermId(supabase, {
+      tenantId,
+      slugOrId: primary,
+      relationshipType: "primary_role",
+    });
+    if (!resolved.ok) return { ok: false, error: resolved.error };
+    const id = resolved.termId;
     const asg = await assignTaxonomyTermToProfile(supabase, {
       talentProfileId,
       taxonomyTermId: id,
@@ -96,11 +88,15 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
   }
 
   for (const slug of secondaries) {
-    const id = await slugToId(slug);
-    if (!id) return { ok: false, error: `Unknown talent type slug: ${slug}` };
+    const resolved = await resolveTenantTalentTypeTermId(supabase, {
+      tenantId,
+      slugOrId: slug,
+      relationshipType: "secondary_role",
+    });
+    if (!resolved.ok) return { ok: false, error: resolved.error };
     const asg = await assignTaxonomyTermToProfile(supabase, {
       talentProfileId,
-      taxonomyTermId: id,
+      taxonomyTermId: resolved.termId,
       relationshipType: "secondary_role",
     });
     if (!asg.ok) return { ok: false, error: asg.error };

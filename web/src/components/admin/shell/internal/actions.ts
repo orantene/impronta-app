@@ -25,6 +25,10 @@ import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  assignTaxonomyTermToProfile,
+  resolveTenantTalentTypeTermId,
+} from "@/lib/talent-taxonomy-service";
 
 // ── Shared result type ──────────────────────────────────────────────────────
 
@@ -167,63 +171,46 @@ export async function addTalentToRoster(
 
   // ── Primary talent type ────────────────────────────────────────────────────
   if (d.primaryTypeSlugorId) {
-    // Accept either a UUID (direct term id) or a slug — look up the term id
-    // from the slug when it doesn't look like a UUID.
-    let termId = d.primaryTypeSlugorId;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(termId);
-    if (!isUuid) {
-      const { data: term } = await admin
-        .from("taxonomy_terms")
-        .select("id")
-        .eq("slug", termId)
-        .eq("tenant_id", scope.tenantId)
-        .single();
-      termId = term?.id ?? termId;
-    }
-
-    if (/^[0-9a-f]{8}-/.test(termId)) {
-      const { error: taxErr } = await admin.from("talent_profile_taxonomy").insert({
-        talent_profile_id: talentProfileId,
-        taxonomy_term_id:  termId,
-        relationship_type: "primary_role",
-        is_primary:        true,
+    const resolved = await resolveTenantTalentTypeTermId(admin, {
+      tenantId: scope.tenantId,
+      slugOrId: d.primaryTypeSlugorId,
+      relationshipType: "primary_role",
+    });
+    if (!resolved.ok) {
+      warnings.push(resolved.error);
+    } else {
+      const taxRes = await assignTaxonomyTermToProfile(admin, {
+        talentProfileId,
+        taxonomyTermId: resolved.termId,
+        relationshipType: "primary_role",
       });
-      if (taxErr) {
-        logServerError("admin-shell._actions.addTalentToRoster/taxonomy", taxErr);
+      if (!taxRes.ok) {
         warnings.push("Talent type could not be saved — open the drawer and pick it again.");
       }
     }
   }
 
   // ── Secondary talent types ─────────────────────────────────────────────────
-  // Resolve every secondary slug/UUID to a UUID and bulk-insert them as
-  // `secondary_role` rows. Skip silently when none provided.
+  // Resolve every secondary slug/UUID through the same tenant-aware taxonomy
+  // resolver as the editor. Disabled workspace categories do not attach.
   if (d.secondaryTypeSlugorIds.length > 0) {
     const resolvedSecondaryIds: string[] = [];
     for (const raw of d.secondaryTypeSlugorIds) {
-      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
-      if (looksLikeUuid) {
-        resolvedSecondaryIds.push(raw);
-        continue;
-      }
-      const { data: term } = await admin
-        .from("taxonomy_terms")
-        .select("id")
-        .eq("slug", raw)
-        .eq("tenant_id", scope.tenantId)
-        .single();
-      if (term?.id) resolvedSecondaryIds.push(term.id);
+      const resolved = await resolveTenantTalentTypeTermId(admin, {
+        tenantId: scope.tenantId,
+        slugOrId: raw,
+        relationshipType: "secondary_role",
+      });
+      if (resolved.ok) resolvedSecondaryIds.push(resolved.termId);
+      else warnings.push(resolved.error);
     }
-    if (resolvedSecondaryIds.length > 0) {
-      const rows = resolvedSecondaryIds.map((id) => ({
-        talent_profile_id: talentProfileId,
-        taxonomy_term_id:  id,
-        relationship_type: "secondary_role" as const,
-        is_primary:        false,
-      }));
-      const { error: secTaxErr } = await admin.from("talent_profile_taxonomy").insert(rows);
-      if (secTaxErr) {
-        logServerError("admin-shell._actions.addTalentToRoster/secondary-taxonomy", secTaxErr);
+    for (const id of resolvedSecondaryIds) {
+      const secTaxRes = await assignTaxonomyTermToProfile(admin, {
+        talentProfileId,
+        taxonomyTermId: id,
+        relationshipType: "secondary_role",
+      });
+      if (!secTaxRes.ok) {
         warnings.push("Secondary types could not be saved — open the drawer and re-select them.");
       }
     }
