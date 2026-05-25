@@ -1,6 +1,7 @@
 import { PLATFORM_BRAND, TENANT_EXAMPLE_BRAND } from "@/lib/platform/brand";
 import { MarketingContainer, MarketingEyebrow } from "./container";
 import { MarketingCta } from "./cta-link";
+import { TalentModalTrigger } from "./talent-register-modal";
 
 export function HeroSection() {
   return (
@@ -59,13 +60,12 @@ export function HeroSection() {
               style={{ color: "var(--plt-muted)" }}
             >
               Are you talent?{" "}
-              <a
-                href="/talent/register"
+              <TalentModalTrigger
                 className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
                 Join the platform here
-              </a>
+              </TalentModalTrigger>
             </p>
 
             <ul

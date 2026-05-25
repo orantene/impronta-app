@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingCta } from "./cta-link";
+import { TalentRegisterModal, TALENT_MODAL_EVENT } from "./talent-register-modal";
 
 type NavItem = { label: string; href: string; description?: string };
 
@@ -22,6 +23,7 @@ export function MarketingHeader() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [talentModalOpen, setTalentModalOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => {
@@ -52,6 +54,13 @@ export function MarketingHeader() {
       document.body.style.overflow = prev;
     };
   }, [menuOpen]);
+
+  // Listen for cross-component open events (e.g. from the hero CTA).
+  useEffect(() => {
+    const handler = () => setTalentModalOpen(true);
+    window.addEventListener(TALENT_MODAL_EVENT, handler);
+    return () => window.removeEventListener(TALENT_MODAL_EVENT, handler);
+  }, []);
 
   const condensed = scrolled || menuOpen;
 
@@ -111,13 +120,14 @@ export function MarketingHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link
-            href="/talent/register"
+          <button
+            type="button"
+            onClick={() => setTalentModalOpen(true)}
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Join as talent
-          </Link>
+          </button>
           <Link
             href="/login"
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
@@ -151,6 +161,10 @@ export function MarketingHeader() {
           {menuOpen ? <CloseGlyph /> : <MenuGlyph />}
         </button>
       </div>
+
+      {talentModalOpen ? (
+        <TalentRegisterModal onClose={() => setTalentModalOpen(false)} />
+      ) : null}
 
       {menuOpen ? (
         <div
@@ -186,14 +200,15 @@ export function MarketingHeader() {
               className="mt-3 flex flex-col gap-2 border-t pt-4"
               style={{ borderColor: "var(--plt-hairline)" }}
             >
-              <Link
-                href="/talent/register"
-                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); setTalentModalOpen(true); }}
+                className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
                 Join as talent
                 <ChevronGlyph />
-              </Link>
+              </button>
               <Link
                 href="/login"
                 className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
