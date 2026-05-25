@@ -584,8 +584,7 @@ export async function loadTalentInquiriesAllAgencies(
           updated_at,
           tenant_id,
           trust_level_at_submission,
-          source_channel,
-          agencies!tenant_id ( slug, display_name )
+          source_channel
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -614,11 +613,10 @@ export async function loadTalentInquiriesAllAgencies(
         tenant_id: string;
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
         source_channel: string | null;
-        agencies: { slug: string; display_name: string | null } | null;
       } | null;
     };
 
-    const rows = ((data ?? []) as unknown as PartRow[])
+    const partialRows = ((data ?? []) as unknown as PartRow[])
       .filter((r) => r.inquiries)
       .map((r) => ({
         id: r.inquiries!.id,
@@ -635,14 +633,38 @@ export async function loadTalentInquiriesAllAgencies(
         trustLevel: r.inquiries!.trust_level_at_submission ?? null,
         sourceChannel: r.inquiries!.source_channel ?? null,
         tenantId: r.inquiries!.tenant_id,
-        agencySlug: r.inquiries!.agencies?.slug ?? "",
-        agencyName: r.inquiries!.agencies?.display_name ?? null,
       }));
 
-    if (!myUserId || rows.length === 0) return rows;
+    if (partialRows.length === 0) return [];
+
+    const tenantIds = [...new Set(partialRows.map((row) => row.tenantId))];
+    const { data: agencyRows, error: agencyError } = await supabase
+      .from("agencies")
+      .select("id, slug, display_name")
+      .in("id", tenantIds);
+
+    if (agencyError) {
+      logServerError("talent.loadInquiriesAllAgencies.agencies", agencyError);
+    }
+
+    const agencyById = new Map(
+      ((agencyRows ?? []) as { id: string; slug: string; display_name: string | null }[]).map(
+        (agency) => [agency.id, agency],
+      ),
+    );
+
+    const rows = partialRows.map((row) => {
+      const agency = agencyById.get(row.tenantId);
+      return {
+        ...row,
+        agencySlug: agency?.slug ?? "",
+        agencyName: agency?.display_name ?? null,
+      };
+    });
+
+    if (!myUserId) return rows;
 
     const inquiryIds = rows.map((row) => row.id);
-    const tenantIds = [...new Set(rows.map((row) => row.tenantId))];
 
     const [readsRes, messagesRes] = await Promise.all([
       supabase

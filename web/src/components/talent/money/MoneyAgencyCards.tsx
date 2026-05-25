@@ -65,9 +65,9 @@ export function MoneyAgencyCards() {
       </TalentSectionLabel>
 
       {agencies.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center">
-          <p className="text-sm font-medium text-foreground">No agencies yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="rounded-admin-lg border border-dashed border-admin-border-soft bg-admin-surface-alt px-6 py-10 text-center">
+          <p className="text-sm font-medium text-admin-ink">No agencies yet</p>
+          <p className="mt-1 text-sm text-admin-ink-muted">
             Agencies invite talent — keep your profile up to date so the right ones find you.
           </p>
         </div>
@@ -83,7 +83,7 @@ export function MoneyAgencyCards() {
             return (
               <article
                 key={agency.id}
-                className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4"
+                className="flex flex-col gap-4 rounded-admin-lg border border-admin-border-soft bg-admin-card p-4 shadow-admin-rest"
               >
                 <div className="flex items-start gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-lg ring-1 ring-emerald-100">
@@ -91,7 +91,7 @@ export function MoneyAgencyCards() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate text-sm font-semibold text-foreground">
+                      <h3 className="truncate text-sm font-semibold text-admin-ink">
                         {agency.name}
                       </h3>
                       {agency.isPrimary ? (
@@ -101,10 +101,10 @@ export function MoneyAgencyCards() {
                       ) : null}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin-ink-muted">
                         {planLabel(agency.plan)}
                       </span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin-ink-muted">
                         {exclusivityLabel(agency.rosterStatus)}
                       </span>
                     </div>
@@ -113,26 +113,26 @@ export function MoneyAgencyCards() {
 
                 <dl className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-admin-ink-muted">
                       YTD net
                     </dt>
-                    <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                    <dd className="mt-1 text-sm font-semibold tabular-nums text-admin-ink">
                       {formatEurCents(agency.ytdNetCents)}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-admin-ink-muted">
                       Bookings
                     </dt>
-                    <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                    <dd className="mt-1 text-sm font-semibold tabular-nums text-admin-ink">
                       {agency.bookingsCount}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-admin-ink-muted">
                       Commission
                     </dt>
-                    <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                    <dd className="mt-1 text-sm font-semibold tabular-nums text-admin-ink">
                       {commissionPct}
                     </dd>
                   </div>
@@ -144,18 +144,18 @@ export function MoneyAgencyCards() {
                       href={rosterUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex flex-1 items-center justify-center rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/50"
+                      className="inline-flex flex-1 items-center justify-center rounded-lg border border-admin-border-soft px-3 py-2 text-xs font-semibold text-admin-ink hover:bg-admin-surface-alt"
                     >
                       View roster profile
                     </Link>
                   ) : (
-                    <span className="inline-flex flex-1 items-center justify-center rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                    <span className="inline-flex flex-1 items-center justify-center rounded-lg border border-dashed border-admin-border-soft px-3 py-2 text-xs text-admin-ink-muted">
                       Profile code pending
                     </span>
                   )}
                   <button
                     type="button"
-                    className="inline-flex flex-1 items-center justify-center rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background"
+                    className="inline-flex flex-1 items-center justify-center rounded-lg bg-admin-accent px-3 py-2 text-xs font-semibold text-white hover:bg-admin-accent-deep"
                     onClick={() => openDrawer("talent-agency-relationship", { agencyId: agency.id })}
                   >
                     Manage relationship
@@ -167,14 +167,14 @@ export function MoneyAgencyCards() {
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-muted/20 p-4">
-        <p className="text-sm text-muted-foreground">
+      <div className="rounded-admin-lg border border-admin-border-soft bg-admin-surface-alt p-4">
+        <p className="text-sm text-admin-ink-muted">
           On Tulala, agencies invite talent — not the other way around. Share your public profile
           with an agency and they can request you onto their roster.
         </p>
         <button
           type="button"
-          className="mt-3 inline-flex items-center rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background"
+          className="mt-3 inline-flex items-center rounded-lg bg-admin-accent px-4 py-2 text-sm font-semibold text-white hover:bg-admin-accent-deep"
           onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}
         >
           Share my profile →

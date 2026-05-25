@@ -30,7 +30,7 @@ function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
   const dash = circumference * pct;
 
   return (
-    <section className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 lg:p-5">
+    <section className="flex items-center gap-4 rounded-admin-lg border border-admin-border-soft bg-admin-card p-4 shadow-admin-rest lg:p-5">
       <div className="relative h-[88px] w-[88px] shrink-0">
         <svg width={88} height={88} viewBox="0 0 88 88" aria-hidden>
           <circle cx={44} cy={44} r={radius} fill="none" stroke="rgba(11,11,13,0.08)" strokeWidth={6} />
@@ -47,46 +47,44 @@ function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-display text-lg font-semibold text-foreground">
+          <span className="font-display text-lg font-semibold text-admin-ink">
             {Math.round(pct * 100)}%
           </span>
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-admin-ink-muted">
             of goal
           </span>
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-admin-ink-muted">
           2026 earnings goal
         </div>
         <div className="mt-1 flex flex-wrap items-baseline gap-2">
-          <span className="font-display text-xl font-medium text-foreground">
+          <span className="font-display text-xl font-medium text-admin-ink">
             {formatEurCents(ytdNetCents)}
           </span>
-          <span className="text-xs text-muted-foreground">
-            of {formatEurCents(goal)}
-          </span>
+          <span className="text-xs text-admin-ink-muted">of {formatEurCents(goal)}</span>
           <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${tone}`}>
             {paceLabel}
           </span>
         </div>
-        <div className="mt-1 text-xs text-muted-foreground">
+        <div className="mt-1 text-xs text-admin-ink-muted">
           {formatEurCents(Math.max(0, goal - ytdNetCents))} to go · expected by now ≈{" "}
           {formatEurCents(Math.round(expectedByNow * 100))}
         </div>
         {editOpen ? (
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">€</span>
+            <span className="text-xs text-admin-ink-muted">€</span>
             <input
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               autoFocus
-              className="w-24 rounded-md border border-border bg-background px-2 py-1 text-xs"
+              className="w-24 rounded-md border border-admin-border-soft bg-white px-2 py-1 text-xs text-admin-ink"
             />
             <button
               type="button"
-              className="rounded-md bg-foreground px-2.5 py-1 text-xs font-semibold text-background"
+              className="rounded-md bg-admin-accent px-2.5 py-1 text-xs font-semibold text-white"
               onClick={() => {
                 const next = parseInt(editValue.replace(/[^0-9]/g, ""), 10);
                 if (next > 0) setGoal(next * 100);
@@ -97,7 +95,7 @@ function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
             </button>
             <button
               type="button"
-              className="text-xs text-muted-foreground"
+              className="text-xs text-admin-ink-muted"
               onClick={() => setEditOpen(false)}
             >
               Cancel
@@ -106,7 +104,7 @@ function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
         ) : (
           <button
             type="button"
-            className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            className="mt-2 text-xs font-semibold text-admin-accent hover:text-admin-accent-deep"
             onClick={() => {
               setEditValue(String(goal / 100));
               setEditOpen(true);
@@ -130,14 +128,14 @@ function KpiCard({
   caption: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+    <div className="rounded-admin-lg border border-admin-border-soft bg-admin-card p-4 shadow-admin-rest">
+      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-admin-ink-muted">
         {label}
       </div>
-      <div className="mt-1 font-display text-2xl font-medium tabular-nums text-foreground">
+      <div className="mt-1 font-display text-2xl font-medium tabular-nums text-admin-ink">
         {value}
       </div>
-      <div className="mt-1 text-xs text-muted-foreground">{caption}</div>
+      <div className="mt-1 text-xs text-admin-ink-muted">{caption}</div>
     </div>
   );
 }

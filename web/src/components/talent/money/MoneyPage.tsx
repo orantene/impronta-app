@@ -23,14 +23,14 @@ export function MoneyPage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/40"
+              className="rounded-lg border border-admin-border-soft px-3 py-2 text-xs font-semibold text-admin-ink hover:bg-admin-surface-alt"
               onClick={() => openDrawer("talent-add-event", { mode: "work" })}
             >
               + Log work
             </button>
             <button
               type="button"
-              className="rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background"
+              className="rounded-lg bg-admin-accent px-3 py-2 text-xs font-semibold text-white hover:bg-admin-accent-deep"
               onClick={() => openDrawer("talent-payouts")}
             >
               Payout settings

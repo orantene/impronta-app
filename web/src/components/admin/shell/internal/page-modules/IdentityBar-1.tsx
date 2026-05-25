@@ -10,6 +10,7 @@ import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, PlanChip, ShortcutsModal } from "../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, PLAN_META, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
 
@@ -187,11 +188,25 @@ export function TulalaIdentityBar() {
           margin: "0 auto",
         }}
       >
-        {/* Brand mark — when the agency has uploaded a logo via Workspace
-            Settings → Brand, render it as an <img>. Otherwise fall back to
-            the "TULALA" wordmark. The logo URL flows in via the bridge from
-            agency_branding.theme_json.logo_url. */}
-        {bridgeTenantIdentity?.logoUrl ? (
+        {/* Brand mark — talent surface is Tulala-canonical (L41): always the
+            platform wordmark, never the active agency logo. Workspace/client
+            surfaces show the tenant logo when uploaded. */}
+        {inTalent ? (
+          <img
+            src="/brand/tulala-wordmark.svg"
+            alt={TULALA_BRAND.name}
+            data-tulala-brand
+            style={{
+              height: 28,
+              width: "auto",
+              maxWidth: 160,
+              objectFit: "contain",
+              objectPosition: "left center",
+              paddingRight: 4,
+              display: "block",
+            }}
+          />
+        ) : bridgeTenantIdentity?.logoUrl ? (
           <img
             src={bridgeTenantIdentity.logoUrl}
             alt={bridgeTenantIdentity.displayName || "Workspace logo"}
@@ -208,7 +223,7 @@ export function TulalaIdentityBar() {
           />
         ) : (
           <div
-            aria-label="Tulala"
+            aria-label={TULALA_BRAND.name}
             data-tulala-brand
             style={{
               fontFamily: FONTS.display,
@@ -220,7 +235,7 @@ export function TulalaIdentityBar() {
               paddingRight: 4,
             }}
           >
-            Tulala
+            {TULALA_BRAND.name}
           </div>
         )}
 

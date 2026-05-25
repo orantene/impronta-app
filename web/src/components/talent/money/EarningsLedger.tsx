@@ -70,8 +70,8 @@ export function EarningsLedger() {
               onClick={() => setSourceFilter(chip.key)}
               className={
                 active
-                  ? "rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background"
-                  : "rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/40"
+                  ? "rounded-full bg-admin-accent px-3 py-1.5 text-xs font-semibold text-white"
+                  : "rounded-full border border-admin-border-soft bg-white px-3 py-1.5 text-xs font-medium text-admin-ink hover:bg-admin-surface-alt"
               }
             >
               {chip.label}
@@ -90,8 +90,8 @@ export function EarningsLedger() {
               onClick={() => setStatusFilter(chip.key)}
               className={
                 active
-                  ? "rounded-full bg-muted px-3 py-1 text-[11px] font-semibold text-foreground ring-1 ring-border"
-                  : "rounded-full px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  ? "rounded-full bg-admin-surface-alt px-3 py-1 text-[11px] font-semibold text-admin-ink ring-1 ring-admin-border-soft"
+                  : "rounded-full px-3 py-1 text-[11px] font-medium text-admin-ink-muted hover:text-admin-ink"
               }
             >
               {chip.label}
@@ -100,51 +100,51 @@ export function EarningsLedger() {
         })}
       </div>
 
-      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-admin-ink-muted">
         {sourceFilter === "all" ? "All earnings" : `${sourceLabel(sourceFilter)} earnings`} ·{" "}
         {formatEurCents(filteredTotal)}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-hidden rounded-admin-lg border border-admin-border-soft bg-admin-card shadow-admin-rest">
         {filtered.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm font-medium text-foreground">No earnings here yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-sm font-medium text-admin-ink">No earnings here yet</p>
+            <p className="mt-1 text-sm text-admin-ink-muted">
               Once bookings close, your ledger becomes the story of your income.
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-admin-border-soft">
             {filtered.map((row) => (
               <li key={row.id}>
                 <button
                   type="button"
-                  className="flex w-full items-start gap-4 px-4 py-3 text-left hover:bg-muted/30"
+                  className="flex w-full items-start gap-4 px-4 py-3 text-left hover:bg-admin-surface-alt/60"
                   onClick={() => openDrawer("talent-earnings-detail", { id: row.id })}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">{row.client}</span>
+                      <span className="text-sm font-semibold text-admin-ink">{row.client}</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${statusTone(row.status)}`}
                       >
                         {row.status}
                       </span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin-ink-muted">
                         {sourceLabel(row.source)}
                       </span>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
+                    <div className="mt-1 text-xs text-admin-ink-muted">
                       {row.agencyName} · Work {row.workDate}
                       {row.payoutDate ? ` · Paid ${row.payoutDate}` : ""}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="text-sm font-semibold tabular-nums text-foreground">
+                    <p className="text-sm font-semibold tabular-nums text-admin-ink">
                       {formatEurCents(row.netCents)}
-                    </div>
+                    </p>
                     {row.paymentMethod ? (
-                      <div className="mt-0.5 text-[11px] capitalize text-muted-foreground">
+                      <div className="mt-0.5 text-[11px] capitalize text-admin-ink-muted">
                         {row.paymentMethod.replace(/-/g, " ")}
                       </div>
                     ) : null}
