@@ -10,7 +10,6 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode 
 import { COLORS, FONTS, TRANSITION } from "../state";
 import {
   FIELD_CATALOG,
-  PROTO_TENANT_ID,
   applyWorkspaceFieldOverride,
   useWorkspaceFieldOverrideSubscription,
 } from "../field-catalog";
@@ -208,6 +207,7 @@ export function FieldRow({
   visibility,
   onVisibilityChange,
   catalogId,
+  tenantId,
   hideLabel,
 }: {
   label: string;
@@ -232,6 +232,10 @@ export function FieldRow({
    *  `customHelper` replaces the hint. Pass the catalog field id (e.g.
    *  "identity.legalName") and the row resolves overrides at render. */
   catalogId?: string;
+  /** Real workspace scope used for catalog overrides. Intentionally no
+   *  prototype fallback here — live tenant routes should pass the active
+   *  tenant id/slug explicitly. */
+  tenantId?: string | null;
   /** When true the row's own label is suppressed — used when an outer
    *  collapsible card already shows the field name in its header, so the
    *  label isn't duplicated. Right cluster (visibility chips) + hint
@@ -239,7 +243,7 @@ export function FieldRow({
   hideLabel?: boolean;
 }) {
   // Phase E — workspace override merge. When `catalogId` is provided,
-  // resolve the merged catalog entry for the demo tenant and let
+  // resolve the merged catalog entry for the active tenant and let
   // customLabel / customHelper win over the explicit label / hint. The
   // hook subscribes the row to override changes so toggles from the
   // settings drawer flow through immediately.
@@ -247,7 +251,7 @@ export function FieldRow({
   if (catalogId) {
     const entry = FIELD_CATALOG.find(c => c.id === catalogId);
     if (entry) {
-      const resolved = applyWorkspaceFieldOverride(entry, PROTO_TENANT_ID);
+      const resolved = applyWorkspaceFieldOverride(entry, tenantId ?? null);
       if (resolved.hasOverride) {
         // Strip override hint? Just merge in.
         if (resolved.label && resolved.label !== entry.label) label = resolved.label;
@@ -573,4 +577,3 @@ export function Divider({ label }: { label?: string }) {
     </div>
   );
 }
-

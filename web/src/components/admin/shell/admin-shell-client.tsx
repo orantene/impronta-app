@@ -2462,5 +2462,6 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
 function AdminTourGate() {
   const { state } = useAdminShell();
   if (state.surface !== "workspace") return null;
-  return <AdminTour />;
+  const tourSuspended = !!state.drawer.drawerId;
+  return <AdminTour suspended={tourSuspended} />;
 }

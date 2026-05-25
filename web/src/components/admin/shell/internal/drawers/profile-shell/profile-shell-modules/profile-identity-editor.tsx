@@ -178,11 +178,12 @@ function SelectPicker({
   );
 }
 
-export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons }: {
+export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons, workspaceScopeTenantId }: {
   identity: ProfileIdentity;
   onChange: (next: ProfileIdentity) => void;
   isSelf: boolean;
   isFieldLocked: (path: string) => boolean;
+  workspaceScopeTenantId?: string | null;
   /** Step 7 — per-path reason text. Surfaced through `LockedHint` so
    *  talent see why a field is greyed out, not just that it is. */
   lockReasons?: Record<string, string>;
@@ -335,6 +336,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
       <FieldRow
         label={copy.t("Date of birth")}
         catalogId="identity.dob"
+        tenantId={workspaceScopeTenantId}
         optional
         hint={copy.t("Used to compute age.")}
         visibility={identity.visibility?.dob ?? ["private"]}
@@ -379,6 +381,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           hideLabel
           label={copy.t("Nationality")}
           catalogId="identity.nationality"
+          tenantId={workspaceScopeTenantId}
           optional
           hint={copy.t("Citizenship country.")}
           visibility={["agency"]}
@@ -400,6 +403,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           hideLabel
           label={copy.t("Country of residence")}
           catalogId="identity.homeCountry"
+          tenantId={workspaceScopeTenantId}
           optional
           hint={copy.t("Tax + payout routing.")}
           visibility={["agency"]}
@@ -562,6 +566,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
         <FieldRow
           label={copy.t("Reply time")}
           catalogId="identity.responseTime"
+          tenantId={workspaceScopeTenantId}
           optional
           hint={copy.t("Surfaces on Discover as a chip.")}
           visibility={["public", "agency"]}

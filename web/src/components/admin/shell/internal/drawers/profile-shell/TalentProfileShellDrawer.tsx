@@ -2720,8 +2720,9 @@ export function TalentProfileShellDrawer() {
                 isSelf={isSelf}
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
                 lockReasons={state.fieldLockReasons}
+                workspaceScopeTenantId={workspaceScopeTenantId}
               />
-              <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline">
+              <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline" tenantId={workspaceScopeTenantId}>
                 <TextInput placeholder={copy.t("e.g. Editorial fashion model · Madrid")} value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
               </FieldRow>
               <FieldRow
@@ -2921,7 +2922,7 @@ export function TalentProfileShellDrawer() {
                 <LocationSlotPanel talentProfileId={payload.talentId} />
               ) : (
                 <>
-                  <FieldRow label="Current location" catalogId="serviceArea.homeBase">
+                  <FieldRow label="Current location" catalogId="serviceArea.homeBase" tenantId={workspaceScopeTenantId}>
                     <CityAutocompleteInput
                       value={state.serviceArea.homeBase}
                       placeId={state.serviceArea.homePlaceId}
@@ -3065,7 +3066,7 @@ export function TalentProfileShellDrawer() {
                   </div>
                 </FieldRow>
                 <div style={{ height: 8 }} />
-                <FieldRow label="Owns a vehicle" optional catalogId="serviceArea.ownsVehicle">
+                <FieldRow label="Owns a vehicle" optional catalogId="serviceArea.ownsVehicle" tenantId={workspaceScopeTenantId}>
                   <ToggleControl
                     value={!!state.serviceArea.ownsVehicle}
                     onChange={(v) => patch({ serviceArea: { ...state.serviceArea, ownsVehicle: v } })}
@@ -3117,7 +3118,7 @@ export function TalentProfileShellDrawer() {
                 onChange={patchHelloReel}
                 talentProfileId={payload.talentId}
               />
-              <FieldRow label="Video / social links" optional catalogId="links">
+              <FieldRow label="Video / social links" optional catalogId="links" tenantId={workspaceScopeTenantId}>
                 <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks ?? []} onChange={patchVideoLinks} />
               </FieldRow>
             </ProfileAccordionSection>

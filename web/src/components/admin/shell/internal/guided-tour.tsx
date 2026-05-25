@@ -33,6 +33,7 @@ export function GuidedTour({
   steps,
   storageKey,
   sessionKey,
+  suspended = false,
   /** Optional label shown in the progress strip ("30s tour", "1 min", etc). */
   durationLabel,
   /** Initial delay before step 0 fires on first mount. Default 1500ms. */
@@ -41,6 +42,8 @@ export function GuidedTour({
   steps: TourStep[];
   storageKey: string;
   sessionKey?: string;
+  /** Temporarily hides the tour UI without clearing progress/state. */
+  suspended?: boolean;
   durationLabel?: string;
   kickoffDelayMs?: number;
 }) {
@@ -95,7 +98,7 @@ export function GuidedTour({
     };
   }, [stepIdx, steps]);
 
-  if (stepIdx === null) return null;
+  if (stepIdx === null || suspended) return null;
   const step = steps[stepIdx];
   if (!step) return null;
   const isLast = stepIdx === steps.length - 1;

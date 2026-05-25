@@ -53,12 +53,13 @@ const ADMIN_STEPS: TourStep[] = [
 const STORAGE_KEY = "tulala_admin_tour_done";
 const SESSION_STARTED_KEY = "tulala_admin_tour_session_active";
 
-export function AdminTour() {
+export function AdminTour({ suspended = false }: { suspended?: boolean }) {
   return (
     <GuidedTour
       steps={ADMIN_STEPS}
       storageKey={STORAGE_KEY}
       sessionKey={SESSION_STARTED_KEY}
+      suspended={suspended}
       durationLabel="30s tour"
     />
   );
