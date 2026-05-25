@@ -649,6 +649,7 @@ function talentPageToSegment(p: TalentPage): string {
     profile:   "profile",
     calendar:  "calendar",
     agencies:  "agencies",
+    "public-page": "site",
     settings:  "settings",
   };
   return map[p] ?? p;
@@ -828,11 +829,11 @@ export function AdminShellProvider({
     if (currentPath === canonicalHref || currentPath === brandedHref) return;
     router.push(canonicalHref);
   }, [router, initialSurface]);
-  // talent personal subscription tier (Free / Pro / Max). A real bridge
-  // talent starts on Free (billing not live); prototype mode uses the
-  // demo fixture tier. Switchable in dev via the Compare-plans drawer.
+  // Talent personal subscription tier (Free / Pro / Max). Live bridge data
+  // reads talent_profiles.talent_plan_key; prototype mode uses the demo
+  // fixture tier. Switchable in dev via the Compare-plans drawer.
   const [talentTier, setTalentTier] = useState<TalentSubscriptionTier>(
-    initialBridgeData?.talentSelfProfile ? "free" : MY_TALENT_PROFILE.subscription.tier,
+    initialBridgeData?.talentSelfProfile?.talentTier ?? MY_TALENT_PROFILE.subscription.tier,
   );
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");

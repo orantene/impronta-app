@@ -3,6 +3,10 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  buildTalentMembershipState,
+  type TalentMembershipState,
+} from "@/lib/access/talent-membership";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -33,6 +37,12 @@ export type TalentSelfProfile = {
   rosterStatus: string;
   /** The talent's public profile URL code (profile_code) */
   profileCode: string | null;
+  /** Canonical talent subscription plan key on talent_profiles.talent_plan_key. */
+  talentPlanKey: TalentMembershipState["planKey"];
+  /** Dashboard tier label used by the talent shell: Free / Pro / Max. */
+  talentTier: TalentMembershipState["tier"];
+  /** Server-derived talent plan capabilities for client rendering. */
+  talentCapabilities: TalentMembershipState["capabilities"];
   /** Display name of the agency they're viewing this in context of */
   agencyName: string;
   /** Public URL of the talent's "card" variant media asset, or null */
@@ -69,6 +79,7 @@ export async function loadTalentSelfProfile(
         workflow_status,
         is_publicly_hidden,
         profile_code,
+        talent_plan_key,
         short_bio,
         bio_en,
         height_cm,
@@ -98,6 +109,7 @@ export async function loadTalentSelfProfile(
       workflow_status: string | null;
       is_publicly_hidden: boolean | null;
       profile_code: string | null;
+      talent_plan_key: string | null;
       short_bio: string | null;
       bio_en: string | null;
       height_cm: number | null;
@@ -168,6 +180,7 @@ export async function loadTalentSelfProfile(
       (p.talent_service_areas ?? [])
         .find((a) => a.service_kind === "home_base")
         ?.locations?.display_name_en ?? null;
+    const membership = buildTalentMembershipState(p.talent_plan_key);
 
     return {
       id: p.id,
@@ -178,6 +191,9 @@ export async function loadTalentSelfProfile(
       isPubliclyHidden: p.is_publicly_hidden ?? false,
       rosterStatus: roster.status,
       profileCode: p.profile_code ?? null,
+      talentPlanKey: membership.planKey,
+      talentTier: membership.tier,
+      talentCapabilities: membership.capabilities,
       agencyName: agencyRow?.display_name ?? "Agency",
       headshotUrl,
       hasBio: !!(p.short_bio?.trim() || p.bio_en?.trim()),

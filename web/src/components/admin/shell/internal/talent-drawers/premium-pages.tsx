@@ -302,7 +302,7 @@ function FeatureCell({ value }: { value: TalentTierCell }) {
   );
 }
 
-// ─── Personal page (page-builder lite, Max) ────────────────────────
+// ─── Personal site section plan (Max) ──────────────────────────────
 
 export function TalentPersonalPageDrawer() {
   const { state, closeDrawer } = useAdminShell();
@@ -321,12 +321,12 @@ export function TalentPersonalPageDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Personal page builder"
-      description="Drag sections to re-order. Hero and Contact CTA are required — everything else is optional."
+      title="Personal site sections"
+      description="Hero and Contact CTA are required. Your Max site can grow from these personal-brand sections."
       width={620}
       footer={
         <>
-          {/* Phase 1.5 STRIP: fake Publish CTA removed — page builder ships in Phase 2 */}
+          {/* Fake publish remains stripped; publish belongs to the governed builder flow. */}
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }

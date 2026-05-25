@@ -44,6 +44,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   calendar:     "calendar",
   agencies:     "agencies",
   reach:        "agencies", // legacy alias
+  site:         "public-page",
   "public-page": "public-page",
   settings:     "settings",
 };

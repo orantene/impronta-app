@@ -92,6 +92,24 @@ export {
 } from "./plan-capabilities";
 
 export {
+  TALENT_PLAN_KEYS,
+  buildTalentMembershipState,
+  isTalentAudiencePlan,
+  isTalentPlanKey,
+  normalizeTalentPlanKey,
+  talentPlanGrantsAccessCapability,
+  talentPlanGrantsCapability,
+  talentPlanToTier,
+  talentTierToPlanKey,
+} from "./talent-membership";
+export type {
+  TalentMembershipState,
+  TalentPlanCapability,
+  TalentPlanKey,
+  TalentPlanTier,
+} from "./talent-membership";
+
+export {
   authorize,
   userHasCapability,
   requireCapability,

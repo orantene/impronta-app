@@ -3,7 +3,7 @@
 /**
  * TalentSubscriptionShell — subscription section in talent settings.
  *
- * Shows current tier (Basic / Pro / Portfolio), what each tier unlocks,
+ * Shows current tier (Free / Pro / Max), what each tier unlocks,
  * and upgrade / manage CTAs wired through Stripe.
  */
 
@@ -37,7 +37,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 const PLAN_META = {
   talent_basic: {
-    label: "Basic",
+    label: "Free",
     price: "Free",
     tagline: "Standard profile on tulala.digital/t/<slug>",
     color: "rgba(11,11,13,0.55)",
@@ -65,18 +65,18 @@ const PLAN_META = {
     ],
   },
   talent_portfolio: {
-    label: "Portfolio",
+    label: "Max",
     price: "$29 / month",
     tagline: "Your branded talent page with custom domain",
     color: C.orange,
     bg: C.orangeSoft,
     perks: [
       "Everything in Pro",
-      "Custom domain (yourdomain.com)",
-      "Multi-template choice",
+      "Personal-site builder access",
+      "Preview and publish controls",
+      "Talent-owned section library",
       "SEO controls",
-      "One-page builder-lite",
-      "Top-tier placement on Tulala Discover",
+      "Custom domain reserved for a later Max release",
     ],
   },
 } as const;
@@ -382,7 +382,7 @@ export function TalentSubscriptionShell({
 
       {/* Pro → upgrade to Portfolio */}
       {stripeEnabled && planKey === "talent_pro" && !hasActiveSub && (
-        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Upgrade to Portfolio — $29/mo" />
+        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Upgrade to Max — $29/mo" />
       )}
 
       {/* Manage subscription (paid active subscribers) */}

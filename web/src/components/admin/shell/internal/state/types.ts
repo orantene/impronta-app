@@ -46,8 +46,9 @@ export type WorkspacePage =
   | "billing"
   | "workspace";
 
-// Talent surface — relationship-based (no separate plan ladder; talent inherits
-// the agency they belong to). Keep dimensions minimal: which agency, which page.
+// Talent surface — relationship-based agency context plus a separate
+// Free / Pro / Max personal membership ladder. Workspace plans and talent
+// memberships are separate products and must not leak into each other.
 export type TalentPage =
   | "today"
   | "messages"      // Chat-first inquiry/booking surface (replaces inbox)

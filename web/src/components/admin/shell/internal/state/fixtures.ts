@@ -46,7 +46,9 @@ export function resolveWorkspacePage(raw: string): WorkspacePage {
 // Messages replaces Inbox as the canonical chat-first surface. Inbox
 // stays in the type union for URL backward-compat but is hidden from
 // the topbar nav.
-// WS-8.1: activity removed from primary nav; WS-8.2: reach split into agencies + public-page
+// WS-8.1: activity removed from primary nav; WS-8.2: reach split into agencies + public-page.
+// Talent Max foundation: the public-page state now routes through /talent/site
+// and appears in nav as "My Site".
 export const TALENT_PAGES: TalentPage[] = [
   "today",
   "messages",
@@ -276,7 +278,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   activity:    { label: "Activity" },      // legacy — redirects to settings
   reach:       { label: "Reach" },         // legacy — redirects to agencies
   agencies:    { label: "Agencies" },      // WS-8.2
-  "public-page": { label: "My Pages" }, // WS-8.2 · renamed from "Public page"
+  "public-page": { label: "My Site" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };
 

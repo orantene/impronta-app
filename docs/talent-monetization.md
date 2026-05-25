@@ -280,7 +280,7 @@ The custom domain coexists with the canonical `tulala.digital/t/<slug>` URL — 
 
 - The talent's solo workspace, the page content, the custom domain (if Portfolio): always belong to the talent. Agency relationships do not affect ownership.
 - If an agency relationship ends (talent exits, contract terminates, agency goes inactive), the talent keeps the page. No data is taken from them.
-- The talent retains `talent.page.edit`, `talent.page.publish`, `talent.subscription.upgrade/downgrade` capabilities at all times.
+- The talent retains subscription upgrade/downgrade control at all times. Page edit/publish capabilities stay with the talent when their personal membership plan permits them.
 
 ### Distribution / visibility control (relationship-dependent under exclusivity)
 
@@ -347,19 +347,19 @@ Should `talent_*` plans have different `platform_fee_basis_points` than `workspa
 ### Talent surface (`/talent/*`)
 
 Existing talent surface gains:
-- **Premium page editor** (`/talent/page`) — visible on `talent_pro+`; gated copy/locked-card on `talent_basic`
-- **Page templates** (`/talent/page/templates`) — only on `talent_portfolio`
-- **Custom domain** (`/talent/page/domain`) — only on `talent_portfolio`
+- **My Site** (`/talent/site`) — visible to every talent; locked-card on Free/Pro, Max-gated personal-site foundation on `talent_portfolio`
+- **Personal-site section/template controls** — only on `talent_portfolio` until the governed builder scope supports talent-owned storage
+- **Custom domain** — reserved for a later `talent_portfolio` release
 - **Subscription / billing** (`/talent/account/billing`) — visible always; current tier + upgrade CTA
 - **Multi-source inquiry inbox** (existing per `talent-relationship-model.md` §6, now with talent-solo-workspace inquiries appearing alongside agency/hub ones)
 
 ### Premium page itself (the public-facing surface)
 
-- Default URL: `<talent-slug>.tulala.digital`
-- Custom domain (Portfolio): the talent's own
-- Rendered by the same `(public)` route group that renders agency public sites — it's just another tenant
-- Templates and modules selected from `cms_sections` on the solo workspace
-- Inquiry CTA hits the same inquiry creation flow, scoped to the solo workspace
+- Default URL: `tulala.digital/t/<slug>`
+- Custom domain (Portfolio/Max, later): the talent's own
+- Phase 1 public fallback remains the canonical public profile route; published Max builder output should mount behind the same owned destination unless route-collision governance changes.
+- Templates and modules must use a talent-personal section allowlist, not the agency/hub section library wholesale.
+- Inquiry CTA hits the same inquiry creation flow, but source attribution remains `talent-page`.
 
 ### Workspace admin (`/(workspace)/[slug]/admin`)
 
@@ -384,17 +384,17 @@ Reserved now as locked product contracts. Most have no callers in v1 — the pro
 |---|---|---|---|
 | `talent.subscription.upgrade` | billing | relationship | Talent who owns the solo workspace |
 | `talent.subscription.downgrade` | billing | relationship | Same |
-| `talent.page.edit` | site | relationship | Same (when plan permits, i.e. `talent_pro+`) |
-| `talent.page.publish` | site | relationship | Same |
-| `talent.page.set_template` | site | relationship | Same (when plan permits, i.e. `talent_portfolio`) |
-| `talent.page.enable_module` | site | relationship | Same (when plan permits) |
-| `talent.page.connect_custom_domain` | site | relationship | Same (when plan permits, i.e. `talent_portfolio`) |
+| `talent.page.edit` | site | relationship | Same (when plan permits, initially `talent_portfolio` / Max) |
+| `talent.page.publish` | site | relationship | Same (when plan permits, initially `talent_portfolio` / Max) |
+| `talent.page.set_template` | site | relationship | Same (when plan permits, initially `talent_portfolio` / Max) |
+| `talent.page.enable_module` | site | relationship | Same (when plan permits, initially `talent_portfolio` / Max) |
+| `talent.page.connect_custom_domain` | site | relationship | Same (reserved for a later `talent_portfolio` / Max release) |
 | `agency.roster.set_personal_page_distribution` | talent | role + relationship | admin+ on an agency with an active exclusive relationship to the talent (see §7a) |
 | `platform.talent_plans.configure` | platform | platform_role | super_admin |
 
 9 capability keys for talent monetization. Registry: 67 → 75 (initial 8) → 76 (added `agency.roster.set_personal_page_distribution` per the exclusivity-distribution refinement).
 
-The relationship gate for the talent-self capabilities is: caller has an active `agency_memberships(role='owner')` row in the talent's solo workspace, and the solo workspace's `plan_tier` permits the action. The plan-gate piece is part of normal `plan_capabilities` checking once plan-capability enforcement turns on (Track C).
+The relationship gate for the talent-self capabilities is: caller owns the talent profile (`talent_profiles.user_id = auth.uid()` or an approved support/super-admin path), and the talent profile's `talent_plan_key` permits the action. The first implemented personal-site builder gate is Max-only (`talent_portfolio`).
 
 The relationship gate for `agency.roster.set_personal_page_distribution` is: caller has admin+ in the agency, AND there's an active `agency_talent_roster` row linking the agency to the talent with `is_exclusive = true`.
 
