@@ -56,16 +56,20 @@ Files:
 
 - `web/src/lib/server-actions/admin-workspace-field-settings.ts`
 - `web/src/components/admin/shell/internal/drawers/light-10.tsx`
+- `web/src/lib/field-engine/tenant-catalog-scope.ts`
+- `web/src/lib/field-engine/tenant-catalog-scope.test.ts`
 
 What changed:
 
 - Field Privacy now reads tenant field label overrides and field order overrides from `workspace_profile_field_settings`.
 - Field Privacy now reads tenant group label/order overrides from `workspace_field_group_settings`.
 - Field Privacy rows now sort by the same display order used by Field Catalog and the resolved editor order, instead of falling back to load order.
+- Field Catalog and Field Privacy now scope type-specific rows to taxonomy terms enabled for the tenant. Universal/global fields remain visible, and explicit tenant-off global rows such as `media.polaroids` remain visible so the tenant can control them.
 
 Why:
 
 - The tenant control room had two drawers backed by the same field engine, but Field Catalog and Field Privacy could present a different order/label set. This keeps the drawers aligned without mutating profile values or media.
+- The tenant control room was also showing fields from disabled parent categories (`chef.*`, `transport.*`) even though the profile resolver would not surface those fields for Impronta. The settings drawers now match the enabled tenant taxonomy instead of the full platform universe.
 
 ## QA evidence
 
@@ -119,6 +123,12 @@ Checks:
 - Toggled `Chefs & Culinary` OFF→ON and restored to prior state.
 - Opened Field Catalog drawer and verified counters/panel render.
 - Opened Field Privacy panel and confirmed it renders.
+- Re-verified on `http://localhost:3000` after the final scoping fix:
+  - Talent Types shows `8 of 19 categories enabled`.
+  - Field Catalog no longer shows disabled-category rows such as `chef.cuisine_types` or `transport.vehicle_type`.
+  - Field Privacy no longer shows disabled-category rows such as `chef.cuisine_types` or `transport.vehicle_type`.
+  - Enabled-category rows still appear, including `music.key_strengths` and `photo.formats`.
+  - `media.polaroids` still appears as a controllable global field and is Off for Impronta.
 
 Screenshots captured:
 
@@ -196,13 +206,14 @@ Observed on 2026-05-25:
 - Platform profile fields: `273` total, `225` active, `48` deprecated.
 - Sensitive active fields marked public: `0`.
 - Legacy `skills` row: deprecated, `show_in_public=false`; `50` saved values remain preserved.
-- `media.polaroids` remains active as a global media field; product decision is still to hide/gate it for Impronta if Polaroids are not wanted in that tenant.
+- Impronta-scoped tenant settings rows after taxonomy filtering: `145` visible active fields, `80` active type-specific fields hidden because their taxonomy terms are disabled for Impronta.
+- `media.polaroids` remains active as a global media field, but Impronta has a tenant override disabling it and the profile drawer hides the Polaroids section.
 
 Conclusion:
 
-- The broad platform taxonomy is not leaking all parent categories into Impronta, but Impronta still has a large enabled leaf-type set under the enabled parents. The next taxonomy cleanup should curate enabled leaf types, not rebuild the tenant settings table.
+- The broad platform taxonomy is not leaking all parent categories into Impronta settings or the editor. Impronta still has a large enabled leaf-type set under the enabled parents. The next taxonomy cleanup should curate enabled leaf types, not rebuild the tenant settings table.
 - The old `skills` lifecycle is safe for new input, and existing values are preserved.
-- The remaining Polaroids issue is gating/tenant policy, not missing storage.
+- The Polaroids decision is now expressed as tenant policy for Impronta, with no media deletion.
 
 ## Resolver coverage gap table (Phase-2 closure deliverable)
 
@@ -211,7 +222,7 @@ Conclusion:
 | Admin roster drawer Details (`/impronta/admin/roster`) | Yes | Uses live catalog resolver path (`getFieldsForTalent` / `resolveTalentFields`) via `LiveCategoryFieldsEditor`. |
 | Talent self-edit fields (`/impronta/talent/profile/fields`) | Yes | Uses `getFieldsForTalentAsTalent` which calls shared `resolveTalentFields`. |
 | Public profile (`/t/[profileCode]`) | Yes | Uses `resolveTalentFields` + visibility resolution. |
-| Tenant settings (types / catalog / privacy) | Partial | Uses settings + taxonomy overlays; not a unified end-to-end “resolved preview” for every downstream surface yet. |
+| Tenant settings (types / catalog / privacy) | Mostly | Talent Types, Field Catalog, and Field Privacy now share tenant taxonomy scoping for available fields; still missing a complete downstream preview for registration/public/directory impact. |
 | Publish blockers (`Add N to publish`) | Partial | Details blockers are resolver-backed; shell still includes hardcoded universal publish checks and section heuristics. |
 | Talent registration (`/register`) | No | Auth-only currently; does not yet mount resolved profile field engine for onboarding data capture. |
 | Directory filters/cards | Partial | Still relies on mixed legacy/profile data paths in parts of the stack; not fully resolver-driven. |
@@ -219,11 +230,22 @@ Conclusion:
 ## Commands run
 
 - `npm run typecheck` (pass)
-- `npm run lint` (non-zero due existing repo warning baseline; no new errors)
+- `npm run lint` (non-zero due existing repo-wide lint debt outside this scoped change; touched-file lint below passed)
+- `npm run ci` (non-zero at lint gate after passing typecheck, server-action check, i18n/locale/inquiry/AI/tenant/builder test gates; same repo-wide lint blockers as the standalone lint run)
 - `npm run test -- field` (script not defined in this repo)
 - Focused field-engine suite run instead:
   - `npx tsx --test src/lib/field-engine/effective-visibility.test.ts src/lib/field-engine/resolve-talent-fields.test.ts src/components/admin/shell/internal/live-category-fields-editor.test.ts`
   - Result: `87/87` passing.
+- Final focused suite after tenant settings scoping:
+  - `npx tsx --test src/lib/field-engine/tenant-catalog-scope.test.ts src/lib/field-engine/resolve-talent-fields.test.ts src/components/admin/shell/internal/live-category-fields-editor.test.ts src/components/admin/shell/internal/drawers/profile-shell/profile-polaroids-policy.test.ts src/lib/server-actions/admin-talent-field-values.security.test.ts src/lib/server-actions/talent-field-values-catalog.security.test.ts`
+  - Result: `40/40` passing.
+- Final targeted lint for touched files:
+  - `npx eslint src/lib/field-engine/tenant-catalog-scope.ts src/lib/field-engine/tenant-catalog-scope.test.ts src/lib/server-actions/admin-workspace-field-settings.ts src/components/admin/shell/internal/drawers/light-10.tsx --pass-on-unpruned-suppressions`
+  - Result: `0` errors; existing unused-import warnings in `light-10.tsx` remain.
+- Full lint / CI blockers observed outside this scoped change:
+  - stale ESLint suppressions requiring `--prune-suppressions`,
+  - `web/src/app/(workspace)/[tenantSlug]/_data-bridge/talent.ts` exceeds the current `max-lines` rule,
+  - `web/src/components/marketing/hero-section.tsx` uses `<a>` for `/talent/register/` where Next lint requires `<Link />`.
 
 ## Remaining work after this closure
 
@@ -234,5 +256,4 @@ Phase-2 checklist items are closed. The next meaningful work is Wave-3+ producti
 - real drag/drop ordering + richer tenant override controls,
 - stronger platform impact preview and audit history UI polish,
 - curate Impronta's enabled leaf talent-type set under the 8 enabled parent categories,
-- gate `media.polaroids` by tenant/type so it can be disabled for Impronta without deleting platform capability,
 - broader manual QA across platform admin catalog/taxonomy mutation flows.

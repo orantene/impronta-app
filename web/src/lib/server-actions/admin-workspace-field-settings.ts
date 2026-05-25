@@ -26,6 +26,7 @@ import {
   CACHE_TAG_FIELD_CATALOG,
   fieldCatalogTagForTenant,
 } from "@/lib/field-engine/cache-tags";
+import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
@@ -50,6 +51,15 @@ type GroupOverrideSnapshot = {
   custom_label: string | null;
   display_order: number | null;
 };
+
+type ScopeDefRow = { id: string; tier: string | null; field_group_id?: string | null };
+type ScopeRecRow = { field_definition_id: string; taxonomy_term_id: string };
+type ScopeTermRow = { id: string; parent_id: string | null; is_active: boolean | null };
+type ScopeSettingRow = { taxonomy_term_id: string; is_enabled: boolean | null };
+
+function scopeCatalogDefs<Field extends ScopeDefRow>(defs: readonly Field[], recs: readonly ScopeRecRow[], terms: readonly ScopeTermRow[], settings: readonly ScopeSettingRow[]): Field[] {
+  return filterTenantCatalogFieldsByEnabledTaxonomy(defs, recs, terms, settings);
+}
 
 const FIELD_OVERRIDE_COLS =
   "enabled_override, required_override, show_in_public_override, admin_only_override, default_visibility_override, custom_label, custom_helper, display_order_override";
@@ -110,12 +120,13 @@ export async function getFieldPrivacyCatalog(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const [defsR, groupsR, ovR, groupOvR] = await Promise.all([
+  const [defsR, groupsR, ovR, groupOvR, termsR, taxonomySettingsR, recsR] =
+    await Promise.all([
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, field_group_id, display_order, admin_only, is_sensitive, default_visibility, show_in_public",
+        "id, field_key, label, tier, field_group_id, display_order, admin_only, is_sensitive, default_visibility, show_in_public",
       )
       .is("deprecated_at", null),
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
@@ -129,16 +140,34 @@ export async function getFieldPrivacyCatalog(): Promise<
       ),
     tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
       .select("field_group_id, custom_label, display_order"),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- taxonomy_terms is the platform-global taxonomy table and has no tenant_id column
+    supabase.from("taxonomy_terms").select("id, parent_id, is_active").eq("is_active", true),
+    tenantScopedQuery(supabase, "agency_taxonomy_settings", tenantId).select(
+      "taxonomy_term_id, is_enabled",
+    ),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_recommendations is the platform-global field-to-taxonomy map and has no tenant_id column
+    supabase.from("profile_field_recommendations").select("field_definition_id, taxonomy_term_id"),
   ]);
 
-  if (defsR.error || groupsR.error || ovR.error || groupOvR.error) {
+  if (
+    defsR.error ||
+    groupsR.error ||
+    ovR.error ||
+    groupOvR.error ||
+    termsR.error ||
+    taxonomySettingsR.error ||
+    recsR.error
+  ) {
     void improntaLog("admin_workspace_field_settings.error", {
       message: "[field-privacy-catalog] load failed:",
       detail:
         defsR.error?.message ||
         groupsR.error?.message ||
         ovR.error?.message ||
-        groupOvR.error?.message,
+        groupOvR.error?.message ||
+        termsR.error?.message ||
+        taxonomySettingsR.error?.message ||
+        recsR.error?.message,
     });
     return { ok: false, error: "Couldn't load the field catalog." };
   }
@@ -156,11 +185,24 @@ export async function getFieldPrivacyCatalog(): Promise<
     ]),
   );
 
-  const fields: FieldPrivacyEntry[] = (defsR.data ?? []).map((d) => {
+  const scopedDefs = scopeCatalogDefs(
+    (defsR.data ?? []) as ScopeDefRow[],
+    (recsR.data ?? []) as ScopeRecRow[],
+    (termsR.data ?? []) as ScopeTermRow[],
+    (taxonomySettingsR.data ?? []) as ScopeSettingRow[],
+  );
+  const activeGroupIds = new Set(
+    scopedDefs
+      .map((d) => (d as { field_group_id?: string | null }).field_group_id)
+      .filter((id): id is string => !!id),
+  );
+
+  const fields: FieldPrivacyEntry[] = scopedDefs.map((d) => {
     const def = d as {
       id: string;
       field_key: string;
       label: string;
+      tier: string | null;
       field_group_id: string | null;
       display_order: number | null;
       admin_only: boolean | null;
@@ -209,6 +251,7 @@ export async function getFieldPrivacyCatalog(): Promise<
   });
 
   const groups: FieldPrivacyGroup[] = (groupsR.data ?? [])
+    .filter((g) => activeGroupIds.has((g as { id: string }).id))
     .map((g) => {
       const gg = g as {
         id: string;
@@ -464,11 +507,12 @@ export async function getWorkspaceFieldCatalog(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const [defsR, groupsR, fOvR, gOvR] = await Promise.all([
+  const [defsR, groupsR, fOvR, gOvR, termsR, taxonomySettingsR, recsR] =
+    await Promise.all([
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
-      .select("id, field_key, label, field_group_id, display_order")
+      .select("id, field_key, label, tier, field_group_id, display_order")
       .is("deprecated_at", null),
     // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
     supabase
@@ -479,13 +523,30 @@ export async function getWorkspaceFieldCatalog(): Promise<
       .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override"),
     tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
       .select("field_group_id, is_enabled, custom_label, display_order"),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- taxonomy_terms is the platform-global taxonomy table and has no tenant_id column
+    supabase.from("taxonomy_terms").select("id, parent_id, is_active").eq("is_active", true),
+    tenantScopedQuery(supabase, "agency_taxonomy_settings", tenantId).select(
+      "taxonomy_term_id, is_enabled",
+    ),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_recommendations is the platform-global field-to-taxonomy map and has no tenant_id column
+    supabase.from("profile_field_recommendations").select("field_definition_id, taxonomy_term_id"),
   ]);
 
-  if (defsR.error || groupsR.error || fOvR.error || gOvR.error) {
+  if (
+    defsR.error ||
+    groupsR.error ||
+    fOvR.error ||
+    gOvR.error ||
+    termsR.error ||
+    taxonomySettingsR.error ||
+    recsR.error
+  ) {
     void improntaLog("admin_workspace_field_settings.error", {
       message: "[field-catalog] load failed:",
       detail: defsR.error?.message || groupsR.error?.message ||
-        fOvR.error?.message || gOvR.error?.message,
+        fOvR.error?.message || gOvR.error?.message ||
+        termsR.error?.message || taxonomySettingsR.error?.message ||
+        recsR.error?.message,
     });
     return { ok: false, error: "Couldn't load the field catalog." };
   }
@@ -503,10 +564,22 @@ export async function getWorkspaceFieldCatalog(): Promise<
     ]),
   );
 
-  const fields: FieldCatalogField[] = (defsR.data ?? []).map((d) => {
+  const scopedDefs = scopeCatalogDefs(
+    (defsR.data ?? []) as ScopeDefRow[],
+    (recsR.data ?? []) as ScopeRecRow[],
+    (termsR.data ?? []) as ScopeTermRow[],
+    (taxonomySettingsR.data ?? []) as ScopeSettingRow[],
+  );
+  const activeGroupIds = new Set(
+    scopedDefs
+      .map((d) => (d as { field_group_id?: string | null }).field_group_id)
+      .filter((id): id is string => !!id),
+  );
+
+  const fields: FieldCatalogField[] = scopedDefs.map((d) => {
     const def = d as {
       id: string; field_key: string; label: string;
-      field_group_id: string | null; display_order: number | null;
+      tier: string | null; field_group_id: string | null; display_order: number | null;
     };
     const o = fOv.get(def.id) as
       | {
@@ -529,6 +602,7 @@ export async function getWorkspaceFieldCatalog(): Promise<
   });
 
   const groups: FieldCatalogGroupRow[] = (groupsR.data ?? [])
+    .filter((g) => activeGroupIds.has((g as { id: string }).id))
     .map((g) => {
       const gg = g as {
         id: string; name_en: string | null; slug: string;

@@ -283,7 +283,7 @@ export function FieldCatalogDrawer() {
       open
       onClose={closeDrawer}
       title="Field catalog"
-      description="Resolved Tulala engine fields for this workspace. Toggle what you collect, rename for your team, and mark what is required within platform safety rules."
+      description="Fields available to this workspace's enabled talent categories. Toggle what you collect, rename for your team, and mark what is required within platform safety rules."
       width={680}
       footer={
         <>
@@ -689,7 +689,7 @@ export function FieldPrivacyDrawer() {
       open
       onClose={closeDrawer}
       title="Field privacy"
-      description="The same effective visibility used by the profile editor, registration, public profile, and directory."
+      description="Effective visibility for fields available to this workspace's enabled talent categories."
       width={680}
       footer={
         <>
