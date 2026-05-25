@@ -1365,7 +1365,9 @@ export function TalentProfileShellDrawer() {
   const profileFieldHeaderTitle = activeProfileFieldGroup?.label ?? "Details";
   const profileFieldHeaderDescription = activeProfileFieldGroup
     ? detailsGroupHelperText(activeProfileFieldGroup.label)
-    : "Select a talent type in Services to see type-specific fields.";
+    : selectedTalentTypeSlugs.length > 0
+      ? "No extra fields are configured for this type."
+      : "Select a talent type in Services to see relevant fields.";
   const [refinementTab, setRefinementTab] = useState<"skills" | "contexts">("skills");
   const [viewAsClient, setViewAsClient] = useState(false);
 
@@ -3319,6 +3321,7 @@ export function TalentProfileShellDrawer() {
                     activeGroupKey={activeProfileFieldGroupKey}
                     onActiveGroupChange={setActiveProfileFieldGroupKey}
                     hideInlineCategoryNav
+                    hasSelectedTalentType={selectedTalentTypeSlugs.length > 0}
                   />
                 </div>
               </section>

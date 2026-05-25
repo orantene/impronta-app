@@ -915,6 +915,7 @@ export function LiveCategoryFieldsEditor({
   activeGroupKey,
   onActiveGroupChange,
   hideInlineCategoryNav = false,
+  hasSelectedTalentType = false,
   serverActions,
   viewMode = "admin",
   scope = "specialty",
@@ -942,6 +943,9 @@ export function LiveCategoryFieldsEditor({
   /** Hide the in-panel category nav on desktop when the parent rail renders
    *  the same categories as nested Details children. Mobile keeps it. */
   hideInlineCategoryNav?: boolean;
+  /** Lets empty Specialty state distinguish "choose a type" from
+   *  "this selected type has no extra configured fields." */
+  hasSelectedTalentType?: boolean;
   /** Optional override for the value/visibility server actions. Defaults to
    *  the admin pair. Talent-self callers pass the talent pair so writes go
    *  through `requireTalent` + ownership + editable_by_talent gate. */
@@ -1270,7 +1274,9 @@ export function LiveCategoryFieldsEditor({
     if (scope === "general") return null;
     return (
       <div style={{ padding: 12, fontFamily: F, fontSize: 12, color: T.inkMuted }}>
-        Select a talent type in Services to see type-specific fields.
+        {hasSelectedTalentType
+          ? "No extra fields are configured for this type."
+          : "Select a talent type in Services to see relevant fields."}
       </div>
     );
   }
