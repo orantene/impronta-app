@@ -17,16 +17,21 @@
 // Spec: project_discover_unified.md §9 (talent audit T2/T4/T5).
 
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
 import { logServerError } from "@/lib/server/safe-error";
 import { SmartImage } from "@/components/ui/smart-image";
 
 export const dynamic = "force-dynamic";
-type PageParams = Promise<{ tenantSlug: string }>;
+type PageParams = Promise<{ tenantSlug?: string }>;
+
+function talentSubHref(tenantSlug: string, segment: string, platformRoutes: boolean): string {
+  return platformRoutes ? `/talent/${segment}` : `/${tenantSlug}/talent/${segment}`;
+}
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -201,13 +206,16 @@ async function loadTalentDiscover(
 }
 
 export default async function TalentDiscoverPage({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
+  const { tenantSlug, tenantId } = await resolveTalentPageScope(params);
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-impronta-original-pathname") ?? "";
+  const platformRoutes =
+    pathname.startsWith("/talent/") &&
+    !/^\/[a-z0-9][a-z0-9-]{1,62}\/talent\//.test(pathname);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
-  if (!scope) notFound();
 
-  const d = await loadTalentDiscover(session.user.id, scope.tenantId);
+  const d = await loadTalentDiscover(session.user.id, tenantId);
   if (!d) {
     return (
       <div style={{ fontFamily: FONT, padding: "32px 28px", maxWidth: 720 }}>
@@ -226,7 +234,7 @@ export default async function TalentDiscoverPage({ params }: { params: PageParam
   return (
     <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 980 }}>
       <div style={{ marginBottom: 18 }}>
-        <Link href={`/${tenantSlug}/talent/profile`} style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}>
+        <Link href={talentSubHref(tenantSlug, "profile", platformRoutes)} style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}>
           ← Back to profile
         </Link>
       </div>
@@ -378,7 +386,7 @@ export default async function TalentDiscoverPage({ params }: { params: PageParam
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 22 }}>
-        <Link href={`/${tenantSlug}/talent/profile`} style={{
+        <Link href={talentSubHref(tenantSlug, "profile", platformRoutes)} style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "9px 14px", background: C.accent, color: "#fff",
           borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
@@ -400,7 +408,7 @@ export default async function TalentDiscoverPage({ params }: { params: PageParam
             ↗ View public page
           </a>
         )}
-        <Link href={`/${tenantSlug}/talent/trust`} style={{
+        <Link href={talentSubHref(tenantSlug, "trust", platformRoutes)} style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "9px 14px", background: "transparent",
           color: C.ink, border: `1px solid ${C.border}`,

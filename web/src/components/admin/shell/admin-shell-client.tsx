@@ -253,8 +253,13 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
 
 function pathIsCanonical(pathname: string | null): boolean {
   if (!pathname) return false;
-  // Drop leading slash and tenant slug (first segment), pass the rest.
-  const parts = pathname.replace(/^\/+/, "").split("/");
+  const parts = pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+  if (parts.length === 0) return false;
+  // Platform-scoped talent routes: /talent/site, /talent/trust, …
+  if (parts[0] === "talent") {
+    return CANONICAL_ROUTE_MATCHERS.some((match) => match(parts));
+  }
+  // Tenant-scoped: /{slug}/talent/site → ["slug","talent","site"]
   if (parts.length < 2) return false;
   const afterTenant = parts.slice(1);
   return CANONICAL_ROUTE_MATCHERS.some((match) => match(afterTenant));
@@ -331,6 +336,7 @@ export function TalentShellClient({
   initialBridgeData = null,
   initialTalentPage,
   tenantSlug,
+  platformTalentRoutes = false,
   children,
 }: {
   initialBridgeData?: BridgeData | null;
@@ -338,6 +344,8 @@ export function TalentShellClient({
   initialTalentPage?: import("./internal/state").TalentPage;
   /** Slug for Next.js router.push() URL sync via setTalentPage. */
   tenantSlug?: string;
+  /** When true, tab navigation uses `/talent/<segment>` (no tenant slug). */
+  platformTalentRoutes?: boolean;
   /**
    * Slot for TalentPageRouteSyncer — a tiny component rendered inside the
    * AdminShellProvider that calls setTalentPage on mount to sync the shell's
@@ -353,6 +361,7 @@ export function TalentShellClient({
           initialSurface="talent"
           initialTalentPage={initialTalentPage}
           tenantSlug={tenantSlug}
+          platformTalentRoutes={platformTalentRoutes}
         >
           {children}
           <RealtimeBridge />

@@ -1,12 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
 import { loadTalentPayoutSnapshot } from "./actions";
 import { PayoutsShell } from "./PayoutsShell";
 
 export const dynamic = "force-dynamic";
 
-type PageParams = Promise<{ tenantSlug: string }>;
+type PageParams = Promise<{ tenantSlug?: string }>;
 type SearchParams = Promise<{ ok?: string; refresh?: string }>;
 
 export default async function TalentPayoutsPage({
@@ -15,15 +15,13 @@ export default async function TalentPayoutsPage({
   params: PageParams;
   searchParams: SearchParams;
 }) {
-  const { tenantSlug } = await params;
+  const { tenantSlug } = await resolveTalentPageScope(params);
   const sp = await searchParams;
 
   const session = await getCachedActorSession();
   if (!session.user) {
-    redirect(`/login?next=/${tenantSlug}/talent/settings/payouts`);
+    redirect(`/login?next=/talent/settings/payouts`);
   }
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
-  if (!scope) notFound();
 
   const snapResult = await loadTalentPayoutSnapshot();
 

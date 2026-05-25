@@ -206,6 +206,130 @@ export async function loadTalentSelfProfile(
   }
 }
 
+/**
+ * Platform-scoped talent profile — no roster gate. Used on `/talent/*` routes
+ * on app.tulala.digital before an active agency context is applied.
+ */
+export async function loadTalentSelfProfileByUser(
+  userId: string,
+): Promise<TalentSelfProfile | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+    const trusted = createServiceRoleClient() ?? supabase;
+
+    const { data: profileRow, error: profileErr } = await supabase
+      .from("talent_profiles")
+      .select(`
+        id,
+        display_name,
+        first_name,
+        last_name,
+        workflow_status,
+        is_publicly_hidden,
+        profile_code,
+        talent_plan_key,
+        short_bio,
+        bio_en,
+        height_cm,
+        contact_policy,
+        talent_profile_taxonomy (
+          relationship_type,
+          taxonomy_terms ( name_en )
+        ),
+        talent_service_areas (
+          service_kind,
+          locations ( display_name_en )
+        )
+      `)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (profileErr || !profileRow) {
+      if (profileErr) logServerError("talent.loadSelfProfileByUser.profile", profileErr);
+      return null;
+    }
+
+    type ProfileRaw = {
+      id: string;
+      display_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      workflow_status: string | null;
+      is_publicly_hidden: boolean | null;
+      profile_code: string | null;
+      talent_plan_key: string | null;
+      short_bio: string | null;
+      bio_en: string | null;
+      height_cm: number | null;
+      contact_policy: Record<string, boolean> | null;
+      talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_en: string | null } | null }[] | null;
+      talent_service_areas: { service_kind: string | null; locations: { display_name_en: string | null } | null }[] | null;
+    };
+
+    const p = profileRow as unknown as ProfileRaw;
+
+    const { data: mediaRows } = await trusted
+      .from("media_assets")
+      .select("storage_path, variant_kind")
+      .eq("owner_talent_profile_id", p.id)
+      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true });
+    const variantOrder = ["card", "public_watermarked", "gallery", "portfolio", "original"];
+    const mediaRow = (mediaRows ?? [])
+      .slice()
+      .sort(
+        (a, b) =>
+          variantOrder.indexOf((a as { variant_kind: string }).variant_kind) -
+          variantOrder.indexOf((b as { variant_kind: string }).variant_kind),
+      )[0] as { storage_path: string; variant_kind: string } | undefined ?? null;
+    const BUCKET = "media-public";
+    const headshotUrl = mediaRow?.storage_path
+      ? trusted.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl
+      : null;
+
+    const displayName =
+      p.display_name?.trim() ||
+      `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
+      "Unnamed";
+
+    const primaryTypeLabel =
+      (p.talent_profile_taxonomy ?? [])
+        .find((t) => t.relationship_type === "primary_role")
+        ?.taxonomy_terms?.name_en ?? null;
+
+    const homeCity =
+      (p.talent_service_areas ?? [])
+        .find((a) => a.service_kind === "home_base")
+        ?.locations?.display_name_en ?? null;
+    const membership = buildTalentMembershipState(p.talent_plan_key);
+
+    return {
+      id: p.id,
+      displayName,
+      primaryTypeLabel,
+      homeCity,
+      workflowStatus: p.workflow_status ?? "draft",
+      isPubliclyHidden: p.is_publicly_hidden ?? false,
+      rosterStatus: "active",
+      profileCode: p.profile_code ?? null,
+      talentPlanKey: membership.planKey,
+      talentTier: membership.tier,
+      talentCapabilities: membership.capabilities,
+      agencyName: "Tulala",
+      headshotUrl,
+      hasBio: !!(p.short_bio?.trim() || p.bio_en?.trim()),
+      hasHeight: p.height_cm !== null,
+      contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
+    };
+  } catch (err) {
+    logServerError("talent.loadSelfProfileByUser", err);
+    return null;
+  }
+}
+
 // ─── Talent inquiries ─────────────────────────────────────────────────────────
 
 export type TalentInquiryRow = {

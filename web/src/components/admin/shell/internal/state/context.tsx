@@ -667,6 +667,7 @@ export function AdminShellProvider({
   initialSurface,
   initialTalentPage,
   tenantSlug,
+  platformTalentRoutes = false,
 }: {
   children: ReactNode;
   /**
@@ -698,10 +699,16 @@ export function AdminShellProvider({
    * browser URL stays in sync with the shell's internal page state.
    */
   tenantSlug?: string;
+  /** Platform `/talent/*` routes on app.tulala.digital (no `/{slug}` prefix). */
+  platformTalentRoutes?: boolean;
 }) {
   const router = useRouter();
   const tenantSlugRef = useRef(tenantSlug);
-  useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
+  const platformTalentRoutesRef = useRef(platformTalentRoutes);
+  useEffect(() => {
+    tenantSlugRef.current = tenantSlug;
+    platformTalentRoutesRef.current = platformTalentRoutes;
+  }, [tenantSlug, platformTalentRoutes]);
 
   const [locale, setLocale] = useState("en");
   useEffect(() => {
@@ -714,7 +721,14 @@ export function AdminShellProvider({
   // set + initialSurface === "talent"). Prefetch is fire-and-forget;
   // failures are silently ignored by Next.js.
   useEffect(() => {
-    if (!tenantSlug || initialSurface !== "talent") return;
+    if (initialSurface !== "talent") return;
+    if (platformTalentRoutes) {
+      for (const seg of TALENT_ROUTE_SEGMENTS) {
+        router.prefetch(`/talent/${seg}`);
+      }
+      return;
+    }
+    if (!tenantSlug) return;
     for (const seg of TALENT_ROUTE_SEGMENTS) {
       router.prefetch(`/${tenantSlug}/talent/${seg}`);
     }
@@ -806,24 +820,20 @@ export function AdminShellProvider({
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
   const setTalentPage = useCallback((p: TalentPage) => {
     setTalentPageRaw(p);
-    const slug = tenantSlugRef.current;
-    if (!slug) return;
-    // URL belongs to the *route*, not the surface. So we only push a real
-    // navigation when the user landed on a `/talent/*` route. When the user
-    // is on `/admin/*` and flipped to Talent via the toggle pill, the
-    // intended UX is an in-shell mode change — the workspace URL stays put
-    // and the talent surface renders inline. Pushing /talent/<segment> here
-    // would break that and yank the user out of the admin shell.
     if (initialSurface !== "talent") return;
     const segment = talentPageToSegment(p);
-    // Task 0.6 — match BOTH canonical (/{slug}/talent/segment) and branded
-    // (/talent/segment) URLs. Without the branded check, hitting a branded
-    // agency host like impronta.tulala.digital/talent/profile would
-    // immediately router-push /impronta/talent/profile, ripping the user
-    // out of the branded URL pattern (the proxy doesn't pass through
-    // slug-prefixed URLs on agency hosts).
     if (typeof window === "undefined") return;
     const currentPath = window.location.pathname;
+
+    if (platformTalentRoutesRef.current) {
+      const platformHref = `/talent/${segment}`;
+      if (currentPath === platformHref) return;
+      router.push(platformHref);
+      return;
+    }
+
+    const slug = tenantSlugRef.current;
+    if (!slug) return;
     const canonicalHref = `/${slug}/talent/${segment}`;
     const brandedHref = `/talent/${segment}`;
     if (currentPath === canonicalHref || currentPath === brandedHref) return;

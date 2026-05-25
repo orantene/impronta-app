@@ -17,15 +17,20 @@ import { pinNextConversation } from "@/components/admin/shell/internal/messages"
 export function PinThenRedirect({
   conversationId,
   tenantSlug,
+  platformTalentRoutes = false,
 }: {
   conversationId: string;
-  tenantSlug: string;
+  tenantSlug?: string;
+  platformTalentRoutes?: boolean;
 }) {
   const router = useRouter();
   useEffect(() => {
     pinNextConversation(conversationId);
-    router.replace(`/${tenantSlug}/talent/inbox`);
-  }, [conversationId, tenantSlug, router]);
+    const target = platformTalentRoutes
+      ? "/talent/inbox"
+      : `/${tenantSlug}/talent/inbox`;
+    router.replace(target);
+  }, [conversationId, tenantSlug, platformTalentRoutes, router]);
   // Render a thin loading shell so the page isn't a flash of nothing
   // while the redirect resolves. The talent inbox shell takes over.
   return (

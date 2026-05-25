@@ -18,11 +18,11 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadTrustBadgesForTalents, type LoadedTrustBadge }
   from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-trust-badges";
-import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
 import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
-type PageParams = Promise<{ tenantSlug: string }>;
+type PageParams = Promise<{ tenantSlug?: string }>;
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -108,12 +108,9 @@ const TOUCHPOINTS: TouchpointDescriptor[] = [
 ];
 
 export default async function TalentTrustPage({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
+  const { tenantSlug, tenantId } = await resolveTalentPageScope(params);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
-
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
-  if (!scope) notFound();
 
   // Resolve the talent's own profile id from auth.uid().
   const supabase = await createSupabaseServerClient();
@@ -142,7 +139,7 @@ export default async function TalentTrustPage({ params }: { params: PageParams }
   const talentProfileId = profile.id as string;
   const earned: LoadedTrustBadge[] = await loadTrustBadgesForTalents(
     [talentProfileId],
-    scope.tenantId,
+    tenantId,
   );
   const earnedByKind = new Map(earned.map((b) => [b.kind, b]));
 
