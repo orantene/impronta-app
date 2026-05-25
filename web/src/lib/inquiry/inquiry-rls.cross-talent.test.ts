@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// Cross-agency inbox loader was extracted from talent.ts into its own file
+// (to keep talent.ts under the 800-line cap). Test reads the new file.
 const TALENT_BRIDGE = readFileSync(
-  join(process.cwd(), "src/app/(workspace)/[tenantSlug]/_data-bridge/talent.ts"),
+  join(
+    process.cwd(),
+    "src/app/(workspace)/[tenantSlug]/_data-bridge/talent-inquiries-all-agencies.ts",
+  ),
   "utf8",
 );
 

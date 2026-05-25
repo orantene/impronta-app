@@ -2388,6 +2388,21 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             outline: none !important;
           }
 
+          /* Talent identity bar brand mark. L41 locks the talent surface to
+             the Tulala wordmark regardless of which agency is hosting the
+             rostered talent. Sized to match the tenant logo branch visually
+             without overwhelming the bar height. Lives here (not inline) to
+             keep the admin-shell inline-style ratchet baseline flat. */
+          .tulala-shell .tulala-talent-brand-mark {
+            height: 28px;
+            width: auto;
+            max-width: 160px;
+            object-fit: contain;
+            object-position: left center;
+            padding-right: 4px;
+            display: block;
+          }
+
           /* Print: strip the prototype chrome (dark ControlBar, drawer
              overlays, toast host, skip link) so the surface itself is what
              ends up on paper. */

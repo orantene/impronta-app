@@ -196,15 +196,7 @@ export function TulalaIdentityBar() {
             src="/brand/tulala-wordmark.svg"
             alt={TULALA_BRAND.name}
             data-tulala-brand
-            style={{
-              height: 28,
-              width: "auto",
-              maxWidth: 160,
-              objectFit: "contain",
-              objectPosition: "left center",
-              paddingRight: 4,
-              display: "block",
-            }}
+            className="tulala-talent-brand-mark"
           />
         ) : bridgeTenantIdentity?.logoUrl ? (
           <img
