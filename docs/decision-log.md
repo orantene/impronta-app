@@ -4,6 +4,18 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-25 — Talent Tulala dashboard IA (Phase 2.2–2.6)
+
+**L41 — Talent surface is Tulala-canonical.** Pure talent uses `/talent/*` on `app.tulala.digital` as the single dashboard. Agency context is a **filter** (inbox chips, deep links), not a route prefix or identity switch. See [docs/plans/talent-tulala-dashboard-execution-plan-2026-05-25.md](plans/talent-tulala-dashboard-execution-plan-2026-05-25.md) §2.
+
+**L42 — Agency switcher gated to hybrid users.** The top "Agency context" dropdown and legacy identity-bar agency switcher are hidden for pure talent. Hybrid users (talent + workspace membership) keep the `Talent | Workspace` mode toggle; workspace tenant switching stays in workspace mode only.
+
+**L43 — Talent earnings source.** Talent Money reads `talent_bookings` joined to `booking_commission_snapshot.talent_net_cents`. Realized commission rates derive from snapshot lanes (not a per-roster column). Mock `EARNINGS_ROWS` fixture is deprecated. Admin Business Financials (agency `workspace_fee_cents` lane) is a **separate surface** — never merged with `/talent/money`.
+
+**Status:** shipped (Phase A lock).
+
+---
+
 ## 2026-04-12 — CMS page/post revisions (Chunk 2 follow-on)
 
 **What changed**
