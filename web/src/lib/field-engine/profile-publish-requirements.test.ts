@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildCorePublishRequirements,
   buildProfilePublishRequirements,
+  canApplyProfileStatusTransition,
   getAllowedProfileStatusOptions,
   getProfilePublishCompleteness,
   isResolvedFieldPublishBlocking,
@@ -150,5 +151,70 @@ test("profile status options: talent cannot self-publish", () => {
       canPublish: true,
     }),
     ["pending"],
+  );
+});
+
+test("profile status transition: draft incomplete cannot publish", () => {
+  assert.equal(
+    canApplyProfileStatusTransition({
+      role: "admin",
+      currentStatus: "draft",
+      nextStatus: "published",
+      canPublish: false,
+    }),
+    false,
+  );
+});
+
+test("profile status transition: draft complete can publish", () => {
+  assert.equal(
+    canApplyProfileStatusTransition({
+      role: "admin",
+      currentStatus: "draft",
+      nextStatus: "published",
+      canPublish: true,
+    }),
+    true,
+  );
+});
+
+test("profile status transition: hidden/deprecated/admin-only blockers are ignored before transition", () => {
+  const hiddenField = field({ is_required: true, default_visibility: [] });
+  const adminOnlyField = field({ is_required: true, is_admin_only: true });
+
+  assert.equal(isResolvedFieldPublishBlocking(hiddenField), false);
+  assert.equal(isResolvedFieldPublishBlocking(adminOnlyField), false);
+  assert.equal(
+    canApplyProfileStatusTransition({
+      role: "admin",
+      currentStatus: "draft",
+      nextStatus: "published",
+      canPublish: true,
+    }),
+    true,
+  );
+});
+
+test("profile status transition: already-published profile can remain published", () => {
+  assert.equal(
+    canApplyProfileStatusTransition({
+      role: "admin",
+      currentStatus: "published",
+      nextStatus: "published",
+      canPublish: false,
+    }),
+    true,
+  );
+});
+
+test("profile status transition: talent cannot publish directly", () => {
+  assert.equal(
+    canApplyProfileStatusTransition({
+      role: "talent",
+      currentStatus: "draft",
+      nextStatus: "published",
+      canPublish: true,
+    }),
+    false,
   );
 });

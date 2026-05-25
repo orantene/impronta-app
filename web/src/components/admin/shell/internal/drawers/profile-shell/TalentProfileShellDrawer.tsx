@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   buildCorePublishRequirements,
   buildProfilePublishRequirements,
+  canApplyProfileStatusTransition,
   getProfilePublishCompleteness,
 } from "@/lib/field-engine/profile-publish-requirements";
 import type { ResolvedField } from "@/lib/field-engine/resolve-talent-fields";
@@ -1507,6 +1508,7 @@ export function TalentProfileShellDrawer() {
     resolverMissing: profileFieldRequiredMissing,
   });
   const missing = required.filter(r => !r.met);
+  const canPublishProfile = missing.length === 0;
   const completeness = getProfilePublishCompleteness(required);
 
   // Per-section completeness (for tab-nav dots)
@@ -1724,6 +1726,15 @@ export function TalentProfileShellDrawer() {
   };
   const submit = () => {
     if (!isSelf && state.profileStatus !== "published") {
+      if (!canApplyProfileStatusTransition({
+        role: "admin",
+        currentStatus: state.profileStatus,
+        nextStatus: "published",
+        canPublish: canPublishProfile,
+      })) {
+        toast(missing.length === 1 ? "Add 1 item to publish" : `Add ${missing.length} items to publish`);
+        return;
+      }
       // Admin going draft/pending → published. Open celebration first.
       patch({ profileStatus: "published" });
       setPublishCelebrationOpen(true);
@@ -1777,6 +1788,19 @@ export function TalentProfileShellDrawer() {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 250);
+  };
+
+  const handleProfileStatusChange = (nextStatus: typeof state.profileStatus) => {
+    if (!canApplyProfileStatusTransition({
+      role: isSelf ? "talent" : "admin",
+      currentStatus: state.profileStatus,
+      nextStatus,
+      canPublish: canPublishProfile,
+    })) {
+      toast(missing.length === 1 ? "Add 1 item to publish" : `Add ${missing.length} items to publish`);
+      return;
+    }
+    patch({ profileStatus: nextStatus });
   };
 
   if (!drawerOpen) return null;
@@ -2078,9 +2102,9 @@ export function TalentProfileShellDrawer() {
               to the footer. */}
           <StatusPillDropdown
             status={state.profileStatus}
-            onChange={(s) => patch({ profileStatus: s })}
+            onChange={handleProfileStatusChange}
             role={isSelf ? "talent" : "admin"}
-            canPublish={missing.length === 0}
+            canPublish={canPublishProfile}
           />
 
           {/* History control strip — always visible (incl. mobile); pairs with explicit Save. */}
@@ -2308,7 +2332,7 @@ export function TalentProfileShellDrawer() {
             <SmartFooterCTA
               status={state.profileStatus}
               mode={mode}
-              canPublish={missing.length === 0}
+              canPublish={canPublishProfile}
               onAction={submit}
             />
           </div>

@@ -145,3 +145,15 @@ export function getAllowedProfileStatusOptions(input: {
   }
   return allowed;
 }
+
+export function canApplyProfileStatusTransition(input: {
+  role: ProfileWorkflowRole;
+  currentStatus: ProfileWorkflowStatus;
+  nextStatus: ProfileWorkflowStatus;
+  canPublish: boolean;
+}): boolean {
+  if (input.nextStatus !== "published") return true;
+  if (input.currentStatus === "published") return true;
+  if (input.role !== "admin") return false;
+  return input.canPublish;
+}
