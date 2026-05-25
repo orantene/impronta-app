@@ -13,8 +13,8 @@ const PUBLIC_LOAD_SRC = readFileSync(
   "utf8",
 );
 
-test("public route uses RPC and never reads draft_snapshot for anonymous visitors", () => {
-  assert.match(PUBLIC_PAGE_SRC, /talent_public_site_for_profile_code/);
+test("public route loads via public loader and never reads draft_snapshot in page", () => {
+  assert.match(PUBLIC_PAGE_SRC, /loadTalentPublicSiteByProfileCode/);
   assert.match(PUBLIC_PAGE_SRC, /TalentPersonalSiteRenderer/);
   assert.match(PUBLIC_PAGE_SRC, /TalentSiteNotPublished/);
   assert.equal(PUBLIC_PAGE_SRC.includes("draft_snapshot"), false);

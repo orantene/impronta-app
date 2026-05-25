@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const MIGRATION = readFileSync(
-  join(process.cwd(), "../supabase/migrations/20261001000000_talent_sites.sql"),
-  "utf8",
+import { fileURLToPath } from "node:url";
+
+const MIGRATION_PATH = join(
+  fileURLToPath(new URL(".", import.meta.url)),
+  "20261001000000_talent_sites.sql",
 );
+const MIGRATION = readFileSync(MIGRATION_PATH, "utf8");
 
 test("talent_sites migration defines storage, helpers, RLS, and public RPC", () => {
   assert.match(MIGRATION, /create table public\.talent_sites/i);

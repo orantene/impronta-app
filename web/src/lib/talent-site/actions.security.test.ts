@@ -18,7 +18,7 @@ test("talent site actions never write to cms_* tables", () => {
 test("talent site actions use plan_required denial for upgrades", () => {
   assert.match(ACTIONS_SRC, /plan_required/);
   assert.match(ACTIONS_SRC, /Upgrade to Max to edit or publish again/);
-  assert.match(ACTIONS_SRC, /talentPlanGrantsAccessCapability/);
+  assert.match(ACTIONS_SRC, /assertTalentCanEditPersonalSite|assertTalentCanPublishPersonalSite/);
   assert.match(ACTIONS_SRC, /talent_sites/);
   assert.match(ACTIONS_SRC, /talent_site_revisions/);
   assert.match(ACTIONS_SRC, /bustTalentSiteCache/);

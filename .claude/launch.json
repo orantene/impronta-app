@@ -4,7 +4,7 @@
     {
       "name": "Checkpoint2 QA (3021)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-cp2-integration/web && PORT=3021 npm run dev"],
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && PORT=3021 npm run dev"],
       "port": 3021,
       "autoPort": false
     },

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { sectionAllowedForSiteKind } from "@/lib/site-admin/sections/site-kind-allowlist";
+import { isTalentPersonalSectionTypeKey } from "@/lib/site-admin/sections/talent-personal-section-keys";
 import { buildTalentPortfolioStarterSnapshot } from "@/lib/talent-site/starter";
 
 test("starter snapshot sections are allowed for talent_personal", () => {
@@ -27,7 +27,7 @@ test("starter snapshot sections are allowed for talent_personal", () => {
 
   for (const slot of snapshot.slots) {
     assert.equal(
-      sectionAllowedForSiteKind(slot.sectionTypeKey, "talent_personal"),
+      isTalentPersonalSectionTypeKey(slot.sectionTypeKey),
       true,
       `${slot.sectionTypeKey} must be talent_personal allowed`,
     );

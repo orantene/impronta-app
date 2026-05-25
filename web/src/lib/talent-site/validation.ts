@@ -1,4 +1,4 @@
-import { sectionAllowedForSiteKind } from "@/lib/site-admin/sections/site-kind-allowlist";
+import { isTalentPersonalSectionTypeKey } from "@/lib/site-admin/sections/talent-personal-section-keys";
 
 import type { TalentSiteSnapshot } from "./types";
 
@@ -45,7 +45,7 @@ export function validateTalentSiteSnapshot(raw: unknown): TalentSiteValidationRe
     }
     slotKeys.add(slot.slotKey);
 
-    if (!sectionAllowedForSiteKind(slot.sectionTypeKey, "talent_personal")) {
+    if (!isTalentPersonalSectionTypeKey(slot.sectionTypeKey)) {
       return {
         ok: false,
         error: `Section type "${slot.sectionTypeKey}" is not allowed on talent personal sites.`,
