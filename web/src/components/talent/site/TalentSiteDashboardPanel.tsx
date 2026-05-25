@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useAdminShell } from "@/components/admin/shell/internal/state";
+import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { fetchTalentPersonalSiteDashboardStateAction } from "@/lib/talent-site/server/actions";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
 import { TalentSiteDashboardClient } from "./TalentSiteDashboardClient";
-
-const FONT = '"Inter", system-ui, sans-serif';
 
 /**
  * Renders the personal-site dashboard inside the talent shell main area
@@ -39,7 +37,17 @@ export function TalentSiteDashboardPanel() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, fontFamily: FONT, fontSize: 13, color: "rgba(11,11,13,0.55)" }}>
+      <div
+        style={{
+          padding: "14px 16px",
+          background: COLORS.surfaceAlt,
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          color: COLORS.inkMuted,
+        }}
+      >
         Loading personal site…
       </div>
     );
@@ -47,8 +55,18 @@ export function TalentSiteDashboardPanel() {
 
   if (error || !state) {
     return (
-      <div style={{ padding: 24, fontFamily: FONT, fontSize: 13 }}>
-        <p>{error ?? "Unable to load personal site."}</p>
+      <div
+        style={{
+          padding: "14px 16px",
+          background: COLORS.criticalSoft,
+          border: `1px solid rgba(176,48,58,0.18)`,
+          borderRadius: 12,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          color: COLORS.criticalDeep,
+        }}
+      >
+        {error ?? "Unable to load personal site."}
       </div>
     );
   }

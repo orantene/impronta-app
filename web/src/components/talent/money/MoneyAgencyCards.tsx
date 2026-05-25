@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { MY_AGENCIES, useAdminShell } from "@/components/admin/shell/internal/state";
-import { TalentSectionLabel } from "@/components/talent/talent-dashboard-primitives";
+import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
+import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
 import { formatEurCents } from "@/lib/talent/earnings-view";
-import { Building2 } from "lucide-react";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
 
 function planLabel(plan: string): string {
@@ -20,6 +21,29 @@ function exclusivityLabel(status: string): string {
   if (status === "ended") return "Ended";
   if (status === "pending") return "Pending";
   return "Active";
+}
+
+function MetaChip({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "accent" }) {
+  const bg = tone === "accent" ? COLORS.accentSoft : "rgba(11,11,13,0.05)";
+  const fg = tone === "accent" ? COLORS.accentDeep : COLORS.inkMuted;
+  return (
+    <span
+      style={{
+        padding: "2px 8px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+        color: fg,
+        background: bg,
+        borderRadius: 999,
+        fontFamily: FONTS.body,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 export function MoneyAgencyCards() {
@@ -59,107 +83,243 @@ export function MoneyAgencyCards() {
   const profileCode = bridgeTalentSelfProfile?.profileCode ?? null;
 
   return (
-    <section className="space-y-4">
-      <TalentSectionLabel icon={Building2}>
-        Your agencies ({agencies.length})
-      </TalentSectionLabel>
+    <section>
+      <SectionHeader
+        icon="team"
+        iconTone="accent"
+        title={`Your agencies${agencies.length > 0 ? ` · ${agencies.length}` : ""}`}
+        subtitle="Earnings, commission and roster status — per workspace."
+      />
 
       {agencies.length === 0 ? (
-        <div className="rounded-admin-lg border border-dashed border-admin-border-soft bg-admin-surface-alt px-6 py-10 text-center">
-          <p className="text-sm font-medium text-admin-ink">No agencies yet</p>
-          <p className="mt-1 text-sm text-admin-ink-muted">
+        <div
+          style={{
+            background: COLORS.surfaceAlt,
+            border: `1px dashed ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "22px 18px",
+            textAlign: "center",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>No agencies yet</div>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
             Agencies invite talent — keep your profile up to date so the right ones find you.
           </p>
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 12,
+          }}
+        >
           {agencies.map((agency) => {
             const rosterUrl = agencyRosterProfileUrl(agency.slug, profileCode);
             const commissionPct =
-              agency.commissionBps > 0
-                ? `${(agency.commissionBps / 100).toFixed(1)}%`
-                : "—";
+              agency.commissionBps > 0 ? `${(agency.commissionBps / 100).toFixed(1)}%` : "—";
 
             return (
               <article
                 key={agency.id}
-                className="flex flex-col gap-4 rounded-admin-lg border border-admin-border-soft bg-admin-card p-4 shadow-admin-rest"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 14,
+                  background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 14,
+                  padding: "16px 18px",
+                  fontFamily: FONTS.body,
+                }}
               >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-lg ring-1 ring-emerald-100">
-                    🏢
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <span
+                    aria-hidden
+                    style={{
+                      flexShrink: 0,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      background: COLORS.accentSoft,
+                      color: COLORS.accentDeep,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: FONTS.display,
+                      fontSize: 16,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {agency.name.charAt(0).toUpperCase()}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate text-sm font-semibold text-admin-ink">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: COLORS.ink,
+                          letterSpacing: -0.05,
+                        }}
+                      >
                         {agency.name}
-                      </h3>
-                      {agency.isPrimary ? (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-100">
-                          Primary
-                        </span>
-                      ) : null}
+                      </span>
+                      {agency.isPrimary && <MetaChip label="Primary" tone="accent" />}
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin-ink-muted">
-                        {planLabel(agency.plan)}
-                      </span>
-                      <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin-ink-muted">
-                        {exclusivityLabel(agency.rosterStatus)}
-                      </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                      <MetaChip label={planLabel(agency.plan)} />
+                      <MetaChip label={exclusivityLabel(agency.rosterStatus)} />
                     </div>
                   </div>
                 </div>
 
-                <dl className="grid grid-cols-3 gap-3 text-center">
+                <dl
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 8,
+                    margin: 0,
+                    padding: "10px 4px",
+                    background: COLORS.surfaceAlt,
+                    borderRadius: 10,
+                    textAlign: "center",
+                  }}
+                >
                   <div>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-admin-ink-muted">
+                    <dt
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                        color: COLORS.inkMuted,
+                      }}
+                    >
                       YTD net
                     </dt>
-                    <dd className="mt-1 text-sm font-semibold tabular-nums text-admin-ink">
+                    <dd
+                      style={{
+                        margin: "3px 0 0",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: COLORS.ink,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {formatEurCents(agency.ytdNetCents)}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-admin-ink-muted">
+                    <dt
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                        color: COLORS.inkMuted,
+                      }}
+                    >
                       Bookings
                     </dt>
-                    <dd className="mt-1 text-sm font-semibold tabular-nums text-admin-ink">
+                    <dd
+                      style={{
+                        margin: "3px 0 0",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: COLORS.ink,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {agency.bookingsCount}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-admin-ink-muted">
+                    <dt
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                        color: COLORS.inkMuted,
+                      }}
+                    >
                       Commission
                     </dt>
-                    <dd className="mt-1 text-sm font-semibold tabular-nums text-admin-ink">
+                    <dd
+                      style={{
+                        margin: "3px 0 0",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: COLORS.ink,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {commissionPct}
                     </dd>
                   </div>
                 </dl>
 
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {rosterUrl ? (
                     <Link
                       href={rosterUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex flex-1 items-center justify-center rounded-lg border border-admin-border-soft px-3 py-2 text-xs font-semibold text-admin-ink hover:bg-admin-surface-alt"
+                      style={{
+                        flex: "1 1 130px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "7px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: "#fff",
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 8,
+                        color: COLORS.ink,
+                        textDecoration: "none",
+                        fontFamily: FONTS.body,
+                        whiteSpace: "nowrap",
+                      }}
                     >
                       View roster profile
                     </Link>
                   ) : (
-                    <span className="inline-flex flex-1 items-center justify-center rounded-lg border border-dashed border-admin-border-soft px-3 py-2 text-xs text-admin-ink-muted">
+                    <span
+                      style={{
+                        flex: "1 1 130px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "7px 12px",
+                        fontSize: 11.5,
+                        background: COLORS.surfaceAlt,
+                        border: `1px dashed ${COLORS.borderSoft}`,
+                        borderRadius: 8,
+                        color: COLORS.inkMuted,
+                        fontFamily: FONTS.body,
+                      }}
+                    >
                       Profile code pending
                     </span>
                   )}
-                  <button
-                    type="button"
-                    className="inline-flex flex-1 items-center justify-center rounded-lg bg-admin-accent px-3 py-2 text-xs font-semibold text-white hover:bg-admin-accent-deep"
-                    onClick={() => openDrawer("talent-agency-relationship", { agencyId: agency.id })}
-                  >
-                    Manage relationship
-                  </button>
+                  <div style={{ flex: "1 1 130px" }}>
+                    <PrimaryButton
+                      size="sm"
+                      onClick={() => openDrawer("talent-agency-relationship", { agencyId: agency.id })}
+                    >
+                      Manage relationship
+                    </PrimaryButton>
+                  </div>
                 </div>
               </article>
             );
@@ -167,18 +327,35 @@ export function MoneyAgencyCards() {
         </div>
       )}
 
-      <div className="rounded-admin-lg border border-admin-border-soft bg-admin-surface-alt p-4">
-        <p className="text-sm text-admin-ink-muted">
-          On Tulala, agencies invite talent — not the other way around. Share your public profile
-          with an agency and they can request you onto their roster.
-        </p>
-        <button
-          type="button"
-          className="mt-3 inline-flex items-center rounded-lg bg-admin-accent px-4 py-2 text-sm font-semibold text-white hover:bg-admin-accent-deep"
-          onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}
+      <div
+        style={{
+          marginTop: 12,
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+          padding: "14px 16px",
+          background: `linear-gradient(135deg, ${COLORS.accentSoft} 0%, ${COLORS.surfaceAlt} 100%)`,
+          border: `1px solid rgba(15,79,62,0.16)`,
+          borderRadius: 12,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            flex: "1 1 280px",
+            minWidth: 0,
+            fontSize: 12.5,
+            color: COLORS.ink,
+            lineHeight: 1.5,
+          }}
         >
+          On Tulala, agencies invite talent — not the other way around. Share your public profile and they can request you onto their roster.
+        </p>
+        <PrimaryButton size="sm" onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}>
           Share my profile →
-        </button>
+        </PrimaryButton>
       </div>
     </section>
   );

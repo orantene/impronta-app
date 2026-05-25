@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAdminShell } from "@/components/admin/shell/internal/state";
-import { TalentSectionLabel } from "@/components/talent/talent-dashboard-primitives";
+import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
+import { Icon } from "@/components/admin/shell/internal/primitives";
+import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { formatEurCents, type TalentEarningsRow } from "@/lib/talent/earnings-view";
-import { ReceiptText } from "lucide-react";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
 
 type SourceFilter = "all" | TalentEarningsRow["source"];
@@ -33,11 +33,77 @@ function sourceLabel(source: TalentEarningsRow["source"]): string {
   return "Other";
 }
 
-function statusTone(status: TalentEarningsRow["status"]): string {
-  if (status === "paid") return "bg-emerald-50 text-emerald-800 ring-emerald-100";
-  if (status === "invoiced") return "bg-sky-50 text-sky-800 ring-sky-100";
-  if (status === "confirmed") return "bg-indigo-50 text-indigo-800 ring-indigo-100";
-  return "bg-amber-50 text-amber-800 ring-amber-100";
+function statusPalette(status: TalentEarningsRow["status"]): { fg: string; bg: string } {
+  if (status === "paid") return { fg: COLORS.successDeep, bg: COLORS.successSoft };
+  if (status === "invoiced") return { fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
+  if (status === "confirmed") return { fg: COLORS.royalDeep, bg: COLORS.royalSoft };
+  return { fg: COLORS.amberDeep, bg: COLORS.amberSoft };
+}
+
+function FilterChip({
+  active,
+  label,
+  onClick,
+  size = "md",
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  size?: "md" | "sm";
+}) {
+  const pad = size === "sm" ? "4px 11px" : "6px 13px";
+  const fontSize = size === "sm" ? 11 : 12;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: pad,
+        fontSize,
+        fontWeight: active ? 600 : 500,
+        color: active ? "#fff" : COLORS.ink,
+        background: active ? COLORS.fill : "#fff",
+        border: active ? "1px solid transparent" : `1px solid ${COLORS.border}`,
+        borderRadius: 999,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        transition: "background .15s ease, color .15s ease",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function StatusFilterChip({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "4px 11px",
+        fontSize: 11.5,
+        fontWeight: active ? 600 : 500,
+        color: active ? COLORS.ink : COLORS.inkMuted,
+        background: active ? "rgba(11,11,13,0.05)" : "transparent",
+        border: "none",
+        borderRadius: 999,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+      }}
+    >
+      {label}
+    </button>
+  );
 }
 
 export function EarningsLedger() {
@@ -57,101 +123,227 @@ export function EarningsLedger() {
   const filteredTotal = filtered.reduce((sum, row) => sum + row.netCents, 0);
 
   return (
-    <section className="space-y-4">
-      <TalentSectionLabel icon={ReceiptText}>Earnings ledger</TalentSectionLabel>
+    <section>
+      <SectionHeader
+        icon="credit"
+        iconTone="indigo"
+        title="Earnings ledger"
+        subtitle="Every closed booking — filter by where it came from and where it is in the cycle."
+      />
 
-      <div className="flex flex-wrap gap-2">
-        {SOURCE_FILTERS.map((chip) => {
-          const active = sourceFilter === chip.key;
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={() => setSourceFilter(chip.key)}
-              className={
-                active
-                  ? "rounded-full bg-admin-accent px-3 py-1.5 text-xs font-semibold text-white"
-                  : "rounded-full border border-admin-border-soft bg-white px-3 py-1.5 text-xs font-medium text-admin-ink hover:bg-admin-surface-alt"
-              }
-            >
-              {chip.label}
-            </button>
-          );
-        })}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: 10,
+        }}
+      >
+        {SOURCE_FILTERS.map((chip) => (
+          <FilterChip
+            key={chip.key}
+            active={sourceFilter === chip.key}
+            label={chip.label}
+            onClick={() => setSourceFilter(chip.key)}
+          />
+        ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((chip) => {
-          const active = statusFilter === chip.key;
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={() => setStatusFilter(chip.key)}
-              className={
-                active
-                  ? "rounded-full bg-admin-surface-alt px-3 py-1 text-[11px] font-semibold text-admin-ink ring-1 ring-admin-border-soft"
-                  : "rounded-full px-3 py-1 text-[11px] font-medium text-admin-ink-muted hover:text-admin-ink"
-              }
-            >
-              {chip.label}
-            </button>
-          );
-        })}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 4,
+          marginBottom: 12,
+        }}
+      >
+        {STATUS_FILTERS.map((chip) => (
+          <StatusFilterChip
+            key={chip.key}
+            active={statusFilter === chip.key}
+            label={chip.label}
+            onClick={() => setStatusFilter(chip.key)}
+          />
+        ))}
       </div>
 
-      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-admin-ink-muted">
-        {sourceFilter === "all" ? "All earnings" : `${sourceLabel(sourceFilter)} earnings`} ·{" "}
-        {formatEurCents(filteredTotal)}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 10,
+          paddingLeft: 2,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 1.2,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+            fontFamily: FONTS.body,
+          }}
+        >
+          {sourceFilter === "all" ? "All earnings" : `${sourceLabel(sourceFilter)} earnings`} ·{" "}
+          {filtered.length} row{filtered.length === 1 ? "" : "s"}
+        </span>
+        <span
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 14,
+            fontWeight: 600,
+            color: COLORS.ink,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {formatEurCents(filteredTotal)}
+        </span>
       </div>
 
-      <div className="overflow-hidden rounded-admin-lg border border-admin-border-soft bg-admin-card shadow-admin-rest">
+      <div
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          overflow: "hidden",
+          fontFamily: FONTS.body,
+        }}
+      >
         {filtered.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-sm font-medium text-admin-ink">No earnings here yet</p>
-            <p className="mt-1 text-sm text-admin-ink-muted">
+          <div
+            style={{
+              padding: "40px 24px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              No earnings here yet
+            </div>
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: COLORS.inkMuted }}>
               Once bookings close, your ledger becomes the story of your income.
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-admin-border-soft">
-            {filtered.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="flex w-full items-start gap-4 px-4 py-3 text-left hover:bg-admin-surface-alt/60"
-                  onClick={() => openDrawer("talent-earnings-detail", { id: row.id })}
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {filtered.map((row, idx) => {
+              const palette = statusPalette(row.status);
+              return (
+                <li
+                  key={row.id}
+                  style={{
+                    borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  }}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-admin-ink">{row.client}</span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${statusTone(row.status)}`}
+                  <button
+                    type="button"
+                    onClick={() => openDrawer("talent-earnings-detail", { id: row.id })}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 16px",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: FONTS.body,
+                      transition: "background .12s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
                       >
-                        {row.status}
-                      </span>
-                      <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin-ink-muted">
-                        {sourceLabel(row.source)}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs text-admin-ink-muted">
-                      {row.agencyName} · Work {row.workDate}
-                      {row.payoutDate ? ` · Paid ${row.payoutDate}` : ""}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums text-admin-ink">
-                      {formatEurCents(row.netCents)}
-                    </p>
-                    {row.paymentMethod ? (
-                      <div className="mt-0.5 text-[11px] capitalize text-admin-ink-muted">
-                        {row.paymentMethod.replace(/-/g, " ")}
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: COLORS.ink,
+                          }}
+                        >
+                          {row.client}
+                        </span>
+                        <span
+                          style={{
+                            padding: "2px 7px",
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            color: palette.fg,
+                            background: palette.bg,
+                            borderRadius: 999,
+                          }}
+                        >
+                          {row.status}
+                        </span>
+                        <span
+                          style={{
+                            padding: "2px 7px",
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            color: COLORS.inkMuted,
+                            background: "rgba(11,11,13,0.05)",
+                            borderRadius: 999,
+                          }}
+                        >
+                          {sourceLabel(row.source)}
+                        </span>
                       </div>
-                    ) : null}
-                  </div>
-                </button>
-              </li>
-            ))}
+                      <div
+                        style={{
+                          marginTop: 3,
+                          fontSize: 11.5,
+                          color: COLORS.inkMuted,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {row.agencyName} · Work {row.workDate}
+                        {row.payoutDate ? ` · Paid ${row.payoutDate}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ flexShrink: 0, textAlign: "right" }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: COLORS.ink,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {formatEurCents(row.netCents)}
+                      </div>
+                      {row.paymentMethod ? (
+                        <div
+                          style={{
+                            marginTop: 2,
+                            fontSize: 10.5,
+                            color: COLORS.inkMuted,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {row.paymentMethod.replace(/-/g, " ")}
+                        </div>
+                      ) : null}
+                    </div>
+                    <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

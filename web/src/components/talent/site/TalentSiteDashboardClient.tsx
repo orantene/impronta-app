@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { useAdminShell } from "@/components/admin/shell/internal/state";
+import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
+import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
+import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { mergeTalentSiteDashboardWithShellTier } from "@/lib/talent-site/merge-shell-tier";
 import {
   createTalentPersonalSiteDraftAction,
@@ -12,8 +14,6 @@ import {
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
 import { TalentSiteEditorForm } from "./TalentSiteEditorForm";
 import { TalentSiteLockedCard } from "./TalentSiteLockedCard";
-
-const FONT = '"Inter", system-ui, sans-serif';
 
 type Props = {
   initialState: TalentSiteDashboardState;
@@ -61,87 +61,113 @@ export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 16px", fontFamily: FONT }}>
-      <header style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>My personal site</h2>
-        <p style={{ margin: "6px 0 0", fontSize: 13, color: "rgba(11,11,13,0.55)" }}>
-          Your owned Tulala page at{" "}
-          {state.publicSiteUrl ? (
-            <Link href={state.publicSiteUrl} target="_blank" rel="noopener noreferrer">
-              {state.publicSiteUrl}
-            </Link>
-          ) : (
-            "— set a profile code first"
-          )}
-          . Separate from agency roster pages.
-        </p>
-      </header>
+    <section data-tulala-talent-personal-site>
+      <SectionHeader
+        icon="sparkle"
+        iconTone="royal"
+        title="My personal site"
+        subtitle="Your owned Tulala page — separate from agency roster pages."
+      />
+
+      {state.publicSiteUrl ? (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 14,
+            padding: "6px 12px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 999,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+          }}
+        >
+          <span style={{ color: COLORS.inkMuted, fontWeight: 600 }}>URL</span>
+          <Link
+            href={state.publicSiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: COLORS.ink,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            {state.publicSiteUrl} ↗
+          </Link>
+        </div>
+      ) : (
+        <div
+          style={{
+            marginBottom: 14,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            color: COLORS.inkDim,
+          }}
+        >
+          Set a profile code first to claim your URL.
+        </div>
+      )}
 
       {locked ? (
         <TalentSiteLockedCard state={state} onUpgrade={() => openDrawer("talent-tier-compare")} />
       ) : !hasSite ? (
-        <section
+        <div
           style={{
-            background: "#fff",
-            border: "1px solid rgba(24,24,27,0.08)",
-            borderRadius: 12,
-            padding: 20,
+            background: `linear-gradient(135deg, ${COLORS.royalSoft} 0%, ${COLORS.surfaceAlt} 70%)`,
+            border: `1px solid rgba(95,75,139,0.18)`,
+            borderRadius: 14,
+            padding: "20px 22px",
+            fontFamily: FONTS.body,
           }}
         >
-          <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>Create your personal site</h2>
-          <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(11,11,13,0.55)" }}>
+          <div
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 16,
+              fontWeight: 600,
+              color: COLORS.ink,
+              letterSpacing: -0.2,
+            }}
+          >
+            Create your personal site
+          </div>
+          <p
+            style={{
+              margin: "6px 0 14px",
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              lineHeight: 1.5,
+              maxWidth: 560,
+            }}
+          >
             We&apos;ll generate a starter layout from your public profile — hero, about, gallery,
             and contact CTA. You can edit copy and publish when ready.
           </p>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={handleCreate}
-            style={{
-              background: "#0B0B0D",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 18px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: pending ? "wait" : "pointer",
-            }}
-          >
+          <PrimaryButton onClick={handleCreate} disabled={pending}>
             {pending ? "Creating…" : "Create your personal site"}
-          </button>
-          {error ? <p style={{ marginTop: 12, fontSize: 13, color: "#b91c1c" }}>{error}</p> : null}
-        </section>
+          </PrimaryButton>
+          {error ? (
+            <p style={{ marginTop: 12, fontSize: 12.5, color: COLORS.criticalDeep }}>{error}</p>
+          ) : null}
+        </div>
       ) : (
-        <>
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 14,
+            padding: "16px 18px",
+            fontFamily: FONTS.body,
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
           <StatusStrip state={state} />
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-            {state.publicSiteUrl && state.site?.hasPublishedSnapshot ? (
-              <Link
-                href={state.publicSiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={linkBtnStyle()}
-              >
-                View published site
-              </Link>
-            ) : null}
-            {state.profileCode ? (
-              <Link
-                href={`/t/${state.profileCode}?preview=draft`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={linkBtnStyle()}
-              >
-                Preview draft (owner)
-              </Link>
-            ) : null}
-            {state.publicProfileUrl ? (
-              <Link href={state.publicProfileUrl} target="_blank" rel="noopener noreferrer" style={linkBtnStyle()}>
-                Standard profile
-              </Link>
-            ) : null}
-          </div>
+          <PreviewLinks state={state} />
           {draftSnapshot ? (
             <TalentSiteEditorForm
               state={state}
@@ -149,13 +175,13 @@ export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
               onSaved={() => void reloadDashboard()}
             />
           ) : (
-            <p style={{ fontSize: 13, color: "rgba(11,11,13,0.55)" }}>
+            <p style={{ fontSize: 12.5, color: COLORS.inkMuted, margin: 0 }}>
               Draft snapshot unavailable. Try reloading the page.
             </p>
           )}
-        </>
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -168,34 +194,109 @@ function StatusStrip({ state }: { state: TalentSiteDashboardState }) {
       : site.status === "unpublished"
         ? "Unpublished"
         : "Draft";
+  const statusTone =
+    site.status === "published"
+      ? { fg: COLORS.successDeep, bg: COLORS.successSoft }
+      : site.status === "unpublished"
+        ? { fg: COLORS.amberDeep, bg: COLORS.amberSoft }
+        : { fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
 
   return (
     <div
       style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 16,
-        marginBottom: 16,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        gap: 12,
         padding: "12px 14px",
-        background: "rgba(11,11,13,0.03)",
+        background: COLORS.surfaceAlt,
         borderRadius: 10,
-        fontSize: 12,
+        fontFamily: FONTS.body,
       }}
     >
-      <span>
-        <strong>Status:</strong> {statusLabel}
-      </span>
-      <span>
-        <strong>Draft updated:</strong> {formatWhen(site.draftUpdatedAt)}
-      </span>
+      <StatusField
+        label="Status"
+        value={
+          <span
+            style={{
+              padding: "2px 8px",
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              color: statusTone.fg,
+              background: statusTone.bg,
+              borderRadius: 999,
+            }}
+          >
+            {statusLabel}
+          </span>
+        }
+      />
+      <StatusField label="Draft updated" value={formatWhen(site.draftUpdatedAt)} />
       {site.publishedAt ? (
-        <span>
-          <strong>Last published:</strong> {formatWhen(site.publishedAt)}
-        </span>
+        <StatusField label="Last published" value={formatWhen(site.publishedAt)} />
       ) : null}
-      <span>
-        <strong>Version:</strong> {site.version}
-      </span>
+      <StatusField label="Version" value={`v${site.version}`} />
+    </div>
+  );
+}
+
+function StatusField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 9.5,
+          fontWeight: 700,
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 500, color: COLORS.ink }}>{value}</div>
+    </div>
+  );
+}
+
+function PreviewLinks({ state }: { state: TalentSiteDashboardState }) {
+  const items: { href: string; label: string }[] = [];
+  if (state.publicSiteUrl && state.site?.hasPublishedSnapshot) {
+    items.push({ href: state.publicSiteUrl, label: "View published site" });
+  }
+  if (state.profileCode) {
+    items.push({ href: `/t/${state.profileCode}?preview=draft`, label: "Preview draft (owner)" });
+  }
+  if (state.publicProfileUrl) {
+    items.push({ href: state.publicProfileUrl, label: "Standard profile" });
+  }
+  if (items.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {items.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "6px 12px",
+            fontSize: 12,
+            fontWeight: 600,
+            background: "#fff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            color: COLORS.ink,
+            textDecoration: "none",
+            fontFamily: FONTS.body,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item.label} ↗
+        </Link>
+      ))}
     </div>
   );
 }
@@ -206,17 +307,4 @@ function formatWhen(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-function linkBtnStyle() {
-  return {
-    display: "inline-block",
-    padding: "7px 12px",
-    fontSize: 12,
-    fontWeight: 600,
-    border: "1px solid rgba(24,24,27,0.12)",
-    borderRadius: 8,
-    textDecoration: "none",
-    color: "#0B0B0D",
-  } as const;
 }
