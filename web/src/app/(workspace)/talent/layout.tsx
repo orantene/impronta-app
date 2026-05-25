@@ -70,8 +70,18 @@ export default async function PlatformTalentLayout({
   if (!session.supabase) redirect("/login?error=config");
   if (!session.user) redirect("/login?next=/talent/today");
 
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-impronta-original-pathname") ?? "/talent/today";
+  const isTalentRoot =
+    pathname === "/talent" || pathname === "/talent/";
+
   const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
-  if (!baseProfile) notFound();
+  if (!baseProfile) {
+    if (isTalentRoot) {
+      return children;
+    }
+    notFound();
+  }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
   const agencyOptions = await listTalentAgencyContexts(baseProfile.id);
@@ -82,8 +92,6 @@ export default async function PlatformTalentLayout({
       ? (await loadTalentSelfProfile(session.user.id, tenantId)) ?? baseProfile
       : baseProfile;
 
-  const hdrs = await headers();
-  const pathname = hdrs.get("x-impronta-original-pathname") ?? "/talent/today";
   const initialTalentPage = derivePlatformTalentPage(pathname);
 
   const [
