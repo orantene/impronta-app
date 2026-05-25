@@ -9,6 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 // ─────────────────────────────────────────────────────────────────────
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { devSetTalentPlanTierForSelfAction } from "@/lib/talent-site/server/dev-plan";
 import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
@@ -842,7 +843,7 @@ export function AdminShellProvider({
   // Talent personal subscription tier (Free / Pro / Max). Live bridge data
   // reads talent_profiles.talent_plan_key; prototype mode uses the demo
   // fixture tier. Switchable in dev via the Compare-plans drawer.
-  const [talentTier, setTalentTier] = useState<TalentSubscriptionTier>(
+  const [talentTier, setTalentTierState] = useState<TalentSubscriptionTier>(
     initialBridgeData?.talentSelfProfile?.talentTier ?? MY_TALENT_PROFILE.subscription.tier,
   );
   // client
@@ -1468,6 +1469,21 @@ export function AdminShellProvider({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const handleSetTalentTier = useCallback(
+    async (tier: TalentSubscriptionTier) => {
+      if (process.env.NODE_ENV !== "production") {
+        const result = await devSetTalentPlanTierForSelfAction(tier);
+        if (!result.ok) {
+          toast(result.error, { tone: "error" });
+          return;
+        }
+      }
+      setTalentTierState(tier);
+      router.refresh();
+    },
+    [router, toast],
+  );
+
   const completeTask = useCallback((id: string) => {
     setCompletedTasks((prev) => {
       const next = new Set(prev);
@@ -1739,7 +1755,7 @@ export function AdminShellProvider({
       setWorkspaceLayout,
       setPage,
       setTalentPage,
-      setTalentTier,
+      setTalentTier: handleSetTalentTier,
       setClientPlan,
       setClientPage,
       clientProfile,
@@ -1757,6 +1773,7 @@ export function AdminShellProvider({
       closeUpgrade,
       toast,
       dismissToast,
+      handleSetTalentTier,
       completeTask,
       pendingTalent,
       resolveApproval,
@@ -1864,6 +1881,7 @@ export function AdminShellProvider({
       closeUpgrade,
       toast,
       dismissToast,
+      handleSetTalentTier,
       completeTask,
       pendingTalent,
       resolveApproval,

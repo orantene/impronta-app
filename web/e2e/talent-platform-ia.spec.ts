@@ -31,16 +31,17 @@ async function loginTalent(page: Page, email: string, password: string, next = "
 }
 
 test.describe("Talent platform IA — redirects (unauthenticated)", () => {
-  test("legacy slug talent URL redirects to platform path", async ({ page, request }) => {
-    const head = await request.fetch("/impronta/talent/today", {
-      maxRedirects: 0,
-    });
-    expect([307, 308]).toContain(head.status());
-    const location = head.headers().location ?? "";
-    expect(location).toMatch(/\/talent\/today/);
+  test("legacy slug talent URL returns 308 to platform path", async ({ request }) => {
+    const head = await request.fetch("/impronta/talent/today", { maxRedirects: 0 });
+    expect(head.status()).toBe(308);
+    expect(head.headers().location ?? "").toMatch(/\/talent\/today/);
+  });
 
+  test("legacy slug talent URL in browser drops tenant slug", async ({ page }) => {
     await page.goto("/impronta/talent/today", { waitUntil: "networkidle" });
-    expect(page.url()).toMatch(/\/talent\/today/);
+    await expect(page).toHaveURL(/\/(login\?next=.*talent%2Ftoday|talent\/today)/, {
+      timeout: 60_000,
+    });
     expect(page.url()).not.toMatch(/\/impronta\/talent/);
   });
 
@@ -58,9 +59,17 @@ test.describe("Talent platform IA — QA audit talent", () => {
   test("/talent/site loads without tenant slug in URL", async ({ page }) => {
     await expect(page).toHaveURL(/\/talent\/site/);
     expect(page.url()).not.toMatch(/\/impronta\/talent/);
-    await expect(page.getByText(/personal site|My Pages|Upgrade to Max/i).first()).toBeVisible({
+    await expect(page.getByRole("heading", { name: "My pages" })).toBeVisible({
       timeout: 30_000,
     });
+    await expect(page.getByText(/Where you appear/i)).toBeVisible();
+    await expect(page.getByText(/Impronta Models/i).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "View roster profile" }).first()).toBeVisible();
+  });
+
+  test("/talent/site lists Impronta and Morena Studio for QA audit talent", async ({ page }) => {
+    await expect(page.getByText(/Where you appear · 2/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Morena Studio/i).first()).toBeVisible();
   });
 
   test("/talent/today loads platform shell", async ({ page }) => {
@@ -90,12 +99,17 @@ test.describe("Talent platform IA — Tulum talent (second account)", () => {
 });
 
 test.describe("Talent platform IA — public hosts", () => {
-  test("tulala.digital /t/code loads (platform host)", async ({ page, baseURL }) => {
+  test("tulala.digital /t/code loads default profile (platform host)", async ({
+    page,
+    baseURL,
+  }) => {
     test.skip(!baseURL?.includes("app.tulala"), "Run with PLAYWRIGHT_BASE_URL=https://app.tulala.digital");
     const marketing = baseURL!.replace("app.tulala", "tulala");
-    await page.goto(`${marketing}/t/${AUDIT_PROFILE_CODE}`);
-    await expect(page.locator("body")).not.toBeEmpty();
-    expect(page.url()).toContain(`/t/${AUDIT_PROFILE_CODE}`);
+    await page.goto(`${marketing}/t/TAL-00013`);
+    await expect(page.getByRole("heading", { name: /Liora Vance/i })).toBeVisible({
+      timeout: 30_000,
+    });
+    expect(page.url()).toContain("/t/TAL-00013");
     expect(page.url()).not.toContain("/site");
   });
 });

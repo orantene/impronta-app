@@ -226,8 +226,8 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
-  // /<tenant>/talent/site — Talent Max personal site dashboard (Phase 2).
-  (s) => s[0] === "talent" && s[1] === "site",
+  // /<tenant>/talent/site — personal site dashboard renders inside the
+  // talent shell (public-page tab), not as a standalone canonical page.
   // /<tenant>/admin/roster/** — Phase 2.2: the entire Roster surface is
   // now canonical. List (no id segment) is the new server-rendered grid;
   // [id] edit page + [id]/commission (A8) + /new were already real pages
@@ -255,7 +255,7 @@ function pathIsCanonical(pathname: string | null): boolean {
   if (!pathname) return false;
   const parts = pathname.replace(/^\/+/, "").split("/").filter(Boolean);
   if (parts.length === 0) return false;
-  // Platform-scoped talent routes: /talent/site, /talent/trust, …
+  // Platform-scoped talent routes: /talent/trust, /talent/discover, …
   if (parts[0] === "talent") {
     return CANONICAL_ROUTE_MATCHERS.some((match) => match(parts));
   }

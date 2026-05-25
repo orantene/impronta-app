@@ -47,8 +47,8 @@ export function resolveWorkspacePage(raw: string): WorkspacePage {
 // stays in the type union for URL backward-compat but is hidden from
 // the topbar nav.
 // WS-8.1: activity removed from primary nav; WS-8.2: reach split into agencies + public-page.
-// Talent Max foundation: the public-page state now routes through /talent/site
-// and appears in nav as "My Site".
+// Talent Max foundation: public-page tab renders the site dashboard inside the shell at /talent/site
+// and appears in nav as "My pages".
 export const TALENT_PAGES: TalentPage[] = [
   "today",
   "messages",
@@ -278,7 +278,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   activity:    { label: "Activity" },      // legacy — redirects to settings
   reach:       { label: "Reach" },         // legacy — redirects to agencies
   agencies:    { label: "Agencies" },      // WS-8.2
-  "public-page": { label: "My Site" }, // canonical URL segment: /talent/site
+  "public-page": { label: "My pages" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };
 

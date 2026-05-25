@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { useAdminShell } from "@/components/admin/shell/internal/state";
-import { createTalentPersonalSiteDraftAction } from "@/lib/talent-site/server/actions";
+import { mergeTalentSiteDashboardWithShellTier } from "@/lib/talent-site/merge-shell-tier";
+import {
+  createTalentPersonalSiteDraftAction,
+  fetchTalentPersonalSiteDashboardStateAction,
+} from "@/lib/talent-site/server/actions";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
 import { TalentSiteEditorForm } from "./TalentSiteEditorForm";
 import { TalentSiteLockedCard } from "./TalentSiteLockedCard";
@@ -14,21 +17,35 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 type Props = {
   initialState: TalentSiteDashboardState;
+  /** Refetch dashboard state after create/save (client-loaded panel). */
+  onReload?: () => void | Promise<void>;
 };
 
-export function TalentSiteDashboardClient({ initialState }: Props) {
-  const router = useRouter();
-  const { openDrawer } = useAdminShell();
-  const [state] = useState(initialState);
+export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
+  const { openDrawer, state: shellState } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [baseState, setBaseState] = useState(initialState);
+
+  useEffect(() => {
+    setBaseState(initialState);
+  }, [initialState]);
+
+  const state = useMemo(
+    () => mergeTalentSiteDashboardWithShellTier(baseState, shellState.talentTier),
+    [baseState, shellState.talentTier],
+  );
 
   const locked = !state.canBuildPersonalSite;
   const hasSite = state.site != null;
   const draftSnapshot = state.site?.draftSnapshot;
 
-  function refresh() {
-    router.refresh();
+  async function reloadDashboard() {
+    const loaded = await fetchTalentPersonalSiteDashboardStateAction();
+    if (loaded.ok) {
+      setBaseState(loaded.state);
+    }
+    await onReload?.();
   }
 
   function handleCreate() {
@@ -39,14 +56,14 @@ export function TalentSiteDashboardClient({ initialState }: Props) {
         setError(result.error);
         return;
       }
-      refresh();
+      await reloadDashboard();
     });
   }
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 16px", fontFamily: FONT }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>My personal site</h1>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>My personal site</h2>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: "rgba(11,11,13,0.55)" }}>
           Your owned Tulala page at{" "}
           {state.publicSiteUrl ? (
@@ -129,7 +146,7 @@ export function TalentSiteDashboardClient({ initialState }: Props) {
             <TalentSiteEditorForm
               state={state}
               initialSnapshot={draftSnapshot}
-              onSaved={refresh}
+              onSaved={() => void reloadDashboard()}
             />
           ) : (
             <p style={{ fontSize: 13, color: "rgba(11,11,13,0.55)" }}>

@@ -1097,11 +1097,13 @@ export default async function PublicTalentProfilePage({
     }
     if (siteResolved.kind === "render") {
       return (
-        <PlatformTalentMaxSiteView
-          snapshot={siteResolved.snapshot}
-          locale={locale}
-          draftPreview={siteResolved.draftPreview}
-        />
+        <PublicDiscoveryStateProvider>
+          <PlatformTalentMaxSiteView
+            snapshot={siteResolved.snapshot}
+            locale={locale}
+            draftPreview={siteResolved.draftPreview}
+          />
+        </PublicDiscoveryStateProvider>
       );
     }
   }
