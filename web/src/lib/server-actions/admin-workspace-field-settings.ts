@@ -1,17 +1,11 @@
 "use server";
 import { improntaLog } from "@/lib/server/structured-log";
 
-// admin-workspace-field-settings.ts
-//
 // Phase 1 — Field Privacy becomes REAL. Tenant-scoped per-field
 // visibility overrides persisted to `workspace_profile_field_settings`
-// (schema + RLS + write policy already exist; the table was empty / had
-// no writer). Empty table == platform defaults == prior behaviour, so
-// this is fully additive and reversible. The resolver
+// (schema + RLS + write policy already exist). Empty table == platform
+// defaults == prior behaviour, so this is additive. The resolver
 // (getFieldsForTalent) consumes these via `effectiveFieldVisibility`.
-//
-// "use server": only async functions may be exported — shared types/pure
-// logic live in src/lib/field-engine/effective-visibility.ts.
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
@@ -27,6 +21,7 @@ import {
   fieldCatalogTagForTenant,
 } from "@/lib/field-engine/cache-tags";
 import { filterTenantCatalogFieldsByEnabledTaxonomy } from "@/lib/field-engine/tenant-catalog-scope";
+import { sanitizeWorkspaceFieldCatalogOverride } from "@/lib/field-engine/workspace-field-settings-safety";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
@@ -631,7 +626,11 @@ export async function setWorkspaceFieldCatalog(
 ): Promise<OkResult> {
   const parsed = catalogFieldSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
-  const { field_definition_id, enabled, required, custom_label, helper, display_order } = parsed.data;
+  const { field_definition_id, custom_label, helper, display_order } = parsed.data;
+  const { enabled, required } = sanitizeWorkspaceFieldCatalogOverride({
+    enabled: parsed.data.enabled,
+    required: parsed.data.required,
+  });
 
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
