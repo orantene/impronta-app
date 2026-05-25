@@ -135,6 +135,11 @@ export type FieldDetailAuditEntry = {
   target_id: string | null;
   severity: string;
   changed_keys: string[];
+  changes: Array<{
+    key: string;
+    before: string;
+    after: string;
+  }>;
 };
 
 export type PlatformCatalogFieldDetail = {
@@ -214,6 +219,30 @@ type AgencyRow = {
   plan_tier: string | null;
   status: string | null;
 };
+
+function auditRecord(value: unknown): Record<string, unknown> {
+  if (Array.isArray(value)) {
+    const first = value[0];
+    return first && typeof first === "object" ? first as Record<string, unknown> : {};
+  }
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function auditValue(value: unknown): string {
+  if (value === null || value === undefined) return "empty";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") {
+    return value.length > 80 ? `${value.slice(0, 77)}...` : value;
+  }
+  if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? "" : "s"}`;
+  try {
+    const json = JSON.stringify(value);
+    return json.length > 80 ? `${json.slice(0, 77)}...` : json;
+  } catch {
+    return "object";
+  }
+}
 
 // Cached wrapper around the inner loader. Tagged with `field-catalog` so
 // every existing write path (workspace field settings, taxonomy mutators)
@@ -376,15 +405,16 @@ async function loadPlatformCatalogFieldDetailUncached(
       metadata: unknown;
     }>).map((row) => {
       const metadata = row.metadata as { before?: unknown; after?: unknown } | null;
-      const before = metadata?.before && typeof metadata.before === "object"
-        ? metadata.before as Record<string, unknown>
-        : {};
-      const after = metadata?.after && typeof metadata.after === "object"
-        ? metadata.after as Record<string, unknown>
-        : {};
-      const keys = Object.keys(after).filter((key) =>
+      const before = auditRecord(metadata?.before);
+      const after = auditRecord(metadata?.after);
+      const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) =>
         JSON.stringify(before[key]) !== JSON.stringify(after[key]),
       );
+      const changes = keys.slice(0, 8).map((key) => ({
+        key,
+        before: auditValue(before[key]),
+        after: auditValue(after[key]),
+      }));
       return {
         id: row.id,
         created_at: row.created_at,
@@ -394,6 +424,7 @@ async function loadPlatformCatalogFieldDetailUncached(
         target_id: row.target_id,
         severity: row.severity,
         changed_keys: keys.slice(0, 8),
+        changes,
       } satisfies FieldDetailAuditEntry;
     });
 
