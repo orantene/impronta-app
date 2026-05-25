@@ -303,13 +303,11 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
     targetStatus?: StatusFilter,
     targetEmail?: EmailFilter,
     targetPower?: PowerFilter,
+    targetType?: TypeFilter | "all",
   ): boolean {
-    if (
-      search === "" &&
-      typeFilter === "all" &&
-      originFilter === "any" &&
-      planFilter === "any"
-    ) {
+    if (search === "" && originFilter === "any" && planFilter === "any") {
+      const typeMatch = targetType !== undefined ? typeFilter === targetType : typeFilter === "all";
+      if (!typeMatch) return false;
       if (targetStatus !== undefined) return statusFilter === targetStatus;
       if (targetEmail !== undefined) return emailFilter === targetEmail;
       if (targetPower !== undefined) return power === targetPower;
@@ -322,22 +320,27 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
     targetStatus?: StatusFilter,
     targetEmail?: EmailFilter,
     targetPower?: PowerFilter,
+    targetType?: TypeFilter | "all",
   ): void {
     setSearch("");
-    setTypeFilter("all");
     setOriginFilter("any");
     setPlanFilter("any");
 
     // If the chip is already active, toggle it off
-    if (isChipActive(targetStatus, targetEmail, targetPower)) {
+    if (isChipActive(targetStatus, targetEmail, targetPower, targetType)) {
       setStatusFilter("any");
       setEmailFilter("all");
       setPower("any");
+      setTypeFilter("all");
     } else {
       // Apply the chip
+      setTypeFilter(targetType ?? "all");
       if (targetStatus !== undefined) setStatusFilter(targetStatus);
+      else setStatusFilter("any");
       if (targetEmail !== undefined) setEmailFilter(targetEmail);
+      else setEmailFilter("all");
       if (targetPower !== undefined) setPower(targetPower);
+      else setPower("any");
     }
   }
 
@@ -445,6 +448,21 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
           }}
         >
           Workspace operators
+        </button>
+        <button
+          onClick={() => applyChip(undefined, undefined, "admin", "talent")}
+          style={{
+            ...chipButtonStyle,
+            ...(isChipActive(undefined, undefined, "admin", "talent")
+              ? {
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.blue}`,
+                  color: HQ.ink,
+                }
+              : {}),
+          }}
+        >
+          Talent admins
         </button>
         <button
           title="Stripe data coming soon"
