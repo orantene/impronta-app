@@ -143,8 +143,17 @@ export function isOnboardingNextAllowed(normalizedNext: string): boolean {
   const segments = path.split("/").filter(Boolean);
   if (segments.length === 0) return false;
 
-  const surface = segments.length === 1 ? segments[0] : segments[1];
-  return surface === "client" || surface === "talent";
+  const rootSurface = segments[0];
+  if (rootSurface === "client" || rootSurface === "talent") {
+    return true;
+  }
+
+  const tenantScopedSurface =
+    segments.length >= 2 &&
+    !TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(rootSurface ?? "")
+      ? segments[1]
+      : null;
+  return tenantScopedSurface === "client" || tenantScopedSurface === "talent";
 }
 
 export function getSiteUrl(): string {

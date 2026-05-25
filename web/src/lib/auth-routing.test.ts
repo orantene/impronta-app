@@ -182,6 +182,17 @@ test("post-auth maps bare / to role home for active users", () => {
   assert.equal(resolvePostAuthDestination(activeTalent, "/"), "/talent");
 });
 
+test("post-auth sends talent registration next into the live profile fields engine", () => {
+  assert.equal(
+    resolvePostAuthDestination(activeTalent, "/talent/profile/fields"),
+    "/talent/profile/fields",
+  );
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/talent/profile/fields"),
+    "/onboarding/role?next=%2Ftalent%2Fprofile%2Ffields",
+  );
+});
+
 test("post-auth honors tenant-scoped dashboard next paths for the matching active role", () => {
   assert.equal(
     resolvePostAuthDestination(activeAgencyStaff, "/impronta/admin/site"),

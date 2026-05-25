@@ -2,7 +2,6 @@ import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { normalizeOptionalNextPath } from "@/lib/auth-flow";
-import { getPublicHostContext } from "@/lib/saas/scope";
 import { RegisterForm } from "../../register/register-form";
 
 /**
@@ -22,13 +21,9 @@ export default async function TalentRegisterPage({
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
 
-  // Determine post-auth destination. On an agency host with a known slug
-  // redirect to /<slug>/talent; fall back to /talent for app host.
-  const hostCtx = await getPublicHostContext();
-  const defaultNext =
-    hostCtx.kind === "agency" && hostCtx.tenantSlug
-      ? `/${hostCtx.tenantSlug}/talent`
-      : "/onboarding/talent-location";
+  // Determine post-auth destination. Talent registration is account creation
+  // first; after auth, the talent lands in the live profile-field engine.
+  const defaultNext = "/talent/profile/fields";
 
   // Honour an explicit ?next= override only if it is a valid internal path.
   const nextPath = normalizeOptionalNextPath(next) ?? defaultNext;
