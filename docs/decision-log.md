@@ -4,6 +4,32 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-25 — Talent dashboard design tokens unified (post-2.6 polish)
+
+**L44 — Talent dashboard surfaces share one token system.** All top-level
+`/talent/*` pages render their chrome through the same primitives:
+
+- **Header**: `PageHeader` from `web/src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx` (single `<h1 data-tulala-h1>` + optional subtitle + actions slot, with the `@media (max-width: 680px)` mobile collapse baked in).
+- **Section header**: `SectionHeader` from `…/talent/shared/today-2.tsx` (icon chip + title + subtitle), used for any in-page section row.
+- **Buttons**: `PrimaryButton` / `SecondaryButton` from `…/internal/primitives` (slate fill for primary, neutral outline for secondary). No bespoke buttons in `web/src/components/talent/**`.
+- **Surface tokens**: `COLORS`, `FONTS`, `RADIUS` from `…/internal/state`. No new ad-hoc hex values, no `bg-admin-*` Tailwind classes outside the legacy `admin/shell` tree, no parallel `TalentDashboardPage` / `TalentPageHeader` wrappers.
+
+**Why:** Talent Money + My pages were drifting into a bespoke neon/dark palette ("ugly, not related to the way the dashboard looks and feel"). Refactor (`76eac5329`, `0c4ebde29`) brought them onto the same primitives the other six talent surfaces (Today, Messages, Calendar, Profile, Settings, Inbox) already use. Audit on 2026-05-25 confirmed Calendar, Inbox, MyProfile, PublicPageEditor, Settings, Today all import `PageHeader`/`SectionHeader` from the shared chrome — no other talent page is drifting. `TalentJobShell` (messages product) is intentionally job-card centric per the `messages.tsx` design-intent docblock and is **out of scope** for this lock.
+
+**Out of scope** (not governed by L44):
+- `HybridModeSwitcher` (`web/src/components/hybrid-identity/`) renders **outside** the admin shell as platform chrome — keeps its own Inter-stack font so it doesn't cross-layer-import admin tokens.
+- Drawer interiors under `…/talent-drawers/**` use `DrawerShell` + token Tailwind classes (`bg-admin-*`), which is the canonical drawer pattern.
+
+**Enforcement:** `ratchet/no-new-inline-style` (eslint) already blocks new inline `style={{…}}` in `components/admin/shell`. Anything new on a talent surface should land as a CSS class in `admin-shell-client.tsx` (see `.tulala-talent-brand-mark` for the precedent) or a `var(--token-*)` from `token-presets.css`. The mobile breakpoint pass at 390×844 on production (Money + My pages, 2026-05-25) is the visual baseline.
+
+**Paths:** `web/src/components/talent/money/*.tsx`, `web/src/components/talent/site/*.tsx`, `web/src/components/admin/shell/internal/talent/pages/*.tsx`, `web/src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx`, `web/src/components/admin/shell/internal/talent/shared/today-2.tsx`, `web/src/components/admin/shell/admin-shell-client.tsx`.
+
+**Backward compatible:** Yes (visual + structural; no DB / API change).
+
+**Migration:** none
+
+---
+
 ## 2026-05-25 — Talent Tulala dashboard IA (Phase 2.2–2.6)
 
 **L41 — Talent surface is Tulala-canonical.** Pure talent uses `/talent/*` on `app.tulala.digital` as the single dashboard. Agency context is a **filter** (inbox chips, deep links), not a route prefix or identity switch. See [docs/plans/talent-tulala-dashboard-execution-plan-2026-05-25.md](plans/talent-tulala-dashboard-execution-plan-2026-05-25.md) §2.
