@@ -37,6 +37,7 @@ import {
 } from "@/lib/directory/apply-directory-field-facet-filters";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
+import { resolveTenantSafeDirectoryTaxonomyTermIds } from "@/lib/directory/taxonomy-tenant-safety";
 
 /**
  * Directory `q`: primary path is Postgres RPC `directory_search_public_talent_ids` (FTS + ILIKE + similarity).
@@ -237,7 +238,7 @@ export async function fetchDirectoryPage(
     DIRECTORY_PAGE_SIZE_MAX,
   );
   const tenantScopeId = params.tenantId ?? null;
-  const taxonomyTermIds = params.taxonomyTermIds?.filter(Boolean) ?? [];
+  const requestedTaxonomyTermIds = params.taxonomyTermIds?.filter(Boolean) ?? [];
   const locale = params.locale ?? "en";
   const sort = params.sort ?? "recommended";
   const queryText = params.query?.trim() ?? "";
@@ -246,6 +247,20 @@ export async function fetchDirectoryPage(
     ? (decodeDirectoryCursor(params.cursor)?.offset ?? 0)
     : 0;
   const skipTotalCount = params.skipTotalCount ?? offset > 0;
+  const taxonomyTermIds = await auditTime(
+    audit,
+    timings,
+    "taxonomyTenantSafetyMs",
+    () =>
+      resolveTenantSafeDirectoryTaxonomyTermIds(
+        supabase,
+        tenantScopeId,
+        requestedTaxonomyTermIds,
+      ),
+  );
+  if (requestedTaxonomyTermIds.length > 0 && taxonomyTermIds.length === 0) {
+    return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [] };
+  }
 
   const [{ fitLabelsEnabled, heightCardDef, scalarCardDefs }, heightFilterCatalog] =
     await auditTime(audit, timings, "catalogParallelMs", () =>
