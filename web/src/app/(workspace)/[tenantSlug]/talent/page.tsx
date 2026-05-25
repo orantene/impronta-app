@@ -1,8 +1,11 @@
-import { redirect } from "next/navigation";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
-type PageParams = Promise<{ tenantSlug: string }>;
+export const dynamic = "force-dynamic";
 
-export default async function TalentRootPage({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
-  redirect(`/${tenantSlug}/talent/today`);
+export default async function LegacyTalentIndexPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await redirectLegacyTalentPath("today", searchParams);
 }

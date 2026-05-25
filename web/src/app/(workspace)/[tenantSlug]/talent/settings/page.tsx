@@ -1,7 +1,11 @@
-import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
 export const dynamic = "force-dynamic";
 
-export default function TalentSettingsPage() {
-  return <TalentPageRouteSyncer page="settings" />;
+export default async function LegacyTalentSettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await redirectLegacyTalentPath("settings", searchParams);
 }

@@ -1,9 +1,5 @@
-import { redirect } from "next/navigation";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
-// Legacy URL-compat redirect. "activity" was merged into settings (WS-8.x).
-type PageParams = Promise<{ tenantSlug: string }>;
-
-export default async function TalentActivityRedirect({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
-  redirect(`/${tenantSlug}/talent/settings`);
+export default async function LegacyTalentActivityPage() {
+  await redirectLegacyTalentPath("settings");
 }

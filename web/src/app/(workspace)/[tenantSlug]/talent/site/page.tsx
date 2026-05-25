@@ -1,16 +1,11 @@
-import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
-import { TalentSiteDashboard } from "@/components/talent/site/TalentSiteDashboard";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
 export const dynamic = "force-dynamic";
 
-type PageParams = Promise<{ tenantSlug: string }>;
-
-export default async function TalentSiteRoute({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
-  return (
-    <>
-      <TalentPageRouteSyncer page="public-page" />
-      <TalentSiteDashboard tenantSlug={tenantSlug} />
-    </>
-  );
+export default async function LegacyTalentSitePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await redirectLegacyTalentPath("site", searchParams);
 }

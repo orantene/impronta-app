@@ -1,7 +1,5 @@
-import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
-export const dynamic = "force-dynamic";
-
-export default function TalentPublicPageRoute() {
-  return <TalentPageRouteSyncer page="public-page" />;
+export default async function LegacyTalentPublicPageAlias() {
+  await redirectLegacyTalentPath("site");
 }

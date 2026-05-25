@@ -14,9 +14,16 @@ export function TalentSiteDashboardRedirect() {
   const { tenantSlug } = useAdminShell();
 
   useEffect(() => {
-    if (tenantSlug) {
-      router.replace(`/${tenantSlug}/talent/site`);
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname;
+    const onPlatformTalent =
+      path.startsWith("/talent/") &&
+      !/^\/[a-z0-9][a-z0-9-]{1,62}\/talent\//.test(path);
+    if (onPlatformTalent || !tenantSlug) {
+      router.replace("/talent/site");
+      return;
     }
+    router.replace(`/${tenantSlug}/talent/site`);
   }, [tenantSlug, router]);
 
   return (

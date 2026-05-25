@@ -1,7 +1,11 @@
-import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
 export const dynamic = "force-dynamic";
 
-export default function TalentTodayPage() {
-  return <TalentPageRouteSyncer page="today" />;
+export default async function LegacyTalentTodayPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await redirectLegacyTalentPath("today", searchParams);
 }

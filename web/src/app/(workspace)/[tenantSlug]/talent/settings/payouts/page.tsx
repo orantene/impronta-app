@@ -1,37 +1,11 @@
-import { notFound, redirect } from "next/navigation";
-import { getCachedActorSession } from "@/lib/server/request-cache";
-import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
-import { loadTalentPayoutSnapshot } from "./actions";
-import { PayoutsShell } from "./PayoutsShell";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
 export const dynamic = "force-dynamic";
 
-type PageParams = Promise<{ tenantSlug?: string }>;
-type SearchParams = Promise<{ ok?: string; refresh?: string }>;
-
-export default async function TalentPayoutsPage({
-  params, searchParams,
+export default async function LegacyTalentPayoutsPage({
+  searchParams,
 }: {
-  params: PageParams;
-  searchParams: SearchParams;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tenantSlug } = await resolveTalentPageScope(params);
-  const sp = await searchParams;
-
-  const session = await getCachedActorSession();
-  if (!session.user) {
-    redirect(`/login?next=/talent/settings/payouts`);
-  }
-
-  const snapResult = await loadTalentPayoutSnapshot();
-
-  return (
-    <PayoutsShell
-      tenantSlug={tenantSlug}
-      snapshot={snapResult.ok ? snapResult.snapshot : null}
-      loadError={snapResult.ok ? null : snapResult.error}
-      justReturned={sp.ok === "1"}
-      justRefreshed={sp.refresh === "1"}
-    />
-  );
+  await redirectLegacyTalentPath("settings/payouts", searchParams);
 }

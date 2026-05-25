@@ -5,7 +5,7 @@
 //
 // Resolution order:
 //   1. Unauthenticated → /login?next=/talent (preserving query)
-//   2. Has roster row (active or pending) → /{slug}/talent/today
+//   2. Has roster row (active or pending) → /talent/today (platform-scoped)
 //   3. Has app_role='talent' but no roster → render unlinked-talent landing
 //      (no forced /onboarding/role round-trip — they already picked their
 //      role; pushing them back to the chooser is pointless friction)
@@ -14,7 +14,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
-import { loadTalentPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
+import { cookies } from "next/headers";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  ACTIVE_TALENT_TENANT_COOKIE,
+  loadPrimaryTalentAgency,
+} from "@/lib/talent/active-agency-context";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 
@@ -33,8 +38,33 @@ export default async function TalentRootPage({
     redirect(`/login?next=${encodeURIComponent(`/talent${querySuffix}`)}`);
   }
 
-  const slug = await loadTalentPrimaryTenantSlug(session.user.id).catch(() => null);
-  if (slug) redirect(`/${slug}/talent/today${querySuffix}`);
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { data: profile } = await admin
+      .from("talent_profiles")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    if (profile?.id) {
+      try {
+        const store = await cookies();
+        if (!store.get(ACTIVE_TALENT_TENANT_COOKIE)?.value) {
+          const primary = await loadPrimaryTalentAgency(profile.id as string);
+          if (primary) {
+            store.set(ACTIVE_TALENT_TENANT_COOKIE, primary.tenantId, {
+              path: "/",
+              httpOnly: true,
+              sameSite: "lax",
+              maxAge: 60 * 60 * 24 * 365,
+            });
+          }
+        }
+      } catch {
+        // cookies() unavailable outside request
+      }
+      redirect(`/talent/today${querySuffix}`);
+    }
+  }
 
   // No roster — branch by whether the user has already picked a role.
   // Pushing a user who already chose "talent" back to the role-chooser

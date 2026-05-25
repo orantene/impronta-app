@@ -1,10 +1,11 @@
-import { TalentPageRouteSyncer } from "../_talent-page-route-syncer";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
 export const dynamic = "force-dynamic";
 
-export default function TalentInboxPage() {
-  // Phase 3.12.2: admin shell renders the full talent inbox via
-  // TalentShellClient. This syncer ensures the shell starts on
-  // the "messages" page when navigating directly to /talent/inbox.
-  return <TalentPageRouteSyncer page="messages" />;
+export default async function LegacyTalentInboxPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await redirectLegacyTalentPath("inbox", searchParams);
 }

@@ -1,9 +1,5 @@
-import { redirect } from "next/navigation";
+import { redirectLegacyTalentPath } from "@/lib/talent/legacy-talent-redirect";
 
-// Legacy URL-compat redirect. "reach" was split into agencies + public-page (WS-8.2).
-type PageParams = Promise<{ tenantSlug: string }>;
-
-export default async function TalentReachRedirect({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
-  redirect(`/${tenantSlug}/talent/agencies`);
+export default async function LegacyTalentReachPage() {
+  await redirectLegacyTalentPath("agencies");
 }
