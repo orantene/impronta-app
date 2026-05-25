@@ -161,6 +161,24 @@ function isGeneralField(f: { field_key: string }): boolean {
   return GENERAL_NAMESPACES.has(namespaceFor(f.field_key));
 }
 
+type ScopeFilteredField = { field_key: string; field_group_slug: string | null };
+export function filterLiveCategoryFieldsForScope<T extends ScopeFilteredField>(
+  allFields: readonly T[],
+  scope: "specialty" | "general",
+): T[] {
+  return allFields.filter((f) =>
+    scope === "general"
+      // General mount: always-on global groups, but STILL honor
+      // suppression — a group like media-portfolio is in
+      // SUPPRESSED_GROUP_SLUGS (its real home is the fixed Media
+      // section), so it must not leak into About even though its
+      // namespace is "general".
+      ? isGeneralField(f) && !isFieldSuppressed(f)
+      // Specialty mount: type-driven only — drop suppressed AND the
+      // general groups (they live in About now).
+      : !isFieldSuppressed(f) && !isGeneralField(f));
+}
+
 // Friendly label for each field_key namespace prefix — used to sub-group
 // the "Other" bucket into per-talent-type sub-blocks instead of one giant
 // 22-field scroll. Anything not in this map falls back to title-casing the
@@ -977,17 +995,7 @@ export function LiveCategoryFieldsEditor({
   // preserved on the row and remain readable via the legacy accordion or
   // by querying the table directly.
   const fields = useMemo(
-    () => (allFields ?? []).filter((f) =>
-      scope === "general"
-        // General mount: always-on global groups, but STILL honor
-        // suppression — a group like media-portfolio is in
-        // SUPPRESSED_GROUP_SLUGS (its real home is the fixed Media
-        // section), so it must not leak into About even though its
-        // namespace is "general".
-        ? isGeneralField(f) && !isFieldSuppressed(f)
-        // Specialty mount: type-driven only — drop suppressed AND the
-        // general groups (they live in About now).
-        : !isFieldSuppressed(f) && !isGeneralField(f)),
+    () => filterLiveCategoryFieldsForScope(allFields ?? [], scope),
     [allFields, scope],
   );
 

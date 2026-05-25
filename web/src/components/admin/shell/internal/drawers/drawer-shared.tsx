@@ -223,7 +223,6 @@ import {
   getDynamicFieldsForType,
   applyWorkspaceFieldOverride,
   useWorkspaceFieldOverrideSubscription,
-  PROTO_TENANT_ID,
   setWorkspaceFieldOverride,
   clearWorkspaceFieldOverride,
   getWorkspaceFieldOverrides,
@@ -1543,7 +1542,7 @@ export function RequiredPill({
     ?? FIELD_CATALOG.find(c => c.id === field.id);
   // Workspace override (e.g. "make this required for our agency").
   const resolved = catalogEntry
-    ? applyWorkspaceFieldOverride(catalogEntry, tenantId ?? PROTO_TENANT_ID)
+    ? applyWorkspaceFieldOverride(catalogEntry, tenantId ?? null)
     : null;
   const wsRequired = resolved?.hasOverride && resolved.optional === false;
   const wsOptional = resolved?.hasOverride && resolved.optional === true;
