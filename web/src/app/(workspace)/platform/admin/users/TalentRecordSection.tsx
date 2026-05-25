@@ -36,11 +36,18 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  // Only show for users with a talent profile
+  // Show for: unclaimed talent rows, humans with a linked talent profile,
+  // or humans flagged isTalent (app_role=talent) but missing a profile row.
   const hasTalent =
-    user.kind === "unclaimed_talent" || user.talentProfileId !== null;
+    user.kind === "unclaimed_talent" ||
+    user.talentProfileId !== null ||
+    user.isTalent;
 
   if (!hasTalent) return null;
+
+  // Human is a talent by role but has no linked talent_profiles row yet
+  const noProfile =
+    user.kind === "human" && user.talentProfileId === null && user.isTalent;
 
   const isUnclaimed = user.kind === "unclaimed_talent";
   const talentId = isUnclaimed ? user.id : user.talentProfileId!;
@@ -103,7 +110,23 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
         )}
       </div>
 
-      {isOpen && (
+      {isOpen && noProfile && (
+        <div
+          style={{
+            padding: "10px 12px",
+            fontSize: 12.5,
+            color: HQ.inkDim,
+            background: HQ.cardSoft,
+            border: `1px solid ${HQ.borderSoft}`,
+            borderRadius: 10,
+          }}
+        >
+          No talent profile found. This user has app_role=talent but no linked
+          talent_profiles row.
+        </div>
+      )}
+
+      {isOpen && !noProfile && (
         <div>
           <div
             style={{
