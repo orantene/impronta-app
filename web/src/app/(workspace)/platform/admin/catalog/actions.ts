@@ -8,6 +8,7 @@ import { CACHE_TAG_FIELD_CATALOG } from "@/lib/field-engine/cache-tags";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { sanitizePlatformFieldSafety } from "./field-safety";
 
 type PlatformActionContext = {
   ok: true;
@@ -154,10 +155,15 @@ export async function createPlatformFieldAction(formData: FormData): Promise<voi
 
   const adminOnly = checked(formData, "admin_only");
   const sensitive = checked(formData, "is_sensitive");
-  const rawVisibility = parseDefaultVisibility(formData);
-  const defaultVisibility = adminOnly || sensitive
-    ? rawVisibility.filter((channel) => channel !== "public")
-    : rawVisibility;
+  const safety = sanitizePlatformFieldSafety({
+    defaultVisibility: parseDefaultVisibility(formData),
+    showInPublic: checked(formData, "show_in_public"),
+    showInDirectory: checked(formData, "show_in_directory"),
+    showInRegistration: checked(formData, "show_in_registration"),
+    talentEditable: checked(formData, "talent_editable"),
+    adminOnly,
+    sensitive,
+  });
 
   const insertRow = {
     field_key: fieldKey,
@@ -172,14 +178,14 @@ export async function createPlatformFieldAction(formData: FormData): Promise<voi
     section: text(formData, "section") ?? "type-specific",
     subsection: text(formData, "subsection"),
     field_group_id: text(formData, "field_group_id"),
-    default_visibility: defaultVisibility.length > 0 ? defaultVisibility : ["agency"],
-    show_in_public: checked(formData, "show_in_public") && !adminOnly && !sensitive,
-    show_in_directory: checked(formData, "show_in_directory"),
-    show_in_registration: checked(formData, "show_in_registration"),
+    default_visibility: safety.defaultVisibility,
+    show_in_public: safety.showInPublic,
+    show_in_directory: safety.showInDirectory,
+    show_in_registration: safety.showInRegistration,
     show_in_edit_drawer: checked(formData, "show_in_edit_drawer"),
     admin_only: adminOnly,
     is_sensitive: sensitive,
-    talent_editable: checked(formData, "talent_editable"),
+    talent_editable: safety.talentEditable,
     requires_review_on_change: checked(formData, "requires_review_on_change"),
     is_searchable: checked(formData, "is_searchable"),
     display_order: intOrNull(formData, "display_order") ?? 100,
@@ -242,6 +248,18 @@ export async function updatePlatformFieldAction(formData: FormData): Promise<voi
     .eq("id", id)
     .maybeSingle();
 
+  const adminOnly = checked(formData, "admin_only");
+  const sensitive = checked(formData, "is_sensitive");
+  const safety = sanitizePlatformFieldSafety({
+    defaultVisibility: parseDefaultVisibility(formData),
+    showInPublic: checked(formData, "show_in_public"),
+    showInDirectory: checked(formData, "show_in_directory"),
+    showInRegistration: checked(formData, "show_in_registration"),
+    talentEditable: checked(formData, "talent_editable"),
+    adminOnly,
+    sensitive,
+  });
+
   const patch = {
     field_key: fieldKey,
     label,
@@ -255,14 +273,14 @@ export async function updatePlatformFieldAction(formData: FormData): Promise<voi
     section: text(formData, "section") ?? "type-specific",
     subsection: text(formData, "subsection"),
     field_group_id: text(formData, "field_group_id"),
-    default_visibility: parseDefaultVisibility(formData),
-    show_in_public: checked(formData, "show_in_public"),
-    show_in_directory: checked(formData, "show_in_directory"),
-    show_in_registration: checked(formData, "show_in_registration"),
+    default_visibility: safety.defaultVisibility,
+    show_in_public: safety.showInPublic,
+    show_in_directory: safety.showInDirectory,
+    show_in_registration: safety.showInRegistration,
     show_in_edit_drawer: checked(formData, "show_in_edit_drawer"),
-    admin_only: checked(formData, "admin_only"),
-    is_sensitive: checked(formData, "is_sensitive"),
-    talent_editable: checked(formData, "talent_editable"),
+    admin_only: adminOnly,
+    is_sensitive: sensitive,
+    talent_editable: safety.talentEditable,
     requires_review_on_change: checked(formData, "requires_review_on_change"),
     is_searchable: checked(formData, "is_searchable"),
     display_order: intOrNull(formData, "display_order") ?? 100,
