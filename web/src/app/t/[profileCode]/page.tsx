@@ -14,6 +14,10 @@ import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
 } from "@/components/directory/public-discovery-state";
+import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
+import { DirectoryInquirySheet } from "@/components/directory/directory-inquiry-sheet";
+import { FavoritesDrawer } from "@/components/directory/favorites-drawer";
+import { FavoritesDrawerProvider } from "@/components/directory/favorites-drawer-context";
 import { ProfileAiStrip } from "@/components/directory/profile-ai-strip";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { ShareProfileMenu } from "@/components/directory/share-profile-menu";
@@ -23,7 +27,7 @@ import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getSavedTalentIds } from "@/lib/public-discovery";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicProfileFieldVisibility } from "@/lib/public-profile-field-visibility";
 import { getOrderedPublicProfileSections } from "@/lib/public-profile-field-order";
 import { createTranslator } from "@/i18n/messages";
@@ -1089,10 +1093,16 @@ export default async function PublicTalentProfilePage({
   if (!isSupabaseConfigured()) {
     return (
       <PublicDiscoveryStateProvider>
-        <PublicHeader />
-        <div className="mx-auto max-w-lg flex-1 px-4 py-20 text-center text-m text-muted-foreground">
-          {t("public.forms.inquiry.supabaseNotConfigured")}
-        </div>
+        <DirectoryInquiryModalProvider>
+          <FavoritesDrawerProvider>
+            <PublicHeader />
+            <div className="mx-auto max-w-lg flex-1 px-4 py-20 text-center text-m text-muted-foreground">
+              {t("public.forms.inquiry.supabaseNotConfigured")}
+            </div>
+            <DirectoryInquirySheet ui={ui} locale={locale} />
+            <FavoritesDrawer signupHref="/login" />
+          </FavoritesDrawerProvider>
+        </DirectoryInquiryModalProvider>
       </PublicDiscoveryStateProvider>
     );
   }
@@ -1189,7 +1199,10 @@ export default async function PublicTalentProfilePage({
     a.groupSort - b.groupSort || a.sort - b.sort || a.key.localeCompare(b.key);
   basicInfoDetailRows.sort(sortDetail);
   otherDetailRows.sort(sortDetail);
-  const initialSavedIds = await getSavedTalentIds();
+  const [initialSavedIds, initialFavoriteIds] = await Promise.all([
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+  ]);
 
   // D3 — similar talent strip (agency surface only; free-tier / no roster = []).
   const similarTalent: SimilarTalentMini[] =
@@ -1426,6 +1439,8 @@ export default async function PublicTalentProfilePage({
 
   return (
     <PublicDiscoveryStateProvider>
+      <DirectoryInquiryModalProvider>
+        <FavoritesDrawerProvider>
       {jsonLd ? (
         <script
           type="application/ld+json"
@@ -1437,7 +1452,7 @@ export default async function PublicTalentProfilePage({
       <ProfileViewAnalytics talentId={profile.id} locale={locale} />
 
       <PublicHeader />
-      <DiscoveryStateBridge savedIds={initialSavedIds} />
+      <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
 
       <main className="flex-1 bg-[var(--impronta-black)]" data-profile-shell>
         {resolvedPreview ? (
@@ -2068,6 +2083,10 @@ export default async function PublicTalentProfilePage({
           <PublicCmsFooterNav locale={locale} />
         </div>
       </footer>
+          <DirectoryInquirySheet ui={ui} locale={locale} />
+          <FavoritesDrawer signupHref="/login" />
+        </FavoritesDrawerProvider>
+      </DirectoryInquiryModalProvider>
     </PublicDiscoveryStateProvider>
   );
 }

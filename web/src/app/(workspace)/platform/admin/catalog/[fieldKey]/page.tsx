@@ -160,6 +160,15 @@ function summariseOverride(w: FieldDetailWorkspace): string {
   return parts.length === 0 ? "no override columns set (legacy row)" : parts.join(" · ");
 }
 
+function formatAuditTime(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 function WorkspaceRow({ w, isFirst }: { w: FieldDetailWorkspace; isFirst: boolean }) {
   const planTone =
     w.plan === "agency" || w.plan === "network"
@@ -637,6 +646,71 @@ export default async function PlatformCatalogFieldDetailPage({
         <div style={{ marginTop: 12, fontSize: 12, color: HQ.inkMuted }}>
           Archive and visibility changes are intentionally soft: tenant settings, stored values, public exposure, and publish/completion behavior remain inspectable here before and after save.
         </div>
+      </HqCard>
+
+      <HqCard
+        title="Audit history"
+        subtitle="Recent platform-level changes for this field and its current taxonomy mappings."
+      >
+        {detail.audit.length === 0 ? (
+          <div style={{ fontSize: 12, color: HQ.inkDim }}>
+            No platform audit rows found yet. New saves from this studio will appear here.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {detail.audit.map((entry) => (
+              <div
+                key={entry.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "108px minmax(0, 1fr) 80px",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "8px 10px",
+                  borderRadius: 9,
+                  background: HQ.cardSoft,
+                  border: `1px solid ${HQ.borderSoft}`,
+                }}
+              >
+                <div style={{ fontSize: 11, color: HQ.inkMuted }}>
+                  {formatAuditTime(entry.created_at)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: HQ.ink,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {entry.action}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: HQ.inkDim, marginTop: 2 }}>
+                    {entry.changed_keys.length > 0
+                      ? `Changed ${entry.changed_keys.join(", ")}`
+                      : "Before/after snapshot recorded"}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: 0.4,
+                      textTransform: "uppercase",
+                      color: entry.severity === "warn" ? HQ.amber : entry.severity === "emergency" ? HQ.red : HQ.inkMuted,
+                    }}
+                  >
+                    {entry.severity}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </HqCard>
 
       {detail.risks.length > 0 && (

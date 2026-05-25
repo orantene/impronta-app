@@ -18,22 +18,27 @@ import {
   ReviewKv,
   SKILL_CATALOG,
   TAXONOMY,
+  getEnabledTaxonomyTree,
   TaxonomyParent,
   TaxonomyParentId,
+  TaxonomyNode,
   WORKSPACE_TAXONOMY_DEFAULT,
   WorkspaceCustomField,
   patchProfileDraft,
   resolvedFieldsForMode,
   useAdminShell,
+  useLiveTaxonomy,
   validateField
 } from "./drawer-shared";
+import { buildNewTalentPickerTaxonomy } from "./profile-shell/profile-shell-modules/new-talent-taxonomy";
 
 // Phase 1d (remediation §4): 1 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function TalentRegistrationDrawer() {
-  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
   const open = state.drawer.drawerId === "talent-registration";
+  const liveTaxonomy = useLiveTaxonomy();
   const [step, setStep] = useState(0);
   const [stageName, setStageName] = useState("");
   const [parents, setParents] = useState<Set<TaxonomyParentId>>(new Set());
@@ -55,6 +60,17 @@ export function TalentRegistrationDrawer() {
   // mount so each demo feels organic.
   const [celebrating, setCelebrating] = useState(false);
   const [reachCount] = useState(() => Math.floor(Math.random() * 18) + 6);
+  const [tenantTree, setTenantTree] = useState<TaxonomyNode[] | null>(null);
+
+  useEffect(() => {
+    if (!open || !bridgeTenantIdentity?.tenantId) return;
+    let cancelled = false;
+    getEnabledTaxonomyTree().then((res) => {
+      if (cancelled) return;
+      if (res.ok) setTenantTree(res.tree);
+    });
+    return () => { cancelled = true; };
+  }, [open, bridgeTenantIdentity?.tenantId]);
 
   // Architecture loop closed — wizard now writes to the same draft
   // store as QuickAdd. So when admin runs Approval queue → opens shell,
@@ -85,12 +101,23 @@ export function TalentRegistrationDrawer() {
   if (!open) return null;
 
   // Filter the master taxonomy down to what the agency exposes for
-  // registration (uses the per-workspace settings; in prod this comes
-  // from `workspace_taxonomy_settings` keyed by tenant_id).
-  const allowed = WORKSPACE_TAXONOMY_DEFAULT
-    .filter(s => s.isEnabled && s.showInRegistration)
-    .map(s => s.parentId);
-  const visibleParents = TAXONOMY.filter(p => allowed.includes(p.id));
+  // registration. Live tenant settings win; the fixture remains only as
+  // a local/no-env fallback.
+  const fallbackAllowedParentIds = new Set(
+    WORKSPACE_TAXONOMY_DEFAULT
+      .filter(s => s.isEnabled && s.showInRegistration)
+      .map(s => s.parentId as string),
+  );
+  const visibleParents = buildNewTalentPickerTaxonomy({
+    visibleLiveParents: liveTaxonomy.visibleParents,
+    restLiveParents: liveTaxonomy.restParents,
+    tenantTree,
+    fallbackAllowedParentIds,
+    currentPlan: state.plan as "free" | "studio" | "agency" | "network",
+    showMore: true,
+  }).allowedParents;
+  const findVisibleParent = (id: TaxonomyParentId) =>
+    visibleParents.find(p => p.id === id) ?? TAXONOMY.find(p => p.id === id);
 
   const toggleParent = (id: TaxonomyParentId) => {
     setParents(p => {
@@ -98,7 +125,7 @@ export function TalentRegistrationDrawer() {
       if (next.has(id)) {
         next.delete(id);
         // Drop child selections of removed parent
-        const drop = new Set(TAXONOMY.find(x => x.id === id)?.children.map(c => c.id) ?? []);
+        const drop = new Set(findVisibleParent(id)?.children.map(c => c.id) ?? []);
         setChildren(c => new Set([...c].filter(x => !drop.has(x))));
       } else {
         next.add(id);
@@ -131,7 +158,7 @@ export function TalentRegistrationDrawer() {
   // ones. Required fields always come first regardless.
   const dynamicFields: { parent: TaxonomyParent; fields: ReadonlyArray<RegField> }[] =
     [...parents].map(pid => {
-      const parent = TAXONOMY.find(p => p.id === pid)!;
+      const parent = findVisibleParent(pid)!;
       // Mode-aware resolved catalog filtered to this parent.
       const resolved = resolvedFieldsForMode("registration", PROTO_TENANT_ID, pid)
         .filter(f => f.appliesTo?.includes(pid));
@@ -410,7 +437,7 @@ export function TalentRegistrationDrawer() {
           {step === 2 && (
             <div className="flex flex-col gap-3.5">
               {[...parents].map(pid => {
-                const parent = TAXONOMY.find(p => p.id === pid)!;
+                const parent = findVisibleParent(pid)!;
                 return (
                   <div key={pid}>
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
@@ -579,10 +606,10 @@ export function TalentRegistrationDrawer() {
                   {stageName || "Your profile"}
                 </div>
                 <ReviewKv label="Categories"
-                  value={[...parents].map(id => TAXONOMY.find(p => p.id === id)?.label).filter(Boolean).join(" · ") || "—"} />
+                  value={[...parents].map(id => findVisibleParent(id)?.label).filter(Boolean).join(" · ") || "—"} />
                 <ReviewKv label="Talent Types"
                   value={[...children].map(id => {
-                    for (const p of TAXONOMY) {
+                    for (const p of visibleParents.length > 0 ? visibleParents : TAXONOMY) {
                       const c = p.children.find(x => x.id === id);
                       if (c) return c.label;
                     }

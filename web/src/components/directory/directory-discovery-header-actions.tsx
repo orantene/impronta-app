@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bookmark, Heart, Send } from "lucide-react";
-import { useDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
+import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,8 @@ export function DirectoryDiscoveryHeaderActions({
   copy: DirectoryDiscoveryHeaderCopy;
 }) {
   const { savedCount, favoritesCount } = usePublicDiscoveryState();
-  const { openInquiry, saveCue } = useDirectoryInquiryModal();
+  const inquiryModal = useOptionalDirectoryInquiryModal();
+  const saveCue = inquiryModal?.saveCue ?? 0;
   const favoritesDrawer = useFavoritesDrawer();
   const [mounted, setMounted] = useState(false);
   const [cueRing, setCueRing] = useState(false);
@@ -132,7 +133,13 @@ export function DirectoryDiscoveryHeaderActions({
                 cueRing &&
                   "shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--impronta-gold)] scale-105",
               )}
-              onClick={openInquiry}
+              onClick={() => {
+                if (inquiryModal) {
+                  inquiryModal.openInquiry();
+                  return;
+                }
+                window.location.assign("/directory/cart");
+              }}
               aria-label={
                 hasCart ? copy.inquiryAriaWithCart : copy.inquiryAriaEmpty
               }

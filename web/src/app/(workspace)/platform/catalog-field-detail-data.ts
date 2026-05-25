@@ -126,6 +126,17 @@ export type FieldDetailGroupOption = {
   is_active: boolean;
 };
 
+export type FieldDetailAuditEntry = {
+  id: string;
+  created_at: string;
+  actor_role: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  severity: string;
+  changed_keys: string[];
+};
+
 export type PlatformCatalogFieldDetail = {
   ok: boolean;
   /** null when ok=true but the field_key was not found (404-ish). */
@@ -135,6 +146,7 @@ export type PlatformCatalogFieldDetail = {
   recommendations: FieldDetailRecommendation[];
   taxonomyTerms: FieldDetailTaxonomyTerm[];
   fieldGroups: FieldDetailGroupOption[];
+  audit: FieldDetailAuditEntry[];
 };
 
 const EMPTY: PlatformCatalogFieldDetail = {
@@ -145,6 +157,7 @@ const EMPTY: PlatformCatalogFieldDetail = {
   recommendations: [],
   taxonomyTerms: [],
   fieldGroups: [],
+  audit: [],
 };
 
 type DefRow = {
@@ -248,6 +261,7 @@ async function loadPlatformCatalogFieldDetailUncached(
         recommendations: [],
         taxonomyTerms: [],
         fieldGroups: [],
+        audit: [],
       };
     }
     const def = defR as DefRow;
@@ -341,6 +355,47 @@ async function loadPlatformCatalogFieldDetailUncached(
     const fieldGroups = ((groupsRes.data ?? []) as FieldDetailGroupOption[]).sort(
       (a, b) => a.sort_order - b.sort_order || a.name_en.localeCompare(b.name_en),
     );
+
+    const auditTargetIds = [def.id, ...recommendations.map((r) => r.id)];
+    const { data: auditData } = auditTargetIds.length > 0
+      ? await sb
+          .from("platform_audit_log")
+          .select("id, created_at, actor_role, action, target_type, target_id, severity, metadata")
+          .in("target_id", auditTargetIds)
+          .order("created_at", { ascending: false })
+          .limit(12)
+      : { data: [] };
+    const audit = ((auditData ?? []) as Array<{
+      id: string;
+      created_at: string;
+      actor_role: string | null;
+      action: string;
+      target_type: string | null;
+      target_id: string | null;
+      severity: string;
+      metadata: unknown;
+    }>).map((row) => {
+      const metadata = row.metadata as { before?: unknown; after?: unknown } | null;
+      const before = metadata?.before && typeof metadata.before === "object"
+        ? metadata.before as Record<string, unknown>
+        : {};
+      const after = metadata?.after && typeof metadata.after === "object"
+        ? metadata.after as Record<string, unknown>
+        : {};
+      const keys = Object.keys(after).filter((key) =>
+        JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+      );
+      return {
+        id: row.id,
+        created_at: row.created_at,
+        actor_role: row.actor_role,
+        action: row.action,
+        target_type: row.target_type,
+        target_id: row.target_id,
+        severity: row.severity,
+        changed_keys: keys.slice(0, 8),
+      } satisfies FieldDetailAuditEntry;
+    });
 
     // 4. Slice 5 — per-tenant talent-value counts.
     //    Step A: talent_profile_ids with a live value for this field.
@@ -550,7 +605,7 @@ async function loadPlatformCatalogFieldDetailUncached(
       });
     }
 
-    return { ok: true, field, workspaces, risks, recommendations, taxonomyTerms, fieldGroups };
+    return { ok: true, field, workspaces, risks, recommendations, taxonomyTerms, fieldGroups, audit };
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("[catalog-field-detail] unexpected:", e);

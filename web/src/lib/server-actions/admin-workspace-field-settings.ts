@@ -41,17 +41,19 @@ type FieldOverrideSnapshot = {
   default_visibility_override: string[] | null;
   custom_label: string | null;
   custom_helper: string | null;
+  display_order_override: number | null;
 };
 
 type GroupOverrideSnapshot = {
   is_enabled: boolean | null;
   custom_label: string | null;
+  display_order: number | null;
 };
 
 const FIELD_OVERRIDE_COLS =
-  "enabled_override, required_override, show_in_public_override, admin_only_override, default_visibility_override, custom_label, custom_helper";
+  "enabled_override, required_override, show_in_public_override, admin_only_override, default_visibility_override, custom_label, custom_helper, display_order_override";
 
-const GROUP_OVERRIDE_COLS = "is_enabled, custom_label";
+const GROUP_OVERRIDE_COLS = "is_enabled, custom_label, display_order";
 
 type WorkspaceFieldSettingRow = {
   field_definition_id: string;

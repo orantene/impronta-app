@@ -173,11 +173,6 @@
       "count": 14
     }
   },
-  "src/components/admin/shell/internal/drawers/light-09.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 25
-    }
-  },
   "src/components/admin/shell/internal/drawers/light-10.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 42

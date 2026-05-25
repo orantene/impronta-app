@@ -28,6 +28,7 @@ import {
   type ResolvedField,
   type ResolvedFieldGroup,
 } from "@/lib/server-actions/admin-taxonomy";
+import { isResolvedFieldPublishBlocking } from "@/lib/field-engine/profile-publish-requirements";
 import {
   getTalentFieldValues,
   setTalentFieldValue,
@@ -1212,7 +1213,7 @@ export function LiveCategoryFieldsEditor({
     const missing: LiveCategoryRequiredMissingItem[] = [];
     for (const tab of tabs) {
       for (const field of tab.fields) {
-        if (!field.required_before_publish) continue;
+        if (!isResolvedFieldPublishBlocking(field)) continue;
         if (isValueFilled(valuesByDefId.get(field.field_definition_id))) continue;
         missing.push({
           id: `field:${field.field_definition_id}`,

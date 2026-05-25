@@ -22,7 +22,11 @@ export default async function PlatformUsersPage({
     (u) => u.appRole === "super_admin" || u.appRole === "agency_staff" || u.appRole === "admin",
   ).length;
   const operatorCount = users.filter((u) => u.workspaceAdminCount > 0).length;
-  const unconfirmedCount = users.filter((u) => !u.emailConfirmed).length;
+  // Only count actual humans with unconfirmed emails — unclaimed talents have
+  // emailConfirmed=null (not a real "unconfirmed" state) so exclude them.
+  const unconfirmedCount = users.filter(
+    (u) => u.kind === "human" && u.emailConfirmed === false,
+  ).length;
 
   return (
     <>
