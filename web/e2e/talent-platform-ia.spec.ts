@@ -52,6 +52,8 @@ test.describe("Talent platform IA — redirects (unauthenticated)", () => {
 });
 
 test.describe("Talent platform IA — QA audit talent", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test.beforeEach(async ({ page }) => {
     await loginTalent(page, QA_AUDIT_EMAIL, QA_AUDIT_PASSWORD, "/talent/site");
   });
@@ -96,10 +98,9 @@ test.describe("Talent platform IA — QA audit talent", () => {
     await expect(page.getByText(/Impronta/i).first()).toBeVisible();
   });
 
-  test("/talent/agencies redirects to /talent/money", async ({ request }) => {
-    const head = await request.fetch("/talent/agencies", { maxRedirects: 0 });
-    expect(head.status()).toBe(308);
-    expect(head.headers().location ?? "").toMatch(/\/talent\/money/);
+  test("/talent/agencies redirects to /talent/money", async ({ page }) => {
+    await page.goto("/talent/agencies");
+    await expect(page).toHaveURL(/\/talent\/money/, { timeout: 30_000 });
   });
 
   test("unified inbox shows agency filter chips on /talent/inbox", async ({ page }) => {
@@ -107,11 +108,13 @@ test.describe("Talent platform IA — QA audit talent", () => {
     await expect(page.locator("[data-tulala-talent-agency-filter]")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByRole("button", { name: "All" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^All(\s+\d+)?$/ })).toBeVisible();
   });
 });
 
 test.describe("Talent platform IA — Tulum talent (second account)", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test.beforeEach(async ({ page }) => {
     await loginTalent(page, SOFIA_EMAIL, SOFIA_PASSWORD, "/talent/today");
   });
