@@ -16,6 +16,6 @@ export function bustTalentSiteCache(
   revalidateTag(tagForTalentSite(talentProfileId, "site"), "default");
   revalidateTag(tagForTalentSite(talentProfileId, "site-list"), "default");
   if (profileCode) {
-    revalidatePath(`/t/${profileCode}/site`);
+    revalidatePath(`/t/${profileCode}`);
   }
 }

@@ -112,7 +112,7 @@ export function TalentSiteDashboardClient({ tenantSlug, initialState }: Props) {
             ) : null}
             {state.profileCode ? (
               <Link
-                href={`/t/${state.profileCode}/site?preview=draft`}
+                href={`/t/${state.profileCode}?preview=draft`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={linkBtnStyle()}

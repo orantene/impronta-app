@@ -73,7 +73,7 @@ export async function loadTalentPersonalSiteDashboardState(
     canEditPersonalSite: membership.capabilities.canEditPersonalSite,
     canPublishPersonalSite: membership.capabilities.canPublishPersonalSite,
     profileCode,
-    publicSiteUrl: profileCode ? `/t/${profileCode}/site` : null,
+    publicSiteUrl: profileCode ? `/t/${profileCode}` : null,
     publicProfileUrl: profileCode ? `/t/${profileCode}` : null,
     site,
   };

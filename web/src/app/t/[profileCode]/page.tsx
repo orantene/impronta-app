@@ -78,6 +78,9 @@ import {
 } from "@/lib/talent/agency-overlay";
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
+import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
+import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -981,6 +984,25 @@ export async function generateMetadata({
 
   const { profileCode } = await params;
   const { preview } = await searchParams;
+  const hostCtx = await getPublicHostContext();
+  if (isTalentProfilePlatformHost(hostCtx.kind) && preview !== "1") {
+    const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode, {
+      previewDraft: preview === "draft",
+    });
+    if (siteResolved.kind === "render") {
+      return {
+        title: siteResolved.snapshot.fields.title,
+        description: siteResolved.snapshot.fields.metaDescription ?? undefined,
+        ...(siteResolved.draftPreview
+          ? { robots: { index: false, follow: false } }
+          : {}),
+      };
+    }
+    if (siteResolved.kind === "not_found") {
+      return { title: "Not found" };
+    }
+  }
+
   const result = await fetchTalentProfile(profileCode, preview === "1");
   if (!result) return {};
 
@@ -1060,16 +1082,28 @@ export default async function PublicTalentProfilePage({
   const t = createTranslator(locale);
   const previewMode = preview === "1";
 
-  // Phase 5/6 M2 — surface gate. Hub hosts never serve /t/* (the hub has its
-  // own approved-hub-directory surface). The surface-allow-list already 404s
-  // this at the middleware edge; this is defense-in-depth for direct route
-  // access in tests, prerender, or middleware bypass.
   const [hostCtx, publicPathPrefix] = await Promise.all([
     getPublicHostContext(),
     getPublicPathPrefix(),
   ]);
-  if (hostCtx.kind === "hub") {
-    notFound();
+
+  const platformHost = isTalentProfilePlatformHost(hostCtx.kind);
+  if (platformHost && preview !== "1") {
+    const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode, {
+      previewDraft: preview === "draft",
+    });
+    if (siteResolved.kind === "not_found") {
+      notFound();
+    }
+    if (siteResolved.kind === "render") {
+      return (
+        <PlatformTalentMaxSiteView
+          snapshot={siteResolved.snapshot}
+          locale={locale}
+          draftPreview={siteResolved.draftPreview}
+        />
+      );
+    }
   }
   const [tenantBrandIdentity, tenantBranding] = await Promise.all([
     hostCtx.kind === "agency"

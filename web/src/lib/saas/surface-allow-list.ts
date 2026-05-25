@@ -393,18 +393,18 @@ export function isPathAllowedForHostKind(
   }
 
   if (kind === "marketing") {
-    return anyPrefix(pathname, MARKETING_PAGE_PREFIXES);
+    return (
+      anyPrefix(pathname, MARKETING_PAGE_PREFIXES) ||
+      hasPrefix(pathname, CANONICAL_TALENT_PREFIX)
+    );
   }
 
   // Phase 3.15 — hub: root + static + shared-api (above) + auth + workspace
-  // slug paths. The hub surface (tulala.digital) is the cross-tenant public
-  // directory and also serves as an entry point to any tenant workspace via
-  // the canonical path pattern /<tenantSlug>/{admin,talent,client}. Auth
-  // paths are required so that unauthenticated workspace-slug requests can
-  // redirect to /login without 404ing.
+  // slug paths + canonical talent profiles on tulala.digital.
   if (kind === "hub") {
     return (
       anyPrefix(pathname, AUTH_PREFIXES) ||
+      hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
       isWorkspaceSlugPath(pathname)
     );
   }

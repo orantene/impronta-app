@@ -21,10 +21,10 @@ type Props = {
 };
 
 /**
- * Public renderer for talent personal site snapshots.
+ * Public renderer for talent Max personal site snapshots on Tulala hosts.
  * No tenant edit-mode, preview, or agency business identity.
  */
-export function TalentPersonalSiteRenderer({ snapshot, locale = "en" }: Props) {
+export function TalentSiteRenderer({ snapshot, locale = "en" }: Props) {
   if (snapshot.siteKind !== "talent_personal") {
     return null;
   }
