@@ -25,10 +25,43 @@ test("INVARIANT talent self catalog actions gate by ownership-based requireTalen
 test("INVARIANT roster tenant lookups are scoped to the active tenant before write/resolve", () => {
   assert.match(
     SRC,
-    /\.from\("agency_talent_roster"\)[\s\S]*?\.eq\("talent_profile_id", v\.talent_profile_id\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?\.eq\("status", "active"\)/,
+    /tenantScopedQuery\([\s\S]*?"agency_talent_roster"[\s\S]*?tenantId[\s\S]*?\)[\s\S]*?\.eq\("talent_profile_id", v\.talent_profile_id\)[\s\S]*?\.eq\("status", "active"\)/,
   );
   assert.match(
     SRC,
-    /\.from\("agency_talent_roster"\)[\s\S]*?\.eq\("talent_profile_id", input\.talent_profile_id\)[\s\S]*?\.eq\("tenant_id", tenantId\)[\s\S]*?\.eq\("status", "active"\)/,
+    /tenantScopedQuery\([\s\S]*?"agency_talent_roster"[\s\S]*?tenantId[\s\S]*?\)[\s\S]*?\.eq\("talent_profile_id", input\.talent_profile_id\)[\s\S]*?\.eq\("status", "active"\)/,
+  );
+});
+
+test("INVARIANT talent self values read/write through tenantScopedQuery", () => {
+  assert.match(
+    SRC,
+    /import \{ tenantScopedQuery \} from "\@\/lib\/supabase\/tenant-scoped-query";/,
+  );
+  assert.equal(
+    (SRC.match(/tenantScopedQuery\([\s\S]*?"talent_profile_field_values"/g) ?? []).length >= 4,
+    true,
+  );
+});
+
+test("INVARIANT talent catalog writes are gated by the shared resolver", () => {
+  assert.match(
+    SRC,
+    /async function requireResolvedTalentCatalogField[\s\S]*?resolveTalentFields\([\s\S]*?viewerRole: "talent"/,
+  );
+  assert.equal(
+    (SRC.match(/requireResolvedTalentCatalogField\(/g) ?? []).length >= 3,
+    true,
+  );
+  assert.match(
+    SRC,
+    /return \{ ok: false, error: "This field is not available for your profile\." \};/,
+  );
+});
+
+test("INVARIANT talent visibility changes keep the same editable-field gate as value writes", () => {
+  assert.match(
+    SRC,
+    /setTalentFieldVisibilityAsTalent[\s\S]*?\.from\("profile_field_definitions"\)[\s\S]*?talent_editable[\s\S]*?def\.talent_editable === false/,
   );
 });

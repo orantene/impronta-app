@@ -12,6 +12,7 @@ import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { mirrorWriteToLegacy } from "@/lib/fields/legacy-mirror";
+import { resolveTalentFields } from "@/lib/field-engine/resolve-talent-fields";
 
 export type TalentFieldValueRow = {
   field_definition_id: string;
@@ -83,6 +84,28 @@ function isEmptyValue(v: unknown): boolean {
   if (typeof v === "string" && v.trim() === "") return true;
   if (Array.isArray(v) && v.length === 0) return true;
   return false;
+}
+
+async function requireResolvedAdminCatalogField(input: {
+  supabase: unknown;
+  tenantId: string;
+  talentProfileId: string;
+  fieldDefinitionId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const resolved = await resolveTalentFields({
+    supabase: input.supabase,
+    talentProfileId: input.talentProfileId,
+    tenantId: input.tenantId,
+    viewerRole: "agency_admin",
+  });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const field = resolved.fields.find(
+    (f) => f.field_definition_id === input.fieldDefinitionId,
+  );
+  if (!field) {
+    return { ok: false, error: "This field is not available for this talent." };
+  }
+  return { ok: true };
 }
 
 // Validate a non-empty value against the field's kind, options, and
@@ -237,6 +260,14 @@ export async function setTalentFieldValue(
     return { ok: false, error: "This field is no longer accepting input." };
   }
 
+  const resolvedField = await requireResolvedAdminCatalogField({
+    supabase,
+    tenantId,
+    talentProfileId: v.talent_profile_id,
+    fieldDefinitionId: v.field_definition_id,
+  });
+  if (!resolvedField.ok) return resolvedField;
+
   // Validate: type-shape + validation_rules. Empty values go through
   // (delete branch above already handled them) — only validate non-empty.
   if (!isEmptyValue(v.value)) {
@@ -341,6 +372,14 @@ export async function setTalentFieldVisibility(
   if (!rosterRow) {
     return { ok: false, error: "Talent is not on this tenant's roster." };
   }
+
+  const resolvedField = await requireResolvedAdminCatalogField({
+    supabase,
+    tenantId,
+    talentProfileId: v.talent_profile_id,
+    fieldDefinitionId: v.field_definition_id,
+  });
+  if (!resolvedField.ok) return resolvedField;
 
   // Empty array → clear override (NULL means "use default_visibility").
   // Any non-empty list overrides the default. Stored on the value row;

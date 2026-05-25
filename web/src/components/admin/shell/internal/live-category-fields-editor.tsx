@@ -911,6 +911,7 @@ export function LiveCategoryFieldsEditor({
   onCountsChange,
   onGroupNavChange,
   onRequiredMissingChange,
+  onResolvedFieldsChange,
   activeGroupKey,
   onActiveGroupChange,
   hideInlineCategoryNav = false,
@@ -931,6 +932,9 @@ export function LiveCategoryFieldsEditor({
   /** Specialty-only: exposes resolver-backed publish blockers to the parent
    *  drawer so "Add N to publish" is fed by the same visible field engine. */
   onRequiredMissingChange?: (items: LiveCategoryRequiredMissingItem[]) => void;
+  /** Exposes the full resolved field set, including suppressed rows, so
+   *  sibling drawer sections can be gated by the same tenant catalog truth. */
+  onResolvedFieldsChange?: (fields: ResolvedField[]) => void;
   /** Specialty-only: controlled selected category key from the parent rail. */
   activeGroupKey?: string | null;
   /** Specialty-only: tells the parent rail when the editor changes groups. */
@@ -1077,6 +1081,11 @@ export function LiveCategoryFieldsEditor({
     }
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [talentProfileId, refreshKey]);
+
+  useEffect(() => {
+    if (allFields === null) return;
+    onResolvedFieldsChange?.(allFields);
+  }, [allFields, onResolvedFieldsChange]);
 
   // Surface the visible filled / total to the parent (rail dot, etc.).
   // Fires on initial load and after every save (because both `fields` and

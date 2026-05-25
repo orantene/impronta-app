@@ -9,6 +9,7 @@ import {
   buildProfilePublishRequirements,
   getProfilePublishCompleteness,
 } from "@/lib/field-engine/profile-publish-requirements";
+import type { ResolvedField } from "@/lib/field-engine/resolve-talent-fields";
 import {
   getFieldsForTalentAsTalent,
   getTalentFieldValuesAsTalent,
@@ -182,6 +183,7 @@ import {
   makeInitialProfileState,
   profileReducer
 } from "./profile-shell-internal";
+import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
 
 function detailsGroupHelperText(label: string): string {
   const normalized = label.toLowerCase();
@@ -1261,6 +1263,7 @@ export function TalentProfileShellDrawer() {
   );
   const [profileFieldNavGroups, setProfileFieldNavGroups] = useState<LiveCategoryGroupNavItem[]>([]);
   const [profileFieldRequiredMissing, setProfileFieldRequiredMissing] = useState<LiveCategoryRequiredMissingItem[]>([]);
+  const [profileFieldAllFields, setProfileFieldAllFields] = useState<ResolvedField[]>([]);
   const [activeProfileFieldGroupKey, setActiveProfileFieldGroupKey] = useState<string | null>(null);
   const [profileFieldRailOpen, setProfileFieldRailOpen] = useState(false);
   // Bumped only AFTER a taxonomy assign/remove server action resolves, so
@@ -1271,7 +1274,20 @@ export function TalentProfileShellDrawer() {
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
   const [historyOpen, setHistoryOpen] = useState(false);
-  const showPolaroidsSection = (bridgeTenantIdentity?.slug ?? tenantSlug) !== "impronta";
+  const hasResolvedEngineContext = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
+  const selectedTalentTypeSlugs = useMemo(
+    () => [state.primaryType, ...state.secondaryTypes].filter((slug): slug is string => Boolean(slug)),
+    [state.primaryType, state.secondaryTypes],
+  );
+  const resolvedProfileFieldKeys = useMemo(
+    () => profileFieldAllFields.map((field) => field.field_key),
+    [profileFieldAllFields],
+  );
+  const showPolaroidsSection = shouldShowPolaroidsSection({
+    selectedTypeSlugs: selectedTalentTypeSlugs,
+    newEngineActive: hasResolvedEngineContext,
+    resolvedFieldKeys: hasResolvedEngineContext ? resolvedProfileFieldKeys : null,
+  });
   const [activeSection, setActiveSection] = useState<ProfileSectionId>(() => {
     // Resolution order: payload.section (drawer caller) → URL ?section=X
     // (deep-link / refresh) → mode default. The payload path is what the
@@ -1473,7 +1489,7 @@ export function TalentProfileShellDrawer() {
   // Required fields
   const totalPhotos = state.albumsPro.reduce((n, a) => n + a.items.length, 0);
   const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
-  const newEngineActive = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
+  const newEngineActive = hasResolvedEngineContext;
   // Publish gate now comes from one helper path:
   //   - core universal floor (identity/location/media/bio/language),
   //   - resolver-driven required detail blockers.
@@ -3270,6 +3286,7 @@ export function TalentProfileShellDrawer() {
                     onCountsChange={setProfileFieldCounts}
                     onGroupNavChange={setProfileFieldNavGroups}
                     onRequiredMissingChange={setProfileFieldRequiredMissing}
+                    onResolvedFieldsChange={setProfileFieldAllFields}
                     activeGroupKey={activeProfileFieldGroupKey}
                     onActiveGroupChange={setActiveProfileFieldGroupKey}
                     hideInlineCategoryNav

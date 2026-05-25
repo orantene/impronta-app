@@ -17,6 +17,7 @@ import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { mirrorWriteToLegacy } from "@/lib/fields/legacy-mirror";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   resolveTalentFields,
   type ResolvedField,
@@ -42,6 +43,35 @@ function isEmptyValue(v: unknown): boolean {
   return false;
 }
 
+type ActiveRosterTenantRow = { tenant_id: string };
+
+function activeRosterTenantId(row: unknown): string | null {
+  const tenantId = (row as Partial<ActiveRosterTenantRow> | null)?.tenant_id;
+  return typeof tenantId === "string" && tenantId ? tenantId : null;
+}
+
+async function requireResolvedTalentCatalogField(input: {
+  supabase: unknown;
+  tenantId: string;
+  talentProfileId: string;
+  fieldDefinitionId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const resolved = await resolveTalentFields({
+    supabase: input.supabase,
+    talentProfileId: input.talentProfileId,
+    tenantId: input.tenantId,
+    viewerRole: "talent",
+  });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const field = resolved.fields.find(
+    (f) => f.field_definition_id === input.fieldDefinitionId,
+  );
+  if (!field) {
+    return { ok: false, error: "This field is not available for your profile." };
+  }
+  return { ok: true };
+}
+
 export async function setTalentFieldValueAsTalent(
   input: z.input<typeof setValueSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -55,16 +85,21 @@ export async function setTalentFieldValueAsTalent(
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user, tenantId } = auth;
 
-  const { data: rosterRow } = await supabase
-    .from("agency_talent_roster")
+  const { data: rosterRow } = await tenantScopedQuery(
+    supabase,
+    "agency_talent_roster",
+    tenantId,
+  )
     .select("tenant_id")
     .eq("talent_profile_id", v.talent_profile_id)
-    .eq("tenant_id", tenantId)
     .eq("status", "active")
     .limit(1)
     .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent is not on any active roster." };
+  const activeTenantId = activeRosterTenantId(rosterRow);
+  if (!activeTenantId) return { ok: false, error: "Talent is not on any active roster." };
 
+  // Platform-global catalog definition table; no tenant_id column.
+  // eslint-disable-next-line ratchet/no-untenanted-from
   const { data: def } = await supabase
     .from("profile_field_definitions")
     .select("id, kind, field_key, talent_editable, deprecated_at")
@@ -76,9 +111,20 @@ export async function setTalentFieldValueAsTalent(
     return { ok: false, error: "This field can only be edited by the workspace admin." };
   }
 
+  const resolvedField = await requireResolvedTalentCatalogField({
+    supabase,
+    tenantId: activeTenantId,
+    talentProfileId: v.talent_profile_id,
+    fieldDefinitionId: v.field_definition_id,
+  });
+  if (!resolvedField.ok) return resolvedField;
+
   if (isEmptyValue(v.value)) {
-    const { error } = await supabase
-      .from("talent_profile_field_values")
+    const { error } = await tenantScopedQuery(
+      supabase,
+      "talent_profile_field_values",
+      activeTenantId,
+    )
       .delete()
       .eq("talent_profile_id", v.talent_profile_id)
       .eq("field_definition_id", v.field_definition_id);
@@ -95,11 +141,13 @@ export async function setTalentFieldValueAsTalent(
     return { ok: true };
   }
 
-  const { error } = await supabase
-    .from("talent_profile_field_values")
+  const { error } = await tenantScopedQuery(
+    supabase,
+    "talent_profile_field_values",
+    activeTenantId,
+  )
     .upsert(
       {
-        tenant_id: rosterRow.tenant_id,
         talent_profile_id: v.talent_profile_id,
         field_definition_id: v.field_definition_id,
         value: v.value,
@@ -137,11 +185,48 @@ export async function setTalentFieldVisibilityAsTalent(
 
   const auth = await requireTalentSelfAction(v.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
+
+  // Platform-global catalog definition table; no tenant_id column.
+  // eslint-disable-next-line ratchet/no-untenanted-from
+  const { data: def } = await supabase
+    .from("profile_field_definitions")
+    .select("id, talent_editable, deprecated_at")
+    .eq("id", v.field_definition_id)
+    .maybeSingle();
+  if (!def) return { ok: false, error: "Unknown field." };
+  if (def.deprecated_at) return { ok: false, error: "Field no longer accepts input." };
+  if (def.talent_editable === false) {
+    return { ok: false, error: "This field can only be edited by the workspace admin." };
+  }
+
+  const { data: rosterRow } = await tenantScopedQuery(
+    supabase,
+    "agency_talent_roster",
+    tenantId,
+  )
+    .select("tenant_id")
+    .eq("talent_profile_id", v.talent_profile_id)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  const activeTenantId = activeRosterTenantId(rosterRow);
+  if (!activeTenantId) return { ok: false, error: "Talent is not on any active roster." };
+
+  const resolvedField = await requireResolvedTalentCatalogField({
+    supabase,
+    tenantId: activeTenantId,
+    talentProfileId: v.talent_profile_id,
+    fieldDefinitionId: v.field_definition_id,
+  });
+  if (!resolvedField.ok) return resolvedField;
 
   const visibilityToStore = v.visibility.length === 0 ? null : v.visibility;
-  const { error } = await supabase
-    .from("talent_profile_field_values")
+  const { error } = await tenantScopedQuery(
+    supabase,
+    "talent_profile_field_values",
+    activeTenantId,
+  )
     .update({ visibility_override: visibilityToStore })
     .eq("talent_profile_id", v.talent_profile_id)
     .eq("field_definition_id", v.field_definition_id);
@@ -161,10 +246,13 @@ export async function getTalentFieldValuesAsTalent(input: {
 > {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
-  const { data, error } = await supabase
-    .from("talent_profile_field_values")
+  const { data, error } = await tenantScopedQuery(
+    supabase,
+    "talent_profile_field_values",
+    tenantId,
+  )
     .select("field_definition_id, value, visibility_override, workflow_state, updated_at")
     .eq("talent_profile_id", input.talent_profile_id);
   if (error) {
@@ -205,22 +293,25 @@ export async function getFieldsForTalentAsTalent(input: {
   // uses. A talent who isn't on any active roster has no tenant context
   // to resolve fields against; surface the same message the writer
   // returns so the editor can degrade consistently.
-  const { data: rosterRow } = await supabase
-    .from("agency_talent_roster")
+  const { data: rosterRow } = await tenantScopedQuery(
+    supabase,
+    "agency_talent_roster",
+    tenantId,
+  )
     .select("tenant_id")
     .eq("talent_profile_id", input.talent_profile_id)
-    .eq("tenant_id", tenantId)
     .eq("status", "active")
     .limit(1)
     .maybeSingle();
-  if (!rosterRow) {
+  const activeTenantId = activeRosterTenantId(rosterRow);
+  if (!activeTenantId) {
     return { ok: false, error: "Talent is not on any active roster." };
   }
 
   return resolveTalentFields({
     supabase,
     talentProfileId: input.talent_profile_id,
-    tenantId: rosterRow.tenant_id,
+    tenantId: activeTenantId,
     viewerRole: "talent",
   });
 }
