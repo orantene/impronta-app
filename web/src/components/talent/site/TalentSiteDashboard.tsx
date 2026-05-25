@@ -4,10 +4,10 @@ import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/d
 import { TalentSiteDashboardClient } from "./TalentSiteDashboardClient";
 
 type Props = {
-  tenantSlug: string;
+  tenantSlug?: string;
 };
 
-export async function TalentSiteDashboard({ tenantSlug }: Props) {
+export async function TalentSiteDashboard({ tenantSlug }: Props = {}) {
   const loaded = await loadTalentPersonalSiteDashboardState(tenantSlug);
   if (!loaded.ok) {
     if (loaded.code === "workspace_not_found" || loaded.code === "talent_profile_not_found") {
@@ -20,5 +20,5 @@ export async function TalentSiteDashboard({ tenantSlug }: Props) {
     );
   }
 
-  return <TalentSiteDashboardClient tenantSlug={tenantSlug} initialState={loaded.state} />;
+  return <TalentSiteDashboardClient initialState={loaded.state} />;
 }

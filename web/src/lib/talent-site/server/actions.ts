@@ -6,7 +6,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   assertTalentCanEditPersonalSite,
   assertTalentCanPublishPersonalSite,
-  requireTalentSelfScope,
+  requireTalentSelf,
 } from "@/lib/server/talent-self-guard";
 import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 import { buildStarterSnapshotForTalent } from "@/lib/talent-site/server/load-starter-data";
@@ -16,18 +16,18 @@ import { validateTalentSiteSnapshot } from "@/lib/talent-site/validation";
 const PLAN_DENIED =
   "Upgrade to Max to edit or publish again." as const;
 
-export async function fetchTalentPersonalSiteDashboardStateAction(tenantSlug: string) {
-  return loadTalentPersonalSiteDashboardState(tenantSlug);
+export async function fetchTalentPersonalSiteDashboardStateAction() {
+  return loadTalentPersonalSiteDashboardState();
 }
 
 function planDenied<T = void>(): TalentSiteActionResult<T> {
   return { ok: false, code: "plan_required", error: PLAN_DENIED };
 }
 
-export async function createTalentPersonalSiteDraftAction(
-  tenantSlug: string,
-): Promise<TalentSiteActionResult<{ siteId: string; version: number }>> {
-  const scope = await requireTalentSelfScope(tenantSlug);
+export async function createTalentPersonalSiteDraftAction(): Promise<
+  TalentSiteActionResult<{ siteId: string; version: number }>
+> {
+  const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
@@ -104,7 +104,6 @@ export async function createTalentPersonalSiteDraftAction(
 }
 
 export type SaveTalentPersonalSiteDraftInput = {
-  tenantSlug: string;
   expectedVersion: number;
   snapshot: TalentSiteSnapshot;
 };
@@ -112,7 +111,7 @@ export type SaveTalentPersonalSiteDraftInput = {
 export async function saveTalentPersonalSiteDraftAction(
   input: SaveTalentPersonalSiteDraftInput,
 ): Promise<TalentSiteActionResult<{ version: number }>> {
-  const scope = await requireTalentSelfScope(input.tenantSlug);
+  const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
@@ -191,14 +190,13 @@ export async function saveTalentPersonalSiteDraftAction(
 }
 
 export type PublishTalentPersonalSiteInput = {
-  tenantSlug: string;
   expectedVersion: number;
 };
 
 export async function publishTalentPersonalSiteAction(
   input: PublishTalentPersonalSiteInput,
 ): Promise<TalentSiteActionResult<{ version: number; publishedAt: string }>> {
-  const scope = await requireTalentSelfScope(input.tenantSlug);
+  const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
@@ -289,10 +287,8 @@ export async function publishTalentPersonalSiteAction(
   return { ok: true, data: { version: nextVersion, publishedAt } };
 }
 
-export async function unpublishTalentPersonalSiteAction(
-  tenantSlug: string,
-): Promise<TalentSiteActionResult> {
-  const scope = await requireTalentSelfScope(tenantSlug);
+export async function unpublishTalentPersonalSiteAction(): Promise<TalentSiteActionResult> {
+  const scope = await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }

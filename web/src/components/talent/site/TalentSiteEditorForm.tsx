@@ -12,14 +12,12 @@ import type { TalentSiteDashboardState, TalentSiteSnapshot } from "@/lib/talent-
 const FONT = '"Inter", system-ui, sans-serif';
 
 type Props = {
-  tenantSlug: string;
   state: TalentSiteDashboardState;
   initialSnapshot: TalentSiteSnapshot;
   onSaved?: () => void;
 };
 
 export function TalentSiteEditorForm({
-  tenantSlug,
   state,
   initialSnapshot,
   onSaved,
@@ -42,7 +40,6 @@ export function TalentSiteEditorForm({
     startTransition(async () => {
       setMessage(null);
       const result = await saveTalentPersonalSiteDraftAction({
-        tenantSlug,
         expectedVersion: version,
         snapshot,
       });
@@ -63,7 +60,6 @@ export function TalentSiteEditorForm({
     startTransition(async () => {
       setMessage(null);
       const saveResult = await saveTalentPersonalSiteDraftAction({
-        tenantSlug,
         expectedVersion: version,
         snapshot,
       });
@@ -75,7 +71,6 @@ export function TalentSiteEditorForm({
       setVersion(nextVersion);
 
       const pub = await publishTalentPersonalSiteAction({
-        tenantSlug,
         expectedVersion: nextVersion,
       });
       if (!pub.ok) {
@@ -91,7 +86,7 @@ export function TalentSiteEditorForm({
   function handleUnpublish() {
     startTransition(async () => {
       setMessage(null);
-      const result = await unpublishTalentPersonalSiteAction(tenantSlug);
+      const result = await unpublishTalentPersonalSiteAction();
       if (!result.ok) {
         setMessage(result.error);
         return;

@@ -13,11 +13,10 @@ import { TalentSiteLockedCard } from "./TalentSiteLockedCard";
 const FONT = '"Inter", system-ui, sans-serif';
 
 type Props = {
-  tenantSlug: string;
   initialState: TalentSiteDashboardState;
 };
 
-export function TalentSiteDashboardClient({ tenantSlug, initialState }: Props) {
+export function TalentSiteDashboardClient({ initialState }: Props) {
   const router = useRouter();
   const { openDrawer } = useAdminShell();
   const [state] = useState(initialState);
@@ -35,7 +34,7 @@ export function TalentSiteDashboardClient({ tenantSlug, initialState }: Props) {
   function handleCreate() {
     startTransition(async () => {
       setError(null);
-      const result = await createTalentPersonalSiteDraftAction(tenantSlug);
+      const result = await createTalentPersonalSiteDraftAction();
       if (!result.ok) {
         setError(result.error);
         return;
@@ -128,7 +127,6 @@ export function TalentSiteDashboardClient({ tenantSlug, initialState }: Props) {
           </div>
           {draftSnapshot ? (
             <TalentSiteEditorForm
-              tenantSlug={tenantSlug}
               state={state}
               initialSnapshot={draftSnapshot}
               onSaved={refresh}

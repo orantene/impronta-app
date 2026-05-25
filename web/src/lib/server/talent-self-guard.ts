@@ -2,7 +2,11 @@ import "server-only";
 
 import { talentPlanGrantsAccessCapability } from "@/lib/access/talent-membership";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { loadTalentSelfProfile, type TalentSelfProfile } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
+import {
+  loadTalentSelfProfile,
+  loadTalentSelfProfileByUser,
+  type TalentSelfProfile,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { requireSession, type GuardedSession } from "@/lib/server/action-guards";
 
 export type TalentSelfScopeOk = {
@@ -21,6 +25,36 @@ export type TalentSelfScopeFail = {
 };
 
 export type TalentSelfScopeResult = TalentSelfScopeOk | TalentSelfScopeFail;
+
+/** Platform-scoped talent guard — no tenant slug in the URL. */
+export async function requireTalentSelf(): Promise<TalentSelfScopeResult> {
+  const session = await requireSession();
+  if (!session.ok) {
+    return {
+      ok: false,
+      code: "not_authenticated",
+      error: session.error,
+    };
+  }
+
+  const talentProfile = await loadTalentSelfProfileByUser(session.user.id);
+  if (!talentProfile) {
+    return {
+      ok: false,
+      code: "talent_profile_not_found",
+      error: "Talent profile not found.",
+    };
+  }
+
+  return {
+    ok: true,
+    session,
+    tenantId: "",
+    tenantSlug: "",
+    talentProfile,
+    planKey: talentProfile.talentPlanKey,
+  };
+}
 
 export async function requireTalentSelfScope(
   tenantSlug: string,

@@ -22,4 +22,6 @@ test("talent site actions use plan_required denial for upgrades", () => {
   assert.match(ACTIONS_SRC, /talent_sites/);
   assert.match(ACTIONS_SRC, /talent_site_revisions/);
   assert.match(ACTIONS_SRC, /bustTalentSiteCache/);
+  assert.match(ACTIONS_SRC, /requireTalentSelf\(/);
+  assert.equal(ACTIONS_SRC.includes("requireTalentSelfScope"), false);
 });

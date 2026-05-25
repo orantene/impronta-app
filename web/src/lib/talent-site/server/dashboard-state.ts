@@ -5,7 +5,10 @@ import {
   type TalentMembershipState,
 } from "@/lib/access/talent-membership";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { requireTalentSelfScope } from "@/lib/server/talent-self-guard";
+import {
+  requireTalentSelf,
+  requireTalentSelfScope,
+} from "@/lib/server/talent-self-guard";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 
@@ -24,12 +27,14 @@ function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
 }
 
 export async function loadTalentPersonalSiteDashboardState(
-  tenantSlug: string,
+  tenantSlug?: string,
 ): Promise<
   | { ok: true; state: TalentSiteDashboardState }
   | { ok: false; code: string; error: string }
 > {
-  const scope = await requireTalentSelfScope(tenantSlug);
+  const scope = tenantSlug
+    ? await requireTalentSelfScope(tenantSlug)
+    : await requireTalentSelf();
   if (!scope.ok) {
     return { ok: false, code: scope.code, error: scope.error };
   }
