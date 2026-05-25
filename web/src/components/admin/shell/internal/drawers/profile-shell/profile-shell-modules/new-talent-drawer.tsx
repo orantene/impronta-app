@@ -38,7 +38,7 @@ import {
 } from "./talent-type-picker";
 import { buildNewTalentPickerTaxonomy } from "./new-talent-taxonomy";
 export function NewTalentDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useAdminShell();
+  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
   const router = useRouter();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [isPending, startTransition] = useTransition();
@@ -131,7 +131,7 @@ export function NewTalentDrawer() {
     method,
     contact: email,
   });
-
+  const workspaceScopeTenantId = bridgeTenantIdentity?.tenantId ?? bridgeTenantIdentity?.slug ?? tenantSlug ?? PROTO_TENANT_ID;
   // ── CTA handlers — use real server action in production, mock in prototype ──
   const runAdd = (managementMethod: "agency" | "invited" | "draft", afterOk: (id?: string) => void) => {
     if (!tenantSlug) {
@@ -646,7 +646,7 @@ export function NewTalentDrawer() {
           .map(id => TAXONOMY.find(p => p.children.some(c => c.id === id))?.id)
           .filter((x): x is TaxonomyParentId => !!x);
         if (parentIds.length === 0) return null;
-        const fields = resolvedFieldsForMode("registration", PROTO_TENANT_ID, parentIds)
+        const fields = resolvedFieldsForMode("registration", workspaceScopeTenantId, parentIds)
           .filter(f => f.tier === "type-specific" && f.id.includes("."))
           .filter(f => parentIds.some(p => f.appliesTo?.includes(p)));
         if (fields.length === 0) return null;

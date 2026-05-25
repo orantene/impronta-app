@@ -15,6 +15,8 @@ import { BadgeChip, ProfileChip, TierPill } from "./profile-sections-2";
 // keyed off MY_TALENT_PROFILE so the talent sees what's complete vs
 // outstanding without opening each section.
 export function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) {
+  const { tenantSlug } = useAdminShell();
+  const hidePolaroids = tenantSlug === "impronta";
   // Subscribe + read merged profile so completion chips refresh when
   // the talent edits anything in the shell.
   useProfileOverrideSubscription();
@@ -111,6 +113,9 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
     { id: "verifications", emoji: "🛡", label: "Trust & verification", description: "Email · phone · ID · payout. Drives your trust tier.", ...trustRatio },
     { id: "admin",         emoji: "🔒", label: "Visibility & privacy", description: "Where this profile shows. Field locks. Profile status.", status: "complete" },
   ];
+  const visibleSections = hidePolaroids
+    ? sections.filter((section) => section.id !== "polaroids")
+    : sections;
 
   const statusMeta: Record<Status, { label: string; bg: string; fg: string }> = {
     complete: { label: "Complete", bg: COLORS.successSoft, fg: COLORS.successDeep ?? COLORS.success },
@@ -129,7 +134,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
           [data-tulala-all-sections] { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      {sections.map(s => {
+      {visibleSections.map(s => {
         const meta = statusMeta[s.status];
         return (
           <button

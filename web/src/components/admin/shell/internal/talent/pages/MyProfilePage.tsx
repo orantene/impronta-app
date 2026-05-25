@@ -11,7 +11,7 @@ import { PersonalPageBand } from "../shared/profile-sections-2";
 
 
 export function MyProfilePage() {
-  const { openDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { openDrawer, toast, bridgeTalentSelfProfile, tenantSlug } = useAdminShell();
   // Use the real profile id from the bridge when available; fall back to mock.
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Subscribe to override store + read the MERGED profile. Edits in
@@ -60,7 +60,7 @@ export function MyProfilePage() {
   const missingFieldRoutes: { label: string; section: string }[] =
     p.missing.map((field) => {
       const lower = field.toLowerCase();
-      if (lower.includes("polaroid"))    return { label: field, section: "polaroids" };
+      if (lower.includes("polaroid"))    return { label: field, section: tenantSlug === "impronta" ? "media" : "polaroids" };
       if (lower.includes("rate"))        return { label: field, section: "rates" };
       if (lower.includes("showreel"))    return { label: field, section: "media" };
       if (lower.includes("measurement")) return { label: field, section: "details" };

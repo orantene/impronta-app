@@ -203,6 +203,11 @@ function detailsGroupHelperText(label: string): string {
 
 export function TalentProfileShellDrawer() {
   const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useAdminShell();
+  const workspaceScopeTenantId =
+    bridgeTenantIdentity?.tenantId
+    ?? bridgeTenantIdentity?.slug
+    ?? tenantSlug
+    ?? effectiveTenant.slug;
   const copy = useDashboardText();
   const queueShellRouterRefresh = useQueuedRouterRefresh();
   const drawerId = protoState.drawer.drawerId;
@@ -1264,14 +1269,30 @@ export function TalentProfileShellDrawer() {
   // Scroll the section into view after the accordion expands
   useEffect(() => {
     if (!drawerOpen || !activeSection) return;
-    const t = setTimeout(() => {
-      const selector = activeSection === "media"
+    let followup: ReturnType<typeof setTimeout> | null = null;
+    const scrollToActiveSection = () => {
+      const useMediaAnchor =
+        activeSection === "media"
+        || activeSection === "albums"
+        || activeSection === "polaroids";
+      const selector = useMediaAnchor
         ? "[data-tulala-pshell] [data-pshell-media-start]"
         : `[data-tulala-pshell] #pshell-${activeSection}`;
       const el = document.querySelector(selector);
       el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const t = setTimeout(() => {
+      scrollToActiveSection();
+      // Media's top block can shift slightly after image/layout hydration.
+      // Run one follow-up nudge so "Media" reliably lands on photos first.
+      if (activeSection === "media" || activeSection === "albums" || activeSection === "polaroids") {
+        followup = setTimeout(scrollToActiveSection, 140);
+      }
     }, 80);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      if (followup) clearTimeout(followup);
+    };
   }, [drawerOpen, activeSection]);
   useEffect(() => {
     if (!showPolaroidsSection && activeSection === "polaroids") {
@@ -3295,6 +3316,7 @@ export function TalentProfileShellDrawer() {
                             dynFieldVisibility: { ...state.dynFieldVisibility, [f.id]: next },
                           })}
                           primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
+                          tenantId={workspaceScopeTenantId}
                         />
                       ))}
                     </div>
@@ -3332,6 +3354,7 @@ export function TalentProfileShellDrawer() {
                             dynFieldVisibility: { ...state.dynFieldVisibility, [f.id]: next },
                           })}
                           primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
+                          tenantId={workspaceScopeTenantId}
                         />
                       ))}
                     </div>
@@ -3368,6 +3391,7 @@ export function TalentProfileShellDrawer() {
                             dynFieldVisibility: { ...state.dynFieldVisibility, [f.id]: next },
                           })}
                           primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
+                          tenantId={workspaceScopeTenantId}
                         />
                       ))}
                     </div>

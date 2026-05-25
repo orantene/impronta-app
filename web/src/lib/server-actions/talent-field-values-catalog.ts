@@ -13,7 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireTalent } from "@/lib/server/action-guards";
+import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { mirrorWriteToLegacy } from "@/lib/fields/legacy-mirror";
@@ -45,28 +45,21 @@ function isEmptyValue(v: unknown): boolean {
 export async function setTalentFieldValueAsTalent(
   input: z.input<typeof setValueSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireTalent();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, user } = auth;
-
   const parsed = setValueSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   }
   const v = parsed.data;
 
-  const { data: owned } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("id", v.talent_profile_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!owned) return { ok: false, error: "Not authorized." };
+  const auth = await requireTalentSelfAction(v.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, user, tenantId } = auth;
 
   const { data: rosterRow } = await supabase
     .from("agency_talent_roster")
     .select("tenant_id")
     .eq("talent_profile_id", v.talent_profile_id)
+    .eq("tenant_id", tenantId)
     .eq("status", "active")
     .limit(1)
     .maybeSingle();
@@ -136,23 +129,15 @@ export async function setTalentFieldValueAsTalent(
 export async function setTalentFieldVisibilityAsTalent(
   input: z.input<typeof setVisibilitySchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireTalent();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, user } = auth;
-
   const parsed = setVisibilitySchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   }
   const v = parsed.data;
 
-  const { data: owned } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("id", v.talent_profile_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!owned) return { ok: false, error: "Not authorized." };
+  const auth = await requireTalentSelfAction(v.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
 
   const visibilityToStore = v.visibility.length === 0 ? null : v.visibility;
   const { error } = await supabase
@@ -174,17 +159,9 @@ export async function getTalentFieldValuesAsTalent(input: {
   | { ok: true; values: Array<{ field_definition_id: string; value: unknown; visibility_override: string[] | null; workflow_state: string; updated_at: string | null }> }
   | { ok: false; error: string }
 > {
-  const auth = await requireTalent();
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, user } = auth;
-
-  const { data: owned } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("id", input.talent_profile_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!owned) return { ok: false, error: "Not authorized." };
+  const { supabase } = auth;
 
   const { data, error } = await supabase
     .from("talent_profile_field_values")
@@ -220,17 +197,9 @@ export async function getFieldsForTalentAsTalent(input: {
   | { ok: true; fields: ResolvedField[]; groups: ResolvedFieldGroup[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireTalent();
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, user } = auth;
-
-  const { data: owned } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("id", input.talent_profile_id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!owned) return { ok: false, error: "Not authorized." };
+  const { supabase, tenantId } = auth;
 
   // Resolve the talent's active-roster tenant — same lookup the writer
   // uses. A talent who isn't on any active roster has no tenant context
@@ -240,6 +209,7 @@ export async function getFieldsForTalentAsTalent(input: {
     .from("agency_talent_roster")
     .select("tenant_id")
     .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", tenantId)
     .eq("status", "active")
     .limit(1)
     .maybeSingle();

@@ -1514,7 +1514,15 @@ export function TaxonomyToggleRow({ label, desc, value, onChange }: { label: str
 export type RegValues = Record<string, string | string[]>;
 
 
-export function RequiredPill({ field, primaryType }: { field: RegField; primaryType?: string | ReadonlyArray<string> | null }) {
+export function RequiredPill({
+  field,
+  primaryType,
+  tenantId,
+}: {
+  field: RegField;
+  primaryType?: string | ReadonlyArray<string> | null;
+  tenantId?: string | null;
+}) {
   // Phase E — workspace override may flip required-ness. Subscribe so
   // the pill re-renders when an admin changes settings.
   useWorkspaceFieldOverrideSubscription();
@@ -1535,7 +1543,7 @@ export function RequiredPill({ field, primaryType }: { field: RegField; primaryT
     ?? FIELD_CATALOG.find(c => c.id === field.id);
   // Workspace override (e.g. "make this required for our agency").
   const resolved = catalogEntry
-    ? applyWorkspaceFieldOverride(catalogEntry, PROTO_TENANT_ID)
+    ? applyWorkspaceFieldOverride(catalogEntry, tenantId ?? PROTO_TENANT_ID)
     : null;
   const wsRequired = resolved?.hasOverride && resolved.optional === false;
   const wsOptional = resolved?.hasOverride && resolved.optional === true;
@@ -1576,7 +1584,7 @@ export const SHARED_FIELD_INPUT_STYLE: React.CSSProperties = {
 };
 
 
-export function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange, primaryType }: {
+export function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange, primaryType, tenantId }: {
   field: RegField;
   value: string | string[];
   onChange: (v: string | string[]) => void;
@@ -1590,6 +1598,10 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
    *  field's static `optional` flag. Accepts either a single type
    *  or the full multi-role array (primary + secondaries). */
   primaryType?: string | ReadonlyArray<string> | null;
+  /** Workspace field overrides are tenant-scoped. Pass the live
+   *  tenant id/slug where available so required badges stay aligned
+   *  with the same resolver used by registration/publish. */
+  tenantId?: string | null;
 }) {
   // Resolved chip strip — renders below every input when the field is
   // marked sensitive. Falls back to defaultVisibility, then ["agency"].
@@ -1604,7 +1616,7 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
       <div>
         <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
           {field.label}
-          <RequiredPill field={field} primaryType={primaryType} />
+          <RequiredPill field={field} primaryType={primaryType} tenantId={tenantId} />
         </label>
         <input type={field.kind === "number" ? "number" : "text"}
           value={typeof value === "string" ? value : ""}
@@ -1625,7 +1637,7 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
       <div>
         <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
           {field.label}
-          <RequiredPill field={field} primaryType={primaryType} />
+          <RequiredPill field={field} primaryType={primaryType} tenantId={tenantId} />
         </label>
         <div className="flex flex-wrap gap-1.5">
           {(field.options ?? []).map(opt => {
@@ -1655,7 +1667,7 @@ export function RegFieldInput({ field, value, onChange, visibility, onVisibility
       <div>
         <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
           {field.label}
-          <RequiredPill field={field} primaryType={primaryType} />
+          <RequiredPill field={field} primaryType={primaryType} tenantId={tenantId} />
         </label>
         <div className="flex flex-wrap gap-1.5">
           {(field.options ?? []).map(opt => {

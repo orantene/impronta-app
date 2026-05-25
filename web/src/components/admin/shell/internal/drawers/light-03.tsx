@@ -156,11 +156,19 @@ export function TalentRegistrationDrawer() {
   // Phase A5 — within each parent's field list, recommendedFor entries
   // sort first so the most-impactful optionals show before generic
   // ones. Required fields always come first regardless.
+  // Use the live tenant scope when available so workspace field
+  // settings (enabled/required/label overrides) match this tenant's
+  // registration flow instead of the prototype fallback.
+  const workspaceScopeTenantId =
+    bridgeTenantIdentity?.tenantId
+    ?? bridgeTenantIdentity?.slug
+    ?? PROTO_TENANT_ID;
+
   const dynamicFields: { parent: TaxonomyParent; fields: ReadonlyArray<RegField> }[] =
     [...parents].map(pid => {
       const parent = findVisibleParent(pid)!;
       // Mode-aware resolved catalog filtered to this parent.
-      const resolved = resolvedFieldsForMode("registration", PROTO_TENANT_ID, pid)
+      const resolved = resolvedFieldsForMode("registration", workspaceScopeTenantId, pid)
         .filter(f => f.appliesTo?.includes(pid));
       // Sort: required → recommended → other. Required = catalog
       // requiredFor includes this parent OR workspace override flips
@@ -561,6 +569,7 @@ export function TalentRegistrationDrawer() {
                         value={fields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
                         onChange={(v) => setField(f.id, v)}
                         primaryType={g.parent.id}
+                        tenantId={workspaceScopeTenantId}
                       />
                     ))}
                   </div>

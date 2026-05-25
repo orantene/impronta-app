@@ -360,7 +360,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 43
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/live-category-fields-history.tsx": {
@@ -1656,7 +1656,7 @@
   },
   "src/lib/server-actions/talent-field-values-catalog.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 11
+      "count": 7
     }
   },
   "src/lib/server-actions/talent-field-values.ts": {

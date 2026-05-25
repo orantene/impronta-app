@@ -78,6 +78,12 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
   bios: LocaleBio[];
   onClose: () => void;
 }) {
+  const { bridgeTenantIdentity, effectiveTenant } = useAdminShell();
+  const workspaceScopeTenantId =
+    bridgeTenantIdentity?.tenantId
+    ?? bridgeTenantIdentity?.slug
+    ?? effectiveTenant.slug
+    ?? PROTO_TENANT_ID;
   // Phase E follow-up — public preview honors catalog visibility +
   // workspace overrides. A field renders ONLY if its catalog entry's
   // resolved `defaultVisibility` includes "public" (or `showInPublic`
@@ -87,7 +93,7 @@ export function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTyp
   const isPublic = (catalogId: string, fallback = false): boolean => {
     const entry = FIELD_CATALOG.find(f => f.id === catalogId);
     if (!entry) return fallback;
-    const resolved = applyWorkspaceFieldOverride(entry, PROTO_TENANT_ID);
+    const resolved = applyWorkspaceFieldOverride(entry, workspaceScopeTenantId);
     if (!resolved.enabled) return false;
     if (resolved.showInPublic === true) return true;
     if (resolved.showInPublic === false) return false;
@@ -785,5 +791,4 @@ export function ProfileOwnershipPanel({
     </div>
   );
 }
-
 

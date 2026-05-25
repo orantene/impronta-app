@@ -951,12 +951,10 @@ export function LiveCategoryFieldsEditor({
   const [valuesByDefId, setValuesByDefId] = useState<Map<string, unknown>>(new Map());
   const [visibilityByDefId, setVisibilityByDefId] = useState<Map<string, string[] | null>>(new Map());
   const [error, setError] = useState<string | null>(null);
-  // Switcher model — Specialty details is a sticky top-nav of group
-  // pills (one group shown at a time) instead of a vertical stack of
-  // accordions. `activeTab` holds the selected group key; it's clamped
-  // to a real tab at render time so a taxonomy change can't strand it.
+  // Switcher model — Specialty details renders one group at a time.
+  // `activeTab` holds the selected group key; it's clamped to a real
+  // tab at render time so a taxonomy change can't strand it.
   const [activeTab, setActiveTab] = useState<string | null>(null);
-  const [hoverTab, setHoverTab] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   // B1 — Floating toast across the editor. Last save's outcome shows for
   // ~2.2s then auto-clears. Field-level pill covers per-field detail; the
@@ -1274,7 +1272,7 @@ export function LiveCategoryFieldsEditor({
   const slugForField = (f: ResolvedField): string =>
     f.field_group_slug ?? `_other:${namespaceFor(f.field_key)}`;
   const missingRequiredFields = fields.filter(
-    (f) => f.required_before_publish
+    (f) => isResolvedFieldPublishBlocking(f)
       && !isValueFilled(valuesByDefId.get(f.field_definition_id)),
   );
   const requiredMissing = missingRequiredFields.length;
@@ -1363,9 +1361,8 @@ export function LiveCategoryFieldsEditor({
           data-lcfe-inline-category-nav={hideInlineCategoryNav ? "rail-owned" : "inline"}
           style={{ padding: "2px 0 12px", borderBottom: `1px solid ${T.borderSoft}` }}
         >
-          {/* Eyebrow + a wrapping pill row (New Inquiry "What do you
-              need" language) — no tinted tray; selected pill carries the
-              forest accent. */}
+          {/* Compact dropdown nav (mobile / inline fallback). The desktop
+              rail owns category navigation when available. */}
           <div style={{
             fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7,
             textTransform: "uppercase", color: T.inkMuted,
@@ -1373,61 +1370,55 @@ export function LiveCategoryFieldsEditor({
           }}>
             Categories
           </div>
-          <div
-            role="tablist"
-            aria-label="Field groups"
-            style={{
-              display: "flex", flexWrap: "wrap", gap: 6,
-            }}
-          >
-            {tabs.map((t) => {
-              const filled = t.fields.reduce(
-                (n, f) => (isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n),
-                0,
-              );
-              const on = t.key === activeKey;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  onClick={() => selectTab(t.key)}
-                  onMouseEnter={() => setHoverTab(t.key)}
-                  onMouseLeave={() => setHoverTab((h) => (h === t.key ? null : h))}
-                  onFocus={() => setHoverTab(t.key)}
-                  onBlur={() => setHoverTab((h) => (h === t.key ? null : h))}
-                  style={{
-                    display: "inline-flex", alignItems: "center",
-                    gap: 7, cursor: "pointer",
-                    fontFamily: F, padding: "6px 12px", borderRadius: 999,
-                    border: `1px solid ${on ? T.accent : (hoverTab === t.key ? T.border : T.borderSoft)}`,
-                    background: on
-                      ? T.accentSoft
-                      : hoverTab === t.key
-                        ? "#fff"
-                        : "#fff",
-                    boxShadow: on ? "none" : "0 1px 2px rgba(11,11,13,0.04)",
-                    color: on ? T.accent : T.inkMuted,
-                    fontSize: 12.5, fontWeight: on ? 700 : 600,
-                    transition: "background 120ms ease, border-color 120ms ease",
-                  }}
-                >
-                  <span style={{
-                    minWidth: 0, overflow: "hidden",
-                    textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {t.label}
-                  </span>
-                  <span style={{
-                    flexShrink: 0, fontSize: 11, fontWeight: 700,
-                    color: on ? T.accent : T.inkMuted,
-                  }}>
-                    {filled}/{t.fields.length}
-                  </span>
-                </button>
-              );
-            })}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <select
+              aria-label="Select category"
+              value={activeKey}
+              onChange={(event) => selectTab(event.target.value)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                height: 36,
+                borderRadius: 10,
+                border: `1px solid ${T.border}`,
+                background: "#fff",
+                color: T.ink,
+                fontFamily: F,
+                fontSize: 13,
+                fontWeight: 600,
+                padding: "0 10px",
+                outline: "none",
+              }}
+            >
+              {tabs.map((t) => {
+                const filled = t.fields.reduce(
+                  (n, f) => (isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n),
+                  0,
+                );
+                return (
+                  <option key={t.key} value={t.key}>
+                    {t.label} ({filled}/{t.fields.length})
+                  </option>
+                );
+              })}
+            </select>
+            {activeTabData && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: "5px 8px",
+                  borderRadius: 999,
+                  border: `1px solid ${T.borderSoft}`,
+                  background: T.surfaceAlt,
+                  color: T.inkMuted,
+                  fontFamily: F,
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {activeGroupFilled}/{activeTabData.fields.length}
+              </span>
+            )}
           </div>
         </div>
       )}
