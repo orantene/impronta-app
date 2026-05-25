@@ -251,7 +251,7 @@ Conclusion:
 
 Phase-2 checklist items are closed. The next meaningful work is Wave-3+ productization:
 
-- move publish gating fully onto resolver requirements (remove residual shell hardcoded drift),
+- move publish gating fully onto resolver requirements (status-menu draft-to-published bypass is now closed; remaining work is to centralize the save/server-side publish transition on the same requirement result),
 - unify registration and remaining directory/filter paths onto the same resolved field truth,
 - real drag/drop ordering + richer tenant override controls,
 - stronger platform impact preview and audit history UI polish,

@@ -24,11 +24,13 @@ import {
   CountryAutocompleteInput,
 } from "./profile-identity-fields";
 import { CountryDialPicker } from "@/components/ui/country-dial-picker";
+import { getAllowedProfileStatusOptions } from "@/lib/field-engine/profile-publish-requirements";
 
-export function StatusPillDropdown({ status, onChange, role }: {
+export function StatusPillDropdown({ status, onChange, role, canPublish }: {
   status: "draft" | "pending" | "published" | "hidden";
   onChange: (s: "draft" | "pending" | "published" | "hidden") => void;
   role: "admin" | "talent";
+  canPublish?: boolean;
 }) {
   const copy = useDashboardText();
   type Status = "draft" | "pending" | "published" | "hidden";
@@ -39,9 +41,11 @@ export function StatusPillDropdown({ status, onChange, role }: {
     hidden:    { label: "Hidden",    bg: "rgba(91,107,160,0.10)",  fg: COLORS.indigoDeep },
   };
   const cur = meta[status];
-  const allowed: Status[] = role === "admin"
-    ? ["draft", "pending", "published", "hidden"]
-    : status === "published" ? ["published", "pending"] : ["pending"];
+  const allowed = getAllowedProfileStatusOptions({
+    role,
+    currentStatus: status,
+    canPublish: canPublish ?? false,
+  });
   // Stable popover id (one per render — fine since only one is open at a time)
   const popoverId = React.useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildCorePublishRequirements,
   buildProfilePublishRequirements,
+  getAllowedProfileStatusOptions,
   getProfilePublishCompleteness,
   isResolvedFieldPublishBlocking,
   type PublishBlockingResolvedField,
@@ -106,4 +107,48 @@ test("profile publish completeness: counts across universal + resolver blockers"
     resolverMissing: [{ id: "music.genres", label: "Genres" }],
   });
   assert.equal(getProfilePublishCompleteness(merged), 86);
+});
+
+test("profile status options: admin cannot choose published while publish blockers are missing", () => {
+  assert.deepEqual(
+    getAllowedProfileStatusOptions({
+      role: "admin",
+      currentStatus: "draft",
+      canPublish: false,
+    }),
+    ["draft", "pending", "hidden"],
+  );
+});
+
+test("profile status options: admin can choose published when resolver requirements are met", () => {
+  assert.deepEqual(
+    getAllowedProfileStatusOptions({
+      role: "admin",
+      currentStatus: "draft",
+      canPublish: true,
+    }),
+    ["draft", "pending", "published", "hidden"],
+  );
+});
+
+test("profile status options: already-published profiles can stay published even if requirements later change", () => {
+  assert.deepEqual(
+    getAllowedProfileStatusOptions({
+      role: "admin",
+      currentStatus: "published",
+      canPublish: false,
+    }),
+    ["draft", "pending", "published", "hidden"],
+  );
+});
+
+test("profile status options: talent cannot self-publish", () => {
+  assert.deepEqual(
+    getAllowedProfileStatusOptions({
+      role: "talent",
+      currentStatus: "draft",
+      canPublish: true,
+    }),
+    ["pending"],
+  );
 });

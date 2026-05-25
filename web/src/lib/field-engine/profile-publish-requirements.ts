@@ -126,3 +126,22 @@ export function getProfilePublishCompleteness(
   const completed = requirements.filter((r) => r.met).length;
   return Math.round((completed / requirements.length) * 100);
 }
+
+export type ProfileWorkflowStatus = "draft" | "pending" | "published" | "hidden";
+export type ProfileWorkflowRole = "admin" | "talent";
+
+export function getAllowedProfileStatusOptions(input: {
+  role: ProfileWorkflowRole;
+  currentStatus: ProfileWorkflowStatus;
+  canPublish: boolean;
+}): ProfileWorkflowStatus[] {
+  if (input.role === "talent") {
+    return input.currentStatus === "published" ? ["published", "pending"] : ["pending"];
+  }
+
+  const allowed: ProfileWorkflowStatus[] = ["draft", "pending", "hidden"];
+  if (input.canPublish || input.currentStatus === "published") {
+    allowed.splice(2, 0, "published");
+  }
+  return allowed;
+}

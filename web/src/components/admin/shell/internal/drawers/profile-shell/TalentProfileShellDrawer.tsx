@@ -2076,7 +2076,12 @@ export function TalentProfileShellDrawer() {
               it's always one click away. Lets the admin flip the talent
               between Draft / Pending / Published / Archived without scrolling
               to the footer. */}
-          <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
+          <StatusPillDropdown
+            status={state.profileStatus}
+            onChange={(s) => patch({ profileStatus: s })}
+            role={isSelf ? "talent" : "admin"}
+            canPublish={missing.length === 0}
+          />
 
           {/* History control strip — always visible (incl. mobile); pairs with explicit Save. */}
           <div
