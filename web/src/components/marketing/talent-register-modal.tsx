@@ -42,7 +42,8 @@ export function TalentModalTrigger({
  * the real RegisterForm + brand styles in the design pass.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 interface TalentRegisterModalProps {
@@ -50,6 +51,11 @@ interface TalentRegisterModalProps {
 }
 
 export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  // Only render on the client (createPortal needs document.body).
+  useEffect(() => setMounted(true), []);
+
   // Lock body scroll while open.
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -68,7 +74,11 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  // Portal out of the header so backdrop-filter doesn't create a containing
+  // block that breaks fixed positioning on the backdrop + dialog.
+  return createPortal(
     <>
       {/* ── Backdrop ── */}
       <div
@@ -160,7 +170,8 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
           </p>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
