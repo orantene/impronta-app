@@ -598,7 +598,7 @@ export function FieldPrivacyDrawer() {
   type EngVis = "public" | "admin" | "hidden";
   type Entry = {
     field_definition_id: string; field_key: string; label: string;
-    field_group_id: string | null; effective: EngVis;
+    field_group_id: string | null; display_order: number; effective: EngVis;
     platform_default: EngVis; floored: boolean; has_override: boolean;
   };
   type Grp = { id: string; slug: string; name: string; sort_order: number };
@@ -674,6 +674,9 @@ export function FieldPrivacyDrawer() {
       b = { key, name, items: [] }; byKey.set(key, b); order.push(b);
     }
     b.items.push(f);
+  }
+  for (const bucket of order) {
+    bucket.items.sort((a, b) => a.display_order - b.display_order || a.label.localeCompare(b.label));
   }
   order.sort((a, b) => {
     const ai = a.key === "__general__" ? 1e9 : (groups.find(g => g.id === a.key)?.sort_order ?? 0);

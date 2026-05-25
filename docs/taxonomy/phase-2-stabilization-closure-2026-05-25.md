@@ -50,6 +50,23 @@ What changed:
 - Removed `PROTO_TENANT_ID` fallback in required-pill override resolution.
 - Required-pill now resolves workspace override with `tenantId ?? null` only, eliminating leftover prototype fallback behavior in this path.
 
+### 3) Follow-up tenant control sync (same date)
+
+Files:
+
+- `web/src/lib/server-actions/admin-workspace-field-settings.ts`
+- `web/src/components/admin/shell/internal/drawers/light-10.tsx`
+
+What changed:
+
+- Field Privacy now reads tenant field label overrides and field order overrides from `workspace_profile_field_settings`.
+- Field Privacy now reads tenant group label/order overrides from `workspace_field_group_settings`.
+- Field Privacy rows now sort by the same display order used by Field Catalog and the resolved editor order, instead of falling back to load order.
+
+Why:
+
+- The tenant control room had two drawers backed by the same field engine, but Field Catalog and Field Privacy could present a different order/label set. This keeps the drawers aligned without mutating profile values or media.
+
 ## QA evidence
 
 ## A. Admin roster drawer + Details behavior
@@ -163,6 +180,30 @@ Conclusion:
 - Tenant taxonomy controls are persisting and measurable per tenant.
 - Field override adoption is currently low (`0` rows in sampled tenants), which is operationally fine pre-launch but indicates tenant catalog customization has not yet been exercised deeply.
 
+### Follow-up read-only engine snapshot
+
+Command:
+
+- Read-only Supabase service-role query from local shell, no mutations.
+
+Observed on 2026-05-25:
+
+- Platform taxonomy terms: `1088` total, `1068` active.
+- Parent categories: `19` active.
+- Impronta taxonomy settings: `1000` rows, `757` enabled rows.
+- Impronta enabled parent categories: `8`.
+- Impronta enabled leaf talent types: `223`.
+- Platform profile fields: `273` total, `225` active, `48` deprecated.
+- Sensitive active fields marked public: `0`.
+- Legacy `skills` row: deprecated, `show_in_public=false`; `50` saved values remain preserved.
+- `media.polaroids` remains active as a global media field; product decision is still to hide/gate it for Impronta if Polaroids are not wanted in that tenant.
+
+Conclusion:
+
+- The broad platform taxonomy is not leaking all parent categories into Impronta, but Impronta still has a large enabled leaf-type set under the enabled parents. The next taxonomy cleanup should curate enabled leaf types, not rebuild the tenant settings table.
+- The old `skills` lifecycle is safe for new input, and existing values are preserved.
+- The remaining Polaroids issue is gating/tenant policy, not missing storage.
+
 ## Resolver coverage gap table (Phase-2 closure deliverable)
 
 | Surface | Resolver-backed today | Notes |
@@ -189,7 +230,9 @@ Conclusion:
 Phase-2 checklist items are closed. The next meaningful work is Wave-3+ productization:
 
 - move publish gating fully onto resolver requirements (remove residual shell hardcoded drift),
-- unify registration and directory onto the same resolved field truth,
+- unify registration and remaining directory/filter paths onto the same resolved field truth,
 - real drag/drop ordering + richer tenant override controls,
 - stronger platform impact preview and audit history UI polish,
+- curate Impronta's enabled leaf talent-type set under the 8 enabled parent categories,
+- gate `media.polaroids` by tenant/type so it can be disabled for Impronta without deleting platform capability,
 - broader manual QA across platform admin catalog/taxonomy mutation flows.

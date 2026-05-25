@@ -26,6 +26,7 @@ import {
   CACHE_TAG_FIELD_CATALOG,
   fieldCatalogTagForTenant,
 } from "@/lib/field-engine/cache-tags";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 // ── Phase 7a — audit helpers ────────────────────────────────────────────
 // Tiny shaping helpers so the before/after snapshots stored in
@@ -87,6 +88,7 @@ type FieldPrivacyEntry = {
   field_key: string;
   label: string;
   field_group_id: string | null;
+  display_order: number;
   effective: FieldVisibility;
   /** platform default (no tenant override) — for the "changed" badge. */
   platform_default: FieldVisibility;
@@ -108,35 +110,44 @@ export async function getFieldPrivacyCatalog(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const [defsR, groupsR, ovR] = await Promise.all([
+  const [defsR, groupsR, ovR, groupOvR] = await Promise.all([
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, field_group_id, admin_only, is_sensitive, default_visibility, show_in_public",
+        "id, field_key, label, field_group_id, display_order, admin_only, is_sensitive, default_visibility, show_in_public",
       )
       .is("deprecated_at", null),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_groups")
       .select("id, slug, name_en, sort_order")
       .eq("is_active", true),
-    supabase
-      .from("workspace_profile_field_settings")
+    tenantScopedQuery(supabase, "workspace_profile_field_settings", tenantId)
       .select(
-        "field_definition_id, show_in_public_override, admin_only_override, default_visibility_override",
-      )
-      .eq("tenant_id", tenantId),
+        "field_definition_id, show_in_public_override, admin_only_override, default_visibility_override, custom_label, display_order_override",
+      ),
+    tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
+      .select("field_group_id, custom_label, display_order"),
   ]);
 
-  if (defsR.error || groupsR.error || ovR.error) {
+  if (defsR.error || groupsR.error || ovR.error || groupOvR.error) {
     void improntaLog("admin_workspace_field_settings.error", {
       message: "[field-privacy-catalog] load failed:",
-      detail: defsR.error?.message || groupsR.error?.message || ovR.error?.message,
+      detail:
+        defsR.error?.message ||
+        groupsR.error?.message ||
+        ovR.error?.message ||
+        groupOvR.error?.message,
     });
     return { ok: false, error: "Couldn't load the field catalog." };
   }
 
   const ovByField = new Map(
     (ovR.data ?? []).map((o) => [o.field_definition_id as string, o]),
+  );
+  const groupOvByGroup = new Map(
+    (groupOvR.data ?? []).map((o) => [o.field_group_id as string, o]),
   );
 
   const fields: FieldPrivacyEntry[] = (defsR.data ?? []).map((d) => {
@@ -145,12 +156,21 @@ export async function getFieldPrivacyCatalog(): Promise<
       field_key: string;
       label: string;
       field_group_id: string | null;
+      display_order: number | null;
       admin_only: boolean | null;
       is_sensitive: boolean | null;
       default_visibility: string[] | null;
       show_in_public: boolean | null;
     };
-    const o = ovByField.get(def.id);
+    const o = ovByField.get(def.id) as
+      | {
+          show_in_public_override: boolean | null;
+          admin_only_override: boolean | null;
+          default_visibility_override: string[] | null;
+          custom_label: string | null;
+          display_order_override: number | null;
+        }
+      | undefined;
     const defInput = {
       default_visibility: def.default_visibility,
       admin_only: def.admin_only,
@@ -172,8 +192,9 @@ export async function getFieldPrivacyCatalog(): Promise<
     return {
       field_definition_id: def.id,
       field_key: def.field_key,
-      label: def.label,
+      label: o?.custom_label ?? def.label,
       field_group_id: def.field_group_id,
+      display_order: o?.display_order_override ?? def.display_order ?? 100,
       effective,
       platform_default,
       floored: !!(def.admin_only || def.is_sensitive),
@@ -189,11 +210,14 @@ export async function getFieldPrivacyCatalog(): Promise<
         name_en: string | null;
         sort_order: number | null;
       };
+      const o = groupOvByGroup.get(gg.id) as
+        | { custom_label: string | null; display_order: number | null }
+        | undefined;
       return {
         id: gg.id,
         slug: gg.slug,
-        name: gg.name_en ?? gg.slug,
-        sort_order: gg.sort_order ?? 0,
+        name: o?.custom_label ?? gg.name_en ?? gg.slug,
+        sort_order: o?.display_order ?? gg.sort_order ?? 0,
       };
     })
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -209,12 +233,14 @@ export async function getWorkspaceFieldSettings(): Promise<
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const { data, error } = await supabase
-    .from("workspace_profile_field_settings")
+  const { data, error } = await tenantScopedQuery(
+    supabase,
+    "workspace_profile_field_settings",
+    tenantId,
+  )
     .select(
       "field_definition_id, enabled_override, required_override, show_in_public_override, admin_only_override, default_visibility_override, custom_label, custom_helper",
-    )
-    .eq("tenant_id", tenantId);
+    );
 
   if (error) {
     void improntaLog("admin_workspace_field_settings.error", {
@@ -244,6 +270,7 @@ export async function setWorkspaceFieldVisibility(
 
   // Platform floor check — definition must exist and not be a hard-floor
   // field being raised to public.
+  // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
   const { data: def, error: defErr } = await supabase
     .from("profile_field_definitions")
     .select("id, field_key, admin_only, is_sensitive")
@@ -265,19 +292,23 @@ export async function setWorkspaceFieldVisibility(
 
   // Phase 7a: capture before-snapshot for audit. Null when no override
   // existed yet (the resolver treats that as platform-default).
-  const { data: beforeRow } = await supabase
-    .from("workspace_profile_field_settings")
+  const { data: beforeRow } = await tenantScopedQuery(
+    supabase,
+    "workspace_profile_field_settings",
+    tenantId,
+  )
     .select(FIELD_OVERRIDE_COLS)
-    .eq("tenant_id", tenantId)
     .eq("field_definition_id", field_definition_id)
     .maybeSingle();
 
   const cols = visibilityToOverrideColumns(visibility as FieldVisibility);
-  const { error } = await supabase
-    .from("workspace_profile_field_settings")
+  const { error } = await tenantScopedQuery(
+    supabase,
+    "workspace_profile_field_settings",
+    tenantId,
+  )
     .upsert(
       {
-        tenant_id: tenantId,
         field_definition_id,
         show_in_public_override: cols.show_in_public_override,
         admin_only_override: cols.admin_only_override,
@@ -330,12 +361,11 @@ export async function resetWorkspaceFieldVisibility(
   // Phase 7a: snapshot before-state (and resolve field_key for the
   // audit row's human-readable handle) before we delete the override.
   const [beforeRowR, defR] = await Promise.all([
-    supabase
-      .from("workspace_profile_field_settings")
+    tenantScopedQuery(supabase, "workspace_profile_field_settings", tenantId)
       .select(FIELD_OVERRIDE_COLS)
-      .eq("tenant_id", tenantId)
       .eq("field_definition_id", parsed.data.field_definition_id)
       .maybeSingle(),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
       .select("field_key")
@@ -343,10 +373,12 @@ export async function resetWorkspaceFieldVisibility(
       .maybeSingle(),
   ]);
 
-  const { error } = await supabase
-    .from("workspace_profile_field_settings")
+  const { error } = await tenantScopedQuery(
+    supabase,
+    "workspace_profile_field_settings",
+    tenantId,
+  )
     .delete()
-    .eq("tenant_id", tenantId)
     .eq("field_definition_id", parsed.data.field_definition_id);
 
   if (error) {
@@ -427,22 +459,20 @@ export async function getWorkspaceFieldCatalog(): Promise<
   const { supabase, tenantId } = auth;
 
   const [defsR, groupsR, fOvR, gOvR] = await Promise.all([
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
       .select("id, field_key, label, field_group_id, display_order")
       .is("deprecated_at", null),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_groups")
       .select("id, name_en, slug, sort_order")
       .eq("is_active", true),
-    supabase
-      .from("workspace_profile_field_settings")
-      .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override")
-      .eq("tenant_id", tenantId),
-    supabase
-      .from("workspace_field_group_settings")
-      .select("field_group_id, is_enabled, custom_label, display_order")
-      .eq("tenant_id", tenantId),
+    tenantScopedQuery(supabase, "workspace_profile_field_settings", tenantId)
+      .select("field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override"),
+    tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
+      .select("field_group_id, is_enabled, custom_label, display_order"),
   ]);
 
   if (defsR.error || groupsR.error || fOvR.error || gOvR.error) {
@@ -522,7 +552,6 @@ export async function setWorkspaceFieldCatalog(
   const { supabase, tenantId, user } = auth;
 
   const row: Record<string, unknown> = {
-    tenant_id: tenantId,
     field_definition_id,
     last_changed_by_user_id: user?.id ?? null,
     updated_at: new Date().toISOString(),
@@ -539,12 +568,11 @@ export async function setWorkspaceFieldCatalog(
 
   // Phase 7a: capture before-state + field_key for audit.
   const [beforeRowR, defR] = await Promise.all([
-    supabase
-      .from("workspace_profile_field_settings")
+    tenantScopedQuery(supabase, "workspace_profile_field_settings", tenantId)
       .select(FIELD_OVERRIDE_COLS)
-      .eq("tenant_id", tenantId)
       .eq("field_definition_id", field_definition_id)
       .maybeSingle(),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_definitions is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_definitions")
       .select("field_key")
@@ -552,8 +580,11 @@ export async function setWorkspaceFieldCatalog(
       .maybeSingle(),
   ]);
 
-  const { error } = await supabase
-    .from("workspace_profile_field_settings")
+  const { error } = await tenantScopedQuery(
+    supabase,
+    "workspace_profile_field_settings",
+    tenantId,
+  )
     .upsert(row, { onConflict: "tenant_id,field_definition_id" });
   if (error) {
     void improntaLog("admin_workspace_field_settings.error", {
@@ -615,7 +646,6 @@ export async function setWorkspaceFieldGroup(
   const { supabase, tenantId, user } = auth;
 
   const row: Record<string, unknown> = {
-    tenant_id: tenantId,
     field_group_id,
     updated_at: new Date().toISOString(),
   };
@@ -627,12 +657,11 @@ export async function setWorkspaceFieldGroup(
 
   // Phase 7a: capture before-state + group slug for audit.
   const [beforeRowR, groupR] = await Promise.all([
-    supabase
-      .from("workspace_field_group_settings")
+    tenantScopedQuery(supabase, "workspace_field_group_settings", tenantId)
       .select(GROUP_OVERRIDE_COLS)
-      .eq("tenant_id", tenantId)
       .eq("field_group_id", field_group_id)
       .maybeSingle(),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profile_field_groups is the platform-global catalog table and has no tenant_id column
     supabase
       .from("profile_field_groups")
       .select("slug")
@@ -640,8 +669,11 @@ export async function setWorkspaceFieldGroup(
       .maybeSingle(),
   ]);
 
-  const { error } = await supabase
-    .from("workspace_field_group_settings")
+  const { error } = await tenantScopedQuery(
+    supabase,
+    "workspace_field_group_settings",
+    tenantId,
+  )
     .upsert(row, { onConflict: "tenant_id,field_group_id" });
   if (error) {
     void improntaLog("admin_workspace_field_settings.error", {
