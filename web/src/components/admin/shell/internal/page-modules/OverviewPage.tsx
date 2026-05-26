@@ -39,7 +39,13 @@ export function OverviewPage() {
     bridgeSessionIdentity,
     bridgeTenantIdentity,
     effectiveTenant,
+    tenantSlug,
   } = useAdminShell();
+  const goFinancials = () => {
+    if (typeof window !== "undefined" && tenantSlug) {
+      window.location.href = `/${tenantSlug}/admin/financials`;
+    }
+  };
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
   const tenantDomain = bridgeTenantIdentity?.slug
@@ -203,9 +209,9 @@ export function OverviewPage() {
         <Grid cols="4">
           <SecondaryCard
             title="Revenue"
-            description="MRR, ARR, monthly trend and category breakdown."
+            description="P&L, per-talent payouts, top clients. Live commission data."
             affordance="Open"
-            onClick={() => openDrawer("workspace-revenue")}
+            onClick={goFinancials}
           />
           <SecondaryCard
             title="Conversion funnel"

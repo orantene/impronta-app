@@ -119,7 +119,12 @@ const TI = {
 };
 
 export function OperationsPage() {
-  const { openDrawer } = useAdminShell();
+  const { openDrawer, tenantSlug } = useAdminShell();
+  const goFinancials = () => {
+    if (typeof window !== "undefined" && tenantSlug) {
+      window.location.href = `/${tenantSlug}/admin/financials`;
+    }
+  };
 
   return (
     <>
@@ -130,7 +135,7 @@ export function OperationsPage() {
 
       <div style={{ maxWidth: 760 }}>
         <PageSection tone={COLORS.indigo} title="Analytics" desc="Revenue, conversion, and team performance.">
-          <ToolRow tone={COLORS.indigo} icon={TI.chart}    title="Revenue"           desc="Monthly revenue, top clients, and trend."             onClick={() => openDrawer("workspace-revenue")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.chart}    title="Revenue"           desc="Monthly revenue, top clients, and trend. Opens the live Business financials page." onClick={goFinancials} />
           <ToolRow tone={COLORS.indigo} icon={TI.funnel}   title="Conversion funnel" desc="Inquiry → offer → booking conversion."                onClick={() => openDrawer("conversion-funnel")} />
           <ToolRow tone={COLORS.indigo} icon={TI.star}     title="Top performers"    desc="Most-booked talent and best clients."                 onClick={() => openDrawer("top-performers")} />
           <ToolRow tone={COLORS.indigo} icon={TI.team}     title="Team workload"     desc="Per-coordinator queue depth and SLA risk."            onClick={() => openDrawer("coordinator-workload")} />

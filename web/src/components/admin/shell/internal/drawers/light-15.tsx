@@ -458,124 +458,18 @@ export function AiWeeklyDigestDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 
+/**
+ * WorkspaceRevenueDrawer — retired 2026-05-26.
+ *
+ * Previously a mock-fed (MONTHLY / CATEGORIES arrays) revenue summary.
+ * Replaced by the canonical `/{tenantSlug}/admin/financials` route
+ * which reads `loadAgencyFinancials` — same source rows that power the
+ * talent Money view. See decision-log L46. The export is kept as a
+ * no-op stub so any lingering deep import (drawer dispatcher) stops
+ * cleanly without rendering fabricated euros.
+ */
 export function WorkspaceRevenueDrawer() {
-  const { state, closeDrawer } = useAdminShell();
-  const open = state.drawer.drawerId === "workspace-revenue";
-
-  const MONTHLY = [
-    { month: "Nov", revenue: 12400 },
-    { month: "Dec", revenue: 18200 },
-    { month: "Jan", revenue: 9800 },
-    { month: "Feb", revenue: 14600 },
-    { month: "Mar", revenue: 21300 },
-    { month: "Apr", revenue: 17900 },
-  ];
-  const ytd = MONTHLY.reduce((s, m) => s + m.revenue, 0);
-  const mrr = MONTHLY[MONTHLY.length - 1].revenue;
-  const avgBooking = Math.round(ytd / 23);
-
-  const CATEGORIES = [
-    { label: "Commercial", value: 52400, pct: 54 },
-    { label: "Editorial",  value: 29800, pct: 31 },
-    { label: "Runway",     value: 14600, pct: 15 },
-  ];
-
-  const BAR_W = 280;
-  const BAR_H = 80;
-  const maxRev = Math.max(...MONTHLY.map((m) => m.revenue));
-  const barW = Math.floor(BAR_W / MONTHLY.length) - 6;
-
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title="Revenue analytics"
-      description="Workspace revenue — bookings processed, net of cancellations. Updated hourly."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
-      defaultSize="half"
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
-        {/* KPI tiles */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {[
-            { label: "MRR (this month)",  value: `€${mrr.toLocaleString()}`,            sub: "+12% vs last month",    subColor: COLORS.successDeep },
-            { label: "ARR (projected)",   value: `€${((mrr * 12) / 1000).toFixed(0)}k`, sub: "based on current MRR" },
-            { label: "YTD revenue",       value: `€${(ytd / 1000).toFixed(1)}k`,        sub: "last 6 months",         subColor: COLORS.indigoDeep },
-            { label: "Avg booking value", value: `€${avgBooking.toLocaleString()}`,      sub: "across 23 bookings" },
-          ].map((tile) => (
-            <div
-              key={tile.label}
-              style={{
-                background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
-                padding: "14px 16px", border: `1px solid ${COLORS.border}`,
-              }}
-            >
-              <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">
-                {tile.label}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 2 }} className="text-admin-ink">
-                {tile.value}
-              </div>
-              <div style={{ fontSize: 11, color: (tile as { subColor?: string }).subColor ?? COLORS.inkMuted }}>
-                {tile.sub}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Monthly bar chart */}
-        <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
-          <CapsLabel>Monthly revenue · last 6 months</CapsLabel>
-          <div className="mt-3">
-            <svg width={BAR_W} height={BAR_H + 20} style={{ display: "block", overflow: "visible" }}>
-              {MONTHLY.map((m, i) => {
-                const x = i * (BAR_W / MONTHLY.length) + 3;
-                const barHeight = Math.round((m.revenue / maxRev) * BAR_H);
-                const y = BAR_H - barHeight;
-                const isLatest = i === MONTHLY.length - 1;
-                return (
-                  <g key={m.month}>
-                    <rect
-                      x={x} y={y}
-                      width={barW} height={barHeight}
-                      rx={3}
-                      fill={isLatest ? COLORS.accent : COLORS.indigo}
-                      opacity={isLatest ? 1 : 0.5}
-                    />
-                    <text x={x + barW / 2} y={BAR_H + 14} textAnchor="middle" fontSize={9} fill={COLORS.inkMuted}>
-                      {m.month}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5 }} className="text-admin-ink-muted">
-            <span>€0</span>
-            <span>€{(maxRev / 1000).toFixed(0)}k</span>
-          </div>
-        </div>
-
-        {/* Revenue by category */}
-        <div>
-          <CapsLabel>Revenue by category</CapsLabel>
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-            {CATEGORIES.map((cat) => (
-              <div key={cat.label}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5 }} className="text-admin-ink">
-                  <span className="font-medium">{cat.label}</span>
-                  <span className="text-admin-ink-muted">€{cat.value.toLocaleString()} · {cat.pct}%</span>
-                </div>
-                <div style={{ background: COLORS.borderSoft, borderRadius: 3, height: 6, overflow: "hidden" }}>
-                  <div style={{ '--progress-w': `${cat.pct}%` }} className="w-[var(--progress-w)] h-full rounded-[3px] [transition:width_var(--transition-admin-layout)]" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </DrawerShell>
-  );
+  return null;
 }
 
 

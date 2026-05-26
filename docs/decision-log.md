@@ -4,6 +4,57 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-26 — Admin Business Financials surface (companion to talent Money)
+
+**L46 — Admin financials and talent Money share `booking_commission_snapshot` aggregations, never share a UX surface.**
+
+- **Single source:** both `loadTalentEarnings` (`web/src/lib/talent/earnings.ts`)
+  and `loadAgencyFinancials` (`web/src/lib/billing/agency-financials.ts`)
+  read `booking_commission_snapshot` joined to `agency_bookings`,
+  EUR-only at v1 (non-EUR rows logged and excluded — multi-currency
+  display is out of scope until a separate decision lands).
+- **Two projections:** the same row contributes `talent_net_cents` to
+  the talent surface and `workspace_fee_cents` to the admin surface.
+  Lane invariant `gross = platform_fee + workspace_fee + talent_net`
+  is enforced by the DB CHECK and re-verified in
+  `agency-financials.test.ts`.
+- **Surface separation is binding:** never merge `/talent/money` and
+  `/{tenantSlug}/admin/financials`. Talent always sees "their money";
+  agency always sees the business P&L. The two views must agree to the
+  cent on the lanes they project.
+- **Mock retirement:** the `WorkspaceRevenueDrawer` mock (MONTHLY +
+  CATEGORIES fixtures) is retired. Overview + Operations "Revenue"
+  CTAs now navigate to `/{tenantSlug}/admin/financials`. The drawer
+  export is kept as a no-op stub to absorb any stale deep imports.
+- **Capability gate:** `manage_billing` (owner-class). Non-billing
+  roles get `notFound()`, not a redacted page.
+- **Identity-bar KPI:** workspace identity bar subline reads live
+  `pendingPayoutCents` + `confirmedBookingCount` from
+  `WorkspaceOverviewMetrics`. The hardcoded `€4,200 pending · 3
+  confirmed` fixture is gone; when metrics are null the subline falls
+  through to roster/inquiry counts and finally to a dash — never a
+  fabricated euro figure.
+
+**Paths:**
+`web/src/lib/billing/snapshot-aggregations.ts`,
+`web/src/lib/billing/agency-financials-types.ts`,
+`web/src/lib/billing/agency-financials.ts`,
+`web/src/lib/billing/agency-financials.test.ts`,
+`web/src/app/(workspace)/[tenantSlug]/admin/financials/page.tsx`,
+`web/src/app/(workspace)/[tenantSlug]/_data-bridge/overview-metrics.ts`,
+`web/src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx`,
+`web/src/components/admin/shell/internal/page-modules/OverviewPage.tsx`,
+`web/src/components/admin/shell/internal/page-modules/OperationsPage.tsx`,
+`web/src/components/admin/shell/internal/drawers/light-15.tsx`,
+`web/src/components/admin/shell/internal/drawers.tsx`,
+`web/src/components/admin/shell/internal/state/drawer-ids.ts`.
+
+**Backward compatible:** Yes (additive route + identity-bar; drawer stub).
+
+**Migration:** none.
+
+---
+
 ## 2026-05-25 — Talent personal site architecture (Free / Pro / Max)
 
 **L45 — Talent membership personal site (`talent_sites`).** One storage model for all tiers:
