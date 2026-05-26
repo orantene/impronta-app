@@ -127,7 +127,6 @@ export async function requireTalentSelfAction(
   if (!supabase) return { ok: false, error: "Not configured." };
 
   const scope = await getTenantScope();
-  if (!scope) return { ok: false, error: "No active tenant for this request." };
 
   const {
     data: { user },
@@ -145,11 +144,29 @@ export async function requireTalentSelfAction(
     .maybeSingle();
   if (error || !tp) return { ok: false, error: "Not your profile." };
 
+  let tenantId = scope?.tenantId ?? null;
+  if (!tenantId) {
+    const { data: rosterRow, error: rosterError } = await supabase
+      .from("agency_talent_roster")
+      .select("tenant_id")
+      .eq("talent_profile_id", talent_profile_id)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (rosterError || !rosterRow?.tenant_id) {
+      return { ok: false, error: "Talent is not on any active roster." };
+    }
+    tenantId = rosterRow.tenant_id;
+  }
+  if (!tenantId) return { ok: false, error: "Talent is not on any active roster." };
+  const resolvedTenantId = tenantId;
+
   return {
     ok: true,
     supabase,
     user,
-    tenantId: scope.tenantId,
+    tenantId: resolvedTenantId,
     profileCode: (tp as { id: string; profile_code: string }).profile_code,
   };
 }
