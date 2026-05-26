@@ -2445,12 +2445,12 @@ export function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Profile", ids: ["identity", "location", "about", "services", "profile_fields"] },
+              { label: "Profile", ids: ["identity", "location", "about", "services"] },
               { label: "Craft", ids: ["physical", "wardrobe", "details"] },
               { label: "Logistics", ids: ["logistics", "availability"] },
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
-              { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
+              { label: "Proof", ids: ["credits", "social_proof", "verifications"] },
               { label: "Back office", ids: ["files", "agency_fields", "admin"] },
             ];
             // One source of truth: when the NEW DB-driven engine is
@@ -2517,11 +2517,19 @@ export function TalentProfileShellDrawer() {
                       }}>{copy.t(group.label)}</div>
                       {items.map(s => {
                         const meta = SECTION_META[s];
-                        const active = activeSection === s;
+                        const ownsProfileFieldGroups = s === "services" && newEngineActive && profileFieldNavGroups.length > 0;
+                        const ownsLegacyRefinement = s === "services" && visible("refinement");
+                        const active = activeSection === s
+                          || (ownsProfileFieldGroups && activeSection === "profile_fields")
+                          || (ownsLegacyRefinement && activeSection === "refinement");
                         const done = sectionComplete[s];
                         const started = sectionStarted[s];
-                        const detailsNavCount = s === "profile_fields" ? profileFieldNavGroups.length : 0;
-                        const isDetailsSection = s === "profile_fields" && detailsNavCount > 0;
+                        const detailsNavCount = ownsProfileFieldGroups
+                          ? profileFieldNavGroups.length
+                          : ownsLegacyRefinement
+                            ? 1
+                            : 0;
+                        const isDetailsSection = ownsProfileFieldGroups || ownsLegacyRefinement;
                         return (
                           <div key={s}>
                             <button
@@ -2580,10 +2588,25 @@ export function TalentProfileShellDrawer() {
                               <div
                                 data-details-rail-children
                                 role="group"
-                                aria-label="Details categories"
+                                aria-label="Service detail categories"
                               >
+                                {ownsLegacyRefinement && !ownsProfileFieldGroups && (
+                                  <button
+                                    type="button"
+                                    data-details-rail-child
+                                    data-active={activeSection === "refinement" ? "true" : "false"}
+                                    onClick={() => {
+                                      setActiveSection("refinement");
+                                      setProfileFieldRailOpen(true);
+                                    }}
+                                  >
+                                    <span data-details-rail-child-label>
+                                      {copy.t(SECTION_META.refinement.label)}
+                                    </span>
+                                  </button>
+                                )}
                                 {profileFieldNavGroups.map((detailsGroup) => {
-                                  const childActive = active && activeProfileFieldGroupKey === detailsGroup.key;
+                                  const childActive = activeSection === "profile_fields" && activeProfileFieldGroupKey === detailsGroup.key;
                                   return (
                                     <button
                                       key={detailsGroup.key}
@@ -3273,8 +3296,9 @@ export function TalentProfileShellDrawer() {
             </ProfileAccordionSection>
 
             {/* PROFILE FIELDS — DB-driven, per-talent-type catalog editor.
-                The rail's "Details" entry (id `profile_fields`) activates
-                this. Single-section pattern: like every ProfileAccordion-
+                The rail nests these dynamic service detail categories under
+                Services, while the section id stays `profile_fields`.
+                Single-section pattern: like every ProfileAccordion-
                 Section, it must ONLY be visible when it is the active rail
                 section — otherwise the entire type-specific Details engine
                 bleeds into the bottom of every other section (Location,
