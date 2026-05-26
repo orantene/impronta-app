@@ -25,11 +25,11 @@ import {
   resolveTenantTalentTypeTermId,
 } from "@/lib/talent-taxonomy-service";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
+import { applyProfileShellStatusWithPublishGate } from "@/lib/field-engine/profile-publish-server-gate";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
 import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
-import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -548,10 +548,6 @@ export async function commitTalentProfileShellAdmin(
     updated_at: new Date().toISOString(),
   };
 
-  if (input.shell_profile_status !== undefined) {
-    Object.assign(profilePatch, uiProfileShellStatusToDbPatch(input.shell_profile_status));
-  }
-
   if (input.profileDrawerExtras) {
     const { data: linkRow, error: linkSelErr } = await supabase
       .from("talent_profiles")
@@ -634,6 +630,17 @@ export async function commitTalentProfileShellAdmin(
   const dynRes = await syncProfileShellDynFieldValues(supabase, tid, input.dyn_fields, "staff");
   lap("shellDynFieldValues");
   if (!dynRes.ok) return dynRes;
+
+  if (input.shell_profile_status !== undefined) {
+    const statusRes = await applyProfileShellStatusWithPublishGate({
+      supabase,
+      tenantId,
+      talentProfileId: tid,
+      nextStatus: input.shell_profile_status,
+    });
+    lap("shellProfileStatusGate");
+    if (!statusRes.ok) return statusRes;
+  }
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");
   // Admin subtree only — avoids invalidating talent/client surfaces on every save.

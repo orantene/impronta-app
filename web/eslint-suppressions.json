@@ -977,16 +977,6 @@
       "count": 11
     }
   },
-  "src/components/admin/shell/internal/talent/pages/ActivityPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 42
-    }
-  },
-  "src/components/admin/shell/internal/talent/pages/AgenciesPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 18
-    }
-  },
   "src/components/admin/shell/internal/talent/pages/CalendarPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 32
@@ -1004,12 +994,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/PublicPageEditor.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 65
-    }
-  },
-  "src/components/admin/shell/internal/talent/pages/ReachPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 10
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent/pages/SettingsPage.tsx": {
@@ -1564,11 +1549,6 @@
       "count": 2
     }
   },
-  "src/lib/server-actions/admin-workspace-field-settings.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 20
-    }
-  },
   "src/lib/server-actions/admin-workspace-settings.ts": {
     "ratchet/no-untenanted-from": {
       "count": 12
@@ -1652,11 +1632,6 @@
   "src/lib/server-actions/search-talent.ts": {
     "ratchet/no-untenanted-from": {
       "count": 3
-    }
-  },
-  "src/lib/server-actions/talent-field-values-catalog.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 7
     }
   },
   "src/lib/server-actions/talent-field-values.ts": {

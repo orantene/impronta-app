@@ -18,8 +18,10 @@ import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
+import { loadSelfProfileEditorData } from "@/lib/talent/self-profile-editor-data";
 import type {
   TalentBio,
+  ProfileEditorData,
   RateCard,
   PackageRate,
   CreditEntry,
@@ -29,6 +31,19 @@ import type {
 } from "./admin-talent-profile-sections";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+export async function getTalentProfileEditorDataForSelf(input: {
+  talent_profile_id: string;
+}): Promise<{ ok: true; data: ProfileEditorData } | { ok: false; error: string }> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+  return loadSelfProfileEditorData({
+    supabase,
+    tenantId,
+    talentProfileId: input.talent_profile_id,
+  });
+}
 
 // ─── About / Bio ──────────────────────────────────────────────────────────────
 

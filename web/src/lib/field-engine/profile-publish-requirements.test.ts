@@ -5,9 +5,11 @@ import {
   buildCorePublishRequirements,
   buildProfilePublishRequirements,
   canApplyProfileStatusTransition,
+  formatPublishBlockerError,
   getAllowedProfileStatusOptions,
   getProfilePublishCompleteness,
   isResolvedFieldPublishBlocking,
+  validateProfileStatusTransition,
   type PublishBlockingResolvedField,
 } from "@/lib/field-engine/profile-publish-requirements";
 
@@ -217,4 +219,83 @@ test("profile status transition: talent cannot publish directly", () => {
     }),
     false,
   );
+});
+
+test("profile status transition validator: draft incomplete cannot publish", () => {
+  const requirements = buildProfilePublishRequirements({
+    core: buildCorePublishRequirements({
+      stageName: "",
+      primaryType: null,
+      homeBase: "",
+      totalPhotos: 0,
+      activeBioLength: 0,
+      languageCount: 0,
+    }),
+    resolverMissing: [{ id: "field:act-type", label: "Act type" }],
+  });
+
+  const result = validateProfileStatusTransition({
+    role: "admin",
+    currentStatus: "draft",
+    nextStatus: "published",
+    requirements,
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /stage name/);
+    assert.equal(result.missing.length, 7);
+  }
+});
+
+test("profile status transition validator: draft complete can publish", () => {
+  const requirements = buildProfilePublishRequirements({
+    core: buildCorePublishRequirements({
+      stageName: "Popi",
+      primaryType: "performer",
+      homeBase: "Cancun",
+      totalPhotos: 3,
+      activeBioLength: 40,
+      languageCount: 1,
+    }),
+    resolverMissing: [],
+  });
+
+  assert.deepEqual(
+    validateProfileStatusTransition({
+      role: "admin",
+      currentStatus: "draft",
+      nextStatus: "published",
+      requirements,
+    }),
+    { ok: true },
+  );
+});
+
+test("profile status transition validator: already-published profile can remain published", () => {
+  const requirements = buildProfilePublishRequirements({
+    core: buildCorePublishRequirements({
+      stageName: "",
+      primaryType: null,
+      homeBase: "",
+      totalPhotos: 0,
+      activeBioLength: 0,
+      languageCount: 0,
+    }),
+    resolverMissing: [{ id: "field:act-type", label: "Act type" }],
+  });
+
+  assert.deepEqual(
+    validateProfileStatusTransition({
+      role: "admin",
+      currentStatus: "published",
+      nextStatus: "published",
+      requirements,
+    }),
+    { ok: true },
+  );
+});
+
+test("profile status transition formatter: returns ready copy when nothing is missing", () => {
+  assert.equal(formatPublishBlockerError([]), "Ready to publish.");
 });

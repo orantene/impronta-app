@@ -25,7 +25,10 @@ import {
   getTalentProfileEditorData,
   getTalentProfileDynFieldValuesForShell,
 } from "@/lib/server-actions/admin-talent-profile-sections";
-import { getTalentProfileDynFieldValuesForSelf } from "@/lib/server-actions/talent-self-profile-sections";
+import {
+  getTalentProfileDynFieldValuesForSelf,
+  getTalentProfileEditorDataForSelf,
+} from "@/lib/server-actions/talent-self-profile-sections";
 
 // Not exported — `"use server"` modules may only export async functions.
 type EditorDataResult = Awaited<
@@ -55,7 +58,11 @@ export async function loadTalentProfileEditorData(input: {
     message: `[editor-loader] start talent=${talentProfileId} isSelf=${isSelf}`,
   });
   const out = await Promise.all([
-    getTalentProfileEditorData({ talent_profile_id: talentProfileId }),
+    isSelf
+      ? getTalentProfileEditorDataForSelf({
+          talent_profile_id: talentProfileId,
+        })
+      : getTalentProfileEditorData({ talent_profile_id: talentProfileId }),
     isSelf
       ? getTalentProfileDynFieldValuesForSelf({
           talent_profile_id: talentProfileId,

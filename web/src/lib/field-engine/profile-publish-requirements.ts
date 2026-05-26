@@ -157,3 +157,40 @@ export function canApplyProfileStatusTransition(input: {
   if (input.role !== "admin") return false;
   return input.canPublish;
 }
+
+export function formatPublishBlockerError(
+  missingRequirements: readonly ProfilePublishRequirement[],
+): string {
+  const missing = missingRequirements.filter((requirement) => !requirement.met);
+  if (missing.length === 0) return "Ready to publish.";
+  const labels = missing.slice(0, 3).map((requirement) => requirement.label);
+  const more = missing.length > labels.length
+    ? ` and ${missing.length - labels.length} more`
+    : "";
+  return `Add ${labels.join(", ")}${more} before publishing.`;
+}
+
+export function validateProfileStatusTransition(input: {
+  role: ProfileWorkflowRole;
+  currentStatus: ProfileWorkflowStatus;
+  nextStatus: ProfileWorkflowStatus;
+  requirements: readonly ProfilePublishRequirement[];
+}): { ok: true } | {
+  ok: false;
+  error: string;
+  missing: ProfilePublishRequirement[];
+} {
+  if (input.nextStatus !== "published") return { ok: true };
+  if (input.currentStatus === "published") return { ok: true };
+
+  const missing = input.requirements.filter((requirement) => !requirement.met);
+  if (input.role !== "admin" || missing.length > 0) {
+    return {
+      ok: false,
+      error: formatPublishBlockerError(missing),
+      missing,
+    };
+  }
+
+  return { ok: true };
+}
