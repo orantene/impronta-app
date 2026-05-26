@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
 import { ACTIVATION_TASKS, COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, RICH_INQUIRIES, TRANSITION, getInquiries, getRoster, getTeam, meetsRole, pluralize, relativeTime, useAdminShell } from "../state";
 
@@ -448,6 +449,71 @@ export function OverviewPage() {
   );
 }
 
+function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string; networkRequestedAt: string }) {
+  const router = useRouter();
+  const storageKey = `tulala-network-banner-dismissed-${tenantId}`;
+  const [dismissed, setDismissed] = useState(() => {
+    try { return typeof window !== "undefined" && !!window.localStorage.getItem(storageKey); }
+    catch { return false; }
+  });
+
+  if (dismissed) return null;
+
+  function dismiss() {
+    try { window.localStorage.setItem(storageKey, "1"); } catch {}
+    setDismissed(true);
+    // Remove ?upgrade=network from URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete("upgrade");
+    router.replace(url.pathname + (url.search || ""), { scroll: false });
+  }
+
+  const requestedDate = new Date(networkRequestedAt).toLocaleDateString("en-US", {
+    month: "short", day: "numeric",
+  });
+
+  return (
+    <div
+      style={{
+        background: "rgba(15,79,62,0.06)",
+        border: "1px solid rgba(15,79,62,0.18)",
+        borderRadius: 12,
+        padding: "14px 16px",
+        marginBottom: 16,
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>◆</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
+          Network setup in progress
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+          We'll email you within one business day to begin your Network onboarding
+          (requested {requestedDate}). Need to talk sooner?{" "}
+          <a
+            href="mailto:hello@impronta.group"
+            style={{ color: COLORS.accentDeep, textDecoration: "underline" }}
+          >
+            hello@impronta.group
+          </a>
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={dismiss}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: COLORS.inkMuted, fontSize: 16, lineHeight: 1, flexShrink: 0 }}
+        aria-label="Dismiss Network setup banner"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function OverviewFree() {
   const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
   const tenantDomain = bridgeTenantIdentity?.slug
@@ -493,6 +559,13 @@ function OverviewFree() {
           </span>
         }
       />
+
+      {bridgeTenantIdentity?.networkRequestedAt && bridgeTenantIdentity.tenantId && (
+        <NetworkSetupBanner
+          tenantId={bridgeTenantIdentity.tenantId}
+          networkRequestedAt={bridgeTenantIdentity.networkRequestedAt}
+        />
+      )}
 
       {/* Progress strip — gives the user a sense of momentum */}
       <div

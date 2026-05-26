@@ -295,11 +295,15 @@ async function loadExistingRoleBindings(
 }
 
 function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
-  return {
+  const settings: Record<string, unknown> = {
     signup_audience: lead.audience,
     signup_roster_size: lead.roster_size,
     signup_tier_interest: lead.tier_interest,
   };
+  if (isNetworkWorkspaceTierInterest(lead.tier_interest)) {
+    settings.network_requested_at = new Date().toISOString();
+  }
+  return settings;
 }
 
 async function sendWorkspaceWelcomeEmail(params: {
@@ -326,6 +330,36 @@ async function sendWorkspaceWelcomeEmail(params: {
     });
   } catch (err) {
     logServerError("workspace-signup.welcomeEmail", err);
+  }
+}
+
+async function sendNetworkFounderAlert(params: {
+  slug: string;
+  tenantId: string;
+  ownerEmail: string;
+  ownerName: string;
+}): Promise<void> {
+  const to = process.env.FOUNDER_NOTIFY_EMAIL;
+  if (!to) return;
+  const appBase = getAppUrl();
+  const adminDeepLink = `${appBase}/platform/admin/tenants`;
+  try {
+    await sendEmail({
+      to,
+      subject: `[Tulala] Network setup needed: ${params.slug}`,
+      html: `<!doctype html>
+<html><body style="margin:0;padding:24px;background:#fffdf7;font-family:Inter,system-ui,sans-serif;color:#0f1714;">
+  <h2 style="margin:0 0 16px;font-weight:500;">Network workspace provisioned</h2>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+    <tr><td style="padding:6px 12px 6px 0;color:#6b766f;font-size:13px;">Slug</td><td style="padding:6px 0;font-size:13px;">${params.slug}</td></tr>
+    <tr><td style="padding:6px 12px 6px 0;color:#6b766f;font-size:13px;">Tenant ID</td><td style="padding:6px 0;font-size:13px;">${params.tenantId}</td></tr>
+    <tr><td style="padding:6px 12px 6px 0;color:#6b766f;font-size:13px;">Owner</td><td style="padding:6px 0;font-size:13px;">${params.ownerName} &lt;${params.ownerEmail}&gt;</td></tr>
+  </table>
+  <p style="margin:20px 0 0;"><a href="${adminDeepLink}" style="color:#1f4a3a;">Open platform admin → tenants</a></p>
+</body></html>`,
+    });
+  } catch (err) {
+    logServerError("workspace-signup.networkFounderAlert", err);
   }
 }
 
@@ -359,6 +393,12 @@ async function finalizeProvisionResult(params: {
   }
 
   if (isNetworkWorkspaceTierInterest(tierInterest)) {
+    void sendNetworkFounderAlert({
+      slug: params.agency.slug,
+      tenantId: params.agency.id,
+      ownerEmail,
+      ownerName,
+    });
     return {
       ok: true,
       tenantId: params.agency.id,
