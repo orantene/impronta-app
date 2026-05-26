@@ -250,6 +250,14 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // explicit owner sign-off.
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
+  // /<tenant>/admin/financials — Business Financials page (L46).
+  (s) => s[0] === "admin" && s[1] === "financials",
+  // /<tenant>/admin/roster/applications — apply-flow inbox (L48).
+  (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "applications",
+  // /talent/discover-agencies — apply-flow discovery page (L48). Talent-scoped
+  // (no tenant slug — matched against the full segments because the platform
+  // talent path starts with "talent").
+  (s) => s[0] === "talent" && s[1] === "discover-agencies",
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
   // The mega Messages shell still owns the LIST (no path segment after
   // "messages") + the legacy ?inquiry=<id> query-param flow. The new

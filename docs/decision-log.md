@@ -4,6 +4,52 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-26 — Talent apply flow to agencies + hubs (foundation + UI)
+
+**L48 — Talent applies; staff decides; roster insert stays a separate step.**
+
+- **Two tables:** `talent_agency_applications` and `talent_hub_applications`
+  (status `pending → approved | rejected | withdrawn`). One pending row
+  per (tenant, talent) pair enforced by partial unique index.
+- **Two gates** for the apply CTA, re-checked at RLS + server action:
+  - Agency targets: `agencies.accepts_open_applications = TRUE` (per-tenant
+    opt-in, default FALSE — never gated by plan tier).
+  - Hub targets: `agency_domains.kind = 'hub'`.
+  - Both: talent must NOT be under active exclusivity
+    (`exclusivity_status IN ('confirmed','auto_assigned')` —
+    the brief's example values `'exclusive'`/`'exclusive_pending'`
+    don't exist in the real enum).
+- **Approval does NOT auto-insert a roster row.** It only flips the
+  application status. Staff then add the talent through the existing
+  Roster → Add flow so contract terms (exclusivity, plan-tier, etc.)
+  are explicit, not implicit. One source of truth for roster inserts.
+- **Surfaces:**
+  - Talent: `/talent/discover-agencies` — eligible agencies + hubs,
+    pending/decided applications, withdraw-own action.
+  - Admin: `/{tenantSlug}/admin/roster/applications` — pending/decided
+    lists, approve/reject with optional note. Capability:
+    `manage_talent_roster`.
+- **Deferred:**
+  - Toggle UI for `accepts_open_applications` in admin Settings
+    (today set via SQL or platform admin).
+  - Notification fan-out on submit/decide (today none — relies on the
+    admin checking the tab).
+
+**Paths:**
+`supabase/migrations/20260526215446_talent_agency_and_hub_applications.sql`,
+`web/src/lib/talent/apply-actions.ts`,
+`web/src/lib/talent/apply-loaders.ts`,
+`web/src/app/(workspace)/talent/discover-agencies/page.tsx`,
+`web/src/components/talent/apply/TalentApplyDiscoveryClient.tsx`,
+`web/src/app/(workspace)/[tenantSlug]/admin/roster/applications/page.tsx`,
+`web/src/components/admin/applications/AdminApplicationsClient.tsx`.
+
+**Backward compatible:** Yes (additive tables + routes; opt-in default off).
+
+**Migration:** `20260526215446_talent_agency_and_hub_applications.sql` (already applied to remote).
+
+---
+
 ## 2026-05-26 — Admin Business Financials surface (companion to talent Money)
 
 **L46 — Admin financials and talent Money share `booking_commission_snapshot` aggregations, never share a UX surface.**
