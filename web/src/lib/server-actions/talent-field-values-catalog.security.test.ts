@@ -49,6 +49,14 @@ test("INVARIANT talent catalog writes are gated by the shared resolver", () => {
     SRC,
     /async function requireResolvedTalentCatalogField[\s\S]*?resolveTalentFields\([\s\S]*?viewerRole: "talent"/,
   );
+  assert.match(
+    SRC,
+    /import \{ isResolvedFieldVisibleInTalentEditor \} from "\@\/lib\/field-engine\/resolved-field-surfaces";/,
+  );
+  assert.match(
+    SRC,
+    /!field \|\| !isResolvedFieldVisibleInTalentEditor\(field\)/,
+  );
   assert.equal(
     (SRC.match(/requireResolvedTalentCatalogField\(/g) ?? []).length >= 3,
     true,
@@ -63,5 +71,12 @@ test("INVARIANT talent visibility changes keep the same editable-field gate as v
   assert.match(
     SRC,
     /setTalentFieldVisibilityAsTalent[\s\S]*?\.from\("profile_field_definitions"\)[\s\S]*?talent_editable[\s\S]*?def\.talent_editable === false/,
+  );
+});
+
+test("INVARIANT talent field list is filtered to the talent-editable surface", () => {
+  assert.match(
+    SRC,
+    /fields: resolved\.fields\.filter\(isResolvedFieldVisibleInTalentEditor\)/,
   );
 });

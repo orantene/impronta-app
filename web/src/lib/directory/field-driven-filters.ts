@@ -20,6 +20,8 @@ import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import {
   DIRECTORY_CANONICAL_GENDER_FIELD_KEY,
 } from "@/lib/directory/apply-directory-field-facet-filters";
+import { allowedLegacyFieldKeysForPublicSurface } from "@/lib/field-engine/legacy-directory-policy";
+import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
 export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
@@ -239,7 +241,8 @@ async function fetchDirectoryFilterCatalogRows(
       logServerError("directory/filter-sections/field_definitions_legacy", legacy.error);
       return [];
     }
-    return filterFieldCatalogByTenant(
+    return filterFieldCatalogByTenantAndEngine(
+      client,
       (legacy.data ?? []) as FieldDefinitionQueryRow[],
       tenantId,
     );
@@ -249,7 +252,8 @@ async function fetchDirectoryFilterCatalogRows(
     logServerError("directory/filter-sections/field_definitions", modern.error);
     return [];
   }
-  return filterFieldCatalogByTenant(
+  return filterFieldCatalogByTenantAndEngine(
+    client,
     (modern.data ?? []) as FieldDefinitionQueryRow[],
     tenantId,
   );
@@ -270,6 +274,24 @@ function filterFieldCatalogByTenant(
     if (rowTenant === null) return true;
     return tenantId !== null && rowTenant === tenantId;
   });
+}
+
+async function filterFieldCatalogByTenantAndEngine(
+  supabase: SupabaseClient,
+  rows: FieldDefinitionQueryRow[],
+  tenantId: string | null,
+): Promise<FieldDefinitionQueryRow[]> {
+  const tenantRows = filterFieldCatalogByTenant(rows, tenantId);
+  const bridgedKeys = tenantRows
+    .map((row) => row.key)
+    .filter((key) => Boolean(OLD_TO_NEW_KEY[key]));
+  if (bridgedKeys.length === 0) return tenantRows;
+  const allowedKeys = await allowedLegacyFieldKeysForPublicSurface(supabase, {
+    tenantId,
+    surface: "directory",
+    oldKeys: bridgedKeys,
+  });
+  return tenantRows.filter((row) => !OLD_TO_NEW_KEY[row.key] || allowedKeys.has(row.key));
 }
 
 function serializeFilterContextKey(ctx: DirectoryFilterRequestContext): string {

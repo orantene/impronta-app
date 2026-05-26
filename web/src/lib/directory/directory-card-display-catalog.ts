@@ -2,6 +2,8 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { allowedLegacyFieldKeysForPublicSurface } from "@/lib/field-engine/legacy-directory-policy";
+import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
 export type DirectoryCardScalarDef = {
   id: string;
@@ -119,15 +121,29 @@ async function loadDirectoryCardDisplayCatalogUncached(
     ],
     tenantId,
   );
+  const bridgedKeys = effectiveRows
+    .map((row) => row.key)
+    .filter((key) => Boolean(OLD_TO_NEW_KEY[key]));
+  const allowedBridgedKeys =
+    bridgedKeys.length > 0
+      ? await allowedLegacyFieldKeysForPublicSurface(supabase, {
+          tenantId,
+          surface: "directory",
+          oldKeys: bridgedKeys,
+        })
+      : null;
+  const engineSafeRows = allowedBridgedKeys
+    ? effectiveRows.filter((row) => !OLD_TO_NEW_KEY[row.key] || allowedBridgedKeys.has(row.key))
+    : effectiveRows;
 
-  const fitRow = effectiveRows.find((row) => row.key === "fit_labels") ?? null;
+  const fitRow = engineSafeRows.find((row) => row.key === "fit_labels") ?? null;
 
   let fitLabelsEnabled = true;
   if (fitRow) {
     fitLabelsEnabled = isVisibleDirectoryCardField(fitRow) && fitRow.card_visible === true;
   }
 
-  const cardVisibleRows = effectiveRows.filter(
+  const cardVisibleRows = engineSafeRows.filter(
     (row) => isVisibleDirectoryCardField(row) && row.card_visible === true,
   );
   if (cardVisibleRows.length === 0) {

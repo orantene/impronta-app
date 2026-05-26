@@ -85,6 +85,12 @@ export type ResolvedField = {
   required_at_registration: boolean;
   required_before_publish: boolean;
   required_before_verification: boolean;
+  /** Effective surface flags after tenant overrides and platform safety floors. */
+  show_in_registration: boolean;
+  show_in_edit_drawer: boolean;
+  show_in_public: boolean;
+  show_in_directory: boolean;
+  talent_editable: boolean;
   is_admin_only: boolean;
   requires_verification: boolean;
   /** Validation rules (JSONB schema). */
@@ -183,7 +189,9 @@ type FieldDefRow = {
   display_order: number | null; field_group_id: string | null;
   validation_rules: unknown; show_when: unknown; deprecated_at: string | null;
   admin_only: boolean | null; is_sensitive: boolean | null;
-  show_in_public: boolean | null;
+  show_in_registration: boolean | null; show_in_edit_drawer: boolean | null;
+  show_in_public: boolean | null; show_in_directory: boolean | null;
+  talent_editable: boolean | null;
   helper: string | null;
 };
 
@@ -215,7 +223,11 @@ type TenantFieldCatalog = {
     custom_helper: string | null;
     display_order_override: number | null;
     show_in_public_override: boolean | null;
+    show_in_registration_override: boolean | null;
+    show_in_edit_drawer_override: boolean | null;
+    show_in_directory_override: boolean | null;
     admin_only_override: boolean | null;
+    talent_editable_override: boolean | null;
     default_visibility_override: string[] | null;
   }>;
 };
@@ -239,7 +251,7 @@ async function loadTenantFieldCatalogUncached(
   void t0;
   const [defsR, groupsR, pcgR, recsR, gOvR, fOvR] = await Promise.all([
     svc.from("profile_field_definitions").select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_public, helper",
+      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper",
     ).is("deprecated_at", null),
     svc.from("profile_field_groups").select(
       "id, slug, name_en, name_es, sort_order, is_active",
@@ -254,7 +266,7 @@ async function loadTenantFieldCatalogUncached(
       "field_group_id, is_enabled, show_in_registration, show_in_profile_edit, show_in_public_profile, display_order, custom_label",
     ).eq("tenant_id", tenantId),
     svc.from("workspace_profile_field_settings").select(
-      "field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override, show_in_public_override, admin_only_override, default_visibility_override",
+      "field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override, show_in_registration_override, show_in_edit_drawer_override, show_in_public_override, show_in_directory_override, admin_only_override, talent_editable_override, default_visibility_override",
     ).eq("tenant_id", tenantId),
   ]);
   if (defsR.error || groupsR.error || pcgR.error || recsR.error) {
@@ -312,6 +324,16 @@ function weightRank(w: string): number {
     default:
       return 0;
   }
+}
+
+function pickBool(
+  override: boolean | null | undefined,
+  fallback: boolean | null | undefined,
+  defaultValue: boolean,
+): boolean {
+  if (typeof override === "boolean") return override;
+  if (typeof fallback === "boolean") return fallback;
+  return defaultValue;
 }
 
 // ─── Resolver ────────────────────────────────────────────────────────────────
@@ -526,7 +548,7 @@ export async function resolveTalentFields(
     const { data: dRows, error: defsErr } = await sb
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_public, helper",
+        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_registration, show_in_edit_drawer, show_in_public, show_in_directory, talent_editable, helper",
       )
       .is("deprecated_at", null);
     if (defsErr) {
@@ -552,7 +574,7 @@ export async function resolveTalentFields(
     const { data: fOv } = await sb
       .from("workspace_profile_field_settings")
       .select(
-        "field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override, show_in_public_override, admin_only_override, default_visibility_override",
+        "field_definition_id, enabled_override, required_override, custom_label, custom_helper, display_order_override, show_in_registration_override, show_in_edit_drawer_override, show_in_public_override, show_in_directory_override, admin_only_override, talent_editable_override, default_visibility_override",
       )
       .eq("tenant_id", tenantId);
     overrides = (fOv ?? []) as TenantFieldCatalog["fieldOverrides"];
@@ -687,7 +709,7 @@ export async function resolveTalentFields(
     const required_at_registration = r?.required_at_registration ?? false;
     const required_before_publish = r?.required_before_publish ?? false;
     const required_before_verification = r?.required_before_verification ?? false;
-    const is_admin_only = r?.is_admin_only ?? false;
+    const is_admin_only = Boolean(d.admin_only) || (r?.is_admin_only ?? false);
     const requires_verification = r?.requires_verification ?? false;
 
     const catalogRequired =
@@ -729,8 +751,41 @@ export async function resolveTalentFields(
       );
       out_visibility =
         eff === "public" ? ["public", "agency"] : eff === "admin" ? ["agency"] : [];
-      out_admin_only = is_admin_only || eff !== "public";
+      out_admin_only = is_admin_only || o!.admin_only_override === true;
     }
+
+    const out_show_in_registration = pickBool(
+      o?.show_in_registration_override,
+      d.show_in_registration,
+      true,
+    );
+    const out_show_in_edit_drawer = pickBool(
+      o?.show_in_edit_drawer_override,
+      d.show_in_edit_drawer,
+      true,
+    );
+    const out_show_in_public =
+      effectiveFieldVisibility(
+        {
+          default_visibility: rawVis,
+          admin_only: d.admin_only,
+          is_sensitive: d.is_sensitive,
+          show_in_public: d.show_in_public,
+        },
+        o
+          ? {
+              show_in_public_override: o.show_in_public_override,
+              admin_only_override: o.admin_only_override,
+              default_visibility_override: o.default_visibility_override,
+            }
+          : null,
+      ) === "public" &&
+      pickBool(o?.show_in_public_override, d.show_in_public, false);
+    const out_show_in_directory =
+      out_show_in_public &&
+      pickBool(o?.show_in_directory_override, d.show_in_directory, false);
+    const out_talent_editable =
+      pickBool(o?.talent_editable_override, d.talent_editable, true) && !out_admin_only;
 
     // Phase 4 (additive, read-only) — provenance: this field carries a
     // tenant override when the workspace_profile_field_settings row has ANY
@@ -740,7 +795,11 @@ export async function resolveTalentFields(
     const tenant_override =
       !!o &&
       (o.show_in_public_override != null ||
+        o.show_in_registration_override != null ||
+        o.show_in_edit_drawer_override != null ||
+        o.show_in_directory_override != null ||
         o.admin_only_override != null ||
+        o.talent_editable_override != null ||
         Array.isArray(o.default_visibility_override) ||
         o.enabled_override != null ||
         o.required_override != null ||
@@ -771,6 +830,11 @@ export async function resolveTalentFields(
       required_at_registration,
       required_before_publish,
       required_before_verification,
+      show_in_registration: out_show_in_registration,
+      show_in_edit_drawer: out_show_in_edit_drawer,
+      show_in_public: out_show_in_public,
+      show_in_directory: out_show_in_directory,
+      talent_editable: out_talent_editable,
       is_admin_only: out_admin_only,
       requires_verification,
       validation_rules: (d.validation_rules as Record<string, unknown> | null) ?? null,

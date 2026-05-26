@@ -113,7 +113,7 @@ export async function mirrorWriteToLegacy(
 
 // Reverse map (legacy key → canonical key) for the canonical-mirror.
 // Derived once from NEW_TO_OLD_KEY so the two stay in lockstep.
-const OLD_TO_NEW_KEY: Record<string, string> = Object.fromEntries(
+export const OLD_TO_NEW_KEY: Record<string, string> = Object.fromEntries(
   Object.entries(NEW_TO_OLD_KEY).map(([newKey, oldKey]) => [oldKey, newKey]),
 );
 

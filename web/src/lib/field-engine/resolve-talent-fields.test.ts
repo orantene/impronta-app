@@ -162,7 +162,11 @@ function fieldDef(overrides: Partial<Row> & { id: string; field_key: string }): 
     deprecated_at: null,
     admin_only: false,
     is_sensitive: false,
+    show_in_registration: true,
+    show_in_edit_drawer: true,
     show_in_public: true,
+    show_in_directory: false,
+    talent_editable: true,
     helper: null,
     ...overrides,
   };
@@ -963,6 +967,74 @@ test("resolver: workspace field group display_order override reorders groups", a
       ["beta.field", "alpha.field"],
       "tenant group order override should win over parent category group order",
     );
+  }
+});
+
+test("resolver: surface flags merge platform defaults with tenant overrides", async () => {
+  const sb = buildMockSupabase({
+    agency_talent_roster: [rosterActive()],
+    talent_profile_field_values: [],
+    talent_profile_taxonomy: [],
+    profile_field_definitions: [
+      fieldDef({
+        id: "fd-public",
+        field_key: "media.website_url",
+        tier: "global",
+        show_in_directory: true,
+      }),
+      fieldDef({
+        id: "fd-admin",
+        field_key: "admin.private_note",
+        tier: "global",
+        admin_only: true,
+        show_in_public: true,
+        show_in_directory: true,
+      }),
+    ],
+    profile_field_groups: [],
+    parent_category_field_groups: [],
+    profile_field_recommendations: [],
+    workspace_field_group_settings: [],
+    workspace_profile_field_settings: [
+      {
+        field_definition_id: "fd-public",
+        enabled_override: null,
+        required_override: null,
+        custom_label: null,
+        custom_helper: null,
+        display_order_override: null,
+        show_in_registration_override: false,
+        show_in_edit_drawer_override: false,
+        show_in_public_override: false,
+        show_in_directory_override: true,
+        admin_only_override: null,
+        talent_editable_override: false,
+        default_visibility_override: null,
+        tenant_id: TENANT,
+      },
+    ],
+  });
+  const result = await resolveTalentFields({
+    supabase: sb,
+    talentProfileId: TALENT,
+    tenantId: TENANT,
+    viewerRole: "agency_admin",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    const publicField = result.fields.find((f) => f.field_key === "media.website_url");
+    assert.equal(publicField?.show_in_registration, false);
+    assert.equal(publicField?.show_in_edit_drawer, false);
+    assert.equal(publicField?.show_in_public, false);
+    assert.equal(publicField?.show_in_directory, false);
+    assert.equal(publicField?.talent_editable, false);
+    assert.equal(publicField?.tenant_override, true);
+
+    const adminField = result.fields.find((f) => f.field_key === "admin.private_note");
+    assert.equal(adminField?.is_admin_only, true);
+    assert.equal(adminField?.show_in_public, false);
+    assert.equal(adminField?.show_in_directory, false);
+    assert.equal(adminField?.talent_editable, false);
   }
 });
 

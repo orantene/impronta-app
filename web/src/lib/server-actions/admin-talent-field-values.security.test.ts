@@ -16,6 +16,14 @@ test("INVARIANT admin catalog value writes are gated by the shared resolver", ()
     SRC,
     /async function requireResolvedAdminCatalogField[\s\S]*?resolveTalentFields\([\s\S]*?viewerRole: "agency_admin"/,
   );
+  assert.match(
+    SRC,
+    /import \{ isResolvedFieldVisibleInAdminEditor \} from "\@\/lib\/field-engine\/resolved-field-surfaces";/,
+  );
+  assert.match(
+    SRC,
+    /!field \|\| !isResolvedFieldVisibleInAdminEditor\(field\)/,
+  );
   assert.equal(
     (SRC.match(/requireResolvedAdminCatalogField\(/g) ?? []).length >= 3,
     true,

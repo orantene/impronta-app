@@ -23,6 +23,7 @@ import {
   type ResolvedField,
   type ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
+import { isResolvedFieldVisibleInTalentEditor } from "@/lib/field-engine/resolved-field-surfaces";
 
 const setValueSchema = z.object({
   talent_profile_id: pgUuidSchema(),
@@ -66,7 +67,7 @@ async function requireResolvedTalentCatalogField(input: {
   const field = resolved.fields.find(
     (f) => f.field_definition_id === input.fieldDefinitionId,
   );
-  if (!field) {
+  if (!field || !isResolvedFieldVisibleInTalentEditor(field)) {
     return { ok: false, error: "This field is not available for your profile." };
   }
   return { ok: true };
@@ -308,10 +309,16 @@ export async function getFieldsForTalentAsTalent(input: {
     return { ok: false, error: "Talent is not on any active roster." };
   }
 
-  return resolveTalentFields({
+  const resolved = await resolveTalentFields({
     supabase,
     talentProfileId: input.talent_profile_id,
     tenantId: activeTenantId,
     viewerRole: "talent",
   });
+  if (!resolved.ok) return resolved;
+  return {
+    ok: true,
+    fields: resolved.fields.filter(isResolvedFieldVisibleInTalentEditor),
+    groups: resolved.groups,
+  };
 }

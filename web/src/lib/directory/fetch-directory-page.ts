@@ -554,7 +554,9 @@ export async function fetchDirectoryPage(
   if (fieldFacetFilters.length > 0) {
     const facetKeys = fieldFacetFilters.map((f) => f.fieldKey);
     const defsByKey = await auditTime(audit, timings, "facetDefinitionsMs", () =>
-      loadDirectoryFacetDefinitionsByKey(supabase, facetKeys),
+      loadDirectoryFacetDefinitionsByKey(supabase, facetKeys, {
+        tenantId: tenantScopeId,
+      }),
     );
     const facetOutcome = await auditTime(audit, timings, "scalarFacetFilterMs", () =>
       applyDirectoryFieldFacetFilters(supabase, fieldFacetFilters, defsByKey, {

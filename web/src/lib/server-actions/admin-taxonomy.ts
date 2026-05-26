@@ -12,6 +12,7 @@ import {
   resolveTalentFields,
   getResolverMetricsSnapshotSync,
 } from "@/lib/field-engine/resolve-talent-fields";
+import { isResolvedFieldVisibleInAdminEditor } from "@/lib/field-engine/resolved-field-surfaces";
 import type {
   ResolvedField,
   ResolvedFieldGroup,
@@ -755,10 +756,16 @@ export async function getFieldsForTalent(input: {
 }): Promise<GetFieldsForTalentEnrichedResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  return resolveTalentFields({
+  const resolved = await resolveTalentFields({
     supabase: auth.supabase,
     talentProfileId: input.talent_profile_id,
     tenantId: auth.tenantId,
     viewerRole: "agency_admin",
   });
+  if (!resolved.ok) return resolved;
+  return {
+    ok: true,
+    fields: resolved.fields.filter(isResolvedFieldVisibleInAdminEditor),
+    groups: resolved.groups,
+  };
 }

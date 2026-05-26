@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
+import { allowedLegacyFieldKeysForPublicSurface } from "@/lib/field-engine/legacy-directory-policy";
+import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
 
 /** Canonical `talent_profiles.gender` — filtered via column, not `field_values`. */
 export const DIRECTORY_CANONICAL_GENDER_FIELD_KEY = "gender";
@@ -238,6 +240,7 @@ export async function applyDirectoryFieldFacetFilters(
 export async function loadDirectoryFacetDefinitionsByKey(
   supabase: SupabaseClient,
   keys: string[],
+  opts: { tenantId?: string | null } = {},
 ): Promise<Map<string, DirectoryFacetDefinitionRow>> {
   if (keys.length === 0) return new Map();
   const uniq = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
@@ -265,8 +268,21 @@ export async function loadDirectoryFacetDefinitionsByKey(
     throw new Error(`[directory] field_definitions facet keys: ${res.error.message}`);
   }
 
+  const bridgedKeys = uniq.filter((key) => Boolean(OLD_TO_NEW_KEY[key]));
+  const allowedBridgedKeys =
+    bridgedKeys.length > 0
+      ? await allowedLegacyFieldKeysForPublicSurface(supabase, {
+          tenantId: opts.tenantId ?? null,
+          surface: "directory",
+          oldKeys: bridgedKeys,
+        })
+      : null;
+
   const map = new Map<string, DirectoryFacetDefinitionRow>();
   for (const row of (res.data ?? []) as DirectoryFacetDefinitionRow[]) {
+    if (OLD_TO_NEW_KEY[row.key] && allowedBridgedKeys && !allowedBridgedKeys.has(row.key)) {
+      continue;
+    }
     map.set(row.key, row);
   }
   return map;

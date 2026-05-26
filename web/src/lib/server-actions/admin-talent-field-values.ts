@@ -13,6 +13,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { mirrorWriteToLegacy } from "@/lib/fields/legacy-mirror";
 import { resolveTalentFields } from "@/lib/field-engine/resolve-talent-fields";
+import { isResolvedFieldVisibleInAdminEditor } from "@/lib/field-engine/resolved-field-surfaces";
 
 export type TalentFieldValueRow = {
   field_definition_id: string;
@@ -102,7 +103,7 @@ async function requireResolvedAdminCatalogField(input: {
   const field = resolved.fields.find(
     (f) => f.field_definition_id === input.fieldDefinitionId,
   );
-  if (!field) {
+  if (!field || !isResolvedFieldVisibleInAdminEditor(field)) {
     return { ok: false, error: "This field is not available for this talent." };
   }
   return { ok: true };

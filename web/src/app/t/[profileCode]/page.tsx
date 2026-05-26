@@ -48,6 +48,7 @@ import {
   resolveTalentFields,
   type ResolvedField,
 } from "@/lib/field-engine/resolve-talent-fields";
+import { isResolvedFieldVisibleOnPublicProfile } from "@/lib/field-engine/resolved-field-surfaces";
 import {
   formatCityCountryLabel,
   resolveResidenceLocationEmbed,
@@ -583,6 +584,11 @@ async function fetchPublicFieldValues(
       effectiveFieldVisibility(defVisInput, null, row.visibility_override) ===
       "public";
     if (wasPublic) diag.prevPublic++;
+
+    if (resolvedField && !isResolvedFieldVisibleOnPublicProfile(resolvedField)) {
+      if (wasPublic) diag.hiddenByTenant++;
+      continue;
+    }
 
     const ov = tenantOverride.get(row.field_definition_id) ?? null;
 
