@@ -534,9 +534,7 @@ export function TalentSiteAppearancesPanel() {
           visibility: a.agencyVisibility,
           planTier: a.plan,
           rosterProfileUrl: agencyRosterProfileUrl(a.agencySlug, profileCode),
-          rosterProfileShareUrl: agencyRosterProfileUrl(a.agencySlug, profileCode, {
-            absolute: true,
-          }),
+          rosterProfileShareUrl: agencyRosterProfileUrl(a.agencySlug, profileCode),
         }))
       : MY_AGENCIES.map((a) => ({
           id: a.id,
@@ -547,7 +545,7 @@ export function TalentSiteAppearancesPanel() {
           visibility: "roster_only",
           planTier: a.planTier,
           rosterProfileUrl: agencyRosterProfileUrl(a.slug, profileCode),
-          rosterProfileShareUrl: agencyRosterProfileUrl(a.slug, profileCode, { absolute: true }),
+          rosterProfileShareUrl: agencyRosterProfileUrl(a.slug, profileCode),
         }));
 
   const showTulalaCard = Boolean(profileCode);
