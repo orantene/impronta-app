@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
@@ -43,7 +43,19 @@ export function TalentSiteCompositionPanel({ state, locale = "en", onChanged }: 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  if (!state.canUseCustomBuilder || !state.site || !snapshot) {
+  const serverMode = state.compositionMode ?? snapshot?.compositionMode ?? "template";
+
+  useEffect(() => {
+    setSlots(snapshot?.slots ?? []);
+    setMode(serverMode);
+  }, [snapshot, serverMode]);
+
+  if (
+    !state.canUseCustomBuilder ||
+    !state.site ||
+    !snapshot ||
+    serverMode !== "custom"
+  ) {
     return null;
   }
 
