@@ -50,12 +50,7 @@ export function TalentSiteCompositionPanel({ state, locale = "en", onChanged }: 
     setMode(serverMode);
   }, [snapshot, serverMode]);
 
-  if (
-    !state.canUseCustomBuilder ||
-    !state.site ||
-    !snapshot ||
-    serverMode !== "custom"
-  ) {
+  if (!state.canUseCustomBuilder || !state.site || !snapshot) {
     return null;
   }
 

@@ -1,0 +1,69 @@
+{
+  "generatedAt": "2026-05-26T17:11:47.450Z",
+  "flows": {
+    "A": {
+      "editorShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-a-free-editor-published.png",
+      "publicShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-a-free-public-anon.png",
+      "textChecks": {
+        "published": true,
+        "templateEditorial": false,
+        "customBuilderVisible": false,
+        "saveCompositionVisible": false,
+        "legacyCopyCount": 0,
+        "publicHasBody": true
+      },
+      "consoleMessages": [],
+      "pageErrors": []
+    },
+    "B": {
+      "editorShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-b-pro-editor-published.png",
+      "publicShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-b-pro-public-anon.png",
+      "textChecks": {
+        "published": true,
+        "templateEditorial": true,
+        "customBuilderVisible": false,
+        "saveCompositionVisible": false,
+        "legacyCopyCount": 0,
+        "publicHasBody": true
+      },
+      "consoleMessages": [],
+      "pageErrors": []
+    },
+    "C": {
+      "editorShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-c-max-template-mode.png",
+      "publicShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-c-max-public-anon.png",
+      "textChecks": {
+        "published": true,
+        "templateEditorial": false,
+        "customBuilderVisible": true,
+        "saveCompositionVisible": false,
+        "legacyCopyCount": 0,
+        "publicHasBody": true
+      },
+      "consoleMessages": [],
+      "pageErrors": []
+    },
+    "D": {
+      "shot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-d-security-pro-gates.png",
+      "customBuilderCount": 0,
+      "stageVisibleCount": 0,
+      "legacyCopyCount": 0,
+      "consoleMessages": [],
+      "pageErrors": []
+    },
+    "E": {
+      "modelsShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-e-agency-models.png",
+      "rosterShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-e-agency-roster-profile.png",
+      "sitemapShot": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526/talent-my-site-qa-20260526-flow-e-agency-sitemap.png",
+      "sitemapIncludes": {
+        "TAL92001": true,
+        "TAL92002": true,
+        "TALAUDIT0512": false
+      },
+      "agencyFramingTextSeen": true,
+      "consoleMessages": [],
+      "pageErrors": []
+    }
+  },
+  "screenshotBase": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/talent-my-site-follow-on-20260526"
+}

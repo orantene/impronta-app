@@ -240,7 +240,7 @@ export function TalentSiteDashboardClient({ initialState, onReload, locale = "en
               <TalentSiteEditorForm
                 state={state}
                 initialSnapshot={draftSnapshot}
-                onSaved={() => void reloadDashboard()}
+                onSaved={reloadDashboard}
               />
             ) : (
               <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>

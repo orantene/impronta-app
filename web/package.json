@@ -119,6 +119,7 @@
     "qa:builder-focused": "npm run typecheck && npm run test:builder-capabilities && npm run test:builder-node-bindings && npm run test:publish-preflight && npm run verify:published-page-snapshots:strict",
     "qa:impronta-builder-wave2": "npm run qa:builder-focused && npm run test:e2e:impronta-navigator-layers && npm run test:e2e:impronta-navigator-layer-filtering && npm run test:e2e:impronta-navigator-layer-actions",
     "register:tulum-demo-talent": "node --env-file=.env.local scripts/register-tulum-demo-talent.mjs",
+    "seed:talent-my-site-qa": "node --env-file=.env.local scripts/apply-talent-my-site-qa-fixtures.mjs",
     "verify:dashboard-users": "node scripts/verify-dashboard-users.mjs",
     "verify:talent-submission-reads": "node scripts/verify-talent-submission-reads.mjs",
     "verify:talent-nav-groups": "node scripts/verify-talent-nav-groups.mjs",

@@ -569,6 +569,7 @@ export async function applyTalentSiteTemplateAction(
       plan_locked: false,
     })
     .eq("id", site.id)
+    .eq("talent_profile_id", scope.talentProfile.id)
     .eq("version", input.expectedVersion);
 
   if (updateErr) {
@@ -652,6 +653,7 @@ export async function setTalentSiteCompositionModeAction(
       updated_at: now,
     })
     .eq("id", site.id)
+    .eq("talent_profile_id", scope.talentProfile.id)
     .eq("version", input.expectedVersion);
 
   bustTalentSiteCache(scope.talentProfile.id, scope.talentProfile.profileCode);
@@ -732,6 +734,7 @@ export async function saveTalentSiteCompositionAction(
       updated_at: now,
     })
     .eq("id", site.id)
+    .eq("talent_profile_id", scope.talentProfile.id)
     .eq("version", input.expectedVersion);
 
   await admin.from("talent_site_revisions").insert({
