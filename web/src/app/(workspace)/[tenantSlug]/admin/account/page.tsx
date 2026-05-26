@@ -30,7 +30,7 @@ import {
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { loadWorkspaceOverrideBanner } from "../../../platform/tenant-management-data";
+import { loadWorkspaceOverrideBanner } from "../../../platform/workspace-override-banner-data";
 
 export const dynamic = "force-dynamic";
 

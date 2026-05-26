@@ -2964,16 +2964,16 @@ export function TalentProfileShellDrawer() {
                     talentProfileId={payload.talentId!}
                     isAdmin={adminVisible}
                     viewMode={isSelf ? "talent-self" : "admin"}
-                    actions={talentSelfSkillActions}
-                    searchActions={talentSelfSkillSearchActions}
-                    careerInterestActions={talentSelfCareerInterestActions}
+                    actions={isSelf ? talentSelfSkillActions : undefined}
+                    searchActions={isSelf ? talentSelfSkillSearchActions : undefined}
+                    careerInterestActions={isSelf ? talentSelfCareerInterestActions : undefined}
                     onSkillsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                   <ContextSlotPanel
                     talentProfileId={payload.talentId!}
                     talentName={state.stageName}
-                    actions={talentSelfContextActions}
-                    catalogActions={talentSelfContextCatalogActions}
+                    actions={isSelf ? talentSelfContextActions : undefined}
+                    catalogActions={isSelf ? talentSelfContextCatalogActions : undefined}
                     onContextsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                 </div>

@@ -91,7 +91,13 @@ export default async function GetStartedPage({
 
   return (
     <>
-      <HeroSection copy={copy} initialAudience={initialAudience} tier={tier} />
+      <HeroSection
+        appLoginUrl={appLoginUrl}
+        copy={copy}
+        initialAudience={initialAudience}
+        initialSignedIn={initialSignedIn}
+        tier={tier}
+      />
       <WhoItsForSection />
       <HowItWorksSection />
       <PlanLadderSection />
@@ -113,12 +119,20 @@ function mapAudience(raw: string | null): AudienceKey {
 // ────────────────────────────────────────────────────────────────────────────
 
 function HeroSection({
+  appLoginUrl,
   copy,
   initialAudience,
+  initialSignedIn,
   tier,
 }: {
+  appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
   initialAudience: AudienceKey;
+  initialSignedIn?: {
+    userId: string;
+    email: string;
+    displayName: string | null;
+  };
   tier?: TierKey;
 }) {
   return (

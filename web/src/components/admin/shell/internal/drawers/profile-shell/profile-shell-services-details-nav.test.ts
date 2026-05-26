@@ -53,8 +53,13 @@ test("talent self-edit uses the same live Services engine as admin roster", () =
   );
   assert.match(
     source,
-    /actions=\{talentSelfSkillActions\}/,
-    "SkillSlotPanel should receive talent-owned service actions in self-edit mode.",
+    /actions=\{isSelf \? talentSelfSkillActions : undefined\}/,
+    "SkillSlotPanel should receive talent-owned service actions only in self-edit mode and keep admin actions in admin roster mode.",
+  );
+  assert.match(
+    source,
+    /searchActions=\{isSelf \? talentSelfSkillSearchActions : undefined\}/,
+    "Admin roster mode should keep the DB-backed admin service picker actions.",
   );
   assert.match(
     source,

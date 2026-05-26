@@ -34,7 +34,7 @@ function formatDate(iso: string | null | undefined): string {
 // the lean `loadPlatformTenants` above (kept for the Today page). All reads
 // run with the service-role client; the platform layout enforces super_admin.
 
-function coerceTier(raw: unknown): WorkspacePlanTier {
+export function coerceTenantPlanTier(raw: unknown): WorkspacePlanTier {
   return isWorkspacePlanTier(raw) ? raw : "free";
 }
 
@@ -313,7 +313,7 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
       name: r.display_name ?? r.slug,
       slug: r.slug,
       entityType: r.kind ?? "agency",
-      plan: coerceTier(r.plan_tier),
+      plan: coerceTenantPlanTier(r.plan_tier),
       status: r.status ?? "active",
       seats: r.talent_seat_limit,
       activeTalentCount: activeTalents.size,
@@ -436,9 +436,9 @@ function mapOverrideRow(
     id: row.id,
     tenantId: row.tenant_id,
     status,
-    basePlanTier: coerceTier(row.base_plan_tier),
+    basePlanTier: coerceTenantPlanTier(row.base_plan_tier),
     baseTalentSeatLimit: row.base_talent_seat_limit,
-    overridePlanTier: coerceTier(row.override_plan_tier),
+    overridePlanTier: coerceTenantPlanTier(row.override_plan_tier),
     overrideTalentSeatLimit: row.override_talent_seat_limit,
     startsAt: row.starts_at,
     expiresAt: row.expires_at,
@@ -671,7 +671,7 @@ export async function loadTenantManagementDetail(
     stripe_customer_id: string | null;
   } | null;
 
-  const effectivePlan = coerceTier(agency.plan_tier);
+  const effectivePlan = coerceTenantPlanTier(agency.plan_tier);
 
   type CommRow = { platform_take_bps: number | null; platform_take_floor_cents: number | null; override_note: string | null; set_at: string | null; requested_platform_take_bps: number | null; requested_note: string | null; requested_at: string | null; request_status: string | null };
   const cr = commissionRes.data as CommRow | null;
@@ -782,44 +782,4 @@ export async function loadTenantManagementDetail(
       createdAtLabel: formatDate(a.created_at),
     })),
   };
-}
-
-/**
- * Active plan-override summary for a workspace's own billing page. Returns
- * null when there is no active override. Uses the service-role client —
- * the override table is platform-admin-only under RLS.
- */
-export type WorkspaceOverrideBanner = {
-  overridePlanTier: WorkspacePlanTier;
-  basePlanTier: WorkspacePlanTier;
-  expiresAt: string | null;
-  startedAt: string;
-  reason: string | null;
-};
-
-export async function loadWorkspaceOverrideBanner(
-  tenantId: string,
-): Promise<WorkspaceOverrideBanner | null> {
-  const sb = createServiceRoleClient();
-  if (!sb) return null;
-  try {
-    await sb.rpc("reconcile_expired_plan_overrides", { p_tenant_id: tenantId });
-    const { data, error } = await sb
-      .from("workspace_plan_overrides")
-      .select("override_plan_tier, base_plan_tier, expires_at, starts_at, reason")
-      .eq("tenant_id", tenantId)
-      .eq("status", "active")
-      .maybeSingle();
-    if (error || !data) return null;
-    return {
-      overridePlanTier: coerceTier(data.override_plan_tier),
-      basePlanTier: coerceTier(data.base_plan_tier),
-      expiresAt: data.expires_at,
-      startedAt: data.starts_at,
-      reason: data.reason,
-    };
-  } catch (err) {
-    logServerError("platform_data.overrideBanner", err);
-    return null;
-  }
 }
