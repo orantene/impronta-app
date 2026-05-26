@@ -17,7 +17,11 @@ import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 
 
 export function TalentTodayPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile } = useAdminShell();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, state } = useAdminShell();
+  // "Start a workspace" tile is for talents who don't already own one.
+  // `state.alsoTalent` flips to true once a workspace is provisioned for
+  // this user (the hybrid identity), so we hide the tile in that case.
+  const showStartWorkspaceTile = !state.alsoTalent;
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
@@ -192,6 +196,8 @@ export function TalentTodayPage() {
       `}</style>
 
       <TalentAgencyFilterChips />
+
+      {showStartWorkspaceTile && <StartWorkspaceTile />}
 
       {/* Fresh-talent onboarding banner — only for talents who were just
           provisioned via "Create your talent page" (bridge has their
@@ -453,5 +459,125 @@ export function TalentTodayPage() {
         </button>
       </div>
     </>
+  );
+}
+
+/**
+ * StartWorkspaceTile — top-of-page nudge that invites talent to run their
+ * own roster. Click fires the global "open start-workspace dialog" event
+ * the TulalaIdentityBar listens for; the existing StartFreeWorkspaceDialog
+ * handles the actual provisioning.
+ *
+ * Hidden once the user is hybrid (state.alsoTalent). Visual register matches
+ * the Tulala marketing palette (parchment + forest accent), not the workspace
+ * shell — so it reads as opportunity, not a system notice.
+ */
+function StartWorkspaceTile() {
+  return (
+    <div
+      data-platform-surface="marketing"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "14px 16px",
+        marginBottom: 12,
+        borderRadius: 14,
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, var(--plt-forest) 9%, var(--plt-bg-elevated)) 0%, var(--plt-bg-elevated) 60%)",
+        border: "1px solid color-mix(in srgb, var(--plt-forest) 22%, transparent)",
+        fontFamily: FONTS.body,
+      }}
+    >
+      {/* Glyph */}
+      <span
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: "var(--plt-bg)",
+          border: "1px solid color-mix(in srgb, var(--plt-forest) 22%, transparent)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--plt-forest)",
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M12 11v5M9.5 13.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </span>
+
+      {/* Copy */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.25,
+            color: "var(--plt-ink)",
+            letterSpacing: "-0.005em",
+          }}
+        >
+          Run your own talent business?
+        </div>
+        <div
+          style={{
+            marginTop: 2,
+            fontSize: 12.5,
+            lineHeight: 1.4,
+            color: "var(--plt-muted)",
+          }}
+        >
+          Start a free workspace — invite roster, send pitches, take bookings end-to-end. 1 minute, no card.
+        </div>
+      </div>
+
+      {/* CTA */}
+      <button
+        type="button"
+        onClick={() =>
+          window.dispatchEvent(new CustomEvent("tulala:open-start-workspace-dialog"))
+        }
+        style={{
+          flexShrink: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "9px 16px",
+          borderRadius: 999,
+          background: "var(--plt-forest)",
+          color: "var(--plt-forest-on)",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          fontWeight: 600,
+          letterSpacing: "-0.005em",
+          transition: "background 120ms ease, transform 120ms ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--plt-forest-deep)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "var(--plt-forest)";
+        }}
+      >
+        Start a workspace
+        <svg width="11" height="9" viewBox="0 0 14 10" fill="none" aria-hidden>
+          <path
+            d="M1 5H13M13 5L9 1M13 5L9 9"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
   );
 }

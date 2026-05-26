@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { signOut } from "@/app/auth/actions";
+
+const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
+import { StartFreeWorkspaceDialog } from "@/components/talent/start-free-workspace-dialog";
 import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
@@ -47,6 +50,18 @@ export function TulalaIdentityBar() {
   const inTalent    = !inWorkspace && !inClient;
   const agencyCount = bridgeTalentAgencies?.length ?? 0;
   const isPureTalent = inTalent && !state.alsoTalent;
+
+  // Shared "Start a workspace" dialog state. Trigger sources:
+  //   1. Account menu item ("Start a workspace") — see AccountMenuTrigger.
+  //   2. "Your agencies" pill click when agencyCount === 0 — onActingClick below.
+  //   3. Talent /today dashboard tile — fires the same window event.
+  // The dialog mount lives at this level so all three entries share state.
+  const [startWorkspaceDialogOpen, setStartWorkspaceDialogOpen] = useState(false);
+  useEffect(() => {
+    const handler = () => setStartWorkspaceDialogOpen(true);
+    window.addEventListener("tulala:open-start-workspace-dialog", handler);
+    return () => window.removeEventListener("tulala:open-start-workspace-dialog", handler);
+  }, []);
   // Resolve client profile from the URL/state-driven id. Two profiles
   // for QA: Martina Beach Club (business) and The Gringo (personal).
   // Inline-defined to dodge HMR cache issues with the fresh export.
@@ -146,12 +161,17 @@ export function TulalaIdentityBar() {
     }
     return `3 confirmed · ${fmtMoney(4200)} YTD`;
   })();
+  // Pure talent with zero agencies → invite them to start a workspace of
+  // their own (one-click discovery of the hybrid path). Otherwise fall back
+  // to the existing money / switcher destinations.
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
     : inClient ? openDrawer("client-brand-switcher")
-    : isPureTalent || agencyCount !== 1
-      ? setTalentPage("money")
-      : openDrawer("talent-agency-switcher");
+    : inTalent && agencyCount === 0
+      ? window.dispatchEvent(new CustomEvent(START_WORKSPACE_EVENT))
+      : isPureTalent || agencyCount !== 1
+        ? setTalentPage("money")
+        : openDrawer("talent-agency-switcher");
 
   // The notifications + help drawers differ per surface.
   const notificationsDrawerId = inWorkspace ? "notifications"
@@ -413,6 +433,15 @@ export function TulalaIdentityBar() {
           </svg>
         </IdentityBarIconButton>
       </div>
+
+      {/* Shared dialog — mounted at the bar level so the account menu,
+          the "Your agencies" pill, and a /today dashboard tile can all
+          open it via the START_WORKSPACE_EVENT. */}
+      <StartFreeWorkspaceDialog
+        open={startWorkspaceDialogOpen}
+        onOpenChange={setStartWorkspaceDialogOpen}
+        defaultWorkspaceName={userName ? `${userName} Studio` : "My Studio"}
+      />
     </header>
   );
 }
@@ -438,6 +467,14 @@ function AccountMenuTrigger({
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  // Talent surface entry-point to spin up their own workspace. The dialog
+  // itself is mounted at the TulalaIdentityBar level (so the "Your agencies"
+  // pill can also trigger it); we dispatch a window event to open it.
+  const isTalentSurface = state.surface === "talent";
+  const fireOpenStartWorkspaceDialog = () => {
+    window.dispatchEvent(new CustomEvent(START_WORKSPACE_EVENT));
+  };
   // Close on outside click
   useEffect(() => {
     if (!open) return;
@@ -563,6 +600,18 @@ function AccountMenuTrigger({
             sub="Name, domain, branding, team"
             onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
           />
+          {/* Talent-surface CTA — let a talent provision their own free
+              workspace without leaving their identity. Mirrors the Pure-Workspace
+              "Create your talent page" pattern below. The dialog itself is
+              mounted at the TulalaIdentityBar level so the "Your agencies"
+              pill can open it too; we fire a window event to open it. */}
+          {isTalentSurface && (
+            <AccountMenuItem
+              label="Start a workspace"
+              sub="Run your own roster — free plan, 1 minute"
+              onClick={() => { setOpen(false); fireOpenStartWorkspaceDialog(); }}
+            />
+          )}
           <AccountMenuItem
             label="Notifications"
             sub="Email, push, digest preferences"
