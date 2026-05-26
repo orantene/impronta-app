@@ -251,6 +251,185 @@ export async function fetchTalentSnapshotAggregateRows(
   return out;
 }
 
+type TenantSnapshotJoinRow = {
+  booking_id: string;
+  participant_id: string;
+  owning_party_type: string;
+  owning_party_id: string;
+  gross_cents: number;
+  platform_fee_cents: number;
+  workspace_fee_cents: number;
+  talent_net_cents: number;
+  currency_code: string;
+  payment_method: string;
+  agency_bookings: {
+    id: string;
+    event_date: string | null;
+    starts_at: string | null;
+    created_at: string | null;
+    title: string;
+    client_account_name: string | null;
+    client_summary: string | null;
+    payout_lifecycle: string;
+    payment_status: string;
+    status: string;
+    payment_method: string | null;
+    tenant_id: string;
+  };
+};
+
+export type TenantSnapshotAggregateRow = {
+  bookingId: string;
+  bookingTalentId: string;
+  participantId: string;
+  tenantId: string;
+  workDate: string;
+  payoutDate: string | null;
+  clientLabel: string;
+  talentProfileId: string | null;
+  talentDisplayName: string | null;
+  grossCents: number;
+  platformFeeCents: number;
+  workspaceFeeCents: number;
+  talentNetCents: number;
+  currencyCode: string;
+  status: TalentSnapshotAggregateRow["status"];
+  paymentMethod: string | null;
+};
+
+/**
+ * Tenant-scoped snapshot rows for the admin Business Financials surface.
+ *
+ * Shares the same `booking_commission_snapshot` source as
+ * `fetchTalentSnapshotAggregateRows`; the difference is the projection:
+ * talent surface filters by `talent_profile_id`, agency surface filters
+ * by the tenant's owning-party rows.
+ *
+ * EUR-only at v1 (matching the talent path). Non-EUR rows are logged and
+ * excluded. The status filter narrows by booking lifecycle; the default
+ * excludes only cancelled bookings (matching the identity-bar KPI).
+ */
+export async function fetchTenantSnapshotAggregateRows(
+  supabase: SupabaseClient,
+  opts: {
+    tenantId: string;
+    since: string;
+    /** Optional booking-status whitelist. Default: all except cancelled. */
+    statusFilter?: ReadonlyArray<"tentative" | "confirmed" | "completed" | "cancelled">;
+  },
+): Promise<TenantSnapshotAggregateRow[]> {
+  const { data, error } = await supabase
+    .from("booking_commission_snapshot")
+    .select(
+      `
+        booking_id,
+        participant_id,
+        owning_party_type,
+        owning_party_id,
+        gross_cents,
+        platform_fee_cents,
+        workspace_fee_cents,
+        talent_net_cents,
+        currency_code,
+        payment_method,
+        agency_bookings!inner (
+          id,
+          event_date,
+          starts_at,
+          created_at,
+          title,
+          client_account_name,
+          client_summary,
+          payout_lifecycle,
+          payment_status,
+          status,
+          payment_method,
+          tenant_id
+        )
+      `,
+    )
+    .in("owning_party_type", ["agency", "workspace"])
+    .eq("owning_party_id", opts.tenantId);
+
+  if (error) {
+    logServerError("snapshot-aggregations/tenant_rows", error);
+    return [];
+  }
+
+  const rows = (data ?? []) as unknown as TenantSnapshotJoinRow[];
+  if (rows.length === 0) return [];
+
+  // Pull participants for talent join (display name + profile id). One
+  // additional round-trip rather than a deeply-nested select that
+  // sometimes confuses RLS plan selection.
+  const participantIds = [...new Set(rows.map((r) => r.participant_id))];
+  const { data: pData, error: pError } = await supabase
+    .from("inquiry_participants")
+    .select("id, talent_profile_id, talent_profiles!inquiry_participants_talent_profile_id_fkey ( id, display_name )")
+    .in("id", participantIds);
+
+  if (pError) {
+    logServerError("snapshot-aggregations/tenant_participants", pError);
+  }
+
+  type ParticipantJoin = {
+    id: string;
+    talent_profile_id: string | null;
+    talent_profiles: { id: string; display_name: string | null } | null;
+  };
+  const talentByParticipant = new Map<
+    string,
+    { profileId: string | null; displayName: string | null }
+  >();
+  for (const p of ((pData ?? []) as unknown as ParticipantJoin[])) {
+    talentByParticipant.set(p.id, {
+      profileId: p.talent_profile_id,
+      displayName: p.talent_profiles?.display_name ?? null,
+    });
+  }
+
+  const sinceMs = Date.parse(opts.since);
+  const statusFilter = opts.statusFilter;
+  const out: TenantSnapshotAggregateRow[] = [];
+
+  for (const row of rows) {
+    const booking = row.agency_bookings;
+    if (booking.tenant_id !== opts.tenantId) continue; // belt + braces
+    if (booking.status === "cancelled") continue;
+    if (statusFilter && !statusFilter.includes(booking.status as "confirmed")) continue;
+    if (!isEurRow(row.currency_code, row.booking_id)) continue;
+
+    const workDateIso =
+      booking.event_date ?? booking.starts_at?.slice(0, 10) ?? booking.created_at?.slice(0, 10) ?? null;
+    if (!workDateIso) continue;
+    if (Date.parse(workDateIso) < sinceMs) continue;
+
+    const t = talentByParticipant.get(row.participant_id);
+
+    out.push({
+      bookingId: row.booking_id,
+      bookingTalentId: row.booking_id,
+      participantId: row.participant_id,
+      tenantId: row.owning_party_id,
+      workDate: workDateIso,
+      payoutDate: booking.payout_lifecycle === "paid" ? workDateIso : null,
+      clientLabel: resolveClientLabel(booking as unknown as BookingTalentJoinRow["agency_bookings"]),
+      talentProfileId: t?.profileId ?? null,
+      talentDisplayName: t?.displayName ?? null,
+      grossCents: row.gross_cents,
+      platformFeeCents: row.platform_fee_cents,
+      workspaceFeeCents: row.workspace_fee_cents,
+      talentNetCents: row.talent_net_cents,
+      currencyCode: row.currency_code,
+      status: mapBookingPayoutStatus(booking),
+      paymentMethod: row.payment_method ?? booking.payment_method,
+    });
+  }
+
+  out.sort((a, b) => b.workDate.localeCompare(a.workDate));
+  return out;
+}
+
 /** Sum talent_net_cents for a profile since the given ISO timestamp (EUR rows only). */
 export async function aggregateTalentNet(opts: {
   talentProfileId: string;
