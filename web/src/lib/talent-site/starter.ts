@@ -163,6 +163,8 @@ export function buildTalentPortfolioStarterSnapshot(
   return {
     version: 1,
     siteKind: "talent_personal",
+    templateKey: "roster",
+    compositionMode: "template",
     publishedAt: null,
     pageVersion: 1,
     locale: "en",

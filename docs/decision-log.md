@@ -4,6 +4,25 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-25 — Talent personal site architecture (Free / Pro / Max)
+
+**L45 — Talent membership personal site (`talent_sites`).** One storage model for all tiers:
+
+- **Single storage:** `public.talent_sites` JSONB snapshots (`draft_snapshot` / `published_snapshot`) with `templateKey` + `compositionMode` on every row.
+- **Public render:** `/t/<profileCode>` on the Tulala app host is **never tier-gated**. Resolver returns a published snapshot when present; otherwise falls back to the standard profile renderer. Agency roster hosts keep overlay behavior.
+- **Membership gates editing only:** Free = locked `tulala-digital` template + metadata/publish; Pro = template gallery; Max = custom section composer (`compositionMode: custom`). Kill switch: `TALENT_SITE_TIER_EXPANSION_DISABLED=true` restores legacy Max-only edit/publish.
+- **Page builder reuse:** Personal sites render through `TalentSiteRenderer` + `SECTION_REGISTRY` — no parallel Wix-style builder framework.
+- **URLs:** Path-based `/t/<code>` only — no per-talent `<slug>.tulala.digital` subdomain.
+- **Not workspace membership:** Talent plan (`talent_plan_key`) is independent of agency/workspace plans. No solo-workspace provisioning for personal sites.
+
+**Paths:** `web/src/lib/talent-site/**`, `web/src/lib/access/talent-membership.ts`, `web/src/components/talent/site/**`, `supabase/migrations/20260525181000_talent_sites_tier_expansion.sql`.
+
+**Backward compatible:** Yes for public URLs; existing Max sites keep publishing. Downgrades flag `plan_locked` / `pending_template_reset` instead of deleting snapshots.
+
+**Migration:** `20260525181000_talent_sites_tier_expansion.sql` (RLS + snapshot backfill).
+
+---
+
 ## 2026-05-25 — Talent dashboard design tokens unified (post-2.6 polish)
 
 **L44 — Talent dashboard surfaces share one token system.** All top-level

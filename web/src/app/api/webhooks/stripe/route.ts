@@ -22,6 +22,7 @@ import {
 import { markPaid, loadActiveBookingTransaction } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,6 +142,11 @@ export async function POST(req: NextRequest) {
         // Cancel-at-period-end toggle + status transitions (active → past_due
         // → unpaid → canceled). Mirror to workspace_subscriptions.
         const sub = event.data.object as import("stripe").Stripe.Subscription;
+        try {
+          await handleTalentStripeSubscriptionEvent(event);
+        } catch (err) {
+          logServerError("webhooks.stripe.talent.subscription.updated", err);
+        }
         const admin = createServiceRoleClient();
         if (!admin) break;
         // current_period_end moved onto subscription items in newer Stripe
@@ -167,6 +173,11 @@ export async function POST(req: NextRequest) {
         // entitlements degrade cleanly + record the cancellation audit row
         // (F.6 audit was already inserted client-side; this is the
         // billing-system confirmation).
+        try {
+          await handleTalentStripeSubscriptionEvent(event);
+        } catch (err) {
+          logServerError("webhooks.stripe.talent.subscription.deleted", err);
+        }
         const sub = event.data.object as import("stripe").Stripe.Subscription;
         const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
         const admin = createServiceRoleClient();

@@ -12,7 +12,11 @@ import { TalentSiteDashboardClient } from "./TalentSiteDashboardClient";
  * (tab "My pages" / public-page). Loads state via server action so we do not
  * need a canonical /talent/site route that bypasses AdminShellRoot.
  */
-export function TalentSiteDashboardPanel() {
+type PanelProps = {
+  locale?: "en" | "es";
+};
+
+export function TalentSiteDashboardPanel({ locale = "en" }: PanelProps) {
   const { state: shellState } = useAdminShell();
   const [state, setState] = useState<TalentSiteDashboardState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,5 +75,5 @@ export function TalentSiteDashboardPanel() {
     );
   }
 
-  return <TalentSiteDashboardClient initialState={state} onReload={reload} />;
+  return <TalentSiteDashboardClient initialState={state} onReload={reload} locale={locale} />;
 }

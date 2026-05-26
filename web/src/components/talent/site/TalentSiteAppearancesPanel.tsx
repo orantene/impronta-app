@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/shell/internal/state";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
+import { talentSiteCopy, type TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 
 type WorkspaceAppearance = {
   id: string;
@@ -218,10 +219,12 @@ function TulalaPersonalSiteCard({
   profileCode,
   tier,
   onManage,
+  locale = "en",
 }: {
   profileCode: string;
   tier: "free" | "pro" | "max";
   onManage: () => void;
+  locale?: TalentSiteLocale;
 }) {
   const shareUrl = `https://tulala.digital/t/${encodeURIComponent(profileCode)}`;
   return (
@@ -287,7 +290,7 @@ function TulalaPersonalSiteCard({
               lineHeight: 1.5,
             }}
           >
-            Your personal page · Owned by you · Hosted on Tulala
+            {talentSiteCopy(locale, "descPersonalSite")}
           </div>
         </div>
         <div
@@ -316,7 +319,7 @@ function TulalaPersonalSiteCard({
               fontFamily: FONTS.body,
             }}
           >
-            View site
+            {talentSiteCopy(locale, "whereViewSite")}
           </a>
           <button
             type="button"
@@ -333,7 +336,7 @@ function TulalaPersonalSiteCard({
               whiteSpace: "nowrap",
             }}
           >
-            Manage
+            {talentSiteCopy(locale, "whereManage")}
           </button>
         </div>
       </div>
@@ -354,9 +357,11 @@ function TulalaPersonalSiteCard({
 function WorkspaceAppearanceCard({
   workspace,
   onManage,
+  locale = "en",
 }: {
   workspace: WorkspaceAppearance;
   onManage: () => void;
+  locale?: TalentSiteLocale;
 }) {
   return (
     <div
@@ -420,8 +425,9 @@ function WorkspaceAppearanceCard({
               lineHeight: 1.5,
             }}
           >
-            {workspaceKindLabel(workspace.planTier)} · {rosterStatusLabel(workspace.status)} ·{" "}
-            {visibilityLabel(workspace.visibility)}
+            {workspace.planTier === "free"
+              ? `${talentSiteCopy(locale, "labelWorkspaceRoster")} · ${visibilityLabel(workspace.visibility)}`
+              : `${talentSiteCopy(locale, "labelAgencyRoster")} · Managed by ${workspace.name} · ${rosterStatusLabel(workspace.status)}`}
           </div>
         </div>
         <div
@@ -451,7 +457,7 @@ function WorkspaceAppearanceCard({
                 fontFamily: FONTS.body,
               }}
             >
-              View roster profile
+              {talentSiteCopy(locale, "whereViewRoster")}
             </a>
           ) : null}
           <button
@@ -469,7 +475,7 @@ function WorkspaceAppearanceCard({
               whiteSpace: "nowrap",
             }}
           >
-            Manage
+            {talentSiteCopy(locale, "whereManage")}
           </button>
         </div>
       </div>
@@ -493,7 +499,7 @@ function WorkspaceAppearanceCard({
  * Agency roster hub — "where you appear" with per-agency profile links.
  * Renders below the Tulala personal-site section in PublicPageEditor.
  */
-export function TalentSiteAppearancesPanel() {
+export function TalentSiteAppearancesPanel({ locale = "en" }: { locale?: TalentSiteLocale }) {
   const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
 
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
@@ -556,8 +562,8 @@ export function TalentSiteAppearancesPanel() {
       <SectionHeader
         icon="globe"
         iconTone="indigo"
-        title={`Where you appear${totalCount > 0 ? ` · ${totalCount}` : ""}`}
-        subtitle="Every place your profile lives — your own Tulala page and every agency roster."
+        title={`${talentSiteCopy(locale, "appearancesTitle")}${totalCount > 0 ? ` · ${totalCount}` : ""}`}
+        subtitle={talentSiteCopy(locale, "appearancesSubtitle")}
       />
 
       {totalCount === 0 ? (
@@ -585,6 +591,7 @@ export function TalentSiteAppearancesPanel() {
               profileCode={profileCode}
               tier={talentTier}
               onManage={onManageTulala}
+              locale={locale}
             />
           )}
           {workspaces.map((w) => (
@@ -592,6 +599,7 @@ export function TalentSiteAppearancesPanel() {
               key={w.id}
               workspace={w}
               onManage={() => setTalentPage("agencies")}
+              locale={locale}
             />
           ))}
         </div>

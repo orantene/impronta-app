@@ -5,7 +5,7 @@
  * Drives every backend invariant via the linked Supabase project:
  *   1. Max owner can insert/update via RLS
  *   2. Non-owner can NOT see another talent's site (RLS isolation)
- *   3. Pro/Free plan is blocked from creating a personal site (Max gate)
+ *   3. Pro plan can create a personal site (tier expansion — all tiers edit/publish)
  *   4. Public RPC returns only published, non-hidden rows
  *   5. Draft updates do NOT affect public RPC output (publish discipline)
  *   6. Downgrade keeps the published site visible
@@ -231,37 +231,29 @@ async function runAll() {
     fail("non-owner sees zero rows", JSON.stringify(otherRead));
   }
 
-  // ── 3. Pro plan cannot create a site (Max gate) ───────────────────────
-  console.log("\n[3] Pro plan blocked from creating a personal site");
+  // ── 3. Pro plan can create a site (tier expansion) ─────────────────────
+  console.log("\n[3] Pro plan can create a personal site");
   try {
     await sql(`
       DO $$
       BEGIN
         PERFORM set_config('request.jwt.claims', json_build_object('sub','${PRO_USER_ID}','role','authenticated')::text, true);
         SET LOCAL ROLE authenticated;
-        INSERT INTO public.talent_sites (talent_profile_id, draft_snapshot, version)
-        VALUES ('${PRO_PROFILE_ID}', ${jsonbLiteral(STARTER_SNAPSHOT)}, 1);
+        INSERT INTO public.talent_sites (talent_profile_id, draft_snapshot, version, created_by, updated_by)
+        VALUES ('${PRO_PROFILE_ID}', ${jsonbLiteral({ ...STARTER_SNAPSHOT, templateKey: "tulala-digital", compositionMode: "template" })}, 1, '${PRO_USER_ID}', '${PRO_USER_ID}');
       END $$;
     `);
-    // Check: was the row actually inserted? RLS WITH CHECK fails should raise, but DO blocks can swallow.
     await asServiceRole();
     const proRows = await sql(
       `SELECT id FROM public.talent_sites WHERE talent_profile_id = '${PRO_PROFILE_ID}'`,
     );
-    if (proRows.length === 0) {
-      ok("pro plan cannot insert (RLS WITH CHECK denied)");
+    if (proRows.length === 1) {
+      ok("pro plan can insert via RLS");
     } else {
-      fail("pro plan cannot insert", `unexpected row: ${JSON.stringify(proRows)}`);
-      await sql(
-        `DELETE FROM public.talent_sites WHERE talent_profile_id = '${PRO_PROFILE_ID}'`,
-      );
+      fail("pro plan can insert via RLS", JSON.stringify(proRows));
     }
   } catch (e) {
-    if (/row-level security/i.test(e.message) || /violates/.test(e.message)) {
-      ok("pro plan cannot insert", "raised RLS violation");
-    } else {
-      fail("pro plan cannot insert (unexpected error)", e.message);
-    }
+    fail("pro plan can insert via RLS", e.message);
   }
 
   // ── 4. Public RPC returns published rows for non-hidden profile ───────

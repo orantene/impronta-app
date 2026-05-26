@@ -3,6 +3,7 @@ import {
   talentTierToPlanKey,
   type TalentPlanTier,
 } from "@/lib/access/talent-membership";
+import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
 
 /**
@@ -14,13 +15,23 @@ export function mergeTalentSiteDashboardWithShellTier(
   shellTier: TalentPlanTier,
 ): TalentSiteDashboardState {
   const membership = buildTalentMembershipState(talentTierToPlanKey(shellTier));
+  const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
+    key: t.key,
+    label: t.label,
+    blurb: t.blurb,
+    thumbnailUrl: t.thumbnailUrl,
+  }));
+
   return {
     ...base,
     planKey: membership.planKey,
     tier: membership.tier,
     displayName: membership.displayName,
-    canBuildPersonalSite: membership.capabilities.canBuildPersonalSite,
+    canBuildPersonalSite: membership.capabilities.canUseCustomBuilder,
     canEditPersonalSite: membership.capabilities.canEditPersonalSite,
     canPublishPersonalSite: membership.capabilities.canPublishPersonalSite,
+    canUseTemplateGallery: membership.capabilities.canUseTemplateGallery,
+    canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
+    availableTemplates,
   };
 }

@@ -1,5 +1,7 @@
 # Talent Subscriptions & Premium Talent Pages — Architecture Direction
 
+> **Direction revised 2026-05-25** — see **L45** in [`docs/decision-log.md`](decision-log.md). Premium personal pages are backed by `public.talent_sites` + `talent_profiles.talent_plan_key`, **not** a solo workspace. The "talent_solo workspace" sections below are historical context only.
+
 **Status:** Architecture direction. Author: founder (product direction); architecture written 2026-04-25, **revised 2026-04-25** with founder's resolved decisions.
 
 This document is **directional** — it picks an architectural lane and reserves the right shapes so future implementation isn't blocked. It is not a fully locked spec; specific column names and migration shapes can shift during build. What's locked is the *direction*: how the third commercial lane integrates with the existing model without forking the data architecture.

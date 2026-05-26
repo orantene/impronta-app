@@ -5,27 +5,48 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
-import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { mergeTalentSiteDashboardWithShellTier } from "@/lib/talent-site/merge-shell-tier";
 import {
   createTalentPersonalSiteDraftAction,
   fetchTalentPersonalSiteDashboardStateAction,
 } from "@/lib/talent-site/server/actions";
+import { talentSiteCopy, type TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
+import { TalentSiteCompositionPanel } from "./TalentSiteCompositionPanel";
 import { TalentSiteEditorForm } from "./TalentSiteEditorForm";
-import { TalentSiteLockedCard } from "./TalentSiteLockedCard";
+import { TalentSiteTemplatePanel } from "./TalentSiteTemplatePanel";
 
 type Props = {
   initialState: TalentSiteDashboardState;
-  /** Refetch dashboard state after create/save (client-loaded panel). */
+  locale?: TalentSiteLocale;
   onReload?: () => void | Promise<void>;
 };
 
-export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
+function tierCardCopy(state: TalentSiteDashboardState, locale: TalentSiteLocale) {
+  if (state.tier === "max") {
+    return {
+      title: talentSiteCopy(locale, "maxCardTitle"),
+      subtitle: talentSiteCopy(locale, "maxCardSubtitle"),
+    };
+  }
+  if (state.tier === "pro") {
+    return {
+      title: talentSiteCopy(locale, "proCardTitle"),
+      subtitle: talentSiteCopy(locale, "proCardSubtitle"),
+    };
+  }
+  return {
+    title: talentSiteCopy(locale, "freeCardTitle"),
+    subtitle: talentSiteCopy(locale, "freeCardSubtitle"),
+  };
+}
+
+export function TalentSiteDashboardClient({ initialState, onReload, locale = "en" }: Props) {
   const { openDrawer, state: shellState } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [baseState, setBaseState] = useState(initialState);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
 
   useEffect(() => {
     setBaseState(initialState);
@@ -36,9 +57,16 @@ export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
     [baseState, shellState.talentTier],
   );
 
-  const locked = !state.canBuildPersonalSite;
   const hasSite = state.site != null;
   const draftSnapshot = state.site?.draftSnapshot;
+  const canEdit = state.canEditPersonalSite;
+  const cardCopy = tierCardCopy(state, locale);
+
+  const showWelcome =
+    !welcomeDismissed &&
+    hasSite &&
+    state.site?.status !== "published" &&
+    state.tier === "free";
 
   async function reloadDashboard() {
     const loaded = await fetchTalentPersonalSiteDashboardStateAction();
@@ -62,12 +90,81 @@ export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
 
   return (
     <section data-tulala-talent-personal-site>
-      <SectionHeader
-        icon="sparkle"
-        iconTone="royal"
-        title="My personal site"
-        subtitle="Your owned Tulala page — separate from agency roster pages."
-      />
+      {showWelcome ? (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: "12px 14px",
+            background: COLORS.indigoSoft,
+            border: `1px solid rgba(59,91,219,0.2)`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.ink,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "flex-start",
+          }}
+        >
+          <span>{talentSiteCopy(locale, "welcomeReady")}</span>
+          <button
+            type="button"
+            onClick={() => setWelcomeDismissed(true)}
+            style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 600,
+              color: COLORS.inkMuted,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {state.isPubliclyHidden ? (
+        <div
+          style={{
+            marginBottom: 14,
+            padding: "12px 14px",
+            background: COLORS.amberSoft,
+            border: `1px solid rgba(180,120,0,0.2)`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.amberDeep,
+          }}
+        >
+          {talentSiteCopy(locale, "hiddenWarning")}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          marginBottom: 8,
+          fontFamily: FONTS.display,
+          fontSize: 18,
+          fontWeight: 600,
+          color: COLORS.ink,
+        }}
+      >
+        {cardCopy.title}
+      </div>
+      <p
+        style={{
+          margin: "0 0 14px",
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          color: COLORS.inkMuted,
+          lineHeight: 1.5,
+          maxWidth: 640,
+        }}
+      >
+        {cardCopy.subtitle}
+      </p>
 
       {state.publicSiteUrl ? (
         <div
@@ -89,31 +186,18 @@ export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
             href={state.publicSiteUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              color: COLORS.ink,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+            style={{ color: COLORS.ink, fontWeight: 600, textDecoration: "none" }}
           >
             {state.publicSiteUrl} ↗
           </Link>
         </div>
       ) : (
-        <div
-          style={{
-            marginBottom: 14,
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            color: COLORS.inkDim,
-          }}
-        >
-          Set a profile code first to claim your URL.
+        <div style={{ marginBottom: 14, fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkDim }}>
+          {talentSiteCopy(locale, "profileCodeRequired")}
         </div>
       )}
 
-      {locked ? (
-        <TalentSiteLockedCard state={state} onUpgrade={() => openDrawer("talent-tier-compare")} />
-      ) : !hasSite ? (
+      {!hasSite && canEdit && state.profileCode ? (
         <div
           style={{
             background: `linear-gradient(135deg, ${COLORS.royalSoft} 0%, ${COLORS.surfaceAlt} 70%)`,
@@ -121,67 +205,112 @@ export function TalentSiteDashboardClient({ initialState, onReload }: Props) {
             borderRadius: 14,
             padding: "20px 22px",
             fontFamily: FONTS.body,
+            marginBottom: 16,
           }}
         >
-          <div
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 16,
-              fontWeight: 600,
-              color: COLORS.ink,
-              letterSpacing: -0.2,
-            }}
-          >
-            Create your personal site
+          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink }}>
+            {talentSiteCopy(locale, "createSite")}
           </div>
-          <p
-            style={{
-              margin: "6px 0 14px",
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-              lineHeight: 1.5,
-              maxWidth: 560,
-            }}
-          >
-            We&apos;ll generate a starter layout from your public profile — hero, about, gallery,
-            and contact CTA. You can edit copy and publish when ready.
+          <p style={{ margin: "6px 0 14px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            {talentSiteCopy(locale, "createSiteBlurb")}
           </p>
           <PrimaryButton onClick={handleCreate} disabled={pending}>
-            {pending ? "Creating…" : "Create your personal site"}
+            {pending ? "Creating…" : talentSiteCopy(locale, "createSite")}
           </PrimaryButton>
           {error ? (
             <p style={{ marginTop: 12, fontSize: 12.5, color: COLORS.criticalDeep }}>{error}</p>
           ) : null}
         </div>
-      ) : (
+      ) : null}
+
+      {hasSite && draftSnapshot ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 14,
+              padding: "16px 18px",
+              fontFamily: FONTS.body,
+            }}
+          >
+            <StatusStrip state={state} />
+            <PreviewLinks state={state} />
+            {canEdit ? (
+              <TalentSiteEditorForm
+                state={state}
+                initialSnapshot={draftSnapshot}
+                onSaved={() => void reloadDashboard()}
+              />
+            ) : (
+              <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
+                <button
+                  type="button"
+                  onClick={() => openDrawer("talent-tier-compare")}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: COLORS.accentDeep,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    padding: 0,
+                  }}
+                >
+                  Upgrade your plan
+                </button>{" "}
+                to edit this site.
+              </p>
+            )}
+          </div>
+
+          <TalentSiteTemplatePanel
+            state={state}
+            locale={locale}
+            onChanged={reloadDashboard}
+          />
+
+          <TalentSiteCompositionPanel
+            state={state}
+            locale={locale}
+            onChanged={reloadDashboard}
+          />
+
+          <FuturePlaceholders />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function FuturePlaceholders() {
+  const items = ["Custom domain", "SEO controls", "Page analytics"];
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+        gap: 8,
+        opacity: 0.55,
+      }}
+    >
+      {items.map((label) => (
         <div
+          key={label}
           style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 14,
-            padding: "16px 18px",
+            padding: "10px 12px",
+            border: `1px dashed ${COLORS.borderSoft}`,
+            borderRadius: 10,
             fontFamily: FONTS.body,
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
+            fontSize: 11,
+            color: COLORS.inkMuted,
+            textAlign: "center",
           }}
         >
-          <StatusStrip state={state} />
-          <PreviewLinks state={state} />
-          {draftSnapshot ? (
-            <TalentSiteEditorForm
-              state={state}
-              initialSnapshot={draftSnapshot}
-              onSaved={() => void reloadDashboard()}
-            />
-          ) : (
-            <p style={{ fontSize: 12.5, color: COLORS.inkMuted, margin: 0 }}>
-              Draft snapshot unavailable. Try reloading the page.
-            </p>
-          )}
+          {label}
+          <div style={{ fontSize: 10, marginTop: 4 }}>Coming soon</div>
         </div>
-      )}
-    </section>
+      ))}
+    </div>
   );
 }
 
@@ -211,6 +340,7 @@ function StatusStrip({ state }: { state: TalentSiteDashboardState }) {
         background: COLORS.surfaceAlt,
         borderRadius: 10,
         fontFamily: FONTS.body,
+        marginBottom: 12,
       }}
     >
       <StatusField
@@ -274,7 +404,7 @@ function PreviewLinks({ state }: { state: TalentSiteDashboardState }) {
   }
   if (items.length === 0) return null;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
       {items.map((item) => (
         <Link
           key={item.href}
@@ -291,7 +421,6 @@ function PreviewLinks({ state }: { state: TalentSiteDashboardState }) {
             color: COLORS.ink,
             textDecoration: "none",
             fontFamily: FONTS.body,
-            whiteSpace: "nowrap",
           }}
         >
           {item.label} ↗

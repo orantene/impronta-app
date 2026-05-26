@@ -1,6 +1,16 @@
 import "server-only";
 
-import { talentPlanGrantsAccessCapability } from "@/lib/access/talent-membership";
+import {
+  talentPlanGrantsAccessCapability,
+  talentPlanGrantsCapability,
+  talentPlanToTier,
+  type TalentPlanKey,
+} from "@/lib/access/talent-membership";
+import { isTalentSiteTierExpansionEnabled } from "@/lib/access/talent-site-tier-expansion";
+import {
+  isTemplateAllowedForTier,
+  type TalentSiteTemplateKey,
+} from "@/lib/talent-site/templates/registry";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import {
   loadTalentSelfProfile,
@@ -96,10 +106,58 @@ export async function requireTalentSelfScope(
   };
 }
 
+function siteExpansionBlocked(planKey: string): boolean {
+  return (
+    !isTalentSiteTierExpansionEnabled() &&
+    talentPlanToTier(planKey) !== "max"
+  );
+}
+
 export function assertTalentCanEditPersonalSite(planKey: string): boolean {
+  if (siteExpansionBlocked(planKey)) return false;
   return talentPlanGrantsAccessCapability(planKey, "talent.page.edit");
 }
 
 export function assertTalentCanPublishPersonalSite(planKey: string): boolean {
+  if (siteExpansionBlocked(planKey)) return false;
   return talentPlanGrantsAccessCapability(planKey, "talent.page.publish");
 }
+
+export function assertTalentCanApplyTemplate(planKey: string): boolean {
+  if (siteExpansionBlocked(planKey)) return false;
+  return talentPlanGrantsCapability(planKey, "personalSiteTemplate");
+}
+
+export function assertTalentCanUseCustomBuilder(planKey: string): boolean {
+  if (siteExpansionBlocked(planKey)) return false;
+  return talentPlanGrantsCapability(planKey, "personalSiteCustomBuilder");
+}
+
+export function assertTalentCanSaveComposition(planKey: string): boolean {
+  return assertTalentCanUseCustomBuilder(planKey);
+}
+
+export function assertTemplateAllowedForPlan(
+  planKey: string,
+  templateKey: TalentSiteTemplateKey,
+): boolean {
+  if (!assertTalentCanApplyTemplate(planKey)) return false;
+  return isTemplateAllowedForTier(templateKey, talentPlanToTier(planKey));
+}
+
+export function planDeniedMessage(
+  capability: "template" | "custom_builder" | "edit",
+): string {
+  if (capability === "template") {
+    return "Upgrade to Pro to choose premium templates.";
+  }
+  if (capability === "custom_builder") {
+    return "Upgrade to Max to customize sections and build your service website.";
+  }
+  if (!isTalentSiteTierExpansionEnabled()) {
+    return "Personal site editing is temporarily unavailable. Please try again later.";
+  }
+  return "Upgrade to Max to customize sections and build your service website.";
+}
+
+export type { TalentPlanKey };

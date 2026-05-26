@@ -5,11 +5,9 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { canonicalBioEn, publicBioForLocale } from "@/lib/translation/public-bio";
 
-import {
-  buildTalentPortfolioStarterSnapshot,
-  type TalentPortfolioStarterMedia,
-  type TalentPortfolioStarterProfile,
-} from "../starter";
+import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
+import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
+import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
 export async function loadTalentStarterProfileData(
@@ -120,6 +118,7 @@ export async function loadTalentStarterProfileData(
 
 export async function buildStarterSnapshotForTalent(
   talentProfileId: string,
+  planKey?: string | null,
 ): Promise<TalentSiteSnapshot | null> {
   const profile = await loadTalentStarterProfileData(talentProfileId);
   if (!profile) return null;
@@ -147,5 +146,6 @@ export async function buildStarterSnapshotForTalent(
     };
   });
 
-  return buildTalentPortfolioStarterSnapshot(profile, media);
+  const templateKey = templateKeyForPlan(planKey ?? "talent_basic");
+  return buildTemplateSnapshot(templateKey, { profile, media });
 }
