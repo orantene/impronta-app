@@ -17,6 +17,7 @@ type TenantFilterState = {
   primaryParents: Set<string>;
   secondaryParents: Set<string>;
   enabledGroups: Set<string>;
+  enabledLeaves: Set<string>;
   order: Map<string, number>;
 };
 
@@ -25,7 +26,19 @@ function buildTenantFilterState(tree: TaxonomyNode[] | null): TenantFilterState 
   const primaryParents = new Set<string>();
   const secondaryParents = new Set<string>();
   const enabledGroups = new Set<string>();
+  const enabledLeaves = new Set<string>();
   const order = new Map<string, number>();
+
+  const collectLeaves = (node: TaxonomyNode, ancestorsEnabled: boolean) => {
+    const isAvailable = ancestorsEnabled && node.is_enabled;
+    if (node.term_type === "talent_type" && isAvailable) {
+      enabledLeaves.add(node.id);
+      enabledLeaves.add(node.slug);
+    }
+    for (const child of node.children) {
+      collectLeaves(child, isAvailable);
+    }
+  };
 
   for (const parent of tree) {
     order.set(parent.id, parent.display_order);
@@ -43,9 +56,10 @@ function buildTenantFilterState(tree: TaxonomyNode[] | null): TenantFilterState 
       enabledGroups.add(child.id);
       enabledGroups.add(child.slug);
     }
+    collectLeaves(parent, true);
   }
 
-  return { primaryParents, secondaryParents, enabledGroups, order };
+  return { primaryParents, secondaryParents, enabledGroups, enabledLeaves, order };
 }
 
 function mapLiveParents(input: {
@@ -71,6 +85,7 @@ function mapLiveParents(input: {
       const children = tenantFilters
         ? lp.talentTypes
           .filter(t => !t.parentId || t.parentId === lp.raw.id || tenantFilters.enabledGroups.has(t.parentId))
+          .filter(t => tenantFilters.enabledLeaves.size === 0 || tenantFilters.enabledLeaves.has(t.id) || tenantFilters.enabledLeaves.has(t.slug))
           .map(t => ({ id: t.slug, label: t.label }))
         : lp.display.children;
       return { ...lp.display, children };

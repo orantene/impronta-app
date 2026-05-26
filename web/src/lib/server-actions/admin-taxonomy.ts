@@ -130,18 +130,17 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
   //   level 2 = category_group    (75  — Fashion Models, Commercial Models, …)
   //   level 3 = talent_type       (425 — Editorial Model, House DJ, …)
   //
-  // For the Settings UI, level 1 + level 2 are the right grain ("which
-  // categories do you support, and which sub-types within each"). The
-  // level 3 talent_type catalog is still consumed elsewhere (Add Talent
-  // picker, registration form) via useLiveTaxonomy — too granular for
-  // the agency-level toggle UI here.
+  // For the Settings UI, level 1 + level 2 are the visible grain ("which
+  // categories do you support, and which sub-types within each"). We also
+  // include level 3 talent_type rows in the returned tree so downstream
+  // pickers can respect tenant leaf-type overrides without another fetch.
   const { data: terms, error: termsErr } = await supabase
     .from("taxonomy_terms")
     .select(
       "id, slug, name_en, name_es, level, term_type, parent_id, is_active, sort_order",
     )
     .eq("is_active", true)
-    .in("term_type", ["parent_category", "category_group"])
+    .in("term_type", ["parent_category", "category_group", "talent_type"])
     .order("sort_order", { ascending: true });
 
   if (termsErr) {
