@@ -80,6 +80,41 @@ function MetaChip({ label, tone = "neutral" }: { label: string; tone?: "neutral"
   );
 }
 
+/**
+ * Plan badge for the Tulala personal-site card. Tones map to talent
+ * subscription tier so the visual weight grows with the plan:
+ *   free → neutral grey (no chromatic emphasis)
+ *   pro  → indigo (cool, informational)
+ *   max  → accent deep (the premium forest green)
+ */
+function TulalaPlanBadge({ tier }: { tier: "free" | "pro" | "max" }) {
+  const palette =
+    tier === "max"
+      ? { bg: COLORS.accentSoft, fg: COLORS.accentDeep }
+      : tier === "pro"
+        ? { bg: COLORS.indigoSoft, fg: COLORS.indigo }
+        : { bg: "rgba(11,11,13,0.06)", fg: COLORS.inkMuted };
+  const label = tier === "max" ? "Max" : tier === "pro" ? "Pro" : "Free";
+  return (
+    <span
+      style={{
+        padding: "2px 8px",
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        color: palette.fg,
+        background: palette.bg,
+        borderRadius: 999,
+        fontFamily: FONTS.body,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function CopyIcon({ size = 12 }: { size?: number }) {
   return (
     <svg
@@ -176,6 +211,143 @@ function CopyableProfileLink({ url }: { url: string }) {
         {copied ? <CheckIcon /> : <CopyIcon />}
       </span>
     </button>
+  );
+}
+
+function TulalaPersonalSiteCard({
+  profileCode,
+  tier,
+  onManage,
+}: {
+  profileCode: string;
+  tier: "free" | "pro" | "max";
+  onManage: () => void;
+}) {
+  const shareUrl = `https://tulala.digital/t/${encodeURIComponent(profileCode)}`;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        padding: "14px 16px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: COLORS.accentDeep,
+            color: "#fff",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: FONTS.display,
+            fontSize: 16,
+            fontWeight: 600,
+            letterSpacing: -0.2,
+          }}
+        >
+          T
+        </span>
+        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span
+              style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: COLORS.ink,
+                letterSpacing: -0.05,
+              }}
+            >
+              Tulala.digital
+            </span>
+            <TulalaPlanBadge tier={tier} />
+          </div>
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 11.5,
+              color: COLORS.inkMuted,
+              lineHeight: 1.5,
+            }}
+          >
+            Your personal page · Owned by you · Hosted on Tulala
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+            flexWrap: "wrap",
+          }}
+        >
+          <a
+            href={shareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: "6px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              background: "#fff",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 8,
+              color: COLORS.ink,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              fontFamily: FONTS.body,
+            }}
+          >
+            View site
+          </a>
+          <button
+            type="button"
+            onClick={onManage}
+            style={{
+              padding: "6px 10px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: COLORS.inkMuted,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Manage
+          </button>
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: 50,
+          minWidth: 0,
+        }}
+      >
+        <CopyableProfileLink url={shareUrl} />
+      </div>
+    </div>
   );
 }
 
@@ -322,7 +494,7 @@ function WorkspaceAppearanceCard({
  * Renders below the Tulala personal-site section in PublicPageEditor.
  */
 export function TalentSiteAppearancesPanel() {
-  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
+  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
 
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const profile =
@@ -333,6 +505,23 @@ export function TalentSiteAppearancesPanel() {
     bridgeTalentSelfProfile?.profileCode ??
     profile?.name?.toLowerCase().replace(/\s+/g, "-") ??
     null;
+
+  // Talent subscription tier for the Tulala personal-site plan badge.
+  // Prefer the live bridge value; fall back to admin-shell state in
+  // standalone demo mode. The personal-site card only renders when we
+  // have a profileCode (otherwise the shareable URL would 404).
+  const talentTier: "free" | "pro" | "max" =
+    bridgeTalentSelfProfile?.talentTier ?? state.talentTier ?? "free";
+
+  // "Manage" on the Tulala card scrolls the user back up to the
+  // personal-site editor section above (lives in the same `My pages`
+  // surface). Document-level scroll keeps the implementation
+  // self-contained — no need to plumb refs through PublicPageEditor.
+  const onManageTulala = () => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const workspaces: WorkspaceAppearance[] =
     bridgeTalentAgencies !== null
@@ -361,16 +550,19 @@ export function TalentSiteAppearancesPanel() {
           rosterProfileShareUrl: agencyRosterProfileUrl(a.slug, profileCode, { absolute: true }),
         }));
 
+  const showTulalaCard = Boolean(profileCode);
+  const totalCount = workspaces.length + (showTulalaCard ? 1 : 0);
+
   return (
     <section data-tulala-talent-where-you-appear>
       <SectionHeader
         icon="globe"
         iconTone="indigo"
-        title={`Where you appear${workspaces.length > 0 ? ` · ${workspaces.length}` : ""}`}
-        subtitle="Every workspace your profile is on. Open the agency's roster page or manage the relationship."
+        title={`Where you appear${totalCount > 0 ? ` · ${totalCount}` : ""}`}
+        subtitle="Every place your profile lives — your own Tulala page and every agency roster."
       />
 
-      {workspaces.length === 0 ? (
+      {totalCount === 0 ? (
         <div
           style={{
             background: COLORS.surfaceAlt,
@@ -390,6 +582,13 @@ export function TalentSiteAppearancesPanel() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {showTulalaCard && profileCode && (
+            <TulalaPersonalSiteCard
+              profileCode={profileCode}
+              tier={talentTier}
+              onManage={onManageTulala}
+            />
+          )}
           {workspaces.map((w) => (
             <WorkspaceAppearanceCard
               key={w.id}
