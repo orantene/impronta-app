@@ -2189,8 +2189,9 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
               display: none !important;
             }
           }
-          /* Acting-as detail subline (€4.2k pending · 3 confirmed) hides
-             at narrow widths to keep the identity bar uncluttered. */
+          /* Acting-as detail subline (live workspace KPI — €X pending ·
+             N confirmed) hides at narrow widths to keep the identity bar
+             uncluttered. */
           @media (max-width: 720px) {
             .tulala-shell [data-tulala-identity-bar] [data-tulala-acting-detail] {
               display: none !important;
