@@ -398,14 +398,20 @@ export function TalentTaxDocsDrawer() {
 
       <div className="flex flex-col gap-2">
         {[
-          { label: "2026 W-8BEN form", body: "On file · expires Dec 2029", action: "Download" },
-          { label: "2025 income summary (1099-K equivalent)", body: "EU residents: tax receipt PDF · €18,420 reported", action: "Download" },
-          { label: "2026 in-progress income receipt", body: `€${platformTotal.toLocaleString()} platform · regenerates monthly`, action: "Preview" },
+          // L47 — live route for this year's income summary. Other rows
+          // remain mock copies until their real generators land.
+          { label: `${new Date().getUTCFullYear()} income summary`, body: "Platform-reported earnings only · generates on demand", action: "Open", href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
+          { label: "2026 W-8BEN form", body: "On file · expires Dec 2029 (mock)", action: "Download" },
+          { label: "2025 income summary (1099-K equivalent)", body: "EU residents: tax receipt PDF · €18,420 reported (mock)", action: "Download" },
         ].map((doc, idx) => (
           <button
             key={idx}
             type="button"
-            onClick={() => undefined}
+            onClick={() => {
+              if ((doc as { href?: string }).href && typeof window !== "undefined") {
+                window.open((doc as { href: string }).href, "_blank", "noopener,noreferrer");
+              }
+            }}
             style={{
               display: "flex",
               alignItems: "center",

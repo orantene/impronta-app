@@ -4,6 +4,44 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-26 — Talent tax docs v1 (on-demand HTML income summary)
+
+**L47 — Tax docs v1 = on-demand HTML income summary from `loadTalentEarnings`, platform earnings only.**
+
+- **Surface:** GET `/api/talent/tax-summary?year=YYYY` returns a
+  print-friendly HTML document the talent can save as PDF from the
+  browser ("Save as PDF / Print" button hidden when printing). Reads
+  through `loadTalentEarnings(talentProfileId, { sinceISO })` — same
+  source as `/talent/money`, so amounts can never drift between the
+  two surfaces.
+- **No stored blobs.** Generated on demand. `cache-control:
+  private, no-store`. Avoids Storage bucket sprawl + lets the document
+  always reflect the latest snapshot rows.
+- **Native PDF deferred.** A `pdf-lib` or `@react-pdf/renderer`
+  upgrade is a follow-up — needs an npm dep authorization. The HTML
+  shape is structured so a future PDF renderer can consume the same
+  `loadTalentEarnings` source without UX drift.
+- **Off-platform earnings excluded** by default. Tulala only attests
+  to what it processed. Off-platform self-declared rows surface in
+  the drawer informationally and intentionally never enter this
+  document (legal-exposure reasoning — don't issue tax-relevant
+  attestations on figures we didn't verify).
+- **Jurisdictional posture deferred:** US 1099-K (Stripe Connect's
+  obligation today; revisit when we pay US talent directly), EU
+  receipt vs invoice (today this doc is a receipt; invoice format
+  TBD), MX CFDI (out of scope for v1 — surface a "contact us" note
+  to MX talent rather than auto-issuing).
+
+**Paths:**
+`web/src/app/api/talent/tax-summary/route.ts`,
+`web/src/components/admin/shell/internal/talent-drawers/monetization.tsx` (download button).
+
+**Backward compatible:** Yes (new route + button).
+
+**Migration:** none.
+
+---
+
 ## 2026-05-26 — Multi-currency display (per-actor default + tabs, no FX)
 
 **L49 — Default currency lives on the paying actor; v1 is display-only.**
