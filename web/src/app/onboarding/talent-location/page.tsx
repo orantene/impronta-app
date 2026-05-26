@@ -6,7 +6,6 @@ import { normalizeOptionalNextPath, resolveAuthenticatedDestination } from "@/li
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default async function TalentLocationOnboardingPage({
   searchParams,
@@ -15,15 +14,7 @@ export default async function TalentLocationOnboardingPage({
 }) {
   if (!isSupabaseConfigured()) {
     return (
-      <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
-        <div className="rounded-lg border border-border bg-card p-8 shadow-sm">
-          <h1 className="text-center text-xl font-medium">Setup required</h1>
-          <p className="mt-3 text-center text-sm text-muted-foreground">{SUPABASE_ENV_HELP}</p>
-          <Button className="mt-6 w-full" asChild variant="outline">
-            <Link href="/">Back home</Link>
-          </Button>
-        </div>
-      </div>
+      <SetupRequired message={SUPABASE_ENV_HELP} />
     );
   }
 
@@ -46,20 +37,96 @@ export default async function TalentLocationOnboardingPage({
   const nextPath = normalizeOptionalNextPath(next);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-foreground">Complete your profile</h1>
-          <p className="text-sm text-muted-foreground">
-            Fill in the required fields below to create your talent profile. You can edit all details later from your dashboard.
-          </p>
-        </div>
-        <div className="mt-6">
-          <TalentLocationOnboardingForm
-            action={completeTalentLocationOnboarding}
-            nextPath={nextPath}
-          />
-        </div>
+    <div className="mx-auto w-full max-w-[640px] px-5 py-12 sm:py-16">
+      {/* Eyebrow */}
+      <p
+        className="plt-mono text-center text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
+        style={{ color: "var(--plt-forest)" }}
+      >
+        Step 2 of 2 · Profile
+      </p>
+
+      {/* Title */}
+      <h1
+        className="plt-display mt-2 text-center text-[2rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
+        style={{ color: "var(--plt-ink)" }}
+      >
+        Complete your{" "}
+        <span style={{ color: "var(--plt-forest)" }}>talent profile.</span>
+      </h1>
+      <p
+        className="mx-auto mt-3 max-w-[420px] text-center text-[0.9375rem] leading-[1.55]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        Just the essentials — you can complete your portfolio, location and rates from your dashboard.
+      </p>
+
+      {/* Card */}
+      <div
+        className="mt-9 rounded-[28px] p-7 sm:p-10"
+        style={{
+          background: "var(--plt-bg-elevated)",
+          border: "1px solid var(--plt-hairline-strong)",
+          boxShadow:
+            "0 24px 60px -28px rgba(15,23,20,0.32), 0 2px 6px -2px rgba(15,23,20,0.06)",
+        }}
+      >
+        <TalentLocationOnboardingForm
+          action={completeTalentLocationOnboarding}
+          nextPath={nextPath}
+        />
+      </div>
+
+      <p
+        className="mt-6 text-center text-[0.75rem]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        Need help?{" "}
+        <Link
+          href="/contact"
+          className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+          style={{ color: "var(--plt-ink-soft)" }}
+        >
+          Contact support
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+function SetupRequired({ message }: { message: string }) {
+  return (
+    <div className="mx-auto flex min-h-[70vh] max-w-[440px] flex-col justify-center px-5">
+      <div
+        className="rounded-[24px] p-8 text-center"
+        style={{
+          background: "var(--plt-bg-elevated)",
+          border: "1px solid var(--plt-hairline-strong)",
+        }}
+      >
+        <h1
+          className="plt-display text-[1.25rem] font-semibold"
+          style={{ color: "var(--plt-ink)" }}
+        >
+          Setup required
+        </h1>
+        <p
+          className="mt-3 text-[0.875rem]"
+          style={{ color: "var(--plt-muted)" }}
+        >
+          {message}
+        </p>
+        <Link
+          href="/"
+          className="mt-6 inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[0.8125rem] font-medium transition-colors"
+          style={{
+            borderColor: "var(--plt-hairline-strong)",
+            color: "var(--plt-ink)",
+            background: "var(--plt-bg-raised)",
+          }}
+        >
+          Back home
+        </Link>
       </div>
     </div>
   );
