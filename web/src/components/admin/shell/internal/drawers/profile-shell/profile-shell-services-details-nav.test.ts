@@ -44,3 +44,21 @@ test("legacy extra details rail item also nests under Services", () => {
     "refinement should not render as a top-level Proof rail item",
   );
 });
+
+test("talent self-edit uses the same live Services engine as admin roster", () => {
+  assert.match(
+    source,
+    /const hasResolvedEngineContext = !!payload\.talentId && \(!!bridgeTenantIdentity\?\.tenantId \|\| isSelf\)/,
+    "Talent self-edit must not fall back to the prototype ServicesEditor just because the platform app has no tenant slug in the URL.",
+  );
+  assert.match(
+    source,
+    /actions=\{talentSelfSkillActions\}/,
+    "SkillSlotPanel should receive talent-owned service actions in self-edit mode.",
+  );
+  assert.match(
+    source,
+    /viewMode=\{isSelf \? "talent-self" : "admin"\}/,
+    "The shared Services UI should run in talent-self mode for talent dashboard drawers.",
+  );
+});

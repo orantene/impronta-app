@@ -22,17 +22,52 @@ import {
 import { useDashboardText } from "./dashboard-i18n";
 import { F_BODY, PARENT_EMOJI, T } from "./skill-tokens";
 
+export type CareerInterestActions = {
+  getAspirations: (input: { talent_profile_id: string }) => Promise<
+    | { ok: true; aspirations: Array<{ term_id: string; slug: string; name_en: string; parent_name?: string | null }> }
+    | { ok: false; error: string }
+  >;
+  addAspiration: (input: { talent_profile_id: string; taxonomy_term_id: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  removeAspiration: (input: { talent_profile_id: string; taxonomy_term_id: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  getEnabledParentCategoriesForPicker: (input?: { talent_profile_id?: string }) => Promise<
+    | { ok: true; parents: Array<{ id: string; slug: string; name_en: string }> }
+    | { ok: false; error: string }
+  >;
+  getTalentTypesUnderParent: (input: {
+    talent_profile_id?: string;
+    parent_category_id: string;
+    query?: string;
+  }) => Promise<
+    | { ok: true; types: Array<{ id: string; name_en: string; name_es: string | null }> }
+    | { ok: false; error: string }
+  >;
+};
+
+const adminCareerInterestActions: CareerInterestActions = {
+  getAspirations,
+  addAspiration,
+  removeAspiration,
+  getEnabledParentCategoriesForPicker: () => getEnabledParentCategoriesForPicker(),
+  getTalentTypesUnderParent: (input) =>
+    getTalentTypesUnderParent({
+      parent_category_id: input.parent_category_id,
+      query: input.query,
+    }),
+};
+
 // ─── CareerInterestsSection — Q2: aspirations / "open to grow into" ──────
 
 export function CareerInterestsSection({
   talentProfileId,
   existingSkillIds,
   initialAspirations,
+  actions = adminCareerInterestActions,
 }: {
   talentProfileId: string;
   existingSkillIds: Set<string>;
   /** Pre-loaded by parent. When provided, skips the initial fetch. */
   initialAspirations?: Array<{ term_id: string; slug: string; name_en: string }>;
+  actions?: CareerInterestActions;
 }) {
   const copy = useDashboardText();
   const [aspirations, setAspirations] = useState<
@@ -51,7 +86,7 @@ export function CareerInterestsSection({
   }, [initialAspirations]);
 
   const reload = async () => {
-    const res = await getAspirations({ talent_profile_id: talentProfileId });
+    const res = await actions.getAspirations({ talent_profile_id: talentProfileId });
     if (res.ok) setAspirations(res.aspirations);
     setLoaded(true);
   };
@@ -64,7 +99,7 @@ export function CareerInterestsSection({
   }, [talentProfileId]);
 
   const handleRemove = async (termId: string) => {
-    await removeAspiration({
+    await actions.removeAspiration({
       talent_profile_id: talentProfileId,
       taxonomy_term_id: termId,
     });
@@ -191,6 +226,7 @@ export function CareerInterestsSection({
           onAdded={handleAdded}
           onError={setError}
           talentProfileId={talentProfileId}
+          actions={actions}
         />
       )}
     </div>
@@ -206,6 +242,7 @@ function AddAspirationPicker({
   onClose,
   onAdded,
   onError,
+  actions,
 }: {
   talentProfileId: string;
   existingSkillIds: Set<string>;
@@ -213,6 +250,7 @@ function AddAspirationPicker({
   onClose: () => void;
   onAdded: () => void;
   onError: (msg: string) => void;
+  actions: CareerInterestActions;
 }) {
   const copy = useDashboardText();
   const [parents, setParents] = useState<
@@ -231,7 +269,7 @@ function AddAspirationPicker({
   );
 
   useEffect(() => {
-    getEnabledParentCategoriesForPicker().then((res) => {
+    actions.getEnabledParentCategoriesForPicker({ talent_profile_id: talentProfileId }).then((res) => {
       if (res.ok) {
         setParents(
           res.parents.map((p) => ({
@@ -241,7 +279,7 @@ function AddAspirationPicker({
         );
       }
     });
-  }, []);
+  }, [actions, talentProfileId]);
 
   useEffect(() => {
     if (!selectedParentId) {
@@ -249,7 +287,8 @@ function AddAspirationPicker({
       return;
     }
     setLoadingTypes(true);
-    getTalentTypesUnderParent({
+    actions.getTalentTypesUnderParent({
+      talent_profile_id: talentProfileId,
       parent_category_id: selectedParentId,
       query: searchQuery || undefined,
     })
@@ -268,11 +307,11 @@ function AddAspirationPicker({
         }
       })
       .finally(() => setLoadingTypes(false));
-  }, [selectedParentId, searchQuery, existingSkillIds, existingAspirationIds]);
+  }, [actions, selectedParentId, searchQuery, existingSkillIds, existingAspirationIds, talentProfileId]);
 
   const handlePick = async (termId: string) => {
     setSubmittingTypeId(termId);
-    const res = await addAspiration({
+    const res = await actions.addAspiration({
       talent_profile_id: talentProfileId,
       taxonomy_term_id: termId,
     });

@@ -54,8 +54,8 @@ import {
 } from "@/lib/server-actions/admin-talent-skills.types";
 
 import { useDashboardText } from "./dashboard-i18n";
-import { AddSkillSearch } from "./skill-add-search";
-import { CareerInterestsSection } from "./skill-aspirations";
+import { AddSkillSearch, type SkillSearchActions } from "./skill-add-search";
+import { CareerInterestsSection, type CareerInterestActions } from "./skill-aspirations";
 import {
   countSecondaryParents,
   groupSkillsByRoleParent,
@@ -70,6 +70,26 @@ export {
   ProficiencyDotPicker,
   ProficiencyLabel,
 } from "./skill-proficiency";
+
+export type SkillSlotPanelActions = {
+  getResolvedSkills: typeof getResolvedSkills;
+  getAspirations: typeof getAspirations;
+  setTalentProfileSkills: typeof setTalentProfileSkills;
+  updateSkill: typeof updateSkill;
+  verifySkill: typeof verifySkill;
+  unverifySkill: typeof unverifySkill;
+  setFeaturedSkill: typeof setFeaturedSkill;
+};
+
+const adminSkillSlotActions: SkillSlotPanelActions = {
+  getResolvedSkills,
+  getAspirations,
+  setTalentProfileSkills,
+  updateSkill,
+  verifySkill,
+  unverifySkill,
+  setFeaturedSkill,
+};
 
 /**
  * Fire-and-forget prefetch — call when a talent drawer opens so skills data
@@ -101,6 +121,9 @@ export function SkillSlotPanel({
   viewMode = "admin",
   canChooseVerificationScope = false,
   onSkillsChanged,
+  actions = adminSkillSlotActions,
+  searchActions,
+  careerInterestActions,
 }: {
   talentProfileId: string;
   /** Fired after any skill mutation (add / remove / set-primary) so the
@@ -114,6 +137,9 @@ export function SkillSlotPanel({
   /** Phase 4.4 — show platform vs agency scope picker in verify dialog.
    *  Set true for platform-staff role only. Defaults to false (agency only). */
   canChooseVerificationScope?: boolean;
+  actions?: SkillSlotPanelActions;
+  searchActions?: SkillSearchActions;
+  careerInterestActions?: CareerInterestActions;
 }) {
   const copy = useDashboardText();
   const [skills, setSkills] = useState<ResolvedSkill[] | null>(null);
@@ -176,8 +202,8 @@ export function SkillSlotPanel({
 
     const promise = (async () => {
       const [skillsRes, aspirationsRes] = await Promise.all([
-        getResolvedSkills({ talent_profile_id: talentProfileId }),
-        getAspirations({ talent_profile_id: talentProfileId }),
+        actions.getResolvedSkills({ talent_profile_id: talentProfileId }),
+        actions.getAspirations({ talent_profile_id: talentProfileId }),
       ]);
       setLoading(false);
       if (skillsRes.ok) {
@@ -274,7 +300,7 @@ export function SkillSlotPanel({
           )
         : prev,
     );
-    const res = await updateSkill({
+    const res = await actions.updateSkill({
       talent_profile_id: talentProfileId,
       talent_type_term_id: skill.skill_term_id,
       proficiency_level: next,
@@ -302,7 +328,7 @@ export function SkillSlotPanel({
           )
         : prev,
     );
-    const res = await updateSkill({
+    const res = await actions.updateSkill({
       talent_profile_id: talentProfileId,
       talent_type_term_id: skill.skill_term_id,
       years_experience: years,
@@ -359,7 +385,7 @@ export function SkillSlotPanel({
         `${nextSkills.map((s) => s.skill_term_id).join(",")}] ` +
         `payload-sent=${desired.length}`,
     });
-    const res = await setTalentProfileSkills({
+    const res = await actions.setTalentProfileSkills({
       talent_profile_id: talentProfileId,
       skills: desired,
     });
@@ -426,7 +452,7 @@ export function SkillSlotPanel({
     scope: "platform" | "agency",
   ) => {
     setSaving(skill.skill_term_id, true);
-    const res = await verifySkill({
+    const res = await actions.verifySkill({
       talent_profile_id: talentProfileId,
       talent_type_term_id: skill.skill_term_id,
       scope,
@@ -440,7 +466,7 @@ export function SkillSlotPanel({
 
   const handleConfirmUnverify = async (skill: ResolvedSkill) => {
     setSaving(skill.skill_term_id, true);
-    const res = await unverifySkill({
+    const res = await actions.unverifySkill({
       talent_profile_id: talentProfileId,
       talent_type_term_id: skill.skill_term_id,
     });
@@ -451,7 +477,7 @@ export function SkillSlotPanel({
 
   const handleSetFeatured = async (skill: ResolvedSkill) => {
     setSaving(skill.skill_term_id, true);
-    const res = await setFeaturedSkill({
+    const res = await actions.setFeaturedSkill({
       talent_profile_id: talentProfileId,
       talent_type_term_id: skill.skill_term_id,
     });
@@ -622,6 +648,7 @@ export function SkillSlotPanel({
           talentProfileId={talentProfileId}
           existingSkillIds={new Set((skills ?? []).map((s) => s.skill_term_id))}
           initialAspirations={aspirations}
+          actions={careerInterestActions}
         />
       )}
 
@@ -635,6 +662,7 @@ export function SkillSlotPanel({
           }
           totalSkills={totalSkills}
           onClose={() => setAddingForRole(null)}
+          actions={searchActions}
           onAdded={async ({ ids, role, items, parentId, parentName }) => {
             void improntaLog("admin_skill_slot_panel.info", {
               message: `[skills-ui] add submitted ids=[${ids.join(",")}] role=${role}`,
@@ -692,7 +720,7 @@ export function SkillSlotPanel({
                 `${optimistic.map((s) => s.skill_term_id).join(",")}] ` +
                 `payload-sent=${desired.length}`,
             });
-            const res = await setTalentProfileSkills({
+            const res = await actions.setTalentProfileSkills({
               talent_profile_id: talentProfileId,
               skills: desired,
             });
