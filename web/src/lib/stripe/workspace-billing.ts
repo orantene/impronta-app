@@ -143,6 +143,15 @@ export async function createWorkspaceCheckoutSession(opts: {
   }
   const stripe = getStripe()!;
 
+  // Network is sales-assisted; refuse self-serve checkout unless an env price
+  // ID is explicitly configured (future flip: set STRIPE_PRICE_NETWORK_MONTHLY).
+  if (opts.planKey === "network") {
+    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    if (!networkPriceId) {
+      return { ok: false, error: "Network is sales-assisted — no self-serve price configured." };
+    }
+  }
+
   const priceId = getWorkspacePriceId(opts.planKey, "monthly");
   if (!priceId) {
     return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
