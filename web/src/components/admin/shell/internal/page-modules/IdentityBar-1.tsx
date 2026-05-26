@@ -42,6 +42,16 @@ export function TulalaIdentityBar() {
   const copy = useDashboardText();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
+  // Hooks must be called unconditionally (Rules of Hooks). These drive the
+  // "Start a workspace" dialog that only renders on non-platform surfaces, but
+  // the hook registration itself must happen before any early return.
+  const [startWorkspaceDialogOpen, setStartWorkspaceDialogOpen] = useState(false);
+  useEffect(() => {
+    const handler = () => setStartWorkspaceDialogOpen(true);
+    window.addEventListener(START_WORKSPACE_EVENT, handler);
+    return () => window.removeEventListener(START_WORKSPACE_EVENT, handler);
+  }, []);
+
   // Identity bar renders for the three end-user surfaces (workspace +
   // talent + client). Platform HQ has its own dark chrome and skips it.
   if (surface === "platform") return null;
@@ -51,18 +61,6 @@ export function TulalaIdentityBar() {
   const inTalent    = !inWorkspace && !inClient;
   const agencyCount = bridgeTalentAgencies?.length ?? 0;
   const isPureTalent = inTalent && !state.alsoTalent;
-
-  // Shared "Start a workspace" dialog state. Trigger sources:
-  //   1. Account menu item ("Start a workspace") — see AccountMenuTrigger.
-  //   2. "Your agencies" pill click when agencyCount === 0 — onActingClick below.
-  //   3. Talent /today dashboard tile — fires the same window event.
-  // The dialog mount lives at this level so all three entries share state.
-  const [startWorkspaceDialogOpen, setStartWorkspaceDialogOpen] = useState(false);
-  useEffect(() => {
-    const handler = () => setStartWorkspaceDialogOpen(true);
-    window.addEventListener("tulala:open-start-workspace-dialog", handler);
-    return () => window.removeEventListener("tulala:open-start-workspace-dialog", handler);
-  }, []);
   // Resolve client profile from the URL/state-driven id. Two profiles
   // for QA: Martina Beach Club (business) and The Gringo (personal).
   // Inline-defined to dodge HMR cache issues with the fresh export.

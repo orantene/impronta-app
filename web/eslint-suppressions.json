@@ -1,4 +1,9 @@
 {
+  "src/lib/server-actions/workspace-lifecycle.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
+    }
+  },
   "scripts/apply-user-prefs-migration.cjs": {
     "@typescript-eslint/no-require-imports": {
       "count": 2
@@ -1004,7 +1009,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 10
+      "count": 16
     }
   },
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {

@@ -126,11 +126,18 @@ export async function signUpWithEmail(
   }
   const origin = getAppUrl();
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
+  // Talent-register flow: the modal passes next=/onboarding/talent-location.
+  // Tagging signup_intent in user metadata lets the handle_new_user trigger
+  // create the profile with app_role='talent' immediately, avoiding a brief
+  // window where a talent is misidentified as a client.
+  const signupIntent = nextPath.startsWith("/onboarding/talent") ? "talent" : undefined;
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+      data: signupIntent ? { signup_intent: signupIntent } : undefined,
     },
   });
   if (error) {

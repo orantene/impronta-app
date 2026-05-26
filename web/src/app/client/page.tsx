@@ -6,14 +6,12 @@
 // Resolution order:
 //   1. Unauthenticated → /login?next=/client (preserving query)
 //   2. Has agency_client_relationships row → /{slug}/client/today
-//   3. Has client_profiles row but no relationship → /directory
-//      (they completed onboarding but haven't engaged with any agency yet;
-//      browsing talent is the natural surface for them)
+//   3. Has client_profiles row but no relationship → tulala.digital (marketing home)
+//      Clients with no agency attachment are directed to the marketing surface
+//      where they can discover talent. /directory only exists on the marketing
+//      host, so we use an absolute redirect rather than a relative one to avoid
+//      a 404 when this page is served from the app host (app.tulala.digital).
 //   4. No client_profiles row at all → /onboarding/role
-//
-// Phase 4 deletion notes: the legacy global /client surface was removed.
-// Direct-signup clients (no agency relationship) used to land there;
-// /directory now plays that role until an inquiry creates a relationship.
 
 import { redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -21,6 +19,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
+import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +52,10 @@ export default async function ClientRootPage({
     if (error) {
       logServerError("client/root-resolver/profile-lookup", error);
     } else if (profile) {
-      redirect(`/directory${querySuffix}`);
+      // Redirect to the marketing site so the user can discover talent.
+      // /directory is a marketing-host route; using a relative path here
+      // would 404 when served from the app host (app.tulala.digital).
+      redirect(`https://${TULALA_APEX_HOST}`);
     }
   }
 

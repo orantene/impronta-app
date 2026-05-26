@@ -13,7 +13,6 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { X, Loader2, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -110,6 +109,7 @@ export function StartFreeWorkspaceDialog({ open, onOpenChange, defaultWorkspaceN
           )}
         />
         <DialogPrimitive.Content
+          data-platform-surface="marketing"
           className={cn(
             "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
             "w-full max-w-md rounded-2xl border border-border/60 bg-card shadow-xl",
@@ -211,17 +211,26 @@ export function StartFreeWorkspaceDialog({ open, onOpenChange, defaultWorkspaceN
               </div>
             )}
 
-            {/* Submit */}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {/* Submit — Tulala forest palette, consistent with other lifecycle dialogs */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none transition-[background] duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                background: "var(--plt-forest, #1a4a35)",
+                color: "var(--plt-forest-on, #f0f7f4)",
+                boxShadow: "var(--plt-shadow-forest, 0 8px 24px -10px rgba(26,74,53,0.45))",
+              }}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden />
                   Creating workspace…
                 </>
               ) : (
-                "Create workspace"
+                "Create workspace →"
               )}
-            </Button>
+            </button>
           </form>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

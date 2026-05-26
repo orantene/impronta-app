@@ -10,6 +10,7 @@ import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { redeemInvitePayload } from "@/lib/invites/redeem";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -48,6 +49,25 @@ export async function GET(request: Request) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      // Talent-intent promotion for OAuth signups (e.g. Google via the talent
+      // register modal). Email signups pass signup_intent in metadata and the
+      // trigger sets app_role='talent' directly. OAuth signups can't pass
+      // metadata through the provider, so we promote here when the next path
+      // indicates a talent onboarding intent and the profile is freshly created
+      // (app_role='client', account_status='onboarding').
+      if (user && next.startsWith("/onboarding/talent")) {
+        const admin = createServiceRoleClient();
+        if (admin) {
+          await admin
+            .from("profiles")
+            .update({ app_role: "talent" })
+            .eq("id", user.id)
+            .eq("app_role", "client")
+            .eq("account_status", "onboarding");
+        }
+      }
+
       const ensuredProfile = user
         ? await loadAccessProfile(supabase, user.id)
         : null;

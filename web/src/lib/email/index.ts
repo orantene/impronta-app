@@ -17,7 +17,7 @@ function getClient(): Resend | null {
 }
 
 function getFrom(): string {
-  return process.env.EMAIL_FROM ?? "Impronta <noreply@impronta.com>";
+  return process.env.EMAIL_FROM ?? "Tulala <noreply@tulala.digital>";
 }
 
 export type SendEmailInput = {
