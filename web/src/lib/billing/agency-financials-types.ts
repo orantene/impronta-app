@@ -77,7 +77,10 @@ export type AgencyFinancials = {
     /** Workspace lane owed but not yet paid out. */
     pendingPayoutCents: number;
     confirmedBookingsCount: number;
-    currency: "EUR";
+    /** ISO-4217 code of the rows aggregated here. Always one currency
+     * per AgencyFinancials instance; the multi-currency variant returns
+     * a Map of these keyed by currency code. */
+    currency: string;
   };
   /** Month-to-date totals (calendar month, UTC). */
   mtd: {
@@ -125,15 +128,19 @@ function firstOfMonthIso(): string {
 }
 
 /**
- * Pure builder — given a list of rows (already EUR-only, already filtered
- * by `since`), aggregate into the agency-financials projection. Exposed
- * for tests so we can drive the math without a Supabase fixture.
+ * Pure builder — given a list of rows (already filtered by `since` and,
+ * for the by-currency caller, already filtered to one currency code),
+ * aggregate into the agency-financials projection. Exposed for tests so
+ * we can drive the math without a Supabase fixture.
+ *
+ * `opts.currency` overrides the default "EUR" label — used by the by-
+ * currency loader so each per-currency bundle reports its own ISO code.
  */
 export function buildAgencyFinancials(
   rows: AgencyFinancialsRow[],
-  opts?: { mtdSinceIso?: string },
+  opts?: { mtdSinceIso?: string; currency?: string },
 ): AgencyFinancials {
-  const totals = { ...EMPTY_AGENCY_FINANCIALS.totals };
+  const totals = { ...EMPTY_AGENCY_FINANCIALS.totals, currency: opts?.currency ?? "EUR" };
   const mtd = { ...EMPTY_AGENCY_FINANCIALS.mtd };
   const byPaymentStatus: AgencyFinancialsByPaymentStatus = {
     paid: { bookings: 0, grossCents: 0 },

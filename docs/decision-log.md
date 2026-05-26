@@ -4,6 +4,49 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-26 — Multi-currency display (per-actor default + tabs, no FX)
+
+**L49 — Default currency lives on the paying actor; v1 is display-only.**
+
+- **Per-actor column:** `agencies.default_currency` (admin Business
+  Financials) and `talent_profiles.default_currency` (talent Money),
+  both ISO-4217 with a `length = 3` check, default `'EUR'`. We did
+  NOT add it to `profiles` because a single human can be both an
+  agency owner and a talent, and the two surfaces often have different
+  natural currencies (e.g. talent paid in EUR, agency owner books a
+  US client in USD). Per-role is more honest.
+- **Surface:** `/{tenantSlug}/admin/financials` reads
+  `loadAgencyFinancialsByCurrency` (new), groups snapshot rows by
+  `currency_code`, and renders a per-currency tab strip with the
+  agency's `default_currency` selected first. When only one currency
+  is present (the EUR-only steady state today) the strip hides itself
+  and the single bundle renders inline — no regression.
+- **Talent Money:** unchanged at v1. The talent path still calls the
+  EUR-only `fetchTalentSnapshotAggregateRows`; once non-EUR talent
+  earnings appear, the same by-currency pattern applies.
+- **No FX, no conversion math anywhere.** Each bundle stands alone.
+  The "USD as a non-mandatory secondary" idea (owner direction
+  2026-05-26) is **deferred to Phase 2** — when adopted it will be a
+  passive mirror tab populated only when an FX rate source is wired
+  in, and clearly labelled as such.
+- **Settings UI** for the per-actor toggle is **deferred** — today
+  the column is set via SQL or platform admin. Document this in the
+  admin Settings tab as a known follow-up.
+
+**Paths:**
+`supabase/migrations/20260526221829_default_currency_per_actor.sql`,
+`web/src/lib/billing/snapshot-aggregations.ts` (added `includeAllCurrencies` opt),
+`web/src/lib/billing/agency-financials-types.ts` (totals.currency widened to `string`),
+`web/src/lib/billing/agency-financials.ts` (added `loadAgencyFinancialsByCurrency`),
+`web/src/app/(workspace)/[tenantSlug]/admin/financials/page.tsx`,
+`web/src/components/admin/applications/AdminFinancialsCurrencyTabs.tsx`.
+
+**Backward compatible:** Yes (additive columns, EUR remains default; talent surface untouched).
+
+**Migration:** `20260526221829_default_currency_per_actor.sql` (already applied to remote).
+
+---
+
 ## 2026-05-26 — Talent apply flow to agencies + hubs (foundation + UI)
 
 **L48 — Talent applies; staff decides; roster insert stays a separate step.**

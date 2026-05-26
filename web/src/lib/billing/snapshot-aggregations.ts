@@ -316,6 +316,14 @@ export async function fetchTenantSnapshotAggregateRows(
     since: string;
     /** Optional booking-status whitelist. Default: all except cancelled. */
     statusFilter?: ReadonlyArray<"tentative" | "confirmed" | "completed" | "cancelled">;
+    /**
+     * When TRUE, include rows of every currency. Default FALSE matches
+     * the talent-side behavior (EUR-only with a server log on exclusion).
+     * The admin Business Financials by-currency loader sets this TRUE
+     * so the tabs surface can render per-currency totals. Display-only;
+     * no FX math is performed anywhere.
+     */
+    includeAllCurrencies?: boolean;
   },
 ): Promise<TenantSnapshotAggregateRow[]> {
   const { data, error } = await supabase
@@ -397,7 +405,7 @@ export async function fetchTenantSnapshotAggregateRows(
     if (booking.tenant_id !== opts.tenantId) continue; // belt + braces
     if (booking.status === "cancelled") continue;
     if (statusFilter && !statusFilter.includes(booking.status as "confirmed")) continue;
-    if (!isEurRow(row.currency_code, row.booking_id)) continue;
+    if (!opts.includeAllCurrencies && !isEurRow(row.currency_code, row.booking_id)) continue;
 
     const workDateIso =
       booking.event_date ?? booking.starts_at?.slice(0, 10) ?? booking.created_at?.slice(0, 10) ?? null;

@@ -84,3 +84,91 @@ export const loadAgencyFinancials = cache(
     return loadAgencyFinancialsWithSupabase(supabase, tenantId, opts);
   },
 );
+
+export type AgencyFinancialsByCurrency = {
+  /** ISO-4217 code from `agencies.default_currency`. Selected first in tabs. */
+  defaultCurrency: string;
+  /**
+   * Per-currency bundles, sorted with `defaultCurrency` first then by
+   * gross descending. Empty when the tenant has no snapshot rows of any
+   * currency.
+   */
+  byCurrency: AgencyFinancials[];
+  /** All non-empty currency codes for tab labels. */
+  currencies: string[];
+};
+
+const EMPTY_BY_CURRENCY: AgencyFinancialsByCurrency = {
+  defaultCurrency: "EUR",
+  byCurrency: [],
+  currencies: [],
+};
+
+/**
+ * Multi-currency variant of `loadAgencyFinancials` (PR-E, L49).
+ *
+ * Reads ALL currency snapshot rows for the tenant (no EUR filter),
+ * groups by `currencyCode`, projects each bundle through
+ * `buildAgencyFinancials`, and surfaces the agency's
+ * `default_currency` so the tabs UI knows which one to select first.
+ *
+ * Display-only — no FX conversion anywhere. Talent surface keeps its
+ * EUR-only single-currency behavior; this is admin-only at v1.
+ */
+export const loadAgencyFinancialsByCurrency = cache(
+  async (
+    tenantId: string,
+    opts?: { sinceISO?: string },
+  ): Promise<AgencyFinancialsByCurrency> => {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return EMPTY_BY_CURRENCY;
+
+    const since = opts?.sinceISO ?? defaultYtdSinceIso();
+
+    const [snapshotRowsRes, agencyRes] = await Promise.all([
+      fetchTenantSnapshotAggregateRows(supabase, {
+        tenantId,
+        since,
+        includeAllCurrencies: true,
+      }),
+      supabase
+        .from("agencies")
+        .select("default_currency")
+        .eq("id", tenantId)
+        .maybeSingle(),
+    ]);
+
+    const defaultCurrency =
+      ((agencyRes.data as { default_currency?: string } | null)?.default_currency
+        ?? "EUR")
+        .toUpperCase();
+
+    if (snapshotRowsRes.length === 0) {
+      return { defaultCurrency, byCurrency: [], currencies: [] };
+    }
+
+    const byCurrencyRows = new Map<string, AgencyFinancialsRow[]>();
+    for (const snap of snapshotRowsRes) {
+      const code = (snap.currencyCode ?? "EUR").toUpperCase();
+      const list = byCurrencyRows.get(code) ?? [];
+      list.push(mapSnapshotRowToFinancialsRow(snap));
+      byCurrencyRows.set(code, list);
+    }
+
+    const bundles: AgencyFinancials[] = [];
+    for (const [code, rows] of byCurrencyRows) {
+      bundles.push(buildAgencyFinancials(rows, { currency: code }));
+    }
+    bundles.sort((a, b) => {
+      if (a.totals.currency === defaultCurrency) return -1;
+      if (b.totals.currency === defaultCurrency) return 1;
+      return b.totals.ytdGrossCents - a.totals.ytdGrossCents;
+    });
+
+    return {
+      defaultCurrency,
+      byCurrency: bundles,
+      currencies: bundles.map((b) => b.totals.currency),
+    };
+  },
+);

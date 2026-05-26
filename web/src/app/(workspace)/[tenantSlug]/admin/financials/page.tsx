@@ -18,8 +18,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
-import { loadAgencyFinancials } from "@/lib/billing/agency-financials";
+import { loadAgencyFinancials, loadAgencyFinancialsByCurrency } from "@/lib/billing/agency-financials";
 import { loadCommissionContext } from "../../_data-bridge";
+import { AdminFinancialsCurrencyTabs } from "@/components/admin/applications/AdminFinancialsCurrencyTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +43,18 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-function eur(cents: number): string {
-  return new Intl.NumberFormat("en-EU", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.round(cents / 100));
+function money(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-EU", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(cents / 100));
+  } catch {
+    // Unknown ISO code → fall back to bare amount + code suffix.
+    return `${Math.round(cents / 100).toLocaleString()} ${currency}`;
+  }
 }
 
 function formatDate(iso: string | null): string {
@@ -115,59 +121,16 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
-export default async function WorkspaceFinancialsPage({ params }: { params: PageParams }) {
-  const { tenantSlug } = await params;
+import type { AgencyFinancials } from "@/lib/billing/agency-financials-types";
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
-  if (!scope) notFound();
-
-  // Capability gate — owner-class only. Non-billing roles get a 404, not
-  // a blank-state page (matches existing transfer_ownership / suspend
-  // gating elsewhere in the admin tree).
-  const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
-  if (!canManageBilling) notFound();
-
-  const [financials, commission] = await Promise.all([
-    loadAgencyFinancials(scope.tenantId),
-    loadCommissionContext(scope.tenantId),
-  ]);
-
+function FinancialsBundle({ financials }: { financials: AgencyFinancials }) {
   const { totals, mtd, perTalent, topClients, byPaymentStatus } = financials;
-  const policyOriginLabel: Record<string, string> = {
-    free: "Free tier default",
-    studio: "Studio tier default",
-    agency: "Agency tier default",
-    network: "Network tier default",
-  };
-
+  const eur = (cents: number) => money(cents, totals.currency);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
-      {/* ── Header row ── */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
-            {scope.membership.display_name}
-          </div>
-          <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: 0, lineHeight: 1.1 }}>
-            Business financials
-          </h1>
-          <div style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted }}>
-            Revenue, agency commission earned, talent payouts owed. Reads the
-            same snapshot rows as the talent <em>Money</em> view — projected
-            through the agency lens.
-          </div>
-        </div>
-        <Link
-          href={`/${tenantSlug}/admin/bookings`}
-          style={{ fontSize: 12.5, color: C.accent, textDecoration: "underline" }}
-        >
-          View bookings →
-        </Link>
-      </div>
-
       {/* ── P&L strip ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader title="P&L" sub="Calendar year-to-date and current month. EUR only at v1 — non-EUR bookings are excluded." />
+        <SectionHeader title="P&L" sub={`Calendar year-to-date and current month — ${totals.currency} bookings only.`} />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
           <KpiTile label="YTD gross revenue" value={eur(totals.ytdGrossCents)} sub={`${totals.confirmedBookingsCount} confirmed booking${totals.confirmedBookingsCount === 1 ? "" : "s"}`} />
           <KpiTile label="YTD agency commission" value={eur(totals.ytdWorkspaceFeeCents)} sub="Workspace lane (your earnings)" tone="green" />
@@ -188,8 +151,7 @@ export default async function WorkspaceFinancialsPage({ params }: { params: Page
         <SectionHeader title="Per-talent payouts" sub="What this agency owes / has paid each rostered talent, year-to-date." />
         {perTalent.length === 0 ? (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, color: C.inkMuted, fontSize: 13 }}>
-            No commission snapshots yet. Talent payouts appear here as soon as
-            a booking accepts an offer.
+            No commission snapshots yet for this currency.
           </div>
         ) : (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -226,7 +188,7 @@ export default async function WorkspaceFinancialsPage({ params }: { params: Page
         <SectionHeader title="Top clients by gross" sub="Largest revenue contributors year-to-date." />
         {topClients.length === 0 ? (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, color: C.inkMuted, fontSize: 13 }}>
-            No client revenue yet.
+            No client revenue yet for this currency.
           </div>
         ) : (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -269,6 +231,78 @@ export default async function WorkspaceFinancialsPage({ params }: { params: Page
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+export default async function WorkspaceFinancialsPage({ params }: { params: PageParams }) {
+  const { tenantSlug } = await params;
+
+  const scope = await getTenantScopeBySlug(tenantSlug);
+  if (!scope) notFound();
+
+  // Capability gate — owner-class only. Non-billing roles get a 404, not
+  // a blank-state page (matches existing transfer_ownership / suspend
+  // gating elsewhere in the admin tree).
+  const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
+  if (!canManageBilling) notFound();
+
+  const [byCurrency, legacyFinancials, commission] = await Promise.all([
+    loadAgencyFinancialsByCurrency(scope.tenantId),
+    loadAgencyFinancials(scope.tenantId), // used as the empty-state fallback when no rows exist at all
+    loadCommissionContext(scope.tenantId),
+  ]);
+  const bundles = byCurrency.byCurrency.length > 0
+    ? byCurrency.byCurrency
+    : [legacyFinancials];
+  const currencies = byCurrency.byCurrency.length > 0
+    ? byCurrency.currencies
+    : [legacyFinancials.totals.currency];
+
+  const policyOriginLabel: Record<string, string> = {
+    free: "Free tier default",
+    studio: "Studio tier default",
+    agency: "Agency tier default",
+    network: "Network tier default",
+  };
+
+  const tabsChildren: Record<string, React.ReactNode> = {};
+  for (const bundle of bundles) {
+    tabsChildren[bundle.totals.currency] = <FinancialsBundle financials={bundle} />;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+      {/* ── Header row ── */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
+            {scope.membership.display_name}
+          </div>
+          <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: 0, lineHeight: 1.1 }}>
+            Business financials
+          </h1>
+          <div style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted }}>
+            Revenue, agency commission earned, talent payouts owed. Reads the
+            same snapshot rows as the talent <em>Money</em> view — projected
+            through the agency lens.
+          </div>
+        </div>
+        <Link
+          href={`/${tenantSlug}/admin/bookings`}
+          style={{ fontSize: 12.5, color: C.accent, textDecoration: "underline" }}
+        >
+          View bookings →
+        </Link>
+      </div>
+
+      {/* ── Per-currency bundles (tabs when >1 currency present) ── */}
+      <AdminFinancialsCurrencyTabs
+        currencies={currencies}
+        defaultCurrency={byCurrency.defaultCurrency}
+      >
+        {tabsChildren}
+      </AdminFinancialsCurrencyTabs>
 
       {/* ── Commission policy ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
