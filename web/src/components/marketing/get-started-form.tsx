@@ -39,7 +39,11 @@ type Props = {
 };
 
 function preferredLinkPreview(slug: string, tier?: TierKey): string {
-  if (tier === "studio" || tier === "agency" || tier === "network") {
+  // Studio/Agency provision a branded subdomain immediately.
+  // Network leads get a free workspace first (path URL); the branded host
+  // is set up later as part of Network onboarding — surfacing it here
+  // would mis-represent what the user actually receives at signup.
+  if (tier === "studio" || tier === "agency") {
     return reservedBrandedSubdomainHost(slug);
   }
 
@@ -47,9 +51,9 @@ function preferredLinkPreview(slug: string, tier?: TierKey): string {
 }
 
 function preferredLinkLabel(tier?: TierKey): string {
-  return tier === "studio" || tier === "agency" || tier === "network"
+  return tier === "studio" || tier === "agency"
     ? "Preferred branded host"
-    : "Preferred public URL";
+    : "Your public URL";
 }
 
 const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }[] = [
@@ -303,8 +307,9 @@ export function GetStartedForm({
               color: "var(--plt-ink-soft)",
             }}
           >
-            We&apos;ll also be in touch about your Network walkthrough and custom setup — usually
-            within one business day.
+            Your free workspace is ready to explore now. We&apos;ll email{" "}
+            <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to
+            set up the Network plan — pricing, SSO, and a custom domain.
           </p>
         )}
         <ul

@@ -8,9 +8,11 @@
  * subscription needed).
  *
  * Flow:
- *   Paid upgrade  → startWorkspaceUpgrade() → Stripe Checkout URL → redirect
- *   Manage sub    → openSubscriptionPortal() → Billing Portal URL → redirect
- *   Free downgrade → changeWorkspacePlan("free") (existing, no Stripe)
+ *   Studio / Agency      → startWorkspaceUpgrade()      → { ok, redirectUrl } → client redirects to Stripe Checkout
+ *   Network (with price) → startWorkspaceUpgrade()      → { ok, redirectUrl } → client redirects to Stripe Checkout
+ *   Network (no price)   → startWorkspaceUpgrade()      → { ok:false, noStripe:true } → client opens sales mailto
+ *   Manage sub           → openSubscriptionPortal()     → { ok, redirectUrl } → client redirects to Billing Portal
+ *   Free downgrade       → changeWorkspacePlan("free")  (existing, no Stripe)
  */
 
 import { getTenantScopeBySlug } from "@/lib/saas/scope";

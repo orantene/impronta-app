@@ -393,15 +393,18 @@ async function finalizeProvisionResult(params: {
   }
 
   if (isNetworkWorkspaceTierInterest(tierInterest)) {
+    // Founder always wants visibility on any Network signup — whether it
+    // routes to self-serve Stripe checkout or to sales contact.
+    void sendNetworkFounderAlert({
+      slug: params.agency.slug,
+      tenantId: params.agency.id,
+      ownerEmail,
+      ownerName,
+    });
+
     const networkPriceId = getWorkspacePriceId("network", "monthly");
     if (!networkPriceId) {
-      // No self-serve price configured — route to sales contact.
-      void sendNetworkFounderAlert({
-        slug: params.agency.slug,
-        tenantId: params.agency.id,
-        ownerEmail,
-        ownerName,
-      });
+      // No self-serve price configured — sales-contact handoff.
       return {
         ok: true,
         tenantId: params.agency.id,
