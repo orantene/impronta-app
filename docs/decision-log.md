@@ -42,7 +42,6 @@ Append-only. Newest entries at the **top**.
 
 ---
 
-
 ## 2026-05-26 — Multi-currency display (per-actor default + tabs, no FX)
 
 **L49 — Default currency lives on the paying actor; v1 is display-only.**
