@@ -294,6 +294,19 @@ export function GetStartedForm({
             {signedInContinue ? "Open my workspace" : "Create account and open workspace"}
           </a>
         ) : null}
+        {tier === "network" && (
+          <p
+            className="mt-5 rounded-xl border px-4 py-3 text-[0.875rem] leading-[1.55]"
+            style={{
+              borderColor: "rgba(46,107,82,0.25)",
+              background: "rgba(46,107,82,0.06)",
+              color: "var(--plt-ink-soft)",
+            }}
+          >
+            We&apos;ll also be in touch about your Network walkthrough and custom setup — usually
+            within one business day.
+          </p>
+        )}
         <ul
           className="mt-6 space-y-2.5 text-[0.9375rem]"
           style={{ color: "var(--plt-ink-soft)" }}

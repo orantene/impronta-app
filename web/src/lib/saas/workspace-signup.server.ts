@@ -8,7 +8,7 @@ import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
-import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { revalidatePath } from "next/cache";
 import {
   isNetworkWorkspaceTierInterest,
@@ -393,29 +393,34 @@ async function finalizeProvisionResult(params: {
   }
 
   if (isNetworkWorkspaceTierInterest(tierInterest)) {
-    void sendNetworkFounderAlert({
-      slug: params.agency.slug,
-      tenantId: params.agency.id,
-      ownerEmail,
-      ownerName,
-    });
-    return {
-      ok: true,
-      tenantId: params.agency.id,
-      tenantSlug: params.agency.slug,
-      tenantName: params.agency.display_name,
-      adminPath: `${adminPath}?upgrade=network`,
-      publicPath,
-      publicUrl,
-      reusedExisting: params.reusedExisting,
-      requireSalesContact: true,
-    };
+    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    if (!networkPriceId) {
+      // No self-serve price configured — route to sales contact.
+      void sendNetworkFounderAlert({
+        slug: params.agency.slug,
+        tenantId: params.agency.id,
+        ownerEmail,
+        ownerName,
+      });
+      return {
+        ok: true,
+        tenantId: params.agency.id,
+        tenantSlug: params.agency.slug,
+        tenantName: params.agency.display_name,
+        adminPath: `${adminPath}?upgrade=network`,
+        publicPath,
+        publicUrl,
+        reusedExisting: params.reusedExisting,
+        requireSalesContact: true,
+      };
+    }
+    // networkPriceId is set — fall through to the Stripe checkout path below.
   }
 
-  if (isPaidWorkspaceTierInterest(tierInterest)) {
+  if (isPaidWorkspaceTierInterest(tierInterest) || isNetworkWorkspaceTierInterest(tierInterest)) {
     const checkout = await createWorkspaceCheckoutSession({
       tenantId: params.agency.id,
-      planKey: tierInterest,
+      planKey: tierInterest as WorkspacePlanKey,
       ownerEmail,
       displayName: params.agency.display_name,
       tenantSlug: params.agency.slug,
@@ -433,7 +438,7 @@ async function finalizeProvisionResult(params: {
         publicUrl,
         reusedExisting: params.reusedExisting,
         checkoutUrl: checkout.data.url,
-        planKey: tierInterest,
+        planKey: tierInterest as WorkspacePlanKey,
       };
     }
 

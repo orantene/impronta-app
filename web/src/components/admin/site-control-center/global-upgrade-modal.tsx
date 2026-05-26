@@ -30,13 +30,7 @@ export function GlobalUpgradeModal() {
   function handleSelect(plan: Plan) {
     if (pending) return;
 
-    if (plan === "network") {
-      window.open("mailto:hello@impronta.group?subject=Network%20setup", "_blank");
-      setOpen(false);
-      return;
-    }
-
-    if (plan === "studio" || plan === "agency") {
+    if (plan === "studio" || plan === "agency" || plan === "network") {
       const slug = workspace?.slug;
       if (!slug) {
         toast.error("Couldn't identify workspace.");
@@ -46,6 +40,10 @@ export function GlobalUpgradeModal() {
         const result = await startWorkspaceUpgrade(plan as WorkspacePlanKey, slug);
         if (result.ok) {
           window.location.href = result.redirectUrl;
+        } else if (result.noStripe) {
+          // Network has no self-serve price configured — hand off to sales.
+          window.open("mailto:hello@impronta.group?subject=Network%20setup", "_blank");
+          setOpen(false);
         } else {
           toast.error(result.error);
         }
