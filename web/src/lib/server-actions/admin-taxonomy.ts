@@ -1,52 +1,6 @@
 "use server";
 
-// ============================================================================
-// admin-taxonomy.ts — Settings → Roster taxonomy management actions
-// ============================================================================
-//
-// Purpose
-// ───────
-// The Settings → Roster page lets a workspace admin choose WHICH talent
-// types their roster supports, in what order, with what local labels,
-// and which are allowed as primary vs. secondary picks on a talent.
-//
-// This module is the server-side wedge for that UI.
-//
-//   getEnabledTaxonomyTree(tenantId) → 3-layer tree:
-//     parent_category (level 1)
-//       └── talent_type (level 3, parent_id → parent_category)
-//             └── specialty (level 4, parent_id → talent_type) [optional]
-//     each node carries its agency_taxonomy_settings overlay (is_enabled,
-//     allow_as_primary, allow_as_secondary, display_order, custom_label,
-//     show_in_registration, show_in_directory, requires_approval).
-//
-//   setTaxonomyEnabled(...)        → flip on/off for one term × tenant.
-//   setTaxonomyFlags(...)          → bulk update flags on one row.
-//   addCustomSubType(...)          → tenant-local sub-type via
-//                                    agency_taxonomy_terms (NOT a global
-//                                    catalog mutation).
-//   removeCustomSubType(...)       → archive a tenant-local sub-type.
-//
-//   getFieldsForTalent(profileId)  → resolved field set for a talent based
-//                                    on their primary + secondary types,
-//                                    walking parent_category inheritance.
-//                                    Used by the Talent profile drawer to
-//                                    render category-specific sections
-//                                    (Models → physical, Music & DJ →
-//                                    band/singer, Chefs → menu/etc.).
-//
-// All mutating actions:
-//   - require staff role on the tenant (requireStaffTenantAction)
-//   - revalidate the workspace's settings + roster paths
-//   - return a structured { ok, ... } | { ok:false, error }
-//
-// Non-goals for this module:
-//   - Editing the master taxonomy_terms catalog (platform-staff only,
-//     handled in a separate platform-admin server action set).
-//   - Dynamic field schema CRUD (the catalog lives in
-//     profile_field_definitions + profile_field_recommendations and
-//     is platform-curated; tenants get per-field overrides via
-//     workspace_profile_field_settings — handled elsewhere).
+// Server actions for Settings -> Roster taxonomy controls.
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
@@ -62,6 +16,7 @@ import type {
   ResolvedField,
   ResolvedFieldGroup,
 } from "@/lib/field-engine/resolve-talent-fields";
+import { assertCanEnableTenantParentCategory } from "@/lib/taxonomy/tenant-taxonomy-plan-limits";
 
 // Keep legacy type import paths working while the field engine owns the shapes.
 // Use direct type re-export; Turbopack emitted runtime references for local re-export.
@@ -491,6 +446,15 @@ export async function setTaxonomyEnabled(input: {
     .eq("taxonomy_term_id", parsed.data.taxonomy_term_id)
     .maybeSingle();
 
+  if (parsed.data.is_enabled && beforeRow?.is_enabled === false) {
+    const planLimit = await assertCanEnableTenantParentCategory({
+      supabase,
+      tenantId,
+      taxonomyTermId: parsed.data.taxonomy_term_id,
+    });
+    if (!planLimit.ok) return planLimit;
+  }
+
   // Upsert a settings row. The PK is (tenant_id, taxonomy_term_id) per
   // 20260801... migration — relying on that for ON CONFLICT.
   const { error } = await supabase.from("agency_taxonomy_settings").upsert(
@@ -566,6 +530,15 @@ export async function setTaxonomyFlags(
     .eq("tenant_id", tenantId)
     .eq("taxonomy_term_id", taxonomy_term_id)
     .maybeSingle();
+
+  if (flags.is_enabled === true && beforeRow?.is_enabled === false) {
+    const planLimit = await assertCanEnableTenantParentCategory({
+      supabase,
+      tenantId,
+      taxonomyTermId: taxonomy_term_id,
+    });
+    if (!planLimit.ok) return planLimit;
+  }
 
   const { error } = await supabase.from("agency_taxonomy_settings").upsert(
     { tenant_id: tenantId, taxonomy_term_id, ...flags },
