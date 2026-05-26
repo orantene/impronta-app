@@ -8,6 +8,7 @@ const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { StartFreeWorkspaceDialog } from "@/components/talent/start-free-workspace-dialog";
+import { WorkspaceLifecycleDialog } from "@/components/admin/workspace-lifecycle-dialog";
 import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
@@ -461,10 +462,11 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast, state, openDrawer, bridgeTalentSelfProfile, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const { toast, state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
+  const [lifecycleDialogOpen, setLifecycleDialogOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -475,6 +477,19 @@ function AccountMenuTrigger({
   const fireOpenStartWorkspaceDialog = () => {
     window.dispatchEvent(new CustomEvent(START_WORKSPACE_EVENT));
   };
+
+  // Workspace-surface lifecycle entry. Owners see "Archive workspace"
+  // (typed-slug confirmation); members see "Leave workspace" (soft
+  // confirmation). Hidden on talent/client/platform surfaces.
+  const isWorkspaceSurface = state.surface === "workspace";
+  const isWorkspaceOwner = state.role === "owner";
+  const lifecycleMode: "archive" | "leave" = isWorkspaceOwner
+    ? "archive"
+    : "leave";
+  const workspaceDisplayName =
+    bridgeTenantIdentity?.displayName?.trim() ||
+    tenantSlug ||
+    "this workspace";
   // Close on outside click
   useEffect(() => {
     if (!open) return;
@@ -649,6 +664,18 @@ function AccountMenuTrigger({
             </>
           )}
           <div style={{ borderTop: `1px solid ${COLORS.borderSoft}`, marginTop: 4, paddingTop: 4 }}>
+            {isWorkspaceSurface && (
+              <AccountMenuItem
+                label={isWorkspaceOwner ? "Archive workspace" : "Leave workspace"}
+                sub={
+                  isWorkspaceOwner
+                    ? "Hide the workspace — reversible"
+                    : "Remove yourself from this workspace"
+                }
+                tone="coral"
+                onClick={() => { setOpen(false); setLifecycleDialogOpen(true); }}
+              />
+            )}
             <AccountMenuItem
               label={signingOut ? "Signing out…" : "Sign out"}
               sub=""
@@ -669,6 +696,16 @@ function AccountMenuTrigger({
           open={createTalentDialogOpen}
           onOpenChange={setCreateTalentDialogOpen}
           tenantSlug={tenantSlug}
+        />
+      )}
+      {isWorkspaceSurface && tenantSlug && bridgeTenantIdentity?.tenantId && (
+        <WorkspaceLifecycleDialog
+          open={lifecycleDialogOpen}
+          onOpenChange={setLifecycleDialogOpen}
+          mode={lifecycleMode}
+          tenantId={bridgeTenantIdentity.tenantId}
+          workspaceName={workspaceDisplayName}
+          workspaceSlug={tenantSlug}
         />
       )}
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
