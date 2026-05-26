@@ -85,6 +85,7 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+
 ## 2026-05-26 — Talent apply flow to agencies + hubs (foundation + UI)
 
 **L48 — Talent applies; staff decides; roster insert stays a separate step.**
