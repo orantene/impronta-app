@@ -9,20 +9,15 @@ import { UpgradeModal } from "./upgrade-modal";
 import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
+import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
+import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
 
 /**
  * GlobalUpgradeModal — single modal instance mounted at the admin shell.
  *
- * Reads the active plan from {@link useAdminWorkspace} (the live
- * `agencies.plan_tier` row) and writes plan changes back through the
- * `changeWorkspacePlan` server action. After a successful update the
- * router refresh re-renders the layout so the tier-chip + capability
- * gates pick up the new tier without a full reload.
- *
- * Pre-Stripe scaffold: every tier change goes through the same DB write.
- * When real billing lands, paid upgrades will route to Stripe Checkout
- * before this action; the action itself stays as the single source of
- * truth for "this tenant is on tier X."
+ * Free downgrade  → changeWorkspacePlan (direct DB write, no Stripe)
+ * Studio / Agency → startWorkspaceUpgrade → Stripe Checkout redirect
+ * Network         → mailto: sales handoff (no self-serve price yet)
  */
 export function GlobalUpgradeModal() {
   const queueRouterRefresh = useQueuedRouterRefresh();
@@ -34,6 +29,31 @@ export function GlobalUpgradeModal() {
 
   function handleSelect(plan: Plan) {
     if (pending) return;
+
+    if (plan === "network") {
+      window.open("mailto:hello@impronta.group?subject=Network%20setup", "_blank");
+      setOpen(false);
+      return;
+    }
+
+    if (plan === "studio" || plan === "agency") {
+      const slug = workspace?.slug;
+      if (!slug) {
+        toast.error("Couldn't identify workspace.");
+        return;
+      }
+      startTransition(async () => {
+        const result = await startWorkspaceUpgrade(plan as WorkspacePlanKey, slug);
+        if (result.ok) {
+          window.location.href = result.redirectUrl;
+        } else {
+          toast.error(result.error);
+        }
+      });
+      return;
+    }
+
+    // Free downgrade — no Stripe subscription needed
     startTransition(async () => {
       const result = await changeWorkspacePlan(plan);
       if (result.ok) {
