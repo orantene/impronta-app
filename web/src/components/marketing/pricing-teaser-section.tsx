@@ -114,7 +114,7 @@ export function PricingTeaserSection({
           className="mx-auto mt-10 max-w-xl text-center text-[0.875rem]"
           style={{ color: "var(--mkt-muted)" }}
         >
-          WhatsApp notifications roll out to Studio+ during private beta. Currency
+          WhatsApp notifications roll out to Studio+ as features ship. Currency
           converts for LATAM &amp; EU. Annual plans save 20%. No setup fees, no exports
           held hostage — your data is always yours.
         </p>

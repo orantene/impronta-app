@@ -398,6 +398,11 @@ export type TenantManagementDetail = {
   override: WorkspacePlanOverride | null;
   overrideHistory: WorkspacePlanOverride[];
   urls: { publicSite: string; adminDashboard: string; billing: string; customDomain: string | null };
+  signupContext: {
+    audience: string | null;
+    rosterSize: string | null;
+    tierInterest: string | null;
+  } | null;
   members: TenantManagementMember[];
   recentAudit: TenantManagementAuditEntry[];
 };
@@ -464,7 +469,7 @@ export async function loadTenantManagementDetail(
   const { data: agency, error: agencyError } = await sb
     .from("agencies")
     .select(
-      "id, display_name, slug, kind, plan_tier, talent_seat_limit, status, created_at, updated_at",
+      "id, display_name, slug, kind, plan_tier, talent_seat_limit, status, created_at, updated_at, settings",
     )
     .eq("id", tenantId)
     .maybeSingle();
@@ -686,6 +691,28 @@ export async function loadTenantManagementDetail(
   const defaultLocale = identity?.default_locale ?? activeLocales[0] ?? "en";
   const showLanguageSwitcher = identity?.show_language_switcher ?? true;
 
+  const settings =
+    agency.settings && typeof agency.settings === "object" && !Array.isArray(agency.settings)
+      ? (agency.settings as Record<string, unknown>)
+      : null;
+  const signupContext = settings
+    ? {
+        audience:
+          typeof settings.signup_audience === "string" ? settings.signup_audience : null,
+        rosterSize:
+          typeof settings.signup_roster_size === "string"
+            ? settings.signup_roster_size
+            : null,
+        tierInterest:
+          typeof settings.signup_tier_interest === "string"
+            ? settings.signup_tier_interest
+            : null,
+      }
+    : null;
+  const hasSignupContext =
+    signupContext &&
+    (signupContext.audience || signupContext.rosterSize || signupContext.tierInterest);
+
   return {
     id: agency.id,
     name: agency.display_name ?? agency.slug,
@@ -740,6 +767,7 @@ export async function loadTenantManagementDetail(
     override: activeOverride,
     overrideHistory,
     urls,
+    signupContext: hasSignupContext ? signupContext : null,
     members,
     recentAudit: ((auditRes.data ?? []) as Array<{
       action: string;

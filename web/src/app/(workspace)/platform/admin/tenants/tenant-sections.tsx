@@ -184,6 +184,38 @@ function SummarySection({ detail, defaultOpen }: SectionProps) {
           ))}
         </div>
       )}
+      {detail.signupContext ? (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: HQ.cardSofter,
+            border: `1px solid ${HQ.borderSoft}`,
+            fontSize: 12,
+            color: HQ.inkMuted,
+            lineHeight: 1.55,
+          }}
+        >
+          <div style={{ fontWeight: 700, color: HQ.ink, marginBottom: 6 }}>
+            Signup context
+          </div>
+          {detail.signupContext.audience ? (
+            <div>Audience: {detail.signupContext.audience}</div>
+          ) : null}
+          {detail.signupContext.rosterSize ? (
+            <div>Roster size: {detail.signupContext.rosterSize}</div>
+          ) : null}
+          {detail.signupContext.tierInterest ? (
+            <div>Tier interest: {detail.signupContext.tierInterest}</div>
+          ) : null}
+          {detail.owner ? (
+            <div style={{ marginTop: 6 }}>
+              Owner: {detail.owner.displayName} · {detail.owner.email}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </Accordion>
   );
 }

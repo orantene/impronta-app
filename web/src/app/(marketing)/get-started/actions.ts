@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getAppUrl } from "@/lib/auth-flow";
 import { sendEmail } from "@/lib/email";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { findAuthUserIdByEmail } from "@/lib/saas/find-auth-user-by-email";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
   buildWorkspaceOnboardingPath,
@@ -56,11 +57,13 @@ export type GetStartedFieldErrors = Partial<
 export type GetStartedActionResult =
   | {
       ok: true;
+      kind: "created" | "needs_signin";
       leadId: string;
       name: string;
       email: string;
       subdomain: string | null;
       workspaceSignupUrl: string | null;
+      signInUrl?: string;
     }
   | { ok: false; errors: GetStartedFieldErrors };
 
@@ -84,6 +87,27 @@ async function isRequestedLinkTaken(
   return { taken: Boolean(existingDomain || existingSlug), error: false };
 }
 
+async function suggestAlternativeSlugs(
+  supabase: SupabaseClient,
+  base: string,
+): Promise<string[]> {
+  const year = new Date().getFullYear().toString().slice(-2);
+  const candidates = [`${base}-studio`, `${base}-official`, `${base}-${year}`];
+  const available: string[] = [];
+
+  for (const candidate of candidates) {
+    if (!WORKSPACE_SLUG_REGEX.test(candidate)) continue;
+    if (isReservedWorkspaceSlug(candidate)) continue;
+    const check = await isRequestedLinkTaken(supabase, candidate);
+    if (!check.error && !check.taken) {
+      available.push(candidate);
+    }
+    if (available.length >= 3) break;
+  }
+
+  return available;
+}
+
 export async function submitGetStartedSignup(
   _prev: GetStartedActionResult | null,
   formData: FormData,
@@ -92,6 +116,7 @@ export async function submitGetStartedSignup(
   if (honey.length > 0) {
     return {
       ok: true,
+      kind: "created",
       leadId: "filtered",
       name: "",
       email: "",
@@ -187,7 +212,20 @@ export async function submitGetStartedSignup(
     .slice(0, 32);
   const userAgent = h.get("user-agent")?.slice(0, 400) ?? null;
 
+  const actorUserId = String(formData.get("actorUserId") ?? "").trim() || null;
+
+  const existingAuth = await findAuthUserIdByEmail(input.email);
+  if (existingAuth.error) {
+    return {
+      ok: false,
+      errors: { form: "Couldn't verify that email right now. Try again in a minute." },
+    };
+  }
+
   const selfServeEligible = isSelfServeWorkspaceLeadEligible(input.tierInterest);
+  const onboardingPath = (leadId: string) =>
+    `${getAppUrl()}${buildWorkspaceOnboardingPath(leadId)}`;
+
   const { data: inserted, error: insertError } = await supabase
     .from("saas_marketing_signups")
     .insert({
@@ -206,6 +244,7 @@ export async function submitGetStartedSignup(
       source_page: input.sourcePage ?? "/get-started",
       ip_hash: ipHash,
       user_agent: userAgent,
+      ...(actorUserId ? { claimed_by_profile_id: actorUserId } : {}),
     })
     .select("id")
     .single();
@@ -213,6 +252,40 @@ export async function submitGetStartedSignup(
   if (insertError || !inserted) {
     logServerError("get-started/insert", insertError);
     return { ok: false, errors: { form: "Couldn't save your signup. Try again?" } };
+  }
+
+  const leadId = inserted.id as string;
+  const workspaceOnboardingUrl = selfServeEligible ? onboardingPath(leadId) : null;
+
+  if (existingAuth.userId && !actorUserId) {
+    const signInUrl = `${getAppUrl()}/login?next=${encodeURIComponent(
+      buildWorkspaceOnboardingPath(leadId),
+    )}`;
+    try {
+      await sendFounderDigest({
+        leadId,
+        name: input.name.trim(),
+        email: input.email,
+        audience: input.audience,
+        rosterSize: input.rosterSize,
+        subdomain,
+        tierInterest: input.tierInterest ?? null,
+        utmSource: input.utm_source ?? null,
+        referrer: input.referrer ?? null,
+      });
+    } catch (e) {
+      logServerError("get-started/email-existing", e);
+    }
+    return {
+      ok: true,
+      kind: "needs_signin",
+      leadId,
+      name: input.name.trim(),
+      email: input.email,
+      subdomain,
+      workspaceSignupUrl: workspaceOnboardingUrl,
+      signInUrl,
+    };
   }
 
   try {
@@ -223,14 +296,12 @@ export async function submitGetStartedSignup(
         html: renderLeadConfirmationEmail({
           name: input.name.trim(),
           subdomain,
-          workspaceSignupUrl: selfServeEligible
-            ? `${getAppUrl()}${buildWorkspaceOnboardingPath(inserted.id as string)}`
-            : null,
+          workspaceSignupUrl: workspaceOnboardingUrl,
         }),
         replyTo: process.env.EMAIL_REPLY_TO,
       }),
       sendFounderDigest({
-        leadId: inserted.id as string,
+        leadId,
         name: input.name.trim(),
         email: input.email,
         audience: input.audience,
@@ -247,13 +318,12 @@ export async function submitGetStartedSignup(
 
   return {
     ok: true,
-    leadId: inserted.id as string,
+    kind: "created",
+    leadId,
     name: input.name.trim(),
     email: input.email,
     subdomain,
-    workspaceSignupUrl: selfServeEligible
-      ? `${getAppUrl()}${buildWorkspaceOnboardingPath(inserted.id as string)}`
-      : null,
+    workspaceSignupUrl: actorUserId ? workspaceOnboardingUrl : workspaceOnboardingUrl,
   };
 }
 
@@ -379,7 +449,7 @@ function escapeHtml(s: string): string {
  */
 export async function checkSubdomainAvailability(
   candidate: string,
-): Promise<{ available: boolean; reason?: string }> {
+): Promise<{ available: boolean; reason?: string; suggestions?: string[] }> {
   const cleaned = candidate.trim().toLowerCase();
   if (!cleaned) return { available: false, reason: "empty" };
   if (!WORKSPACE_SLUG_REGEX.test(cleaned)) {
@@ -392,6 +462,9 @@ export async function checkSubdomainAvailability(
   if (!supabase) return { available: true };
   const availability = await isRequestedLinkTaken(supabase, cleaned);
   if (availability.error) return { available: true };
-  if (availability.taken) return { available: false, reason: "taken" };
+  if (availability.taken) {
+    const suggestions = await suggestAlternativeSlugs(supabase, cleaned);
+    return { available: false, reason: "taken", suggestions };
+  }
   return { available: true };
 }

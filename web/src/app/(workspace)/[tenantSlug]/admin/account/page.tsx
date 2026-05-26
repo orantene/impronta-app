@@ -35,7 +35,11 @@ import { loadWorkspaceOverrideBanner } from "../../../platform/tenant-management
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
-type SearchParams = Promise<{ pmsg?: string; perr?: string }>;
+type SearchParams = Promise<{
+  pmsg?: string;
+  perr?: string;
+  billing?: string;
+}>;
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -214,7 +218,16 @@ export default async function WorkspaceAccountPage({
   searchParams: SearchParams;
 }) {
   const { tenantSlug } = await params;
-  const { pmsg, perr } = await searchParams;
+  const resolvedSearch = await searchParams;
+  const { pmsg, perr, billing } = resolvedSearch;
+  const billingNotice =
+    billing === "success"
+      ? "Your subscription is active. Plan features and seat limits update within a minute."
+      : billing === "cancelled"
+        ? "Checkout was cancelled. Your workspace is still on the Free plan."
+        : billing === "checkout_failed"
+          ? "We couldn't open checkout. Upgrade from this page when you're ready."
+          : null;
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
@@ -291,6 +304,11 @@ export default async function WorkspaceAccountPage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+      {billingNotice ? (
+        <div style={{ border: `1px solid ${C.border}`, background: C.accentSoft, color: C.accent, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
+          {billingNotice}
+        </div>
+      ) : null}
       {pmsg ? (
         <div style={{ border: `1px solid ${C.border}`, background: C.accentSoft, color: C.accent, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
           {pmsg}

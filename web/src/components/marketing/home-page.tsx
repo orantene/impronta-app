@@ -1,3 +1,4 @@
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { AudienceSplitSection } from "./audience-split-section";
 import { ContrastSection } from "./contrast-section";
 import { FaqSection } from "./faq-section";
@@ -30,11 +31,20 @@ import { TrustStripSection } from "./trust-strip-section";
  * Wrapped in `MarketingAnalyticsTracker` so each section fires a
  * `marketing_section_viewed` event when it crosses the viewport.
  */
-export function MarketingHomePage() {
+export async function MarketingHomePage() {
+  const actor = await getCachedActorSession();
+  const signedIn = actor.user
+    ? {
+        userId: actor.user.id,
+        email: actor.user.email ?? "",
+        displayName: actor.profile?.display_name ?? null,
+      }
+    : null;
+
   return (
     <MarketingAnalyticsTracker sourcePage="home">
       <div data-mkt-section="hero">
-        <HeroSection />
+        <HeroSection signedIn={signedIn} />
       </div>
       <div data-mkt-section="lifestyle-band">
         <LifestyleBandSection />

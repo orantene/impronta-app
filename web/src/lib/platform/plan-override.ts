@@ -40,7 +40,7 @@ export const PLAN_TIER_LABEL: Record<WorkspacePlanTier, string> = {
  * — keep all three in sync.
  */
 export const PLAN_TIER_SEAT_LIMIT: Record<WorkspacePlanTier, number | null> = {
-  free: 10,
+  free: 5,
   studio: 50,
   agency: 200,
   network: null,

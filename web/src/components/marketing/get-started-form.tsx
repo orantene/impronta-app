@@ -24,9 +24,18 @@ type AudienceKey = "operator" | "agency" | "organization";
 type RosterBucket = "1-5" | "6-20" | "21-50" | "50+";
 type TierKey = "free" | "studio" | "agency" | "network";
 
+export type GetStartedSignedIn = {
+  userId: string;
+  email: string;
+  displayName: string | null;
+};
+
 type Props = {
   initialAudience?: AudienceKey;
   tier?: TierKey;
+  variant?: "page" | "compact";
+  initialSignedIn?: GetStartedSignedIn;
+  sourcePage?: string;
 };
 
 function preferredLinkPreview(slug: string, tier?: TierKey): string {
@@ -65,17 +74,48 @@ type SubdomainState =
   | { status: "idle" }
   | { status: "checking" }
   | { status: "available"; value: string }
-  | { status: "unavailable"; reason: "format" | "reserved" | "taken" | "empty" };
+  | {
+      status: "unavailable";
+      reason: "format" | "reserved" | "taken" | "empty";
+      suggestions?: string[];
+    };
 
-export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
+function submitCtaLabel(tier: TierKey | undefined, audience: AudienceKey): string {
+  if (tier === "studio") return "Continue to Studio checkout";
+  if (tier === "agency") return "Continue to Agency checkout";
+  if (tier === "network" || audience === "organization") {
+    return "Request Network setup";
+  }
+  if (audience === "agency") return "Continue to Agency checkout";
+  return "Create my free workspace";
+}
+
+function rosterTierHint(rosterSize: RosterBucket, tier?: TierKey): string | null {
+  if (tier && tier !== "free") return null;
+  if (rosterSize === "21-50" || rosterSize === "50+") {
+    return "Most teams your size choose Agency — 200 seats, branded site, $149/mo.";
+  }
+  if (rosterSize === "6-20") {
+    return "Studio fits growing rosters — 50 seats and WhatsApp notifications, $49/mo.";
+  }
+  return null;
+}
+
+export function GetStartedForm({
+  initialAudience = "operator",
+  tier,
+  variant = "page",
+  initialSignedIn,
+  sourcePage = "/get-started",
+}: Props) {
   const [state, formAction, isPending] = useActionState<
     GetStartedActionResult | null,
     FormData
   >(submitGetStartedSignup, null);
 
   const [audience, setAudience] = useState<AudienceKey>(initialAudience);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(initialSignedIn?.displayName ?? "");
+  const [email, setEmail] = useState(initialSignedIn?.email ?? "");
   const [subdomain, setSubdomain] = useState("");
   const [rosterSize, setRosterSize] = useState<RosterBucket>("1-5");
   const [subdomainState, setSubdomainState] = useState<SubdomainState>({ status: "idle" });
@@ -124,6 +164,7 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
             setSubdomainState({
               status: "unavailable",
               reason: (res.reason as "format" | "reserved" | "taken" | "empty") ?? "format",
+              suggestions: res.suggestions,
             });
           }
         } catch {
@@ -150,7 +191,51 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
 
   const errors = state && !state.ok ? state.errors : {};
 
+  if (state?.ok && state.kind === "needs_signin") {
+    return (
+      <div
+        className="rounded-[24px] border p-8 sm:p-10"
+        style={{
+          background: "var(--plt-bg-raised)",
+          borderColor: "var(--plt-hairline-strong)",
+          boxShadow: "0 28px 60px -30px rgba(15,23,20,0.22)",
+        }}
+      >
+        <h3
+          className="plt-display text-[1.5rem] font-medium leading-[1.1] tracking-[-0.02em]"
+          style={{ color: "var(--plt-ink)" }}
+        >
+          Sign in to claim your link
+        </h3>
+        <p className="mt-4 text-[0.9375rem] leading-[1.6]" style={{ color: "var(--plt-muted)" }}>
+          An account already exists for{" "}
+          <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>. Sign in to finish
+          creating{" "}
+          <strong style={{ color: "var(--plt-ink)" }}>
+            {preferredLinkPreview(state.subdomain ?? "your-roster", tier)}
+          </strong>
+          .
+        </p>
+        {state.signInUrl ? (
+          <a
+            href={state.signInUrl}
+            className="mt-6 inline-flex items-center justify-center rounded-full px-5 py-3 text-[0.875rem] font-medium transition-colors hover:opacity-90"
+            style={{
+              background: "var(--plt-forest)",
+              color: "var(--plt-on-inverse)",
+            }}
+          >
+            Sign in and claim workspace
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+
   if (state?.ok) {
+    const signedInContinue =
+      initialSignedIn && state.workspaceSignupUrl ? state.workspaceSignupUrl : null;
+
     return (
       <div
         className="rounded-[24px] border p-8 sm:p-10"
@@ -197,16 +282,16 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
             </>
           )}
         </p>
-        {state.workspaceSignupUrl ? (
+        {signedInContinue || state.workspaceSignupUrl ? (
           <a
-            href={state.workspaceSignupUrl}
+            href={signedInContinue ?? state.workspaceSignupUrl ?? "#"}
             className="mt-6 inline-flex items-center justify-center rounded-full px-5 py-3 text-[0.875rem] font-medium transition-colors hover:opacity-90"
             style={{
               background: "var(--plt-forest)",
               color: "var(--plt-on-inverse)",
             }}
           >
-            Create account and open workspace
+            {signedInContinue ? "Open my workspace" : "Create account and open workspace"}
           </a>
         ) : null}
         <ul
@@ -279,10 +364,28 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
       <input type="hidden" name="utm_term" value={attributionRef.current.utm_term ?? ""} />
       <input type="hidden" name="utm_content" value={attributionRef.current.utm_content ?? ""} />
       <input type="hidden" name="referrer" value={attributionRef.current.referrer ?? ""} />
-      <input type="hidden" name="sourcePage" value="/get-started" />
+      <input type="hidden" name="sourcePage" value={sourcePage} />
       <input type="hidden" name="tierInterest" value={tier ?? ""} />
       <input type="hidden" name="audience" value={audience} />
       <input type="hidden" name="rosterSize" value={rosterSize} />
+      {initialSignedIn ? (
+        <input type="hidden" name="actorUserId" value={initialSignedIn.userId} />
+      ) : null}
+
+      {initialSignedIn ? (
+        <div
+          className="mb-5 rounded-xl border px-4 py-3 text-[0.8125rem] leading-[1.5]"
+          style={{
+            borderColor: "var(--plt-hairline)",
+            background: "rgba(46,107,82,0.06)",
+            color: "var(--plt-ink-soft)",
+          }}
+        >
+          You&apos;re signed in as{" "}
+          <strong style={{ color: "var(--plt-ink)" }}>{initialSignedIn.email}</strong>. This
+          workspace will be added to your account.
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <span
@@ -305,10 +408,14 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
       </div>
 
       <h3
-        className="plt-display mt-3 text-[1.5rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[1.75rem]"
+        className={`plt-display mt-3 font-medium leading-[1.1] tracking-[-0.02em] ${
+          variant === "compact"
+            ? "text-[1.35rem] sm:text-[1.5rem]"
+            : "text-[1.5rem] sm:text-[1.75rem]"
+        }`}
         style={{ color: "var(--plt-ink)" }}
       >
-        Start in under ten minutes.
+        {variant === "compact" ? "Claim your Tulala link" : "Start in under ten minutes."}
       </h3>
 
       <fieldset className="mt-6">
@@ -406,6 +513,7 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
           onChange={setEmail}
           placeholder="you@roster.com"
           required
+          readOnly={Boolean(initialSignedIn)}
           error={errors.email}
         />
       </div>
@@ -478,7 +586,12 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
             </span>
           ) : null}
         </div>
-        <SubdomainHint state={subdomainState} serverError={errors.subdomain} tier={tier} />
+        <SubdomainHint
+          state={subdomainState}
+          serverError={errors.subdomain}
+          tier={tier}
+          onPickSuggestion={setSubdomain}
+        />
       </div>
 
       <fieldset className="mt-6">
@@ -509,6 +622,11 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
             );
           })}
         </div>
+        {rosterTierHint(rosterSize, tier) ? (
+          <p className="mt-3 text-[0.75rem] leading-[1.5]" style={{ color: "var(--plt-muted)" }}>
+            {rosterTierHint(rosterSize, tier)}
+          </p>
+        ) : null}
       </fieldset>
 
       {errors.form ? (
@@ -535,7 +653,7 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
           boxShadow: "0 18px 40px -18px rgba(31,74,58,0.55)",
         }}
       >
-        {isPending ? "Reserving your link…" : "Claim your roster link"}
+        {isPending ? "Reserving your link…" : submitCtaLabel(tier, audience)}
         <svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden>
           <path
             d="M1 5H13M13 5L9 1M13 5L9 9"
@@ -561,10 +679,12 @@ function SubdomainHint({
   state,
   serverError,
   tier,
+  onPickSuggestion,
 }: {
   state: SubdomainState;
   serverError?: string;
   tier?: TierKey;
+  onPickSuggestion?: (slug: string) => void;
 }) {
   if (serverError) {
     return (
@@ -609,15 +729,35 @@ function SubdomainHint({
       );
     case "unavailable":
       return (
-        <p className="mt-2 text-[0.75rem]" style={{ color: "#8a3e2e" }}>
-          {state.reason === "taken"
-            ? "That link is already in use — try another."
-            : state.reason === "reserved"
-              ? "That link is reserved — try another."
-              : state.reason === "format"
-                ? "Use lowercase letters, numbers, or hyphens (no leading/trailing hyphen)."
-                : "Enter a link to continue."}
-        </p>
+        <div className="mt-2">
+          <p className="text-[0.75rem]" style={{ color: "#8a3e2e" }}>
+            {state.reason === "taken"
+              ? "That link is already in use — try another."
+              : state.reason === "reserved"
+                ? "That link is reserved — try another."
+                : state.reason === "format"
+                  ? "Use lowercase letters, numbers, or hyphens (no leading/trailing hyphen)."
+                  : "Enter a link to continue."}
+          </p>
+          {state.suggestions && state.suggestions.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {state.suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  className="rounded-full border px-3 py-1 text-[0.75rem] font-medium transition-colors hover:border-[var(--plt-forest)]"
+                  style={{
+                    borderColor: "var(--plt-hairline-strong)",
+                    color: "var(--plt-forest)",
+                  }}
+                  onClick={() => onPickSuggestion?.(suggestion)}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       );
   }
 }
@@ -630,6 +770,7 @@ function TextField({
   placeholder,
   type = "text",
   required = false,
+  readOnly = false,
   error,
 }: {
   label: string;
@@ -639,6 +780,7 @@ function TextField({
   placeholder: string;
   type?: string;
   required?: boolean;
+  readOnly?: boolean;
   error?: string;
 }) {
   const fieldId = useId();
@@ -660,6 +802,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
+        readOnly={readOnly}
         aria-invalid={Boolean(error) || undefined}
         aria-describedby={errId}
         className="mt-2 block h-12 w-full rounded-xl border bg-[var(--plt-bg)] px-4 text-[0.9375rem] outline-none transition-all duration-200 placeholder:text-[var(--plt-muted-soft)] focus:border-[var(--plt-forest)] focus:bg-[var(--plt-bg-raised)] focus:shadow-[0_0_0_3px_rgba(46,107,82,0.1)]"
