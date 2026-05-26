@@ -1415,7 +1415,12 @@ export function TalentProfileShellDrawer() {
     }
   }, [activeSection, showPolaroidsSection]);
   useEffect(() => {
-    if (profileFieldNavGroups.length === 0) {
+    // Clear the active group when there are no nav groups OR no selected talent
+    // types. Without the second guard, removing the last service leaves
+    // `activeProfileFieldGroupKey` (and a stale `selectedTalentTypeSlugs` read)
+    // out of sync for a render, flashing "No extra fields are configured for
+    // this type." instead of "Select a talent type in Services…".
+    if (profileFieldNavGroups.length === 0 || selectedTalentTypeSlugs.length === 0) {
       if (activeProfileFieldGroupKey !== null) setActiveProfileFieldGroupKey(null);
       return;
     }
@@ -1425,7 +1430,7 @@ export function TalentProfileShellDrawer() {
     ) {
       setActiveProfileFieldGroupKey(profileFieldNavGroups[0]?.key ?? null);
     }
-  }, [profileFieldNavGroups, activeProfileFieldGroupKey]);
+  }, [profileFieldNavGroups, activeProfileFieldGroupKey, selectedTalentTypeSlugs]);
   useEffect(() => {
     if (activeSection === "profile_fields" && profileFieldNavGroups.length > 0) {
       setProfileFieldRailOpen(true);
