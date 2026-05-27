@@ -37,7 +37,7 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
       "A free Tulala URL, up to five people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
   },
   studio: {
-    eyebrow: "Studio · $19/mo",
+    eyebrow: "Studio · $49/mo",
     title: "The pipeline, plus WhatsApp.",
     subtitle:
       "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
@@ -529,7 +529,7 @@ function PlanLadderSection() {
           />
           <PlanCard
             tier="Studio"
-            price="$19"
+            price="$49"
             cadence="per month"
             tagline="Where your inquiries actually happen."
             highlights={[
@@ -544,7 +544,7 @@ function PlanLadderSection() {
           <PlanCard
             featured
             tier="Agency"
-            price="$49"
+            price="$149"
             cadence="per month"
             tagline="A branded business surface."
             highlights={[

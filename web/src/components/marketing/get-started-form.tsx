@@ -103,7 +103,7 @@ function isPaidTier(tier?: TierKey): tier is "studio" | "agency" {
 }
 
 function formFinePrint(tier?: TierKey): string {
-  if (tier === "studio") return "Studio · $19/mo · Cancel any time";
+  if (tier === "studio") return "Studio · $49/mo · Cancel any time";
   if (tier === "agency") return "Agency · 14-day free trial · Cancel any time";
   if (tier === "network") return "Network · We’ll set up pricing with you";
   return "No credit card · Free plan forever · Upgrade when you’re ready";
