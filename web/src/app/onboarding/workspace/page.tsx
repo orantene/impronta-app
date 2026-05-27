@@ -8,16 +8,42 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+const SUPPORT_EMAIL = "hello@impronta.group";
+
+function buildSupportMailto(leadId: string, state: string): string {
+  const subject = encodeURIComponent(
+    leadId
+      ? `Workspace setup failed — lead ${leadId}`
+      : `Workspace setup failed`,
+  );
+  const body = encodeURIComponent(
+    [
+      `Hi Tulala team,`,
+      ``,
+      `I couldn't finish workspace setup.`,
+      leadId ? `Lead reference: ${leadId}` : null,
+      state ? `State: ${state}` : null,
+      ``,
+      `(Please add any details about what happened just before this email.)`,
+    ]
+      .filter((line) => line !== null)
+      .join("\n"),
+  );
+  return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+}
+
 function WorkspaceStateCard({
   title,
   message,
   primaryHref,
   primaryLabel,
+  supportMailto,
 }: {
   title: string;
   message: string;
   primaryHref: string;
   primaryLabel: string;
+  supportMailto?: string;
 }) {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
@@ -31,9 +57,15 @@ function WorkspaceStateCard({
           <Button asChild className="w-full">
             <Link href={primaryHref}>{primaryLabel}</Link>
           </Button>
-          <Button asChild className="w-full" variant="outline">
-            <a href={`${getSiteUrl()}/get-started`}>Back to Get Started</a>
-          </Button>
+          {supportMailto ? (
+            <Button asChild className="w-full" variant="outline">
+              <a href={supportMailto}>Get help</a>
+            </Button>
+          ) : (
+            <Button asChild className="w-full" variant="outline">
+              <a href={`${getSiteUrl()}/get-started`}>Back to Get Started</a>
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -105,15 +137,37 @@ export default async function OnboardingWorkspacePage({
     redirect(result.adminPath);
   }
 
+  // Retryable = the provisioner hit a transient error. Send the user BACK
+  // to this same route with the same lead ID — provisionWorkspaceFromLead
+  // is idempotent (it reuses already-claimed tenants and owned free
+  // workspaces), so re-entering the trampoline is the right recovery.
+  // Previously this pointed at `/register?lead=<id>`, which is wrong for
+  // an already-signed-in user and just dropped them out of the funnel.
   const retryable =
     result.error === "service_unavailable" || result.error === "provision_failed";
+
+  // Show a Get-help mailto on any handled failure that needs human
+  // intervention. Skip the mailto on `invalid_lead` (lead doesn't exist
+  // or is in the wrong shape — the user just needs to start over).
+  const showSupportMailto =
+    result.error === "service_unavailable" ||
+    result.error === "provision_failed" ||
+    result.error === "claimed_elsewhere" ||
+    result.error === "unsupported_existing_role";
 
   return (
     <WorkspaceStateCard
       title="We couldn't open the workspace yet"
       message={result.message}
-      primaryHref={retryable ? buildWorkspaceRegisterPath(leadId) : `${getSiteUrl()}/get-started`}
-      primaryLabel={retryable ? "Try workspace signup again" : "Start again"}
+      primaryHref={
+        retryable
+          ? `/onboarding/workspace?lead=${encodeURIComponent(leadId)}`
+          : `${getSiteUrl()}/get-started`
+      }
+      primaryLabel={retryable ? "Try again" : "Start again"}
+      supportMailto={
+        showSupportMailto ? buildSupportMailto(leadId, result.error) : undefined
+      }
     />
   );
 }
