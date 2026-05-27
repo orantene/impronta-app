@@ -1079,3 +1079,105 @@ test("resolver: deprecated_at IS NOT NULL fields are excluded by the catalog que
     assert.ok(!keys.includes("physical.weight_kg"), "deprecated field should be excluded");
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// viewerRole is a pass-through (regression guard against silent branching).
+//
+// The `viewerRole` parameter is reserved for future per-viewer trimming.
+// Today the resolver returns the same field set regardless. Public-surface
+// gating is enforced downstream by the three helpers in
+// `web/src/lib/field-engine/public-surface-visibility.ts`. Per-render gating
+// is enforced by `canViewerSee` in callers.
+//
+// If a future contributor adds branching inside the resolver without
+// updating the downstream helper gates, THIS TEST FAILS and forces a
+// conscious decision about where the source of truth lives. Do NOT loosen
+// this test silently — update the JSDoc on viewerRole + audit consumers
+// FIRST.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const VIEWER_ROLES_TO_PIN = [
+  "agency_admin",
+  "platform_admin",
+  "talent",
+  "manager",
+  "public",
+  "client",
+] as const;
+
+test("resolver: viewerRole is a pass-through (same field set for every role)", async () => {
+  // Build a fixture covering field shapes that, in a future role-aware
+  // resolver, would be candidates for trimming: admin_only, is_sensitive,
+  // and a vanilla universal field.
+  const makeSb = () =>
+    buildMockSupabase({
+      agency_talent_roster: [rosterActive()],
+      talent_profile_field_values: [],
+      talent_profile_taxonomy: [],
+      profile_field_definitions: [
+        fieldDef({ id: "fd-universal", field_key: "identity.name", tier: "universal" }),
+        fieldDef({
+          id: "fd-admin-only",
+          field_key: "internal.notes",
+          tier: "universal",
+          admin_only: true,
+        }),
+        fieldDef({
+          id: "fd-sensitive",
+          field_key: "identity.contact",
+          tier: "universal",
+          is_sensitive: true,
+        }),
+      ],
+      profile_field_groups: [],
+      parent_category_field_groups: [],
+      profile_field_recommendations: [],
+      workspace_field_group_settings: [],
+      workspace_profile_field_settings: [],
+    });
+
+  const results = [] as Array<{ role: string; keys: string[]; signatures: string[] }>;
+  for (const role of VIEWER_ROLES_TO_PIN) {
+    const r = await resolveTalentFields({
+      supabase: makeSb(),
+      talentProfileId: TALENT,
+      tenantId: TENANT,
+      viewerRole: role,
+    });
+    assert.equal(r.ok, true, `viewerRole=${role} should resolve ok`);
+    if (!r.ok) continue;
+    const keys = r.fields.map((f) => f.field_key).sort();
+    // Field-id+key shape signature — catches any silent omission.
+    const signatures = r.fields
+      .map((f) => `${f.field_definition_id}:${f.field_key}:${f.tier}`)
+      .sort();
+    results.push({ role, keys, signatures });
+  }
+
+  // Every role MUST see the same fields. The admin_only and is_sensitive
+  // rows MUST be present even for "public" — gating is downstream.
+  const baseline = results[0];
+  assert.ok(baseline, "at least one role must have resolved");
+  for (const r of results) {
+    assert.deepStrictEqual(
+      r.keys,
+      baseline!.keys,
+      `viewerRole=${r.role} returned different field keys than viewerRole=${baseline!.role} — viewerRole branching detected, audit downstream gates and update the JSDoc + this test before loosening`,
+    );
+    assert.deepStrictEqual(
+      r.signatures,
+      baseline!.signatures,
+      `viewerRole=${r.role} returned different field signatures than viewerRole=${baseline!.role} — viewerRole branching detected`,
+    );
+  }
+  // Specifically: the admin_only + is_sensitive fields are visible to ALL
+  // roles in the resolver output (helpers gate downstream).
+  assert.ok(
+    baseline!.keys.includes("internal.notes"),
+    "admin_only field must appear in resolver output for all roles",
+  );
+  assert.ok(
+    baseline!.keys.includes("identity.contact"),
+    "is_sensitive field must appear in resolver output for all roles",
+  );
+});

@@ -357,8 +357,18 @@ export type ResolveTalentFieldsInput = {
   talentProfileId: string;
   tenantId: string;
   /** Reserved for future viewer-scoped trimming (e.g. hiding admin_only
-   *  fields from non-staff). Today the resolver returns the same field set
-   *  regardless — visibility is decided per-render via `canViewerSee`. */
+   *  fields from non-staff). **TODAY THIS PARAMETER IS A PASS-THROUGH.**
+   *  The resolver returns the same field set regardless of viewerRole.
+   *  Public-surface gating is enforced downstream by the three helpers in
+   *  `web/src/lib/field-engine/public-surface-visibility.ts`:
+   *    - `isResolvedFieldVisibleInDirectoryFilter`
+   *    - `isResolvedFieldVisibleOnDirectoryCard`
+   *    - `isResolvedFieldVisibleInPublicProfileSidebar`
+   *  Per-render gating is enforced by `canViewerSee` in callers.
+   *  The pass-through is pinned by a regression test in
+   *  resolve-talent-fields.test.ts ("viewerRole is a pass-through").
+   *  If you add branching here, you MUST update that test AND audit every
+   *  consumer to ensure the helper gates are still the source of truth. */
   viewerRole: ResolverViewerRole;
 };
 
