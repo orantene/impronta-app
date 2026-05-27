@@ -398,11 +398,9 @@ export function TalentTaxDocsDrawer() {
 
       <div className="flex flex-col gap-2">
         {[
-          // L47 — live route for this year's income summary. Other rows
-          // remain mock copies until their real generators land.
-          { label: `${new Date().getUTCFullYear()} income summary`, body: "Platform-reported earnings only · generates on demand", action: "Open", href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
-          { label: "2026 W-8BEN form", body: "On file · expires Dec 2029 (mock)", action: "Download" },
-          { label: "2025 income summary (1099-K equivalent)", body: "EU residents: tax receipt PDF · €18,420 reported (mock)", action: "Download" },
+          { label: `${new Date().getUTCFullYear()} income summary`, body: "Platform-reported earnings only · PDF download", action: "Download", href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
+          { label: "W-8BEN form", body: "Official IRS form — opens irs.gov in a new tab", action: "Open", href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
+          { label: "2025 income summary", body: "Platform-reported earnings only · PDF download", action: "Download", href: "/api/talent/tax-summary?year=2025" },
         ].map((doc, idx) => (
           <button
             key={idx}
