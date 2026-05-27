@@ -163,8 +163,15 @@ export type BridgeData = {
   userNotifications?: UserNotification[] | null;
   /** B.3 — talent calendar entries (bookings + holds + blocks). null = mock mode. */
   talentCalendarEntries?: TalentCalendarEntry[] | null;
-  /** Phase D — talent earnings aggregated from commission snapshots. null = mock mode. */
-  talentEarnings?: import("@/lib/talent/earnings-types").TalentEarnings | null;
+  /**
+   * Phase D — talent earnings aggregated from commission snapshots. null = mock mode.
+   * L49 (talent Money tabs): upgraded to `TalentEarningsByCurrency` so the Money
+   * surface can render a per-currency tab strip when the talent has multi-currency
+   * earnings. The bridge-derived `bridgeTalentEarnings` in the context continues to
+   * expose the primary bundle as a plain `TalentEarnings` for backward-compat
+   * consumers (IdentityBar KPI strip, useResolvedTalentEarnings fallback).
+   */
+  talentEarnings?: import("@/lib/talent/earnings-by-currency").TalentEarningsByCurrency | null;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**

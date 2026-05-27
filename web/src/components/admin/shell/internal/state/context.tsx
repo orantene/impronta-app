@@ -15,6 +15,8 @@ import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder } from "../data-bridge";
 import type { TalentEarnings } from "@/lib/talent/earnings-types";
+import type { TalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { primaryBundleOrEmpty, EMPTY_TALENT_EARNINGS_BY_CURRENCY } from "@/lib/talent/earnings-by-currency";
 import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-flags-tenant-slug";
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
@@ -278,8 +280,19 @@ type Ctx = {
   /**
    * Phase E / D — talent earnings from commission snapshots. `null` means mock
    * mode (Money page falls back to EARNINGS_ROWS fixtures).
+   *
+   * This is the **primary-currency bundle** extracted from
+   * `bridgeTalentEarningsByCurrency` (backward-compat value for IdentityBar
+   * KPI strip and other single-currency consumers).
    */
   bridgeTalentEarnings: TalentEarnings | null;
+  /**
+   * L49 (talent Money tabs) — full multi-currency result. `null` means mock
+   * mode. The Money surface uses this to render a per-currency tab strip when
+   * the talent has earnings in more than one currency; otherwise falls back to
+   * the single-inline layout via `bridgeTalentEarnings`. Display-only.
+   */
+  bridgeTalentEarningsByCurrency: TalentEarningsByCurrency | null;
   /**
    * B.2 — Notifications feed loaded from `user_notifications`. `null` means
    * the layout didn't load it (fall back to MOCK NOTIFICATIONS in drawer);
@@ -1711,7 +1724,16 @@ export function AdminShellProvider({
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
   const bridgeTalentAgencies = initialBridgeData?.talentAgencies ?? null;
-  const bridgeTalentEarnings = initialBridgeData?.talentEarnings ?? null;
+  const bridgeTalentEarningsByCurrency: TalentEarningsByCurrency | null =
+    initialBridgeData?.talentEarnings ?? null;
+  // Backward-compat: extract the primary bundle so IdentityBar + single-currency
+  // consumers keep working without changes. Returns EMPTY_TALENT_EARNINGS when
+  // there are no snapshot rows yet (bridge active but no rows = empty state,
+  // not mock mode). Remains `null` when the bridge is entirely absent (mock mode).
+  const bridgeTalentEarnings: TalentEarnings | null =
+    bridgeTalentEarningsByCurrency != null
+      ? primaryBundleOrEmpty(bridgeTalentEarningsByCurrency)
+      : null;
   // B.2 — user notifications feed. `null` falls back to mock NOTIFICATIONS
   // in the drawer; empty array means real bridge with no rows yet.
   const bridgeUserNotifications = initialBridgeData?.userNotifications ?? null;
@@ -1847,6 +1869,7 @@ export function AdminShellProvider({
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
       bridgeTalentEarnings,
+      bridgeTalentEarningsByCurrency,
       bridgeMediaPhotos,
       bridgeMediaFolders,
       bridgeMediaErrored,
@@ -1951,6 +1974,7 @@ export function AdminShellProvider({
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
       bridgeTalentEarnings,
+      bridgeTalentEarningsByCurrency,
       bridgeMediaPhotos,
       bridgeMediaFolders,
       bridgeMediaErrored,

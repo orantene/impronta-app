@@ -114,7 +114,18 @@ function isEurRow(currencyCode: string, bookingId: string): boolean {
  */
 export async function fetchTalentSnapshotAggregateRows(
   supabase: SupabaseClient,
-  opts: { talentProfileId: string; since: string; agencyFilter?: string },
+  opts: {
+    talentProfileId: string;
+    since: string;
+    agencyFilter?: string;
+    /**
+     * When TRUE, include rows of every currency. Default FALSE keeps the
+     * original EUR-only behaviour and logs non-EUR exclusions. The talent
+     * Money by-currency loader sets this TRUE so the tab strip can render
+     * per-currency totals. Display-only; no FX math is performed anywhere.
+     */
+    includeAllCurrencies?: boolean;
+  },
 ): Promise<TalentSnapshotAggregateRow[]> {
   let bookingTalentQuery = supabase
     .from("booking_talent")
@@ -226,7 +237,7 @@ export async function fetchTalentSnapshotAggregateRows(
       participantIds,
     );
     if (!snapshot) continue;
-    if (!isEurRow(snapshot.currency_code, row.booking_id)) continue;
+    if (!opts.includeAllCurrencies && !isEurRow(snapshot.currency_code, row.booking_id)) continue;
 
     const agency = row.agencies;
     out.push({
@@ -244,6 +255,7 @@ export async function fetchTalentSnapshotAggregateRows(
       status: mapBookingPayoutStatus(booking),
       source: mapBookingSource(booking.source_type_snapshot),
       paymentMethod: snapshot.payment_method ?? booking.payment_method,
+      currencyCode: snapshot.currency_code,
     });
   }
 

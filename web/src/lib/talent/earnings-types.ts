@@ -30,7 +30,13 @@ export type TalentEarnings = {
     ytdNetCents: number;
     pendingCents: number;
     confirmedPipelineCents: number;
-    currency: "EUR";
+    /**
+     * ISO-4217 currency code for the rows aggregated here. Historically
+     * always "EUR"; multi-currency loader sets this to the per-bundle code.
+     * Widened from the literal "EUR" to `string` so each per-currency
+     * bundle carries its own code (L49 / talent Money tabs).
+     */
+    currency: string;
   };
   perAgency: TalentEarningsPerAgency[];
   rows: TalentEarningsRow[];
@@ -63,6 +69,13 @@ export type TalentSnapshotAggregateRow = {
   status: TalentEarningsRow["status"];
   source: TalentEarningsRow["source"];
   paymentMethod: string | null;
+  /**
+   * ISO-4217 currency code from `booking_commission_snapshot.currency_code`.
+   * Present only when the aggregation fetcher ran with `includeAllCurrencies:
+   * true`; EUR-only callers will get `undefined` here (treated as "EUR"
+   * downstream). Added for the talent Money tabs feature (L49).
+   */
+  currencyCode?: string;
 };
 
 type BookingPayoutFields = {
@@ -94,8 +107,17 @@ function averageCommissionBps(rows: TalentSnapshotAggregateRow[]): number {
   return Math.round(rates.reduce((sum, bps) => sum + bps, 0) / rates.length);
 }
 
-/** Pure builder — used by loadTalentEarnings and unit tests. */
-export function buildTalentEarnings(rows: TalentSnapshotAggregateRow[]): TalentEarnings {
+/**
+ * Pure builder — used by `loadTalentEarnings` and unit tests.
+ *
+ * `opts.currency` overrides the default "EUR" label in `totals.currency`.
+ * Used by the by-currency loader so each per-currency bundle reports its own
+ * ISO code (matching the `buildAgencyFinancials` pattern from L49).
+ */
+export function buildTalentEarnings(
+  rows: TalentSnapshotAggregateRow[],
+  opts?: { currency?: string },
+): TalentEarnings {
   let ytdGrossCents = 0;
   let ytdNetCents = 0;
   let pendingCents = 0;
@@ -159,7 +181,7 @@ export function buildTalentEarnings(rows: TalentSnapshotAggregateRow[]): TalentE
       ytdNetCents,
       pendingCents,
       confirmedPipelineCents,
-      currency: "EUR",
+      currency: opts?.currency ?? "EUR",
     },
     perAgency,
     rows: rows.map((row) => ({

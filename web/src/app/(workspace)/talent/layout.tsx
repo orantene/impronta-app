@@ -11,7 +11,7 @@ import {
   loadTalentAgencies,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
-import { loadTalentEarnings } from "@/lib/talent/earnings";
+import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -120,7 +120,7 @@ export default async function PlatformTalentLayout({
     tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null),
     loadProfileDisplayName(session.user.id),
     loadTalentCalendarEntries(talentSelfProfile.id),
-    loadTalentEarnings(talentSelfProfile.id),
+    loadTalentEarningsByCurrency(talentSelfProfile.id),
     loadTalentPersonalSiteDashboardState(),
   ]);
 
