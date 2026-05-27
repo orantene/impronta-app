@@ -31,7 +31,7 @@ const TIERS: Tier[] = [
   {
     key: "studio",
     name: "Studio",
-    price: "$19",
+    price: "$49",
     cadence: "per month",
     tagline: "The pipeline, plus WhatsApp where your inquiries actually happen.",
     highlights: [
@@ -46,7 +46,7 @@ const TIERS: Tier[] = [
   {
     key: "agency",
     name: "Agency",
-    price: "$49",
+    price: "$149",
     cadence: "per month",
     tagline: "A branded business surface — not just a subdomain.",
     highlights: [
