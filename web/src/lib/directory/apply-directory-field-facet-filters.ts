@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
-import { allowedLegacyFieldKeysForPublicSurface } from "@/lib/field-engine/legacy-directory-policy";
-import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+import {
+  isResolvedFieldVisibleInDirectoryFilter,
+  type PublicSurfaceContext,
+} from "@/lib/field-engine/public-surface-visibility";
 
 /** Canonical `talent_profiles.gender` — filtered via column, not `field_values`. */
 export const DIRECTORY_CANONICAL_GENDER_FIELD_KEY = "gender";
@@ -268,22 +270,35 @@ export async function loadDirectoryFacetDefinitionsByKey(
     throw new Error(`[directory] field_definitions facet keys: ${res.error.message}`);
   }
 
-  const bridgedKeys = uniq.filter((key) => Boolean(OLD_TO_NEW_KEY[key]));
-  const allowedBridgedKeys =
-    bridgedKeys.length > 0
-      ? await allowedLegacyFieldKeysForPublicSurface(supabase, {
-          tenantId: opts.tenantId ?? null,
-          surface: "directory",
-          oldKeys: bridgedKeys,
-        })
-      : null;
-
+  // Route all rows through the unified resolver helper so bridged, gender,
+  // and non-bridged keys are all gated consistently. Rows fetched above are
+  // active + non-archived (.eq("active",true).is("archived_at",null)) so we
+  // can synthesize those flags. tenant_id is not in the select; tenantId
+  // is carried in ctx for the canonical workspace-override lookup.
+  const ctx: PublicSurfaceContext = { supabase, tenantId: opts.tenantId ?? null };
+  const facetRows = (res.data ?? []) as DirectoryFacetDefinitionRow[];
+  const visible = await Promise.all(
+    facetRows.map((row) =>
+      isResolvedFieldVisibleInDirectoryFilter(
+        {
+          key: row.key,
+          // Modern rows have directory_filter_visible; legacy-fallback rows
+          // (missing the column) carry filterable — normalize here.
+          directory_filter_visible:
+            row.directory_filter_visible != null
+              ? row.directory_filter_visible
+              : Boolean(row.filterable),
+          active: true,      // enforced by .eq("active", true) above
+          archived_at: null, // enforced by .is("archived_at", null) above
+          tenant_id: null,   // not in select; ctx.tenantId carries the scope
+        },
+        ctx,
+      ),
+    ),
+  );
   const map = new Map<string, DirectoryFacetDefinitionRow>();
-  for (const row of (res.data ?? []) as DirectoryFacetDefinitionRow[]) {
-    if (OLD_TO_NEW_KEY[row.key] && allowedBridgedKeys && !allowedBridgedKeys.has(row.key)) {
-      continue;
-    }
-    map.set(row.key, row);
+  for (let i = 0; i < facetRows.length; i++) {
+    if (visible[i]) map.set(facetRows[i].key, facetRows[i]);
   }
   return map;
 }
