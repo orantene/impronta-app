@@ -42,13 +42,22 @@ test("LEGACY_TENANT_ID is never used as a runtime fallback outside seed/migratio
   // Allow the canonical declaration and migration-adjacent files. Any other
   // reference should explicitly opt-in by adding itself to this allow list —
   // that forces a reviewer to re-read Plan L37.
+  //
+  // Test files are excluded by pattern: by definition `.test.ts` / `.spec.ts`
+  // never execute in production, so a `LEGACY_TENANT_ID` mention there
+  // (typically inside an `assert.doesNotMatch(/LEGACY_TENANT_ID/, …)`
+  // negative invariant on another file's source) can't be a runtime
+  // fallback. Without this carve-out the rule punishes the very tests
+  // that exist to enforce it.
   const allowed = [
     "src/lib/saas/tenant.ts",
     "src/lib/saas/index.ts",
-    "src/lib/saas/tenant-isolation.test.ts",
   ];
+  const isTestFile = (path: string) =>
+    /\.(test|spec)\.tsx?$/.test(path);
   const stray = hits.filter((line) => {
     const path = line.split(":")[0];
+    if (isTestFile(path)) return false;
     return !allowed.some((a) => path === a);
   });
   assert.deepEqual(
