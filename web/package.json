@@ -13,6 +13,7 @@
     "prebuild": "node scripts/check-migrations-applied.mjs",
     "build": "NODE_OPTIONS=--max-old-space-size=8192 next build",
     "check:migrations-applied": "node scripts/check-migrations-applied.mjs",
+    "lint:migrations": "node --env-file=.env.local scripts/lint-migration-columns.mjs",
     "start": "next start",
     "lint": "node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --quiet --suppressions-location eslint-suppressions.json",
     "lint:refresh-baseline": "node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --prune-suppressions --suppressions-location eslint-suppressions.json; node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --suppress-all --suppressions-location eslint-suppressions.json",
