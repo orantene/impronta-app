@@ -41,7 +41,7 @@ const mockTalentRows = [
     display_name: "Alice Talent",
     first_name: "Alice",
     last_name: "Talent",
-    slug: "alice-talent",
+    public_slug_part: "alice-talent",
     user_id: HUMAN_ID,  // claimed by HUMAN_ID
     workflow_status: "published",
     published_globally: true,
@@ -57,7 +57,7 @@ const mockTalentRows = [
     display_name: "Bob Unclaimed",
     first_name: "Bob",
     last_name: "Unclaimed",
-    slug: "bob-unclaimed",
+    public_slug_part: "bob-unclaimed",
     user_id: null,  // unclaimed
     workflow_status: "draft",
     published_globally: false,
