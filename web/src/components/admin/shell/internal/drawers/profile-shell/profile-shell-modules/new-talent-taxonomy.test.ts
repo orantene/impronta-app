@@ -70,6 +70,7 @@ function taxonomyNode(input: Partial<TaxonomyNode> & Pick<TaxonomyNode, "id" | "
     requires_approval: false,
     display_order: 10,
     custom_label: null,
+    custom_label_es: null,
     helper_text: null,
     is_custom: false,
     children: [],

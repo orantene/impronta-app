@@ -57,6 +57,9 @@ export type TaxonomyNode = {
   requires_approval: boolean;
   display_order: number;
   custom_label: string | null;
+  /** Phase 2 (Sub-Task 1): tenant-scoped Spanish label override.
+   *  Mirrors `custom_label` (EN). NULL = fall back to taxonomy_terms.name_es. */
+  custom_label_es: string | null;
   helper_text: string | null;
   /** True when this is a tenant-local sub-type (lives in
    *  agency_taxonomy_terms, not the global taxonomy_terms catalog). */
@@ -107,7 +110,8 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
   const { data: settings, error: settingsErr } = await supabase
     .from("agency_taxonomy_settings")
     .select(
-      "taxonomy_term_id, is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, helper_text",
+      // Phase 2 (Sub-Task 1): include custom_label_es alongside custom_label.
+      "taxonomy_term_id, is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, custom_label_es, helper_text",
     )
     .eq("tenant_id", tenantId);
 
@@ -161,6 +165,7 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
       requires_approval: overlay?.requires_approval ?? false,
       display_order: overlay?.display_order ?? t.sort_order ?? 100,
       custom_label: overlay?.custom_label ?? null,
+      custom_label_es: overlay?.custom_label_es ?? null,
       helper_text: overlay?.helper_text ?? null,
       is_custom: false,
       children: [],
@@ -187,6 +192,7 @@ export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
       requires_approval: false,
       display_order: c.sort_order ?? 100,
       custom_label: null,
+      custom_label_es: null,
       helper_text: c.description ?? null,
       is_custom: true,
       children: [],
@@ -458,12 +464,23 @@ export async function setTaxonomyEnabled(input: {
 
   // Upsert a settings row. The PK is (tenant_id, taxonomy_term_id) per
   // 20260801... migration — relying on that for ON CONFLICT.
+  //
+  // Phase 2 (Sub-Task 1): `created_by_user_id` only on INSERT (when beforeRow
+  // is absent), so subsequent flips don't rewrite the creator. The audit log
+  // carries the per-edit actor history.
   const { error } = await supabase.from("agency_taxonomy_settings").upsert(
-    {
-      tenant_id: tenantId,
-      taxonomy_term_id: parsed.data.taxonomy_term_id,
-      is_enabled: parsed.data.is_enabled,
-    },
+    beforeRow
+      ? {
+          tenant_id: tenantId,
+          taxonomy_term_id: parsed.data.taxonomy_term_id,
+          is_enabled: parsed.data.is_enabled,
+        }
+      : {
+          tenant_id: tenantId,
+          taxonomy_term_id: parsed.data.taxonomy_term_id,
+          is_enabled: parsed.data.is_enabled,
+          created_by_user_id: user.id,
+        },
     { onConflict: "tenant_id,taxonomy_term_id" },
   );
 
@@ -502,6 +519,8 @@ const setFlagsSchema = z.object({
   requires_approval: z.boolean().optional(),
   display_order: z.number().int().min(0).max(9999).optional(),
   custom_label: z.string().max(120).nullable().optional(),
+  // Phase 2 (Sub-Task 1): Spanish label override. Same length cap as EN.
+  custom_label_es: z.string().max(120).nullable().optional(),
   helper_text: z.string().max(500).nullable().optional(),
 });
 
@@ -523,10 +542,12 @@ export async function setTaxonomyFlags(
 
   // Phase 7a audit — capture before-state. Missing row → null beforeValue
   // (i.e. all defaults). Same columns as the upsert below for symmetry.
+  // Phase 2: include custom_label_es so the audit log captures EN+ES label
+  // changes side by side.
   const { data: beforeRow } = await supabase
     .from("agency_taxonomy_settings")
     .select(
-      "is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, helper_text",
+      "is_enabled, show_in_registration, show_in_directory, allow_as_primary, allow_as_secondary, requires_approval, display_order, custom_label, custom_label_es, helper_text",
     )
     .eq("tenant_id", tenantId)
     .eq("taxonomy_term_id", taxonomy_term_id)
@@ -541,8 +562,16 @@ export async function setTaxonomyFlags(
     if (!planLimit.ok) return planLimit;
   }
 
+  // Phase 2 (Sub-Task 1): set created_by_user_id on first insert. The column
+  // is nullable + only-on-insert (no UPDATE clause for it), so subsequent
+  // edits leave the original creator intact — engine_audit_log carries the
+  // per-edit actor history.
+  const upsertPayload = beforeRow
+    ? { tenant_id: tenantId, taxonomy_term_id, ...flags }
+    : { tenant_id: tenantId, taxonomy_term_id, ...flags, created_by_user_id: user.id };
+
   const { error } = await supabase.from("agency_taxonomy_settings").upsert(
-    { tenant_id: tenantId, taxonomy_term_id, ...flags },
+    upsertPayload,
     { onConflict: "tenant_id,taxonomy_term_id" },
   );
 

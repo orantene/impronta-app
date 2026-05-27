@@ -671,6 +671,9 @@ export function CategoryExpandPanel({
   tab,
   onTabChange,
   onFlag,
+  onLabel,
+  canCustomize,
+  canSetOrder,
   onToggleSubEnabled,
   onRemoveCustom,
   addingCustom,
@@ -686,6 +689,12 @@ export function CategoryExpandPanel({
   tab: "subtypes" | "fields" | "settings";
   onTabChange: (t: "subtypes" | "fields" | "settings") => void;
   onFlag: (key: keyof TaxonomyNode, val: boolean) => void;
+  /** Phase 2 (Sub-Task 3): persist custom_label or custom_label_es. */
+  onLabel: (locale: "en" | "es", raw: string) => void;
+  /** Plan-tier capability: Studio+ may flip enable/disable + relabel. */
+  canCustomize: boolean;
+  /** Plan-tier capability: Agency+ may set display order. */
+  canSetOrder: boolean;
   onToggleSubEnabled: (sub: TaxonomyNode) => void;
   onRemoveCustom: (sub: TaxonomyNode) => void;
   addingCustom: boolean;
@@ -947,12 +956,93 @@ export function CategoryExpandPanel({
 
       {/* SETTINGS TAB */}
       {tab === "settings" && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {!parent.is_enabled && (
             <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 11.5, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
               This category is currently disabled. The flags below take effect once you enable it.
             </div>
           )}
+
+          {/* Phase 2 (Sub-Task 3): EN/ES label override.
+              Plan tier: Free is view-only; Studio+ can relabel. Platform
+              default shown as muted placeholder so the admin always knows
+              what they're overriding. Empty input → reset to platform. */}
+          <div style={{
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            fontFamily: FONTS.body,
+          }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
+              Labels
+              {!canCustomize && (
+                <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700 }} className="text-admin-indigo-deep">
+                  · Studio plan required
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-muted">
+                  English {parent.custom_label && <span className="text-admin-amber-deep">· custom</span>}
+                </label>
+                <input
+                  type="text"
+                  defaultValue={parent.custom_label ?? ""}
+                  placeholder={parent.name_en}
+                  disabled={!canCustomize}
+                  onBlur={(e) => canCustomize && onLabel("en", e.target.value)}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "6px 9px",
+                    borderRadius: 7,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    background: canCustomize ? "#fff" : "rgba(11,11,13,0.03)",
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                    color: COLORS.ink,
+                    outline: "none",
+                  }}
+                />
+              </div>
+              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-muted">
+                  Español {parent.custom_label_es && <span className="text-admin-amber-deep">· custom</span>}
+                </label>
+                <input
+                  type="text"
+                  defaultValue={parent.custom_label_es ?? ""}
+                  placeholder={parent.name_es ?? parent.name_en}
+                  disabled={!canCustomize}
+                  onBlur={(e) => canCustomize && onLabel("es", e.target.value)}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "6px 9px",
+                    borderRadius: 7,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    background: canCustomize ? "#fff" : "rgba(11,11,13,0.03)",
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                    color: COLORS.ink,
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+            <div style={{ fontSize: 10.5, lineHeight: 1.4 }} className="text-admin-ink-muted">
+              Leave a field blank to fall back to the platform default. Talent + admin editors update automatically.
+              {!canSetOrder && (
+                <> Drag-to-reorder requires <strong>Agency</strong> plan.</>
+              )}
+            </div>
+          </div>
+
           <TaxonomyToggleRow
             label="Allow as primary"
             desc="Talent can pick this as their main category."
@@ -1003,7 +1093,15 @@ export function CategoryExpandPanel({
 
 
 export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast } = useAdminShell();
+  const { state, toast } = useAdminShell();
+  // Phase 2 (Sub-Task 3): plan-tier gating mirrors light-09 (FIELD pattern).
+  // canCustomize → Studio+ (enable/disable + relabel).
+  // canSetOrder  → Agency+ (drag reorder; existing drag is gated below).
+  const planRules =
+    FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
+    ?? FIELD_PRIVACY_PLAN_RULES.free;
+  const canCustomize = planRules.canFlipPublicInternal;
+  const canSetOrder = planRules.canSetRequired;
   const [tree, setTree] = useState<TaxonomyNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1089,6 +1187,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleToggleEnabled = async (node: TaxonomyNode) => {
+    // Phase 2 (Sub-Task 3) plan-tier floor: Free is read-only.
+    if (!canCustomize) {
+      toast("Upgrade to Studio to enable/disable categories");
+      return;
+    }
     markSaving(node.id, true);
     const before = node.is_enabled;
     patchNode(node.id, { is_enabled: !before });
@@ -1114,6 +1217,52 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     if (!res.ok) {
       patchNode(node.id, { [key]: before } as Partial<TaxonomyNode>);
       toast(res.error);
+    }
+    markSaving(node.id, false);
+  };
+
+  // Phase 2 (Sub-Task 3): persist custom_label / custom_label_es. Trim +
+  // empty-to-null normalization mirrors light-09's field-label edit pattern
+  // (the override-vs-platform-default surface is symmetric). Optimistic
+  // patch with rollback on failure so the input always reflects DB truth.
+  const handleLabel = async (
+    node: TaxonomyNode,
+    locale: "en" | "es",
+    raw: string,
+  ) => {
+    if (!canCustomize) {
+      toast("Upgrade to Studio to rename categories");
+      return;
+    }
+    const trimmed = raw.trim();
+    const platformDefault = locale === "en" ? node.name_en : (node.name_es ?? "");
+    const next = trimmed && trimmed !== platformDefault ? trimmed : null;
+    const currentOverride = locale === "en" ? node.custom_label : node.custom_label_es;
+    if ((currentOverride ?? null) === next) return;
+    markSaving(node.id, true);
+    patchNode(
+      node.id,
+      locale === "en" ? { custom_label: next } : { custom_label_es: next },
+    );
+    const res = await setTaxonomyFlags({
+      taxonomy_term_id: node.id,
+      ...(locale === "en" ? { custom_label: next } : { custom_label_es: next }),
+    });
+    if (!res.ok) {
+      // Revert optimistic patch on failure.
+      patchNode(
+        node.id,
+        locale === "en"
+          ? { custom_label: currentOverride }
+          : { custom_label_es: currentOverride },
+      );
+      toast(res.error);
+    } else {
+      toast(
+        next
+          ? `Renamed for your workspace (${locale.toUpperCase()})`
+          : `Reset to the platform name (${locale.toUpperCase()})`,
+      );
     }
     markSaving(node.id, false);
   };
@@ -1164,6 +1313,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const reorderParentSubTypes = (parentId: string, orderedSubTypeIds: string[]) => {
+    // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
+    if (!canSetOrder) {
+      toast("Upgrade to Agency to reorder sub-types");
+      return;
+    }
     if (!tree || orderedSubTypeIds.length < 2) return;
     const previousTree = tree;
     const orderMap = new Map(
@@ -1192,6 +1346,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const dropRootCategory = (target: TaxonomyNode) => {
+    // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
+    if (!canSetOrder) {
+      toast("Upgrade to Agency to reorder categories");
+      return;
+    }
     if (!draggingTaxonomyId || draggingTaxonomyId === target.id || !tree) return;
     const previousTree = tree;
     const ordered = tree
@@ -1359,7 +1518,17 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       isLoading={detailLoading.has(parent.id)}
                       tab={getTab(parent.id)}
                       onTabChange={(t) => setTab(parent.id, t)}
-                      onFlag={(key, val) => handleFlag(parent, key, val)}
+                      onFlag={(key, val) => {
+                        // Plan-tier safety floor — Free can read but not write.
+                        if (!canCustomize) {
+                          toast("Upgrade to Studio to customize taxonomy");
+                          return;
+                        }
+                        handleFlag(parent, key, val);
+                      }}
+                      onLabel={(locale, raw) => handleLabel(parent, locale, raw)}
+                      canCustomize={canCustomize}
+                      canSetOrder={canSetOrder}
                       onToggleSubEnabled={handleToggleEnabled}
                       onRemoveCustom={handleRemoveCustom}
                       addingCustom={addingForParent === parent.id}
