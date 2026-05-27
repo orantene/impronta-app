@@ -8,6 +8,7 @@ import {
   useTransition,
 } from "react";
 import { trackProductEvent } from "@/lib/analytics/track-client";
+import type { ProductAnalyticsEventName } from "@/lib/analytics/product-events";
 import {
   checkSubdomainAvailability,
   submitGetStartedSignup,
@@ -138,6 +139,16 @@ export function GetStartedForm({
     referrer?: string;
   }>({});
 
+  // Funnel-step tracking — fire each event AT MOST ONCE per form session.
+  // We track these with refs (not state) so React doesn't re-render on
+  // ref mutation and the events don't double-fire under StrictMode.
+  const firedRef = useRef<Record<string, boolean>>({});
+  function trackOnce(name: ProductAnalyticsEventName, payload: Record<string, unknown>) {
+    if (firedRef.current[name]) return;
+    firedRef.current[name] = true;
+    trackProductEvent(name, payload as Parameters<typeof trackProductEvent>[1]);
+  }
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -153,7 +164,15 @@ export function GetStartedForm({
     } catch {
       /* no-op */
     }
-  }, []);
+    // Step 1: visitor reached the form. `trackOnce` is idempotent (guards
+    // via firedRef) so deps changing won't cause double-fire; including
+    // the props in deps satisfies the exhaustive-deps rule.
+    trackOnce("marketing_funnel_viewed", {
+      source_page: "get-started",
+      audience_initial: initialAudience,
+      tier_interest: tier ?? null,
+    });
+  }, [initialAudience, tier]);
 
   useEffect(() => {
     const trimmed = subdomain.trim();
@@ -161,11 +180,19 @@ export function GetStartedForm({
       setSubdomainState({ status: "idle" });
       return;
     }
+    // Step 3: visitor started typing in the subdomain field.
+    trackOnce("marketing_subdomain_typed", { audience });
     setSubdomainState({ status: "checking" });
     const handle = setTimeout(() => {
       startCheckTransition(async () => {
         try {
           const res = await checkSubdomainAvailability(trimmed);
+          // Step 3b: subdomain availability check result.
+          trackProductEvent("marketing_subdomain_checked", {
+            available: res.available,
+            audience,
+            length: trimmed.length,
+          });
           if (res.available) {
             setSubdomainState({ status: "available", value: trimmed });
           } else {
@@ -199,9 +226,19 @@ export function GetStartedForm({
         tier_interest: tier ?? null,
         lead_id: state.leadId,
       });
+    } else if (state && !state.ok) {
+      // Server-side rejection — fire the failure event so we can see which
+      // step the funnel actually breaks on (validation, rate-limit, etc.).
+      const firstErrorKey = Object.keys(state.errors ?? {})[0] ?? "unknown";
+      trackProductEvent("marketing_submit_failed", {
+        audience,
+        error_code: firstErrorKey,
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fires once per successful submission (leadId change); audience/rosterSize/tier are the submitted values, stale reads are correct here
-  }, [state?.ok, state && "leadId" in state ? state.leadId : null]);
+    // `audience`/`rosterSize`/`tier` are the submitted values — including
+    // them in the dep array is correct and stable since they only change
+    // via user interaction (which is what triggers a new submission anyway).
+  }, [state, audience, rosterSize, tier]);
 
   const errors = state && !state.ok ? state.errors : {};
 
@@ -377,9 +414,22 @@ export function GetStartedForm({
     );
   }
 
+  // Step 5: submit attempted — fires the moment the form action is invoked,
+  // BEFORE the server-side validation/persistence runs. Pairs with
+  // marketing_waitlist_submitted (success) and marketing_submit_failed (server error).
+  function handleFormAction(formData: FormData) {
+    trackProductEvent("marketing_submit_attempted", {
+      audience,
+      has_subdomain: Boolean(subdomain.trim()),
+      roster_size: rosterSize,
+      tier_interest: tier ?? null,
+    });
+    return formAction(formData);
+  }
+
   return (
     <form
-      action={formAction}
+      action={handleFormAction}
       className="rounded-[24px] border p-7 sm:p-8"
       style={{
         background: "var(--plt-bg-raised)",
@@ -561,7 +611,11 @@ export function GetStartedForm({
           id="email"
           type="email"
           value={email}
-          onChange={setEmail}
+          onChange={(v) => {
+            // Step 2: visitor showed intent by typing in email (first keystroke only).
+            if (!email && v) trackOnce("marketing_email_focused", { audience });
+            setEmail(v);
+          }}
           placeholder="you@roster.com"
           required
           readOnly={Boolean(initialSignedIn)}
@@ -659,7 +713,14 @@ export function GetStartedForm({
               <button
                 key={r}
                 type="button"
-                onClick={() => setRosterSize(r)}
+                onClick={() => {
+                  // Step 4: visitor picked a roster-size bucket.
+                  trackProductEvent("marketing_roster_size_selected", {
+                    bucket: r,
+                    audience,
+                  });
+                  setRosterSize(r);
+                }}
                 className="rounded-full border px-4 py-2 text-[0.8125rem] font-medium transition-all duration-200"
                 style={{
                   background: active ? "var(--plt-forest)" : "var(--plt-bg)",

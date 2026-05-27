@@ -20,23 +20,20 @@ export function WorkPage() {
   const isFree = state.plan === "free";
 
   // Normalise real RichInquiry rows to the flat shape the list rows need.
-  // Falls back to mock getInquiries only when the bridge hasn't loaded any data.
-  const bridgeInquiries = effectiveMessagesInquiries.length > 0
-    ? effectiveMessagesInquiries.map((r) => ({
-        id: r.id,
-        client: r.clientName,
-        brief: r.brief,
-        talent: r.requirementGroups.flatMap((g) => g.talents.map((t) => t.name)),
-        stage: r.stage,
-        amount: r.offer?.total ?? null,
-        source: r.source,
-        richRef: r,
-      }))
-    : getInquiries(state.plan).map((iq) => ({
-        ...iq,
-        source: RICH_INQUIRIES.find((r) => r.clientName === iq.client)?.source ?? null,
-        richRef: RICH_INQUIRIES.find((r) => r.clientName === iq.client) ?? null,
-      }));
+  // Context already handles empty-vs-mock via the bridge presence check —
+  // we just map whatever the context gives us. Removing the `length > 0`
+  // gate was the fix that stopped real tenants with 0 inquiries from
+  // seeing mock "24 active" data on their dashboard.
+  const bridgeInquiries = effectiveMessagesInquiries.map((r) => ({
+    id: r.id,
+    client: r.clientName,
+    brief: r.brief,
+    talent: r.requirementGroups.flatMap((g) => g.talents.map((t) => t.name)),
+    stage: r.stage,
+    amount: r.offer?.total ?? null,
+    source: r.source,
+    richRef: r,
+  }));
 
   type SourceKind = "all" | "direct" | "hub" | "manual" | "marketplace";
   const [sourceFilter, setSourceFilter] = useState<SourceKind>("all");
@@ -75,9 +72,13 @@ export function WorkPage() {
     toast(`Exported ${filteredInquiries.length} rows to CSV`);
   };
 
-  const drafts = bridgeInquiries.filter((i) => i.stage === "draft" || i.stage === "hold" || i.stage === "submitted");
-  const awaiting = bridgeInquiries.filter((i) => i.stage === "offer_pending" || i.stage === "awaiting-client");
-  const confirmed = effectiveBookings.length > 0 ? effectiveBookings : bridgeInquiries.filter((i) => i.stage === "confirmed" || i.stage === "booked" || i.stage === "approved");
+  // Legacy stage names ("hold", "awaiting-client", "confirmed") came from the
+  // old mock-inquiry shape. The bridge now returns canonical InquiryStage
+  // names from the server. Drop the legacy comparisons — they were dead
+  // code that the type system now flags.
+  const drafts = bridgeInquiries.filter((i) => i.stage === "draft" || i.stage === "submitted");
+  const awaiting = bridgeInquiries.filter((i) => i.stage === "offer_pending");
+  const confirmed = effectiveBookings.length > 0 ? effectiveBookings : bridgeInquiries.filter((i) => i.stage === "booked" || i.stage === "approved");
 
   return (
     <>
