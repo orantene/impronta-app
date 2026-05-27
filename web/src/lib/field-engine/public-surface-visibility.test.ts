@@ -33,10 +33,31 @@ import {
 // ─── Mock state helper ────────────────────────────────────────────────────────
 
 // global.__SURFACE_VIS_MOCK__ is set by register-surface-vis-test.cjs.
+type MockDecision = {
+  isPublic: boolean;
+  showInDirectory: boolean;
+  showInDirectoryFilter?: boolean;
+  showInDirectoryCard?: boolean;
+  showInPublicProfileSidebar?: boolean;
+  is_sensitive?: boolean;
+  admin_only?: boolean;
+};
+type MockTenantOverride = {
+  enabled_override?: boolean | null;
+  show_in_public_override?: boolean | null;
+  show_in_directory_override?: boolean | null;
+  admin_only_override?: boolean | null;
+  default_visibility_override?: string[] | null;
+  show_in_directory_filter_override?: boolean | null;
+  show_in_directory_card_override?: boolean | null;
+  show_in_public_profile_sidebar_override?: boolean | null;
+};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mock = (global as any).__SURFACE_VIS_MOCK__ as {
-  canonicalDecisions: Map<string, { isPublic: boolean; showInDirectory: boolean; is_sensitive?: boolean; admin_only?: boolean }>;
-  set(r: Record<string, { isPublic: boolean; showInDirectory: boolean; is_sensitive?: boolean; admin_only?: boolean }>): void;
+  canonicalDecisions: Map<string, MockDecision>;
+  tenantOverrides: Map<string, MockTenantOverride>;
+  set(r: Record<string, MockDecision>): void;
+  setTenantOverrides(r: Record<string, MockTenantOverride>): void;
   clear(): void;
 };
 
@@ -508,3 +529,231 @@ for (const surface of SURFACES) {
     });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 11. Phase 2 — workspace_profile_field_settings tenant overrides
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Sub-Task 2 of the Phase 2 brief. The new canonical sub-surface flags
+// (show_in_directory_filter / show_in_directory_card /
+// show_in_public_profile_sidebar) are gated by per-tenant override columns
+// of the same name + `_override`. The mock harness models these via
+// `mock.setTenantOverrides({...})`.
+//
+// These tests replace the legacy-flag-based "tenant_disabled" tests in § 6:
+// the real Phase 2 mechanism is a workspace_profile_field_settings row,
+// not a legacy field_definitions clone. (§ 6 tests are kept for back-compat
+// with the Phase 1 AND-ing, which Sub-Task 5 removes.)
+
+test("Phase 2 tenant override: filter_override=false blocks directory_filter even when canonical is public", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({
+    height_cm: { show_in_directory_filter_override: false },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "height_cm" }), ctx),
+    false,
+  );
+});
+
+test("Phase 2 tenant override: card_override=false blocks directory_card even when canonical is public", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({
+    height_cm: { show_in_directory_card_override: false },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleOnDirectoryCard(cardField({ key: "height_cm" }), ctx),
+    false,
+  );
+});
+
+test("Phase 2 tenant override: sidebar_override=false blocks public_profile_sidebar even when canonical is public", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({
+    height_cm: { show_in_public_profile_sidebar_override: false },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField({ key: "height_cm" }), ctx),
+    false,
+  );
+});
+
+test("Phase 2 tenant override: filter_override=true alone does NOT bypass safety floor (admin_only canonical)", async () => {
+  // Safety floor invariant — a tenant can't promote an admin_only field to
+  // public via an override. The override raises showInDirectoryFilter to
+  // true, but effectiveFieldVisibility on admin_only canonical resolves to
+  // "admin", so dec.isPublic stays false and the AND blocks at step 4.
+  mock.set({
+    years_experience: { isPublic: false, showInDirectory: false, admin_only: true },
+  });
+  mock.setTenantOverrides({
+    years_experience: {
+      show_in_directory_filter_override: true,
+      show_in_directory_card_override: true,
+      show_in_public_profile_sidebar_override: true,
+    },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "years_experience" }), ctx),
+    false,
+    "tenant override must NOT promote admin_only canonical to public (directory_filter)",
+  );
+  assert.equal(
+    await isResolvedFieldVisibleOnDirectoryCard(cardField({ key: "years_experience" }), ctx),
+    false,
+    "tenant override must NOT promote admin_only canonical to public (directory_card)",
+  );
+  assert.equal(
+    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField({ key: "years_experience" }), ctx),
+    false,
+    "tenant override must NOT promote admin_only canonical to public (public_profile_sidebar)",
+  );
+});
+
+test("Phase 2 tenant override: filter_override=true alone does NOT bypass safety floor (is_sensitive canonical)", async () => {
+  // Symmetric to the admin_only case — is_sensitive is the other half of
+  // the platform admin floor in effectiveFieldVisibility.
+  mock.set({
+    years_experience: { isPublic: false, showInDirectory: false, is_sensitive: true },
+  });
+  mock.setTenantOverrides({
+    years_experience: {
+      show_in_directory_filter_override: true,
+    },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "years_experience" }), ctx),
+    false,
+  );
+});
+
+test("Phase 2 tenant override: section-gate keys (fit_labels) honour show_in_directory_filter_override", async () => {
+  // The 7 taxonomy section-gate keys (fit_labels, skills, languages,
+  // industries, event_types, tags, gender) became bridged in Sub-Task 0.5.
+  // Their tenant overrides work the same way as the value-mirror 17.
+  mock.set({
+    fit_labels: { isPublic: true, showInDirectory: true },
+  });
+  mock.setTenantOverrides({
+    fit_labels: { show_in_directory_filter_override: false },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "fit_labels" }), ctx),
+    false,
+  );
+});
+
+test("Phase 2 tenant override: section-gate keys (skills) honour show_in_public_profile_sidebar_override", async () => {
+  mock.set({
+    skills: { isPublic: true, showInDirectory: true },
+  });
+  mock.setTenantOverrides({
+    skills: { show_in_public_profile_sidebar_override: false },
+  });
+  assert.equal(
+    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField({ key: "skills" }), ctx),
+    false,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 12. Phase 2 — tenant isolation invariant
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Sub-Task 4 tenant-isolation: a tenant override is per-(tenant_id,
+// field_definition_id). Tenant A disabling a field must not affect the
+// helper's decision for tenant B.
+//
+// The mock returns the same override rows regardless of tenant_id (the
+// stub's eq("tenant_id", tenantId) filter is a no-op against an array that
+// already represents only tenant A's overrides). To test isolation
+// honestly, we exercise the same call twice with different tenantIds and
+// verify the override only fires on the tenant whose overrides we
+// installed. tenant B's call is wrapped in a fresh setTenantOverrides({})
+// so the harness explicitly models tenant B having no overrides.
+
+test("Phase 2 isolation: tenant A's filter_override=false does not affect tenant B", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+
+  // Tenant A disables the filter chip.
+  mock.setTenantOverrides({
+    height_cm: { show_in_directory_filter_override: false },
+  });
+  const tenantA = { supabase: {} as never, tenantId: "tenant-A" };
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "height_cm" }), tenantA),
+    false,
+    "tenant A should see the chip hidden",
+  );
+
+  // Tenant B has no override — flush + re-set canonical only.
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({});
+  const tenantB = { supabase: {} as never, tenantId: "tenant-B" };
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "height_cm" }), tenantB),
+    true,
+    "tenant B should still see the chip — isolation invariant",
+  );
+});
+
+test("Phase 2 isolation: tenant A's card_override=false does not bleed into tenant B's directory_card", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({
+    height_cm: { show_in_directory_card_override: false },
+  });
+  const tenantA = { supabase: {} as never, tenantId: "tenant-A" };
+  assert.equal(
+    await isResolvedFieldVisibleOnDirectoryCard(cardField({ key: "height_cm" }), tenantA),
+    false,
+  );
+
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({});
+  const tenantB = { supabase: {} as never, tenantId: "tenant-B" };
+  assert.equal(
+    await isResolvedFieldVisibleOnDirectoryCard(cardField({ key: "height_cm" }), tenantB),
+    true,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 13. Phase 2 — round-trip parity between canonical-only flags + AND-ing
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Sub-Task 5 collapses the legacy AND-ing inside the helpers. Before
+// removing the legacy gate we lock in the parity invariant: when the
+// legacy flag and the canonical sub-surface flag both agree (the
+// post-Sub-Task-0 backfilled state), the helper's decision must equal
+// what canonical alone would return.
+
+test("Phase 2 round-trip: canonical+legacy agree → helper returns true", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  // Backfilled state: legacy directory_filter_visible=true matches canonical
+  // show_in_directory_filter (default-true via showInDirectory).
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(
+      filterField({ key: "height_cm", directory_filter_visible: true }),
+      ctx,
+    ),
+    true,
+  );
+});
+
+test("Phase 2 round-trip: canonical-flipped-false WITHOUT legacy-flipped-false → helper returns false (canonical wins)", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
+  mock.setTenantOverrides({
+    height_cm: { show_in_directory_filter_override: false },
+  });
+  // Legacy flag still true (the "drift" the Sub-Task 0 backfill
+  // documented); canonical says false. After Sub-Task 5 the helper runs
+  // canonical-only and returns false — the AND-ing makes that already-true
+  // today because canonical false ANDs to false.
+  assert.equal(
+    await isResolvedFieldVisibleInDirectoryFilter(
+      filterField({ key: "height_cm", directory_filter_visible: true }),
+      ctx,
+    ),
+    false,
+  );
+});

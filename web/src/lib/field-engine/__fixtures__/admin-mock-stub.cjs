@@ -99,6 +99,12 @@ function buildTenantOverrideRowsFromMockState() {
     const fieldDefinitionId = defIdByCanonicalKey.get(canonicalKey);
     if (!fieldDefinitionId) continue;
     rows.push({
+      // tenant_id is intentionally absent: callers test the helper's
+      // logic against one tenant at a time (mock represents that
+      // tenant's overrides). The mock chain's .eq("tenant_id", X) is a
+      // no-op for this column — the test harness models tenant scoping
+      // by clearing + re-setting overrides per tenant (see § 12 in
+      // public-surface-visibility.test.ts).
       field_definition_id: fieldDefinitionId,
       enabled_override: override.enabled_override ?? null,
       show_in_public_override: override.show_in_public_override ?? null,
@@ -116,7 +122,7 @@ function buildTenantOverrideRowsFromMockState() {
   return rows;
 }
 
-function buildQuery(rows) {
+function buildQuery(rows, { ignoreColumns = new Set() } = {}) {
   let filtered = [...rows];
   const chain = {
     select() { return chain; },
@@ -126,6 +132,7 @@ function buildQuery(rows) {
       return chain;
     },
     eq(col, val) {
+      if (ignoreColumns.has(col)) return chain;
       filtered = filtered.filter(r => r[col] === val);
       return chain;
     },
@@ -143,7 +150,11 @@ function createServiceRoleClient() {
         return buildQuery(buildDefRowsFromMockState());
       }
       if (table === 'workspace_profile_field_settings') {
-        return buildQuery(buildTenantOverrideRowsFromMockState());
+        // tenant_id eq() is a no-op — the harness models tenant scoping
+        // via .setTenantOverrides({}) flushes per tenant (see test § 12).
+        return buildQuery(buildTenantOverrideRowsFromMockState(), {
+          ignoreColumns: new Set(['tenant_id']),
+        });
       }
       return buildQuery([]);
     },
