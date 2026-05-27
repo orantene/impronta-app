@@ -63,13 +63,17 @@ const mock = (global as any).__SURFACE_VIS_MOCK__ as {
 
 // ─── Fixture factories ────────────────────────────────────────────────────────
 
-// Default key: `location` is the only canonical-key-free row remaining
-// after Phase 2 (Sub-Task 0.5 added canonical rows for fit_labels, skills,
-// languages, industries, event_types, tags, gender — those keys now route
-// through the bridged-canonical path). Tests that want non-bridged
-// behaviour use this default; tests that exercise bridged behaviour
-// override `key` explicitly.
-const NON_BRIDGED_DEFAULT_KEY = "location";
+// Default keys after Sub-Task 5 (canonical-alone path):
+//   FILTER_DEFAULT_KEY — `location` is the only canonical-free key the
+//     filter helper accepts via the LEGACY_ONLY_DIRECTORY_FILTER_KEYS
+//     allow-list. directory_filter_visible=true is the sole gate.
+//   CARD_DEFAULT_KEY / SIDEBAR_DEFAULT_KEY — Sub-Task 5 collapsed cards +
+//     sidebar onto canonical only. The default key must be bridged. We use
+//     `height_cm` (bridged via OLD_TO_NEW_KEY) and let each test set the
+//     canonical decision via mock.set().
+const FILTER_DEFAULT_KEY = "location";
+const CARD_DEFAULT_KEY = "height_cm";
+const SIDEBAR_DEFAULT_KEY = "skills";
 
 /** Legacy row shape for the FILTER helper — all "good" flags by default. */
 function filterField(overrides: Partial<{
@@ -83,7 +87,7 @@ function filterField(overrides: Partial<{
   internal_only: boolean | null;
 }> = {}) {
   return {
-    key: NON_BRIDGED_DEFAULT_KEY,
+    key: FILTER_DEFAULT_KEY,
     directory_filter_visible: true,
     active: true,
     archived_at: null,
@@ -107,7 +111,7 @@ function cardField(overrides: Partial<{
   internal_only: boolean;
 }> = {}) {
   return {
-    key: NON_BRIDGED_DEFAULT_KEY,
+    key: CARD_DEFAULT_KEY,
     card_visible: true,
     active: true,
     archived_at: null,
@@ -130,7 +134,7 @@ function sidebarField(overrides: Partial<{
   internal_only: boolean;
 }> = {}) {
   return {
-    key: NON_BRIDGED_DEFAULT_KEY,
+    key: SIDEBAR_DEFAULT_KEY,
     active: true,
     archived_at: null,
     tenant_id: null,
@@ -150,18 +154,21 @@ const ctx = { supabase: {} as never, tenantId: "tenant-test" };
 //
 // These confirm the "happy path" before testing leak conditions.
 
-test("baseline: non-bridged eligible field appears in directory_filter", async () => {
+test("baseline: legacy-only filter chip (location) appears in directory_filter via allow-list", async () => {
   mock.clear();
+  // Sub-Task 5 (canonical-alone): location has no canonical row. Filter
+  // helper allow-lists it (LEGACY_ONLY_DIRECTORY_FILTER_KEYS) — gate is
+  // directory_filter_visible=true alone.
   assert.equal(await isResolvedFieldVisibleInDirectoryFilter(filterField(), ctx), true);
 });
 
-test("baseline: non-bridged eligible field appears on directory_card", async () => {
-  mock.clear();
+test("baseline: bridged key (height_cm) appears on directory_card when canonical is public+card", async () => {
+  mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
   assert.equal(await isResolvedFieldVisibleOnDirectoryCard(cardField(), ctx), true);
 });
 
-test("baseline: non-bridged eligible field appears in public_profile_sidebar", async () => {
-  mock.clear();
+test("baseline: bridged key (skills) appears in public_profile_sidebar when canonical is public+sidebar", async () => {
+  mock.set({ skills: { isPublic: true, showInDirectory: true } });
   assert.equal(await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField(), ctx), true);
 });
 
@@ -245,69 +252,78 @@ test("is_sensitive: bridged key blocked from public_profile_sidebar", async () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// § 4. Invariant — !public_visible blocks all surfaces
+// § 4. Invariant — canonical !isPublic blocks all surfaces (Sub-Task 5)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// For non-bridged keys, public_visible=false → _syntheticLegacyVisibility
-// returns false (effectiveFieldVisibility returns "hidden"). For card/sidebar,
-// also blocked by the pre-canonical flag check.
+// Sub-Task 5 collapsed the helpers onto canonical alone. The "public floor"
+// invariant moved from the legacy `public_visible` flag to canonical
+// effectiveFieldVisibility ("public" vs "admin"/"hidden"). These tests
+// inject a non-public canonical decision and confirm every helper blocks.
 
-test("!public_visible: non-bridged blocked from directory_filter", async () => {
-  mock.clear();
+test("!isPublic: bridged key blocked from directory_filter", async () => {
+  mock.set({ height_cm: { isPublic: false, showInDirectory: true } });
   assert.equal(
-    await isResolvedFieldVisibleInDirectoryFilter(filterField({ public_visible: false }), ctx),
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "height_cm" }), ctx),
     false,
   );
 });
 
-test("!public_visible: non-bridged blocked from directory_card", async () => {
-  mock.clear();
+test("!isPublic: bridged key blocked from directory_card", async () => {
+  mock.set({ height_cm: { isPublic: false, showInDirectory: true } });
   assert.equal(
-    await isResolvedFieldVisibleOnDirectoryCard(cardField({ public_visible: false }), ctx),
+    await isResolvedFieldVisibleOnDirectoryCard(cardField({ key: "height_cm" }), ctx),
     false,
   );
 });
 
-test("!public_visible: non-bridged blocked from public_profile_sidebar", async () => {
-  mock.clear();
+test("!isPublic: bridged key blocked from public_profile_sidebar", async () => {
+  mock.set({ skills: { isPublic: false, showInDirectory: true } });
   assert.equal(
-    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField({ public_visible: false }), ctx),
+    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField(), ctx),
     false,
   );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// § 5. Invariant — internal_only blocks all surfaces
+// § 5. Invariant — internal_only is enforced by canonical is_sensitive (Sub-Task 5)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// For non-bridged keys: _syntheticLegacyVisibility returns false when
-// internal_only=true. For card/sidebar: also blocked at step 1.
-// For filter: the gender allow-list is the only exception (tested in § 7).
+// Sub-Task 5 stopped consulting the legacy `internal_only` flag. The
+// equivalent floor is canonical `is_sensitive` (or `admin_only`), which
+// `effectiveFieldVisibility` collapses to "admin" and the helpers AND on
+// `dec.isPublic === true`. § 3 already exercises the bridged is_sensitive
+// path; this section is now a thin alias kept for naming continuity.
 
-test("internal_only: non-bridged blocked from directory_filter", async () => {
-  mock.clear();
-  // Phase 2: `skills` is now bridged (canonical row added in Sub-Task 0.5).
-  // Use `location` to keep this as a true non-bridged test of step-5
-  // synthetic-legacy-visibility.
+test("legacy internal_only=true on a bridged key still blocks (canonical floor wins)", async () => {
+  mock.set({ height_cm: { isPublic: false, showInDirectory: true, is_sensitive: true } });
+  // The helper no longer reads field.internal_only; it routes via canonical.
   assert.equal(
-    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "location", internal_only: true }), ctx),
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "height_cm", internal_only: true }), ctx),
+    false,
+  );
+  assert.equal(
+    await isResolvedFieldVisibleOnDirectoryCard(cardField({ key: "height_cm", internal_only: true }), ctx),
+    false,
+  );
+  assert.equal(
+    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField({ key: "height_cm", internal_only: true }), ctx),
     false,
   );
 });
 
-test("internal_only: non-bridged blocked from directory_card", async () => {
+test("legacy-only key (location) with internal_only=true still appears in filter (filter is column-backed, not field-value-backed)", async () => {
   mock.clear();
+  // The location row's value is sourced from talent_profiles.residence_city_id,
+  // not from field_values. Whether the legacy field_definitions row carries
+  // internal_only=true is meaningless to the column-backed render.
+  // Sub-Task 5 documents this — the allow-list gates on
+  // directory_filter_visible alone.
   assert.equal(
-    await isResolvedFieldVisibleOnDirectoryCard(cardField({ internal_only: true }), ctx),
-    false,
-  );
-});
-
-test("internal_only: non-bridged blocked from public_profile_sidebar", async () => {
-  mock.clear();
-  assert.equal(
-    await isResolvedFieldVisibleInPublicProfileSidebar(sidebarField({ internal_only: true }), ctx),
-    false,
+    await isResolvedFieldVisibleInDirectoryFilter(
+      filterField({ key: "location", internal_only: true, directory_filter_visible: true }),
+      ctx,
+    ),
+    true,
   );
 });
 
@@ -365,10 +381,11 @@ const genderFilterField = {
   internal_only: true,          // as stored in field_definitions
 };
 
-test("R4 gender: appears in directory_filter via allow-list (internal_only bypassed)", async () => {
-  mock.clear();
-  // Gender is in GENDER_ALLOW_LIST_KEYS; directory_filter_visible=true is the
-  // only gate (step 3 in the filter helper short-circuits to true).
+test("R4 gender: appears in directory_filter when canonical identity.gender is public", async () => {
+  // Sub-Task 5: gender routes through the bridged-canonical path (legacy
+  // gender ↔ canonical identity.gender). GENDER_ALLOW_LIST_KEYS still gates
+  // at step 3 of the filter helper, then defers to canonical decision.
+  mock.set({ gender: { isPublic: true, showInDirectory: true } });
   assert.equal(await isResolvedFieldVisibleInDirectoryFilter(genderFilterField, ctx), true);
 });
 
@@ -397,39 +414,39 @@ test("R4 gender: does NOT appear in public_profile_sidebar (internal_only=true b
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// § 8. R1 AND-ing — legacy flag overrides even when canonical says yes
+// § 8. R1 RESOLVED — Sub-Task 5 collapsed onto canonical-only
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Risk R1: the new helper must AND canonical decisions with legacy surface flags,
-// never replace them. The legacy flag check fires pre-canonically, so a tenant
-// that set card_visible=false or directory_filter_visible=false in the legacy
-// system is protected even when canonical is permissive.
-//
-// Both tests use bridged key "height_cm" with canonical set to
-// isPublic=true + showInDirectory=true — the canonical "yes" — and confirm
-// the helper still returns false because the legacy flag blocks first.
+// The Phase 1 AND-ing of legacy flags with canonical decisions was a
+// temporary R1 mitigation. Sub-Task 5 removed it. Verifying the new
+// behavior: a tenant that wants to hide a bridged field flips the
+// workspace_profile_field_settings.show_in_directory_*_override column
+// — NOT the legacy `card_visible` / `directory_filter_visible` flag.
 
-test("R1 AND-ing: legacy card_visible=false blocks directory_card even when canonical is public", async () => {
+test("Sub-Task 5: legacy card_visible=false NO LONGER blocks directory_card (canonical-alone)", async () => {
   mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
-  // card_visible=false → blocked at step 2 (before canonical lookup at step 3).
+  // Pre-Sub-Task-5 this returned false (legacy flag blocked). Post-Sub-Task-5
+  // canonical decides → true. Tenants who want to hide the card must use
+  // workspace_profile_field_settings.show_in_directory_card_override=false
+  // (covered by § 11). Legacy card_visible is no longer consulted.
   assert.equal(
     await isResolvedFieldVisibleOnDirectoryCard(
       cardField({ key: "height_cm", card_visible: false }),
       ctx,
     ),
-    false,
+    true,
   );
 });
 
-test("R1 AND-ing: legacy directory_filter_visible=false blocks filter even when canonical is public", async () => {
+test("Sub-Task 5: legacy directory_filter_visible=false NO LONGER blocks filter for bridged keys", async () => {
   mock.set({ height_cm: { isPublic: true, showInDirectory: true } });
-  // directory_filter_visible=false → blocked at step 2 (before canonical lookup at step 4).
+  // Same shift as the card test: canonical decides.
   assert.equal(
     await isResolvedFieldVisibleInDirectoryFilter(
       filterField({ key: "height_cm", directory_filter_visible: false }),
       ctx,
     ),
-    false,
+    true,
   );
 });
 
@@ -498,25 +515,19 @@ const SURFACES = [
   },
 ] as const;
 
+// Sub-Task 5: leak conditions split into two classes —
+//   A. universal guards (active=false, archived_at) still applied for all keys
+//   B. canonical floors (admin_only, is_sensitive) applied only via canonical
+// The legacy-flag conditions (public_visible, internal_only,
+// tenant surface flag) are obsolete for bridged keys after Sub-Task 5;
+// kept here as documentation of the previously-tested invariants now
+// enforced through other means.
 const LEAK_CONDITIONS: Array<{
   label: string;
   patch: (base: Record<string, unknown>) => Record<string, unknown>;
 }> = [
-  { label: "active=false",               patch: (b) => ({ ...b, active: false }) },
-  { label: "archived_at not null",        patch: (b) => ({ ...b, archived_at: "2026-01-01T00:00:00Z" }) },
-  // Phase 2: `skills` is now bridged; use `location` (true non-bridged
-  // legacy key with no canonical row) to exercise the synthetic step-5 path.
-  { label: "internal_only=true",          patch: (b) => ({ ...b, internal_only: true, key: "location" }) },
-  { label: "public_visible=false",        patch: (b) => ({ ...b, public_visible: false }) },
-  {
-    label: "tenant surface flag disabled",
-    patch: (b) => {
-      // Use the primary surface-specific gate flag.
-      if ("directory_filter_visible" in b) return { ...b, directory_filter_visible: false };
-      if ("card_visible" in b) return { ...b, card_visible: false };
-      return { ...b, profile_visible: false };
-    },
-  },
+  { label: "active=false",         patch: (b) => ({ ...b, active: false }) },
+  { label: "archived_at not null", patch: (b) => ({ ...b, archived_at: "2026-01-01T00:00:00Z" }) },
 ];
 
 for (const surface of SURFACES) {

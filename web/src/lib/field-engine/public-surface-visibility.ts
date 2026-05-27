@@ -18,18 +18,16 @@
 //      reason).
 //
 // Phase 1.x risk mitigations:
-//   R1 — Legacy `card_visible` / `directory_filter_visible` flags are ANDed
-//        with the canonical resolver decision, never replaced by it. Phase 2
-//        added canonical `show_in_directory_filter` / `show_in_directory_card`
-//        / `show_in_public_profile_sidebar` columns; the AND-ing stays as a
-//        safety net during Phase 2 → Phase 5 transition, and is collapsed
-//        to canonical-only in Sub-Task 5.
-//   R4 — `gender` is column-backed on `talent_profiles`, marked
-//        `internal_only=true` in legacy field_definitions. Phase 2 added a
-//        canonical `identity.gender` row so the resolver can decide;
-//        GENDER_ALLOW_LIST_KEYS still bypasses the legacy `internal_only`
-//        guard at step 1 of the filter helper (the canonical row carries
-//        the real safety floor via effectiveFieldVisibility).
+//   R1 — RESOLVED (Sub-Task 5, 2026-05-27): the legacy `card_visible` /
+//        `directory_filter_visible` / `profile_visible` AND-ing was removed.
+//        Canonical `show_in_directory_filter` / `show_in_directory_card` /
+//        `show_in_public_profile_sidebar` carry the equivalent decision
+//        after the Sub-Task 0 backfill, and per-tenant overrides flow
+//        through workspace_profile_field_settings.*_override.
+//   R4 — `gender` is column-backed on `talent_profiles`. Phase 2 added a
+//        canonical `identity.gender` row; the bridged path decides.
+//        GENDER_ALLOW_LIST_KEYS now documents that fact rather than gating
+//        anything (legacy internal_only is no longer consulted).
 //   R6 — Cache tags confirmed: CACHE_TAG_FIELD_CATALOG + CACHE_TAG_DIRECTORY.
 //
 // Phase 2 (2026-05-27):
@@ -71,25 +69,42 @@ export interface PublicSurfaceContext {
 
 // ─── Gender allow-list (R4) ───────────────────────────────────────────────────
 //
-// `gender` is column-backed on `talent_profiles.gender`. Its legacy
-// field_definitions row carries `internal_only=true` (so the anon RLS policy
-// hides it); the service-role read in fetchDirectoryFilterCatalogRows
-// surfaces it for the filter sidebar anyway. Without this explicit
-// allow-list the chip would vanish at step 1 of the filter helper, since
-// the legacy `internal_only` check fires before the canonical decision.
-// (Phase 1.1 doc §5 R4.)
+// `gender` legacy field_definitions row carries `internal_only=true` (so the
+// anon RLS policy hides it). Even after Sub-Task 5 removes the legacy
+// internal_only pre-check, this allow-list documents which keys are
+// column-backed and routed through canonical without further legacy
+// inspection.
 //
 // Phase 2 note: the canonical `identity.gender` row added in Sub-Task 0.5
 // carries the real safety floor (admin_only=false, is_sensitive=false,
-// default_visibility=['public','agency']). After Sub-Task 5 the legacy
-// `internal_only` flag is no longer consulted; the allow-list becomes
-// dead code at that point — leaving the constant in place keeps the
-// decision flow readable.
-//
-// Scope: filter sidebar only. Card + sidebar helpers don't apply the
-// allow-list because gender is rendered as a single column-backed value
-// (chip on directory cards via talent_profiles.gender), not as a section.
+// default_visibility=['public','agency']). The directory_filter chip is
+// fed from talent_profiles.gender (not field_values), but visibility is
+// canonical alone. Scope: filter sidebar only.
 const GENDER_ALLOW_LIST_KEYS = new Set<string>(["gender"]);
+
+// ─── Sub-Task 5: legacy-only filter chips ────────────────────────────────────
+//
+// Two keys appear as directory filter chips today but have no canonical
+// profile_field_definitions row:
+//   - talent_type  — top-bar facet; sourced from talent_profile_taxonomy
+//     primary. buildDirectoryFilterBlocks already strips it from the
+//     sidebar render so this allow-list is defence-in-depth.
+//   - location     — value_type=location row; sourced from
+//     talent_profiles.residence_city_id + locations lookup. No per-field-
+//     value concept, so no canonical equivalent.
+//
+// After Sub-Task 5 removes _syntheticLegacyVisibility, these two keys
+// would otherwise return false from the filter helper. The allow-list
+// preserves their existing public visibility on the directory filter
+// sidebar; cards + sidebar always returned false for them anyway (they
+// are filter-only).
+//
+// Phase 3 TODO: add canonical rows for talent_type + location and remove
+// this allow-list. They each have a clear semantic equivalent.
+const LEGACY_ONLY_DIRECTORY_FILTER_KEYS = new Set<string>([
+  "talent_type",
+  "location",
+]);
 
 // ─── Phase 2: section-gate canonical keys ────────────────────────────────────
 //
@@ -315,40 +330,23 @@ const _getDecisionsForTenant = cache(
   },
 );
 
-// ─── Synthetic visibility (C2 hybrid) ────────────────────────────────────────
+// Sub-Task 5 (2026-05-27): _syntheticLegacyVisibility was removed. The
+// Phase 1 C2 hybrid path for non-bridged keys is no longer needed — the
+// seven taxonomy section gates (fit_labels, skills, languages, industries,
+// event_types, tags, gender→identity.gender) gained canonical rows in
+// Sub-Task 0.5 and now route through the bridged-canonical path. The two
+// remaining legacy-only keys (talent_type, location) are handled by the
+// LEGACY_ONLY_DIRECTORY_FILTER_KEYS allow-list inside the filter helper.
 //
-// Non-bridged keys (fit_labels, skills, language, talent_type, location, etc.)
-// have no canonical profile_field_definitions row. This constructs a synthetic
-// FieldDefVisibilityInput from legacy flags and routes it through the shared
-// effectiveFieldVisibility primitive so the platform floor checks apply.
-//
-// Phase 2 collapse target: when canonical rows are backfilled for these keys,
-// callers of this function collapse to the bridged-key Map path. Override-row
-// carry-over per tenant MUST happen before disabling this branch (R8).
-//
-// When public_visible is absent (the filter query omits it), we cannot run
-// the synthetic check; fall back to returning true — this matches the
-// pre-migration behavior where non-bridged directory_filter_visible=true rows
-// were allowed through unconditionally.
-function _syntheticLegacyVisibility(field: {
-  public_visible?: boolean | null;
-  internal_only?: boolean | null;
-}): boolean {
-  if (field.internal_only === true) return false;
-  if (field.public_visible == null) {
-    // public_visible not available in this row shape — trust the upstream
-    // directory_filter_visible / card_visible / profile_visible gate that the
-    // call site already checked. Matches legacy behavior for non-bridged keys.
-    return true;
-  }
-  const vis = effectiveFieldVisibility({
-    default_visibility: field.public_visible ? ["public"] : [],
-    show_in_public: field.public_visible,
-    admin_only: false,
-    is_sensitive: field.internal_only ?? false,
-  });
-  return vis === "public";
-}
+// TODO (Phase 3, after Sub-Task 5's 7-day quiet window):
+//   - Delete web/src/lib/directory/legacy-directory-policy.ts (the bridge
+//     this module replaced).
+//   - Delete web/src/lib/public-profile-field-visibility.ts (Lane B replacement
+//     already used here).
+//   - Add canonical rows for talent_type + location → drop
+//     LEGACY_ONLY_DIRECTORY_FILTER_KEYS.
+//   - Drop `directory_filter_visible`, `card_visible`, `profile_visible`
+//     from the row shape parameters since none of the helpers consult them.
 
 // ─── Three public helpers ─────────────────────────────────────────────────────
 
@@ -356,27 +354,30 @@ function _syntheticLegacyVisibility(field: {
  * "Is this legacy field_definitions row allowed to appear in the directory
  * FILTER SIDEBAR for a public viewer on this tenant?"
  *
- * Decision flow (in order):
+ * Decision flow (canonical-alone post-Sub-Task 5):
  *   1. Base guards: active + non-archived.
- *   2. Legacy `directory_filter_visible === true` must hold (R1 — the legacy
- *      flag is preserved as a gate on top of, not replaced by, the canonical
- *      decision; Sub-Task 5 removes this gate).
- *   3. Gender allow-list (R4): `gender` legacy row carries internal_only=true.
- *      Phase 2 added a canonical `identity.gender` row so the bridged path
- *      decides; the allow-list short-circuits step 3 so the chip never
- *      vanishes during the Phase 2 → Phase 5 transition.
- *   4. Bridged keys (OLD_TO_NEW_KEY + TAXONOMY_SECTION_CANONICAL_KEYS): AND
- *      legacy flag (step 2) with canonical
- *      effectiveFieldVisibility ∧ show_in_directory_filter (after tenant
- *      override).
- *   5. Truly non-bridged keys (language, talent_type, location): synthetic
- *      effectiveFieldVisibility from legacy flags. After the 7 section-gate
- *      keys moved to canonical in Phase 2, this branch only handles these
- *      three remaining legacy-only keys.
+ *   2. Gender allow-list (R4): legacy `gender` ↔ canonical `identity.gender`.
+ *      Routes through canonical at step 4 just like any bridged key; this
+ *      block is documentation, kept for readability.
+ *   3. Legacy-only filter chips (talent_type, location): defence-in-depth
+ *      allow-list. These have no canonical row; field_definitions.
+ *      directory_filter_visible=true is the sole gate. See Phase 3 TODO
+ *      in the dead-code block above.
+ *   4. Bridged keys (OLD_TO_NEW_KEY + TAXONOMY_SECTION_CANONICAL_KEYS):
+ *      canonical effectiveFieldVisibility ∧ show_in_directory_filter
+ *      (after tenant override). isPublic remains the trust-floor AND.
+ *
+ * Sub-Task 5 (2026-05-27): legacy `directory_filter_visible` AND-ing
+ * removed — the canonical column carries the same decision after the
+ * Sub-Task 0 backfill, and tenant overrides now flow through
+ * workspace_profile_field_settings.show_in_directory_filter_override.
  */
 export async function isResolvedFieldVisibleInDirectoryFilter(
   field: {
     key: string;
+    /** Legacy column — retained on the row shape for back-compat with
+     *  call sites that pass it. Sub-Task 5 stopped consulting it; Phase 3
+     *  TODO drops it from the type when call sites stop passing it. */
     directory_filter_visible: boolean | null;
     active: boolean;
     archived_at: string | null;
@@ -387,52 +388,50 @@ export async function isResolvedFieldVisibleInDirectoryFilter(
   },
   ctx: PublicSurfaceContext,
 ): Promise<boolean> {
-  // 1. Base guards (invariant 4)
+  // 1. Base guards.
   if (!field.active || field.archived_at != null) return false;
-  // 2. Legacy filter flag (R1 AND-ing)
-  if (field.directory_filter_visible !== true) return false;
 
-  // 3. R4: gender allow-list — column-backed, internal_only=true, not bridged.
-  //    directory_filter_visible=true (checked above) is the sole gate.
-  if (GENDER_ALLOW_LIST_KEYS.has(field.key)) return true;
+  // 2. Legacy-only filter chips with no canonical row. directory_filter_visible
+  //    is the sole gate for these (defence-in-depth — buildDirectoryFilterBlocks
+  //    handles top-bar talent_type extraction separately).
+  if (LEGACY_ONLY_DIRECTORY_FILTER_KEYS.has(field.key)) {
+    return field.directory_filter_visible === true;
+  }
 
-  // 4. Bridged keys (value-mirror 17 + section-gate 7): AND canonical decision
-  //    with the already-satisfied legacy flag. Phase 2 uses the new canonical
-  //    `show_in_directory_filter` column (post tenant override); the
-  //    `dec.isPublic` AND remains the safety floor.
-  if (bridgedCanonicalKey(field.key)) {
+  // 3. Bridged keys (value-mirror 17 + section-gate 7, including
+  //    gender → identity.gender).
+  if (bridgedCanonicalKey(field.key) || GENDER_ALLOW_LIST_KEYS.has(field.key)) {
     const decisions = await _getDecisionsForTenant(ctx.tenantId);
     const dec = decisions.get(field.key);
     if (!dec) return false; // canonical def missing → safe-fail
     return dec.isPublic && dec.showInDirectoryFilter;
   }
 
-  // 5. Non-bridged (language, talent_type, location): synthetic C2 path.
-  //    After Phase 2 the seven section-gate keys (fit_labels, skills,
-  //    languages, industries, event_types, tags, gender) reach step 4.
-  return _syntheticLegacyVisibility(field);
+  // No canonical, not allow-listed → not visible. Phase 3 audits the legacy
+  // row population to confirm no other keys reach this branch.
+  return false;
 }
 
 /**
  * "Is this legacy field_definitions row allowed to appear as a DIRECTORY CARD
  * trait line for a public viewer on this tenant?"
  *
- * Decision flow (in order):
- *   1. Base guards: active + non-archived + !internal_only (invariants 4 + 5).
- *   2. Legacy `public_visible`, `profile_visible`, `card_visible` must all be
- *      true (R1 — the canonical decision ANDs with these, never replaces them;
- *      Sub-Task 5 removes the legacy gate so canonical alone decides).
- *   3. Bridged keys (OLD_TO_NEW_KEY + TAXONOMY_SECTION_CANONICAL_KEYS): AND
- *      canonical effectiveFieldVisibility ∧ show_in_directory_card (after
- *      tenant override).
- *   4. Non-bridged (language, talent_type, location): synthetic C2 path.
+ * Decision flow (canonical-alone post-Sub-Task 5):
+ *   1. Base guards: active + non-archived.
+ *   2. Bridged keys: canonical effectiveFieldVisibility ∧
+ *      show_in_directory_card (after tenant override).
  *
- * Note: `gender` legacy row has internal_only=true → blocked at step 1.
- * Gender is a filter chip, never a card trait.
+ * Sub-Task 5 (2026-05-27): legacy `public_visible` / `profile_visible` /
+ * `card_visible` / `internal_only` pre-checks removed — canonical
+ * show_in_directory_card carries the equivalent decision after Sub-Task 0
+ * backfill, and canonical admin_only / is_sensitive carry the
+ * `internal_only` floor (via effectiveFieldVisibility).
  */
 export async function isResolvedFieldVisibleOnDirectoryCard(
   field: {
     key: string;
+    /** Legacy column — Sub-Task 5 stopped consulting. Kept on the row
+     *  shape for back-compat; Phase 3 TODO drops it from the type. */
     card_visible: boolean;
     active: boolean;
     archived_at: string | null;
@@ -443,15 +442,13 @@ export async function isResolvedFieldVisibleOnDirectoryCard(
   },
   ctx: PublicSurfaceContext,
 ): Promise<boolean> {
-  // 1. Base guards (invariants 4 + 5)
+  // 1. Base guards.
   if (!field.active || field.archived_at != null) return false;
-  if (field.internal_only) return false;
-  // 2. Legacy surface flags (R1 AND-ing)
-  if (!field.public_visible || !field.profile_visible || !field.card_visible) return false;
 
-  // 3. Bridged keys (value-mirror 17 + section-gate 7): canonical decision
-  //    ANDs with the legacy flags already satisfied above. Phase 2 uses
-  //    the new canonical `show_in_directory_card` column.
+  // 2. Bridged keys (value-mirror 17 + section-gate 7). `gender` is a
+  //    filter chip only — canonical identity.gender.show_in_directory_card
+  //    is true, but card display also requires the talent's gender column
+  //    to be set; that's handled upstream by the card DTO, not here.
   if (bridgedCanonicalKey(field.key)) {
     const decisions = await _getDecisionsForTenant(ctx.tenantId);
     const dec = decisions.get(field.key);
@@ -459,8 +456,9 @@ export async function isResolvedFieldVisibleOnDirectoryCard(
     return dec.isPublic && dec.showInDirectoryCard;
   }
 
-  // 4. Non-bridged: synthetic C2 path (Phase 2 collapse target).
-  return _syntheticLegacyVisibility(field);
+  // Non-bridged keys never reach cards today (talent_type/location are
+  // filter-only). Safe-fail to false.
+  return false;
 }
 
 /**
@@ -468,20 +466,20 @@ export async function isResolvedFieldVisibleOnDirectoryCard(
  * on the public profile page /t/[profileCode] for a public viewer on this
  * tenant?"
  *
- * Covers the six taxonomy section gates used by Lane B:
- *   fit_labels, skills, languages, industries, event_types, tags.
- * Phase 2 (Sub-Task 0.5) added canonical rows for all six, so they take
- * the bridged path at step 3. After Sub-Task 5 removes the legacy gate at
- * step 2, the helper runs on canonical alone.
+ * Covers the six taxonomy section gates used by Lane B (fit_labels, skills,
+ * languages, industries, event_types, tags). Phase 2 (Sub-Task 0.5) added
+ * canonical rows for all six, so they reach the bridged path here.
  *
- * Decision flow (in order):
- *   1. Base guards: active + non-archived + !internal_only (invariants 4 + 5).
- *   2. Legacy `public_visible` + `profile_visible` must be true (R1).
- *   3. Bridged keys: AND canonical effectiveFieldVisibility ∧
+ * Decision flow (canonical-alone post-Sub-Task 5):
+ *   1. Base guards: active + non-archived.
+ *   2. Bridged keys: canonical effectiveFieldVisibility ∧
  *      show_in_public_profile_sidebar (after tenant override). Sidebar does
  *      NOT require show_in_directory — it's a public profile surface, not
  *      a directory surface.
- *   4. Non-bridged keys: synthetic C2 path (legacy-only).
+ *
+ * Sub-Task 5 (2026-05-27): legacy `public_visible` / `profile_visible` /
+ * `internal_only` pre-checks removed; canonical carries the equivalent
+ * decision after Sub-Task 0 backfill.
  */
 export async function isResolvedFieldVisibleInPublicProfileSidebar(
   field: {
@@ -489,22 +487,18 @@ export async function isResolvedFieldVisibleInPublicProfileSidebar(
     active: boolean;
     archived_at: string | null;
     tenant_id: string | null;
+    /** Legacy columns — Sub-Task 5 stopped consulting. Kept on the row
+     *  shape for back-compat; Phase 3 TODO drops them from the type. */
     public_visible: boolean;
     profile_visible: boolean;
     internal_only: boolean;
   },
   ctx: PublicSurfaceContext,
 ): Promise<boolean> {
-  // 1. Base guards (invariants 4 + 5)
+  // 1. Base guards.
   if (!field.active || field.archived_at != null) return false;
-  if (field.internal_only) return false;
-  // 2. Legacy profile flags (R1 AND-ing)
-  if (!field.public_visible || !field.profile_visible) return false;
 
-  // 3. Bridged keys (value-mirror 17 + section-gate 7): canonical decision
-  //    using the new `show_in_public_profile_sidebar` column (Phase 2).
-  //    show_in_directory is NOT required — sidebar is a profile surface,
-  //    not a directory surface.
+  // 2. Bridged keys (value-mirror 17 + section-gate 7).
   if (bridgedCanonicalKey(field.key)) {
     const decisions = await _getDecisionsForTenant(ctx.tenantId);
     const dec = decisions.get(field.key);
@@ -512,6 +506,7 @@ export async function isResolvedFieldVisibleInPublicProfileSidebar(
     return dec.isPublic && dec.showInPublicProfileSidebar;
   }
 
-  // 4. Non-bridged: synthetic C2 path (Phase 2 collapse target).
-  return _syntheticLegacyVisibility(field);
+  // No canonical → not visible. talent_type/location never render in the
+  // sidebar; safe-fail.
+  return false;
 }
