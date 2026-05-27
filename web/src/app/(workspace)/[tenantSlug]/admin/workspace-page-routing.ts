@@ -13,13 +13,14 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "overview",
   "messages",
   "calendar",
-  "roster",
+  "roster",     // also covers /roster/applications (layout strips to first segment)
   "clients",
   "operations",
   "production",
   "website",
   "media",
   "pitches",
+  "financials", // L46 — canonical server route; not a SPA tab
   "settings",
 ]);
 
