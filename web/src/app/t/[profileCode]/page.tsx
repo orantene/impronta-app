@@ -1418,11 +1418,11 @@ export default async function PublicTalentProfilePage({
   // Fetches the six taxonomy section keys from field_definitions, then routes
   // each through isResolvedFieldVisibleInPublicProfileSidebar (C2 synthetic
   // path; canonical rows for non-bridged keys are Phase 2 scope).
-  // Safe-fail open: a missing row defaults to visible, matching legacy behaviour.
-  const _sidebarCtx: PublicSurfaceContext = {
-    supabase: pub,
-    tenantId: hostCtx.tenantId,
-  };
+  // Safe-fail open: a missing row OR a null public client defaults to visible,
+  // matching legacy behaviour. The `pub` guard re-narrows here because the
+  // destructured `pub` from line ~1176 is `SupabaseClient | null` per
+  // fetchTalentProfile's contract; if it is null we skip the batch and
+  // render all sections.
   const _SIDEBAR_KEYS = [
     "fit_labels",
     "skills",
@@ -1440,32 +1440,55 @@ export default async function PublicTalentProfilePage({
     profile_visible: boolean;
     internal_only: boolean;
   };
-  const { data: _sidebarDefs } = await pub
-    .from("field_definitions")
-    .select(
-      "key, active, archived_at, tenant_id, public_visible, profile_visible, internal_only",
-    )
-    .in("key", [..._SIDEBAR_KEYS]);
-  const _sidebarDefMap = new Map<string, _SidebarFieldRow>(
-    ((_sidebarDefs ?? []) as _SidebarFieldRow[]).map((r) => [r.key, r]),
-  );
-  const _checkSidebar = (key: string): Promise<boolean> => {
-    const row = _sidebarDefMap.get(key);
-    return row
-      ? isResolvedFieldVisibleInPublicProfileSidebar(row, _sidebarCtx)
-      : Promise.resolve(true);
+  let fieldVisibility: {
+    showFitLabels: boolean;
+    showSkills: boolean;
+    showLanguages: boolean;
+    showIndustries: boolean;
+    showEventTypes: boolean;
+    showTags: boolean;
   };
-  const [_fv0, _fv1, _fv2, _fv3, _fv4, _fv5] = await Promise.all(
-    _SIDEBAR_KEYS.map(_checkSidebar),
-  );
-  const fieldVisibility = {
-    showFitLabels: _fv0 ?? true,
-    showSkills: _fv1 ?? true,
-    showLanguages: _fv2 ?? true,
-    showIndustries: _fv3 ?? true,
-    showEventTypes: _fv4 ?? true,
-    showTags: _fv5 ?? true,
-  };
+  if (pub) {
+    const _sidebarCtx: PublicSurfaceContext = {
+      supabase: pub,
+      tenantId: hostCtx.tenantId,
+    };
+    const { data: _sidebarDefs } = await pub
+      .from("field_definitions")
+      .select(
+        "key, active, archived_at, tenant_id, public_visible, profile_visible, internal_only",
+      )
+      .in("key", [..._SIDEBAR_KEYS]);
+    const _sidebarDefMap = new Map<string, _SidebarFieldRow>(
+      ((_sidebarDefs ?? []) as _SidebarFieldRow[]).map((r) => [r.key, r]),
+    );
+    const _checkSidebar = (key: string): Promise<boolean> => {
+      const row = _sidebarDefMap.get(key);
+      return row
+        ? isResolvedFieldVisibleInPublicProfileSidebar(row, _sidebarCtx)
+        : Promise.resolve(true);
+    };
+    const [_fv0, _fv1, _fv2, _fv3, _fv4, _fv5] = await Promise.all(
+      _SIDEBAR_KEYS.map(_checkSidebar),
+    );
+    fieldVisibility = {
+      showFitLabels: _fv0 ?? true,
+      showSkills: _fv1 ?? true,
+      showLanguages: _fv2 ?? true,
+      showIndustries: _fv3 ?? true,
+      showEventTypes: _fv4 ?? true,
+      showTags: _fv5 ?? true,
+    };
+  } else {
+    fieldVisibility = {
+      showFitLabels: true,
+      showSkills: true,
+      showLanguages: true,
+      showIndustries: true,
+      showEventTypes: true,
+      showTags: true,
+    };
+  }
   const orderedSections = await getOrderedPublicProfileSections(locale);
 
   const canonicalName = displayName(profile as TalentProfile);
