@@ -11,6 +11,14 @@
  * marketing-leaning Site control center. The values match. We deliberately
  * keep two definitions: this one is keyed by `string` (tolerant of unknown
  * tenant rows), the catalog one is keyed by the strict `Plan` union.
+ *
+ * Phase 2 update (L50): `TIER_RENEW` is now a FALLBACK only. The live
+ * renew copy comes from `loadTierRenewLabels(currency)` which reads the
+ * monthly price from `product_prices`. Admin components that show the
+ * renew line in a server context should call `loadTierRenewLabels` and
+ * pass the result; client-side / static contexts continue to read this
+ * constant. The fallback string here represents the original USD launch
+ * pricing so the UI never shows an empty line.
  */
 
 export const TIER_DOT: Record<string, string> = {
@@ -35,18 +43,26 @@ export const TIER_RENEW: Record<string, string> = {
 };
 
 /** Resolve label / color / renew copy for an unknown plan key, falling back
- *  to free. Use this in components that read `workspace.plan` directly. */
-export function resolveTier(planKey: string | null | undefined): {
+ *  to free. Use this in components that read `workspace.plan` directly.
+ *
+ *  The optional `liveRenew` override lets server components inject the
+ *  catalog-resolved renew line (from `loadTierRenewLabels`) without
+ *  re-deriving the fallback shape. */
+export function resolveTier(
+  planKey: string | null | undefined,
+  liveRenew?: Record<string, string>,
+): {
   key: string;
   label: string;
   dot: string;
   renew: string;
 } {
   const k = planKey ?? "free";
+  const renewMap = liveRenew ?? TIER_RENEW;
   return {
     key: k,
     label: TIER_LABEL[k] ?? TIER_LABEL.free!,
     dot: TIER_DOT[k] ?? TIER_DOT.free!,
-    renew: TIER_RENEW[k] ?? TIER_RENEW.free!,
+    renew: renewMap[k] ?? TIER_RENEW[k] ?? TIER_RENEW.free!,
   };
 }

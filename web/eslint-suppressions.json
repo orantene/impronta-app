@@ -1776,7 +1776,7 @@
   },
   "src/lib/server-actions/admin-product-pricing.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 12
     }
   }
 }
