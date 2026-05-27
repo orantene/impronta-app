@@ -67,24 +67,60 @@ export type GetStartedActionResult =
     }
   | { ok: false; errors: GetStartedFieldErrors };
 
+/**
+ * Why the verdict has three states instead of two:
+ *
+ * - `taken`    — a real conflict with an existing tenant (agencies.slug or
+ *                agency_domains.hostname). Permanent until the tenant is
+ *                deleted. UI shows "already taken" with suggestions.
+ * - `pending`  — a still-active subdomain reservation held by another lead
+ *                that hasn't finished provisioning yet (15-min TTL).
+ *                Resolves itself if that lead abandons signup. UI explains
+ *                this is a temporary hold so the user understands they can
+ *                retry shortly.
+ * - `available`— the slug is free to claim.
+ *
+ * The `excludeLeadId` parameter lets callers ignore reservations held by
+ * the lead currently being processed (so re-submitting the form with the
+ * same slug is idempotent rather than self-blocking).
+ */
 async function isRequestedLinkTaken(
   supabase: SupabaseClient,
   slug: string,
-): Promise<{ taken: boolean; error: boolean }> {
+  excludeLeadId?: string,
+): Promise<{ taken: boolean; pending: boolean; error: boolean }> {
   const hostCandidate = `${slug}.${PLATFORM_BRAND.domain}`;
-  const [{ data: existingDomain, error: domainError }, { data: existingSlug, error: slugError }] =
-    await Promise.all([
-      supabase.from("agency_domains").select("id").eq("hostname", hostCandidate).maybeSingle(),
-      supabase.from("agencies").select("id").eq("slug", slug).maybeSingle(),
-    ]);
+  const nowIso = new Date().toISOString();
+  const reservationQuery = supabase
+    .from("saas_subdomain_reservations")
+    .select("lead_id, expires_at")
+    .eq("slug", slug)
+    .gt("expires_at", nowIso)
+    .maybeSingle();
 
-  if (domainError || slugError) {
+  const [
+    { data: existingDomain, error: domainError },
+    { data: existingSlug, error: slugError },
+    { data: existingReservation, error: reservationError },
+  ] = await Promise.all([
+    supabase.from("agency_domains").select("id").eq("hostname", hostCandidate).maybeSingle(),
+    supabase.from("agencies").select("id").eq("slug", slug).maybeSingle(),
+    reservationQuery,
+  ]);
+
+  if (domainError || slugError || reservationError) {
     if (domainError) logServerError("get-started/domain-check", domainError);
     if (slugError) logServerError("get-started/slug-check", slugError);
-    return { taken: false, error: true };
+    if (reservationError) logServerError("get-started/reservation-check", reservationError);
+    return { taken: false, pending: false, error: true };
   }
 
-  return { taken: Boolean(existingDomain || existingSlug), error: false };
+  const taken = Boolean(existingDomain || existingSlug);
+  const reservationBlocks =
+    !!existingReservation &&
+    (!excludeLeadId || existingReservation.lead_id !== excludeLeadId);
+
+  return { taken, pending: !taken && reservationBlocks, error: false };
 }
 
 async function suggestAlternativeSlugs(
@@ -99,7 +135,9 @@ async function suggestAlternativeSlugs(
     if (!WORKSPACE_SLUG_REGEX.test(candidate)) continue;
     if (isReservedWorkspaceSlug(candidate)) continue;
     const check = await isRequestedLinkTaken(supabase, candidate);
-    if (!check.error && !check.taken) {
+    // Suggestions exclude both hard-taken and currently-held-pending slugs —
+    // we don't want to recommend something the user will hit a conflict on.
+    if (!check.error && !check.taken && !check.pending) {
       available.push(candidate);
     }
     if (available.length >= 3) break;
@@ -202,6 +240,15 @@ export async function submitGetStartedSignup(
     if (availability.taken) {
       return { ok: false, errors: { subdomain: `${subdomain} is already taken.` } };
     }
+    if (availability.pending) {
+      return {
+        ok: false,
+        errors: {
+          subdomain:
+            `${subdomain} is being claimed by another signup right now. Try a different link, or check back in a few minutes.`,
+        },
+      };
+    }
   }
 
   const ipSalt = process.env.SIGNUP_IP_SALT ?? "rostra-signup-v1";
@@ -255,6 +302,31 @@ export async function submitGetStartedSignup(
   }
 
   const leadId = inserted.id as string;
+
+  // Reserve the subdomain for this lead so a parallel signup can't race
+  // them to the same slug. Best-effort: a failed reservation does NOT block
+  // signup — the lead still has subdomain_wanted set, and the provisioner
+  // will surface a real conflict at workspace-creation time if it occurs.
+  if (subdomain) {
+    const { error: reservationError } = await supabase
+      .from("saas_subdomain_reservations")
+      .upsert(
+        {
+          slug: subdomain,
+          lead_id: leadId,
+          // Resetting reserved_at/expires_at on upsert effectively refreshes
+          // the TTL if the same lead re-submits (rare but possible: e.g.
+          // they hit a transient error and retried).
+          reserved_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        },
+        { onConflict: "slug" },
+      );
+    if (reservationError) {
+      logServerError("get-started/reserve", reservationError);
+    }
+  }
+
   const workspaceOnboardingUrl = selfServeEligible ? onboardingPath(leadId) : null;
 
   if (existingAuth.userId && !actorUserId) {
@@ -465,6 +537,13 @@ export async function checkSubdomainAvailability(
   if (availability.taken) {
     const suggestions = await suggestAlternativeSlugs(supabase, cleaned);
     return { available: false, reason: "taken", suggestions };
+  }
+  if (availability.pending) {
+    // Another in-flight signup holds a 15-min reservation on this slug.
+    // Surface suggestions so the user has something to act on now instead
+    // of waiting; "pending" reason lets the UI explain it's temporary.
+    const suggestions = await suggestAlternativeSlugs(supabase, cleaned);
+    return { available: false, reason: "pending", suggestions };
   }
   return { available: true };
 }

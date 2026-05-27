@@ -259,6 +259,20 @@ async function attachLeadToTenant(params: {
   if (error) {
     logServerError("workspace-signup.attachLeadToTenant", error);
   }
+
+  // Release any subdomain TTL reservation this lead was holding. The slug is
+  // now claimed by a real agencies row, so the reservation is redundant. We
+  // delete by lead_id rather than slug to defensively handle the edge case
+  // where the user changed their slug between form submit and provisioning
+  // (shouldn't happen today, but the lead is the source of truth).
+  const { error: releaseError } = await admin
+    .from("saas_subdomain_reservations")
+    .delete()
+    .eq("lead_id", params.leadId);
+
+  if (releaseError) {
+    logServerError("workspace-signup.releaseReservation", releaseError);
+  }
 }
 
 async function loadExistingRoleBindings(

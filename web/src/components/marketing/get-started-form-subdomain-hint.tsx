@@ -13,7 +13,7 @@ export type SubdomainState =
   | { status: "available"; value: string }
   | {
       status: "unavailable";
-      reason: "format" | "reserved" | "taken" | "empty";
+      reason: "format" | "reserved" | "taken" | "empty" | "pending";
       suggestions?: string[];
     };
 
@@ -79,11 +79,13 @@ export function SubdomainHint({
           <p className="text-[0.75rem]" style={{ color: "#8a3e2e" }}>
             {state.reason === "taken"
               ? "That link is already in use — try another."
-              : state.reason === "reserved"
-                ? "That link is reserved — try another."
-                : state.reason === "format"
-                  ? "Use lowercase letters, numbers, or hyphens (no leading/trailing hyphen)."
-                  : "Enter a link to continue."}
+              : state.reason === "pending"
+                ? "Someone else is claiming that link right now. Try another, or check back in a few minutes."
+                : state.reason === "reserved"
+                  ? "That link is reserved — try another."
+                  : state.reason === "format"
+                    ? "Use lowercase letters, numbers, or hyphens (no leading/trailing hyphen)."
+                    : "Enter a link to continue."}
           </p>
           {state.suggestions && state.suggestions.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-2">
