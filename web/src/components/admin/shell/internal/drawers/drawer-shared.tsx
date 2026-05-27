@@ -671,6 +671,9 @@ export function CategoryExpandPanel({
   tab,
   onTabChange,
   onFlag,
+  onLabel,
+  canCustomize,
+  canSetOrder,
   onToggleSubEnabled,
   onRemoveCustom,
   addingCustom,
@@ -679,6 +682,8 @@ export function CategoryExpandPanel({
   onNewSubName,
   onAddCustom,
   onReorderSubtypes,
+  isSavingParent,
+  isSavingSubtypes,
 }: {
   parent: TaxonomyNode;
   detail: CategoryDetail | null;
@@ -686,6 +691,12 @@ export function CategoryExpandPanel({
   tab: "subtypes" | "fields" | "settings";
   onTabChange: (t: "subtypes" | "fields" | "settings") => void;
   onFlag: (key: keyof TaxonomyNode, val: boolean) => void;
+  /** Phase 2 (Sub-Task 3): persist custom_label or custom_label_es. */
+  onLabel: (locale: "en" | "es", raw: string) => void;
+  /** Plan-tier capability: Studio+ may flip enable/disable + relabel. */
+  canCustomize: boolean;
+  /** Plan-tier capability: Agency+ may set display order. */
+  canSetOrder: boolean;
   onToggleSubEnabled: (sub: TaxonomyNode) => void;
   onRemoveCustom: (sub: TaxonomyNode) => void;
   addingCustom: boolean;
@@ -694,6 +705,8 @@ export function CategoryExpandPanel({
   onNewSubName: (name: string) => void;
   onAddCustom: () => void;
   onReorderSubtypes: (parentId: string, orderedSubTypeIds: string[]) => void;
+  isSavingParent?: boolean;
+  isSavingSubtypes?: boolean;
 }) {
   const [draggingSubId, setDraggingSubId] = useState<string | null>(null);
   const subtypeCount =
@@ -715,6 +728,11 @@ export function CategoryExpandPanel({
       {/* SUBTYPES TAB */}
       {tab === "subtypes" && (
         <div>
+          {isSavingSubtypes && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-admin-sm text-admin-11 font-medium mb-1.5 bg-admin-surface text-admin-ink-muted border border-admin-border-soft">
+              Saving sub-type order…
+            </div>
+          )}
           {isLoading && !detail && (
             <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Loading sub-types…
@@ -910,7 +928,7 @@ export function CategoryExpandPanel({
               ["global", "Global", "Cross-category. Most talent fill these in."],
               ["type-specific", "Category-specific", `Only for ${parent.name_en} — and the sub-types within.`],
             ];
-            return tierOrder.map(([tier, label, desc]) => {
+            const rows = tierOrder.map(([tier, label, desc]) => {
               const list = grouped.get(tier) ?? [];
               if (list.length === 0) return null;
               return (
@@ -940,48 +958,149 @@ export function CategoryExpandPanel({
                   </div>
                 </div>
               );
-            });
+            }).filter(Boolean);
+            if (rows.length === 0) {
+              return (
+                <div className="p-3 text-admin-12h text-admin-ink-muted">
+                  No fields cataloged for this category yet.
+                </div>
+              );
+            }
+            return rows;
           })()}
         </div>
       )}
 
       {/* SETTINGS TAB */}
       {tab === "settings" && (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {!parent.is_enabled && (
             <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 11.5, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
               This category is currently disabled. The flags below take effect once you enable it.
             </div>
           )}
+          {/* Phase 4.2: visible async state for in-flight settings saves
+              (toggles, label edits, reorder writes from this panel). */}
+          {isSavingParent && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-admin-sm text-admin-11 font-medium bg-admin-surface text-admin-ink-muted border border-admin-border-soft">
+              Saving…
+            </div>
+          )}
+
+          {/* Phase 2 (Sub-Task 3): EN/ES label override.
+              Plan tier: Free is view-only; Studio+ can relabel. Platform
+              default shown as muted placeholder so the admin always knows
+              what they're overriding. Empty input → reset to platform. */}
+          <div style={{
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            fontFamily: FONTS.body,
+          }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">
+              Labels
+              {!canCustomize && (
+                <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700 }} className="text-admin-indigo-deep">
+                  · Studio plan required
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-muted">
+                  English {parent.custom_label && <span className="text-admin-amber-deep">· custom</span>}
+                </label>
+                <input
+                  type="text"
+                  defaultValue={parent.custom_label ?? ""}
+                  placeholder={parent.name_en}
+                  disabled={!canCustomize}
+                  onBlur={(e) => canCustomize && onLabel("en", e.target.value)}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "6px 9px",
+                    borderRadius: 7,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    background: canCustomize ? "#fff" : "rgba(11,11,13,0.03)",
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                    color: COLORS.ink,
+                    outline: "none",
+                  }}
+                />
+              </div>
+              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                <label style={{ display: "block", fontSize: 10.5, fontWeight: 600, marginBottom: 3 }} className="text-admin-ink-muted">
+                  Español {parent.custom_label_es && <span className="text-admin-amber-deep">· custom</span>}
+                </label>
+                <input
+                  type="text"
+                  defaultValue={parent.custom_label_es ?? ""}
+                  placeholder={parent.name_es ?? parent.name_en}
+                  disabled={!canCustomize}
+                  onBlur={(e) => canCustomize && onLabel("es", e.target.value)}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "6px 9px",
+                    borderRadius: 7,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    background: canCustomize ? "#fff" : "rgba(11,11,13,0.03)",
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                    color: COLORS.ink,
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+            <div style={{ fontSize: 10.5, lineHeight: 1.4 }} className="text-admin-ink-muted">
+              Leave a field blank to fall back to the platform default. Talent + admin editors update automatically.
+              {!canSetOrder && (
+                <> Drag-to-reorder requires <strong>Agency</strong> plan.</>
+              )}
+            </div>
+          </div>
+
           <TaxonomyToggleRow
             label="Allow as primary"
             desc="Talent can pick this as their main category."
             value={parent.allow_as_primary}
             onChange={(v) => onFlag("allow_as_primary", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Allow as secondary"
             desc="Talent can add this as one of their two secondary categories."
             value={parent.allow_as_secondary}
             onChange={(v) => onFlag("allow_as_secondary", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Show in registration"
             desc="Talent can self-register under this category."
             value={parent.show_in_registration}
             onChange={(v) => onFlag("show_in_registration", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Show in directory"
             desc="Discover surfaces this category to clients."
             value={parent.show_in_directory}
             onChange={(v) => onFlag("show_in_directory", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Require approval"
             desc="New profiles in this category go to admin queue first."
             value={parent.requires_approval}
             onChange={(v) => onFlag("requires_approval", v)}
+            disabled={isSavingParent}
           />
         </div>
       )}
@@ -1003,11 +1122,20 @@ export function CategoryExpandPanel({
 
 
 export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast } = useAdminShell();
+  const { state, toast } = useAdminShell();
+  // Phase 2 (Sub-Task 3): plan-tier gating mirrors light-09 (FIELD pattern).
+  // canCustomize → Studio+ (enable/disable + relabel).
+  // canSetOrder  → Agency+ (drag reorder; existing drag is gated below).
+  const planRules =
+    FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
+    ?? FIELD_PRIVACY_PLAN_RULES.free;
+  const canCustomize = planRules.canFlipPublicInternal;
+  const canSetOrder = planRules.canSetRequired;
   const [tree, setTree] = useState<TaxonomyNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [savedRecently, setSavedRecently] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [addingForParent, setAddingForParent] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState("");
@@ -1073,6 +1201,16 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     });
   };
 
+  const markSaveDone = (id: string, ok: boolean) => {
+    setSaving((prev) => { const n = new Set(prev); n.delete(id); return n; });
+    if (ok) {
+      setSavedRecently((prev) => new Set(prev).add(id));
+      setTimeout(() => {
+        setSavedRecently((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      }, 1500);
+    }
+  };
+
   // Optimistic mutation helper — patches the local tree, fires server
   // action, reverts on failure.
   const patchNode = (id: string, patch: Partial<TaxonomyNode>) => {
@@ -1089,6 +1227,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleToggleEnabled = async (node: TaxonomyNode) => {
+    // Phase 2 (Sub-Task 3) plan-tier floor: Free is read-only.
+    if (!canCustomize) {
+      toast("Upgrade to Studio to enable/disable categories");
+      return;
+    }
     markSaving(node.id, true);
     const before = node.is_enabled;
     patchNode(node.id, { is_enabled: !before });
@@ -1100,7 +1243,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       patchNode(node.id, { is_enabled: before });
       toast(res.error);
     }
-    markSaving(node.id, false);
+    markSaveDone(node.id, res.ok);
   };
 
   const handleFlag = async (node: TaxonomyNode, key: keyof TaxonomyNode, val: boolean) => {
@@ -1114,6 +1257,52 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     if (!res.ok) {
       patchNode(node.id, { [key]: before } as Partial<TaxonomyNode>);
       toast(res.error);
+    }
+    markSaveDone(node.id, res.ok);
+  };
+
+  // Phase 2 (Sub-Task 3): persist custom_label / custom_label_es. Trim +
+  // empty-to-null normalization mirrors light-09's field-label edit pattern
+  // (the override-vs-platform-default surface is symmetric). Optimistic
+  // patch with rollback on failure so the input always reflects DB truth.
+  const handleLabel = async (
+    node: TaxonomyNode,
+    locale: "en" | "es",
+    raw: string,
+  ) => {
+    if (!canCustomize) {
+      toast("Upgrade to Studio to rename categories");
+      return;
+    }
+    const trimmed = raw.trim();
+    const platformDefault = locale === "en" ? node.name_en : (node.name_es ?? "");
+    const next = trimmed && trimmed !== platformDefault ? trimmed : null;
+    const currentOverride = locale === "en" ? node.custom_label : node.custom_label_es;
+    if ((currentOverride ?? null) === next) return;
+    markSaving(node.id, true);
+    patchNode(
+      node.id,
+      locale === "en" ? { custom_label: next } : { custom_label_es: next },
+    );
+    const res = await setTaxonomyFlags({
+      taxonomy_term_id: node.id,
+      ...(locale === "en" ? { custom_label: next } : { custom_label_es: next }),
+    });
+    if (!res.ok) {
+      // Revert optimistic patch on failure.
+      patchNode(
+        node.id,
+        locale === "en"
+          ? { custom_label: currentOverride }
+          : { custom_label_es: currentOverride },
+      );
+      toast(res.error);
+    } else {
+      toast(
+        next
+          ? `Renamed for your workspace (${locale.toUpperCase()})`
+          : `Reset to the platform name (${locale.toUpperCase()})`,
+      );
     }
     markSaving(node.id, false);
   };
@@ -1129,12 +1318,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       });
       if (!res.ok) {
         setTree(previousTree);
-        markSaving("taxonomy-order", false);
+        markSaveDone("taxonomy-order", false);
         toast(res.error || "Couldn't save category order");
         return;
       }
     }
-    markSaving("taxonomy-order", false);
+    markSaveDone("taxonomy-order", true);
     toast("Category order saved");
   };
 
@@ -1154,16 +1343,21 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       });
       if (!res.ok) {
         setTree(previousTree);
-        markSaving(savingKey, false);
+        markSaveDone(savingKey, false);
         toast(res.error || "Couldn't save sub-type order");
         return;
       }
     }
-    markSaving(savingKey, false);
+    markSaveDone(savingKey, true);
     toast("Sub-type order saved");
   };
 
   const reorderParentSubTypes = (parentId: string, orderedSubTypeIds: string[]) => {
+    // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
+    if (!canSetOrder) {
+      toast("Upgrade to Agency to reorder sub-types");
+      return;
+    }
     if (!tree || orderedSubTypeIds.length < 2) return;
     const previousTree = tree;
     const orderMap = new Map(
@@ -1192,6 +1386,11 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const dropRootCategory = (target: TaxonomyNode) => {
+    // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
+    if (!canSetOrder) {
+      toast("Upgrade to Agency to reorder categories");
+      return;
+    }
     if (!draggingTaxonomyId || draggingTaxonomyId === target.id || !tree) return;
     const previousTree = tree;
     const ordered = tree
@@ -1289,6 +1488,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
             </div>
           </div>
 
+          {saving.has("taxonomy-order") && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-admin-sm text-admin-11 font-medium mb-2 bg-admin-surface-alt text-admin-ink-muted border border-admin-border-soft">
+              Saving category order…
+            </div>
+          )}
+
           <div style={{
             background: "#fff", borderRadius: 12, overflow: "hidden",
             border: `1px solid ${COLORS.borderSoft}`,
@@ -1297,6 +1502,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
             {tree.map((parent, i) => {
               const isExpanded = expanded.has(parent.id);
               const isSaving = saving.has(parent.id);
+              const isSavedRecently = savedRecently.has(parent.id);
               const childCount = parent.children.length;
               const customCount = parent.children.filter(c => c.is_custom).length;
               return (
@@ -1313,29 +1519,39 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                     opacity: parent.is_enabled ? 1 : 0.55,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", cursor: "pointer", }} onClick={() => toggleExpand(parent.id)}>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-admin-ink text-admin-13h font-semibold">
-                          <span
-                            aria-hidden
-                            title="Drag to reorder categories"
-                            className="mr-2 select-none text-admin-ink-dim text-admin-11 font-bold"
-                          >
-                            ⋮⋮
-                          </span>
-                          {parent.custom_label ?? parent.name_en}
-                        </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer" }} onClick={() => toggleExpand(parent.id)}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-admin-ink text-admin-13h font-semibold">
+                        <span
+                          aria-hidden
+                          title="Drag to reorder categories"
+                          className="mr-2 select-none text-admin-ink-dim text-admin-11 font-bold"
+                        >
+                          ⋮⋮
+                        </span>
+                        {parent.custom_label ?? parent.name_en}
+                      </div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {childCount} sub-type{childCount === 1 ? "" : "s"}
                         {customCount > 0 ? ` · ${customCount} custom` : ""}
                         {parent.is_enabled ? "" : " · disabled"}
-                        {isSaving ? " · saving…" : ""}
                       </div>
                     </div>
+                    {/* Save-state indicator — persistent, not toast-only */}
+                    {(isSaving || isSavedRecently) && (
+                      <span className={`text-admin-10 font-semibold px-2 py-0.5 rounded shrink-0 ${isSaving ? "bg-[rgba(11,11,13,0.07)] text-admin-ink-muted" : "bg-admin-accent-soft text-admin-accent"}`}>
+                        {isSaving ? "Saving…" : "✓ Saved"}
+                      </span>
+                    )}
+                    {/* Chevron — signals the row is expandable */}
+                    <span aria-hidden className="text-admin-13 text-admin-ink-muted shrink-0 select-none">
+                      {isExpanded ? "▾" : "▸"}
+                    </span>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleToggleEnabled(parent); }}
                       aria-pressed={parent.is_enabled}
+                      disabled={isSaving}
                       style={{
                         width: 36, height: 22, borderRadius: 999,
                         background: parent.is_enabled ? COLORS.accent : "rgba(11,11,13,0.12)",
@@ -1359,7 +1575,17 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       isLoading={detailLoading.has(parent.id)}
                       tab={getTab(parent.id)}
                       onTabChange={(t) => setTab(parent.id, t)}
-                      onFlag={(key, val) => handleFlag(parent, key, val)}
+                      onFlag={(key, val) => {
+                        // Plan-tier safety floor — Free can read but not write.
+                        if (!canCustomize) {
+                          toast("Upgrade to Studio to customize taxonomy");
+                          return;
+                        }
+                        handleFlag(parent, key, val);
+                      }}
+                      onLabel={(locale, raw) => handleLabel(parent, locale, raw)}
+                      canCustomize={canCustomize}
+                      canSetOrder={canSetOrder}
                       onToggleSubEnabled={handleToggleEnabled}
                       onRemoveCustom={handleRemoveCustom}
                       addingCustom={addingForParent === parent.id}
@@ -1368,6 +1594,8 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       onNewSubName={setNewSubName}
                       onAddCustom={() => handleAddCustom(parent)}
                       onReorderSubtypes={reorderParentSubTypes}
+                      isSavingParent={saving.has(parent.id)}
+                      isSavingSubtypes={saving.has(`taxonomy-order:${parent.id}`)}
                     />
                   )}
                 </div>
@@ -1575,11 +1803,12 @@ export function TalentTypeRow({
 }
 
 
-export function TaxonomyToggleRow({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
+export function TaxonomyToggleRow({ label, desc, value, onChange, disabled }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className={`flex items-center gap-2.5${disabled ? " opacity-50 pointer-events-none" : ""}`}>
       <button type="button" onClick={() => onChange(!value)}
         aria-pressed={value}
+        disabled={disabled}
         style={{
           width: 32, height: 18, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
           background: value ? COLORS.accent : "rgba(11,11,13,0.12)",

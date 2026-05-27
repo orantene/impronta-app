@@ -149,10 +149,11 @@ function FieldRow({
           <Link
             href={`/platform/admin/catalog/${encodeURIComponent(f.field_key)}`}
             style={{ fontWeight: 600, color: "inherit", textDecoration: "none" }}
-            title="Open field detail"
+            title={`Edit ${f.label} — click to open field editor`}
           >
             {f.label}
           </Link>
+          <span style={{ fontSize: 10, color: HQ.green, letterSpacing: 0.2 }}>›</span>
           {f.deprecated && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: HQ.red }}>DEPRECATED</span>
           )}
@@ -186,8 +187,8 @@ function FieldRow({
         </div>
       </div>
       <VisChip v={f.visibility} />
-      <span style={{ fontSize: 11, color: HQ.inkMuted, minWidth: 72, textAlign: "right" }}>
-        {f.override_count} ws ovr
+      <span style={{ fontSize: 11, color: HQ.inkMuted, minWidth: 82, textAlign: "right" }}>
+        {f.override_count} overrides
       </span>
       <span style={{ fontSize: 11, color: HQ.inkMuted, minWidth: 78, textAlign: "right" }}>
         {f.value_count} values
@@ -202,6 +203,14 @@ const RISK_TONE: Record<CatalogRisk["kind"], string> = {
   "deprecated-with-values": HQ.amber,
   "deprecated-active-overrides": HQ.amber,
   unused: HQ.inkMuted,
+};
+
+const RISK_LABEL: Record<CatalogRisk["kind"], string> = {
+  "sensitive-but-public": "Sensitive + public",
+  "admin-but-public": "Admin-only + public",
+  "deprecated-with-values": "Deprecated with values",
+  "deprecated-active-overrides": "Deprecated with overrides",
+  unused: "Unused",
 };
 
 // Phase 9A slice 2 — URL-driven filters. Pure server-render (no client JS).
@@ -380,10 +389,7 @@ export default async function PlatformCatalogMapPage({
         </div>
       </div>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 18 }}>
-        Platform control room for the talent field engine — every platform
-        field, group, tier, default visibility (via the shared engine),
-        workspace adoption, value usage, and config risk. Open a field to
-        edit bilingual labels, lifecycle, visibility, and taxonomy mapping.
+        All platform fields, grouped by section. Click any field name to open its editor — bilingual labels, lifecycle, visibility, taxonomy mapping, and workspace adoption.
       </div>
 
       <HqCard
@@ -603,8 +609,9 @@ export default async function PlatformCatalogMapPage({
                     color: RISK_TONE[r.kind],
                     minWidth: 168,
                   }}
+                  title={r.kind}
                 >
-                  {r.kind}
+                  {RISK_LABEL[r.kind]}
                 </span>
                 <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace" }}>
                   {r.field_key}
@@ -624,7 +631,9 @@ export default async function PlatformCatalogMapPage({
         >
           <div>
             {g.fields.length === 0 ? (
-              <div style={{ fontSize: 12, color: HQ.inkDim }}>No fields.</div>
+              <div style={{ fontSize: 12, color: HQ.inkDim, padding: "6px 0" }}>
+                No fields in this group yet — create one above and assign it here.
+              </div>
             ) : (
               <>
                 {!filtersActive && (

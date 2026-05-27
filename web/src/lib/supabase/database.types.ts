@@ -1474,7 +1474,9 @@ export type Database = {
           allow_as_primary: boolean
           allow_as_secondary: boolean
           created_at: string
+          created_by_user_id: string | null
           custom_label: string | null
+          custom_label_es: string | null
           display_order: number
           helper_text: string | null
           id: string
@@ -1490,7 +1492,9 @@ export type Database = {
           allow_as_primary?: boolean
           allow_as_secondary?: boolean
           created_at?: string
+          created_by_user_id?: string | null
           custom_label?: string | null
+          custom_label_es?: string | null
           display_order?: number
           helper_text?: string | null
           id?: string
@@ -1506,7 +1510,9 @@ export type Database = {
           allow_as_primary?: boolean
           allow_as_secondary?: boolean
           created_at?: string
+          created_by_user_id?: string | null
           custom_label?: string | null
+          custom_label_es?: string | null
           display_order?: number
           helper_text?: string | null
           id?: string
@@ -6975,8 +6981,11 @@ export type Database = {
           requires_review_on_change: boolean
           section: string
           show_in_directory: boolean
+          show_in_directory_card: boolean
+          show_in_directory_filter: boolean
           show_in_edit_drawer: boolean
           show_in_public: boolean
+          show_in_public_profile_sidebar: boolean
           show_in_registration: boolean
           show_when: Json | null
           subsection: string | null
@@ -7011,8 +7020,11 @@ export type Database = {
           requires_review_on_change?: boolean
           section: string
           show_in_directory?: boolean
+          show_in_directory_card?: boolean
+          show_in_directory_filter?: boolean
           show_in_edit_drawer?: boolean
           show_in_public?: boolean
+          show_in_public_profile_sidebar?: boolean
           show_in_registration?: boolean
           show_when?: Json | null
           subsection?: string | null
@@ -7047,8 +7059,11 @@ export type Database = {
           requires_review_on_change?: boolean
           section?: string
           show_in_directory?: boolean
+          show_in_directory_card?: boolean
+          show_in_directory_filter?: boolean
           show_in_edit_drawer?: boolean
           show_in_public?: boolean
+          show_in_public_profile_sidebar?: boolean
           show_in_registration?: boolean
           show_when?: Json | null
           subsection?: string | null
@@ -10315,9 +10330,12 @@ export type Database = {
           last_changed_by_user_id: string | null
           required_override: boolean | null
           requires_review_on_change_override: boolean | null
+          show_in_directory_card_override: boolean | null
+          show_in_directory_filter_override: boolean | null
           show_in_directory_override: boolean | null
           show_in_edit_drawer_override: boolean | null
           show_in_public_override: boolean | null
+          show_in_public_profile_sidebar_override: boolean | null
           show_in_registration_override: boolean | null
           talent_editable_override: boolean | null
           tenant_id: string
@@ -10336,9 +10354,12 @@ export type Database = {
           last_changed_by_user_id?: string | null
           required_override?: boolean | null
           requires_review_on_change_override?: boolean | null
+          show_in_directory_card_override?: boolean | null
+          show_in_directory_filter_override?: boolean | null
           show_in_directory_override?: boolean | null
           show_in_edit_drawer_override?: boolean | null
           show_in_public_override?: boolean | null
+          show_in_public_profile_sidebar_override?: boolean | null
           show_in_registration_override?: boolean | null
           talent_editable_override?: boolean | null
           tenant_id: string
@@ -10357,9 +10378,12 @@ export type Database = {
           last_changed_by_user_id?: string | null
           required_override?: boolean | null
           requires_review_on_change_override?: boolean | null
+          show_in_directory_card_override?: boolean | null
+          show_in_directory_filter_override?: boolean | null
           show_in_directory_override?: boolean | null
           show_in_edit_drawer_override?: boolean | null
           show_in_public_override?: boolean | null
+          show_in_public_profile_sidebar_override?: boolean | null
           show_in_registration_override?: boolean | null
           talent_editable_override?: boolean | null
           tenant_id?: string

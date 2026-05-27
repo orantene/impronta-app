@@ -2,8 +2,10 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { allowedLegacyFieldKeysForPublicSurface } from "@/lib/field-engine/legacy-directory-policy";
-import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+import {
+  isResolvedFieldVisibleOnDirectoryCard,
+  type PublicSurfaceContext,
+} from "@/lib/field-engine/public-surface-visibility";
 
 export type DirectoryCardScalarDef = {
   id: string;
@@ -68,16 +70,6 @@ export function pickEffectiveDirectoryCardFieldRows(
   return merged;
 }
 
-function isVisibleDirectoryCardField(row: DirectoryCardFieldCatalogRow): boolean {
-  return Boolean(
-    !row.archived_at &&
-      row.active === true &&
-      row.internal_only !== true &&
-      row.public_visible === true &&
-      row.profile_visible === true,
-  );
-}
-
 async function loadDirectoryCardDisplayCatalogUncached(
   opts: DirectoryCardDisplayCatalogOptions = {},
 ): Promise<DirectoryCardDisplayCatalog> {
@@ -121,31 +113,24 @@ async function loadDirectoryCardDisplayCatalogUncached(
     ],
     tenantId,
   );
-  const bridgedKeys = effectiveRows
-    .map((row) => row.key)
-    .filter((key) => Boolean(OLD_TO_NEW_KEY[key]));
-  const allowedBridgedKeys =
-    bridgedKeys.length > 0
-      ? await allowedLegacyFieldKeysForPublicSurface(supabase, {
-          tenantId,
-          surface: "directory",
-          oldKeys: bridgedKeys,
-        })
-      : null;
-  const engineSafeRows = allowedBridgedKeys
-    ? effectiveRows.filter((row) => !OLD_TO_NEW_KEY[row.key] || allowedBridgedKeys.has(row.key))
-    : effectiveRows;
-
-  const fitRow = engineSafeRows.find((row) => row.key === "fit_labels") ?? null;
-
-  let fitLabelsEnabled = true;
-  if (fitRow) {
-    fitLabelsEnabled = isVisibleDirectoryCardField(fitRow) && fitRow.card_visible === true;
-  }
-
-  const cardVisibleRows = engineSafeRows.filter(
-    (row) => isVisibleDirectoryCardField(row) && row.card_visible === true,
+  // Route all effective rows through the unified resolver helper. The helper
+  // checks bridged keys against the canonical resolver (effectiveFieldVisibility
+  // + show_in_directory) AND the legacy surface flags (public_visible,
+  // profile_visible, card_visible, internal_only) — R1: legacy flags gate
+  // first, canonical ANDs on top. Non-bridged keys (fit_labels, etc.) go
+  // through the synthetic C2 path (Phase 2 collapse target).
+  const ctx: PublicSurfaceContext = { supabase, tenantId };
+  const cardVisible = await Promise.all(
+    effectiveRows.map((row) => isResolvedFieldVisibleOnDirectoryCard(row, ctx)),
   );
+  const cardVisibleRows = effectiveRows.filter((_, i) => cardVisible[i]);
+
+  // fit_labels: enabled by default; disabled only when its row exists in
+  // effectiveRows but fails the card visibility check (explicit opt-out).
+  const fitRow = effectiveRows.find((row) => row.key === "fit_labels");
+  const fitLabelsEnabled = fitRow
+    ? cardVisibleRows.some((row) => row.key === "fit_labels")
+    : true;
   if (cardVisibleRows.length === 0) {
     return { fitLabelsEnabled, heightCardDef: null, scalarCardDefs: [] };
   }

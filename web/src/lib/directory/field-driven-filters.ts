@@ -20,8 +20,10 @@ import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
 import {
   DIRECTORY_CANONICAL_GENDER_FIELD_KEY,
 } from "@/lib/directory/apply-directory-field-facet-filters";
-import { allowedLegacyFieldKeysForPublicSurface } from "@/lib/field-engine/legacy-directory-policy";
-import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+import {
+  isResolvedFieldVisibleInDirectoryFilter,
+  type PublicSurfaceContext,
+} from "@/lib/field-engine/public-surface-visibility";
 
 export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
@@ -282,16 +284,32 @@ async function filterFieldCatalogByTenantAndEngine(
   tenantId: string | null,
 ): Promise<FieldDefinitionQueryRow[]> {
   const tenantRows = filterFieldCatalogByTenant(rows, tenantId);
-  const bridgedKeys = tenantRows
-    .map((row) => row.key)
-    .filter((key) => Boolean(OLD_TO_NEW_KEY[key]));
-  if (bridgedKeys.length === 0) return tenantRows;
-  const allowedKeys = await allowedLegacyFieldKeysForPublicSurface(supabase, {
-    tenantId,
-    surface: "directory",
-    oldKeys: bridgedKeys,
-  });
-  return tenantRows.filter((row) => !OLD_TO_NEW_KEY[row.key] || allowedKeys.has(row.key));
+  if (tenantRows.length === 0) return [];
+  const ctx: PublicSurfaceContext = { supabase, tenantId };
+  // Route every row through the unified resolver helper. The helper covers:
+  //   - Bridged keys: canonical effectiveFieldVisibility + show_in_directory (R1 AND)
+  //   - Gender allow-list: internal_only=true but explicitly permitted (R4)
+  //   - Non-bridged keys: synthetic C2 visibility from legacy flags
+  // Modern rows carry directory_filter_visible; legacy-fallback rows (missing
+  // the column) carry filterable — normalize before calling the helper.
+  const visible = await Promise.all(
+    tenantRows.map((row) =>
+      isResolvedFieldVisibleInDirectoryFilter(
+        {
+          key: row.key,
+          directory_filter_visible:
+            row.directory_filter_visible != null
+              ? Boolean(row.directory_filter_visible)
+              : Boolean(row.filterable),
+          active: row.active,
+          archived_at: row.archived_at,
+          tenant_id: (row as { tenant_id?: string | null }).tenant_id ?? null,
+        },
+        ctx,
+      ),
+    ),
+  );
+  return tenantRows.filter((_, i) => visible[i]);
 }
 
 function serializeFilterContextKey(ctx: DirectoryFilterRequestContext): string {

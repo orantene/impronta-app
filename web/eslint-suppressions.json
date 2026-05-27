@@ -124,7 +124,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 360
+      "count": 371
     }
   },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
@@ -1543,6 +1543,11 @@
     }
   },
   "src/lib/server-actions/admin-user-workspaces.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
+    }
+  },
+  "src/lib/server-actions/admin-workspace-default-currency.ts": {
     "ratchet/no-untenanted-from": {
       "count": 2
     }

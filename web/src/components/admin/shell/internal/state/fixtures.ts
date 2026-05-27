@@ -259,6 +259,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   website:   { label: "Website",   icon: "globe",    description: "Pages, posts, redirects, custom code, tracking, SEO, domain" },
   media:     { label: "Media",     icon: "camera",   description: "Workspace photo library, watermark control, and usage tracking" },
   pitches:   { label: "Pitches",   icon: "send",     description: "Curated talent suggestions sent to clients" },
+  financials:{ label: "Financials",icon: "trending-up", description: "Revenue, payouts, commissions, and payment status" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
   inbox:     { label: "Inbox",     icon: "mail" },

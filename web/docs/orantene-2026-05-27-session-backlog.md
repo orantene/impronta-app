@@ -197,4 +197,52 @@ The following need a human call before relevant agent work proceeds:
 
 ---
 
-_Last updated: 2026-05-27 by the funnel/Stripe-activation session. Update when new work lands or scope shifts._
+## §8 — Profile-engine launch-readiness session (sibling, 2026-05-27 PM)
+
+Multi-phase launch-engineering session that ran in parallel with the funnel/Stripe activation above. Shipped to production via PR #45 (merge commit `707f9328b`).
+
+### What landed in prod
+
+| Phase | Highlights | Commits |
+|-------|------------|---------|
+| 0 | Stale-Details flash fix in admin profile drawer when removing the last service | `dde6cefc7` |
+| 1 | Resolver public-surface migration — directory filters, cards, public profile sidebar now consume one resolver (`resolveTalentFields({ viewerRole: "public" })`); legacy `field_definitions`-direct reads deprecated with `legacy_directory_policy.call` telemetry + 2026-07-15 sunset | `1b4f9f508` + 5 lane commits |
+| 2 | Tenant-scope taxonomy overrides — extended `agency_taxonomy_settings` with `custom_label_es` + `created_by_user_id`; resolver collapses legacy AND-ing to canonical-alone; tenant settings UI ships EN/ES label edit + plan-tier safety floors | `9a4b13d23` → `c48347123` |
+| 3 | Impronta launch taxonomy curation — 268 leaves disabled / 120 enabled; home-fixer orphan-enable flagged + fixed via follow-up migration | `9581f7db1` + `39fc6c6ce` |
+| 4.1 | Platform Admin Control Room polish — readable labels, edit affordance, audit timestamps with TZ + year | `34d595b28` + `e02b991c3` |
+| 4.2 | Tenant settings polish — visible async state for every save, chevron flip, cool-token aesthetic | `d6030e316` |
+| 5 | Release gate — multi-tenant QA on `staging-{impronta,nova}.tulala.digital`, full CI, merge of 9 incoming PRs via PR #45 | `707f9328b` |
+
+Final smoke (production, 707f9328b): all signals green incl. CSP, image optimizer, Places, edge region, alias parity, migration drift = 0.
+
+### Architectural finding for future sessions
+
+**`agency_taxonomy_settings` is the canonical tenant-scope taxonomy overrides table** despite its misleading "agency_" prefix. It is plan-agnostic (every tenant has rows regardless of plan tier). The prior "build `workspace_taxonomy_overrides`" assumption in the Phase 2 brief was wrong — Phase 2 caught this via the Phase 2 agent's `AskUserQuestion` and pivoted to extending the existing table. **Do not duplicate** — extend `agency_taxonomy_settings` for any future tenant-scope taxonomy work.
+
+### Reversible state changes from this session (kept post-launch)
+
+| State change | Why kept | Reusable for |
+|---|---|---|
+| `staging-impronta.tulala.digital` row in `agency_domains` (tenant_id `00000000-0000-0000-0000-000000000001`) | Future Phase-5-style preview-QA against the Impronta tenant | Every future launch gate |
+| `staging-nova.tulala.digital` row in `agency_domains` (tenant_id `33333333-3333-3333-3333-333333333333`) | Cross-tenant non-regression QA | Every future launch gate |
+| Vercel aliases pointing both staging hosts at the last preview deploy | Reuse without re-aliasing | Reset before each new gate |
+
+### Follow-up tickets surfaced — open
+
+| # | Title | Estimated | Model | Scope |
+|---|-------|-----------|-------|-------|
+| L51 | **Worktree `node_modules` symlink breaks Turbopack** | 1-2h | Sonnet | Worktree init scripts (`mcp__ccd_session__spawn_task` hooks, manual `git worktree add` flows) currently symlink `web/node_modules` to the shared checkout's. Turbopack rejects this with "Symlink … points out of the filesystem root". Phase 5 had to `cp -R` as a one-time recovery. Fix: worktree-setup helper that runs `cp -R` (or `npm ci --prefer-offline`) instead of `ln -s`. Document the fix in `web/docs/development-workflow.md`. |
+| L52 | **Preview-canonical bypass mechanism for prod-Supabase preview QA** | 2-3h | Sonnet | `web/src/lib/saas/domain-canonical.ts:24` only exempts `*.local` / `*.lvh.me` from the canonical-host 308 redirect. Every Phase-5-style launch gate currently has to flip `agency_domains.is_primary` on a tenant's prod canonical host (this session did it for `improntamodels.com` for 13:31). Add a `staging-*` exemption OR a signed preview cookie that bypasses the redirect. Removes a recurring prod-impact step. |
+| L53 | **Migration column-name lint** | 2-3h | Sonnet | This session's `20260527174407_impronta_disable_home_fixer_leaf.sql` referenced `engine_audit_log.action` / `notes` / `text subject_id` — none exist in the canonical schema (`operation` / `subject_key` / `uuid subject_id`). Caught by Phase 5 when the migration failed to apply against remote. Add a pre-commit / CI lint that validates `INSERT INTO` column lists against `information_schema.columns` from a snapshot of the canonical schema. |
+| L54 | **No-auth QA path for prod-Supabase preview deploys** | 3-4h | Sonnet | The privacy ruleset (correctly) blocks Claude from typing user passwords. Phase 5 QA matrix items (a)–(d), (f) were marked "unverified-on-preview" because no `/api/dev/signin` equivalent exists for preview deploys against prod Supabase. Add a preview-only signed-magic-link endpoint, gated on `process.env.VERCEL_ENV === "preview"` AND a per-deploy short-TTL token. Future gates get full browser QA without credential handling. |
+| L55 | **`sensitive-but-public` field audit** | 1-2h product + ~30min code | Sonnet (product owner driving) | Phase 4.1 surfaced **174 of 273 `field_definitions` rows have both `is_sensitive=true` AND `show_in_public=true`** — almost certainly a bulk-seed accident. The risk diagnostic surfaces it correctly; needs a product call: which fields genuinely need both flags vs which should drop `is_sensitive`? Output is a migration that fixes the data + a tracking doc. |
+
+### Process learnings worth carrying forward
+
+1. **Multi-agent collision pattern is real** — origin/main absorbed PR #30's "Talent My Site" while this session was building one independently. Both were functionally identical. The merge resolution was hygiene-only (taking origin's improvements: defense-in-depth scoping in `actions.ts`, `isSelf`-gated handlers in `TalentProfileShellDrawer.tsx`, useEffect resync in composition panel). When two lanes work on the same subsystem, they often converge — but the diff is still 3000 LOC of conflict markers.
+2. **Migrations must be validated against canonical schema before commit.** L53 above. The `home-fixer` migration shipped a column-name bug that only failed at apply-time on remote.
+3. **Worktree isolation is mandatory.** Two lane reports this session admitted working in the shared checkout instead of their assigned worktree. Both times it worked out (cherry-pick recovered) but it adds a step. Worktree-setup needs to be hands-off (auto-create, auto-symlink env, auto-cwd into the new chat) — see L51 + L54.
+
+---
+
+_Last updated: 2026-05-27 by the funnel/Stripe-activation session and the profile-engine launch-readiness session (§8). Update when new work lands or scope shifts._

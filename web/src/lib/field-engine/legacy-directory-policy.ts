@@ -1,7 +1,24 @@
+/**
+ * @deprecated `legacy-directory-policy.ts` — Phase 1.2 successor:
+ * `public-surface-visibility.ts` (`isResolvedFieldVisibleInDirectoryFilter`,
+ * `isResolvedFieldVisibleOnDirectoryCard`, `isResolvedFieldVisibleInPublicProfileSidebar`).
+ *
+ * Call sites that still import `allowedLegacyFieldKeysForPublicSurface` from
+ * this module are tracked via the `legacy_directory_policy.call` structured-log
+ * event. Sunset condition: **after Phase 5 deploy + 7 consecutive quiet days
+ * with zero `legacy_directory_policy.call` events in prod telemetry, remove
+ * this file entirely. Hard date: no later than 2026-07-15.**
+ *
+ * Do NOT delete this file before the telemetry condition is met — Lane B
+ * (public profile sidebar) and any external integrations may still be routing
+ * through it during the Phase 1.x stagger window.
+ */
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import { OLD_TO_NEW_KEY } from "@/lib/fields/legacy-mirror";
+import { improntaLog } from "@/lib/server/structured-log";
 
 type LegacyDirectorySurface = "directory" | "public_profile";
 
@@ -28,6 +45,13 @@ type WorkspaceOverrideRow = {
 // The public directory still has a few legacy `field_definitions` callers.
 // For bridged keys, this helper lets those callers obey the canonical engine
 // lifecycle and visibility rules without migrating the value reads yet.
+/**
+ * @deprecated Use `isResolvedFieldVisibleInDirectoryFilter` or
+ * `isResolvedFieldVisibleOnDirectoryCard` from `public-surface-visibility.ts`.
+ * This function fires a `legacy_directory_policy.call` telemetry event to
+ * track remaining callers. Remove after the sunset condition is met
+ * (Phase 5 deploy + 7 quiet days, no later than 2026-07-15).
+ */
 export async function allowedLegacyFieldKeysForPublicSurface(
   supabase: SupabaseClient,
   input: {
@@ -36,6 +60,13 @@ export async function allowedLegacyFieldKeysForPublicSurface(
     oldKeys?: readonly string[];
   },
 ): Promise<Set<string>> {
+  // Telemetry: track any remaining callers in prod. Zero calls for 7 days
+  // after Phase 5 deploy = safe to delete this file (see module @deprecated).
+  void improntaLog("legacy_directory_policy.call", {
+    surface: input.surface,
+    tenantId: input.tenantId,
+    key_count: input.oldKeys?.length ?? null,
+  });
   const candidateOldKeys = input.oldKeys?.length
     ? input.oldKeys.filter((key) => OLD_TO_NEW_KEY[key])
     : Object.keys(OLD_TO_NEW_KEY);

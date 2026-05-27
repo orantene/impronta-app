@@ -45,12 +45,23 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 /** ViewerRole accepted by the resolver. Authoritative union lives in
  *  `effective-visibility.ts`; we accept the staff + talent subset here
- *  because those are the only roles a wrapper can authenticate today. */
+ *  because those are the only roles a wrapper can authenticate today.
+ *
+ *  "public" and "client" are sanctioned spellings added in Phase 1.2 so
+ *  call sites that need to express a public-viewer context (e.g. the public
+ *  profile page `/t/[profileCode]`) can pass a meaningful role instead of
+ *  the misleading "platform_admin" it used before. The resolver does NOT
+ *  branch on viewerRole today (per-render gating lives in `canViewerSee`);
+ *  the widening is a compile-time correctness improvement only. R3 note:
+ *  if a future contributor adds viewerRole branching inside the resolver,
+ *  these roles must produce the public-visibility floor, not staff access. */
 export type ResolverViewerRole =
   | "agency_admin"
   | "platform_admin"
   | "talent"
-  | "manager";
+  | "manager"
+  | "public"
+  | "client";
 
 export type ResolvedField = {
   field_definition_id: string;
