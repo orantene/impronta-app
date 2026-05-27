@@ -19,6 +19,7 @@ import {
   workspacePathHost,
 } from "@/lib/saas/workspace-public-url";
 import { SuccessTick, TextField } from "./get-started-form-fields";
+import { SubdomainHint, type SubdomainState } from "./get-started-form-subdomain-hint";
 
 type AudienceKey = "operator" | "agency" | "organization";
 type RosterBucket = "1-5" | "6-20" | "21-50" | "50+";
@@ -74,15 +75,6 @@ const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }
   },
 ];
 
-type SubdomainState =
-  | { status: "idle" }
-  | { status: "checking" }
-  | { status: "available"; value: string }
-  | {
-      status: "unavailable";
-      reason: "format" | "reserved" | "taken" | "empty";
-      suggestions?: string[];
-    };
 
 function submitCtaLabel(tier: TierKey | undefined, audience: AudienceKey): string {
   if (tier === "studio") return "Continue to Studio checkout";
@@ -103,6 +95,18 @@ function rosterTierHint(rosterSize: RosterBucket, tier?: TierKey): string | null
     return "Studio fits growing rosters — 50 seats and WhatsApp notifications, $49/mo.";
   }
   return null;
+}
+
+const PAID_TIER_PLAN_LABEL = { studio: "Studio", agency: "Agency" } as const;
+function isPaidTier(tier?: TierKey): tier is "studio" | "agency" {
+  return tier === "studio" || tier === "agency";
+}
+
+function formFinePrint(tier?: TierKey): string {
+  if (tier === "studio") return "Studio · $19/mo · Cancel any time";
+  if (tier === "agency") return "Agency · 14-day free trial · Cancel any time";
+  if (tier === "network") return "Network · We’ll set up pricing with you";
+  return "No credit card · Free plan forever · Upgrade when you’re ready";
 }
 
 export function GetStartedForm({
@@ -196,6 +200,8 @@ export function GetStartedForm({
   const errors = state && !state.ok ? state.errors : {};
 
   if (state?.ok && state.kind === "needs_signin") {
+    const paidTier = isPaidTier(tier);
+    const planLabel = paidTier ? PAID_TIER_PLAN_LABEL[tier] : null;
     return (
       <div
         className="rounded-[24px] border p-8 sm:p-10"
@@ -209,16 +215,16 @@ export function GetStartedForm({
           className="plt-display text-[1.5rem] font-medium leading-[1.1] tracking-[-0.02em]"
           style={{ color: "var(--plt-ink)" }}
         >
-          Sign in to claim your link
+          {paidTier ? `Sign in to continue to ${planLabel} checkout` : "Sign in to claim your link"}
         </h3>
         <p className="mt-4 text-[0.9375rem] leading-[1.6]" style={{ color: "var(--plt-muted)" }}>
           An account already exists for{" "}
           <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>. Sign in to finish
-          creating{" "}
+          {paidTier ? " setting up " : " creating "}
           <strong style={{ color: "var(--plt-ink)" }}>
             {preferredLinkPreview(state.subdomain ?? "your-roster", tier)}
           </strong>
-          .
+          {paidTier ? " — payment is the last step." : "."}
         </p>
         {state.signInUrl ? (
           <a
@@ -229,7 +235,7 @@ export function GetStartedForm({
               color: "var(--plt-on-inverse)",
             }}
           >
-            Sign in and claim workspace
+            {paidTier ? "Sign in and continue to checkout" : "Sign in and claim workspace"}
           </a>
         ) : null}
       </div>
@@ -239,6 +245,8 @@ export function GetStartedForm({
   if (state?.ok) {
     const signedInContinue =
       initialSignedIn && state.workspaceSignupUrl ? state.workspaceSignupUrl : null;
+    const paidTier = isPaidTier(tier);
+    const planLabel = paidTier ? PAID_TIER_PLAN_LABEL[tier] : null;
 
     return (
       <div
@@ -271,12 +279,21 @@ export function GetStartedForm({
           style={{ color: "var(--plt-muted)" }}
         >
           {state.workspaceSignupUrl ? (
-            <>
-              Finish account setup with{" "}
-              <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
-              and we&apos;ll create your free workspace and its public Tulala URL
-              automatically.
-            </>
+            paidTier ? (
+              <>
+                Finish account setup with{" "}
+                <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
+                and we&apos;ll take you to {planLabel} checkout — payment is the last step
+                before your workspace is ready.
+              </>
+            ) : (
+              <>
+                Finish account setup with{" "}
+                <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
+                and we&apos;ll create your free workspace and its public Tulala URL
+                automatically.
+              </>
+            )
           ) : (
             <>
               We&apos;ll email{" "}
@@ -295,7 +312,13 @@ export function GetStartedForm({
               color: "var(--plt-on-inverse)",
             }}
           >
-            {signedInContinue ? "Open my workspace" : "Create account and open workspace"}
+            {signedInContinue
+              ? paidTier
+                ? `Continue to ${planLabel} checkout`
+                : "Open my workspace"
+              : paidTier
+                ? `Create account and continue to ${planLabel} checkout`
+                : "Create account and open workspace"}
           </a>
         ) : null}
         {tier === "network" && (
@@ -324,13 +347,17 @@ export function GetStartedForm({
           <li className="flex items-start gap-2.5">
             <SuccessTick />{" "}
             {state.workspaceSignupUrl
-              ? "Free plan — no credit card on file"
+              ? paidTier
+                ? `${planLabel} plan — full feature set unlocks after checkout`
+                : "Free plan — no credit card on file"
               : "We'll confirm the right plan and launch path with you by email"}
           </li>
           <li className="flex items-start gap-2.5">
             <SuccessTick />{" "}
             {state.workspaceSignupUrl
-              ? "Upgrade later to branded subdomains or custom domains"
+              ? paidTier
+                ? "Cancel any time — managed from your workspace billing settings"
+                : "Upgrade later to branded subdomains or custom domains"
               : "Your preferred link name is saved with this signup"}
           </li>
         </ul>
@@ -683,99 +710,10 @@ export function GetStartedForm({
         </svg>
       </button>
 
-      <p
-        className="mt-4 text-center text-[0.75rem]"
-        style={{ color: "var(--plt-muted)" }}
-      >
-        No credit card · Free plan forever · Upgrade when you&rsquo;re ready
+      <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
+        {formFinePrint(tier)}
       </p>
     </form>
   );
 }
 
-function SubdomainHint({
-  state,
-  serverError,
-  tier,
-  onPickSuggestion,
-}: {
-  state: SubdomainState;
-  serverError?: string;
-  tier?: TierKey;
-  onPickSuggestion?: (slug: string) => void;
-}) {
-  if (serverError) {
-    return (
-      <p className="mt-2 text-[0.75rem]" style={{ color: "#8a3e2e" }}>
-        {serverError}
-      </p>
-    );
-  }
-  switch (state.status) {
-    case "idle":
-      return (
-        <p className="mt-2 text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-          Upgrade to your own domain any time.
-        </p>
-      );
-    case "checking":
-      return (
-        <p className="mt-2 text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-          Checking availability…
-        </p>
-      );
-    case "available":
-      return (
-        <p
-          className="plt-mono mt-2 inline-flex items-center gap-1.5 text-[0.75rem]"
-          style={{ color: "var(--plt-forest)" }}
-        >
-          <svg width="10" height="8" viewBox="0 0 11 9" fill="none" aria-hidden>
-            <path
-              d="M1 4.5L4 7.5L10 1.5"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <strong>
-            {preferredLinkPreview(state.value, tier)}
-          </strong>{" "}
-          is available.
-        </p>
-      );
-    case "unavailable":
-      return (
-        <div className="mt-2">
-          <p className="text-[0.75rem]" style={{ color: "#8a3e2e" }}>
-            {state.reason === "taken"
-              ? "That link is already in use — try another."
-              : state.reason === "reserved"
-                ? "That link is reserved — try another."
-                : state.reason === "format"
-                  ? "Use lowercase letters, numbers, or hyphens (no leading/trailing hyphen)."
-                  : "Enter a link to continue."}
-          </p>
-          {state.suggestions && state.suggestions.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {state.suggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  className="rounded-full border px-3 py-1 text-[0.75rem] font-medium transition-colors hover:border-[var(--plt-forest)]"
-                  style={{
-                    borderColor: "var(--plt-hairline-strong)",
-                    color: "var(--plt-forest)",
-                  }}
-                  onClick={() => onPickSuggestion?.(suggestion)}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      );
-  }
-}
