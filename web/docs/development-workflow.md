@@ -80,6 +80,43 @@ middleware gates on registered hosts; QA on a real domain or localhost.)
 - Force-push `main` (branch protection blocks it anyway).
 - Commit `.env*` files (gitignored — keep it that way).
 - Develop on `phase-1` / `stable-work` — both retired.
+- **Symlink `web/node_modules` into a worktree.** Turbopack rejects it with
+  "Symlink … points out of the filesystem root" the moment you run
+  `npm run build` or `npm run dev`. Use `web/scripts/setup-worktree.sh`
+  instead — it does a `cp -R` (~5s) which Turbopack accepts.
+
+---
+
+## 9. Worktrees — multi-lane work
+
+The shared checkout at `/Users/oranpersonal/Desktop/impronta-app` is shared
+with many concurrent agents and the user's own day-to-day terminal. **Never
+`git switch` there.** Always operate from a per-lane worktree under
+`/private/tmp/impronta-<lane>` or `/Users/oranpersonal/Desktop/impronta-<lane>`.
+
+```bash
+# Create a worktree off latest main, branched for your lane:
+git fetch origin
+git worktree add /private/tmp/impronta-my-lane -b feat/my-lane origin/main
+
+# Initialize it for local dev (copies node_modules + .env.local from source):
+/Users/oranpersonal/Desktop/impronta-app/web/scripts/setup-worktree.sh /private/tmp/impronta-my-lane
+
+# Now work there:
+cd /private/tmp/impronta-my-lane/web
+NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit
+npm run lint
+```
+
+When the lane lands, prune:
+
+```bash
+git worktree remove /private/tmp/impronta-my-lane
+git branch -d feat/my-lane
+```
+
+`setup-worktree.sh` is idempotent — safe to re-run if you blew away
+`node_modules` or `.env.local` for any reason.
 
 ---
 
