@@ -16,12 +16,16 @@ const F = '"Inter", system-ui, sans-serif';
 const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 function formatAuditTime(value: string): string {
+  const d = new Date(value);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+    timeZoneName: "short",
+  }).format(d);
 }
 
 export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
@@ -35,7 +39,7 @@ export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
       </div>
       {audit.length === 0 ? (
         <div style={{ fontSize: 12, color: HQ.inkDim }}>
-          No platform audit rows found yet. New saves from this studio will appear here.
+          No audit rows yet. Every save to this field&apos;s definition and taxonomy mappings will appear here.
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -44,7 +48,7 @@ export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
               key={entry.id}
               style={{
                 display: "grid",
-                gridTemplateColumns: "108px minmax(0, 1fr) 88px",
+                gridTemplateColumns: "136px minmax(0, 1fr) 88px",
                 gap: 10,
                 alignItems: "start",
                 padding: "8px 10px",
@@ -53,24 +57,28 @@ export function AuditHistory({ audit }: { audit: FieldDetailAuditEntry[] }) {
                 border: `1px solid ${HQ.borderSoft}`,
               }}
             >
-              <div style={{ fontSize: 11, color: HQ.inkMuted }}>
+              <time
+                dateTime={entry.created_at}
+                title={entry.created_at}
+                style={{ fontSize: 11, color: HQ.inkMuted }}
+              >
                 {formatAuditTime(entry.created_at)}
-              </div>
+              </time>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: HQ.ink }}>
                   {entry.action}
                 </div>
                 <div style={{ fontSize: 10.5, color: HQ.inkDim, marginTop: 2 }}>
                   {entry.target_type ?? "engine row"}
-                  {entry.actor_role ? ` · ${entry.actor_role}` : ""}
+                  {entry.actor_role ? ` · by ${entry.actor_role}` : ""}
                   {entry.changed_keys.length > 0
-                    ? ` · changed ${entry.changed_keys.join(", ")}`
-                    : " · before/after snapshot recorded"}
+                    ? ` · fields: ${entry.changed_keys.join(", ")}`
+                    : ""}
                 </div>
                 {entry.changes.length > 0 && (
                   <details style={{ marginTop: 6 }}>
                     <summary style={{ cursor: "pointer", fontSize: 10.5, color: HQ.green }}>
-                      View before/after
+                      {entry.changes.length} field{entry.changes.length === 1 ? "" : "s"} changed — show before / after
                     </summary>
                     <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
                       {entry.changes.map((change) => (
