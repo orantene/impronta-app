@@ -171,7 +171,13 @@ export function GetStartedForm({
           } else {
             setSubdomainState({
               status: "unavailable",
-              reason: (res.reason as "format" | "reserved" | "taken" | "empty") ?? "format",
+              reason:
+                (res.reason as
+                  | "format"
+                  | "reserved"
+                  | "taken"
+                  | "empty"
+                  | "pending") ?? "format",
               suggestions: res.suggestions,
             });
           }
