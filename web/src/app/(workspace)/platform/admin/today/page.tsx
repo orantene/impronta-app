@@ -2,7 +2,13 @@
 // HQ pulse: platform health, incidents queue, recent signups.
 
 import Link from "next/link";
-import { loadPlatformStats, loadRecentSignups } from "../../platform-data";
+import {
+  loadLeadStats,
+  loadPlatformStats,
+  loadRecentLeads,
+  loadRecentSignups,
+  type PlatformLeadRow,
+} from "../../platform-data";
 
 // ─── HQ design tokens ─────────────────────────────────────────────────────────
 
@@ -207,10 +213,68 @@ function HqCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// ─── Lead pill helpers ────────────────────────────────────────────────────────
+
+function tierLabel(t: PlatformLeadRow["tierInterest"]): string {
+  if (!t) return "—";
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function tierTone(t: PlatformLeadRow["tierInterest"]): string {
+  switch (t) {
+    case "network":
+      return "#C9A86A";
+    case "agency":
+      return "#9EB6E5";
+    case "studio":
+      return "#7FC8B0";
+    case "free":
+      return HQ.inkMuted;
+    default:
+      return HQ.inkDim;
+  }
+}
+
+function statusTone(s: string): string {
+  switch (s) {
+    case "onboarded":
+      return HQ.green;
+    case "contacted":
+      return "#9EB6E5";
+    case "archived":
+    case "spam":
+      return HQ.red;
+    default:
+      return HQ.inkMuted;
+  }
+}
+
+function Pill({ children, color }: { children: React.ReactNode; color: string }) {
+  return (
+    <span
+      style={{
+        padding: "2px 7px",
+        background: "rgba(255,255,255,0.05)",
+        color,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+        borderRadius: 999,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default async function PlatformTodayPage() {
-  const [stats, recentSignups] = await Promise.all([
+  const [stats, recentSignups, recentLeads, leadStats] = await Promise.all([
     loadPlatformStats(),
     loadRecentSignups(5),
+    loadRecentLeads(10),
+    loadLeadStats(),
   ]);
 
   return (
@@ -257,6 +321,35 @@ export default async function PlatformTodayPage() {
           caption="across the network"
           tone="ink"
           href="/platform/admin/network"
+        />
+      </div>
+
+      {/* ── Lead KPI strip ── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        <StatCard
+          label="Leads · last 7d"
+          value={leadStats.last7d}
+          caption={`${leadStats.total} all-time`}
+          tone="ink"
+        />
+        <StatCard
+          label="Leads · last 30d"
+          value={leadStats.last30d}
+          caption="from /get-started"
+          tone="ink"
+        />
+        <StatCard
+          label="Conversion"
+          value={`${leadStats.conversionPct}%`}
+          caption={`${leadStats.converted} provisioned`}
+          tone={leadStats.conversionPct >= 20 ? "green" : "amber"}
         />
       </div>
 
@@ -325,6 +418,84 @@ export default async function PlatformTodayPage() {
               View all tenants →
             </Link>
           </div>
+        </HqCard>
+
+        {/* Recent leads (marketing funnel) */}
+        <HqCard
+          title="Recent leads"
+          subtitle={`${recentLeads.length} most recent from /get-started`}
+        >
+          {recentLeads.length === 0 ? (
+            <p style={{ color: HQ.inkMuted, fontSize: 13, padding: "10px 0" }}>
+              No leads yet.
+            </p>
+          ) : (
+            recentLeads.map((l) => {
+              // TODO: lead detail — no drawer/detail view exists yet. When a
+              // lead is claimed, link to the claimed profile; otherwise render
+              // the row as non-interactive.
+              const href = l.claimedByProfileId
+                ? `/platform/admin/users?profile=${l.claimedByProfileId}`
+                : null;
+              const row = (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 0",
+                    borderTop: `1px solid ${HQ.borderSoft}`,
+                    fontFamily: F,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: HQ.ink,
+                        fontWeight: 500,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {l.name || l.email.split("@")[0]}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: HQ.inkMuted,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {l.email}
+                      {l.subdomainWanted ? ` · ${l.subdomainWanted}` : ""}
+                    </div>
+                  </div>
+                  <Pill color={tierTone(l.tierInterest)}>
+                    {tierLabel(l.tierInterest)}
+                  </Pill>
+                  <Pill color={statusTone(l.status)}>{l.status}</Pill>
+                  <span style={{ fontSize: 11.5, color: HQ.inkDim, minWidth: 56, textAlign: "right" }}>
+                    {l.createdAt}
+                  </span>
+                </div>
+              );
+              return href ? (
+                <Link
+                  key={l.id}
+                  href={href}
+                  style={{ display: "block", textDecoration: "none", color: "inherit" }}
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div key={l.id}>{row}</div>
+              );
+            })
+          )}
         </HqCard>
 
         {/* Quick links */}
