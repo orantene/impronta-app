@@ -37,7 +37,7 @@ export const TULALA_BRAND = {
   /** Short line for trust strips and empty states. */
   positioning: "Software for talent businesses.",
   /** Launch stage surfaced in nav / hero badges. */
-  stage: "Private beta",
+  stage: "Free workspaces · No card",
 } as const;
 
 export type TulalaBrand = typeof TULALA_BRAND;

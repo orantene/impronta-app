@@ -8,12 +8,13 @@
  * subscription needed).
  *
  * Flow:
- *   Paid upgrade  → startWorkspaceUpgrade() → Stripe Checkout URL → redirect
- *   Manage sub    → openSubscriptionPortal() → Billing Portal URL → redirect
- *   Free downgrade → changeWorkspacePlan("free") (existing, no Stripe)
+ *   Studio / Agency      → startWorkspaceUpgrade()      → { ok, redirectUrl } → client redirects to Stripe Checkout
+ *   Network (with price) → startWorkspaceUpgrade()      → { ok, redirectUrl } → client redirects to Stripe Checkout
+ *   Network (no price)   → startWorkspaceUpgrade()      → { ok:false, noStripe:true } → client opens sales mailto
+ *   Manage sub           → openSubscriptionPortal()     → { ok, redirectUrl } → client redirects to Billing Portal
+ *   Free downgrade       → changeWorkspacePlan("free")  (existing, no Stripe)
  */
 
-import { redirect } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -24,13 +25,13 @@ import {
 } from "@/lib/stripe/workspace-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { logServerError } from "@/lib/server/safe-error";
-import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 export type BillingActionResult =
   | { ok: true; redirectUrl: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; noStripe?: boolean };
 
 /**
  * Initiates a Stripe Checkout session for upgrading to a paid workspace plan.
@@ -44,6 +45,12 @@ export async function startWorkspaceUpgrade(
 ): Promise<BillingActionResult> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available yet. Contact support to upgrade." };
+  }
+
+  // Network plan requires an explicit price-ID env var to become self-serve.
+  // Without it, signal the caller to fall back to the sales-contact path.
+  if (planKey === "network" && !getWorkspacePriceId("network", "monthly")) {
+    return { ok: false, error: "network_no_price", noStripe: true };
   }
 
   const session = await getCachedActorSession();

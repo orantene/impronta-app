@@ -4,6 +4,203 @@ Append-only. Newest entries at the **top**.
 
 ---
 
+## 2026-05-26 — Talent tax docs v1 (on-demand HTML income summary)
+
+**L47 — Tax docs v1 = on-demand HTML income summary from `loadTalentEarnings`, platform earnings only.**
+
+- **Surface:** GET `/api/talent/tax-summary?year=YYYY` returns a
+  print-friendly HTML document the talent can save as PDF from the
+  browser ("Save as PDF / Print" button hidden when printing). Reads
+  through `loadTalentEarnings(talentProfileId, { sinceISO })` — same
+  source as `/talent/money`, so amounts can never drift between the
+  two surfaces.
+- **No stored blobs.** Generated on demand. `cache-control:
+  private, no-store`. Avoids Storage bucket sprawl + lets the document
+  always reflect the latest snapshot rows.
+- **Native PDF deferred.** A `pdf-lib` or `@react-pdf/renderer`
+  upgrade is a follow-up — needs an npm dep authorization. The HTML
+  shape is structured so a future PDF renderer can consume the same
+  `loadTalentEarnings` source without UX drift.
+- **Off-platform earnings excluded** by default. Tulala only attests
+  to what it processed. Off-platform self-declared rows surface in
+  the drawer informationally and intentionally never enter this
+  document (legal-exposure reasoning — don't issue tax-relevant
+  attestations on figures we didn't verify).
+- **Jurisdictional posture deferred:** US 1099-K (Stripe Connect's
+  obligation today; revisit when we pay US talent directly), EU
+  receipt vs invoice (today this doc is a receipt; invoice format
+  TBD), MX CFDI (out of scope for v1 — surface a "contact us" note
+  to MX talent rather than auto-issuing).
+
+**Paths:**
+`web/src/app/api/talent/tax-summary/route.ts`,
+`web/src/components/admin/shell/internal/talent-drawers/monetization.tsx` (download button).
+
+**Backward compatible:** Yes (new route + button).
+
+**Migration:** none.
+
+---
+
+## 2026-05-26 — Multi-currency display (per-actor default + tabs, no FX)
+
+**L49 — Default currency lives on the paying actor; v1 is display-only.**
+
+- **Per-actor column:** `agencies.default_currency` (admin Business
+  Financials) and `talent_profiles.default_currency` (talent Money),
+  both ISO-4217 with a `length = 3` check, default `'EUR'`. We did
+  NOT add it to `profiles` because a single human can be both an
+  agency owner and a talent, and the two surfaces often have different
+  natural currencies (e.g. talent paid in EUR, agency owner books a
+  US client in USD). Per-role is more honest.
+- **Surface:** `/{tenantSlug}/admin/financials` reads
+  `loadAgencyFinancialsByCurrency` (new), groups snapshot rows by
+  `currency_code`, and renders a per-currency tab strip with the
+  agency's `default_currency` selected first. When only one currency
+  is present (the EUR-only steady state today) the strip hides itself
+  and the single bundle renders inline — no regression.
+- **Talent Money:** unchanged at v1. The talent path still calls the
+  EUR-only `fetchTalentSnapshotAggregateRows`; once non-EUR talent
+  earnings appear, the same by-currency pattern applies.
+- **No FX, no conversion math anywhere.** Each bundle stands alone.
+  The "USD as a non-mandatory secondary" idea (owner direction
+  2026-05-26) is **deferred to Phase 2** — when adopted it will be a
+  passive mirror tab populated only when an FX rate source is wired
+  in, and clearly labelled as such.
+- **Settings UI** for the per-actor toggle is **deferred** — today
+  the column is set via SQL or platform admin. Document this in the
+  admin Settings tab as a known follow-up.
+
+**Paths:**
+`supabase/migrations/20260526221829_default_currency_per_actor.sql`,
+`web/src/lib/billing/snapshot-aggregations.ts` (added `includeAllCurrencies` opt),
+`web/src/lib/billing/agency-financials-types.ts` (totals.currency widened to `string`),
+`web/src/lib/billing/agency-financials.ts` (added `loadAgencyFinancialsByCurrency`),
+`web/src/app/(workspace)/[tenantSlug]/admin/financials/page.tsx`,
+`web/src/components/admin/applications/AdminFinancialsCurrencyTabs.tsx`.
+
+**Backward compatible:** Yes (additive columns, EUR remains default; talent surface untouched).
+
+**Migration:** `20260526221829_default_currency_per_actor.sql` (already applied to remote).
+
+---
+
+## 2026-05-26 — Talent apply flow to agencies + hubs (foundation + UI)
+
+**L48 — Talent applies; staff decides; roster insert stays a separate step.**
+
+- **Two tables:** `talent_agency_applications` and `talent_hub_applications`
+  (status `pending → approved | rejected | withdrawn`). One pending row
+  per (tenant, talent) pair enforced by partial unique index.
+- **Two gates** for the apply CTA, re-checked at RLS + server action:
+  - Agency targets: `agencies.accepts_open_applications = TRUE` (per-tenant
+    opt-in, default FALSE — never gated by plan tier).
+  - Hub targets: `agency_domains.kind = 'hub'`.
+  - Both: talent must NOT be under active exclusivity
+    (`exclusivity_status IN ('confirmed','auto_assigned')` —
+    the brief's example values `'exclusive'`/`'exclusive_pending'`
+    don't exist in the real enum).
+- **Approval does NOT auto-insert a roster row.** It only flips the
+  application status. Staff then add the talent through the existing
+  Roster → Add flow so contract terms (exclusivity, plan-tier, etc.)
+  are explicit, not implicit. One source of truth for roster inserts.
+- **Surfaces:**
+  - Talent: `/talent/discover-agencies` — eligible agencies + hubs,
+    pending/decided applications, withdraw-own action.
+  - Admin: `/{tenantSlug}/admin/roster/applications` — pending/decided
+    lists, approve/reject with optional note. Capability:
+    `manage_talent_roster`.
+- **Deferred:**
+  - Toggle UI for `accepts_open_applications` in admin Settings
+    (today set via SQL or platform admin).
+  - Notification fan-out on submit/decide (today none — relies on the
+    admin checking the tab).
+
+**Paths:**
+`supabase/migrations/20260526215446_talent_agency_and_hub_applications.sql`,
+`web/src/lib/talent/apply-actions.ts`,
+`web/src/lib/talent/apply-loaders.ts`,
+`web/src/app/(workspace)/talent/discover-agencies/page.tsx`,
+`web/src/components/talent/apply/TalentApplyDiscoveryClient.tsx`,
+`web/src/app/(workspace)/[tenantSlug]/admin/roster/applications/page.tsx`,
+`web/src/components/admin/applications/AdminApplicationsClient.tsx`.
+
+**Backward compatible:** Yes (additive tables + routes; opt-in default off).
+
+**Migration:** `20260526215446_talent_agency_and_hub_applications.sql` (already applied to remote).
+
+---
+
+## 2026-05-26 — Admin Business Financials surface (companion to talent Money)
+
+**L46 — Admin financials and talent Money share `booking_commission_snapshot` aggregations, never share a UX surface.**
+
+- **Single source:** both `loadTalentEarnings` (`web/src/lib/talent/earnings.ts`)
+  and `loadAgencyFinancials` (`web/src/lib/billing/agency-financials.ts`)
+  read `booking_commission_snapshot` joined to `agency_bookings`,
+  EUR-only at v1 (non-EUR rows logged and excluded — multi-currency
+  display is out of scope until a separate decision lands).
+- **Two projections:** the same row contributes `talent_net_cents` to
+  the talent surface and `workspace_fee_cents` to the admin surface.
+  Lane invariant `gross = platform_fee + workspace_fee + talent_net`
+  is enforced by the DB CHECK and re-verified in
+  `agency-financials.test.ts`.
+- **Surface separation is binding:** never merge `/talent/money` and
+  `/{tenantSlug}/admin/financials`. Talent always sees "their money";
+  agency always sees the business P&L. The two views must agree to the
+  cent on the lanes they project.
+- **Mock retirement:** the `WorkspaceRevenueDrawer` mock (MONTHLY +
+  CATEGORIES fixtures) is retired. Overview + Operations "Revenue"
+  CTAs now navigate to `/{tenantSlug}/admin/financials`. The drawer
+  export is kept as a no-op stub to absorb any stale deep imports.
+- **Capability gate:** `manage_billing` (owner-class). Non-billing
+  roles get `notFound()`, not a redacted page.
+- **Identity-bar KPI:** workspace identity bar subline reads live
+  `pendingPayoutCents` + `confirmedBookingCount` from
+  `WorkspaceOverviewMetrics`. The hardcoded `€4,200 pending · 3
+  confirmed` fixture is gone; when metrics are null the subline falls
+  through to roster/inquiry counts and finally to a dash — never a
+  fabricated euro figure.
+
+**Paths:**
+`web/src/lib/billing/snapshot-aggregations.ts`,
+`web/src/lib/billing/agency-financials-types.ts`,
+`web/src/lib/billing/agency-financials.ts`,
+`web/src/lib/billing/agency-financials.test.ts`,
+`web/src/app/(workspace)/[tenantSlug]/admin/financials/page.tsx`,
+`web/src/app/(workspace)/[tenantSlug]/_data-bridge/overview-metrics.ts`,
+`web/src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx`,
+`web/src/components/admin/shell/internal/page-modules/OverviewPage.tsx`,
+`web/src/components/admin/shell/internal/page-modules/OperationsPage.tsx`,
+`web/src/components/admin/shell/internal/drawers/light-15.tsx`,
+`web/src/components/admin/shell/internal/drawers.tsx`,
+`web/src/components/admin/shell/internal/state/drawer-ids.ts`.
+
+**Backward compatible:** Yes (additive route + identity-bar; drawer stub).
+
+**Migration:** none.
+
+---
+
+## 2026-05-25 — Talent personal site architecture (Free / Pro / Max)
+
+**L45 — Talent membership personal site (`talent_sites`).** One storage model for all tiers:
+
+- **Single storage:** `public.talent_sites` JSONB snapshots (`draft_snapshot` / `published_snapshot`) with `templateKey` + `compositionMode` on every row.
+- **Public render:** `/t/<profileCode>` on the Tulala app host is **never tier-gated**. Resolver returns a published snapshot when present; otherwise falls back to the standard profile renderer. Agency roster hosts keep overlay behavior.
+- **Membership gates editing only:** Free = locked `tulala-digital` template + metadata/publish; Pro = template gallery; Max = custom section composer (`compositionMode: custom`). Kill switch: `TALENT_SITE_TIER_EXPANSION_DISABLED=true` restores legacy Max-only edit/publish.
+- **Page builder reuse:** Personal sites render through `TalentSiteRenderer` + `SECTION_REGISTRY` — no parallel Wix-style builder framework.
+- **URLs:** Path-based `/t/<code>` only — no per-talent `<slug>.tulala.digital` subdomain.
+- **Not workspace membership:** Talent plan (`talent_plan_key`) is independent of agency/workspace plans. No solo-workspace provisioning for personal sites.
+
+**Paths:** `web/src/lib/talent-site/**`, `web/src/lib/access/talent-membership.ts`, `web/src/components/talent/site/**`, `supabase/migrations/20260525181000_talent_sites_tier_expansion.sql`.
+
+**Backward compatible:** Yes for public URLs; existing Max sites keep publishing. Downgrades flag `plan_locked` / `pending_template_reset` instead of deleting snapshots.
+
+**Migration:** `20260525181000_talent_sites_tier_expansion.sql` (RLS + snapshot backfill).
+
+---
+
 ## 2026-05-25 — Talent dashboard design tokens unified (post-2.6 polish)
 
 **L44 — Talent dashboard surfaces share one token system.** All top-level

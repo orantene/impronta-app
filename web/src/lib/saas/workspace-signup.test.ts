@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   buildWorkspaceOnboardingPath,
   buildWorkspaceRegisterPath,
+  isNetworkWorkspaceTierInterest,
+  isPaidWorkspaceTierInterest,
   isSelfServeWorkspaceLeadEligible,
   isWorkspaceSignupProfileEligible,
   isWorkspaceOnboardingPath,
@@ -47,13 +49,22 @@ test("workspace signup picks subdomain first, then name, then email", () => {
   );
 });
 
-test("workspace signup self-serve eligibility is free-or-unspecified only", () => {
+test("workspace signup self-serve eligibility includes all paid tiers", () => {
   assert.equal(isSelfServeWorkspaceLeadEligible(undefined), true);
   assert.equal(isSelfServeWorkspaceLeadEligible(null), true);
   assert.equal(isSelfServeWorkspaceLeadEligible("free"), true);
-  assert.equal(isSelfServeWorkspaceLeadEligible("studio"), false);
-  assert.equal(isSelfServeWorkspaceLeadEligible("agency"), false);
-  assert.equal(isSelfServeWorkspaceLeadEligible("network"), false);
+  assert.equal(isSelfServeWorkspaceLeadEligible("studio"), true);
+  assert.equal(isSelfServeWorkspaceLeadEligible("agency"), true);
+  assert.equal(isSelfServeWorkspaceLeadEligible("network"), true);
+  assert.equal(isSelfServeWorkspaceLeadEligible("legacy"), false);
+});
+
+test("workspace signup paid tier helpers", () => {
+  assert.equal(isPaidWorkspaceTierInterest("studio"), true);
+  assert.equal(isPaidWorkspaceTierInterest("agency"), true);
+  assert.equal(isPaidWorkspaceTierInterest("free"), false);
+  assert.equal(isNetworkWorkspaceTierInterest("network"), true);
+  assert.equal(isNetworkWorkspaceTierInterest("agency"), false);
 });
 
 test("workspace signup path helpers produce stable auth routes", () => {

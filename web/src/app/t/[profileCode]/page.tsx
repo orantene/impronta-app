@@ -82,6 +82,8 @@ import { TalentCardActions } from "@/components/talent-cards/talent-card-actions
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
+import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
+import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -990,15 +992,32 @@ export async function generateMetadata({
 
   const { profileCode } = await params;
   const { preview } = await searchParams;
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
   const hostCtx = await getPublicHostContext();
   if (isTalentProfilePlatformHost(hostCtx.kind) && preview !== "1") {
     const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode, {
       previewDraft: preview === "draft",
     });
     if (siteResolved.kind === "render") {
+      const title = siteResolved.snapshot.fields.title;
+      const description =
+        siteResolved.snapshot.fields.metaDescription ?? undefined;
+      const templateThumbnail =
+        siteResolved.snapshot.compositionMode === "template" && !siteResolved.draftPreview
+          ? TALENT_SITE_TEMPLATES[
+              siteResolved.snapshot.templateKey as TalentSiteTemplateKey
+            ]?.thumbnailUrl
+          : undefined;
       return {
-        title: siteResolved.snapshot.fields.title,
-        description: siteResolved.snapshot.fields.metaDescription ?? undefined,
+        title,
+        description,
+        metadataBase: new URL(site),
+        openGraph: {
+          title,
+          description,
+          ...(templateThumbnail ? { images: [templateThumbnail] } : {}),
+        },
         ...(siteResolved.draftPreview
           ? { robots: { index: false, follow: false } }
           : {}),
@@ -1014,8 +1033,6 @@ export async function generateMetadata({
 
   const { profile } = result;
   const locale = await getRequestLocale();
-  const site =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
 
   // Phase 5/6 M2 — the canonical URL for a talent is ALWAYS the app host
   // (`app.pdcvacations.com/t/[code]`). When the agency storefront renders

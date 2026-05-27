@@ -17,6 +17,23 @@ import {
   setTalentFieldValueAsTalent,
   setTalentFieldVisibilityAsTalent,
 } from "@/lib/server-actions/talent-field-values-catalog";
+import {
+  addAspirationAsTalent,
+  getAspirationsAsTalent,
+  getContextCatalogAsTalent,
+  getEnabledParentCategoriesForPickerAsTalent,
+  getResolvedContextsAsTalent,
+  getResolvedSkillsAsTalent,
+  getTalentTypesUnderParentAsTalent,
+  removeAspirationAsTalent,
+  requestNewTaxonomyTermAsTalent,
+  setFeaturedSkillAsTalent,
+  setTalentProfileContextsAsTalent,
+  setTalentProfileSkillsAsTalent,
+  unverifySkillAsTalent,
+  updateSkillAsTalent,
+  verifySkillAsTalent,
+} from "@/lib/server-actions/talent-self-services";
 import type {
   LiveCategoryGroupNavItem,
   LiveCategoryRequiredMissingItem,
@@ -241,6 +258,64 @@ export function TalentProfileShellDrawer() {
             getValues: getTalentFieldValuesAsTalent,
             setValue: setTalentFieldValueAsTalent,
             setVisibility: setTalentFieldVisibilityAsTalent,
+          }
+        : undefined,
+    [isSelf],
+  );
+  const talentSelfSkillActions = useMemo(
+    () =>
+      isSelf
+        ? {
+            getResolvedSkills: getResolvedSkillsAsTalent,
+            getAspirations: getAspirationsAsTalent,
+            setTalentProfileSkills: setTalentProfileSkillsAsTalent,
+            updateSkill: updateSkillAsTalent,
+            verifySkill: verifySkillAsTalent,
+            unverifySkill: unverifySkillAsTalent,
+            setFeaturedSkill: setFeaturedSkillAsTalent,
+          }
+        : undefined,
+    [isSelf],
+  );
+  const talentSelfSkillSearchActions = useMemo(
+    () =>
+      isSelf
+        ? {
+            getEnabledParentCategoriesForPicker: getEnabledParentCategoriesForPickerAsTalent,
+            getTalentTypesUnderParent: getTalentTypesUnderParentAsTalent,
+            requestNewTaxonomyTerm: requestNewTaxonomyTermAsTalent,
+          }
+        : undefined,
+    [isSelf],
+  );
+  const talentSelfCareerInterestActions = useMemo(
+    () =>
+      isSelf
+        ? {
+            getAspirations: getAspirationsAsTalent,
+            addAspiration: addAspirationAsTalent,
+            removeAspiration: removeAspirationAsTalent,
+            getEnabledParentCategoriesForPicker: getEnabledParentCategoriesForPickerAsTalent,
+            getTalentTypesUnderParent: getTalentTypesUnderParentAsTalent,
+          }
+        : undefined,
+    [isSelf],
+  );
+  const talentSelfContextActions = useMemo(
+    () =>
+      isSelf
+        ? {
+            getResolvedContexts: getResolvedContextsAsTalent,
+            setTalentProfileContexts: setTalentProfileContextsAsTalent,
+          }
+        : undefined,
+    [isSelf],
+  );
+  const talentSelfContextCatalogActions = useMemo(
+    () =>
+      isSelf
+        ? {
+            getContextCatalog: getContextCatalogAsTalent,
           }
         : undefined,
     [isSelf],
@@ -1275,7 +1350,7 @@ export function TalentProfileShellDrawer() {
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
   const [historyOpen, setHistoryOpen] = useState(false);
-  const hasResolvedEngineContext = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
+  const hasResolvedEngineContext = !!payload.talentId && (!!bridgeTenantIdentity?.tenantId || isSelf);
   const selectedTalentTypeSlugs = useMemo(
     () => [state.primaryType, ...state.secondaryTypes].filter((slug): slug is string => Boolean(slug)),
     [state.primaryType, state.secondaryTypes],
@@ -2409,7 +2484,7 @@ export function TalentProfileShellDrawer() {
             if (s === "admin" && !adminVisible) return null;
             if (s === "polaroids" && !showPolaroidsSection) return null;
             if (s === "details" && dynamicGroups.length === 0) return null;
-            if (s === "refinement" && bridgeTenantIdentity?.tenantId && payload.talentId) return null;
+            if (s === "refinement" && hasResolvedEngineContext) return null;
             const meta = SECTION_META[s];
             const active = activeSection === s;
             const done = sectionComplete[s];
@@ -2445,12 +2520,12 @@ export function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Profile", ids: ["identity", "location", "about", "services", "profile_fields"] },
+              { label: "Profile", ids: ["identity", "location", "about", "services"] },
               { label: "Craft", ids: ["physical", "wardrobe", "details"] },
               { label: "Logistics", ids: ["logistics", "availability"] },
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
-              { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
+              { label: "Proof", ids: ["credits", "social_proof", "verifications"] },
               { label: "Back office", ids: ["files", "agency_fields", "admin"] },
             ];
             // One source of truth: when the NEW DB-driven engine is
@@ -2517,11 +2592,19 @@ export function TalentProfileShellDrawer() {
                       }}>{copy.t(group.label)}</div>
                       {items.map(s => {
                         const meta = SECTION_META[s];
-                        const active = activeSection === s;
+                        const ownsProfileFieldGroups = s === "services" && newEngineActive && profileFieldNavGroups.length > 0;
+                        const ownsLegacyRefinement = s === "services" && visible("refinement");
+                        const active = activeSection === s
+                          || (ownsProfileFieldGroups && activeSection === "profile_fields")
+                          || (ownsLegacyRefinement && activeSection === "refinement");
                         const done = sectionComplete[s];
                         const started = sectionStarted[s];
-                        const detailsNavCount = s === "profile_fields" ? profileFieldNavGroups.length : 0;
-                        const isDetailsSection = s === "profile_fields" && detailsNavCount > 0;
+                        const detailsNavCount = ownsProfileFieldGroups
+                          ? profileFieldNavGroups.length
+                          : ownsLegacyRefinement
+                            ? 1
+                            : 0;
+                        const isDetailsSection = ownsProfileFieldGroups || ownsLegacyRefinement;
                         return (
                           <div key={s}>
                             <button
@@ -2580,10 +2663,25 @@ export function TalentProfileShellDrawer() {
                               <div
                                 data-details-rail-children
                                 role="group"
-                                aria-label="Details categories"
+                                aria-label="Service detail categories"
                               >
+                                {ownsLegacyRefinement && !ownsProfileFieldGroups && (
+                                  <button
+                                    type="button"
+                                    data-details-rail-child
+                                    data-active={activeSection === "refinement" ? "true" : "false"}
+                                    onClick={() => {
+                                      setActiveSection("refinement");
+                                      setProfileFieldRailOpen(true);
+                                    }}
+                                  >
+                                    <span data-details-rail-child-label>
+                                      {copy.t(SECTION_META.refinement.label)}
+                                    </span>
+                                  </button>
+                                )}
                                 {profileFieldNavGroups.map((detailsGroup) => {
-                                  const childActive = active && activeProfileFieldGroupKey === detailsGroup.key;
+                                  const childActive = activeSection === "profile_fields" && activeProfileFieldGroupKey === detailsGroup.key;
                                   return (
                                     <button
                                       key={detailsGroup.key}
@@ -2860,16 +2958,22 @@ export function TalentProfileShellDrawer() {
                   Falls back to legacy ServicesEditor for prototype/demo mode
                   (no real tenant). Career interests render inside SkillSlotPanel
                   once a primary skill is set. */}
-              {bridgeTenantIdentity?.tenantId && payload.talentId ? (
+              {hasResolvedEngineContext ? (
                 <div style={{ marginTop: 6, marginBottom: 14 }}>
                   <SkillSlotPanel
-                    talentProfileId={payload.talentId}
+                    talentProfileId={payload.talentId!}
                     isAdmin={adminVisible}
+                    viewMode={isSelf ? "talent-self" : "admin"}
+                    actions={isSelf ? talentSelfSkillActions : undefined}
+                    searchActions={isSelf ? talentSelfSkillSearchActions : undefined}
+                    careerInterestActions={isSelf ? talentSelfCareerInterestActions : undefined}
                     onSkillsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                   <ContextSlotPanel
-                    talentProfileId={payload.talentId}
+                    talentProfileId={payload.talentId!}
                     talentName={state.stageName}
+                    actions={isSelf ? talentSelfContextActions : undefined}
+                    catalogActions={isSelf ? talentSelfContextCatalogActions : undefined}
                     onContextsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                 </div>
@@ -2930,7 +3034,7 @@ export function TalentProfileShellDrawer() {
                   </div>
                 </>
               )}
-              {!bridgeTenantIdentity?.tenantId && state.primaryType && (
+              {!hasResolvedEngineContext && state.primaryType && (
                 <details className="mt-3">
                   <summary style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, cursor: "pointer", listStyle: "none", display: "inline-flex", alignItems: "center", gap: 6, userSelect: "none" }} className="text-admin-ink-muted">
                     <span aria-hidden="true" style={{ fontSize: 10, transform: "translateY(-1px)" }}>▸</span>
@@ -3259,7 +3363,7 @@ export function TalentProfileShellDrawer() {
                   (Creator / Experience / Media). Moved out of the
                   type-driven Specialty switcher into About so Specialty
                   stays purely type-driven. Same engine, scope="general". */}
-              {payload.talentId && bridgeTenantIdentity?.tenantId && (
+              {hasResolvedEngineContext && payload.talentId && (
                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
                   <LiveCategoryFieldsEditor
                     talentProfileId={payload.talentId}
@@ -3273,8 +3377,9 @@ export function TalentProfileShellDrawer() {
             </ProfileAccordionSection>
 
             {/* PROFILE FIELDS — DB-driven, per-talent-type catalog editor.
-                The rail's "Details" entry (id `profile_fields`) activates
-                this. Single-section pattern: like every ProfileAccordion-
+                The rail nests these dynamic service detail categories under
+                Services, while the section id stays `profile_fields`.
+                Single-section pattern: like every ProfileAccordion-
                 Section, it must ONLY be visible when it is the active rail
                 section — otherwise the entire type-specific Details engine
                 bleeds into the bottom of every other section (Location,
@@ -3282,7 +3387,7 @@ export function TalentProfileShellDrawer() {
                 unmounting so the `onCountsChange` side-effect keeps the
                 rail's Details completion dot live and the editor doesn't
                 re-fetch on every visit. */}
-            {payload.talentId && bridgeTenantIdentity?.tenantId && (
+            {hasResolvedEngineContext && payload.talentId && (
               <section
                 id="pshell-profile_fields"
                 style={{
@@ -3607,7 +3712,7 @@ export function TalentProfileShellDrawer() {
             </ProfileAccordionSection>
 
             {/* REFINEMENT — prototype SkillsProEditor is not batch-saved; hide when DB-backed SkillSlotPanel is active. */}
-            {!(bridgeTenantIdentity?.tenantId && payload.talentId) && (
+            {!hasResolvedEngineContext && (
             <ProfileAccordionSection
               id="refinement" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Refinement"
               sub="Skills they have. Contexts where they shine."

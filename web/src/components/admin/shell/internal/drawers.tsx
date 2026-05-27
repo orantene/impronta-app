@@ -35,7 +35,7 @@ import { TrustVerificationQueueDrawer, DisputedClaimsDrawer } from "./drawers/li
 import { TalentTrustDetailDrawer, TalentClaimInviteDrawer, PlatformVerificationMethodsDrawer } from "./drawers/light-12";
 import { TalentPhoneVerifyDrawer, TalentIdVerifyDrawer, TalentBusinessVerifyDrawer, TalentDomainVerifyDrawer, TalentPaymentVerifyDrawer, ClientCsvBulkAddDrawer, WidgetsDrawer, ApiKeysDrawer, SiteHealthDrawer } from "./drawers/light-13";
 import { StorefrontVisibilityDrawer, HubDistributionDrawer, FilterConfigDrawer, DangerZoneDrawer, SimpleStubDrawer, PlanCompareDrawer, ClientTrustDetailDrawer } from "./drawers/light-14";
-import { EscrowDetailDrawer, RefundFlowDrawer, DisputeFlowDrawer, KycVerificationDrawer, ProofOfFundsDrawer, PayoutMethodFailureDrawer, SubscriptionLifecycleDrawer, NotificationDetailDrawer, AiDraftAssistDrawer, AiSearchExplainDrawer, AiWeeklyDigestDrawer, WorkspaceRevenueDrawer, ConversionFunnelDrawer } from "./drawers/light-15";
+import { EscrowDetailDrawer, RefundFlowDrawer, DisputeFlowDrawer, KycVerificationDrawer, ProofOfFundsDrawer, PayoutMethodFailureDrawer, SubscriptionLifecycleDrawer, NotificationDetailDrawer, AiDraftAssistDrawer, AiSearchExplainDrawer, AiWeeklyDigestDrawer, ConversionFunnelDrawer } from "./drawers/light-15";
 import { TopPerformersDrawer, CoordinatorWorkloadDrawer, MyQueueDrawer, SlaTimersDrawer, RulesBuilderDrawer, SavedRepliesDrawer } from "./drawers/light-16";
 import { VacationHandoverDrawer, OnCallRotationDrawer, GdprExportDrawer, ConsentLogDrawer, ContractTemplatesDrawer, ReportContentDrawer } from "./drawers/light-17";
 import { EmailTemplatesDrawer, EmailBrandingDrawer, EmailSequencesDrawer, NotificationPrefsDrawer, InviteFlowDrawer, ReferralDashboardDrawer } from "./drawers/light-18";
@@ -469,8 +469,7 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <AiWeeklyDigestDrawer />;
 
     // ── WS-19 Reporting & analytics ──────────────────────────────────
-    case "workspace-revenue":
-      return <WorkspaceRevenueDrawer />;
+    // "workspace-revenue" retired 2026-05-26 — see decision-log L46.
     case "conversion-funnel":
       return <ConversionFunnelDrawer />;
     case "top-performers":

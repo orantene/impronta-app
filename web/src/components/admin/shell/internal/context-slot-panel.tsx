@@ -24,7 +24,7 @@ import {
 } from "@/lib/server-actions/admin-talent-contexts";
 import type { ResolvedContext } from "@/lib/server-actions/admin-talent-contexts.types";
 
-import { AddContextSearch } from "./context-add-search";
+import { AddContextSearch, type ContextCatalogActions } from "./context-add-search";
 import { useDashboardText } from "./dashboard-i18n";
 import { F_BODY, T } from "./skill-tokens";
 
@@ -33,6 +33,16 @@ type CacheEntry = { contexts: ResolvedContext[]; ts: number };
 const CACHE_TTL = 60_000;
 const _contextsCache = new Map<string, CacheEntry>();
 const _inflight = new Map<string, Promise<void>>();
+
+export type ContextSlotPanelActions = {
+  getResolvedContexts: typeof getResolvedContexts;
+  setTalentProfileContexts: typeof setTalentProfileContexts;
+};
+
+const adminContextSlotActions: ContextSlotPanelActions = {
+  getResolvedContexts,
+  setTalentProfileContexts,
+};
 
 /** Fire-and-forget prefetch — call when a talent drawer opens. */
 export function prefetchContextsData(talentProfileId: string): void {
@@ -58,6 +68,8 @@ export function ContextSlotPanel({
   talentProfileId,
   talentName,
   onContextsChanged,
+  actions = adminContextSlotActions,
+  catalogActions,
 }: {
   talentProfileId: string;
   /** Talent's stage / professional name, for a human profile hint. */
@@ -65,6 +77,8 @@ export function ContextSlotPanel({
   /** Fired after any context mutation so the parent can re-resolve
    *  context-driven surfaces (search doc, etc.) immediately. */
   onContextsChanged?: () => void;
+  actions?: ContextSlotPanelActions;
+  catalogActions?: ContextCatalogActions;
 }) {
   const copy = useDashboardText();
   const [contexts, setContexts] = useState<ResolvedContext[] | null>(null);
@@ -104,7 +118,7 @@ export function ContextSlotPanel({
     setLoading(true);
     setError(null);
     const promise = (async () => {
-      const res = await getResolvedContexts({
+      const res = await actions.getResolvedContexts({
         talent_profile_id: talentProfileId,
       });
       setLoading(false);
@@ -189,7 +203,7 @@ export function ContextSlotPanel({
       message: `[contexts-ui] ${reqId} seq=${seq} desired-after-optimistic-remove=[` +
         `${desiredIds.join(",")}] payload-sent=${desiredIds.length}`,
     });
-    const res = await setTalentProfileContexts({
+    const res = await actions.setTalentProfileContexts({
       talent_profile_id: talentProfileId,
       context_term_ids: desiredIds,
     });
@@ -282,7 +296,7 @@ export function ContextSlotPanel({
       message: `[contexts-ui] ${reqId} seq=${seq} desired-after-optimistic-add=[` +
         `${desiredIds.join(",")}] payload-sent=${desiredIds.length}`,
     });
-    const res = await setTalentProfileContexts({
+    const res = await actions.setTalentProfileContexts({
       talent_profile_id: talentProfileId,
       context_term_ids: desiredIds,
     });
@@ -488,6 +502,8 @@ export function ContextSlotPanel({
           existingContextIds={
             new Set((contexts ?? []).map((c) => c.context_term_id))
           }
+          talentProfileId={talentProfileId}
+          actions={catalogActions}
           onClose={() => setAdding(false)}
           onAdded={handleAdded}
         />

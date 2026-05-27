@@ -2,19 +2,24 @@
 
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
+import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
 import { PageHeader } from "../shared/page-chrome-1";
 
-/** My pages — agency roster links + Max personal-site builder. */
-export function PublicPageEditor() {
+type Props = {
+  locale?: "en" | "es";
+};
+
+/** My site — talent-owned profile/site + roster appearances. */
+export function PublicPageEditor({ locale = "en" }: Props) {
   return (
     <>
       <PageHeader
-        title="My pages"
-        subtitle="Your owned Tulala personal site and every agency roster where clients can find you."
+        title={talentSiteCopy(locale, "pageTitle")}
+        subtitle={talentSiteCopy(locale, "pageSubtitle")}
       />
-      <TalentSiteDashboardPanel />
+      <TalentSiteDashboardPanel locale={locale} />
       <div style={{ height: 24 }} />
-      <TalentSiteAppearancesPanel />
+      <TalentSiteAppearancesPanel locale={locale} />
     </>
   );
 }

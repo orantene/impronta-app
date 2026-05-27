@@ -1,5 +1,6 @@
 import type { CapabilityKey } from "./capabilities";
 import type { PlanKey } from "./plan-catalog";
+import { isTalentSiteTierExpansionEnabled } from "./talent-site-tier-expansion";
 
 export const TALENT_PLAN_KEYS = [
   "talent_basic",
@@ -13,10 +14,10 @@ export type TalentPlanTier = "free" | "pro" | "max";
 export type TalentPlanCapability =
   | "profile.basic"
   | "profile.enhanced"
-  | "personalSiteBuilder"
   | "personalSiteEdit"
   | "personalSitePublish"
   | "personalSiteTemplate"
+  | "personalSiteCustomBuilder"
   | "personalSiteCustomDomain";
 
 export type TalentMembershipState = {
@@ -24,9 +25,13 @@ export type TalentMembershipState = {
   tier: TalentPlanTier;
   displayName: "Free" | "Pro" | "Max";
   capabilities: {
+    /** @deprecated Use canUseCustomBuilder — Max custom section composer only */
     canBuildPersonalSite: boolean;
     canEditPersonalSite: boolean;
     canPublishPersonalSite: boolean;
+    canUseTemplateGallery: boolean;
+    canUseCustomBuilder: boolean;
+    /** @deprecated Alias of canUseTemplateGallery */
     canSetPersonalSiteTemplate: boolean;
     canConnectPersonalSiteDomain: boolean;
   };
@@ -51,15 +56,25 @@ const DISPLAY_NAME: Record<TalentPlanTier, TalentMembershipState["displayName"]>
 };
 
 const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapability>> = {
-  talent_basic: new Set<TalentPlanCapability>(["profile.basic"]),
-  talent_pro: new Set<TalentPlanCapability>(["profile.basic", "profile.enhanced"]),
-  talent_portfolio: new Set<TalentPlanCapability>([
+  talent_basic: new Set<TalentPlanCapability>([
+    "profile.basic",
+    "personalSiteEdit",
+    "personalSitePublish",
+  ]),
+  talent_pro: new Set<TalentPlanCapability>([
     "profile.basic",
     "profile.enhanced",
-    "personalSiteBuilder",
     "personalSiteEdit",
     "personalSitePublish",
     "personalSiteTemplate",
+  ]),
+  talent_portfolio: new Set<TalentPlanCapability>([
+    "profile.basic",
+    "profile.enhanced",
+    "personalSiteEdit",
+    "personalSitePublish",
+    "personalSiteTemplate",
+    "personalSiteCustomBuilder",
   ]),
 };
 
@@ -67,7 +82,7 @@ const TALENT_MONETIZATION_CAPABILITY_MAP: Partial<Record<CapabilityKey, TalentPl
   "talent.page.edit": "personalSiteEdit",
   "talent.page.publish": "personalSitePublish",
   "talent.page.set_template": "personalSiteTemplate",
-  "talent.page.enable_module": "personalSiteBuilder",
+  "talent.page.enable_module": "personalSiteCustomBuilder",
   "talent.page.connect_custom_domain": "personalSiteCustomDomain",
 };
 
@@ -95,7 +110,15 @@ export function talentPlanGrantsCapability(
   planKey: string | null | undefined,
   capability: TalentPlanCapability,
 ): boolean {
-  return TALENT_PLAN_CAPABILITIES[normalizeTalentPlanKey(planKey)].has(capability);
+  const normalized = normalizeTalentPlanKey(planKey);
+  if (
+    !isTalentSiteTierExpansionEnabled() &&
+    (capability === "personalSiteEdit" || capability === "personalSitePublish") &&
+    normalized !== "talent_portfolio"
+  ) {
+    return false;
+  }
+  return TALENT_PLAN_CAPABILITIES[normalized].has(capability);
 }
 
 export function talentPlanGrantsAccessCapability(
@@ -117,15 +140,22 @@ export function buildTalentMembershipState(
   const planKey = normalizeTalentPlanKey(rawPlanKey);
   const tier = PLAN_TO_TIER[planKey];
 
+  const canUseCustomBuilder = talentPlanGrantsCapability(planKey, "personalSiteCustomBuilder");
+  const canUseTemplateGallery = talentPlanGrantsCapability(planKey, "personalSiteTemplate");
+  const canEditPersonalSite = talentPlanGrantsCapability(planKey, "personalSiteEdit");
+  const canPublishPersonalSite = talentPlanGrantsCapability(planKey, "personalSitePublish");
+
   return {
     planKey,
     tier,
     displayName: DISPLAY_NAME[tier],
     capabilities: {
-      canBuildPersonalSite: talentPlanGrantsCapability(planKey, "personalSiteBuilder"),
-      canEditPersonalSite: talentPlanGrantsCapability(planKey, "personalSiteEdit"),
-      canPublishPersonalSite: talentPlanGrantsCapability(planKey, "personalSitePublish"),
-      canSetPersonalSiteTemplate: talentPlanGrantsCapability(planKey, "personalSiteTemplate"),
+      canBuildPersonalSite: canUseCustomBuilder,
+      canEditPersonalSite,
+      canPublishPersonalSite,
+      canUseTemplateGallery,
+      canUseCustomBuilder,
+      canSetPersonalSiteTemplate: canUseTemplateGallery,
       canConnectPersonalSiteDomain: talentPlanGrantsCapability(planKey, "personalSiteCustomDomain"),
     },
   };

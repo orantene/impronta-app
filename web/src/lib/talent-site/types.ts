@@ -1,8 +1,11 @@
 import type { Locale } from "@/lib/site-admin/locales";
+import type { TalentSiteTemplateKey } from "./templates/types";
 
 export type TalentSiteStatus = "draft" | "published" | "unpublished" | "archived";
 
 export type TalentSiteRevisionKind = "draft" | "published" | "unpublished";
+
+export type TalentSiteCompositionMode = "template" | "custom";
 
 export type TalentSiteSnapshotSection = {
   slotKey: string;
@@ -12,11 +15,14 @@ export type TalentSiteSnapshotSection = {
   schemaVersion: number;
   name: string;
   props: Record<string, unknown>;
+  hidden?: boolean;
 };
 
 export type TalentSiteSnapshot = {
   version: 1;
   siteKind: "talent_personal";
+  templateKey: TalentSiteTemplateKey | string;
+  compositionMode: TalentSiteCompositionMode;
   publishedAt: string | null;
   pageVersion: number;
   locale: Locale;
@@ -40,6 +46,8 @@ export type TalentSiteRow = {
   draft_updated_at: string;
   published_at: string | null;
   unpublished_at: string | null;
+  plan_locked?: boolean | null;
+  pending_template_reset?: boolean | null;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -61,12 +69,19 @@ export type TalentSiteDashboardState = {
   planKey: string;
   tier: "free" | "pro" | "max";
   displayName: string;
+  /** @deprecated Use canEditPersonalSite */
   canBuildPersonalSite: boolean;
   canEditPersonalSite: boolean;
   canPublishPersonalSite: boolean;
+  canUseTemplateGallery: boolean;
+  canUseCustomBuilder: boolean;
   profileCode: string | null;
   publicSiteUrl: string | null;
   publicProfileUrl: string | null;
+  isPubliclyHidden: boolean;
+  templateKey: string | null;
+  compositionMode: TalentSiteCompositionMode | null;
+  availableTemplates: { key: string; label: string; blurb: string; thumbnailUrl: string }[];
   site: {
     id: string;
     status: TalentSiteStatus;
@@ -75,6 +90,8 @@ export type TalentSiteDashboardState = {
     publishedAt: string | null;
     unpublishedAt: string | null;
     hasPublishedSnapshot: boolean;
+    planLocked: boolean;
+    pendingTemplateReset: boolean;
     draftSnapshot: TalentSiteSnapshot | null;
   } | null;
 };
@@ -88,9 +105,11 @@ export type TalentSiteActionResult<T = void> =
         | "workspace_not_found"
         | "talent_profile_not_found"
         | "plan_required"
+        | "feature_disabled"
         | "not_owner"
         | "stale_version"
         | "invalid_snapshot"
+        | "snapshot_too_large"
         | "site_not_found"
         | "server_error";
       error: string;

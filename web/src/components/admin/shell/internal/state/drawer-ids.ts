@@ -210,7 +210,8 @@ export type DrawerId =
   | "ai-search-explain"
   | "ai-weekly-digest"
   // ── WS-19 Reporting & analytics ────────────────────────────────────
-  | "workspace-revenue"
+  // "workspace-revenue" retired 2026-05-26 — replaced by the canonical
+  // /{tenantSlug}/admin/financials route. See decision-log L46.
   | "conversion-funnel"
   | "top-performers"
   | "coordinator-workload"

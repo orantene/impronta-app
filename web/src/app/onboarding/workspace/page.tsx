@@ -99,6 +99,9 @@ export default async function OnboardingWorkspacePage({
   });
 
   if (result.ok) {
+    if (result.checkoutUrl) {
+      redirect(result.checkoutUrl);
+    }
     redirect(result.adminPath);
   }
 

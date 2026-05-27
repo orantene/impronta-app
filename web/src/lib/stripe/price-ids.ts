@@ -22,7 +22,9 @@ import "server-only";
 
 export type BillingInterval = "monthly" | "annual";
 
-export type WorkspacePlanKey = "studio" | "agency";
+// Network is sales-assisted today. Adding the key so a future commit can
+// flip it to self-serve by setting STRIPE_PRICE_NETWORK_MONTHLY/ANNUAL.
+export type WorkspacePlanKey = "studio" | "agency" | "network";
 
 const ENV_MAP: Record<WorkspacePlanKey, Record<BillingInterval, string>> = {
   studio: {
@@ -32,6 +34,10 @@ const ENV_MAP: Record<WorkspacePlanKey, Record<BillingInterval, string>> = {
   agency: {
     monthly: "STRIPE_PRICE_AGENCY_MONTHLY",
     annual:  "STRIPE_PRICE_AGENCY_ANNUAL",
+  },
+  network: {
+    monthly: "STRIPE_PRICE_NETWORK_MONTHLY",
+    annual:  "STRIPE_PRICE_NETWORK_ANNUAL",
   },
 };
 

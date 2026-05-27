@@ -253,6 +253,11 @@ export type BridgeData = {
      * without relying on the shell's plan-tier mock.
      */
     verifiedDomain?: string | null;
+    /**
+     * ISO timestamp set at provisioning when tier_interest='network'.
+     * OverviewFree reads this to show the "Network setup pending" banner.
+     */
+    networkRequestedAt?: string | null;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome

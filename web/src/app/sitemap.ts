@@ -1,9 +1,79 @@
 import type { MetadataRoute } from "next";
 
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { withLocalePath } from "@/i18n/pathnames";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
+import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
+
+const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
+
+async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  type PlatformTalentSitemapRow = {
+    published_at: string | null;
+    updated_at: string | null;
+    talent_profiles:
+      | {
+          profile_code: string | null;
+          visibility: string | null;
+          deleted_at: string | null;
+          is_publicly_hidden: boolean | null;
+        }
+      | {
+          profile_code: string | null;
+          visibility: string | null;
+          deleted_at: string | null;
+          is_publicly_hidden: boolean | null;
+        }[]
+      | null;
+  };
+
+  const { data: rowsRaw } = await admin
+    .from("talent_sites")
+    .select(
+      "published_at, updated_at, talent_profiles!inner(profile_code, visibility, deleted_at, is_publicly_hidden)",
+    )
+    .eq("status", "published")
+    .not("published_snapshot", "is", null)
+    .eq("talent_profiles.visibility", "public")
+    .is("talent_profiles.deleted_at", null)
+    .eq("talent_profiles.is_publicly_hidden", false)
+    .order("published_at", { ascending: false })
+    .limit(5000);
+
+  const rows = (rowsRaw ?? []) as unknown as PlatformTalentSitemapRow[];
+  return rows.flatMap((row) => {
+    const profile = Array.isArray(row.talent_profiles)
+      ? row.talent_profiles[0]
+      : row.talent_profiles;
+    const profileCode = profile?.profile_code?.trim();
+    if (!profileCode) return [];
+
+    const code = encodeURIComponent(profileCode);
+    const lastModified = row.published_at || row.updated_at
+      ? new Date(row.published_at ?? row.updated_at!)
+      : new Date();
+
+    return [
+      {
+        url: new URL(`/t/${code}`, PLATFORM_TALENT_SITEMAP_BASE).toString(),
+        lastModified,
+      },
+      {
+        url: new URL(
+          withLocalePath(`/t/${code}`, "es"),
+          PLATFORM_TALENT_SITEMAP_BASE,
+        ).toString(),
+        lastModified,
+      },
+    ];
+  });
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = publicSiteMetadataBase();
@@ -13,6 +83,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // so we never publish a manifest of dead links. Hub/app/unknown still return
   // empty; agency returns storefront routes; marketing returns its static tree.
   const hostContext = await getPublicHostContext();
+  const platformTalentEntries = isTalentProfilePlatformHost(hostContext.kind)
+    ? await loadPlatformTalentSitemapEntries()
+    : [];
+
   if (hostContext.kind === "marketing") {
     const marketingPaths = [
       "/",
@@ -27,10 +101,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/legal/privacy",
       "/legal/terms",
     ];
-    return marketingPaths.map((path) => ({
+    const marketingEntries: MetadataRoute.Sitemap = marketingPaths.map((path) => ({
       url: new URL(path, base).toString(),
       lastModified: new Date(),
     }));
+    return [...marketingEntries, ...platformTalentEntries];
+  }
+  if (isTalentProfilePlatformHost(hostContext.kind)) {
+    return platformTalentEntries;
   }
   if (hostContext.kind !== "agency") {
     return [];
@@ -159,7 +237,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Both EN and ES paths are listed; the talent page emits hreflang
   // alternates so duplicate-content signals consolidate on the canonical.
   type TalentSitemapRow = { profile_code: string; updated_at: string | null };
-  const { data: talentRows } = await supabase
+  const rosterClient = createServiceRoleClient() ?? supabase;
+  const { data: talentRows } = await rosterClient
     .from("talent_profiles")
     .select("profile_code, updated_at")
     .eq("created_by_agency_id", publicScope.tenantId)

@@ -9,8 +9,11 @@ import {
   requireTalentSelf,
   requireTalentSelfScope,
 } from "@/lib/server/talent-self-guard";
+import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
+import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
+import { assertTalentCanEditPersonalSite } from "@/lib/server/talent-self-guard";
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -22,6 +25,8 @@ function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
     publishedAt: row.published_at,
     unpublishedAt: row.unpublished_at,
     hasPublishedSnapshot: row.published_snapshot != null,
+    planLocked: row.plan_locked ?? false,
+    pendingTemplateReset: row.pending_template_reset ?? false,
     draftSnapshot,
   };
 }
@@ -44,12 +49,22 @@ export async function loadTalentPersonalSiteDashboardState(
 
   const admin = createServiceRoleClient();
   let site: TalentSiteDashboardState["site"] = null;
+  let templateKey: string | null = null;
+  let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
+
+  if (admin && assertTalentCanEditPersonalSite(scope.planKey) && profileCode) {
+    await provisionTalentPersonalSiteIfMissing(
+      scope.talentProfile.id,
+      scope.planKey,
+      scope.session.user.id,
+    );
+  }
 
   if (admin) {
     const { data } = await admin
       .from("talent_sites")
       .select(
-        "id, talent_profile_id, site_kind, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, created_by, updated_by, created_at, updated_at",
+        "id, talent_profile_id, site_kind, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
       )
       .eq("talent_profile_id", scope.talentProfile.id)
       .maybeSingle();
@@ -59,6 +74,8 @@ export async function loadTalentPersonalSiteDashboardState(
       const draft = parseTalentSiteSnapshot(row.draft_snapshot);
       if (draft) {
         row.draft_snapshot = draft;
+        templateKey = draft.templateKey;
+        compositionMode = draft.compositionMode;
       }
       if (row.published_snapshot) {
         const published = parseTalentSiteSnapshot(row.published_snapshot);
@@ -70,16 +87,30 @@ export async function loadTalentPersonalSiteDashboardState(
     }
   }
 
+  const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
+    key: t.key,
+    label: t.label,
+    blurb: t.blurb,
+    thumbnailUrl: t.thumbnailUrl,
+  }));
+
   const state: TalentSiteDashboardState = {
     planKey: membership.planKey,
     tier: membership.tier,
     displayName: membership.displayName,
-    canBuildPersonalSite: membership.capabilities.canBuildPersonalSite,
+    canBuildPersonalSite: membership.capabilities.canUseCustomBuilder,
     canEditPersonalSite: membership.capabilities.canEditPersonalSite,
     canPublishPersonalSite: membership.capabilities.canPublishPersonalSite,
+    canUseTemplateGallery: membership.capabilities.canUseTemplateGallery,
+    canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
     profileCode,
     publicSiteUrl: profileCode ? `/t/${profileCode}` : null,
-    publicProfileUrl: profileCode ? `/t/${profileCode}` : null,
+    // `preview=1` forces the standard profile renderer when a published site exists.
+    publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
+    isPubliclyHidden: scope.talentProfile.isPubliclyHidden,
+    templateKey,
+    compositionMode,
+    availableTemplates,
     site,
   };
 

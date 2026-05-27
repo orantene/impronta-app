@@ -14,7 +14,9 @@ Passwords live in `~/.claude/projects/-Users-oranpersonal-Desktop-impronta-app/m
 | Client | `qa-client-1@impronta.test` | `/impronta/client/*` — inquiries, bookings |
 | Client (alt) | `qa-client-2@impronta.test` | Multi-party inquiry tests |
 | Agency owner | `owner@novacrew.demo` | Nova Crew tenant — agency-specific views |
-| Talent | `tulum-talent-sofia@impronta.test` | `/t/sofia-herrera` and talent inbox |
+| Talent (Free / My Site A) | `tulum-talent-sofia@impronta.test` | `/talent/site`, `/t/TAL-92001` |
+| Talent (Pro / My Site B) | `tulum-talent-carmen@impronta.test` | `/talent/site` — run `npm run seed:talent-my-site-qa` first |
+| Talent (Max / My Site C) | `qa-talent-dashboard-audit@impronta.test` | `/talent/site`, `/t/TAL-AUDIT-0512` |
 
 All accounts run against the local Supabase instance (`localhost:54321`). Never use anonymous accounts.
 

@@ -28,23 +28,29 @@ test("talent membership maps product plan keys to dashboard tiers", () => {
   assert.equal(talentTierToPlanKey("max"), "talent_portfolio");
 });
 
-test("only Talent Max can build, edit, and publish a personal site", () => {
-  for (const planKey of ["talent_basic", "talent_pro"]) {
-    assert.equal(talentPlanGrantsCapability(planKey, "personalSiteBuilder"), false);
-    assert.equal(talentPlanGrantsCapability(planKey, "personalSiteEdit"), false);
-    assert.equal(talentPlanGrantsCapability(planKey, "personalSitePublish"), false);
+test("all tiers can edit and publish personal sites when tier expansion is on", () => {
+  for (const planKey of ["talent_basic", "talent_pro", "talent_portfolio"]) {
+    assert.equal(talentPlanGrantsCapability(planKey, "personalSiteEdit"), true);
+    assert.equal(talentPlanGrantsCapability(planKey, "personalSitePublish"), true);
   }
+});
 
-  assert.equal(talentPlanGrantsCapability("talent_portfolio", "personalSiteBuilder"), true);
-  assert.equal(talentPlanGrantsCapability("talent_portfolio", "personalSiteEdit"), true);
-  assert.equal(talentPlanGrantsCapability("talent_portfolio", "personalSitePublish"), true);
+test("template gallery is Pro+; custom builder is Max only", () => {
+  assert.equal(talentPlanGrantsCapability("talent_basic", "personalSiteTemplate"), false);
+  assert.equal(talentPlanGrantsCapability("talent_pro", "personalSiteTemplate"), true);
+  assert.equal(talentPlanGrantsCapability("talent_portfolio", "personalSiteTemplate"), true);
+
+  assert.equal(talentPlanGrantsCapability("talent_basic", "personalSiteCustomBuilder"), false);
+  assert.equal(talentPlanGrantsCapability("talent_pro", "personalSiteCustomBuilder"), false);
+  assert.equal(talentPlanGrantsCapability("talent_portfolio", "personalSiteCustomBuilder"), true);
 });
 
 test("reserved access capability keys resolve through the talent plan map", () => {
-  assert.equal(talentPlanGrantsAccessCapability("talent_basic", "talent.page.edit"), false);
-  assert.equal(talentPlanGrantsAccessCapability("talent_pro", "talent.page.publish"), false);
-  assert.equal(talentPlanGrantsAccessCapability("talent_portfolio", "talent.page.edit"), true);
-  assert.equal(talentPlanGrantsAccessCapability("talent_portfolio", "talent.page.publish"), true);
+  assert.equal(talentPlanGrantsAccessCapability("talent_basic", "talent.page.edit"), true);
+  assert.equal(talentPlanGrantsAccessCapability("talent_pro", "talent.page.publish"), true);
+  assert.equal(talentPlanGrantsAccessCapability("talent_basic", "talent.page.set_template"), false);
+  assert.equal(talentPlanGrantsAccessCapability("talent_pro", "talent.page.set_template"), true);
+  assert.equal(talentPlanGrantsAccessCapability("talent_portfolio", "talent.page.enable_module"), true);
   assert.equal(
     talentPlanGrantsAccessCapability("talent_portfolio", "talent.page.connect_custom_domain"),
     false,
@@ -58,9 +64,26 @@ test("membership state exposes UI-safe capability booleans", () => {
     displayName: "Free",
     capabilities: {
       canBuildPersonalSite: false,
-      canEditPersonalSite: false,
-      canPublishPersonalSite: false,
+      canEditPersonalSite: true,
+      canPublishPersonalSite: true,
+      canUseTemplateGallery: false,
+      canUseCustomBuilder: false,
       canSetPersonalSiteTemplate: false,
+      canConnectPersonalSiteDomain: false,
+    },
+  });
+
+  assert.deepEqual(buildTalentMembershipState("talent_pro"), {
+    planKey: "talent_pro",
+    tier: "pro",
+    displayName: "Pro",
+    capabilities: {
+      canBuildPersonalSite: false,
+      canEditPersonalSite: true,
+      canPublishPersonalSite: true,
+      canUseTemplateGallery: true,
+      canUseCustomBuilder: false,
+      canSetPersonalSiteTemplate: true,
       canConnectPersonalSiteDomain: false,
     },
   });
@@ -73,6 +96,8 @@ test("membership state exposes UI-safe capability booleans", () => {
       canBuildPersonalSite: true,
       canEditPersonalSite: true,
       canPublishPersonalSite: true,
+      canUseTemplateGallery: true,
+      canUseCustomBuilder: true,
       canSetPersonalSiteTemplate: true,
       canConnectPersonalSiteDomain: false,
     },

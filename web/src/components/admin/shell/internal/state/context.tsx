@@ -337,6 +337,11 @@ type Ctx = {
      * inquiry as `coordinator` participants. Empty array when none set.
      */
     inquiryCoordinatorTalentIds?: string[];
+    /**
+     * ISO timestamp set at provisioning when tier_interest='network'.
+     * OverviewFree reads this to show the "Network setup pending" banner.
+     */
+    networkRequestedAt?: string | null;
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls

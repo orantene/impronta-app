@@ -111,7 +111,24 @@ export function preferredWorkspaceSlugFromLead(input: {
 export function isSelfServeWorkspaceLeadEligible(
   tierInterest: string | null | undefined,
 ): boolean {
-  return !tierInterest || tierInterest === "free";
+  if (!tierInterest || tierInterest === "free") return true;
+  return (
+    tierInterest === "studio" ||
+    tierInterest === "agency" ||
+    tierInterest === "network"
+  );
+}
+
+export function isPaidWorkspaceTierInterest(
+  tierInterest: string | null | undefined,
+): tierInterest is "studio" | "agency" {
+  return tierInterest === "studio" || tierInterest === "agency";
+}
+
+export function isNetworkWorkspaceTierInterest(
+  tierInterest: string | null | undefined,
+): boolean {
+  return tierInterest === "network";
 }
 
 export type WorkspaceSignupProfileEligibilityInput = {

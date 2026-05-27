@@ -1,9 +1,4 @@
 {
-  "src/lib/server-actions/workspace-lifecycle.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 6
-    }
-  },
   "scripts/apply-user-prefs-migration.cjs": {
     "@typescript-eslint/no-require-imports": {
       "count": 2
@@ -205,7 +200,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-15.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 104
+      "count": 92
     }
   },
   "src/components/admin/shell/internal/drawers/light-16.tsx": {
@@ -602,11 +597,6 @@
   "src/components/admin/shell/internal/page-modules/OperationsPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 10
-    }
-  },
-  "src/components/admin/shell/internal/page-modules/OverviewPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 33
     }
   },
   "src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx": {
@@ -1682,6 +1672,11 @@
   "src/lib/server-actions/user-prefs.ts": {
     "ratchet/no-untenanted-from": {
       "count": 7
+    }
+  },
+  "src/lib/server-actions/workspace-lifecycle.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
     }
   },
   "src/lib/site-admin/builder-node/builder-node.test.ts": {

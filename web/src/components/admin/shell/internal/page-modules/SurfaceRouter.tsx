@@ -5,7 +5,8 @@ import { COLORS, FONTS, PLAN_META, useAdminShell } from "../state";
 import type { Plan, Surface } from "../state";
 import { ControlBar } from "./ControlBar";
 import { HybridShell, WorkspaceShell } from "./WorkspaceShell";
-import { ClientSurface, PlatformSurface, TalentSurface } from "./pages-dynamic";
+import { TalentSurface } from "../talent";
+import { ClientSurface, PlatformSurface } from "./pages-dynamic";
 
 
 // ════════════════════════════════════════════════════════════════════

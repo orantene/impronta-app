@@ -22,6 +22,7 @@ import {
   loadPersonBillingSnapshot,
   type PersonBillingSnapshot,
 } from "../../platform-billing-data";
+import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -144,6 +145,12 @@ export async function applyTalentPlanOverride(input: {
     return { ok: false, error: "Could not record the override." };
   }
 
+  const { data: profileBefore } = await admin
+    .from("talent_profiles")
+    .select("talent_plan_key, profile_code")
+    .eq("id", input.talentProfileId)
+    .maybeSingle();
+
   // Mirror onto talent_profiles.talent_plan_key
   const { error: updErr } = await admin
     .from("talent_profiles")
@@ -158,6 +165,13 @@ export async function applyTalentPlanOverride(input: {
     logServerError("platform/applyTalentPlanOverride.update", updErr);
     return { ok: false, error: "Could not apply the plan to the talent profile." };
   }
+
+  await onTalentPlanChanged(
+    input.talentProfileId,
+    (profileBefore as { talent_plan_key?: string } | null)?.talent_plan_key ?? basePlanKey,
+    input.overridePlanKey,
+    (profileBefore as { profile_code?: string | null } | null)?.profile_code ?? null,
+  );
 
   await logPlatformAdminAction({
     actorUserId: auth.userId,
@@ -209,6 +223,12 @@ export async function removeTalentPlanOverride(
     ? ovr.base_plan_key
     : "talent_basic";
 
+  const { data: profileBefore } = await admin
+    .from("talent_profiles")
+    .select("talent_plan_key, profile_code")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+
   const { error: updErr } = await admin
     .from("talent_profiles")
     .update({ talent_plan_key: restorePlanKey, updated_at: NOW() })
@@ -222,6 +242,13 @@ export async function removeTalentPlanOverride(
     .from("talent_plan_overrides")
     .update({ status: "revoked", ended_at: NOW(), ended_by: auth.userId })
     .eq("id", ovr.id);
+
+  await onTalentPlanChanged(
+    talentProfileId,
+    ovr.override_plan_key,
+    restorePlanKey,
+    (profileBefore as { profile_code?: string | null } | null)?.profile_code ?? null,
+  );
 
   await logPlatformAdminAction({
     actorUserId: auth.userId,

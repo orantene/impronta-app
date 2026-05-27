@@ -19,10 +19,23 @@ import type { ContextCatalogGroup } from "@/lib/server-actions/admin-talent-cont
 import { useDashboardText } from "./dashboard-i18n";
 import { F_BODY, T } from "./skill-tokens";
 
+export type ContextCatalogActions = {
+  getContextCatalog: (input?: { talent_profile_id?: string }) => Promise<
+    | { ok: true; groups: ContextCatalogGroup[] }
+    | { ok: false; error: string }
+  >;
+};
+
+const adminContextCatalogActions: ContextCatalogActions = {
+  getContextCatalog: () => getContextCatalog(),
+};
+
 export function AddContextSearch({
   existingContextIds,
   onClose,
   onAdded,
+  talentProfileId,
+  actions = adminContextCatalogActions,
 }: {
   existingContextIds: Set<string>;
   onClose: () => void;
@@ -37,6 +50,8 @@ export function AddContextSearch({
       group_sort_order: number;
     }>;
   }) => Promise<{ ok: boolean; error?: string }>;
+  talentProfileId: string;
+  actions?: ContextCatalogActions;
 }) {
   const copy = useDashboardText();
   const [groups, setGroups] = useState<ContextCatalogGroup[]>([]);
@@ -61,7 +76,7 @@ export function AddContextSearch({
 
   useEffect(() => {
     let alive = true;
-    getContextCatalog()
+    actions.getContextCatalog({ talent_profile_id: talentProfileId })
       .then((res) => {
         if (!alive) return;
         if (res.ok) {
@@ -83,7 +98,7 @@ export function AddContextSearch({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [actions, talentProfileId]);
 
   const toggle = (id: string) => {
     if (existingContextIds.has(id)) return;

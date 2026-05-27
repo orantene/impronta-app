@@ -6,17 +6,27 @@ import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/
 import { fetchTalentPersonalSiteDashboardStateAction } from "@/lib/talent-site/server/actions";
 import type { TalentSiteDashboardState } from "@/lib/talent-site/types";
 import { TalentSiteDashboardClient } from "./TalentSiteDashboardClient";
+import { useTalentSiteDashboardInitialLoad } from "./TalentSiteDashboardProvider";
 
 /**
  * Renders the personal-site dashboard inside the talent shell main area
  * (tab "My pages" / public-page). Loads state via server action so we do not
  * need a canonical /talent/site route that bypasses AdminShellRoot.
  */
-export function TalentSiteDashboardPanel() {
+type PanelProps = {
+  locale?: "en" | "es";
+};
+
+export function TalentSiteDashboardPanel({ locale = "en" }: PanelProps) {
   const { state: shellState } = useAdminShell();
-  const [state, setState] = useState<TalentSiteDashboardState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialLoad = useTalentSiteDashboardInitialLoad();
+  const [state, setState] = useState<TalentSiteDashboardState | null>(() =>
+    initialLoad?.ok ? initialLoad.state : null,
+  );
+  const [error, setError] = useState<string | null>(() =>
+    initialLoad && !initialLoad.ok ? initialLoad.error : null,
+  );
+  const [loading, setLoading] = useState(() => initialLoad == null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -32,8 +42,22 @@ export function TalentSiteDashboardPanel() {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload, shellState.talentTier]);
+    if (initialLoad == null) {
+      void reload();
+    }
+  }, [initialLoad, reload, shellState.talentTier]);
+
+  useEffect(() => {
+    if (initialLoad == null) return;
+    if (initialLoad.ok) {
+      setState(initialLoad.state);
+      setError(null);
+    } else {
+      setState(null);
+      setError(initialLoad.error);
+    }
+    setLoading(false);
+  }, [initialLoad]);
 
   if (loading) {
     return (
@@ -71,5 +95,5 @@ export function TalentSiteDashboardPanel() {
     );
   }
 
-  return <TalentSiteDashboardClient initialState={state} onReload={reload} />;
+  return <TalentSiteDashboardClient initialState={state} onReload={reload} locale={locale} />;
 }

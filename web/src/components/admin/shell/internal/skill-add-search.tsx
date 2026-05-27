@@ -36,6 +36,47 @@ type SkillPickerType = {
   category_group_name: string | null;
 };
 
+export type SkillSearchActions = {
+  getEnabledParentCategoriesForPicker: (input?: { talent_profile_id?: string }) => Promise<
+    | { ok: true; parents: Array<{ id: string; slug: string; name_en: string }> }
+    | { ok: false; error: string }
+  >;
+  getTalentTypesUnderParent: (input: {
+    talent_profile_id?: string;
+    parent_category_id: string;
+    query?: string;
+  }) => Promise<
+    | {
+        ok: true;
+        types: Array<{
+          id: string;
+          slug?: string;
+          name_en: string;
+          name_es: string | null;
+          category_group_name: string | null;
+        }>;
+      }
+    | { ok: false; error: string }
+  >;
+  requestNewTaxonomyTerm: (input: {
+    parent_category_id?: string | null;
+    proposed_name: string;
+    context_note?: string | null;
+    talent_profile_id?: string | null;
+    source?: "skill_picker" | "registration" | "inquiry_form" | "admin_settings";
+  }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
+};
+
+const adminSkillSearchActions: SkillSearchActions = {
+  getEnabledParentCategoriesForPicker: () => getEnabledParentCategoriesForPicker(),
+  getTalentTypesUnderParent: (input) =>
+    getTalentTypesUnderParent({
+      parent_category_id: input.parent_category_id,
+      query: input.query,
+    }),
+  requestNewTaxonomyTerm,
+};
+
 export function AddSkillSearch({
   role,
   fixedParentId,
@@ -44,6 +85,7 @@ export function AddSkillSearch({
   onClose,
   onAdded,
   talentProfileId,
+  actions = adminSkillSearchActions,
 }: {
   role: "primary" | "secondary";
   fixedParentId: string | undefined;
@@ -64,6 +106,7 @@ export function AddSkillSearch({
     parentName: string | null;
   }) => Promise<{ ok: boolean; error?: string }>;
   talentProfileId: string;
+  actions?: SkillSearchActions;
 }) {
   const copy = useDashboardText();
   const [parents, setParents] = useState<SkillPickerParent[]>([]);
@@ -92,7 +135,7 @@ export function AddSkillSearch({
   // Load parent categories on mount (skip when fixedParentId is set).
   useEffect(() => {
     if (fixedParentId) return;
-    getEnabledParentCategoriesForPicker().then((res) => {
+    actions.getEnabledParentCategoriesForPicker({ talent_profile_id: talentProfileId }).then((res) => {
       if (res.ok) {
         setParents(
           res.parents.map((p) => ({
@@ -102,7 +145,7 @@ export function AddSkillSearch({
         );
       }
     });
-  }, [fixedParentId]);
+  }, [actions, fixedParentId, talentProfileId]);
 
   // Load talent types when a parent is selected.
   useEffect(() => {
@@ -111,7 +154,8 @@ export function AddSkillSearch({
       return;
     }
     setLoadingTypes(true);
-    getTalentTypesUnderParent({
+    actions.getTalentTypesUnderParent({
+      talent_profile_id: talentProfileId,
       parent_category_id: selectedParentId,
       query: searchQuery || undefined,
     })
@@ -127,7 +171,7 @@ export function AddSkillSearch({
         } else setError(res.error);
       })
       .finally(() => setLoadingTypes(false));
-  }, [selectedParentId, searchQuery]);
+  }, [actions, selectedParentId, searchQuery, talentProfileId]);
 
   const parentLabel = (parent: SkillPickerParent) =>
     copy.term(parent.name_en, parent.name_es);
@@ -530,6 +574,7 @@ export function AddSkillSearch({
             selectedParentLabel
           }
           talentProfileId={talentProfileId}
+          actions={actions}
           query={searchQuery}
           onClose={() => setShowRequestForm(false)}
           onSubmitted={() => {
@@ -571,6 +616,7 @@ function RequestNewSkillForm({
   parentId,
   parentLabel,
   talentProfileId,
+  actions,
   query,
   onClose,
   onSubmitted,
@@ -578,6 +624,7 @@ function RequestNewSkillForm({
   parentId: string | null;
   parentLabel: string | null;
   talentProfileId: string;
+  actions: SkillSearchActions;
   query: string;
   onClose: () => void;
   onSubmitted: () => void;
@@ -596,7 +643,7 @@ function RequestNewSkillForm({
       return;
     }
     setSubmitting(true);
-    const res = await requestNewTaxonomyTerm({
+    const res = await actions.requestNewTaxonomyTerm({
       parent_category_id: parentId ?? null,
       proposed_name: name,
       context_note: contextNote.trim() || null,

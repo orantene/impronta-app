@@ -5,7 +5,7 @@
  * Drives every backend invariant via the linked Supabase project:
  *   1. Max owner can insert/update via RLS
  *   2. Non-owner can NOT see another talent's site (RLS isolation)
- *   3. Pro/Free plan is blocked from creating a personal site (Max gate)
+ *   3. Pro plan can create a personal site (tier expansion — all tiers edit/publish)
  *   4. Public RPC returns only published, non-hidden rows
  *   5. Draft updates do NOT affect public RPC output (publish discipline)
  *   6. Downgrade keeps the published site visible
@@ -77,8 +77,8 @@ function fail(name, detail = "") {
 const MAX_PROFILE_ID = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // QA Talent Dashboard Audit
 const MAX_PROFILE_CODE = "TAL-AUDIT-0512";
 const MAX_USER_ID = "4dc52f97-140b-4dc9-a722-4e915f3f86da";
-const PRO_PROFILE_ID = "9fd3d8b0-c719-483a-986f-f866f7fe018d"; // Lanco (talent_pro)
-const PRO_USER_ID = "4b9e595d-7c6c-4e65-8f7f-05cd60e85676";
+// Carmen (TAL-92002) — talent-only after register:tulum-demo-talent + seed:talent-my-site-qa
+const PRO_PROFILE_CODE = "TAL-92002";
 const OTHER_USER_ID = "bfe72e1e-6a9e-401a-9b7a-44b032a28810"; // Orlando
 
 const STARTER_SNAPSHOT = {
@@ -113,17 +113,19 @@ function jsonbLiteral(obj) {
   return "'" + JSON.stringify(obj).replaceAll("'", "''") + "'::jsonb";
 }
 
-async function cleanup() {
+async function cleanup(proProfileId) {
+  const ids = proProfileId
+    ? `'${MAX_PROFILE_ID}', '${proProfileId}'`
+    : `'${MAX_PROFILE_ID}'`;
+  await sql(`DELETE FROM public.talent_sites WHERE talent_profile_id IN (${ids})`);
   await sql(
-    `DELETE FROM public.talent_sites WHERE talent_profile_id IN ('${MAX_PROFILE_ID}', '${PRO_PROFILE_ID}')`,
+    `UPDATE public.talent_profiles SET talent_plan_key = 'talent_portfolio' WHERE id = '${MAX_PROFILE_ID}'`,
   );
-  // Restore plan keys (Lanco was Pro, audit was Basic)
-  await sql(
-    `UPDATE public.talent_profiles SET talent_plan_key = 'talent_basic' WHERE id = '${MAX_PROFILE_ID}'`,
-  );
-  await sql(
-    `UPDATE public.talent_profiles SET talent_plan_key = 'talent_pro' WHERE id = '${PRO_PROFILE_ID}'`,
-  );
+  if (proProfileId) {
+    await sql(
+      `UPDATE public.talent_profiles SET talent_plan_key = 'talent_pro' WHERE id = '${proProfileId}'`,
+    );
+  }
 }
 
 async function setSessionUser(userId) {
@@ -150,6 +152,22 @@ async function asServiceRole() {
 async function runAll() {
   console.log("\n=== Talent Max personal site — backend QA ===\n");
 
+  const proRow = await sql(
+    `SELECT id, user_id, talent_plan_key FROM public.talent_profiles WHERE profile_code = '${PRO_PROFILE_CODE}' AND deleted_at IS NULL`,
+  );
+  const PRO_PROFILE_ID = proRow[0]?.id ?? null;
+  const PRO_USER_ID = proRow[0]?.user_id ?? null;
+  if (!PRO_PROFILE_ID || !PRO_USER_ID) {
+    fail(
+      "setup: pro fixture (TAL-92002 + user)",
+      "Run register:tulum-demo-talent and npm run seed:talent-my-site-qa",
+    );
+  } else if (proRow[0].talent_plan_key !== "talent_pro") {
+    fail("setup: pro fixture plan", `expected talent_pro, got ${proRow[0].talent_plan_key}`);
+  } else {
+    ok("setup: pro fixture (Carmen / TAL-92002)", PRO_PROFILE_ID);
+  }
+
   // Sanity: target rows exist
   const profile = await sql(
     `SELECT id, profile_code, talent_plan_key, user_id, is_publicly_hidden FROM public.talent_profiles WHERE id = '${MAX_PROFILE_ID}'`,
@@ -160,7 +178,7 @@ async function runAll() {
   }
   ok("setup: max profile exists", profile[0].profile_code);
 
-  await cleanup();
+  await cleanup(PRO_PROFILE_ID);
 
   // ── 1. Max owner can create + publish ─────────────────────────────────
   console.log("\n[1] Max owner can create, save, publish a personal site");
@@ -231,37 +249,33 @@ async function runAll() {
     fail("non-owner sees zero rows", JSON.stringify(otherRead));
   }
 
-  // ── 3. Pro plan cannot create a site (Max gate) ───────────────────────
-  console.log("\n[3] Pro plan blocked from creating a personal site");
+  // ── 3. Pro plan can create a site (tier expansion) ─────────────────────
+  console.log("\n[3] Pro plan can create a personal site");
+  if (!PRO_PROFILE_ID || !PRO_USER_ID) {
+    fail("pro plan can insert via RLS", "skipped — pro fixture missing");
+  }
   try {
+    if (!PRO_PROFILE_ID || !PRO_USER_ID) throw new Error("pro fixture missing");
     await sql(`
       DO $$
       BEGIN
         PERFORM set_config('request.jwt.claims', json_build_object('sub','${PRO_USER_ID}','role','authenticated')::text, true);
         SET LOCAL ROLE authenticated;
-        INSERT INTO public.talent_sites (talent_profile_id, draft_snapshot, version)
-        VALUES ('${PRO_PROFILE_ID}', ${jsonbLiteral(STARTER_SNAPSHOT)}, 1);
+        INSERT INTO public.talent_sites (talent_profile_id, draft_snapshot, version, created_by, updated_by)
+        VALUES ('${PRO_PROFILE_ID}', ${jsonbLiteral({ ...STARTER_SNAPSHOT, templateKey: "tulala-digital", compositionMode: "template" })}, 1, '${PRO_USER_ID}', '${PRO_USER_ID}');
       END $$;
     `);
-    // Check: was the row actually inserted? RLS WITH CHECK fails should raise, but DO blocks can swallow.
     await asServiceRole();
     const proRows = await sql(
       `SELECT id FROM public.talent_sites WHERE talent_profile_id = '${PRO_PROFILE_ID}'`,
     );
-    if (proRows.length === 0) {
-      ok("pro plan cannot insert (RLS WITH CHECK denied)");
+    if (proRows.length === 1) {
+      ok("pro plan can insert via RLS");
     } else {
-      fail("pro plan cannot insert", `unexpected row: ${JSON.stringify(proRows)}`);
-      await sql(
-        `DELETE FROM public.talent_sites WHERE talent_profile_id = '${PRO_PROFILE_ID}'`,
-      );
+      fail("pro plan can insert via RLS", JSON.stringify(proRows));
     }
   } catch (e) {
-    if (/row-level security/i.test(e.message) || /violates/.test(e.message)) {
-      ok("pro plan cannot insert", "raised RLS violation");
-    } else {
-      fail("pro plan cannot insert (unexpected error)", e.message);
-    }
+    fail("pro plan can insert via RLS", e.message);
   }
 
   // ── 4. Public RPC returns published rows for non-hidden profile ───────
@@ -341,9 +355,12 @@ async function runAll() {
 
   // ── 8. Cleanup ────────────────────────────────────────────────────────
   console.log("\n[cleanup] removing QA artifacts");
-  await cleanup();
+  await cleanup(PRO_PROFILE_ID);
+  const finalIds = PRO_PROFILE_ID
+    ? `'${MAX_PROFILE_ID}', '${PRO_PROFILE_ID}'`
+    : `'${MAX_PROFILE_ID}'`;
   const final = await sql(
-    `SELECT count(*)::int AS n FROM public.talent_sites WHERE talent_profile_id IN ('${MAX_PROFILE_ID}', '${PRO_PROFILE_ID}')`,
+    `SELECT count(*)::int AS n FROM public.talent_sites WHERE talent_profile_id IN (${finalIds})`,
   );
   if (final[0]?.n === 0) {
     ok("cleanup: zero residual rows");
@@ -357,5 +374,5 @@ async function runAll() {
 
 runAll().catch((e) => {
   console.error("Fatal:", e);
-  cleanup().finally(() => process.exit(2));
+  process.exit(2);
 });

@@ -9,8 +9,10 @@ import { MarketingCta } from "@/components/marketing/cta-link";
 import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { GetStartedForm } from "@/components/marketing/get-started-form";
+import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   reservedBrandedSubdomainHost,
   workspacePathHost,
@@ -76,9 +78,26 @@ export default async function GetStartedPage({
       ? (tierKey as TierKey)
       : undefined;
 
+  const actor = await getCachedActorSession();
+  const initialSignedIn = actor.user
+    ? {
+        userId: actor.user.id,
+        email: actor.user.email ?? "",
+        displayName: actor.profile?.display_name ?? null,
+      }
+    : undefined;
+
+  const appLoginUrl = `${getAppUrl()}/login`;
+
   return (
     <>
-      <HeroSection copy={copy} initialAudience={initialAudience} tier={tier} />
+      <HeroSection
+        appLoginUrl={appLoginUrl}
+        copy={copy}
+        initialAudience={initialAudience}
+        initialSignedIn={initialSignedIn}
+        tier={tier}
+      />
       <WhoItsForSection />
       <HowItWorksSection />
       <PlanLadderSection />
@@ -100,12 +119,20 @@ function mapAudience(raw: string | null): AudienceKey {
 // ────────────────────────────────────────────────────────────────────────────
 
 function HeroSection({
+  appLoginUrl,
   copy,
   initialAudience,
+  initialSignedIn,
   tier,
 }: {
+  appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
   initialAudience: AudienceKey;
+  initialSignedIn?: {
+    userId: string;
+    email: string;
+    displayName: string | null;
+  };
   tier?: TierKey;
 }) {
   return (
@@ -182,9 +209,9 @@ function HeroSection({
                 className="mt-4 text-[0.9375rem] leading-[1.6]"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
-                {PLATFORM_BRAND.name}{" "}is in private beta with a small group of operators and
-                agencies. We&rsquo;re onboarding signups by hand so each roster gets set up
-                properly. No fake social proof, no growth-hack funnel — just a product we&rsquo;re
+                Free workspaces are available immediately — claim your link, create your
+                account, and land in your dashboard in minutes. Agency and Network plans include
+                guided setup. No fake social proof, no growth-hack funnel — just a product we&rsquo;re
                 building with the people who use it.
               </p>
               <p
@@ -197,19 +224,24 @@ function HeroSection({
           </div>
 
           <div id="form" className="relative lg:sticky lg:top-24">
-            <GetStartedForm initialAudience={initialAudience} tier={tier} />
+            <GetStartedForm
+              initialAudience={initialAudience}
+              tier={tier}
+              initialSignedIn={initialSignedIn}
+              sourcePage="/get-started"
+            />
             <p
               className="mt-4 text-center text-[0.8125rem]"
               style={{ color: "var(--plt-muted)" }}
             >
               Already have an account?{" "}
-              <Link
-                href="/login"
+              <a
+                href={appLoginUrl}
                 className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                 style={{ color: "var(--plt-ink)" }}
               >
                 Sign in
-              </Link>
+              </a>
             </p>
           </div>
         </div>
