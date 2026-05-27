@@ -26,6 +26,15 @@ export const DEFAULT_CURRENCY_OPTIONS = [
   "MXN",
   "ARS",
   "BRL",
+  // L50 extension — added for the Product Pricing dashboard so per-tier
+  // pricing can target regional markets (PPP / LATAM strategy). Available
+  // here so the per-actor `default_currency` picker can also pick any code
+  // a tier price is denominated in; one source of truth.
+  "COP",
+  "CLP",
+  "PEN",
+  "CAD",
+  "AUD",
 ] as const;
 
 export type DefaultCurrencyCode = (typeof DEFAULT_CURRENCY_OPTIONS)[number];
@@ -38,6 +47,11 @@ export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
   MXN: "MXN · $ · Mexican Peso",
   ARS: "ARS · $ · Argentine Peso",
   BRL: "BRL · R$ · Brazilian Real",
+  COP: "COP · $ · Colombian Peso",
+  CLP: "CLP · $ · Chilean Peso",
+  PEN: "PEN · S/ · Peruvian Sol",
+  CAD: "CAD · $ · Canadian Dollar",
+  AUD: "AUD · $ · Australian Dollar",
 };
 
 /** Storage default — matches the SQL `DEFAULT 'EUR'` on both columns. */

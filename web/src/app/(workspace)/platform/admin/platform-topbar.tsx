@@ -28,6 +28,7 @@ const TABS = [
   { id: "users",      label: "Users",       segment: "users"      },
   { id: "network",    label: "Network",     segment: "network"    },
   { id: "billing",    label: "Billing",     segment: "billing"    },
+  { id: "pricing",    label: "Pricing",     segment: "pricing"    },
   { id: "operations", label: "Operations",  segment: "operations" },
   { id: "catalog",    label: "Catalog",     segment: "catalog"    },
   { id: "taxonomy",   label: "Taxonomy",    segment: "taxonomy"   },
