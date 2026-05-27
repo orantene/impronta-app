@@ -9,14 +9,16 @@ import {
 } from "@/lib/billing/snapshot-aggregations";
 import {
   buildAgencyFinancials,
+  buildAgencyFinancialsByCurrency,
   EMPTY_AGENCY_FINANCIALS,
   type AgencyFinancials,
+  type AgencyFinancialsByCurrency,
   type AgencyFinancialsRow,
 } from "@/lib/billing/agency-financials-types";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 
-export type { AgencyFinancials, AgencyFinancialsRow } from "@/lib/billing/agency-financials-types";
+export type { AgencyFinancials, AgencyFinancialsByCurrency, AgencyFinancialsRow } from "@/lib/billing/agency-financials-types";
 
 function defaultYtdSinceIso(): string {
   const year = new Date().getUTCFullYear();
@@ -85,19 +87,6 @@ export const loadAgencyFinancials = cache(
   },
 );
 
-export type AgencyFinancialsByCurrency = {
-  /** ISO-4217 code from `agencies.default_currency`. Selected first in tabs. */
-  defaultCurrency: string;
-  /**
-   * Per-currency bundles, sorted with `defaultCurrency` first then by
-   * gross descending. Empty when the tenant has no snapshot rows of any
-   * currency.
-   */
-  byCurrency: AgencyFinancials[];
-  /** All non-empty currency codes for tab labels. */
-  currencies: string[];
-};
-
 const EMPTY_BY_CURRENCY: AgencyFinancialsByCurrency = {
   defaultCurrency: "EUR",
   byCurrency: [],
@@ -143,32 +132,7 @@ export const loadAgencyFinancialsByCurrency = cache(
         ?? "EUR")
         .toUpperCase();
 
-    if (snapshotRowsRes.length === 0) {
-      return { defaultCurrency, byCurrency: [], currencies: [] };
-    }
-
-    const byCurrencyRows = new Map<string, AgencyFinancialsRow[]>();
-    for (const snap of snapshotRowsRes) {
-      const code = (snap.currencyCode ?? "EUR").toUpperCase();
-      const list = byCurrencyRows.get(code) ?? [];
-      list.push(mapSnapshotRowToFinancialsRow(snap));
-      byCurrencyRows.set(code, list);
-    }
-
-    const bundles: AgencyFinancials[] = [];
-    for (const [code, rows] of byCurrencyRows) {
-      bundles.push(buildAgencyFinancials(rows, { currency: code }));
-    }
-    bundles.sort((a, b) => {
-      if (a.totals.currency === defaultCurrency) return -1;
-      if (b.totals.currency === defaultCurrency) return 1;
-      return b.totals.ytdGrossCents - a.totals.ytdGrossCents;
-    });
-
-    return {
-      defaultCurrency,
-      byCurrency: bundles,
-      currencies: bundles.map((b) => b.totals.currency),
-    };
+    const rows = snapshotRowsRes.map(mapSnapshotRowToFinancialsRow);
+    return buildAgencyFinancialsByCurrency(rows, defaultCurrency);
   },
 );

@@ -95,6 +95,61 @@ export type AgencyFinancials = {
   rows: AgencyFinancialsRow[];
 };
 
+export type AgencyFinancialsByCurrency = {
+  /** ISO-4217 code from `agencies.default_currency`. Selected first in tabs. */
+  defaultCurrency: string;
+  /**
+   * Per-currency bundles, sorted with `defaultCurrency` first then by
+   * gross descending. Empty when the tenant has no snapshot rows of any
+   * currency.
+   */
+  byCurrency: AgencyFinancials[];
+  /** All non-empty currency codes for tab labels. */
+  currencies: string[];
+};
+
+/**
+ * Pure multi-currency grouper. Takes pre-fetched `AgencyFinancialsRow[]`
+ * (already covering all currencies) and the agency's `default_currency`
+ * string. Returns a grouped result without touching the network.
+ *
+ * Extracted for testability; used by `loadAgencyFinancialsByCurrency`.
+ */
+export function buildAgencyFinancialsByCurrency(
+  rows: AgencyFinancialsRow[],
+  defaultCurrency: string,
+): AgencyFinancialsByCurrency {
+  const dc = defaultCurrency.toUpperCase();
+
+  if (rows.length === 0) {
+    return { defaultCurrency: dc, byCurrency: [], currencies: [] };
+  }
+
+  const byCurrencyRows = new Map<string, AgencyFinancialsRow[]>();
+  for (const r of rows) {
+    const code = (r.currencyCode ?? "EUR").toUpperCase();
+    const list = byCurrencyRows.get(code) ?? [];
+    list.push(r);
+    byCurrencyRows.set(code, list);
+  }
+
+  const bundles: AgencyFinancials[] = [];
+  for (const [code, currRows] of byCurrencyRows) {
+    bundles.push(buildAgencyFinancials(currRows, { currency: code }));
+  }
+  bundles.sort((a, b) => {
+    if (a.totals.currency === dc) return -1;
+    if (b.totals.currency === dc) return 1;
+    return b.totals.ytdGrossCents - a.totals.ytdGrossCents;
+  });
+
+  return {
+    defaultCurrency: dc,
+    byCurrency: bundles,
+    currencies: bundles.map((b) => b.totals.currency),
+  };
+}
+
 export const EMPTY_AGENCY_FINANCIALS: AgencyFinancials = {
   totals: {
     ytdGrossCents: 0,
