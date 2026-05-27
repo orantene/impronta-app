@@ -7,12 +7,14 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AVAILABLE_CHANNELS, COLORS, FONTS, TALENT_CHANNELS, TRANSITION, useAdminShell } from "../state";
 import {
   DrawerShell,
   FieldRow,
   Icon,
+  PrimaryButton,
   SecondaryButton,
   TextArea,
   TextInput,
@@ -51,12 +53,17 @@ type AddEventMode = "pick" | "work" | "block";
 
 export function TalentHubDetailDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const router = useRouter();
+  const [, startApplyTransition] = useTransition();
   const open = state.drawer.drawerId === "talent-hub-detail";
   const channelId = (state.drawer.payload?.channelId as string) ?? "";
   const channel =
     TALENT_CHANNELS.find((c) => c.id === channelId) ??
     AVAILABLE_CHANNELS.find((c) => c.id === channelId) ??
     null;
+
+  // isAvailable = this channel is in the "available to join" pool (not yet joined).
+  const isAvailable = AVAILABLE_CHANNELS.some((c) => c.id === channelId);
 
   if (!channel) return null;
 
@@ -75,7 +82,23 @@ export function TalentHubDetailDrawer() {
       title={channel.name}
       description={`${channel.kind === "studio" ? "Studio · free book" : channel.verified ? "Verified external hub" : "External hub · not yet Tulala-verified"} · joining is reversible`}
       width={520}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      footer={
+        <>
+          {isAvailable && (
+            <PrimaryButton
+              onClick={() => {
+                closeDrawer();
+                startApplyTransition(() => {
+                  router.push("/talent/discover-agencies");
+                });
+              }}
+            >
+              Apply to hubs &amp; agencies →
+            </PrimaryButton>
+          )}
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        </>
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONTS.body }}>
         {channel.description && (

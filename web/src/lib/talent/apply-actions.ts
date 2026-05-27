@@ -21,9 +21,44 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
+import { emitNotification, emitNotificationToUsers } from "@/lib/notifications/emit";
+
+/** Look up profile_ids for all active staff of a tenant (owner/admin/coordinator). */
+async function getStaffUserIds(tenantId: string): Promise<string[]> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+  const { data, error } = await admin
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "active")
+    .in("role", ["owner", "admin", "coordinator"]);
+  if (error) {
+    logServerError("apply/staff_lookup", error);
+    return [];
+  }
+  return ((data ?? []) as { profile_id: string }[]).map((r) => r.profile_id);
+}
+
+/** Look up user_id for a talent profile. */
+async function getTalentUserId(talentProfileId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("user_id")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("apply/talent_user_lookup", error);
+    return null;
+  }
+  return (data as { user_id: string | null } | null)?.user_id ?? null;
+}
 
 type ApplyKind = "agency" | "hub";
 
@@ -157,6 +192,19 @@ async function submitApplication(
     return { ok: false, code: "db_error", error: error.message };
   }
 
+  // Notify workspace staff of the new application — best-effort, non-critical.
+  void (async () => {
+    const staffIds = await getStaffUserIds(targetTenantId);
+    await emitNotificationToUsers(staffIds, {
+      tenantId: targetTenantId,
+      kind: "approval",
+      surface: "workspace",
+      title: "New roster application",
+      body: `${guard.talentProfile.displayName ?? "A talent"} applied to join your roster.`,
+      targetDrawer: "roster-applications",
+    });
+  })();
+
   // Revalidate the talent's My Site so the application appears under
   // "Where you appear" / agency status.
   revalidatePath("/talent/site");
@@ -204,7 +252,7 @@ export async function decideTalentApplication(
   // RLS staff-update gate is exercised before the write.
   const { data: row, error: readError } = await supabase
     .from(tableFor(kind))
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, status, talent_profile_id")
     .eq("id", applicationId)
     .maybeSingle();
   if (readError) {
@@ -212,7 +260,7 @@ export async function decideTalentApplication(
     return { ok: false, code: "db_error", error: readError.message };
   }
   if (!row) return { ok: false, code: "not_found", error: "Application not found or not visible." };
-  const r = row as { id: string; tenant_id: string; status: string };
+  const r = row as { id: string; tenant_id: string; status: string; talent_profile_id: string };
   if (r.status !== "pending") {
     return { ok: false, code: "already_decided", error: `Already ${r.status}.` };
   }
@@ -231,6 +279,24 @@ export async function decideTalentApplication(
     logServerError("apply/decide_update", updateError);
     return { ok: false, code: "db_error", error: updateError.message };
   }
+
+  // Notify the talent about the decision — best-effort.
+  void (async () => {
+    const talentUserId = await getTalentUserId(r.talent_profile_id);
+    if (talentUserId) {
+      await emitNotification({
+        userId: talentUserId,
+        tenantId: r.tenant_id,
+        kind: "approval",
+        surface: "talent",
+        title: decision === "approved" ? "Application approved!" : "Application update",
+        body: decision === "approved"
+          ? "Your application was approved. Check the agency's next steps."
+          : "Your application wasn't approved this time. You can apply to other agencies anytime.",
+        targetDrawer: "talent-reach",
+      });
+    }
+  })();
 
   return { ok: true, applicationId, newStatus: decision };
 }
