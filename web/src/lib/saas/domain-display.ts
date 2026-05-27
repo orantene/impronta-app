@@ -21,6 +21,22 @@ export function isLocalPreviewHost(hostname: string): boolean {
   return /\.local$/i.test(hostname) || /\.lvh\.me$/i.test(hostname);
 }
 
+/**
+ * Staging preview hosts — `staging-<tenant>.tulala.digital`.
+ *
+ * Seeded into `agency_domains` so middleware accepts them, then aliased via
+ * Vercel to a preview deployment so a Phase-5-style launch gate can QA real
+ * tenant data on a real host without redirecting tenants whose primary is a
+ * custom canonical domain (e.g. improntamodels.com).
+ *
+ * Locked to the `.tulala.digital` parent zone so a tenant who happens to own
+ * a custom domain starting with "staging-" doesn't accidentally bypass the
+ * canonical redirect.
+ */
+export function isStagingPreviewHost(hostname: string): boolean {
+  return /^staging-[a-z0-9-]+\.tulala\.digital$/i.test(hostname);
+}
+
 export function isLegacyBrandedHost(hostname: string): boolean {
   return /\.studiobooking\.io$/i.test(hostname);
 }

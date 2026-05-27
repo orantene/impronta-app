@@ -155,3 +155,42 @@ test("does not redirect local preview custom hosts", () => {
     null,
   );
 });
+
+test("staging-*.tulala.digital subdomain bypasses canonical redirect (L52)", () => {
+  // Phase 5 hit a 308 bouncing staging-impronta.tulala.digital → improntamodels.com
+  // because Impronta's primary is its custom domain. The L52 fix exempts the
+  // staging-*.tulala.digital prefix from the canonical-host redirect.
+  assert.equal(
+    resolveCanonicalCustomDomainRedirectHost({
+      currentHost: "staging-impronta.tulala.digital",
+      domainKind: "subdomain",
+      isPrimary: false,
+      canonicalHost: "improntamodels.com",
+      canonicalHostKind: "custom",
+    }),
+    null,
+  );
+  assert.equal(
+    resolveCanonicalCustomDomainRedirectHost({
+      currentHost: "staging-nova.tulala.digital",
+      domainKind: "subdomain",
+      isPrimary: false,
+      canonicalHost: "nova.tulala.digital",
+      canonicalHostKind: "subdomain",
+    }),
+    null,
+  );
+  // Safety floor: "staging-" prefix on a NON-tulala.digital zone still
+  // redirects normally. A tenant who owns staging-foo.example.com cannot
+  // accidentally bypass canonical via this lane.
+  assert.equal(
+    resolveCanonicalCustomDomainRedirectHost({
+      currentHost: "staging-foo.example.com",
+      domainKind: "custom",
+      isPrimary: false,
+      canonicalHost: "primary.example.com",
+      canonicalHostKind: "custom",
+    }),
+    "primary.example.com",
+  );
+});

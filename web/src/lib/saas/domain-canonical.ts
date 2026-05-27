@@ -1,4 +1,4 @@
-import { isLocalPreviewHost } from "./domain-display";
+import { isLocalPreviewHost, isStagingPreviewHost } from "./domain-display";
 
 function isLegacyStudioBookingHost(hostname: string): boolean {
   return hostname.endsWith(".studiobooking.io");
@@ -22,6 +22,14 @@ export function resolveCanonicalCustomDomainRedirectHost(input: {
   }
 
   if (isLocalPreviewHost(currentHost) || isLocalPreviewHost(canonicalHost)) {
+    return null;
+  }
+
+  // L52: staging-*.tulala.digital hosts bypass canonical redirect so a
+  // Phase-5-style launch gate can QA against a tenant's real data without
+  // 308-bouncing to the tenant's canonical custom domain. Locked to the
+  // .tulala.digital parent zone — see isStagingPreviewHost.
+  if (isStagingPreviewHost(currentHost)) {
     return null;
   }
 
