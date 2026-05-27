@@ -30,6 +30,34 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   marketing_audience_selected: "marketing_audience_selected",
 
   // ---------------------------------------------------------------------------
+  // /get-started funnel — step instrumentation so we can find where the
+  // 87.5% who bounce actually drop off. Each event fires once per visitor
+  // per form session. Joined client-side via fetch /api/analytics/events
+  // and GA4 in parallel.
+  // ---------------------------------------------------------------------------
+
+  /** Fires when the get-started page mounts (visitor reached the form). Payload: { tier?, audience_initial } */
+  marketing_funnel_viewed: "marketing_funnel_viewed",
+
+  /** Fires when the visitor first focuses the email field — proxy for "intent to submit". Payload: { audience } */
+  marketing_email_focused: "marketing_email_focused",
+
+  /** Fires when the visitor first types into the subdomain field. Payload: { audience } */
+  marketing_subdomain_typed: "marketing_subdomain_typed",
+
+  /** Fires when subdomain availability check returns. Payload: { available, audience, length } */
+  marketing_subdomain_checked: "marketing_subdomain_checked",
+
+  /** Fires when the visitor selects a roster-size bucket. Payload: { bucket, audience } */
+  marketing_roster_size_selected: "marketing_roster_size_selected",
+
+  /** Fires the moment submit is clicked, BEFORE the server action returns. Payload: { audience, has_subdomain, roster_size, tier? } */
+  marketing_submit_attempted: "marketing_submit_attempted",
+
+  /** Fires if the server action returns an error. Payload: { audience, error_code } */
+  marketing_submit_failed: "marketing_submit_failed",
+
+  // ---------------------------------------------------------------------------
   // Inquiry funnel (step 12 — 2026-05-13)
   // ---------------------------------------------------------------------------
 

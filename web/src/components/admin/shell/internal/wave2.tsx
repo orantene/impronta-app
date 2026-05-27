@@ -4271,18 +4271,45 @@ type ActivationStep = {
   onCta?:   () => void;
 };
 
-export function WorkspaceActivationBanner() {
+/** Optional real-state snapshot passed in by the page. When provided,
+ *  individual step `done` flags reflect actual tenant state instead of
+ *  the original stub data. Each field is optional — anything missing
+ *  falls back to the previous hardcoded default for that step. */
+export type WorkspaceActivationState = {
+  hasCompleteProfile?: boolean;
+  hasAnyTalent?:       boolean;
+  hasSentInquiry?:     boolean;
+  hasPayoutMethod?:    boolean;
+  hasCustomDomain?:    boolean;
+  /** Total roster size — when ≥ 1 AND the tenant has a custom domain,
+   *  the banner self-hides entirely. The owner doesn't need a
+   *  "get started" checklist anymore. */
+  talentCount?:        number;
+};
+
+export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationState } = {}) {
   const { openDrawer, setPage, toast } = useAdminShell();
   const [dismissed, setDismissed] = useState(false);
   const [, setReminded] = useState(false);
+  const s = props.state ?? {};
+
+  // Established-tenant gate — once the tenant has talent AND a custom
+  // domain, the activation checklist is noise. Owner has moved past
+  // "evaluating" into "running the business."
+  const isEstablished =
+    (s.talentCount ?? 0) >= 1 && (s.hasCustomDomain ?? false);
 
   const steps: ActivationStep[] = [
-    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: true,  cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
-    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: true,  cta: "Add talent",      onCta: () => setPage("roster") },
-    { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
-    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
-    { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: false, cta: "Configure",       onCta: () => setPage("settings") },
+    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: s.hasCompleteProfile ?? true,  cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
+    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? true,  cta: "Add talent",      onCta: () => setPage("roster") },
+    { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: s.hasSentInquiry     ?? false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
+    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
+    { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: s.hasCustomDomain    ?? false, cta: "Configure",       onCta: () => setPage("settings") },
   ];
+
+  // Self-hide for established tenants regardless of per-step state —
+  // they don't need the onboarding nudge.
+  if (isEstablished) return null;
 
   const doneCount = steps.filter((s) => s.done).length;
   const pct = Math.round((doneCount / steps.length) * 100);
@@ -4603,13 +4630,25 @@ export function ClientFirstRunBanner() {
 
 const DEMO_DATA_KEY = "tulala-demo-mode";
 
-export function DemoDataBanner() {
+/** Optional context for the demo banner. When `isEstablishedTenant=true`
+ *  (real roster + custom domain OR paid plan), the banner self-hides —
+ *  Impronta etc. shouldn't see "Evaluating Tulala?" prompts. */
+export type DemoDataBannerProps = {
+  isEstablishedTenant?: boolean;
+};
+
+export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerProps = {}) {
   const { toast } = useAdminShell();
   const [enabled, setEnabled] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(DEMO_DATA_KEY) === "true";
   });
   const [dismissed, setDismissed] = useState(false);
+
+  // Established tenants never see the evaluator prompt. Demo-mode toggle
+  // is reserved for trial / empty workspaces; once you ARE the business
+  // there's nothing to evaluate.
+  if (isEstablishedTenant && !enabled) return null;
 
   function toggle() {
     const next = !enabled;

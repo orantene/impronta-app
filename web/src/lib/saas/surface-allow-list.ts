@@ -86,6 +86,15 @@ const AUTH_PREFIXES = [
   "/forgot-password",
   "/update-password",
   "/auth",
+  // Tenant-scoped registration entry points. Without these, hitting
+  // `https://<tenant>.tulala.digital/talent/register` or its custom-domain
+  // equivalent (e.g. `improntamodels.com/talent/register`) 404'd at the
+  // middleware allow-list. The route file at
+  // `web/src/app/(auth)/talent/register/page.tsx` exists and works; this
+  // adds it to the agency-host allow-list so the talent-acquisition funnel
+  // is reachable from the tenant's own canonical host.
+  "/talent/register",
+  "/client/register",
 ] as const;
 
 const AGENCY_STOREFRONT_PREFIXES = [

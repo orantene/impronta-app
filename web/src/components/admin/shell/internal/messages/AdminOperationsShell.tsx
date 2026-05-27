@@ -36,7 +36,11 @@ export type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "hand
 
 export function AdminOperationsShell() {
   const { effectiveMessagesInquiries } = useAdminShell();
-  const inquiries = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  // Context already decides between bridge-populated (use as-is, even when
+  // empty) and standalone-dev (RICH_INQUIRIES mock). Re-doing the fallback
+  // here with `length > 0 ?` was the bug: real tenants with 0 inquiries
+  // had their dashboard show mock "24 active" data. Trust the context.
+  const inquiries = effectiveMessagesInquiries;
   // Re-render on seen-state changes so the inbox re-sorts the moment
   // a row gets clicked (NEW pill drops, unseen tier loses that row).
   useSeenSubscription();

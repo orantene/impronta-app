@@ -45,7 +45,7 @@ export function InquiryPeekDrawer() {
   const { state, closeDrawer, effectiveMessagesInquiries } = useAdminShell();
   const id = state.drawer.payload?.id as string | undefined;
   // Bridge path: adapt RichInquiry → old Inquiry shape used by this drawer.
-  const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  const richSource = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
   const richInq = richSource.find((i) => i.id === id) ?? richSource[0];
   const inquiry = richInq
     ? {
@@ -217,7 +217,7 @@ export function DayDetailDrawer() {
     const MONTH_ABBR: Record<string, number> = {
       Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
     };
-    const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+    const richSource = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
     dayInquiries = richSource.filter((inq) => {
       if (!inq.date) return false;
       const s = inq.date.replace(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s*/, "").trim();

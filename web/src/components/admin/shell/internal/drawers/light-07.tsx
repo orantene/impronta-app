@@ -34,7 +34,7 @@ import {
 export function TodayPulseDrawer() {
   const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useAdminShell();
   // Phase 3.12 — use bridge inquiries when available, fall back to mock.
-  const richInqs = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  const richInqs = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
   const items = [
     ...richInqs
       .filter((i) => i.nextActionBy === "client" || i.stage === "offer_pending" || i.stage === "approved")
@@ -106,7 +106,7 @@ export function TodayPulseDrawer() {
 export function PipelineDrawer() {
   const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useAdminShell();
   // Phase 3.12 — use bridge RichInquiry data, mapped to the shape this drawer expects.
-  const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  const richSource = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
   const inquiries = richSource.map((i) => ({
     id: i.id,
     client: i.clientName,

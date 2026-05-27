@@ -925,11 +925,11 @@
     }
   },
   "src/components/admin/shell/internal/talent-drawers/events.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 37
-    },
     "max-lines": {
       "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 37
     }
   },
   "src/components/admin/shell/internal/talent-drawers/monetization.tsx": {
@@ -1315,9 +1315,6 @@
     }
   },
   "src/components/marketing/get-started-form.tsx": {
-    "ratchet/no-new-hook-deps-disable": {
-      "count": 1
-    },
     "react-hooks/refs": {
       "count": 12
     }

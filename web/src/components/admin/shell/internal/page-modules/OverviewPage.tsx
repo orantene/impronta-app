@@ -103,10 +103,43 @@ export function OverviewPage() {
         }
       />
 
-      {/* WS-9.1 — Workspace activation v2: progress + smart prompts */}
-      <WorkspaceActivationBanner />
-      {/* WS-9.4 — Demo data toggle for evaluators */}
-      <DemoDataBanner />
+      {/* Real activation state — keeps the banner honest when the tenant
+       *  has actually completed steps (Impronta etc.) instead of showing
+       *  "Set your workspace domain" forever after they've shipped. */}
+      {(() => {
+        const talentCount = effectiveRoster.length;
+        const hasInquiry =
+          (overviewMetrics?.openInquiries ?? 0) > 0
+          || (overviewMetrics?.draftInquiryCount ?? 0) > 0
+          || richInqs.length > 0;
+        // Paid plans imply onboarding past the evaluator phase.
+        const isPaid = state.plan !== "free";
+        // "Custom domain set" — coarse but matches the user-visible state:
+        // any non-free tenant with a bridged identity has gone through the
+        // domain setup. (Fine-grained agency_domains check belongs to a
+        // future refactor; this is correct for the launch tenant Impronta
+        // and every other paid workspace.)
+        const hasCustomDomain = isPaid && Boolean(bridgeTenantIdentity);
+        return (
+          <>
+            {/* WS-9.1 — Workspace activation v2: progress + smart prompts */}
+            <WorkspaceActivationBanner
+              state={{
+                hasCompleteProfile: true, // legacy default
+                hasAnyTalent:       talentCount > 0,
+                hasSentInquiry:     hasInquiry,
+                hasPayoutMethod:    false, // still a real onboarding step
+                hasCustomDomain:    hasCustomDomain,
+                talentCount,
+              }}
+            />
+            {/* WS-9.4 — Demo data toggle for evaluators (auto-hides for paid+populated tenants) */}
+            <DemoDataBanner
+              isEstablishedTenant={isPaid && talentCount >= 1}
+            />
+          </>
+        );
+      })()}
 
       {/* Audit #49 — Today's focus card. ONE prominent banner at the
           top with the highest-urgency line of the day. Single source
@@ -540,7 +573,7 @@ function OverviewFree() {
   // to the per-plan mock arrays; when present it overrides them.
   const liveRoster = effectiveRoster;
   const livePublished = liveRoster.filter((t) => t.state === "published").length;
-  const liveInquiries = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : getInquiries(state.plan);
+  const liveInquiries = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
   const liveTeam = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
   const autoComplete: Record<string, boolean> = {
     "add-talent": liveRoster.length > 0,
