@@ -1,5 +1,6 @@
 import { getAppUrl } from "@/lib/auth-flow";
 import { renderWorkspaceWelcomeEmail } from "@/lib/email/workspace-welcome";
+import { sendProvisioningFailureEmailOnce } from "./workspace-signup-failure-notify";
 import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
@@ -31,22 +32,22 @@ type MarketingLeadRow = {
   status: string;
   claimed_by_profile_id: string | null;
   provisioned_tenant_id: string | null;
+  notes: string | null;
+};
+
+// Dedup marker + send helper live in `workspace-signup-failure-notify.ts`
+// (split out to keep this file under the 800-line cap).
+
+type OwnedWorkspaceAgency = {
+  slug: string;
+  display_name: string;
+  plan_tier: string | null;
+  settings: Record<string, unknown> | null;
 };
 
 type OwnedWorkspaceRow = {
   tenant_id: string;
-  agencies:
-    | {
-        slug: string;
-        display_name: string;
-        plan_tier: string | null;
-      }
-    | {
-        slug: string;
-        display_name: string;
-        plan_tier: string | null;
-      }[]
-    | null;
+  agencies: OwnedWorkspaceAgency | OwnedWorkspaceAgency[] | null;
 };
 
 type ExistingRoleBindings = {
@@ -81,8 +82,26 @@ export type ProvisionWorkspaceResult =
       message: string;
     };
 
+// Normalize a workspace tier interest string to one of {free, studio,
+// agency, network} or null. Used to decide whether reusing an owned
+// free workspace for a new lead is safe.
+function normalizeTierInterest(t: unknown): "free" | "studio" | "agency" | "network" | null {
+  if (typeof t !== "string") return null;
+  const v = t.trim().toLowerCase();
+  if (v === "free" || v === "studio" || v === "agency" || v === "network") return v;
+  return null;
+}
+
 async function findOwnedFreeWorkspace(
   userId: string,
+  // The CURRENT lead's tier interest. Reuse is only safe when it
+  // matches the existing workspace's original signup intent — otherwise
+  // a Free-tier workspace that was created as a ghost during a failed
+  // paid signup would silently be reused for a different paid plan, with
+  // mismatched expectations on both sides (the user thinks they bought
+  // Agency, but they're sitting on the Studio-intent leftover). See
+  // ghost-cleanup audit (PR §2).
+  currentLeadTierInterest: string | null,
 ): Promise<{
   tenantId: string;
   slug: string;
@@ -93,7 +112,7 @@ async function findOwnedFreeWorkspace(
 
   const { data, error } = await admin
     .from("agency_memberships")
-    .select("tenant_id, agencies:tenant_id ( slug, display_name, plan_tier )")
+    .select("tenant_id, agencies:tenant_id ( slug, display_name, plan_tier, settings )")
     .eq("profile_id", userId)
     .eq("role", "owner")
     .eq("status", "active");
@@ -103,10 +122,31 @@ async function findOwnedFreeWorkspace(
     return null;
   }
 
+  const currentTier = normalizeTierInterest(currentLeadTierInterest) ?? "free";
+
   const rows = (data ?? []) as OwnedWorkspaceRow[];
   for (const row of rows) {
     const agency = Array.isArray(row.agencies) ? row.agencies[0] ?? null : row.agencies;
     if (!agency || agency.plan_tier !== "free" || !agency.slug) continue;
+
+    // Read the existing workspace's original signup intent (stamped at
+    // agency creation time by `buildSignupSettings`). If absent or
+    // 'free', treat as a normal free workspace.
+    const existingTierRaw = (agency.settings && typeof agency.settings === "object"
+      ? (agency.settings as Record<string, unknown>)["signup_tier_interest"]
+      : null);
+    const existingTier = normalizeTierInterest(existingTierRaw) ?? "free";
+
+    // Skip rule (ghost foot-gun guard):
+    //   - Same tier → reuse (idempotent retry of a crashed paid signup).
+    //   - Existing 'free' + current 'free' → reuse (the original case
+    //     findOwnedFreeWorkspace was designed for).
+    //   - Existing paid-intent + current 'free', OR existing 'free' +
+    //     current paid-intent, OR existing paid + current different
+    //     paid → skip and let the caller create a fresh workspace, so
+    //     the orphan stays visible in the admin-side ghost audit card.
+    if (existingTier !== currentTier) continue;
+
     return {
       tenantId: row.tenant_id,
       slug: agency.slug,
@@ -225,7 +265,7 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   const { data, error } = await admin
     .from("saas_marketing_signups")
     .select(
-      "id, email, name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id",
+      "id, email, name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -539,6 +579,7 @@ export async function provisionWorkspaceFromLead(params: {
   }
 
   if (lead.claimed_by_profile_id && lead.claimed_by_profile_id !== params.userId) {
+    await sendProvisioningFailureEmailOnce({ lead, kind: "claimed_elsewhere" });
     return {
       ok: false,
       error: "claimed_elsewhere",
@@ -557,6 +598,7 @@ export async function provisionWorkspaceFromLead(params: {
         };
 
   if (!existingRoleBindings) {
+    await sendProvisioningFailureEmailOnce({ lead, kind: "service_unavailable" });
     return {
       ok: false,
       error: "service_unavailable",
@@ -573,6 +615,7 @@ export async function provisionWorkspaceFromLead(params: {
       hasTalentProfile: existingRoleBindings.hasTalentProfile,
     })
   ) {
+    await sendProvisioningFailureEmailOnce({ lead, kind: "unsupported_existing_role" });
     return {
       ok: false,
       error: "unsupported_existing_role",
@@ -603,7 +646,7 @@ export async function provisionWorkspaceFromLead(params: {
     }
   }
 
-  const existingFree = await findOwnedFreeWorkspace(params.userId);
+  const existingFree = await findOwnedFreeWorkspace(params.userId, lead.tier_interest);
   if (existingFree) {
     await ensureWorkspaceScaffold({
       tenantId: existingFree.tenantId,
@@ -656,6 +699,7 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (agencyError || !agency?.id || !agency.slug) {
     logServerError("workspace-signup.insertAgency", agencyError ?? "missing agency row");
+    await sendProvisioningFailureEmailOnce({ lead, kind: "provision_failed" });
     return {
       ok: false,
       error: "provision_failed",
@@ -675,6 +719,7 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (membershipError) {
     logServerError("workspace-signup.insertMembership", membershipError);
+    await sendProvisioningFailureEmailOnce({ lead, kind: "provision_failed" });
     return {
       ok: false,
       error: "provision_failed",

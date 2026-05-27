@@ -4,6 +4,7 @@
 import Link from "next/link";
 import {
   loadLeadStats,
+  loadOrphanPaidFreeWorkspaces,
   loadPlatformStats,
   loadRecentLeads,
   loadRecentSignups,
@@ -270,11 +271,12 @@ function Pill({ children, color }: { children: React.ReactNode; color: string })
 }
 
 export default async function PlatformTodayPage() {
-  const [stats, recentSignups, recentLeads, leadStats] = await Promise.all([
+  const [stats, recentSignups, recentLeads, leadStats, orphanGhosts] = await Promise.all([
     loadPlatformStats(),
     loadRecentSignups(5),
     loadRecentLeads(10),
     loadLeadStats(),
+    loadOrphanPaidFreeWorkspaces(25),
   ]);
 
   return (
@@ -497,6 +499,83 @@ export default async function PlatformTodayPage() {
             })
           )}
         </HqCard>
+
+        {/* Orphan paid-tier free workspaces — ghosts from crashed paid signups */}
+        {orphanGhosts.length > 0 ? (
+          <HqCard
+            title="Orphan paid-tier free workspaces"
+            subtitle={`${orphanGhosts.length} ghost${orphanGhosts.length === 1 ? "" : "s"} — paid signup crashed before Stripe. Review before any cleanup.`}
+          >
+            {orphanGhosts.map((g) => {
+              const href = `/platform/admin/tenants/${encodeURIComponent(g.tenantId)}`;
+              return (
+                <Link
+                  key={g.tenantId}
+                  href={href}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 0",
+                    borderTop: `1px solid ${HQ.borderSoft}`,
+                    textDecoration: "none",
+                    color: "inherit",
+                    fontFamily: F,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: HQ.ink,
+                        fontWeight: 500,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {g.slug}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: HQ.inkMuted,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {g.ownerEmail ?? "(no lead email on file)"}
+                      {g.leadId ? ` · lead ${g.leadId.slice(0, 8)}…` : ""}
+                    </div>
+                  </div>
+                  <Pill color={tierTone(g.signupTierInterest)}>{tierLabel(g.signupTierInterest)}</Pill>
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      color: HQ.inkDim,
+                      minWidth: 56,
+                      textAlign: "right",
+                    }}
+                  >
+                    {g.createdAt}
+                  </span>
+                </Link>
+              );
+            })}
+            <p
+              style={{
+                margin: "12px 0 0",
+                fontSize: 11.5,
+                color: HQ.inkDim,
+                fontStyle: "italic",
+                lineHeight: 1.5,
+              }}
+            >
+              No delete action here — investigate each row in the tenants drawer, then drop manually via SQL with founder approval.
+            </p>
+          </HqCard>
+        ) : null}
 
         {/* Quick links */}
         <HqCard title="Platform sections" subtitle="Jump to any section">

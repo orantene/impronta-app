@@ -95,6 +95,141 @@ export type PlatformLeadStats = {
   conversionPct: number;
 };
 
+/**
+ * Orphan paid-tier free workspaces.
+ *
+ * Surfaces the QA pattern from lead `e783a7d5`: a Studio/Agency/Network
+ * paid signup that crashed mid-provisioning leaves an `agencies` row at
+ * `plan_tier='free'` with `settings.signup_tier_interest` set to a paid
+ * value, but no `workspace_subscriptions` row was ever created (Stripe
+ * Checkout never completed). Without surfacing these, the next paid
+ * signup for the same user attaches to the orphan and the second
+ * payment intent silently collides with the first.
+ *
+ * READ-ONLY — there's no delete affordance here. Per HARD RULES, the
+ * founder reviews each row before any cleanup happens.
+ */
+export type OrphanPaidFreeWorkspaceRow = {
+  tenantId: string;
+  slug: string;
+  displayName: string;
+  signupTierInterest: "studio" | "agency" | "network";
+  createdAt: string;
+  createdAtIso: string;
+  ownerEmail: string | null;
+  leadId: string | null;
+};
+
+export async function loadOrphanPaidFreeWorkspaces(
+  limit = 25,
+): Promise<OrphanPaidFreeWorkspaceRow[]> {
+  const sb = createServiceRoleClient();
+  if (!sb) return [];
+
+  // Pull all free-tier agencies whose signup intent was paid. Most
+  // installations will have very few of these; we further filter
+  // client-side for "no workspace_subscriptions row exists" since a
+  // server-side join across PostgREST is brittle for the IS NULL case.
+  const { data: agencies, error } = await sb
+    .from("agencies")
+    .select("id, slug, display_name, plan_tier, settings, created_at")
+    .eq("plan_tier", "free")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error || !agencies) {
+    logServerError("platform_data.loadOrphanPaidFreeWorkspaces.agencies", error);
+    return [];
+  }
+
+  const paidIntent = new Set(["studio", "agency", "network"]);
+  const ghostCandidates: Array<{
+    id: string;
+    slug: string;
+    display_name: string;
+    signup_tier_interest: "studio" | "agency" | "network";
+    created_at: string;
+  }> = [];
+
+  for (const a of agencies as Array<{
+    id: string;
+    slug: string;
+    display_name: string;
+    plan_tier: string;
+    settings: Record<string, unknown> | null;
+    created_at: string;
+  }>) {
+    const t = a.settings && typeof a.settings === "object"
+      ? String((a.settings as Record<string, unknown>)["signup_tier_interest"] ?? "")
+        .trim()
+        .toLowerCase()
+      : "";
+    if (!paidIntent.has(t)) continue;
+    ghostCandidates.push({
+      id: a.id,
+      slug: a.slug,
+      display_name: a.display_name,
+      signup_tier_interest: t as "studio" | "agency" | "network",
+      created_at: a.created_at,
+    });
+  }
+
+  if (ghostCandidates.length === 0) return [];
+
+  // Filter out anything that actually has a workspace_subscriptions row.
+  const tenantIds = ghostCandidates.map((g) => g.id);
+  const { data: subs, error: subsErr } = await sb
+    .from("workspace_subscriptions")
+    .select("tenant_id")
+    .in("tenant_id", tenantIds);
+  if (subsErr) {
+    logServerError("platform_data.loadOrphanPaidFreeWorkspaces.subs", subsErr);
+    return [];
+  }
+  const tenantsWithSub = new Set((subs ?? []).map((r) => (r as { tenant_id: string }).tenant_id));
+  const orphans = ghostCandidates.filter((g) => !tenantsWithSub.has(g.id)).slice(0, limit);
+  if (orphans.length === 0) return [];
+
+  // Hydrate latest lead (for ID + owner email) per orphan. Most orphans
+  // have exactly one lead pointing at them; if multiple, take the most
+  // recent (matches the "attach paid lead to orphan" reuse pattern that
+  // created this situation).
+  const orphanIds = orphans.map((o) => o.id);
+  const { data: leads, error: leadsErr } = await sb
+    .from("saas_marketing_signups")
+    .select("id, email, provisioned_tenant_id, created_at")
+    .in("provisioned_tenant_id", orphanIds)
+    .order("created_at", { ascending: false });
+  if (leadsErr) {
+    logServerError("platform_data.loadOrphanPaidFreeWorkspaces.leads", leadsErr);
+  }
+
+  const latestByTenant = new Map<string, { id: string; email: string }>();
+  for (const l of (leads ?? []) as Array<{
+    id: string;
+    email: string;
+    provisioned_tenant_id: string;
+  }>) {
+    if (!latestByTenant.has(l.provisioned_tenant_id)) {
+      latestByTenant.set(l.provisioned_tenant_id, { id: l.id, email: l.email });
+    }
+  }
+
+  return orphans.map((o) => {
+    const lead = latestByTenant.get(o.id) ?? null;
+    return {
+      tenantId: o.id,
+      slug: o.slug,
+      displayName: o.display_name,
+      signupTierInterest: o.signup_tier_interest,
+      createdAt: formatRelativeDate(o.created_at),
+      createdAtIso: o.created_at,
+      ownerEmail: lead?.email ?? null,
+      leadId: lead?.id ?? null,
+    };
+  });
+}
+
 export async function loadLeadStats(): Promise<PlatformLeadStats> {
   const sb = createServiceRoleClient();
   const empty: PlatformLeadStats = { total: 0, last7d: 0, last30d: 0, converted: 0, conversionPct: 0 };
