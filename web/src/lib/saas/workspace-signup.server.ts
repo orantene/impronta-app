@@ -9,7 +9,6 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
-import { revalidatePath } from "next/cache";
 import {
   isNetworkWorkspaceTierInterest,
   isPaidWorkspaceTierInterest,
@@ -375,8 +374,10 @@ async function finalizeProvisionResult(params: {
   const publicUrl = workspacePathUrl(params.agency.slug);
   const tierInterest = params.lead.tier_interest;
 
-  revalidatePath("/", "layout");
-  revalidatePath(adminPath, "layout");
+  // revalidatePath is forbidden during server component renders in Next.js 16
+  // (throws "used during render which is unsupported"). The workspace is new and
+  // the browser is immediately redirected to it, so there are no stale cache
+  // entries to invalidate here anyway. Drop the calls entirely.
 
   const ownerEmail = (params.userEmail ?? params.lead.email).trim();
   const ownerName = params.lead.name.trim() || params.agency.display_name;
