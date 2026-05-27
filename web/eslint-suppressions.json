@@ -200,7 +200,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-15.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 104
+      "count": 92
     }
   },
   "src/components/admin/shell/internal/drawers/light-16.tsx": {
@@ -599,11 +599,6 @@
       "count": 10
     }
   },
-  "src/components/admin/shell/internal/page-modules/OverviewPage.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 33
-    }
-  },
   "src/components/admin/shell/internal/page-modules/PitchesPage-1.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 23
@@ -932,6 +927,9 @@
   "src/components/admin/shell/internal/talent-drawers/events.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 37
+    },
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent-drawers/monetization.tsx": {

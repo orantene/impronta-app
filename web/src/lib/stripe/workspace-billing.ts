@@ -143,6 +143,15 @@ export async function createWorkspaceCheckoutSession(opts: {
   }
   const stripe = getStripe()!;
 
+  // Network is sales-assisted; refuse self-serve checkout unless an env price
+  // ID is explicitly configured (future flip: set STRIPE_PRICE_NETWORK_MONTHLY).
+  if (opts.planKey === "network") {
+    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    if (!networkPriceId) {
+      return { ok: false, error: "Network is sales-assisted — no self-serve price configured." };
+    }
+  }
+
   const priceId = getWorkspacePriceId(opts.planKey, "monthly");
   if (!priceId) {
     return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
@@ -165,12 +174,14 @@ export async function createWorkspaceCheckoutSession(opts: {
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
       metadata: {
         tenant_id: opts.tenantId,
-        plan_key:  opts.planKey,
+        plan_key: opts.planKey,
+        checkout_type: "workspace_subscription",
       },
       subscription_data: {
         metadata: {
           tenant_id: opts.tenantId,
-          plan_key:  opts.planKey,
+          plan_key: opts.planKey,
+          checkout_type: "workspace_subscription",
         },
       },
       // Allow promotion codes for early-access discounts
@@ -321,11 +332,20 @@ export async function syncStripeSubscriptionToDb(
       return { ok: false, error: "Failed to update subscription record." };
     }
 
-    // Sync agencies.plan_tier
+    const SEAT_LIMITS: Record<string, number | null> = {
+      free: 5,
+      studio: 50,
+      agency: 200,
+      network: null,
+    };
+    const seatLimit = SEAT_LIMITS[newPlanTier] ?? SEAT_LIMITS.free;
+
+    // Sync agencies.plan_tier + roster cap
     const { error: agencyError } = await sb
       .from("agencies")
       .update({
-        plan_tier:  newPlanTier,
+        plan_tier: newPlanTier,
+        talent_seat_limit: seatLimit,
         updated_at: new Date().toISOString(),
       })
       .eq("id", tenantId);

@@ -1,10 +1,18 @@
+import { getAppUrl } from "@/lib/auth-flow";
+import { renderWorkspaceWelcomeEmail } from "@/lib/email/workspace-welcome";
+import { sendProvisioningFailureEmailOnce } from "./workspace-signup-failure-notify";
+import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
+import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import {
+  isNetworkWorkspaceTierInterest,
+  isPaidWorkspaceTierInterest,
   isReservedWorkspaceSlug,
   isSelfServeWorkspaceLeadEligible,
   isWorkspaceSignupProfileEligible,
@@ -18,27 +26,28 @@ type MarketingLeadRow = {
   email: string;
   name: string;
   audience: "operator" | "agency" | "organization";
+  roster_size: string | null;
   subdomain_wanted: string | null;
   tier_interest: string | null;
   status: string;
   claimed_by_profile_id: string | null;
   provisioned_tenant_id: string | null;
+  notes: string | null;
+};
+
+// Dedup marker + send helper live in `workspace-signup-failure-notify.ts`
+// (split out to keep this file under the 800-line cap).
+
+type OwnedWorkspaceAgency = {
+  slug: string;
+  display_name: string;
+  plan_tier: string | null;
+  settings: Record<string, unknown> | null;
 };
 
 type OwnedWorkspaceRow = {
   tenant_id: string;
-  agencies:
-    | {
-        slug: string;
-        display_name: string;
-        plan_tier: string | null;
-      }
-    | {
-        slug: string;
-        display_name: string;
-        plan_tier: string | null;
-      }[]
-    | null;
+  agencies: OwnedWorkspaceAgency | OwnedWorkspaceAgency[] | null;
 };
 
 type ExistingRoleBindings = {
@@ -56,6 +65,9 @@ export type ProvisionWorkspaceResult =
       publicPath: string;
       publicUrl: string;
       reusedExisting: boolean;
+      checkoutUrl?: string;
+      requireSalesContact?: boolean;
+      planKey?: WorkspacePlanKey;
     }
   | {
       ok: false;
@@ -70,8 +82,26 @@ export type ProvisionWorkspaceResult =
       message: string;
     };
 
+// Normalize a workspace tier interest string to one of {free, studio,
+// agency, network} or null. Used to decide whether reusing an owned
+// free workspace for a new lead is safe.
+function normalizeTierInterest(t: unknown): "free" | "studio" | "agency" | "network" | null {
+  if (typeof t !== "string") return null;
+  const v = t.trim().toLowerCase();
+  if (v === "free" || v === "studio" || v === "agency" || v === "network") return v;
+  return null;
+}
+
 async function findOwnedFreeWorkspace(
   userId: string,
+  // The CURRENT lead's tier interest. Reuse is only safe when it
+  // matches the existing workspace's original signup intent — otherwise
+  // a Free-tier workspace that was created as a ghost during a failed
+  // paid signup would silently be reused for a different paid plan, with
+  // mismatched expectations on both sides (the user thinks they bought
+  // Agency, but they're sitting on the Studio-intent leftover). See
+  // ghost-cleanup audit (PR §2).
+  currentLeadTierInterest: string | null,
 ): Promise<{
   tenantId: string;
   slug: string;
@@ -82,7 +112,7 @@ async function findOwnedFreeWorkspace(
 
   const { data, error } = await admin
     .from("agency_memberships")
-    .select("tenant_id, agencies:tenant_id ( slug, display_name, plan_tier )")
+    .select("tenant_id, agencies:tenant_id ( slug, display_name, plan_tier, settings )")
     .eq("profile_id", userId)
     .eq("role", "owner")
     .eq("status", "active");
@@ -92,10 +122,31 @@ async function findOwnedFreeWorkspace(
     return null;
   }
 
+  const currentTier = normalizeTierInterest(currentLeadTierInterest) ?? "free";
+
   const rows = (data ?? []) as OwnedWorkspaceRow[];
   for (const row of rows) {
     const agency = Array.isArray(row.agencies) ? row.agencies[0] ?? null : row.agencies;
     if (!agency || agency.plan_tier !== "free" || !agency.slug) continue;
+
+    // Read the existing workspace's original signup intent (stamped at
+    // agency creation time by `buildSignupSettings`). If absent or
+    // 'free', treat as a normal free workspace.
+    const existingTierRaw = (agency.settings && typeof agency.settings === "object"
+      ? (agency.settings as Record<string, unknown>)["signup_tier_interest"]
+      : null);
+    const existingTier = normalizeTierInterest(existingTierRaw) ?? "free";
+
+    // Skip rule (ghost foot-gun guard):
+    //   - Same tier → reuse (idempotent retry of a crashed paid signup).
+    //   - Existing 'free' + current 'free' → reuse (the original case
+    //     findOwnedFreeWorkspace was designed for).
+    //   - Existing paid-intent + current 'free', OR existing 'free' +
+    //     current paid-intent, OR existing paid + current different
+    //     paid → skip and let the caller create a fresh workspace, so
+    //     the orphan stays visible in the admin-side ghost audit card.
+    if (existingTier !== currentTier) continue;
+
     return {
       tenantId: row.tenant_id,
       slug: agency.slug,
@@ -214,7 +265,7 @@ async function loadLead(leadId: string): Promise<MarketingLeadRow | null> {
   const { data, error } = await admin
     .from("saas_marketing_signups")
     .select(
-      "id, email, name, audience, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id",
+      "id, email, name, audience, roster_size, subdomain_wanted, tier_interest, status, claimed_by_profile_id, provisioned_tenant_id, notes",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -248,6 +299,20 @@ async function attachLeadToTenant(params: {
   if (error) {
     logServerError("workspace-signup.attachLeadToTenant", error);
   }
+
+  // Release any subdomain TTL reservation this lead was holding. The slug is
+  // now claimed by a real agencies row, so the reservation is redundant. We
+  // delete by lead_id rather than slug to defensively handle the edge case
+  // where the user changed their slug between form submit and provisioning
+  // (shouldn't happen today, but the lead is the source of truth).
+  const { error: releaseError } = await admin
+    .from("saas_subdomain_reservations")
+    .delete()
+    .eq("lead_id", params.leadId);
+
+  if (releaseError) {
+    logServerError("workspace-signup.releaseReservation", releaseError);
+  }
 }
 
 async function loadExistingRoleBindings(
@@ -279,6 +344,187 @@ async function loadExistingRoleBindings(
   return {
     hasClientProfile: (clientResult.data?.length ?? 0) > 0,
     hasTalentProfile: (talentResult.data?.length ?? 0) > 0,
+  };
+}
+
+function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
+  const settings: Record<string, unknown> = {
+    signup_audience: lead.audience,
+    signup_roster_size: lead.roster_size,
+    signup_tier_interest: lead.tier_interest,
+  };
+  if (isNetworkWorkspaceTierInterest(lead.tier_interest)) {
+    settings.network_requested_at = new Date().toISOString();
+  }
+  return settings;
+}
+
+async function sendWorkspaceWelcomeEmail(params: {
+  ownerEmail: string;
+  ownerName: string;
+  planTier: string;
+  slug: string;
+  adminPath: string;
+  publicUrl: string;
+}): Promise<void> {
+  const appBase = getAppUrl();
+  try {
+    await sendEmail({
+      to: params.ownerEmail,
+      subject: `Your ${params.slug} workspace is ready — ${params.ownerName}`,
+      html: renderWorkspaceWelcomeEmail({
+        ownerName: params.ownerName,
+        planTier: params.planTier,
+        slug: params.slug,
+        adminUrl: `${appBase}${params.adminPath}`,
+        publicUrl: params.publicUrl,
+      }),
+      replyTo: process.env.EMAIL_REPLY_TO,
+    });
+  } catch (err) {
+    logServerError("workspace-signup.welcomeEmail", err);
+  }
+}
+
+async function sendNetworkFounderAlert(params: {
+  slug: string;
+  tenantId: string;
+  ownerEmail: string;
+  ownerName: string;
+}): Promise<void> {
+  const to = process.env.FOUNDER_NOTIFY_EMAIL;
+  if (!to) return;
+  const appBase = getAppUrl();
+  const adminDeepLink = `${appBase}/platform/admin/tenants`;
+  try {
+    await sendEmail({
+      to,
+      subject: `[Tulala] Network setup needed: ${params.slug}`,
+      html: `<!doctype html>
+<html><body style="margin:0;padding:24px;background:#fffdf7;font-family:Inter,system-ui,sans-serif;color:#0f1714;">
+  <h2 style="margin:0 0 16px;font-weight:500;">Network workspace provisioned</h2>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+    <tr><td style="padding:6px 12px 6px 0;color:#6b766f;font-size:13px;">Slug</td><td style="padding:6px 0;font-size:13px;">${params.slug}</td></tr>
+    <tr><td style="padding:6px 12px 6px 0;color:#6b766f;font-size:13px;">Tenant ID</td><td style="padding:6px 0;font-size:13px;">${params.tenantId}</td></tr>
+    <tr><td style="padding:6px 12px 6px 0;color:#6b766f;font-size:13px;">Owner</td><td style="padding:6px 0;font-size:13px;">${params.ownerName} &lt;${params.ownerEmail}&gt;</td></tr>
+  </table>
+  <p style="margin:20px 0 0;"><a href="${adminDeepLink}" style="color:#1f4a3a;">Open platform admin → tenants</a></p>
+</body></html>`,
+    });
+  } catch (err) {
+    logServerError("workspace-signup.networkFounderAlert", err);
+  }
+}
+
+async function finalizeProvisionResult(params: {
+  lead: MarketingLeadRow;
+  agency: { id: string; slug: string; display_name: string };
+  userId: string;
+  userEmail: string | null | undefined;
+  reusedExisting: boolean;
+}): Promise<ProvisionWorkspaceResult> {
+  const adminPath = `/${params.agency.slug}/admin`;
+  const publicPath = `/${params.agency.slug}`;
+  const publicUrl = workspacePathUrl(params.agency.slug);
+  const tierInterest = params.lead.tier_interest;
+
+  // revalidatePath is forbidden during server component renders in Next.js 16
+  // (throws "used during render which is unsupported"). The workspace is new and
+  // the browser is immediately redirected to it, so there are no stale cache
+  // entries to invalidate here anyway. Drop the calls entirely.
+
+  const ownerEmail = (params.userEmail ?? params.lead.email).trim();
+  const ownerName = params.lead.name.trim() || params.agency.display_name;
+
+  if (!params.reusedExisting && ownerEmail) {
+    await sendWorkspaceWelcomeEmail({
+      ownerEmail,
+      ownerName,
+      planTier: "free",
+      slug: params.agency.slug,
+      adminPath,
+      publicUrl,
+    });
+  }
+
+  if (isNetworkWorkspaceTierInterest(tierInterest)) {
+    // Founder always wants visibility on any Network signup — whether it
+    // routes to self-serve Stripe checkout or to sales contact.
+    void sendNetworkFounderAlert({
+      slug: params.agency.slug,
+      tenantId: params.agency.id,
+      ownerEmail,
+      ownerName,
+    });
+
+    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    if (!networkPriceId) {
+      // No self-serve price configured — sales-contact handoff.
+      return {
+        ok: true,
+        tenantId: params.agency.id,
+        tenantSlug: params.agency.slug,
+        tenantName: params.agency.display_name,
+        adminPath: `${adminPath}?upgrade=network`,
+        publicPath,
+        publicUrl,
+        reusedExisting: params.reusedExisting,
+        requireSalesContact: true,
+      };
+    }
+    // networkPriceId is set — fall through to the Stripe checkout path below.
+  }
+
+  if (isPaidWorkspaceTierInterest(tierInterest) || isNetworkWorkspaceTierInterest(tierInterest)) {
+    const checkout = await createWorkspaceCheckoutSession({
+      tenantId: params.agency.id,
+      planKey: tierInterest as WorkspacePlanKey,
+      ownerEmail,
+      displayName: params.agency.display_name,
+      tenantSlug: params.agency.slug,
+      appBaseUrl: getAppUrl(),
+    });
+
+    if (checkout.ok && checkout.data.url) {
+      return {
+        ok: true,
+        tenantId: params.agency.id,
+        tenantSlug: params.agency.slug,
+        tenantName: params.agency.display_name,
+        adminPath,
+        publicPath,
+        publicUrl,
+        reusedExisting: params.reusedExisting,
+        checkoutUrl: checkout.data.url,
+        planKey: tierInterest as WorkspacePlanKey,
+      };
+    }
+
+    logServerError(
+      "workspace-signup.checkout",
+      new Error(checkout.ok ? "missing url" : checkout.error),
+    );
+    return {
+      ok: true,
+      tenantId: params.agency.id,
+      tenantSlug: params.agency.slug,
+      tenantName: params.agency.display_name,
+      adminPath: `${adminPath}/account?billing=checkout_failed`,
+      publicPath,
+      publicUrl,
+      reusedExisting: params.reusedExisting,
+    };
+  }
+
+  return {
+    ok: true,
+    tenantId: params.agency.id,
+    tenantSlug: params.agency.slug,
+    tenantName: params.agency.display_name,
+    adminPath,
+    publicPath,
+    publicUrl,
+    reusedExisting: params.reusedExisting,
   };
 }
 
@@ -333,6 +579,7 @@ export async function provisionWorkspaceFromLead(params: {
   }
 
   if (lead.claimed_by_profile_id && lead.claimed_by_profile_id !== params.userId) {
+    await sendProvisioningFailureEmailOnce({ lead, kind: "claimed_elsewhere" });
     return {
       ok: false,
       error: "claimed_elsewhere",
@@ -351,6 +598,7 @@ export async function provisionWorkspaceFromLead(params: {
         };
 
   if (!existingRoleBindings) {
+    await sendProvisioningFailureEmailOnce({ lead, kind: "service_unavailable" });
     return {
       ok: false,
       error: "service_unavailable",
@@ -367,6 +615,7 @@ export async function provisionWorkspaceFromLead(params: {
       hasTalentProfile: existingRoleBindings.hasTalentProfile,
     })
   ) {
+    await sendProvisioningFailureEmailOnce({ lead, kind: "unsupported_existing_role" });
     return {
       ok: false,
       error: "unsupported_existing_role",
@@ -387,20 +636,17 @@ export async function provisionWorkspaceFromLead(params: {
         displayName: data.display_name,
         actorProfileId: params.userId,
       });
-      return {
-        ok: true,
-        tenantId: data.id,
-        tenantSlug: data.slug,
-        tenantName: data.display_name,
-        adminPath: `/${data.slug}/admin`,
-        publicPath: `/${data.slug}`,
-        publicUrl: workspacePathUrl(data.slug),
+      return finalizeProvisionResult({
+        lead,
+        agency: { id: data.id, slug: data.slug, display_name: data.display_name },
+        userId: params.userId,
+        userEmail: params.userEmail,
         reusedExisting: true,
-      };
+      });
     }
   }
 
-  const existingFree = await findOwnedFreeWorkspace(params.userId);
+  const existingFree = await findOwnedFreeWorkspace(params.userId, lead.tier_interest);
   if (existingFree) {
     await ensureWorkspaceScaffold({
       tenantId: existingFree.tenantId,
@@ -412,16 +658,17 @@ export async function provisionWorkspaceFromLead(params: {
       userId: params.userId,
       tenantId: existingFree.tenantId,
     });
-    return {
-      ok: true,
-      tenantId: existingFree.tenantId,
-      tenantSlug: existingFree.slug,
-      tenantName: existingFree.displayName,
-      adminPath: `/${existingFree.slug}/admin`,
-      publicPath: `/${existingFree.slug}`,
-      publicUrl: workspacePathUrl(existingFree.slug),
+    return finalizeProvisionResult({
+      lead,
+      agency: {
+        id: existingFree.tenantId,
+        slug: existingFree.slug,
+        display_name: existingFree.displayName,
+      },
+      userId: params.userId,
+      userEmail: params.userEmail,
       reusedExisting: true,
-    };
+    });
   }
 
   const desiredSlug = preferredWorkspaceSlugFromLead({
@@ -445,12 +692,14 @@ export async function provisionWorkspaceFromLead(params: {
       onboarding_completed_at: now,
       plan_tier: "free",
       talent_seat_limit: 5,
+      settings: buildSignupSettings(lead),
     })
     .select("id, slug, display_name")
     .single();
 
   if (agencyError || !agency?.id || !agency.slug) {
     logServerError("workspace-signup.insertAgency", agencyError ?? "missing agency row");
+    await sendProvisioningFailureEmailOnce({ lead, kind: "provision_failed" });
     return {
       ok: false,
       error: "provision_failed",
@@ -470,6 +719,7 @@ export async function provisionWorkspaceFromLead(params: {
 
   if (membershipError) {
     logServerError("workspace-signup.insertMembership", membershipError);
+    await sendProvisioningFailureEmailOnce({ lead, kind: "provision_failed" });
     return {
       ok: false,
       error: "provision_failed",
@@ -524,14 +774,11 @@ export async function provisionWorkspaceFromLead(params: {
     tenantId: agency.id,
   });
 
-  return {
-    ok: true,
-    tenantId: agency.id,
-    tenantSlug: agency.slug,
-    tenantName: agency.display_name,
-    adminPath: `/${agency.slug}/admin`,
-    publicPath: `/${agency.slug}`,
-    publicUrl: workspacePathUrl(agency.slug),
+  return finalizeProvisionResult({
+    lead,
+    agency: { id: agency.id, slug: agency.slug, display_name: agency.display_name },
+    userId: params.userId,
+    userEmail: params.userEmail,
     reusedExisting: false,
-  };
+  });
 }

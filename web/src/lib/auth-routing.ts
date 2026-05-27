@@ -1,6 +1,7 @@
 import {
   dashboardPathForRole,
   isStaffRole,
+  normalizeOptionalNextPath,
   resolveAuthenticatedDestination,
   type AccessProfile,
 } from "@/lib/auth-flow";
@@ -13,6 +14,16 @@ export type AuthRoutingInput = {
   /** Profile whose `app_role` gates /talent and /client (effective user when impersonating). */
   routingProfile: AccessProfile | null;
   isImpersonating: boolean;
+  /**
+   * Raw `?next=` searchParam value from the current request URL. When an
+   * already-logged-in user lands on /login or /register with `?next=<path>`,
+   * the post-auth redirect honors that path instead of bouncing to the
+   * default dashboard (which would drop them into the wrong workspace).
+   * Used primarily by the funnel: a signed-in client/talent clicking
+   * "Continue to Studio checkout" from /get-started must land on
+   * /onboarding/workspace?lead=<id>, not their existing dashboard.
+   */
+  nextParam?: string | null | undefined;
 };
 
 export type AuthRoutingDecision = {
@@ -52,6 +63,7 @@ export function resolveAuthRoutingDecision({
   sessionProfile,
   routingProfile,
   isImpersonating,
+  nextParam,
 }: AuthRoutingInput): AuthRoutingDecision {
   const authFlowPath = isAuthFlowPath(pathname);
   const dashboardDestination = userId
@@ -62,6 +74,10 @@ export function resolveAuthRoutingDecision({
     dash === "admin" || dash === "talent" || dash === "client";
 
   const pathRole = routingProfile?.app_role ?? null;
+  // Safe internal path from `?next=` (validated: starts with "/", no "//"
+  // protocol-relative escapes, not the bare root). Used to keep the
+  // get-started funnel intact for users who already have an account.
+  const safeNextPath = normalizeOptionalNextPath(nextParam);
 
   if (
     userId &&
@@ -88,7 +104,10 @@ export function resolveAuthRoutingDecision({
       pathname === "/client/register")
   ) {
     return {
-      redirectTo: dashboardDestination,
+      // If `?next=<safe>` was on the URL, honor it. This is the
+      // get-started → "Sign in and continue to checkout" path: the user
+      // explicitly asked to land somewhere specific, not the default dash.
+      redirectTo: safeNextPath ?? dashboardDestination,
       loginNext: null,
       dashboardDestination,
       isDashboardPath,

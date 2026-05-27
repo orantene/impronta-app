@@ -29,11 +29,13 @@ export function TalentSiteRenderer({ snapshot, locale = "en" }: Props) {
     return null;
   }
 
-  const entries = [...snapshot.slots].sort((a, b) => a.sortOrder - b.sortOrder);
+  const entries = [...snapshot.slots]
+    .filter((entry) => !entry.hidden)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
     <div data-talent-personal-site="">
-      {entries.map((entry) => {
+      {entries.map((entry, index) => {
         if (!sectionAllowedForSiteKind(entry.sectionTypeKey, "talent_personal")) {
           if (process.env.NODE_ENV !== "production") {
             void improntaLog("talent_personal_site.warn", {
@@ -77,7 +79,7 @@ export function TalentSiteRenderer({ snapshot, locale = "en" }: Props) {
         }
 
         const Component = registryEntry.Component;
-        const key = `${entry.slotKey}:${entry.sectionId}:${entry.sortOrder}`;
+        const key = `${entry.sectionId}:${index}`;
         const payload = migrated.payload as { presentation?: unknown };
         const presentation = payload?.presentation as Parameters<
           typeof presentationScopedCss
@@ -88,7 +90,6 @@ export function TalentSiteRenderer({ snapshot, locale = "en" }: Props) {
 
         const rendered = (
           <Component
-            key={key}
             props={migrated.payload as never}
             tenantId=""
             locale={locale}

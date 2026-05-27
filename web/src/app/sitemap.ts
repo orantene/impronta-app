@@ -237,7 +237,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Both EN and ES paths are listed; the talent page emits hreflang
   // alternates so duplicate-content signals consolidate on the canonical.
   type TalentSitemapRow = { profile_code: string; updated_at: string | null };
-  const { data: talentRows } = await supabase
+  const rosterClient = createServiceRoleClient() ?? supabase;
+  const { data: talentRows } = await rosterClient
     .from("talent_profiles")
     .select("profile_code, updated_at")
     .eq("created_by_agency_id", publicScope.tenantId)

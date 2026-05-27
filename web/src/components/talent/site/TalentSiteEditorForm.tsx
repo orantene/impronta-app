@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useState, useTransition, type CSSProperties } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
@@ -14,7 +14,7 @@ import type { TalentSiteDashboardState, TalentSiteSnapshot } from "@/lib/talent-
 type Props = {
   state: TalentSiteDashboardState;
   initialSnapshot: TalentSiteSnapshot;
-  onSaved?: () => void;
+  onSaved?: () => void | Promise<void>;
 };
 
 const FIELD_LABEL_STYLE: CSSProperties = {
@@ -55,6 +55,11 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
   const [messageTone, setMessageTone] = useState<"info" | "error" | "success">("info");
   const [pending, startTransition] = useTransition();
 
+  useEffect(() => {
+    setSnapshot(initialSnapshot);
+    setVersion(state.site?.version ?? 1);
+  }, [initialSnapshot, state.site?.version]);
+
   const disabled = !state.canEditPersonalSite || pending;
 
   function updateFields(patch: Partial<TalentSiteSnapshot["fields"]>) {
@@ -82,7 +87,7 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
       }
       setMessage("Draft saved.");
       setMessageTone("success");
-      onSaved?.();
+      await onSaved?.();
     });
   }
 
@@ -110,7 +115,7 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
       if (pub.data?.version) setVersion(pub.data.version);
       setMessage("Published. Your personal site is live.");
       setMessageTone("success");
-      onSaved?.();
+      await onSaved?.();
     });
   }
 
@@ -125,7 +130,7 @@ export function TalentSiteEditorForm({ state, initialSnapshot, onSaved }: Props)
       }
       setMessage("Unpublished. Public visitors will no longer see your personal site.");
       setMessageTone("info");
-      onSaved?.();
+      await onSaved?.();
     });
   }
 

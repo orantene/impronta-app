@@ -46,6 +46,12 @@ export type TenantIdentityPayload = {
    * array when none are set.
    */
   inquiryCoordinatorTalentIds: string[];
+  /**
+   * ISO timestamp set at provisioning time when the workspace was created
+   * with tier_interest='network'. Used to show the "Network setup pending"
+   * banner in OverviewFree until setup is complete or dismissed.
+   */
+  networkRequestedAt: string | null;
 };
 
 export async function loadTenantIdentity(
@@ -58,7 +64,7 @@ export async function loadTenantIdentity(
   const [agencyRes, brandingRes, domainRes, coordTalentRes] = await Promise.all([
     admin
       .from("agencies")
-      .select("id, slug, display_name, plan_tier, kind, default_coordinator_user_id")
+      .select("id, slug, display_name, plan_tier, kind, default_coordinator_user_id, settings")
       .eq("id", tenantId)
       .maybeSingle(),
     admin
@@ -91,7 +97,7 @@ export async function loadTenantIdentity(
     }
     return null;
   }
-  const data = agencyRes.data;
+  const data = agencyRes.data as typeof agencyRes.data & { settings?: Record<string, unknown> | null };
   const themeJson = brandingRes.data?.theme_json as
     | { logo_url?: string }
     | null
@@ -115,6 +121,10 @@ export async function loadTenantIdentity(
     inquiryCoordinatorTalentIds: (
       (coordTalentRes.data ?? []) as Array<{ talent_profile_id: string }>
     ).map((r) => r.talent_profile_id),
+    networkRequestedAt:
+      typeof data.settings?.network_requested_at === "string"
+        ? data.settings.network_requested_at
+        : null,
   };
 }
 

@@ -240,7 +240,7 @@ export function TalentSiteDashboardClient({ initialState, onReload, locale = "en
               <TalentSiteEditorForm
                 state={state}
                 initialSnapshot={draftSnapshot}
-                onSaved={() => void reloadDashboard()}
+                onSaved={reloadDashboard}
               />
             ) : (
               <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
@@ -407,7 +407,7 @@ function PreviewLinks({ state }: { state: TalentSiteDashboardState }) {
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
       {items.map((item) => (
         <Link
-          key={item.href}
+          key={`${item.label}:${item.href}`}
           href={item.href}
           target="_blank"
           rel="noopener noreferrer"

@@ -1,6 +1,8 @@
-import { randomUUID } from "node:crypto";
-
 import type { TalentSiteSnapshot, TalentSiteSnapshotSection } from "./types";
+
+function newSectionId(): string {
+  return crypto.randomUUID();
+}
 
 export type TalentPortfolioStarterProfile = {
   displayName: string;
@@ -27,7 +29,7 @@ function makeSlot(
   return {
     slotKey,
     sortOrder,
-    sectionId: randomUUID(),
+    sectionId: newSectionId(),
     sectionTypeKey,
     schemaVersion: 1,
     name,

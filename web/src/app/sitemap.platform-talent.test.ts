@@ -31,3 +31,17 @@ test("platform talent branch returns before agency cms and roster paths", () => 
   assert.ok(cmsPages > agencyGate);
   assert.ok(agencyRoster > agencyGate);
 });
+
+test("agency roster sitemap reads public roster rows with service role filters", () => {
+  const rosterClient = SITEMAP_SRC.indexOf("const rosterClient = createServiceRoleClient() ?? supabase");
+  const rosterQuery = SITEMAP_SRC.indexOf('.from("talent_profiles")', rosterClient);
+  const agencyScope = SITEMAP_SRC.indexOf('.eq("created_by_agency_id", publicScope.tenantId)', rosterQuery);
+  const publicVisibility = SITEMAP_SRC.indexOf('.eq("visibility", "public")', rosterQuery);
+  const deletedFilter = SITEMAP_SRC.indexOf('.is("deleted_at", null)', rosterQuery);
+
+  assert.ok(rosterClient > 0);
+  assert.ok(rosterQuery > rosterClient);
+  assert.ok(agencyScope > rosterQuery);
+  assert.ok(publicVisibility > rosterQuery);
+  assert.ok(deletedFilter > rosterQuery);
+});

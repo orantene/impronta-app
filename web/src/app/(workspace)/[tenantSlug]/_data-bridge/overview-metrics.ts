@@ -37,6 +37,24 @@ export type WorkspaceOverviewMetrics = {
   storefrontViews7d: number | null;
   /** Growth label vs. prior 7d window (e.g. "+18%", "-5%", "new"). Null if no prior data. */
   storefrontGrowthLabel: string | null;
+  /**
+   * Workspace commission lane (`workspace_fee_cents`) owed but not yet
+   * marked `payout_lifecycle = 'paid'`. Excludes cancelled bookings.
+   * EUR-only; non-EUR rows are dropped with a server log (snapshot v1
+   * does not convert currencies — see decision-log L43 + transaction
+   * architecture §10). `null` when the loader couldn't read snapshots.
+   */
+  pendingPayoutCents: number | null;
+  /**
+   * Workspace commission lane (`workspace_fee_cents`) YTD across
+   * confirmed/completed bookings for this tenant. EUR-only.
+   */
+  confirmedYtdWorkspaceCents: number | null;
+  /**
+   * Count of distinct YTD `agency_bookings` rows in
+   * `('confirmed','completed')` for this tenant.
+   */
+  confirmedBookingCount: number | null;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -46,7 +64,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes, financialKpisRes] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -112,6 +130,7 @@ export async function loadWorkspaceOverviewMetrics(
         .order("event_date", { ascending: true })
         .limit(1),
       loadStorefrontViews7d(tenantId),
+      loadWorkspaceFinancialKpis(tenantId),
     ]);
 
     if (rosterRes.error) {
@@ -169,6 +188,9 @@ export async function loadWorkspaceOverviewMetrics(
       nextBookingDate,
       storefrontViews7d: viewsRes?.views ?? null,
       storefrontGrowthLabel: viewsRes?.growthLabel ?? null,
+      pendingPayoutCents: financialKpisRes?.pendingPayoutCents ?? null,
+      confirmedYtdWorkspaceCents: financialKpisRes?.confirmedYtdWorkspaceCents ?? null,
+      confirmedBookingCount: financialKpisRes?.confirmedBookingCount ?? null,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);
@@ -228,6 +250,123 @@ export async function loadStorefrontViews7d(
     return { views, growthLabel };
   } catch (err) {
     logServerError("workspace.loadStorefrontViews7d", err);
+    return null;
+  }
+}
+
+/**
+ * Workspace financial KPIs surfaced in the identity bar and Overview.
+ *
+ * Reads `booking_commission_snapshot` joined to `agency_bookings` for the
+ * tenant. EUR-only — non-EUR rows are excluded with a server log (multi-
+ * currency display is deferred; see transaction-architecture §10). Per
+ * decision-log L43 the workspace's earned commission lane is
+ * `workspace_fee_cents`. Talent Money reads `talent_net_cents` from the
+ * same snapshot rows — the two surfaces must agree to the cent on the
+ * lanes they project.
+ */
+type WorkspaceFinancialKpis = {
+  pendingPayoutCents: number;
+  confirmedYtdWorkspaceCents: number;
+  confirmedBookingCount: number;
+};
+
+async function loadWorkspaceFinancialKpis(
+  tenantId: string,
+): Promise<WorkspaceFinancialKpis | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const year = new Date().getUTCFullYear();
+    const ytdSince = `${year}-01-01T00:00:00.000Z`;
+
+    // Snapshots scoped to this tenant's owning rows (agency/workspace lane).
+    // Joined to agency_bookings so we can filter cancelled/pending bookings.
+    const { data, error } = await supabase
+      .from("booking_commission_snapshot")
+      .select(
+        `
+          booking_id,
+          workspace_fee_cents,
+          currency_code,
+          agency_bookings!inner (
+            id,
+            status,
+            payout_lifecycle,
+            event_date,
+            starts_at,
+            created_at,
+            tenant_id
+          )
+        `,
+      )
+      .in("owning_party_type", ["agency", "workspace"])
+      .eq("owning_party_id", tenantId);
+
+    if (error) {
+      logServerError("workspace.loadFinancialKpis", error);
+      return null;
+    }
+
+    type Row = {
+      booking_id: string;
+      workspace_fee_cents: number;
+      currency_code: string;
+      agency_bookings: {
+        id: string;
+        status: string;
+        payout_lifecycle: string;
+        event_date: string | null;
+        starts_at: string | null;
+        created_at: string | null;
+        tenant_id: string;
+      };
+    };
+
+    let pending = 0;
+    let confirmedYtd = 0;
+    const confirmedBookings = new Set<string>();
+    const ytdMs = Date.parse(ytdSince);
+
+    for (const raw of (data ?? []) as unknown as Row[]) {
+      if (raw.currency_code !== "EUR") {
+        logServerError(
+          "workspace.loadFinancialKpis.non_eur",
+          new Error(
+            `Excluded non-EUR snapshot for booking ${raw.booking_id}: ${raw.currency_code}`,
+          ),
+        );
+        continue;
+      }
+      const b = raw.agency_bookings;
+      // Belt-and-braces — RLS already scopes to this tenant.
+      if (b.tenant_id !== tenantId) continue;
+      if (b.status === "cancelled") continue;
+
+      // Pending payout: workspace lane that hasn't been paid yet.
+      if (b.payout_lifecycle !== "paid") {
+        pending += raw.workspace_fee_cents;
+      }
+
+      // YTD confirmed: include confirmed + completed within calendar year.
+      if (b.status === "confirmed" || b.status === "completed") {
+        const dateIso = b.event_date ?? b.starts_at ?? b.created_at;
+        const ts = dateIso ? Date.parse(dateIso) : NaN;
+        if (!Number.isNaN(ts) && ts >= ytdMs) {
+          confirmedYtd += raw.workspace_fee_cents;
+          confirmedBookings.add(b.id);
+        }
+      }
+    }
+
+    return {
+      pendingPayoutCents: pending,
+      confirmedYtdWorkspaceCents: confirmedYtd,
+      confirmedBookingCount: confirmedBookings.size,
+    };
+  } catch (err) {
+    logServerError("workspace.loadFinancialKpis", err);
     return null;
   }
 }

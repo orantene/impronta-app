@@ -1,7 +1,9 @@
-import { randomUUID } from "node:crypto";
-
 import type { TalentSiteSnapshotSection } from "../types";
 import type { TalentSiteTemplateDef, TemplateBuildContext } from "./types";
+
+function newSectionId(): string {
+  return crypto.randomUUID();
+}
 
 function makeSlot(
   slotKey: string,
@@ -13,7 +15,7 @@ function makeSlot(
   return {
     slotKey,
     sortOrder,
-    sectionId: randomUUID(),
+    sectionId: newSectionId(),
     sectionTypeKey,
     schemaVersion: 1,
     name,

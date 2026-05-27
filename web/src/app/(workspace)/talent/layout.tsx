@@ -25,6 +25,8 @@ import {
   listTalentAgencyContexts,
 } from "@/lib/talent/active-agency-context";
 import { TalentAgencyContextSwitcher } from "@/components/talent/site/TalentAgencyContextSwitcher";
+import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +64,7 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   verifiedDomain: null,
   defaultCoordinatorUserId: null,
   inquiryCoordinatorTalentIds: [],
+  networkRequestedAt: null,
 };
 
 export default async function PlatformTalentLayout({
@@ -107,6 +110,7 @@ export default async function PlatformTalentLayout({
     profileDisplayName,
     talentCalendarEntries,
     talentEarnings,
+    talentSiteDashboardLoad,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -117,6 +121,7 @@ export default async function PlatformTalentLayout({
     loadProfileDisplayName(session.user.id),
     loadTalentCalendarEntries(talentSelfProfile.id),
     loadTalentEarnings(talentSelfProfile.id),
+    loadTalentPersonalSiteDashboardState(),
   ]);
 
   const isHybrid = membership != null;
@@ -132,6 +137,7 @@ export default async function PlatformTalentLayout({
   };
 
   return (
+    <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
     <TalentShellClient
       tenantSlug={activeAgency?.slug}
       platformTalentRoutes
@@ -175,5 +181,6 @@ export default async function PlatformTalentLayout({
       ) : null}
       {children}
     </TalentShellClient>
+    </TalentSiteDashboardProvider>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingCta } from "./cta-link";
 import { TalentRegisterModal, TALENT_MODAL_EVENT } from "./talent-register-modal";
@@ -18,6 +19,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Integrations", href: "/integrations", description: "Render your roster anywhere" },
   { label: "Pricing", href: "/pricing", description: "Free to start, simple to scale" },
 ];
+
+const APP_LOGIN_URL = `${getAppUrl()}/login`;
 
 export function MarketingHeader() {
   const pathname = usePathname();
@@ -128,13 +131,13 @@ export function MarketingHeader() {
           >
             Join as talent
           </button>
-          <Link
-            href="/login"
+          <a
+            href={APP_LOGIN_URL}
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Sign in
-          </Link>
+          </a>
           <MarketingCta
             href="/get-started"
             variant="primary"
@@ -209,14 +212,14 @@ export function MarketingHeader() {
                 Join as talent
                 <ChevronGlyph />
               </button>
-              <Link
-                href="/login"
+              <a
+                href={APP_LOGIN_URL}
                 className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
                 Sign in
                 <ChevronGlyph />
-              </Link>
+              </a>
               <MarketingCta
                 href="/get-started"
                 variant="primary"

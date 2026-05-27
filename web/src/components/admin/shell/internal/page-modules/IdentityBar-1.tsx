@@ -132,18 +132,31 @@ export function TulalaIdentityBar() {
     : inTalent
       ? (agencyCount === 1 ? "Primary agency" : `${agencyCount} agencies`)
       : "Primary agency";
-  // Real KPI subline: when overviewMetrics is available, compose live
-  // counters; otherwise fall back to the prototype's hardcoded copy.
+  // Real KPI subline: workspace identity bar shows live financial KPIs
+  // (workspace commission lane — see decision-log L43) when the snapshot
+  // loader returned data. When metrics are null (loader errored or
+  // unauthenticated bridge), fall through to a roster/open-inquiry summary
+  // and finally to a dash placeholder — never a fake euro figure.
   const actingDetail = (() => {
     if (inWorkspace) {
       if (overviewMetrics) {
+        const pendingCents = overviewMetrics.pendingPayoutCents;
+        const confirmedCount = overviewMetrics.confirmedBookingCount;
+        if (pendingCents != null && confirmedCount != null) {
+          const pendingEuros = Math.round(pendingCents / 100);
+          return copy.isSpanish
+            ? `${fmtMoney(pendingEuros)} pendiente · ${confirmedCount} confirmada${confirmedCount === 1 ? "" : "s"}`
+            : `${fmtMoney(pendingEuros)} pending · ${confirmedCount} confirmed`;
+        }
         const open = overviewMetrics.openInquiries ?? 0;
         const roster = overviewMetrics.rosterTotal ?? 0;
         return copy.isSpanish
           ? `${roster} talento · ${open} consulta${open === 1 ? "" : "s"} abierta${open === 1 ? "" : "s"}`
           : `${roster} talent · ${open} open ${open === 1 ? "inquiry" : "inquiries"}`;
       }
-      return `${fmtMoney(4200)} pending · 3 confirmed`;
+      // Metrics null — degraded local-dev / missing env. Show a neutral
+      // dash rather than a fabricated euro amount.
+      return "—";
     }
     if (inClient) return activeClientProfile.industry;
     if (inTalent) {
@@ -158,7 +171,7 @@ export function TulalaIdentityBar() {
         ? `${n} agencia${n === 1 ? "" : "s"}`
         : `${n} agenc${n === 1 ? "y" : "ies"}`;
     }
-    return `3 confirmed · ${fmtMoney(4200)} YTD`;
+    return "—";
   })();
   // Pure talent with zero agencies → invite them to start a workspace of
   // their own (one-click discovery of the hybrid path). Otherwise fall back

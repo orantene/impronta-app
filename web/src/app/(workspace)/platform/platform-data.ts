@@ -194,6 +194,19 @@ export async function loadRecentSignups(limit = 5): Promise<PlatformTenantRow[]>
   }));
 }
 
+// ─── Recent marketing leads (/get-started funnel) ────────────────────────────
+// Lead loaders live in `platform-leads-data.ts` to stay under the 800-line cap.
+export type {
+  PlatformLeadRow,
+  PlatformLeadStats,
+  OrphanPaidFreeWorkspaceRow,
+} from "./platform-leads-data";
+export {
+  loadRecentLeads,
+  loadLeadStats,
+  loadOrphanPaidFreeWorkspaces,
+} from "./platform-leads-data";
+
 // ─── Tenant detail (Phase 3.11 — /platform/admin/tenants/[id]) ───────────────
 
 export type PlatformTenantMember = {

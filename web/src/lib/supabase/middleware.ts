@@ -201,6 +201,11 @@ export async function updateSession(
     sessionProfile,
     routingProfile: user ? routingProfile : null,
     isImpersonating: user ? isImpersonating : false,
+    // Forward the `?next=` searchParam so already-logged-in users hitting
+    // /login or /register get redirected to the path they were trying to
+    // reach (e.g. the funnel's /onboarding/workspace?lead=…), not their
+    // existing dashboard.
+    nextParam: request.nextUrl.searchParams.get("next"),
   });
 
   const applyImpersonationCookieClear = (res: NextResponse) => {
@@ -230,11 +235,19 @@ export async function updateSession(
 
   if (decision.redirectTo) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = decision.redirectTo;
+    // decision.redirectTo may include a query string when honoring `?next=`
+    // (e.g. "/onboarding/workspace?lead=abc"). Parse it so pathname and
+    // searchParams land in the right slots — assigning a "pathname?query"
+    // string to .pathname would URL-encode the "?" and break the route.
+    const [targetPath, targetQuery] = decision.redirectTo.split("?", 2);
+    redirectUrl.pathname = targetPath;
+    redirectUrl.search = "";
+    if (targetQuery) {
+      const incoming = new URLSearchParams(targetQuery);
+      incoming.forEach((value, key) => redirectUrl.searchParams.set(key, value));
+    }
     if (decision.loginNext) {
       redirectUrl.searchParams.set("next", decision.loginNext);
-    } else {
-      redirectUrl.search = "";
     }
 
     return applyImpersonationCookieClear(

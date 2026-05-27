@@ -1415,12 +1415,7 @@ export function TalentProfileShellDrawer() {
     }
   }, [activeSection, showPolaroidsSection]);
   useEffect(() => {
-    // Clear the active group when there are no nav groups OR no selected talent
-    // types. Without the second guard, removing the last service leaves
-    // `activeProfileFieldGroupKey` (and a stale `selectedTalentTypeSlugs` read)
-    // out of sync for a render, flashing "No extra fields are configured for
-    // this type." instead of "Select a talent type in Services…".
-    if (profileFieldNavGroups.length === 0 || selectedTalentTypeSlugs.length === 0) {
+    if (profileFieldNavGroups.length === 0) {
       if (activeProfileFieldGroupKey !== null) setActiveProfileFieldGroupKey(null);
       return;
     }
@@ -1430,7 +1425,7 @@ export function TalentProfileShellDrawer() {
     ) {
       setActiveProfileFieldGroupKey(profileFieldNavGroups[0]?.key ?? null);
     }
-  }, [profileFieldNavGroups, activeProfileFieldGroupKey, selectedTalentTypeSlugs]);
+  }, [profileFieldNavGroups, activeProfileFieldGroupKey]);
   useEffect(() => {
     if (activeSection === "profile_fields" && profileFieldNavGroups.length > 0) {
       setProfileFieldRailOpen(true);
@@ -2969,16 +2964,16 @@ export function TalentProfileShellDrawer() {
                     talentProfileId={payload.talentId!}
                     isAdmin={adminVisible}
                     viewMode={isSelf ? "talent-self" : "admin"}
-                    actions={talentSelfSkillActions}
-                    searchActions={talentSelfSkillSearchActions}
-                    careerInterestActions={talentSelfCareerInterestActions}
+                    actions={isSelf ? talentSelfSkillActions : undefined}
+                    searchActions={isSelf ? talentSelfSkillSearchActions : undefined}
+                    careerInterestActions={isSelf ? talentSelfCareerInterestActions : undefined}
                     onSkillsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                   <ContextSlotPanel
                     talentProfileId={payload.talentId!}
                     talentName={state.stageName}
-                    actions={talentSelfContextActions}
-                    catalogActions={talentSelfContextCatalogActions}
+                    actions={isSelf ? talentSelfContextActions : undefined}
+                    catalogActions={isSelf ? talentSelfContextCatalogActions : undefined}
                     onContextsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                 </div>
