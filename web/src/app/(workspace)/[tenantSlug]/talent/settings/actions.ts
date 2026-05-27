@@ -6,6 +6,13 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import {
+  DEFAULT_CURRENCY_FALLBACK,
+  normalizeDefaultCurrency,
+  resolveDefaultCurrencyForUI,
+  type DefaultCurrencyCode,
+} from "@/lib/billing/currencies";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 
@@ -201,6 +208,96 @@ export async function saveTalentContactPrefs(
     return { ok: true };
   } catch (err) {
     logServerError("talent.saveContactPrefs", err);
+    return { ok: false, error: "Unexpected error" };
+  }
+}
+
+// ─── Default currency (PR-E foundation · decision-log L49) ────────────────────
+//
+// Talent-owned `talent_profiles.default_currency` — decides which currency
+// tab opens first on the talent Money surface when multi-currency data
+// starts flowing. Display-only; the underlying snapshot rows are EUR-only
+// at v1.
+//
+// Gated by `requireTalentSelf()` (ownership-by-`user_id` on
+// `talent_profiles`). DB write uses the service-role client because the
+// talent may not have RLS update access to every column.
+//
+// NB: `talent_profiles.user_id` is the correct column name (NOT
+// `owner_user_id`). See backlog item #6.
+
+export type LoadTalentDefaultCurrencyResult =
+  | { ok: true; data: { defaultCurrency: DefaultCurrencyCode } }
+  | { ok: false; error: string };
+
+export async function loadTalentDefaultCurrency(): Promise<LoadTalentDefaultCurrencyResult> {
+  try {
+    const guard = await requireTalentSelf();
+    if (!guard.ok) return { ok: false, error: guard.error };
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { ok: false, error: "Database unavailable" };
+
+    const { data, error } = await supabase
+      .from("talent_profiles")
+      .select("default_currency")
+      .eq("id", guard.talentProfile.id)
+      .maybeSingle();
+
+    if (error) {
+      logServerError("talent.loadDefaultCurrency", error);
+      return { ok: false, error: "Could not load default currency." };
+    }
+
+    return {
+      ok: true,
+      data: {
+        defaultCurrency: resolveDefaultCurrencyForUI(
+          (data as { default_currency?: string } | null)?.default_currency
+            ?? DEFAULT_CURRENCY_FALLBACK,
+        ),
+      },
+    };
+  } catch (err) {
+    logServerError("talent.loadDefaultCurrency", err);
+    return { ok: false, error: "Unexpected error" };
+  }
+}
+
+export type UpdateTalentDefaultCurrencyResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function updateTalentDefaultCurrency(
+  candidate: string,
+): Promise<UpdateTalentDefaultCurrencyResult> {
+  try {
+    const normalized = normalizeDefaultCurrency(candidate);
+    if (!normalized) return { ok: false, error: "Unsupported currency." };
+
+    const guard = await requireTalentSelf();
+    if (!guard.ok) return { ok: false, error: guard.error };
+
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error" };
+
+    const { error } = await admin
+      .from("talent_profiles")
+      .update({
+        default_currency: normalized,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", guard.talentProfile.id);
+
+    if (error) {
+      logServerError("talent.updateDefaultCurrency", error);
+      return { ok: false, error: "Failed to update default currency." };
+    }
+
+    revalidatePath(`/talent/settings`);
+    return { ok: true };
+  } catch (err) {
+    logServerError("talent.updateDefaultCurrency", err);
     return { ok: false, error: "Unexpected error" };
   }
 }

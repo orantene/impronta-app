@@ -8,6 +8,7 @@ import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection
 import { COLORS, FONTS, PLAN_META, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
 import type { Plan, Role } from "../state";
 import { AutoAckSettingsRow, LockedPill, SETTINGS_SECTIONS } from "./BillingPage";
+import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { PageHeader } from "./pages-shared";
 
 
@@ -328,7 +329,7 @@ export function WorkspacePageView() {
           {visibleSections.has("workspace") && (
           <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, and workspace defaults." supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
             {[
-              { title: "General",     desc: "Timezone · Locale · Default currency",  drawer: "workspace-settings" as const },
+              { title: "General",     desc: "Timezone · Locale · Workspace defaults",  drawer: "workspace-settings" as const },
               { title: "Profile fields", desc: "Enable, require, rename talent profile fields", drawer: "field-catalog" as const, plan: "agency" as const },
               { title: "Field settings", desc: "Workspace overrides for the resolved profile engine", drawer: "workspace-field-settings" as const, plan: "agency" as const },
               { title: "Talent categories", desc: "Tenant-enabled categories for roster and registration",  drawer: "talent-types" as const, plan: "agency" as const },
@@ -348,6 +349,8 @@ export function WorkspacePageView() {
                 </SettingsRow>
               );
             })}
+            {/* L49 — Default currency inline picker (display-only, no FX). */}
+            <DefaultCurrencySettingsRow />
           </AccordionItem>
           )}
 
