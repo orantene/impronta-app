@@ -9,12 +9,165 @@
  * detail page.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { HQ, HQ_F, HQ_FM, PlanChip, StatusDot, EntityChip } from "./hq-kit";
 import { TenantDrawer } from "./TenantDrawer";
 import { PLAN_TIER_RANK } from "@/lib/platform/plan-override";
 import type { PlatformTenantListRow } from "../../tenant-management-data";
+import { actionCreateTenant } from "./actions-control";
+
+// ─── Create workspace modal ───────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  background: HQ.card,
+  border: `1px solid ${HQ.border}`,
+  borderRadius: 8,
+  color: HQ.ink,
+  fontSize: 12.5,
+  fontFamily: HQ_F,
+  padding: "8px 10px",
+  outline: "none",
+  width: "100%",
+  boxSizing: "border-box",
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/[\s]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63);
+}
+
+function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
+  const [displayName, setDisplayName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
+  const [kind, setKind] = useState("agency");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleNameChange(v: string) {
+    setDisplayName(v);
+    if (!slugEdited) setSlug(slugify(v));
+  }
+
+  function submit() {
+    setError(null);
+    start(async () => {
+      const res = await actionCreateTenant({ displayName, slug, kind, ownerEmail: ownerEmail || null });
+      if (res.ok) { onCreated(res.data.id); }
+      else setError(res.error);
+    });
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)" }} />
+      <div
+        style={{
+          position: "relative",
+          width: "min(460px, 94vw)",
+          background: HQ.bg,
+          border: `1px solid ${HQ.border}`,
+          borderRadius: 14,
+          padding: "20px",
+          fontFamily: HQ_F,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: HQ.ink }}>Create workspace</span>
+          <button type="button" onClick={onClose} style={{ width: 28, height: 28, borderRadius: 7, border: `1px solid ${HQ.borderSoft}`, background: "transparent", color: HQ.inkMuted, cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
+          Display name *
+          <input
+            type="text"
+            placeholder="Acme Agency"
+            value={displayName}
+            disabled={pending}
+            onChange={(e) => handleNameChange(e.target.value)}
+            style={inputStyle}
+            autoFocus
+          />
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
+          Slug * <span style={{ fontFamily: HQ_FM, fontSize: 10 }}>(URL path, letters/numbers/hyphens)</span>
+          <input
+            type="text"
+            placeholder="acme-agency"
+            value={slug}
+            disabled={pending}
+            onChange={(e) => { setSlug(e.target.value); setSlugEdited(true); }}
+            style={{ ...inputStyle, fontFamily: HQ_FM }}
+          />
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
+          Workspace type
+          <select value={kind} disabled={pending} onChange={(e) => setKind(e.target.value)} style={inputStyle}>
+            <option value="agency">Agency</option>
+            <option value="hub">Hub</option>
+          </select>
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: HQ.inkMuted }}>
+          Owner email <span style={{ color: HQ.inkDim }}>(optional — must have a Tulala account)</span>
+          <input
+            type="email"
+            placeholder="owner@email.com"
+            value={ownerEmail}
+            disabled={pending}
+            onChange={(e) => setOwnerEmail(e.target.value)}
+            style={inputStyle}
+          />
+        </label>
+
+        {error && (
+          <div style={{ padding: "8px 12px", borderRadius: 8, background: HQ.redSoft, color: HQ.red, fontSize: 12.5 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose} disabled={pending} style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${HQ.borderSoft}`, background: "transparent", color: HQ.inkMuted, fontSize: 12.5, fontFamily: HQ_F, cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={pending || !displayName.trim() || !slug.trim()}
+            style={{
+              padding: "7px 16px",
+              borderRadius: 8,
+              border: "none",
+              background: HQ.green,
+              color: "#0F0F11",
+              fontSize: 12.5,
+              fontWeight: 700,
+              fontFamily: HQ_F,
+              cursor: pending ? "default" : "pointer",
+              opacity: (pending || !displayName.trim() || !slug.trim()) ? 0.5 : 1,
+            }}
+          >
+            {pending ? "Creating…" : "Create workspace"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type SortKey = "created" | "name" | "plan" | "talents" | "staff" | "owner";
 
@@ -81,6 +234,7 @@ function Th({
 }
 
 export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [plan, setPlan] = useState("all");
   const [entity, setEntity] = useState("all");
@@ -90,6 +244,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const statusOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.status))).sort(),
@@ -209,6 +364,25 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
           <option value="active">Override: active</option>
           <option value="none">Override: none</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          style={{
+            padding: "7px 14px",
+            borderRadius: 8,
+            border: "none",
+            background: HQ.green,
+            color: "#0F0F11",
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: HQ_F,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          + New workspace
+        </button>
       </div>
 
       <div style={{ fontSize: 11.5, color: HQ.inkDim, marginBottom: 8, fontFamily: HQ_F }}>
@@ -412,6 +586,16 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
       </section>
 
       <TenantDrawer tenantId={openId} onClose={() => setOpenId(null)} />
+      {showCreate && (
+        <CreateWorkspaceModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(id) => {
+            setShowCreate(false);
+            router.refresh();
+            setOpenId(id);
+          }}
+        />
+      )}
     </>
   );
 }

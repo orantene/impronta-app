@@ -34,6 +34,7 @@ import type {
 import {
   actionAddWorkspaceMember,
   actionApplyPlanOverride,
+  actionAssignOwnerByEmail,
   actionChangeMemberRole,
   actionRemovePlanOverride,
   actionRemoveWorkspaceMember,
@@ -289,17 +290,94 @@ function AddMemberForm({
   );
 }
 
+function AssignOwnerForm({
+  detail,
+  onChanged,
+}: {
+  detail: TenantManagementDetail;
+  onChanged: OnChanged;
+}) {
+  const [email, setEmail] = useState("");
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+
+  function submit() {
+    setMsg(null);
+    start(async () => {
+      const res = await actionAssignOwnerByEmail({ tenantId: detail.id, email });
+      if (res.ok) {
+        setEmail("");
+        setMsg({ tone: "ok", text: "Owner assigned." });
+        await onChanged();
+      } else {
+        setMsg({ tone: "err", text: res.error });
+      }
+    });
+  }
+
+  return (
+    <div
+      style={{
+        marginBottom: 10,
+        padding: "10px 12px",
+        background: "rgba(243,103,114,0.06)",
+        border: "1px solid rgba(243,103,114,0.2)",
+        borderRadius: 10,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+          color: HQ.red,
+          marginBottom: 6,
+        }}
+      >
+        No owner — assign one
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <input
+          type="email"
+          placeholder="owner@email.com"
+          value={email}
+          disabled={pending}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ ...inputStyle, flex: "1 1 160px" }}
+        />
+        <Btn
+          tone="primary"
+          onClick={submit}
+          disabled={pending || !email.trim()}
+        >
+          {pending ? "Assigning…" : "Assign as owner"}
+        </Btn>
+      </div>
+      <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: "6px 0 0" }}>
+        Creates a new membership at owner level. The person must have a Tulala account.
+      </p>
+      <Feedback msg={msg} />
+    </div>
+  );
+}
+
 export function MembersSection({ detail, onChanged, defaultOpen }: SectionProps) {
+  const hasOwner = detail.members.some((m) => m.role === "owner" && m.status === "active");
   return (
     <Accordion
       title="Members & roles"
       hint={`${detail.members.length}`}
+      trailing={!hasOwner ? <span style={{ fontSize: 10.5, color: HQ.red, fontWeight: 600 }}>no owner</span> : null}
       defaultOpen={defaultOpen ?? true}
     >
-      <div style={{ paddingTop: 2 }}>
+      <div style={{ paddingTop: 4 }}>
+        {!hasOwner && (
+          <AssignOwnerForm detail={detail} onChanged={onChanged} />
+        )}
         {detail.members.length === 0 ? (
           <div style={{ padding: "12px 0", fontSize: 12.5, color: HQ.inkMuted }}>
-            No members.
+            No members yet.
           </div>
         ) : (
           detail.members.map((m) => (
@@ -603,4 +681,3 @@ export function PlanOverrideSection({
     </Accordion>
   );
 }
-

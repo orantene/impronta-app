@@ -573,6 +573,116 @@ export async function actionRemoveWorkspaceMember(input: {
   return { ok: true, data: undefined };
 }
 
+// ─── Assign owner by email ────────────────────────────────────────────────────
+// Unlike Transfer (requires existing member), this creates the membership if
+// the person isn't already in the workspace — solving the "no owner" case.
+
+export async function actionAssignOwnerByEmail(input: {
+  tenantId: string;
+  email: string;
+}): Promise<TenantActionResult> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return auth;
+  const { sb, actorId } = auth;
+
+  if (!input.tenantId) return { ok: false, error: "Missing workspace." };
+  const email = input.email.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+
+  const profileId = await findProfileIdByEmail(sb, email);
+  if (!profileId) {
+    return { ok: false, error: "No Tulala account uses that email." };
+  }
+
+  const { data: agency } = await sb
+    .from("agencies")
+    .select("id")
+    .eq("id", input.tenantId)
+    .maybeSingle();
+  if (!agency) return { ok: false, error: "Workspace not found." };
+
+  // Demote current owner to admin first.
+  const { data: currentOwner } = await sb
+    .from("agency_memberships")
+    .select("id")
+    .eq("tenant_id", input.tenantId)
+    .eq("role", "owner")
+    .eq("status", "active")
+    .maybeSingle();
+  if (currentOwner) {
+    await sb
+      .from("agency_memberships")
+      .update({ role: "admin", updated_at: NOW() })
+      .eq("id", currentOwner.id);
+  }
+
+  // Find existing membership row (any status).
+  const { data: existing } = await sb
+    .from("agency_memberships")
+    .select("id, status, role")
+    .eq("tenant_id", input.tenantId)
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing && existing.status !== "removed") {
+    const { error } = await sb
+      .from("agency_memberships")
+      .update({ role: "owner", updated_at: NOW() })
+      .eq("id", existing.id);
+    if (error) {
+      logServerError("platform.assignOwner.promote", error);
+      return { ok: false, error: "Could not assign ownership." };
+    }
+  } else if (existing) {
+    const { error } = await sb
+      .from("agency_memberships")
+      .update({
+        role: "owner",
+        status: "active",
+        accepted_at: NOW(),
+        removed_at: null,
+        removed_by: null,
+        updated_at: NOW(),
+      })
+      .eq("id", existing.id);
+    if (error) {
+      logServerError("platform.assignOwner.reactivate", error);
+      return { ok: false, error: "Could not assign ownership." };
+    }
+  } else {
+    const { error } = await sb.from("agency_memberships").insert({
+      tenant_id: input.tenantId,
+      profile_id: profileId,
+      role: "owner",
+      status: "active",
+      invited_by: actorId,
+      invited_at: NOW(),
+      accepted_at: NOW(),
+    });
+    if (error) {
+      logServerError("platform.assignOwner.insert", error);
+      return { ok: false, error: "Could not create owner membership." };
+    }
+  }
+
+  await recordAudit(sb, {
+    actorId,
+    action: "platform.tenant.owner.assign",
+    tenantId: input.tenantId,
+    targetType: "workspace",
+    targetId: input.tenantId,
+    severity: "warn",
+    metadata: { email, profile_id: profileId },
+  });
+
+  revalidateTenantSurfaces(input.tenantId);
+  return { ok: true, data: undefined };
+}
+
 export async function actionTransferWorkspaceOwner(input: {
   tenantId: string;
   newOwnerMembershipId: string;
@@ -649,3 +759,4 @@ export async function actionTransferWorkspaceOwner(input: {
   revalidateTenantSurfaces(input.tenantId);
   return { ok: true, data: undefined };
 }
+

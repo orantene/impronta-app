@@ -31,6 +31,10 @@ import {
   MembersSection,
   PlanOverrideSection,
 } from "./tenant-sections-manage";
+import {
+  DomainSection,
+  TenantSettingsSection,
+} from "./tenant-sections-control";
 import { CommissionSection } from "./tenant-commission-section";
 import type { TenantManagementDetail } from "../../tenant-management-data";
 
@@ -656,6 +660,18 @@ export function TenantSectionStack({
       />,
       <CommissionSection
         key="commission"
+        detail={detail}
+        onChanged={onChanged}
+        defaultOpen={false}
+      />,
+      <DomainSection
+        key="domains"
+        detail={detail}
+        onChanged={onChanged}
+        defaultOpen={false}
+      />,
+      <TenantSettingsSection
+        key="settings"
         detail={detail}
         onChanged={onChanged}
         defaultOpen={false}

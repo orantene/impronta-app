@@ -1,11 +1,4 @@
-/**
- * Platform Admin — tenant management center data loaders.
- *
- * The richer tenant list + drawer/full-page management surface used by
- * /platform/admin/tenants. Split out of platform-data.ts to keep both files
- * within the file-size budget. All reads use the service-role client; the
- * platform layout enforces super_admin.
- */
+// Platform Admin — tenant management data loaders (service-role, super_admin gated).
 
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -362,6 +355,14 @@ export type TenantManagementAuditEntry = {
   createdAtLabel: string;
 };
 
+export type TenantManagementDomain = {
+  id: string;
+  hostname: string;
+  kind: string;
+  isPrimary: boolean;
+  status: string;
+};
+
 export type TenantManagementDetail = {
   id: string;
   name: string;
@@ -382,6 +383,7 @@ export type TenantManagementDetail = {
   inquiryCount: number;
   bookingCount: number;
   domainCount: number;
+  domains: TenantManagementDomain[];
   owner: { profileId: string; displayName: string; email: string } | null;
   language: { defaultLocale: string; activeLocales: string[]; switcherStatus: "shown" | "hidden"; showLanguageSwitcher: boolean; mode: "tenant-managed" | "fallback"; updatedAt: string | null; updatedAtLabel: string };
   billing: {
@@ -521,7 +523,7 @@ export async function loadTenantManagementDetail(
       .maybeSingle(),
     sb
       .from("agency_domains")
-      .select("hostname, kind, is_primary")
+      .select("id, hostname, kind, is_primary, status")
       .eq("tenant_id", tenantId),
     sb
       .from("platform_audit_log")
@@ -647,7 +649,8 @@ export async function loadTenantManagementDetail(
   talentTypes.sort((a, b) => a.localeCompare(b));
 
   // Domains.
-  const domainRows = (domainRes.data ?? []) as DomainPick[];
+  type DomainRow = DomainPick & { id: string; status: string | null };
+  const domainRows = (domainRes.data ?? []) as DomainRow[];
   const urls = buildWorkspaceUrls(
     agency.slug,
     pickPrimaryHost(domainRows),
@@ -733,6 +736,13 @@ export async function loadTenantManagementDetail(
     inquiryCount: inquiryCountRes.count ?? 0,
     bookingCount: bookingCountRes.count ?? 0,
     domainCount: domainRows.length,
+    domains: domainRows.map((d) => ({
+      id: d.id,
+      hostname: d.hostname,
+      kind: d.kind,
+      isPrimary: d.is_primary ?? false,
+      status: d.status ?? "active",
+    })),
     owner: ownerMember
       ? {
           profileId: ownerMember.profileId,
