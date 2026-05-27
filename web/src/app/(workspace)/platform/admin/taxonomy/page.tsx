@@ -73,6 +73,12 @@ type TaxonomyIssue = {
   slugs: string[];
 };
 
+const ISSUE_LABEL: Record<TaxonomyIssue["kind"], string> = {
+  "name-collision": "Name collision",
+  "group-leaf-same-label": "Group / leaf shared label",
+  "spanish-missing": "Spanish labels missing",
+};
+
 type TaxonomyFieldOption = {
   id: string;
   field_key: string;
@@ -382,7 +388,7 @@ export default async function PlatformTaxonomyBuilderPage({
         </Link>
       </div>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 18 }}>
-        Edit the global Tulala talent-type tree: bilingual names, aliases, search synonyms, visibility flags, lifecycle, and ordering.
+        The global talent-type tree. Select a term to edit bilingual names, aliases, search synonyms, visibility flags, lifecycle, and field mappings.
       </div>
 
       {params.saved && (
@@ -466,8 +472,11 @@ export default async function PlatformTaxonomyBuilderPage({
                     }}
                   >
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <span style={{ color: issue.kind === "spanish-missing" ? HQ.amber : HQ.red, fontSize: 10, fontWeight: 800, textTransform: "uppercase", minWidth: 126 }}>
-                        {issue.kind}
+                      <span
+                        style={{ color: issue.kind === "spanish-missing" ? HQ.amber : HQ.red, fontSize: 10, fontWeight: 700, minWidth: 150 }}
+                        title={issue.kind}
+                      >
+                        {ISSUE_LABEL[issue.kind]}
                       </span>
                       <strong style={{ color: HQ.ink }}>{issue.title}</strong>
                     </div>
@@ -573,7 +582,9 @@ export default async function PlatformTaxonomyBuilderPage({
                     )}
                   </>
                 ) : (
-                  <div style={{ color: HQ.inkMuted, fontSize: 12 }}>No taxonomy terms in this view.</div>
+                  <div style={{ color: HQ.inkMuted, fontSize: 12, padding: "8px 0" }}>
+                    No terms match this filter. Select <strong style={{ color: HQ.ink }}>All</strong> above or create a new term.
+                  </div>
                 )}
               </div>
             </div>
@@ -602,31 +613,53 @@ export default async function PlatformTaxonomyBuilderPage({
 
           <HqCard title="Recent Taxonomy Audit" subtitle="Platform mutations write audit rows so engine edits remain accountable.">
             {data.audits.length === 0 ? (
-              <div style={{ color: HQ.inkDim, fontSize: 12 }}>No taxonomy audit events yet.</div>
+              <div style={{ color: HQ.inkDim, fontSize: 12 }}>
+                No audit rows yet. Every create, edit, or archive of a taxonomy term will appear here.
+              </div>
             ) : (
               <div style={{ display: "grid", gap: 6 }}>
-                {data.audits.map((audit) => (
-                  <div
-                    key={audit.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "145px 1fr auto",
-                      gap: 10,
-                      alignItems: "center",
-                      background: HQ.cardSoft,
-                      borderRadius: 9,
-                      padding: "7px 9px",
-                      fontSize: 12,
-                    }}
-                  >
-                    <span style={{ color: HQ.inkDim }}>{new Date(audit.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
-                    <span style={{ color: HQ.ink, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
-                      {audit.action}
-                      <span style={{ color: HQ.inkDim }}> · {audit.target_type}</span>
-                    </span>
-                    <span style={{ color: audit.severity === "warn" ? HQ.amber : audit.severity === "emergency" ? HQ.red : HQ.green, fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{audit.severity}</span>
-                  </div>
-                ))}
+                {data.audits.map((audit) => {
+                  const d = new Date(audit.created_at);
+                  const sameYear = d.getFullYear() === new Date().getFullYear();
+                  const formatted = new Intl.DateTimeFormat("en", {
+                    month: "short",
+                    day: "numeric",
+                    ...(sameYear ? {} : { year: "numeric" }),
+                    hour: "numeric",
+                    minute: "2-digit",
+                    timeZoneName: "short",
+                  }).format(d);
+                  const severityTone =
+                    audit.severity === "warn" ? HQ.amber
+                    : audit.severity === "emergency" ? HQ.red
+                    : HQ.green;
+                  return (
+                    <div
+                      key={audit.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "160px 1fr auto",
+                        gap: 10,
+                        alignItems: "center",
+                        background: HQ.cardSoft,
+                        borderRadius: 9,
+                        padding: "7px 9px",
+                        fontSize: 12,
+                      }}
+                    >
+                      <time dateTime={audit.created_at} title={audit.created_at} style={{ color: HQ.inkDim, fontSize: 11 }}>
+                        {formatted}
+                      </time>
+                      <span style={{ color: HQ.ink, minWidth: 0 }}>
+                        <span style={{ fontWeight: 600 }}>{audit.action}</span>
+                        <span style={{ color: HQ.inkDim }}> · {audit.target_type}</span>
+                      </span>
+                      <span style={{ color: severityTone, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                        {audit.severity}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </HqCard>
