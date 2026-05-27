@@ -682,6 +682,8 @@ export function CategoryExpandPanel({
   onNewSubName,
   onAddCustom,
   onReorderSubtypes,
+  isSavingParent,
+  isSavingSubtypes,
 }: {
   parent: TaxonomyNode;
   detail: CategoryDetail | null;
@@ -703,6 +705,8 @@ export function CategoryExpandPanel({
   onNewSubName: (name: string) => void;
   onAddCustom: () => void;
   onReorderSubtypes: (parentId: string, orderedSubTypeIds: string[]) => void;
+  isSavingParent?: boolean;
+  isSavingSubtypes?: boolean;
 }) {
   const [draggingSubId, setDraggingSubId] = useState<string | null>(null);
   const subtypeCount =
@@ -724,6 +728,11 @@ export function CategoryExpandPanel({
       {/* SUBTYPES TAB */}
       {tab === "subtypes" && (
         <div>
+          {isSavingSubtypes && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-admin-sm text-admin-11 font-medium mb-1.5 bg-admin-surface text-admin-ink-muted border border-admin-border-soft">
+              Saving sub-type order…
+            </div>
+          )}
           {isLoading && !detail && (
             <div style={{ padding: 12, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
               Loading sub-types…
@@ -919,7 +928,7 @@ export function CategoryExpandPanel({
               ["global", "Global", "Cross-category. Most talent fill these in."],
               ["type-specific", "Category-specific", `Only for ${parent.name_en} — and the sub-types within.`],
             ];
-            return tierOrder.map(([tier, label, desc]) => {
+            const rows = tierOrder.map(([tier, label, desc]) => {
               const list = grouped.get(tier) ?? [];
               if (list.length === 0) return null;
               return (
@@ -949,7 +958,15 @@ export function CategoryExpandPanel({
                   </div>
                 </div>
               );
-            });
+            }).filter(Boolean);
+            if (rows.length === 0) {
+              return (
+                <div className="p-3 text-admin-12h text-admin-ink-muted">
+                  No fields cataloged for this category yet.
+                </div>
+              );
+            }
+            return rows;
           })()}
         </div>
       )}
@@ -960,6 +977,13 @@ export function CategoryExpandPanel({
           {!parent.is_enabled && (
             <div style={{ padding: 10, borderRadius: 8, border: `1px solid ${COLORS.amber}`, fontSize: 11.5, fontFamily: FONTS.body }} className="bg-admin-amber-soft text-admin-ink">
               This category is currently disabled. The flags below take effect once you enable it.
+            </div>
+          )}
+          {/* Phase 4.2: visible async state for in-flight settings saves
+              (toggles, label edits, reorder writes from this panel). */}
+          {isSavingParent && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-admin-sm text-admin-11 font-medium bg-admin-surface text-admin-ink-muted border border-admin-border-soft">
+              Saving…
             </div>
           )}
 
@@ -1048,30 +1072,35 @@ export function CategoryExpandPanel({
             desc="Talent can pick this as their main category."
             value={parent.allow_as_primary}
             onChange={(v) => onFlag("allow_as_primary", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Allow as secondary"
             desc="Talent can add this as one of their two secondary categories."
             value={parent.allow_as_secondary}
             onChange={(v) => onFlag("allow_as_secondary", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Show in registration"
             desc="Talent can self-register under this category."
             value={parent.show_in_registration}
             onChange={(v) => onFlag("show_in_registration", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Show in directory"
             desc="Discover surfaces this category to clients."
             value={parent.show_in_directory}
             onChange={(v) => onFlag("show_in_directory", v)}
+            disabled={isSavingParent}
           />
           <TaxonomyToggleRow
             label="Require approval"
             desc="New profiles in this category go to admin queue first."
             value={parent.requires_approval}
             onChange={(v) => onFlag("requires_approval", v)}
+            disabled={isSavingParent}
           />
         </div>
       )}
@@ -1106,6 +1135,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [savedRecently, setSavedRecently] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [addingForParent, setAddingForParent] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState("");
@@ -1171,6 +1201,16 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     });
   };
 
+  const markSaveDone = (id: string, ok: boolean) => {
+    setSaving((prev) => { const n = new Set(prev); n.delete(id); return n; });
+    if (ok) {
+      setSavedRecently((prev) => new Set(prev).add(id));
+      setTimeout(() => {
+        setSavedRecently((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      }, 1500);
+    }
+  };
+
   // Optimistic mutation helper — patches the local tree, fires server
   // action, reverts on failure.
   const patchNode = (id: string, patch: Partial<TaxonomyNode>) => {
@@ -1203,7 +1243,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       patchNode(node.id, { is_enabled: before });
       toast(res.error);
     }
-    markSaving(node.id, false);
+    markSaveDone(node.id, res.ok);
   };
 
   const handleFlag = async (node: TaxonomyNode, key: keyof TaxonomyNode, val: boolean) => {
@@ -1218,7 +1258,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       patchNode(node.id, { [key]: before } as Partial<TaxonomyNode>);
       toast(res.error);
     }
-    markSaving(node.id, false);
+    markSaveDone(node.id, res.ok);
   };
 
   // Phase 2 (Sub-Task 3): persist custom_label / custom_label_es. Trim +
@@ -1278,12 +1318,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       });
       if (!res.ok) {
         setTree(previousTree);
-        markSaving("taxonomy-order", false);
+        markSaveDone("taxonomy-order", false);
         toast(res.error || "Couldn't save category order");
         return;
       }
     }
-    markSaving("taxonomy-order", false);
+    markSaveDone("taxonomy-order", true);
     toast("Category order saved");
   };
 
@@ -1303,12 +1343,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
       });
       if (!res.ok) {
         setTree(previousTree);
-        markSaving(savingKey, false);
+        markSaveDone(savingKey, false);
         toast(res.error || "Couldn't save sub-type order");
         return;
       }
     }
-    markSaving(savingKey, false);
+    markSaveDone(savingKey, true);
     toast("Sub-type order saved");
   };
 
@@ -1448,6 +1488,12 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
             </div>
           </div>
 
+          {saving.has("taxonomy-order") && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-admin-sm text-admin-11 font-medium mb-2 bg-admin-surface-alt text-admin-ink-muted border border-admin-border-soft">
+              Saving category order…
+            </div>
+          )}
+
           <div style={{
             background: "#fff", borderRadius: 12, overflow: "hidden",
             border: `1px solid ${COLORS.borderSoft}`,
@@ -1456,6 +1502,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
             {tree.map((parent, i) => {
               const isExpanded = expanded.has(parent.id);
               const isSaving = saving.has(parent.id);
+              const isSavedRecently = savedRecently.has(parent.id);
               const childCount = parent.children.length;
               const customCount = parent.children.filter(c => c.is_custom).length;
               return (
@@ -1472,29 +1519,39 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                     opacity: parent.is_enabled ? 1 : 0.55,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", cursor: "pointer", }} onClick={() => toggleExpand(parent.id)}>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-admin-ink text-admin-13h font-semibold">
-                          <span
-                            aria-hidden
-                            title="Drag to reorder categories"
-                            className="mr-2 select-none text-admin-ink-dim text-admin-11 font-bold"
-                          >
-                            ⋮⋮
-                          </span>
-                          {parent.custom_label ?? parent.name_en}
-                        </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer" }} onClick={() => toggleExpand(parent.id)}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-admin-ink text-admin-13h font-semibold">
+                        <span
+                          aria-hidden
+                          title="Drag to reorder categories"
+                          className="mr-2 select-none text-admin-ink-dim text-admin-11 font-bold"
+                        >
+                          ⋮⋮
+                        </span>
+                        {parent.custom_label ?? parent.name_en}
+                      </div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {childCount} sub-type{childCount === 1 ? "" : "s"}
                         {customCount > 0 ? ` · ${customCount} custom` : ""}
                         {parent.is_enabled ? "" : " · disabled"}
-                        {isSaving ? " · saving…" : ""}
                       </div>
                     </div>
+                    {/* Save-state indicator — persistent, not toast-only */}
+                    {(isSaving || isSavedRecently) && (
+                      <span className={`text-admin-10 font-semibold px-2 py-0.5 rounded shrink-0 ${isSaving ? "bg-[rgba(11,11,13,0.07)] text-admin-ink-muted" : "bg-admin-accent-soft text-admin-accent"}`}>
+                        {isSaving ? "Saving…" : "✓ Saved"}
+                      </span>
+                    )}
+                    {/* Chevron — signals the row is expandable */}
+                    <span aria-hidden className="text-admin-13 text-admin-ink-muted shrink-0 select-none">
+                      {isExpanded ? "▾" : "▸"}
+                    </span>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleToggleEnabled(parent); }}
                       aria-pressed={parent.is_enabled}
+                      disabled={isSaving}
                       style={{
                         width: 36, height: 22, borderRadius: 999,
                         background: parent.is_enabled ? COLORS.accent : "rgba(11,11,13,0.12)",
@@ -1537,6 +1594,8 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       onNewSubName={setNewSubName}
                       onAddCustom={() => handleAddCustom(parent)}
                       onReorderSubtypes={reorderParentSubTypes}
+                      isSavingParent={saving.has(parent.id)}
+                      isSavingSubtypes={saving.has(`taxonomy-order:${parent.id}`)}
                     />
                   )}
                 </div>
@@ -1744,11 +1803,12 @@ export function TalentTypeRow({
 }
 
 
-export function TaxonomyToggleRow({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
+export function TaxonomyToggleRow({ label, desc, value, onChange, disabled }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className={`flex items-center gap-2.5${disabled ? " opacity-50 pointer-events-none" : ""}`}>
       <button type="button" onClick={() => onChange(!value)}
         aria-pressed={value}
+        disabled={disabled}
         style={{
           width: 32, height: 18, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
           background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
