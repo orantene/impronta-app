@@ -1,26 +1,20 @@
 // On-demand talent tax/income summary (PR-H, L47).
 //
 // Server route. Reads `loadTalentEarnings(talentProfileId, { sinceISO })`
-// for the requested year and returns a print-friendly HTML income
-// summary the talent can save as PDF from the browser. Platform-
-// reported earnings only — off-platform self-declared earnings are
-// surfaced informationally elsewhere and intentionally never appear
-// in this output (legal-exposure reasoning in L47).
-//
-// Native-PDF rendering (pdf-lib / @react-pdf/renderer) is a follow-up
-// once a dependency is sanctioned; the HTML body is structured so a
-// future PDF generator can consume the same `loadTalentEarnings`
-// source without surface drift.
+// for the requested year and returns a printable PDF income summary.
+// Platform-reported earnings only — off-platform self-declared earnings
+// are intentionally excluded (legal-exposure reasoning in L47).
 
 import { NextResponse } from "next/server";
+import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { loadTalentEarnings } from "@/lib/talent/earnings";
 
 export const dynamic = "force-dynamic";
 
-function eur(cents: number, currency = "EUR"): string {
+function fmt(cents: number, currency = "EUR"): string {
   try {
-    return new Intl.NumberFormat("en-EU", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency,
       minimumFractionDigits: 0,
@@ -31,12 +25,15 @@ function eur(cents: number, currency = "EUR"): string {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+const PAGE_W = PageSizes.A4[0]; // 595.28
+const PAGE_H = PageSizes.A4[1]; // 841.89
+const ML = 50;  // margin left
+const MR = 50;  // margin right
+const CW = PAGE_W - ML - MR; // content width
+
+// y coordinates are from bottom in pdf-lib; we track a cursor from the top.
+function yFromTop(cursor: number): number {
+  return PAGE_H - cursor;
 }
 
 export async function GET(request: Request) {
@@ -57,120 +54,277 @@ export async function GET(request: Request) {
   const sinceISO = `${year}-01-01T00:00:00.000Z`;
   const earnings = await loadTalentEarnings(guard.talentProfile.id, { sinceISO });
 
-  const talentName = escapeHtml(guard.talentProfile.displayName ?? "Talent");
-  const profileCode = escapeHtml(guard.talentProfile.profileCode ?? "");
-  const totals = earnings.totals;
-  const generatedAt = new Date().toISOString();
+  const talentName = guard.talentProfile.displayName ?? "Talent";
+  const profileCode = guard.talentProfile.profileCode ?? "";
+  const { totals } = earnings;
+  const generatedAt = new Date().toUTCString();
 
-  const perAgencyRows = earnings.perAgency
-    .map((a) => `
-      <tr>
-        <td>${escapeHtml(a.name)}</td>
-        <td class="num">${a.bookingsCount}</td>
-        <td class="num">${eur(a.ytdNetCents)}</td>
-        <td>${a.lastBookingAt ? escapeHtml(a.lastBookingAt) : "&mdash;"}</td>
-      </tr>
-    `)
-    .join("");
+  // ── Build PDF ──────────────────────────────────────────────────
+  const pdfDoc = await PDFDocument.create();
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  const bookingRows = earnings.rows
-    .map((r) => `
-      <tr>
-        <td>${escapeHtml(r.workDate)}</td>
-        <td>${escapeHtml(r.agencyName)}</td>
-        <td>${escapeHtml(r.client)}</td>
-        <td class="num">${eur(r.grossCents)}</td>
-        <td class="num">${eur(r.netCents)}</td>
-        <td>${escapeHtml(r.status)}</td>
-      </tr>
-    `)
-    .join("");
+  const black = rgb(0.043, 0.043, 0.051);   // #0B0B0D
+  const muted = rgb(0.44, 0.44, 0.47);
+  const border = rgb(0.82, 0.82, 0.84);
+  const white = rgb(1, 1, 1);
 
-  const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Income summary ${year} — ${talentName}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    @page { size: A4; margin: 18mm 16mm; }
-    @media print {
-      .no-print { display: none !important; }
-      body { color: #000; }
+  // We may need multiple pages; helper to add a fresh page.
+  let page = pdfDoc.addPage(PageSizes.A4);
+  let cursor = 48; // distance from top
+
+  function ensureSpace(needed: number) {
+    if (cursor + needed > PAGE_H - 40) {
+      page = pdfDoc.addPage(PageSizes.A4);
+      cursor = 48;
     }
-    body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: #0B0B0D;
-      max-width: 880px;
-      margin: 40px auto;
-      padding: 24px;
-      line-height: 1.45;
-    }
-    h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.2px; }
-    h2 { font-size: 14px; margin: 28px 0 8px; letter-spacing: 0.2px; text-transform: uppercase; color: rgba(11,11,13,0.55); }
-    .meta { font-size: 12px; color: rgba(11,11,13,0.55); margin-bottom: 18px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 8px 0; }
-    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(24,24,27,0.10); }
-    th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(11,11,13,0.55); }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-    .tile { border: 1px solid rgba(24,24,27,0.10); padding: 10px 12px; border-radius: 8px; }
-    .tile .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(11,11,13,0.55); }
-    .tile .value { font-size: 18px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
-    .note { background: rgba(11,11,13,0.04); border-left: 3px solid rgba(11,11,13,0.20); padding: 10px 12px; font-size: 12px; color: rgba(11,11,13,0.65); border-radius: 4px; margin: 20px 0; }
-    .print-btn { display: inline-block; padding: 8px 14px; background: #0B0B0D; color: #fff; border-radius: 7px; font-size: 13px; text-decoration: none; cursor: pointer; border: none; font-family: inherit; }
-  </style>
-</head>
-<body>
-  <div class="no-print" style="margin-bottom: 18px;">
-    <button class="print-btn" onclick="window.print()">Save as PDF / Print</button>
-  </div>
-
-  <h1>Income summary &mdash; ${year}</h1>
-  <div class="meta">
-    ${talentName}${profileCode ? ` &middot; <span style="font-family: monospace">${profileCode}</span>` : ""}
-    &middot; Generated ${escapeHtml(generatedAt)}
-  </div>
-
-  <div class="totals">
-    <div class="tile"><div class="label">YTD net</div><div class="value">${eur(totals.ytdNetCents, totals.currency)}</div></div>
-    <div class="tile"><div class="label">YTD gross</div><div class="value">${eur(totals.ytdGrossCents, totals.currency)}</div></div>
-    <div class="tile"><div class="label">Pending</div><div class="value">${eur(totals.pendingCents, totals.currency)}</div></div>
-    <div class="tile"><div class="label">Confirmed pipeline</div><div class="value">${eur(totals.confirmedPipelineCents, totals.currency)}</div></div>
-  </div>
-
-  <h2>Per agency</h2>
-  ${earnings.perAgency.length === 0
-    ? '<p style="font-size: 12.5px; color: rgba(11,11,13,0.55)">No agency earnings in this period.</p>'
-    : `<table>
-        <thead><tr><th>Agency</th><th class="num">Bookings</th><th class="num">Net</th><th>Last booking</th></tr></thead>
-        <tbody>${perAgencyRows}</tbody>
-      </table>`
   }
 
-  <h2>Bookings</h2>
-  ${earnings.rows.length === 0
-    ? '<p style="font-size: 12.5px; color: rgba(11,11,13,0.55)">No bookings in this period.</p>'
-    : `<table>
-        <thead><tr><th>Date</th><th>Agency</th><th>Client</th><th class="num">Gross</th><th class="num">Net</th><th>Status</th></tr></thead>
-        <tbody>${bookingRows}</tbody>
-      </table>`
+  function drawText(
+    text: string,
+    opts: {
+      x?: number;
+      size?: number;
+      bold?: boolean;
+      color?: ReturnType<typeof rgb>;
+      align?: "left" | "right" | "center";
+      maxWidth?: number;
+    } = {},
+  ) {
+    const f = opts.bold ? fontBold : font;
+    const size = opts.size ?? 10;
+    const color = opts.color ?? black;
+    const x = opts.x ?? ML;
+    const maxWidth = opts.maxWidth ?? CW;
+
+    // Truncate text if it would overflow.
+    let t = text;
+    while (t.length > 1 && f.widthOfTextAtSize(t, size) > maxWidth) {
+      t = t.slice(0, -1);
+    }
+
+    let drawX = x;
+    if (opts.align === "right") {
+      drawX = x + maxWidth - f.widthOfTextAtSize(t, size);
+    } else if (opts.align === "center") {
+      drawX = x + (maxWidth - f.widthOfTextAtSize(t, size)) / 2;
+    }
+
+    page.drawText(t, {
+      x: drawX,
+      y: yFromTop(cursor),
+      size,
+      font: f,
+      color,
+    });
   }
 
-  <div class="note">
-    Tulala reports your <strong>platform earnings only</strong>. Off-platform
-    work you declared in Tulala is not included in this summary. Tax
-    obligations on these amounts depend on your jurisdiction &mdash; this
-    document is informational and does not constitute a tax filing.
-  </div>
-</body>
-</html>`;
+  function drawHRule(color: ReturnType<typeof rgb> = border, thickness = 0.5) {
+    page.drawLine({
+      start: { x: ML, y: yFromTop(cursor) },
+      end: { x: PAGE_W - MR, y: yFromTop(cursor) },
+      thickness,
+      color,
+    });
+  }
 
-  return new Response(html, {
+  // ── Header ──────────────────────────────────────────────────────
+  drawText(`Income Summary — ${year}`, { size: 18, bold: true });
+  cursor += 24;
+  const subtitle = profileCode
+    ? `${talentName}  ·  ${profileCode}  ·  Generated ${generatedAt}`
+    : `${talentName}  ·  Generated ${generatedAt}`;
+  drawText(subtitle, { size: 9, color: muted });
+  cursor += 16;
+  drawHRule(black, 1);
+  cursor += 18;
+
+  // ── Totals strip ────────────────────────────────────────────────
+  const tiles = [
+    { label: "YTD Net", value: fmt(totals.ytdNetCents, totals.currency) },
+    { label: "YTD Gross", value: fmt(totals.ytdGrossCents, totals.currency) },
+    { label: "Pending", value: fmt(totals.pendingCents, totals.currency) },
+    { label: "Pipeline", value: fmt(totals.confirmedPipelineCents, totals.currency) },
+  ];
+  const tileW = CW / 4 - 6;
+  tiles.forEach((tile, i) => {
+    const tx = ML + i * (tileW + 8);
+    // Box
+    page.drawRectangle({
+      x: tx,
+      y: yFromTop(cursor + 42),
+      width: tileW,
+      height: 42,
+      color: rgb(0.97, 0.97, 0.98),
+      borderColor: border,
+      borderWidth: 0.5,
+    });
+    // Label
+    page.drawText(tile.label.toUpperCase(), {
+      x: tx + 8,
+      y: yFromTop(cursor + 16),
+      size: 7,
+      font,
+      color: muted,
+    });
+    // Value
+    page.drawText(tile.value, {
+      x: tx + 8,
+      y: yFromTop(cursor + 34),
+      size: 13,
+      font: fontBold,
+      color: black,
+    });
+  });
+  cursor += 54;
+
+  // ── Section: Per Agency ─────────────────────────────────────────
+  cursor += 4;
+  drawText("PER AGENCY", { size: 8, bold: true, color: muted });
+  cursor += 14;
+  drawHRule();
+  cursor += 10;
+
+  if (earnings.perAgency.length === 0) {
+    drawText("No agency earnings in this period.", { size: 9, color: muted });
+    cursor += 14;
+  } else {
+    // Table header
+    const agencyCols = [
+      { label: "Agency", x: ML, w: 200, align: "left" as const },
+      { label: "Bookings", x: ML + 200, w: 70, align: "right" as const },
+      { label: "Net", x: ML + 270, w: 100, align: "right" as const },
+      { label: "Last Booking", x: ML + 370, w: CW - 370, align: "right" as const },
+    ];
+    agencyCols.forEach((col) => {
+      page.drawText(col.label.toUpperCase(), {
+        x: col.align === "right" ? col.x + col.w - font.widthOfTextAtSize(col.label.toUpperCase(), 7) : col.x,
+        y: yFromTop(cursor),
+        size: 7,
+        font,
+        color: muted,
+      });
+    });
+    cursor += 12;
+    drawHRule();
+    cursor += 8;
+
+    for (const agency of earnings.perAgency) {
+      ensureSpace(18);
+      const rowData = [
+        { text: agency.name, col: agencyCols[0] },
+        { text: String(agency.bookingsCount), col: agencyCols[1] },
+        { text: fmt(agency.ytdNetCents), col: agencyCols[2] },
+        { text: agency.lastBookingAt ?? "—", col: agencyCols[3] },
+      ];
+      rowData.forEach(({ text, col }) => {
+        const textW = font.widthOfTextAtSize(text, 9);
+        const drawX = col.align === "right"
+          ? col.x + col.w - Math.min(textW, col.w)
+          : col.x;
+        let t = text;
+        while (t.length > 1 && font.widthOfTextAtSize(t, 9) > col.w - 4) {
+          t = t.slice(0, -1);
+        }
+        page.drawText(t, { x: drawX, y: yFromTop(cursor), size: 9, font, color: black });
+      });
+      cursor += 14;
+    }
+  }
+
+  // ── Section: Bookings ───────────────────────────────────────────
+  cursor += 8;
+  ensureSpace(80);
+  drawText("BOOKINGS", { size: 8, bold: true, color: muted });
+  cursor += 14;
+  drawHRule();
+  cursor += 10;
+
+  if (earnings.rows.length === 0) {
+    drawText("No bookings in this period.", { size: 9, color: muted });
+    cursor += 14;
+  } else {
+    const bookCols = [
+      { label: "Date", x: ML, w: 72, align: "left" as const },
+      { label: "Agency", x: ML + 72, w: 110, align: "left" as const },
+      { label: "Client", x: ML + 182, w: 110, align: "left" as const },
+      { label: "Gross", x: ML + 292, w: 70, align: "right" as const },
+      { label: "Net", x: ML + 362, w: 70, align: "right" as const },
+      { label: "Status", x: ML + 432, w: CW - 432, align: "right" as const },
+    ];
+    bookCols.forEach((col) => {
+      page.drawText(col.label.toUpperCase(), {
+        x: col.align === "right" ? col.x + col.w - font.widthOfTextAtSize(col.label.toUpperCase(), 7) : col.x,
+        y: yFromTop(cursor),
+        size: 7,
+        font,
+        color: muted,
+      });
+    });
+    cursor += 12;
+    drawHRule();
+    cursor += 8;
+
+    for (const row of earnings.rows) {
+      ensureSpace(18);
+      const rowData = [
+        { text: row.workDate, col: bookCols[0] },
+        { text: row.agencyName, col: bookCols[1] },
+        { text: row.client, col: bookCols[2] },
+        { text: fmt(row.grossCents), col: bookCols[3] },
+        { text: fmt(row.netCents), col: bookCols[4] },
+        { text: row.status, col: bookCols[5] },
+      ];
+      rowData.forEach(({ text, col }) => {
+        let t = text;
+        while (t.length > 1 && font.widthOfTextAtSize(t, 9) > col.w - 4) {
+          t = t.slice(0, -1);
+        }
+        const textW = font.widthOfTextAtSize(t, 9);
+        const drawX = col.align === "right" ? col.x + col.w - textW : col.x;
+        page.drawText(t, { x: drawX, y: yFromTop(cursor), size: 9, font, color: black });
+      });
+      cursor += 14;
+    }
+  }
+
+  // ── Disclaimer ──────────────────────────────────────────────────
+  ensureSpace(40);
+  cursor += 12;
+  drawHRule();
+  cursor += 10;
+  const disclaimer =
+    "Tulala reports platform earnings only. Off-platform work declared in Tulala is not included. " +
+    "Tax obligations depend on your jurisdiction — this document is informational, not a tax filing.";
+  // Word-wrap disclaimer
+  const words = disclaimer.split(" ");
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(test, 8) > CW) {
+      drawText(line, { size: 8, color: muted });
+      cursor += 12;
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) {
+    drawText(line, { size: 8, color: muted });
+    cursor += 12;
+  }
+
+  // ── Serialize ────────────────────────────────────────────────────
+  // pdf-lib returns Uint8Array<ArrayBufferLike>; Node.js Response expects
+  // BodyInit (ArrayBuffer / BufferSource). Wrapping via Buffer satisfies
+  // both the runtime and TS 5.7+ generic-Uint8Array constraint.
+  const pdfBytes = Buffer.from(await pdfDoc.save());
+
+  return new Response(pdfBytes, {
     status: 200,
     headers: {
-      "content-type": "text/html; charset=utf-8",
-      // Talent-specific data; never cache.
+      "content-type": "application/pdf",
+      "content-disposition": `attachment; filename="income-summary-${year}.pdf"`,
       "cache-control": "private, no-store",
     },
   });
