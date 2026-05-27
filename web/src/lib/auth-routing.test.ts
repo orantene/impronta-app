@@ -220,3 +220,64 @@ test("active users may continue into workspace signup onboarding", () => {
     "/onboarding/workspace?lead=abc123",
   );
 });
+
+// ─── ?next= preservation for already-logged-in users on /login or /register ───
+
+test("logged-in user on /login with safe ?next= is redirected to the next path, not their dashboard", () => {
+  const decision = resolveAuthRoutingDecision({
+    pathname: "/login",
+    userId: "user-1",
+    sessionProfile: activeClient,
+    routingProfile: activeClient,
+    isImpersonating: false,
+    nextParam: "/onboarding/workspace?lead=abc-123",
+  });
+  assert.equal(decision.redirectTo, "/onboarding/workspace?lead=abc-123");
+});
+
+test("logged-in user on /register with safe ?next= is redirected to the next path", () => {
+  const decision = resolveAuthRoutingDecision({
+    pathname: "/register",
+    userId: "user-1",
+    sessionProfile: activeTalent,
+    routingProfile: activeTalent,
+    isImpersonating: false,
+    nextParam: "/onboarding/workspace?lead=xyz",
+  });
+  assert.equal(decision.redirectTo, "/onboarding/workspace?lead=xyz");
+});
+
+test("logged-in user on /login WITHOUT ?next= still bounces to their dashboard", () => {
+  const decision = resolveAuthRoutingDecision({
+    pathname: "/login",
+    userId: "user-1",
+    sessionProfile: activeAdmin,
+    routingProfile: activeAdmin,
+    isImpersonating: false,
+  });
+  assert.equal(decision.redirectTo, "/admin");
+});
+
+test("logged-in user on /login with protocol-relative ?next= falls back to dashboard (no open redirect)", () => {
+  const decision = resolveAuthRoutingDecision({
+    pathname: "/login",
+    userId: "user-1",
+    sessionProfile: activeAdmin,
+    routingProfile: activeAdmin,
+    isImpersonating: false,
+    nextParam: "//evil.example/admin",
+  });
+  assert.equal(decision.redirectTo, "/admin");
+});
+
+test("logged-in user on /login with empty ?next= falls back to dashboard", () => {
+  const decision = resolveAuthRoutingDecision({
+    pathname: "/login",
+    userId: "user-1",
+    sessionProfile: activeAdmin,
+    routingProfile: activeAdmin,
+    isImpersonating: false,
+    nextParam: "",
+  });
+  assert.equal(decision.redirectTo, "/admin");
+});
