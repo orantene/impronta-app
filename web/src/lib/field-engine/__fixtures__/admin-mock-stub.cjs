@@ -6,10 +6,21 @@
 //
 // Two queries _loadBridgedKeyDecisionsUncached makes:
 //   1. profile_field_definitions SELECT … IN (canonicalKeys)  → from mock state
-//   2. workspace_profile_field_settings SELECT … tenant_id=X  → always empty
+//   2. workspace_profile_field_settings SELECT … tenant_id=X  → from mock state
 //
 // Tests control canonical decisions via:
-//   global.__SURFACE_VIS_MOCK__.set({ height_cm: { isPublic, showInDirectory, is_sensitive?, admin_only? } })
+//   global.__SURFACE_VIS_MOCK__.set({
+//     height_cm: { isPublic, showInDirectory, showInDirectoryFilter?,
+//                  showInDirectoryCard?, showInPublicProfileSidebar?,
+//                  is_sensitive?, admin_only? }
+//   })
+// Phase 2: if the per-sub-surface flags are omitted they default to
+// `showInDirectory` (filter+card) and `isPublic` (sidebar) so pre-Phase 2
+// fixtures keep working without a forced rewrite of every test.
+//
+// Tenant overrides (workspace_profile_field_settings) are controlled via
+// global.__SURFACE_VIS_MOCK__.setTenantOverrides — installed alongside
+// `.set` in register-surface-vis-test.cjs.
 
 const OLD_TO_NEW_KEY = {
   "body_type":               "physical.body_type",
@@ -31,34 +42,75 @@ const OLD_TO_NEW_KEY = {
   "website_url":             "media.website_url",
 };
 
+// Phase 2 Sub-Task 0.5: seven section-gate keys whose canonical row was
+// added by migration 20260527063534. `gender` namespaces to
+// `identity.gender`; the other six are self-mapping. Must stay in sync
+// with TAXONOMY_SECTION_CANONICAL_KEYS in public-surface-visibility.ts.
+const TAXONOMY_SECTION_CANONICAL_KEYS = {
+  fit_labels:  "fit_labels",
+  industries:  "industries",
+  event_types: "event_types",
+  tags:        "tags",
+  skills:      "skills",
+  languages:   "languages",
+  gender:      "identity.gender",
+};
+
+const ALL_BRIDGED_KEYS = { ...OLD_TO_NEW_KEY, ...TAXONOMY_SECTION_CANONICAL_KEYS };
+
 function buildDefRowsFromMockState() {
   const mock = global.__SURFACE_VIS_MOCK__;
   if (!mock) return [];
   const rows = [];
   let counter = 1;
-  for (const [oldKey, newKey] of Object.entries(OLD_TO_NEW_KEY)) {
-    const dec = mock.canonicalDecisions.get(oldKey);
+  for (const [legacyKey, canonicalKey] of Object.entries(ALL_BRIDGED_KEYS)) {
+    const dec = mock.canonicalDecisions.get(legacyKey);
     if (!dec) continue;
-    // Build a canonical row that effectiveFieldVisibility will interpret as
-    // the desired isPublic / showInDirectory.
-    //
-    //   dec.is_sensitive=true   → is_sensitive=true  (admin floor regardless of default_visibility)
-    //   dec.admin_only=true     → admin_only=true    (admin floor regardless of default_visibility)
-    //   dec.isPublic=true       → default_visibility=["public"], no floor flags
-    //   dec.isPublic=false      → default_visibility=[], admin_only=true (catch-all non-public)
-    //
-    // Using explicit flags from dec when provided; defaulting based on isPublic otherwise.
-    const isSensitive  = dec.is_sensitive  ?? false;
-    const isAdminOnly  = dec.admin_only   ?? (!dec.isPublic && !isSensitive);
+    const isSensitive = dec.is_sensitive ?? false;
+    const isAdminOnly = dec.admin_only   ?? (!dec.isPublic && !isSensitive);
     rows.push({
       id: `mock-def-${counter++}`,
-      field_key: newKey,
+      field_key: canonicalKey,
       default_visibility: dec.isPublic ? ["public", "agency"] : [],
       admin_only: isAdminOnly,
       is_sensitive: isSensitive,
       show_in_public: dec.isPublic,
       show_in_directory: dec.showInDirectory,
+      show_in_directory_filter:
+        dec.showInDirectoryFilter ?? dec.showInDirectory ?? false,
+      show_in_directory_card:
+        dec.showInDirectoryCard ?? dec.showInDirectory ?? false,
+      show_in_public_profile_sidebar:
+        dec.showInPublicProfileSidebar ?? dec.isPublic ?? false,
       deprecated_at: null,
+    });
+  }
+  return rows;
+}
+
+function buildTenantOverrideRowsFromMockState() {
+  const mock = global.__SURFACE_VIS_MOCK__;
+  if (!mock || !mock.tenantOverrides || mock.tenantOverrides.size === 0) return [];
+  const defRows = buildDefRowsFromMockState();
+  const defIdByCanonicalKey = new Map(defRows.map((r) => [r.field_key, r.id]));
+  const rows = [];
+  for (const [legacyKey, override] of mock.tenantOverrides.entries()) {
+    const canonicalKey = ALL_BRIDGED_KEYS[legacyKey];
+    const fieldDefinitionId = defIdByCanonicalKey.get(canonicalKey);
+    if (!fieldDefinitionId) continue;
+    rows.push({
+      field_definition_id: fieldDefinitionId,
+      enabled_override: override.enabled_override ?? null,
+      show_in_public_override: override.show_in_public_override ?? null,
+      show_in_directory_override: override.show_in_directory_override ?? null,
+      admin_only_override: override.admin_only_override ?? null,
+      default_visibility_override: override.default_visibility_override ?? null,
+      show_in_directory_filter_override:
+        override.show_in_directory_filter_override ?? null,
+      show_in_directory_card_override:
+        override.show_in_directory_card_override ?? null,
+      show_in_public_profile_sidebar_override:
+        override.show_in_public_profile_sidebar_override ?? null,
     });
   }
   return rows;
@@ -90,7 +142,9 @@ function createServiceRoleClient() {
       if (table === 'profile_field_definitions') {
         return buildQuery(buildDefRowsFromMockState());
       }
-      // workspace_profile_field_settings: always empty (no tenant overrides needed in unit tests).
+      if (table === 'workspace_profile_field_settings') {
+        return buildQuery(buildTenantOverrideRowsFromMockState());
+      }
       return buildQuery([]);
     },
   };

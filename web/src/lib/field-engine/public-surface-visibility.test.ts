@@ -42,6 +42,14 @@ const mock = (global as any).__SURFACE_VIS_MOCK__ as {
 
 // ─── Fixture factories ────────────────────────────────────────────────────────
 
+// Default key: `location` is the only canonical-key-free row remaining
+// after Phase 2 (Sub-Task 0.5 added canonical rows for fit_labels, skills,
+// languages, industries, event_types, tags, gender — those keys now route
+// through the bridged-canonical path). Tests that want non-bridged
+// behaviour use this default; tests that exercise bridged behaviour
+// override `key` explicitly.
+const NON_BRIDGED_DEFAULT_KEY = "location";
+
 /** Legacy row shape for the FILTER helper — all "good" flags by default. */
 function filterField(overrides: Partial<{
   key: string;
@@ -54,7 +62,7 @@ function filterField(overrides: Partial<{
   internal_only: boolean | null;
 }> = {}) {
   return {
-    key: "fit_labels",
+    key: NON_BRIDGED_DEFAULT_KEY,
     directory_filter_visible: true,
     active: true,
     archived_at: null,
@@ -78,7 +86,7 @@ function cardField(overrides: Partial<{
   internal_only: boolean;
 }> = {}) {
   return {
-    key: "fit_labels",
+    key: NON_BRIDGED_DEFAULT_KEY,
     card_visible: true,
     active: true,
     archived_at: null,
@@ -101,7 +109,7 @@ function sidebarField(overrides: Partial<{
   internal_only: boolean;
 }> = {}) {
   return {
-    key: "skills",
+    key: NON_BRIDGED_DEFAULT_KEY,
     active: true,
     archived_at: null,
     tenant_id: null,
@@ -257,8 +265,11 @@ test("!public_visible: non-bridged blocked from public_profile_sidebar", async (
 
 test("internal_only: non-bridged blocked from directory_filter", async () => {
   mock.clear();
+  // Phase 2: `skills` is now bridged (canonical row added in Sub-Task 0.5).
+  // Use `location` to keep this as a true non-bridged test of step-5
+  // synthetic-legacy-visibility.
   assert.equal(
-    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "skills", internal_only: true }), ctx),
+    await isResolvedFieldVisibleInDirectoryFilter(filterField({ key: "location", internal_only: true }), ctx),
     false,
   );
 });
@@ -472,7 +483,9 @@ const LEAK_CONDITIONS: Array<{
 }> = [
   { label: "active=false",               patch: (b) => ({ ...b, active: false }) },
   { label: "archived_at not null",        patch: (b) => ({ ...b, archived_at: "2026-01-01T00:00:00Z" }) },
-  { label: "internal_only=true",          patch: (b) => ({ ...b, internal_only: true, key: "skills" }) },
+  // Phase 2: `skills` is now bridged; use `location` (true non-bridged
+  // legacy key with no canonical row) to exercise the synthetic step-5 path.
+  { label: "internal_only=true",          patch: (b) => ({ ...b, internal_only: true, key: "location" }) },
   { label: "public_visible=false",        patch: (b) => ({ ...b, public_visible: false }) },
   {
     label: "tenant surface flag disabled",
