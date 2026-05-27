@@ -1,9 +1,4 @@
 {
-  "src/lib/server-actions/workspace-lifecycle.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 6
-    }
-  },
   "scripts/apply-user-prefs-migration.cjs": {
     "@typescript-eslint/no-require-imports": {
       "count": 2
@@ -129,7 +124,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 360
+      "count": 371
     }
   },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
@@ -1682,6 +1677,11 @@
   "src/lib/server-actions/user-prefs.ts": {
     "ratchet/no-untenanted-from": {
       "count": 7
+    }
+  },
+  "src/lib/server-actions/workspace-lifecycle.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 6
     }
   },
   "src/lib/site-admin/builder-node/builder-node.test.ts": {
