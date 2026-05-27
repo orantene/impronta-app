@@ -7,17 +7,29 @@
 // path (use the Roster tab's Invite/Add flow after approval). This is
 // intentional; one source of truth for roster inserts.
 
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { loadAgencyApplications } from "@/lib/talent/apply-loaders";
 import { AdminApplicationsClient } from "@/components/admin/applications/AdminApplicationsClient";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+
+async function loadAcceptsApplications(tenantId: string): Promise<boolean> {
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { data } = await admin
+    .from("agencies")
+    .select("accepts_open_applications")
+    .eq("id", tenantId)
+    .maybeSingle();
+  return (data as { accepts_open_applications: boolean } | null)?.accepts_open_applications ?? false;
+}
 
 export default async function AdminRosterApplicationsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
@@ -30,7 +42,10 @@ export default async function AdminRosterApplicationsPage({ params }: { params: 
   if (!canView) notFound();
   const canDecide = await userHasCapability("manage_talent_roster", scope.tenantId);
 
-  const applications = await loadAgencyApplications(scope.tenantId);
+  const [applications, acceptsApplications] = await Promise.all([
+    loadAgencyApplications(scope.tenantId),
+    loadAcceptsApplications(scope.tenantId),
+  ]);
   // If a workspace owner hasn't opted in yet, surface a hint.
   const optInHint = applications.length === 0;
 
@@ -54,6 +69,7 @@ export default async function AdminRosterApplicationsPage({ params }: { params: 
         canDecide={canDecide}
         showOptInHint={optInHint}
         tenantSlug={tenantSlug}
+        acceptsApplications={acceptsApplications}
       />
     </div>
   );

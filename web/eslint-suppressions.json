@@ -927,6 +927,9 @@
   "src/components/admin/shell/internal/talent-drawers/events.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 37
+    },
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/talent-drawers/monetization.tsx": {

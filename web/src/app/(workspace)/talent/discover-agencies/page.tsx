@@ -9,6 +9,13 @@
 // Apply submission goes through `submitAgencyApplication` /
 // `submitHubApplication` server actions (web/src/lib/talent/apply-actions.ts).
 // Withdraw goes through `withdrawOwnApplication`.
+//
+// Capability gate (L48): `talent.agency.apply` / `talent.hub.apply`.
+// Current policy: all plans (Basic / Pro / Portfolio) can apply — the gate
+// is implicit: requireTalentSelf() ensures a talent profile exists.
+// When a future spec restricts apply to a paid plan, add:
+//   if (guard.talentProfile.talentPlanKey === "talent_basic" && APPLY_REQUIRES_PRO) notFound();
+// here before the loaders.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
