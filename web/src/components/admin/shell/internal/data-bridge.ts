@@ -171,7 +171,7 @@ export type BridgeData = {
    * expose the primary bundle as a plain `TalentEarnings` for backward-compat
    * consumers (IdentityBar KPI strip, useResolvedTalentEarnings fallback).
    */
-  talentEarnings?: import("@/lib/talent/earnings-by-currency").TalentEarningsByCurrency | null;
+  talentEarnings?: import("@/lib/talent/earnings-by-currency-types").TalentEarningsByCurrency | null;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**

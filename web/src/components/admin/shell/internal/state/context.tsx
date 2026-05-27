@@ -15,8 +15,17 @@ import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder } from "../data-bridge";
 import type { TalentEarnings } from "@/lib/talent/earnings-types";
-import type { TalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
-import { primaryBundleOrEmpty, EMPTY_TALENT_EARNINGS_BY_CURRENCY } from "@/lib/talent/earnings-by-currency";
+// Client-safe types module (does NOT import `server-only`). The matching
+// server loader lives in `earnings-by-currency.ts` and is invoked only from
+// server components (talent layout). This file is a client React context, so
+// it imports the type + helpers from the pure module to keep the
+// `server-only` marker out of the client bundle (Next 16 Turbopack errors
+// otherwise — see prior build failure on this branch's first push).
+import {
+  EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+  primaryBundleOrEmpty,
+  type TalentEarningsByCurrency,
+} from "@/lib/talent/earnings-by-currency-types";
 import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-flags-tenant-slug";
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";

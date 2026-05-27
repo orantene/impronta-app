@@ -8,29 +8,23 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import {
   buildTalentEarnings,
-  EMPTY_TALENT_EARNINGS,
   type TalentEarnings,
   type TalentSnapshotAggregateRow,
 } from "@/lib/talent/earnings-types";
+// Re-export the type + client-safe helpers from the pure types module so
+// existing server-side import sites keep working without churn. Client
+// components import these directly from `earnings-by-currency-types` to
+// avoid pulling `server-only` into the client bundle.
+import {
+  EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+  type TalentEarningsByCurrency,
+} from "@/lib/talent/earnings-by-currency-types";
 
-export type TalentEarningsByCurrency = {
-  /** ISO-4217 code from `talent_profiles.default_currency`. Selected first in tabs. */
-  defaultCurrency: string;
-  /**
-   * Per-currency bundles, sorted with `defaultCurrency` first then by
-   * ytdNetCents descending. Empty when the talent has no snapshot rows of
-   * any currency.
-   */
-  byCurrency: TalentEarnings[];
-  /** All non-empty currency codes for tab labels. */
-  currencies: string[];
-};
-
-export const EMPTY_TALENT_EARNINGS_BY_CURRENCY: TalentEarningsByCurrency = {
-  defaultCurrency: "EUR",
-  byCurrency: [],
-  currencies: [],
-};
+export {
+  EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+  primaryBundleOrEmpty,
+  type TalentEarningsByCurrency,
+} from "@/lib/talent/earnings-by-currency-types";
 
 function defaultYtdSinceIso(): string {
   const year = new Date().getUTCFullYear();
@@ -122,14 +116,5 @@ export const loadTalentEarningsByCurrency = cache(
   },
 );
 
-/**
- * Convenience helper: extract the primary-currency `TalentEarnings` bundle
- * from a `TalentEarningsByCurrency` result. Returns `EMPTY_TALENT_EARNINGS`
- * when `byCurrency` is empty (no snapshot rows yet). Used by the bridge
- * to keep backward-compat consumers working without changes.
- */
-export function primaryBundleOrEmpty(
-  earningsByCurrency: TalentEarningsByCurrency,
-): TalentEarnings {
-  return earningsByCurrency.byCurrency[0] ?? EMPTY_TALENT_EARNINGS;
-}
+// `primaryBundleOrEmpty` lives in `earnings-by-currency-types.ts` (client-safe)
+// and is re-exported at the top of this file.
