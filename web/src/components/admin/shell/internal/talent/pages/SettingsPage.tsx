@@ -1,5 +1,6 @@
 "use client";
 
+import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { PasskeysCard } from "../../modern-features";
 import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot } from "../../primitives";
@@ -59,6 +60,14 @@ export function SettingsPage() {
             talentSiteHidden: a.talentSiteHidden,
           }))}
         />
+      )}
+
+      {/* L49 — Default currency picker. Gated on a real bridged profile
+          for the same reason as ProfileVisibility — the prototype's mock
+          user has no `talent_profiles` row, so the talent-self guard
+          would fail. */}
+      {bridgeTalentSelfProfile && (
+        <DefaultCurrencyCard />
       )}
 
       {/* Trust & Verification — talent's view of their own trust state */}
