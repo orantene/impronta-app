@@ -107,8 +107,18 @@ export async function proxy(request: NextRequest) {
     // Branded 404 page for unregistered hosts — must bypass host gating to
     // avoid infinite rewrite loops when the middleware rewrites here.
     pathname === "/_host-unregistered" ||
-    // Dev-only sign-in shortcut — blocked by the route handler in production
-    (process.env.NODE_ENV === "development" && pathname.startsWith("/api/dev/"))
+    // Dev sign-in shortcut — host-resolution bypass.
+    //   - NODE_ENV=development: local `npm run dev`, allowed unconditionally
+    //   - VERCEL_ENV=preview: Vercel preview deploys, allowed because previews
+    //     are themselves SSO-gated by the Vercel team-auth wall — anonymous
+    //     visitors hit a 401 long before reaching this middleware. Lets
+    //     agents + manual QA hit /api/dev/signin on staging-funnel previews
+    //     without needing the full Supabase auth flow.
+    //   - VERCEL_ENV=production: NOT allowed; the route handler additionally
+    //     refuses to serve in production as defense-in-depth.
+    ((process.env.NODE_ENV === "development" ||
+      process.env.VERCEL_ENV === "preview") &&
+      pathname.startsWith("/api/dev/"))
   ) {
     return NextResponse.next();
   }
