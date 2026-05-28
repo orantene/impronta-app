@@ -52,15 +52,23 @@ function isDevOnlyHostname(host: string): boolean {
 }
 
 /**
- * Resolve the canonical app-host origin (e.g. `https://app.pdcvacations.com`).
+ * Resolve the canonical app-host origin (e.g. `https://app.tulala.digital`).
  *
- * Lookup order:
- *   1. `agency_domains` row where `kind='app'` AND status IN active set —
- *      the DB-driven answer, always correct in production.
- *   2. `NEXT_PUBLIC_APP_URL` env var — useful in local dev when the DB is
- *      not reachable or has no app-host row.
- *   3. `NEXT_PUBLIC_SITE_URL` env var — last-resort fallback; many repos
- *      already set this and it's better than emitting a bare path.
+ * Lookup order (PRIORITY INVERTED 2026-05-27):
+ *   1. `NEXT_PUBLIC_APP_URL` env var — the deploy-bound answer. On Vercel
+ *      this is set per-environment and is ALWAYS the right canonical host
+ *      for the running deployment.
+ *   2. `NEXT_PUBLIC_SITE_URL` env var — older repos use this; fall back to
+ *      it before touching the DB.
+ *   3. `agency_domains` row where `kind='app'` AND status IN active set,
+ *      filtered to exclude dev-only hostnames and sorted alphabetically.
+ *      Only reached if BOTH env vars are unset (e.g. some local dev setups).
+ *
+ * Why env-var-first: the DB has multiple kind='app' rows in production
+ * (one per agency that white-labeled a Tulala instance). Picking by sort
+ * was wrong — `app.pdcvacations.com` won over `app.tulala.digital` even
+ * for Impronta talents, leaking another tenant's host into Impronta's
+ * JSON-LD. The env var pinned to this deploy is the unambiguous answer.
  *
  * Returns `null` only when every source is empty; callers should degrade
  * gracefully (e.g. omit the canonical tag rather than emit a broken URL).
@@ -68,9 +76,9 @@ function isDevOnlyHostname(host: string): boolean {
 export async function getCanonicalAppHostOrigin(): Promise<string | null> {
   if (cache && cache.expiresAt > Date.now()) return cache.origin;
 
-  let resolved: string | null = null;
+  let resolved: string | null = envOrigin();
 
-  try {
+  if (!resolved) try {
     const supabase = createPublicSupabaseClient();
     if (supabase) {
       // Pull ALL `kind='app'` rows (typically 1–3) then filter dev-only
@@ -94,11 +102,7 @@ export async function getCanonicalAppHostOrigin(): Promise<string | null> {
       }
     }
   } catch {
-    // Fall through to env-var fallback.
-  }
-
-  if (!resolved) {
-    resolved = envOrigin();
+    // Fall through silently — `resolved` stays null, callers degrade.
   }
 
   cache = { origin: resolved, expiresAt: Date.now() + CACHE_TTL_MS };
