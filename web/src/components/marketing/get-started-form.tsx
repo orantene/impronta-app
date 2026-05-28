@@ -41,7 +41,12 @@ export type GetStartedSignedIn = {
  */
 export type { GetStartedTierPrices } from "./get-started-form-tier-copy";
 import type { GetStartedTierPrices } from "./get-started-form-tier-copy";
-import { PAID_TIER_PLAN_LABEL, formFinePrint, isPaidTier } from "./get-started-form-tier-copy";
+import {
+  PAID_TIER_PLAN_LABEL,
+  formFinePrint,
+  isPaidTier,
+  submitCtaLabel,
+} from "./get-started-form-tier-copy";
 
 type Props = {
   initialAudience?: AudienceKey;
@@ -92,15 +97,8 @@ const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }
 ];
 
 
-function submitCtaLabel(tier: TierKey | undefined, audience: AudienceKey): string {
-  if (tier === "studio") return "Continue to Studio checkout";
-  if (tier === "agency") return "Continue to Agency checkout";
-  if (tier === "network" || audience === "organization") {
-    return "Request Network setup";
-  }
-  if (audience === "agency") return "Continue to Agency checkout";
-  return "Create my free workspace";
-}
+// submitCtaLabel lives in get-started-form-tier-copy.ts (client-safe + keeps
+// this file under the 800-line lint cap).
 
 function rosterTierHint(
   rosterSize: RosterBucket,
@@ -378,15 +376,11 @@ export function GetStartedForm({
         {tier === "network" && (
           <p
             className="mt-5 rounded-xl border px-4 py-3 text-[0.875rem] leading-[1.55]"
-            style={{
-              borderColor: "rgba(46,107,82,0.25)",
-              background: "rgba(46,107,82,0.06)",
-              color: "var(--plt-ink-soft)",
-            }}
+            style={{ borderColor: "rgba(46,107,82,0.25)", background: "rgba(46,107,82,0.06)", color: "var(--plt-ink-soft)" }}
           >
-            Your free workspace is ready to explore now. We&apos;ll email{" "}
-            <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to
-            set up the Network plan — pricing, SSO, and a custom domain.
+            {tierPrices?.network
+              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready — SSO, custom domain, and dedicated onboarding unlock at checkout.`
+              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan — pricing, SSO, and a custom domain.</>}
           </p>
         )}
         <ul
@@ -776,7 +770,7 @@ export function GetStartedForm({
           boxShadow: "0 18px 40px -18px rgba(31,74,58,0.55)",
         }}
       >
-        {isPending ? "Reserving your link…" : submitCtaLabel(tier, audience)}
+        {isPending ? "Reserving your link…" : submitCtaLabel(tier, audience, tierPrices)}
         <svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden>
           <path
             d="M1 5H13M13 5L9 1M13 5L9 9"
