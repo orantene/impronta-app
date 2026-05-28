@@ -14,6 +14,7 @@ import {
 } from "@/lib/admin/validation";
 import { requireStaff } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
+import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
@@ -171,6 +172,36 @@ export async function updateTalentProfile(
     .eq("id", id)
     .maybeSingle();
   if (beforeErr || !before) return { error: "Talent profile not found." };
+
+  // Phase 2b — multi-tenant identity safety floor. A Tulala-native talent in a
+  // non-confirmed agency relationship owns their personal profile; the disabled
+  // <fieldset>s enforce this in the UI, this is the server floor for direct or
+  // DOM-tampered POSTs. Only fires when the write actually touches personal
+  // fields — workflow_status / visibility / featured / membership_tier stay
+  // agency-managed — and only when an editing tenant resolves (agency staff
+  // always have one; a platform super_admin with no workspace selected does
+  // not, and keeps god-mode).
+  const touchesPersonalData =
+    !!display_name ||
+    first_name !== undefined ||
+    last_name !== undefined ||
+    short_bio !== undefined ||
+    formData.has("phone") ||
+    formData.has("gender") ||
+    formData.has("date_of_birth") ||
+    hasCanonicalLocationFields ||
+    hasOriginFields;
+  if (touchesPersonalData) {
+    const scope = await getTenantScope();
+    if (scope?.tenantId) {
+      const lock = await assertPersonalProfileEditable(
+        supabase,
+        scope.tenantId,
+        id,
+      );
+      if (!lock.ok) return { error: lock.error };
+    }
+  }
 
   if (workflow_status && !workflowStatusSchema.safeParse(workflow_status).success) {
     return { error: "Invalid workflow status." };

@@ -26,6 +26,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 
 // ─── Remove from roster (NOT account deletion) ───────────────────────────────
 //
@@ -193,6 +194,17 @@ export async function setTalentCardPhoto(input: {
   if (!roster) {
     return { ok: false, error: "That talent isn't on your roster." };
   }
+
+  // Phase 2b — multi-tenant identity safety floor. The card / avatar photo is
+  // personal-profile data; an agency without confirmed exclusivity over a
+  // native talent's identity must not replace it (the disabled photo control
+  // enforces this in the UI — this is the server floor for a direct POST).
+  const lock = await assertPersonalProfileEditable(
+    supabase,
+    tenantId,
+    v.talent_profile_id,
+  );
+  if (!lock.ok) return lock;
 
   const BUCKET = "media-public";
   const now = new Date().toISOString();
