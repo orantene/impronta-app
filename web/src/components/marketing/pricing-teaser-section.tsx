@@ -128,7 +128,7 @@ function TierCard({ tier }: { tier: Tier }) {
         >
           {tier.name}
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
+        <div className="mt-3 flex items-baseline gap-2 flex-wrap">
           <span
             className="plt-display text-[2.25rem] font-semibold leading-none tracking-[-0.03em]"
             style={{ color: featured ? "var(--plt-on-inverse)" : "var(--plt-ink)" }}
@@ -145,6 +145,31 @@ function TierCard({ tier }: { tier: Tier }) {
               {tier.cadence}
             </span>
           ) : null}
+          {tier.isOnSale && tier.canonicalPrice !== tier.price && (
+            <>
+              <span
+                className="text-[0.9375rem] line-through"
+                style={{
+                  color: featured ? "rgba(241,237,227,0.55)" : "var(--plt-muted)",
+                }}
+                aria-label={`Was ${tier.canonicalPrice}`}
+              >
+                {tier.canonicalPrice}
+              </span>
+              <span
+                className="plt-mono ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-[0.18em]"
+                style={{
+                  background: featured
+                    ? "rgba(241,237,227,0.12)"
+                    : "rgba(204,135,42,0.14)",
+                  color: featured ? "var(--plt-on-inverse)" : "#92621f",
+                }}
+                aria-label="Sale price"
+              >
+                Sale
+              </span>
+            </>
+          )}
         </div>
         <p
           className="mt-4 text-[0.875rem] leading-[1.5]"

@@ -15,6 +15,8 @@ import {
   pickHeadlinePrice,
   formatUnitAmount,
   intervalSuffix,
+  isSalePriceActive,
+  formatPriceWindow,
 } from "@/lib/pricing/pricing-types";
 import { HQ, F, FD, FAMILY_COLORS } from "./_tokens";
 import { Pill } from "./_primitives";
@@ -123,6 +125,12 @@ function TierCard({
         (p) => p.isActive && !p.archivedAt && p.id !== headline.id,
       ).length
     : 0;
+  // Phase 5 — any active in-window sale on this tier surfaces a badge
+  // so operators can see at-a-glance which tiers are currently
+  // discounted.
+  const activeSale = tier.prices.find(
+    (p) => p.isActive && !p.archivedAt && isSalePriceActive(p),
+  );
 
   return (
     <button
@@ -167,6 +175,11 @@ function TierCard({
         </span>
         {tier.isFeatured && <Pill color={accent}>Featured</Pill>}
         {!tier.isActive && <Pill color={HQ.inkDim}>Hidden</Pill>}
+        {activeSale && (
+          <Pill color={HQ.amber}>
+            SALE · {formatPriceWindow(activeSale)}
+          </Pill>
+        )}
       </div>
 
       {tier.tagline && (

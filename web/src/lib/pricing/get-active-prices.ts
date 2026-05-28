@@ -45,6 +45,14 @@ export type ActiveTierPrice = {
   intervalLabel: string;
   /** True when the tier had no row for the requested currency. */
   fellBackToUSD: boolean;
+  /** Phase 5 — true when this row is a sale price (has a window set)
+   *  that's currently active. Marketing surfaces show a "Sale" pill. */
+  isOnSale: boolean;
+  /** Phase 5 — sale end ISO when isOnSale is true; null otherwise. */
+  saleEndsAt: string | null;
+  /** Phase 5 — the canonical (non-sale) price amount, for strike-through
+   *  display. Equal to unitAmount when isOnSale=false. */
+  canonicalAmount: number;
 };
 
 export type ActiveTier = {
@@ -114,6 +122,8 @@ type RawPrice = {
   interval: string;
   unit_amount: number;
   stripe_price_id: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
 };
 
 type RawFeature = {
@@ -179,7 +189,9 @@ export const loadActivePrices = cache(
         .order("display_order", { ascending: true }),
       admin
         .from("product_prices")
-        .select("id, tier_id, currency, interval, unit_amount, stripe_price_id")
+        .select(
+          "id, tier_id, currency, interval, unit_amount, stripe_price_id, valid_from, valid_until",
+        )
         .eq("is_active", true)
         .is("archived_at", null),
       admin
@@ -207,13 +219,6 @@ export const loadActivePrices = cache(
     const prices = (priceRes.data ?? []) as RawPrice[];
     const feats = (featRes.data ?? []) as RawFeature[];
 
-    // Index prices by (tier_id, currency-uppercase, interval).
-    const byKey = new Map<string, RawPrice>();
-    for (const p of prices) {
-      const interval = isInterval(p.interval) ? p.interval : "month";
-      byKey.set(`${p.tier_id}|${p.currency.toUpperCase()}|${interval}`, p);
-    }
-
     // Index features by tier.
     const featsByTier = new Map<string, RawFeature[]>();
     for (const f of feats) {
@@ -223,55 +228,123 @@ export const loadActivePrices = cache(
     }
 
     let anyFellBack = false;
+    const nowMs = Date.now();
+
+    // Phase 5 — sale-aware effective-row picker. Given a list of rows
+    // for one (tier × currency × interval), prefers an in-window sale,
+    // falls back to canonical (null window). Returns { effective,
+    // canonical } so the caller can tag isOnSale + canonicalAmount for
+    // strike-through display.
+    function pickEffective(
+      rows: RawPrice[],
+    ): { effective: RawPrice; canonical: RawPrice | null } | null {
+      if (rows.length === 0) return null;
+      const canonical = rows.find(
+        (r) => r.valid_from === null && r.valid_until === null,
+      ) ?? null;
+      const inWindow = rows.find((r) => {
+        if (r.valid_from === null && r.valid_until === null) return false;
+        const start = r.valid_from ? new Date(r.valid_from).getTime() : -Infinity;
+        const end = r.valid_until ? new Date(r.valid_until).getTime() : Infinity;
+        return nowMs >= start && nowMs < end;
+      });
+      if (inWindow) return { effective: inWindow, canonical };
+      if (canonical) return { effective: canonical, canonical };
+      // Edge case: only future / expired sale rows exist. Return any
+      // canonical-shaped one for back-compat; otherwise null so the
+      // caller skips this slot entirely.
+      return null;
+    }
+
+    function buildActivePrice(
+      effective: RawPrice,
+      canonical: RawPrice | null,
+      currencyOut: string,
+      intervalOut: PricingInterval,
+      fellBackToUSD: boolean,
+    ): ActiveTierPrice {
+      const isOnSale =
+        effective.valid_from !== null || effective.valid_until !== null;
+      const canonicalAmount = canonical
+        ? Number(canonical.unit_amount)
+        : Number(effective.unit_amount);
+      return {
+        unitAmount: Number(effective.unit_amount),
+        currency: currencyOut,
+        interval: intervalOut,
+        stripePriceId: effective.stripe_price_id,
+        formatted: formatUnitAmount(
+          Number(effective.unit_amount),
+          currencyOut,
+        ),
+        intervalLabel: intervalSuffix(intervalOut),
+        fellBackToUSD,
+        isOnSale,
+        saleEndsAt: isOnSale ? effective.valid_until : null,
+        canonicalAmount,
+      };
+    }
 
     // Build tiers per package.
     const tiersByPkg = new Map<string, ActiveTier[]>();
     for (const t of tiers) {
       const tierPrices: ActiveTierPrice[] = [];
-      // Render every interval that has either a requested-currency row OR a
-      // USD fallback row. We iterate intervals in their visual order.
       const seenIntervals = new Set<string>();
-      // First pass: requested-currency rows.
+
+      // 1. Requested-currency rows — group by interval, pick effective.
+      const byIntervalRequested = new Map<PricingInterval, RawPrice[]>();
       for (const p of prices) {
         if (
           p.tier_id !== t.id ||
           p.currency.toUpperCase() !== upperCurrency
-        )
+        ) {
           continue;
+        }
         const interval = isInterval(p.interval) ? p.interval : "month";
-        seenIntervals.add(interval);
-        tierPrices.push({
-          unitAmount: Number(p.unit_amount),
-          currency: upperCurrency,
-          interval,
-          stripePriceId: p.stripe_price_id,
-          formatted: formatUnitAmount(Number(p.unit_amount), upperCurrency),
-          intervalLabel: intervalSuffix(interval),
-          fellBackToUSD: false,
-        });
+        const bucket = byIntervalRequested.get(interval);
+        if (bucket) bucket.push(p);
+        else byIntervalRequested.set(interval, [p]);
       }
-      // Second pass: USD fallback for any interval the requested currency
-      // didn't cover (only when currency ≠ USD itself).
+      for (const [interval, rows] of byIntervalRequested.entries()) {
+        const picked = pickEffective(rows);
+        if (!picked) continue;
+        seenIntervals.add(interval);
+        tierPrices.push(
+          buildActivePrice(
+            picked.effective,
+            picked.canonical,
+            upperCurrency,
+            interval,
+            false,
+          ),
+        );
+      }
+
+      // 2. USD fallback — same shape, only fills intervals not yet seen.
       if (upperCurrency !== "USD") {
+        const byIntervalUsd = new Map<PricingInterval, RawPrice[]>();
         for (const p of prices) {
-          if (
-            p.tier_id !== t.id ||
-            p.currency.toUpperCase() !== "USD"
-          )
-            continue;
+          if (p.tier_id !== t.id || p.currency.toUpperCase() !== "USD") continue;
           const interval = isInterval(p.interval) ? p.interval : "month";
           if (seenIntervals.has(interval)) continue;
+          const bucket = byIntervalUsd.get(interval);
+          if (bucket) bucket.push(p);
+          else byIntervalUsd.set(interval, [p]);
+        }
+        for (const [interval, rows] of byIntervalUsd.entries()) {
+          const picked = pickEffective(rows);
+          if (!picked) continue;
           seenIntervals.add(interval);
           anyFellBack = true;
-          tierPrices.push({
-            unitAmount: Number(p.unit_amount),
-            currency: "USD",
-            interval,
-            stripePriceId: p.stripe_price_id,
-            formatted: formatUnitAmount(Number(p.unit_amount), "USD"),
-            intervalLabel: intervalSuffix(interval),
-            fellBackToUSD: true,
-          });
+          tierPrices.push(
+            buildActivePrice(
+              picked.effective,
+              picked.canonical,
+              "USD",
+              interval,
+              true,
+            ),
+          );
         }
       }
       // Stable order.
@@ -344,6 +417,11 @@ export type MarketingTier = {
   /** True when the displayed price is USD because the requested currency
    *  has no row for this tier. */
   fellBackToUSD: boolean;
+  /** Phase 5 — true when this card's headline is a sale price. */
+  isOnSale: boolean;
+  /** Phase 5 — formatted canonical (non-sale) price for strike-through.
+   *  Equal to `price` when isOnSale=false. */
+  canonicalPrice: string;
 };
 
 const CADENCE_BY_INTERVAL: Record<PricingInterval, string> = {
@@ -391,6 +469,11 @@ export async function loadMarketingTiers(
       price = "—";
       cadence = "";
     }
+    const isOnSale = Boolean(t.headline?.isOnSale);
+    const canonicalPrice =
+      isOnSale && t.headline
+        ? formatUnitAmount(t.headline.canonicalAmount, t.headline.currency)
+        : price;
     return {
       key: t.slug,
       name: t.name,
@@ -400,6 +483,8 @@ export async function loadMarketingTiers(
       highlights: t.highlights,
       featured: t.isFeatured,
       fellBackToUSD: Boolean(t.headline?.fellBackToUSD),
+      isOnSale,
+      canonicalPrice,
     };
   });
 }

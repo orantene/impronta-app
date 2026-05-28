@@ -108,7 +108,7 @@ export async function updateTierPrice(
   const priceLoad = await admin
     .from("product_prices")
     .select(
-      "id, tier_id, currency, interval, unit_amount, stripe_price_id",
+      "id, tier_id, currency, interval, unit_amount, stripe_price_id, valid_from, valid_until",
     )
     .eq("id", input.priceId)
     .maybeSingle();
@@ -123,6 +123,11 @@ export async function updateTierPrice(
     interval: "month" | "year" | "once" | "lifetime";
     unit_amount: number;
     stripe_price_id: string | null;
+    /** Phase 5 — preserved on the replacement row so editing the
+     *  amount of a sale price doesn't accidentally promote it to
+     *  canonical. */
+    valid_from: string | null;
+    valid_until: string | null;
   };
 
   const tierLoad = await admin
@@ -186,6 +191,11 @@ export async function updateTierPrice(
     stripe_price_id: stripe.stub ? null : stripe.stripePriceId,
     is_active: true,
     notes: input.notes ?? null,
+    // Phase 5 — preserve the row's window so editing the AMOUNT of a
+    // sale price doesn't accidentally promote it to canonical (or vice
+    // versa for canonical → still canonical).
+    valid_from: current.valid_from,
+    valid_until: current.valid_until,
   });
   if (insertErr) {
     logServerError("admin-product-pricing.update-price.insert", insertErr);
@@ -337,7 +347,13 @@ export async function verifyStripeAccount(): Promise<VerifyStripeAccountResult> 
   return { ok: true };
 }
 
-// ─── 4. addTierPrice (Phase 2 — add a price for a NEW currency) ──────────────
+// ─── 4. addTierPrice (Phase 2 + Phase 5 sale windows) ────────────────────────
+// In Phase 2 this added a CANONICAL price for a new currency. Phase 5
+// extends it: when validFrom/validUntil are set, the inserted row is a
+// SALE price that lives ALONGSIDE the canonical row for the same
+// (currency × interval). The reader picks the in-window row at render
+// time; the dupe check below only fires for canonical-vs-canonical
+// collisions (both windows null).
 
 const addPriceSchema = z
   .object({
@@ -346,8 +362,26 @@ const addPriceSchema = z
     interval: z.enum(["month", "year", "once", "lifetime"]),
     unitAmount: z.number().int().min(0).max(99_999_999),
     notes: z.string().max(280).nullable().optional(),
+    /** Phase 5 — when set, this row is a sale price (skips the unique
+     *  canonical-row constraint). Inclusive lower bound. */
+    validFrom: z.string().datetime().nullable().optional(),
+    /** Phase 5 — sale end (exclusive). */
+    validUntil: z.string().datetime().nullable().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((v, ctx) => {
+    if (
+      v.validFrom &&
+      v.validUntil &&
+      new Date(v.validFrom).getTime() >= new Date(v.validUntil).getTime()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sale start must be before sale end.",
+        path: ["validFrom"],
+      });
+    }
+  });
 
 export type AddTierPriceInput = z.infer<typeof addPriceSchema>;
 export type AddTierPriceResult =
@@ -388,23 +422,29 @@ export async function addTierPrice(
     stripe_product_id: string | null;
   };
 
-  // Refuse to create a duplicate active row for the same (currency × interval).
-  const dupeCheck = await admin
-    .from("product_prices")
-    .select("id")
-    .eq("tier_id", input.tierId)
-    .eq("currency", currency)
-    .eq("interval", input.interval)
-    .eq("is_active", true)
-    .is("archived_at", null)
-    .is("valid_from", null)
-    .is("valid_until", null)
-    .maybeSingle();
-  if (dupeCheck.data) {
-    return {
-      ok: false,
-      error: `${currency} ${input.interval} price already exists. Edit it instead.`,
-    };
+  const isSale = Boolean(input.validFrom || input.validUntil);
+
+  // Dupe check: only fires for canonical-vs-canonical collisions
+  // (both windows null). Sale rows are intentionally allowed alongside
+  // a canonical row; the unique index in the migration matches.
+  if (!isSale) {
+    const dupeCheck = await admin
+      .from("product_prices")
+      .select("id")
+      .eq("tier_id", input.tierId)
+      .eq("currency", currency)
+      .eq("interval", input.interval)
+      .eq("is_active", true)
+      .is("archived_at", null)
+      .is("valid_from", null)
+      .is("valid_until", null)
+      .maybeSingle();
+    if (dupeCheck.data) {
+      return {
+        ok: false,
+        error: `${currency} ${input.interval} price already exists. Edit it instead.`,
+      };
+    }
   }
 
   // Create the Stripe Price (or stub).
@@ -430,6 +470,8 @@ export async function addTierPrice(
       stripe_price_id: stripe.stub ? null : stripe.stripePriceId,
       is_active: true,
       notes: input.notes ?? null,
+      valid_from: input.validFrom ?? null,
+      valid_until: input.validUntil ?? null,
     })
     .select("id")
     .single();

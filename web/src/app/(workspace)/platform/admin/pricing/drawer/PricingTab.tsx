@@ -19,6 +19,8 @@ import type { PricingTierRow } from "@/lib/pricing/pricing-types";
 import {
   formatUnitAmount,
   currencyLabel,
+  isSalePriceActive,
+  formatPriceWindow,
 } from "@/lib/pricing/pricing-types";
 import {
   updateTierPrice,
@@ -30,7 +32,8 @@ import {
   type DefaultCurrencyCode,
 } from "@/lib/billing/currencies";
 import { HQ, F } from "../_tokens";
-import { SectionLabel, EmptyHint, Field, inputStyle } from "../_primitives";
+import { SectionLabel, EmptyHint, Field, inputStyle, Pill } from "../_primitives";
+import { AddSaleRow } from "./AddSaleRow";
 
 export function PricingTab({
   tier,
@@ -42,13 +45,18 @@ export function PricingTab({
   const activePrices = tier.prices.filter((p) => p.isActive && !p.archivedAt);
   const archivedPrices = tier.prices.filter((p) => p.archivedAt);
   const canArchive = activePrices.length > 1;
-  // For the Add Currency form: which (currency × interval) combos are
-  // ALREADY active so we don't offer them.
+  // For the Add Currency form: which (currency × interval) combos already
+  // have a CANONICAL row (null window). Sale rows don't count — operators
+  // can stack sales onto a canonical price.
   const takenCombos = new Set(
-    activePrices.map(
-      (p) => `${p.currency.toUpperCase()}|${p.interval}`,
-    ),
+    activePrices
+      .filter((p) => p.validFrom === null && p.validUntil === null)
+      .map((p) => `${p.currency.toUpperCase()}|${p.interval}`),
   );
+  // Phase 5 — for the Add Sale form, the inverse: only combos with a
+  // canonical row are eligible (you can't put a sale on a non-existent
+  // canonical price).
+  const saleEligibleCombos = [...takenCombos];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <SectionLabel
@@ -73,6 +81,12 @@ export function PricingTab({
         takenCombos={takenCombos}
         stripeConfigured={stripeConfigured}
         stripeProductLinked={tier.stripeProductId !== null}
+      />
+
+      <AddSaleRow
+        tierId={tier.id}
+        eligibleCombos={saleEligibleCombos}
+        stripeConfigured={stripeConfigured}
       />
 
       {archivedPrices.length > 0 && (
@@ -214,6 +228,12 @@ function PriceRow({
         >
           {price.interval}
         </span>
+        {(price.validFrom !== null || price.validUntil !== null) && (
+          <Pill color={isSalePriceActive(price) ? HQ.green : HQ.amber}>
+            {isSalePriceActive(price) ? "SALE ACTIVE" : "SALE"}{" "}
+            · {formatPriceWindow(price)}
+          </Pill>
+        )}
         <span style={{ flex: 1 }} />
         {price.stripePriceId ? (
           <code style={{ fontSize: 10, color: HQ.inkDim }}>
