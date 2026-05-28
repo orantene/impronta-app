@@ -4300,8 +4300,11 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
     (s.talentCount ?? 0) >= 1 && (s.hasCustomDomain ?? false);
 
   const steps: ActivationStep[] = [
-    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: s.hasCompleteProfile ?? true,  cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
-    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? true,  cta: "Add talent",      onCta: () => setPage("roster") },
+    // Phase B de-fixture: defaults changed from `?? true` → `?? false` so
+    // standalone/dev mode (no bridge) shows honest incomplete state instead
+    // of pre-checked steps. OverviewPage passes real values when bridged.
+    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: s.hasCompleteProfile ?? false, cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
+    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? false, cta: "Add talent",      onCta: () => setPage("roster") },
     { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: s.hasSentInquiry     ?? false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
     { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
     { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: s.hasCustomDomain    ?? false, cta: "Configure",       onCta: () => setPage("settings") },
