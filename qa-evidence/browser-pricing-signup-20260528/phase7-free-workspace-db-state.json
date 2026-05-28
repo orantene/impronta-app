@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-05-28T21:26:53.834Z",
+  "agency": {
+    "id": "23560ac3-6bd6-4ab8-9c06-c07e9c674d7e",
+    "slug": "qa-free-03545833",
+    "display_name": "QA Free Browser Workspace",
+    "plan_tier": "free",
+    "talent_seat_limit": 5,
+    "status": "active",
+    "kind": "agency",
+    "onboarding_completed_at": "2026-05-28T21:25:47.935+00:00"
+  },
+  "rosterCount": 0,
+  "membership": [
+    {
+      "role": "owner",
+      "status": "active",
+      "profile_id": "e45682bc-b4d2-4ecf-884f-75404cfc4865"
+    }
+  ]
+}

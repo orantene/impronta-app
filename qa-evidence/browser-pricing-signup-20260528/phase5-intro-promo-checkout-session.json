@@ -1,0 +1,69 @@
+{
+  "capturedAt": "2026-05-28T21:17:06.230Z",
+  "tenant": {
+    "id": "46b20019-1cbf-43ee-a489-c6beb283efa9",
+    "slug": "qatest-roster-2"
+  },
+  "result": {
+    "ok": true,
+    "urlStartsWithStripe": true
+  },
+  "session": {
+    "id": "cs_test_a1nl0LbbFNjyUx1prc7lxSaugl2x02fjjR7gxlYqzyyWQ5Qe8Dg6EMzHBA",
+    "mode": "subscription",
+    "amount_subtotal": 4900,
+    "amount_total": 0,
+    "currency": "usd",
+    "discounts": [
+      {
+        "coupon": null,
+        "promotion_code": "promo_1TcBGyRrZLyWJgP5DXY22ZQg"
+      }
+    ],
+    "total_details": {
+      "amount_discount": 4900,
+      "amount_shipping": 0,
+      "amount_tax": 0,
+      "breakdown": {
+        "discounts": [
+          {
+            "amount": 4900,
+            "discount": {
+              "id": "di_1TcBIbRrZLyWJgP5iRnsDELM",
+              "object": "discount",
+              "checkout_session": null,
+              "customer": null,
+              "customer_account": null,
+              "end": null,
+              "invoice": null,
+              "invoice_item": null,
+              "promotion_code": "promo_1TcBGyRrZLyWJgP5DXY22ZQg",
+              "source": {
+                "coupon": "DgOQc1f6",
+                "type": "coupon"
+              },
+              "start": 1780003026,
+              "subscription": null,
+              "subscription_item": null
+            }
+          }
+        ],
+        "taxes": []
+      }
+    },
+    "metadata": {
+      "checkout_type": "workspace_subscription",
+      "plan_key": "studio",
+      "tenant_id": "46b20019-1cbf-43ee-a489-c6beb283efa9"
+    }
+  },
+  "lineItems": [
+    {
+      "price": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+      "amount_subtotal": 4900,
+      "amount_total": 0,
+      "currency": "usd",
+      "description": "Studio"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "capturedAt": "2026-05-28T21:18:52.982Z",
+  "discounts": [
+    {
+      "code": "QATEST10",
+      "is_active": false,
+      "kind": "percent",
+      "value": 10,
+      "stripePromotionCode": {
+        "id": "promo_1TcAMRRrZLyWJgP5TV6N45Cx",
+        "code": "QATEST10",
+        "active": false
+      }
+    },
+    {
+      "code": "QATEST3MONTHS",
+      "is_active": false,
+      "kind": "free_months",
+      "value": 3,
+      "stripePromotionCode": {
+        "id": "promo_1TcBGyRrZLyWJgP5DXY22ZQg",
+        "code": "QATEST3MONTHS",
+        "active": false
+      }
+    }
+  ]
+}

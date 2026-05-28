@@ -1,0 +1,17 @@
+{
+  "capturedAt": "2026-05-28T21:34:13.284Z",
+  "agency": {
+    "id": "23560ac3-6bd6-4ab8-9c06-c07e9c674d7e",
+    "slug": "qa-free-03545833",
+    "plan_tier": "free",
+    "talent_seat_limit": 5
+  },
+  "result": {
+    "ok": false,
+    "planTier": "free",
+    "limit": 5,
+    "current": 5,
+    "after": 6,
+    "message": "This workspace has reached the Free plan limit (5 profiles). Upgrade to Studio to add more."
+  }
+}

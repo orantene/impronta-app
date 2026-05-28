@@ -1,0 +1,79 @@
+{
+  "capturedAt": "2026-05-28T21:33:09.631Z",
+  "agency": {
+    "id": "23560ac3-6bd6-4ab8-9c06-c07e9c674d7e",
+    "slug": "qa-free-03545833",
+    "display_name": "QA Free Browser Workspace",
+    "plan_tier": "free",
+    "talent_seat_limit": 5
+  },
+  "beforeCount": 0,
+  "afterCount": 5,
+  "ownerMembership": {
+    "profile_id": "e45682bc-b4d2-4ecf-884f-75404cfc4865",
+    "role": "owner",
+    "status": "active"
+  },
+  "inserted": [
+    {
+      "profile": {
+        "id": "7e61dd15-0e76-4f18-8cf8-cf798ca0fe09",
+        "profile_code": "TAL-92041",
+        "display_name": "QA Free Seat 1"
+      },
+      "roster": {
+        "id": "61800b3b-af15-4951-8bb3-1828fe84ae0c",
+        "talent_profile_id": "7e61dd15-0e76-4f18-8cf8-cf798ca0fe09",
+        "status": "active"
+      }
+    },
+    {
+      "profile": {
+        "id": "f10dffa8-8800-430b-a91e-e578af0be5e8",
+        "profile_code": "TAL-92042",
+        "display_name": "QA Free Seat 2"
+      },
+      "roster": {
+        "id": "26254e39-da46-43e4-9f63-98a231473a60",
+        "talent_profile_id": "f10dffa8-8800-430b-a91e-e578af0be5e8",
+        "status": "active"
+      }
+    },
+    {
+      "profile": {
+        "id": "442f23db-beda-415b-8da1-ae0c0b74d663",
+        "profile_code": "TAL-92043",
+        "display_name": "QA Free Seat 3"
+      },
+      "roster": {
+        "id": "0a539c9d-7b7d-4bad-bfd2-6a4790a4f1f3",
+        "talent_profile_id": "442f23db-beda-415b-8da1-ae0c0b74d663",
+        "status": "active"
+      }
+    },
+    {
+      "profile": {
+        "id": "e25f72a1-fd18-4ef5-bb4b-3c546390297a",
+        "profile_code": "TAL-92044",
+        "display_name": "QA Free Seat 4"
+      },
+      "roster": {
+        "id": "9a73534f-8032-447d-bf0c-b4682220fc95",
+        "talent_profile_id": "e25f72a1-fd18-4ef5-bb4b-3c546390297a",
+        "status": "active"
+      }
+    },
+    {
+      "profile": {
+        "id": "318e4e14-096f-4452-bc08-f0752e14862a",
+        "profile_code": "TAL-92045",
+        "display_name": "QA Free Seat 5"
+      },
+      "roster": {
+        "id": "db1358e6-8061-4a52-8bf1-27c075a27e6a",
+        "talent_profile_id": "318e4e14-096f-4452-bc08-f0752e14862a",
+        "status": "active"
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-05-28T21:33:51.542Z",
+  "checks": {
+    "bytes": 273579,
+    "hasLimit": true,
+    "hasUpgrade": true,
+    "hasCreate": false,
+    "hasOwner": false
+  }
+}

@@ -1,0 +1,656 @@
+{
+  "capturedAt": "2026-05-28T21:45:39.757Z",
+  "workspaceSlugs": [
+    "qa-free-03545833",
+    "qa-studio-244988",
+    "qa-agency-244988",
+    "qa-network-244988"
+  ],
+  "inquiryId": "22a3baac-76f7-431e-8f92-99276d7d0056",
+  "before": {
+    "agencies": [
+      {
+        "id": "f1e6980c-f064-4172-befb-02cc7b1e0039",
+        "slug": "qa-agency-244988",
+        "display_name": "QA Agency Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "agency",
+          "signup_roster_size": "21-50",
+          "signup_tier_interest": "agency"
+        },
+        "suspended_at": null,
+        "suspended_reason": null
+      },
+      {
+        "id": "23560ac3-6bd6-4ab8-9c06-c07e9c674d7e",
+        "slug": "qa-free-03545833",
+        "display_name": "QA Free Browser Workspace",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "operator",
+          "signup_roster_size": "1-5",
+          "signup_tier_interest": "free"
+        },
+        "suspended_at": null,
+        "suspended_reason": null
+      },
+      {
+        "id": "b4e5f354-2d1b-4130-a45c-440dcd11021c",
+        "slug": "qa-network-244988",
+        "display_name": "QA Network Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "operator",
+          "signup_roster_size": "50+",
+          "network_requested_at": "2026-05-28T21:38:14.833Z",
+          "signup_tier_interest": "network"
+        },
+        "suspended_at": null,
+        "suspended_reason": null
+      },
+      {
+        "id": "e2e7b38f-df6f-40b8-a9ee-8713ecbabd8d",
+        "slug": "qa-studio-244988",
+        "display_name": "QA Studio Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "operator",
+          "signup_roster_size": "6-20",
+          "signup_tier_interest": "studio"
+        },
+        "suspended_at": null,
+        "suspended_reason": null
+      }
+    ],
+    "inquiry": {
+      "id": "22a3baac-76f7-431e-8f92-99276d7d0056",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "contact_name": "QA Browser Client 416083",
+      "contact_email": "qa-inquiry-416083@impronta.test",
+      "status": "submitted",
+      "source_page": "/impronta",
+      "origin_domain": "impronta.tulala.digital",
+      "close_reason_text": null,
+      "staff_notes": null,
+      "updated_at": "2026-05-28T21:40:17.030892+00:00"
+    }
+  },
+  "mutations": [
+    {
+      "type": "workspace_suspended",
+      "slug": "qa-agency-244988",
+      "beforeStatus": "active",
+      "after": {
+        "id": "f1e6980c-f064-4172-befb-02cc7b1e0039",
+        "slug": "qa-agency-244988",
+        "display_name": "QA Agency Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "agency",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "21-50",
+          "signup_tier_interest": "agency",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      }
+    },
+    {
+      "type": "workspace_suspended",
+      "slug": "qa-free-03545833",
+      "beforeStatus": "active",
+      "after": {
+        "id": "23560ac3-6bd6-4ab8-9c06-c07e9c674d7e",
+        "slug": "qa-free-03545833",
+        "display_name": "QA Free Browser Workspace",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "operator",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "1-5",
+          "signup_tier_interest": "free",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      }
+    },
+    {
+      "type": "workspace_suspended",
+      "slug": "qa-network-244988",
+      "beforeStatus": "active",
+      "after": {
+        "id": "b4e5f354-2d1b-4130-a45c-440dcd11021c",
+        "slug": "qa-network-244988",
+        "display_name": "QA Network Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "operator",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "50+",
+          "network_requested_at": "2026-05-28T21:38:14.833Z",
+          "signup_tier_interest": "network",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      }
+    },
+    {
+      "type": "workspace_suspended",
+      "slug": "qa-studio-244988",
+      "beforeStatus": "active",
+      "after": {
+        "id": "e2e7b38f-df6f-40b8-a9ee-8713ecbabd8d",
+        "slug": "qa-studio-244988",
+        "display_name": "QA Studio Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "operator",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "6-20",
+          "signup_tier_interest": "studio",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      }
+    },
+    {
+      "type": "owner_profiles_marked_test",
+      "rows": [
+        {
+          "id": "e45682bc-b4d2-4ecf-884f-75404cfc4865",
+          "display_name": "QA Free Browser User",
+          "app_role": "agency_staff",
+          "account_status": "active",
+          "is_test_account": true
+        },
+        {
+          "id": "c5f6975e-f7e8-4fc2-8dee-6f04d1f8145a",
+          "display_name": "QA Studio Browser Workspace 244988",
+          "app_role": "agency_staff",
+          "account_status": "active",
+          "is_test_account": true
+        },
+        {
+          "id": "abb66861-76e2-4c83-a18d-01140098f828",
+          "display_name": "QA Agency Browser Workspace 244988",
+          "app_role": "agency_staff",
+          "account_status": "active",
+          "is_test_account": true
+        },
+        {
+          "id": "ebbd0b34-f566-40dd-8a43-e63798250621",
+          "display_name": "QA Network Browser Workspace 244988",
+          "app_role": "agency_staff",
+          "account_status": "active",
+          "is_test_account": true
+        }
+      ]
+    },
+    {
+      "type": "roster_talent_profiles_marked_test",
+      "rows": [
+        {
+          "id": "7e61dd15-0e76-4f18-8cf8-cf798ca0fe09",
+          "profile_code": "TAL-92041",
+          "display_name": "QA Free Seat 1",
+          "is_test_account": true
+        },
+        {
+          "id": "f10dffa8-8800-430b-a91e-e578af0be5e8",
+          "profile_code": "TAL-92042",
+          "display_name": "QA Free Seat 2",
+          "is_test_account": true
+        },
+        {
+          "id": "442f23db-beda-415b-8da1-ae0c0b74d663",
+          "profile_code": "TAL-92043",
+          "display_name": "QA Free Seat 3",
+          "is_test_account": true
+        },
+        {
+          "id": "e25f72a1-fd18-4ef5-bb4b-3c546390297a",
+          "profile_code": "TAL-92044",
+          "display_name": "QA Free Seat 4",
+          "is_test_account": true
+        },
+        {
+          "id": "318e4e14-096f-4452-bc08-f0752e14862a",
+          "profile_code": "TAL-92045",
+          "display_name": "QA Free Seat 5",
+          "is_test_account": true
+        }
+      ]
+    },
+    {
+      "type": "inquiry_archived",
+      "beforeStatus": "submitted",
+      "after": {
+        "id": "22a3baac-76f7-431e-8f92-99276d7d0056",
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "contact_name": "QA Browser Client 416083",
+        "contact_email": "qa-inquiry-416083@impronta.test",
+        "status": "archived",
+        "source_page": "/impronta",
+        "origin_domain": "impronta.tulala.digital",
+        "close_reason_text": "Browser pricing/signup QA smoke complete; archived test inquiry.",
+        "staff_notes": "QA test inquiry archived after browser pricing/signup continuation pass.",
+        "updated_at": "2026-05-28T21:45:39.757+00:00"
+      }
+    }
+  ],
+  "after": {
+    "agencies": [
+      {
+        "id": "f1e6980c-f064-4172-befb-02cc7b1e0039",
+        "slug": "qa-agency-244988",
+        "display_name": "QA Agency Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "agency",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "21-50",
+          "signup_tier_interest": "agency",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      },
+      {
+        "id": "23560ac3-6bd6-4ab8-9c06-c07e9c674d7e",
+        "slug": "qa-free-03545833",
+        "display_name": "QA Free Browser Workspace",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "operator",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "1-5",
+          "signup_tier_interest": "free",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      },
+      {
+        "id": "b4e5f354-2d1b-4130-a45c-440dcd11021c",
+        "slug": "qa-network-244988",
+        "display_name": "QA Network Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "operator",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "50+",
+          "network_requested_at": "2026-05-28T21:38:14.833Z",
+          "signup_tier_interest": "network",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      },
+      {
+        "id": "e2e7b38f-df6f-40b8-a9ee-8713ecbabd8d",
+        "slug": "qa-studio-244988",
+        "display_name": "QA Studio Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "suspended",
+        "settings": {
+          "qa_cleanup_at": "2026-05-28T21:45:39.757Z",
+          "signup_audience": "operator",
+          "qa_cleanup_reason": "Browser pricing/signup QA complete; test workspace suspended instead of deleted.",
+          "signup_roster_size": "6-20",
+          "signup_tier_interest": "studio",
+          "qa_browser_pricing_signup": true
+        },
+        "suspended_at": "2026-05-28T21:45:39.757+00:00",
+        "suspended_reason": "Browser pricing/signup QA complete; test workspace suspended."
+      }
+    ],
+    "inquiry": {
+      "id": "22a3baac-76f7-431e-8f92-99276d7d0056",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "contact_name": "QA Browser Client 416083",
+      "contact_email": "qa-inquiry-416083@impronta.test",
+      "status": "archived",
+      "source_page": "/impronta",
+      "origin_domain": "impronta.tulala.digital",
+      "close_reason_text": "Browser pricing/signup QA smoke complete; archived test inquiry.",
+      "staff_notes": "QA test inquiry archived after browser pricing/signup continuation pass.",
+      "updated_at": "2026-05-28T21:45:39.757+00:00"
+    },
+    "discounts": [
+      {
+        "code": "QATEST10",
+        "is_active": false,
+        "starts_at": null,
+        "ends_at": null,
+        "stripe_coupon_id": "Q2444i53",
+        "stripe_promotion_code_id": "promo_1TcAMRRrZLyWJgP5TV6N45Cx"
+      },
+      {
+        "code": "QATEST3MONTHS",
+        "is_active": false,
+        "starts_at": null,
+        "ends_at": null,
+        "stripe_coupon_id": "DgOQc1f6",
+        "stripe_promotion_code_id": "promo_1TcBGyRrZLyWJgP5DXY22ZQg"
+      }
+    ],
+    "tiers": [
+      {
+        "id": "db28cf8e-6020-4464-a97e-a6dad2150550",
+        "slug": "free",
+        "name": "Free",
+        "stripe_product_id": null,
+        "display_order": 1,
+        "is_active": true,
+        "prices": []
+      },
+      {
+        "id": "50e98d5e-15bc-46c4-a71b-00eddaebadda",
+        "slug": "free",
+        "name": "Free",
+        "stripe_product_id": null,
+        "display_order": 1,
+        "is_active": true,
+        "prices": []
+      },
+      {
+        "id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+        "slug": "studio",
+        "name": "Studio",
+        "stripe_product_id": "prod_USqz7caN3C05as",
+        "display_order": 2,
+        "is_active": true,
+        "prices": [
+          {
+            "id": "a8bdf8dc-b35d-41d6-b576-62b57736799e",
+            "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+            "currency": "MXN",
+            "interval": "month",
+            "unit_amount": 84900,
+            "stripe_price_id": null,
+            "is_active": false,
+            "archived_at": "2026-05-28T05:18:38.958074+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "261b12d6-589c-4216-941a-d3a302cb9dce",
+            "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 2450,
+            "stripe_price_id": null,
+            "is_active": false,
+            "archived_at": "2026-05-28T05:18:38.452481+00:00",
+            "valid_from": "2026-05-28T04:35:47.673+00:00",
+            "valid_until": "2026-05-28T05:35:47.673+00:00"
+          },
+          {
+            "id": "c94a5b85-0bf3-46cd-873c-b13272f96dca",
+            "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 4900,
+            "stripe_price_id": "price_1TTvHTRrZLyWJgP5rs0thGmh",
+            "is_active": false,
+            "archived_at": "2026-05-28T20:08:33.903+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "0de1e4c9-554e-4e25-afb3-7925edcaf07c",
+            "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 5100,
+            "stripe_price_id": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+            "is_active": false,
+            "archived_at": "2026-05-28T20:10:15.636+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "bfebe919-7c49-4735-9d4b-5d5eba610257",
+            "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 4900,
+            "stripe_price_id": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+            "is_active": true,
+            "archived_at": null,
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "9c499dfd-0eaf-4f22-878e-a1346adba3aa",
+            "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+            "currency": "USD",
+            "interval": "year",
+            "unit_amount": 49000,
+            "stripe_price_id": "price_1TTvHURrZLyWJgP5SIcZDGNJ",
+            "is_active": true,
+            "archived_at": null,
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      },
+      {
+        "id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+        "slug": "agency",
+        "name": "Agency",
+        "stripe_product_id": "prod_USqzOU4yezKAUy",
+        "display_order": 3,
+        "is_active": true,
+        "prices": [
+          {
+            "id": "be781e6d-28c1-4018-ad5b-4ee313ff276b",
+            "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 15100,
+            "stripe_price_id": "price_1TcAHLRrZLyWJgP5ZEufquLN",
+            "is_active": false,
+            "archived_at": "2026-05-28T20:13:15.557+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "48c09acb-6ac5-41f6-abed-012f50448f5e",
+            "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 14900,
+            "stripe_price_id": "price_1TcAIpRrZLyWJgP5Q6WbXbA6",
+            "is_active": true,
+            "archived_at": null,
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "cbc2ce42-c754-495e-8dc8-c3954c754a5e",
+            "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 14900,
+            "stripe_price_id": "price_1TTvHVRrZLyWJgP5eL41Skdg",
+            "is_active": false,
+            "archived_at": "2026-05-28T20:11:44.051+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "1a39a5c8-d9a5-4770-a0d5-0c6750dca45f",
+            "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+            "currency": "USD",
+            "interval": "year",
+            "unit_amount": 149000,
+            "stripe_price_id": "price_1TTvHWRrZLyWJgP5NwUM0Qce",
+            "is_active": true,
+            "archived_at": null,
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      },
+      {
+        "id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+        "slug": "hub",
+        "name": "Network",
+        "stripe_product_id": "prod_UbB6sySzjqz45y",
+        "display_order": 4,
+        "is_active": true,
+        "prices": [
+          {
+            "id": "7cf5844b-b95a-4be4-a8aa-b77a87da77ad",
+            "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 49900,
+            "stripe_price_id": "price_1TcAJ3RrZLyWJgP5bI3H1O1S",
+            "is_active": true,
+            "archived_at": null,
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "cb2d40e9-bae0-41bc-8bb2-ac56ad4c714b",
+            "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 50100,
+            "stripe_price_id": "price_1TcAHaRrZLyWJgP5jvmJLEFS",
+            "is_active": false,
+            "archived_at": "2026-05-28T20:13:29.926+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "fd0b0a15-dc21-4e16-95b3-0f0805f3af2a",
+            "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+            "currency": "USD",
+            "interval": "month",
+            "unit_amount": 49900,
+            "stripe_price_id": "price_1TbykRRrZLyWJgP56Y5iONh6",
+            "is_active": false,
+            "archived_at": "2026-05-28T20:11:59.137+00:00",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "id": "5208742d-6829-4969-99e3-299b9aa8d272",
+            "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+            "currency": "USD",
+            "interval": "year",
+            "unit_amount": 499000,
+            "stripe_price_id": "price_1TbykRRrZLyWJgP5t10T4eGr",
+            "is_active": true,
+            "archived_at": null,
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    ],
+    "tempStaffRemaining": [],
+    "ownerProfiles": [
+      {
+        "id": "e45682bc-b4d2-4ecf-884f-75404cfc4865",
+        "display_name": "QA Free Browser User",
+        "app_role": "agency_staff",
+        "account_status": "active",
+        "is_test_account": true
+      },
+      {
+        "id": "c5f6975e-f7e8-4fc2-8dee-6f04d1f8145a",
+        "display_name": "QA Studio Browser Workspace 244988",
+        "app_role": "agency_staff",
+        "account_status": "active",
+        "is_test_account": true
+      },
+      {
+        "id": "abb66861-76e2-4c83-a18d-01140098f828",
+        "display_name": "QA Agency Browser Workspace 244988",
+        "app_role": "agency_staff",
+        "account_status": "active",
+        "is_test_account": true
+      },
+      {
+        "id": "ebbd0b34-f566-40dd-8a43-e63798250621",
+        "display_name": "QA Network Browser Workspace 244988",
+        "app_role": "agency_staff",
+        "account_status": "active",
+        "is_test_account": true
+      }
+    ],
+    "rosterProfiles": [
+      {
+        "id": "7e61dd15-0e76-4f18-8cf8-cf798ca0fe09",
+        "profile_code": "TAL-92041",
+        "display_name": "QA Free Seat 1",
+        "is_test_account": true
+      },
+      {
+        "id": "f10dffa8-8800-430b-a91e-e578af0be5e8",
+        "profile_code": "TAL-92042",
+        "display_name": "QA Free Seat 2",
+        "is_test_account": true
+      },
+      {
+        "id": "442f23db-beda-415b-8da1-ae0c0b74d663",
+        "profile_code": "TAL-92043",
+        "display_name": "QA Free Seat 3",
+        "is_test_account": true
+      },
+      {
+        "id": "e25f72a1-fd18-4ef5-bb4b-3c546390297a",
+        "profile_code": "TAL-92044",
+        "display_name": "QA Free Seat 4",
+        "is_test_account": true
+      },
+      {
+        "id": "318e4e14-096f-4452-bc08-f0752e14862a",
+        "profile_code": "TAL-92045",
+        "display_name": "QA Free Seat 5",
+        "is_test_account": true
+      }
+    ]
+  },
+  "errors": [],
+  "correctedAt": "2026-05-28T21:46:43.017Z"
+}

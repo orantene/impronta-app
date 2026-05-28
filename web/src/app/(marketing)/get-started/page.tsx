@@ -126,21 +126,20 @@ export default async function GetStartedPage({
   const HEADLINE_BY_TIER = buildHeadlineByTier(workspaceTiers);
 
   // L50 Phase 3: ?promo=CODE → validate against `product_discounts`.
-  // Invalid / expired / out-of-window codes silently fall back to
-  // no-discount rendering (we don't surface "Code expired" to the
-  // visitor — that would confuse anyone who landed on a stale link).
-  //
-  // For Phase 3 we render the LABEL (e.g. "50% off · LATAM50") on the
-  // form chip + fine-print. Phase 8 (Stripe Checkout) will re-validate
-  // the code server-side at submit and pass `promotion_code` to the
-  // Checkout Session so Stripe applies the math.
+  // Render a clear status for both valid and invalid codes so stale links
+  // do not fail silently.
   let appliedDiscountLabel: string | null = null;
   let appliedDiscountCode: string | null = null;
+  let discountErrorMessage: string | null = null;
   if (resolved.promo) {
     const v = await validateDiscount(resolved.promo);
     if (v.ok) {
       appliedDiscountLabel = v.label;
       appliedDiscountCode = v.discount.code;
+    } else {
+      const promoCode = resolved.promo.trim().toUpperCase();
+      discountErrorMessage =
+        `Promo code ${promoCode} could not be applied. ${v.reason}`;
     }
   }
 
@@ -189,6 +188,7 @@ export default async function GetStartedPage({
         }}
         appliedDiscountLabel={appliedDiscountLabel}
         appliedDiscountCode={appliedDiscountCode}
+        discountErrorMessage={discountErrorMessage}
       />
       <WhoItsForSection />
       <HowItWorksSection />
@@ -220,6 +220,7 @@ function HeroSection({
   tierNames,
   appliedDiscountLabel,
   appliedDiscountCode,
+  discountErrorMessage,
 }: {
   appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
@@ -237,6 +238,7 @@ function HeroSection({
    *  when no ?promo=CODE is applied. Phase 3. */
   appliedDiscountLabel?: string | null;
   appliedDiscountCode?: string | null;
+  discountErrorMessage?: string | null;
 }) {
   return (
     <MarketingSection spacing="tight" className="relative">
@@ -345,6 +347,20 @@ function HeroSection({
                   style={{ background: "var(--plt-forest)" }}
                 />
                 Promo applied: <strong>{appliedDiscountLabel}</strong>
+              </div>
+            )}
+            {discountErrorMessage && (
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 text-[0.8125rem]"
+                style={{
+                  background: "rgba(164,84,58,0.08)",
+                  borderColor: "rgba(164,84,58,0.28)",
+                  color: "#7a2f1d",
+                  fontWeight: 500,
+                }}
+                role="alert"
+              >
+                {discountErrorMessage}
               </div>
             )}
             <GetStartedForm

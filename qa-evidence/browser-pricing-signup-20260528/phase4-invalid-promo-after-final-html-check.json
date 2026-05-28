@@ -1,0 +1,11 @@
+{
+  "capturedAt": "2026-05-28T21:47:57.398Z",
+  "url": "http://127.0.0.1:3101/get-started?tier=studio&promo=NOPE",
+  "status": 200,
+  "checks": {
+    "invalidPromoAlertRendered": true,
+    "promoAppliedChipAbsent": true,
+    "studioTierStillRendered": true
+  },
+  "bytes": 253693
+}

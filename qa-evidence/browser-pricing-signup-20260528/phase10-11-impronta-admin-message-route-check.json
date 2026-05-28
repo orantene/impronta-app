@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-05-28T21:41:51.643Z",
+  "inquiryId": "22a3baac-76f7-431e-8f92-99276d7d0056",
+  "testStaff": {
+    "email": "qa-impronta-message-462889@impronta.test",
+    "userId": "c6d63e84-1f0b-4806-9ac2-b9c4e00be391"
+  },
+  "signinStatus": 307,
+  "checks": {
+    "status": 200,
+    "location": null,
+    "hasInquiryId": true,
+    "hasClientName": true,
+    "hasMessage": true,
+    "hasWritePlaceholder": true,
+    "bytes": 912243
+  },
+  "cleanup": {
+    "membershipDeleted": true,
+    "profileDeleted": true,
+    "authDeleteError": null
+  }
+}

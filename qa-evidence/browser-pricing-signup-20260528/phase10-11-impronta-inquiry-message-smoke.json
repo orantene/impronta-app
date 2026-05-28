@@ -1,0 +1,79 @@
+{
+  "capturedAt": "2026-05-28T21:40:19.991Z",
+  "inquiryResult": {
+    "success": true,
+    "data": {
+      "inquiryId": "22a3baac-76f7-431e-8f92-99276d7d0056"
+    }
+  },
+  "messageResult": {
+    "success": true,
+    "data": {
+      "messageId": "c67eb84c-dba8-44cc-a52a-7f9c864f2f8f"
+    }
+  },
+  "inquiry": {
+    "id": "22a3baac-76f7-431e-8f92-99276d7d0056",
+    "tenant_id": "00000000-0000-0000-0000-000000000001",
+    "contact_name": "QA Browser Client 416083",
+    "contact_email": "qa-inquiry-416083@impronta.test",
+    "status": "submitted",
+    "source_page": "/impronta",
+    "source_channel": "directory_guest",
+    "origin_domain": "impronta.tulala.digital",
+    "source_workspace_id": "00000000-0000-0000-0000-000000000001",
+    "uses_new_engine": true,
+    "next_action_by": "coordinator",
+    "trust_level_at_submission": "basic"
+  },
+  "participants": [
+    {
+      "id": "1a8760a8-f5d9-47b4-bfdb-22bdea803ff4",
+      "role": "coordinator",
+      "status": "invited",
+      "user_id": "bfe72e1e-6a9e-401a-9b7a-44b032a28810",
+      "talent_profile_id": null,
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "owning_party_type": null,
+      "owning_party_id": null
+    },
+    {
+      "id": "d60c9a5c-fd8d-4e22-a221-7f78d226da98",
+      "role": "talent",
+      "status": "invited",
+      "user_id": null,
+      "talent_profile_id": "42b0d16f-de76-49f3-bc98-f80b5bba377d",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "owning_party_type": "workspace",
+      "owning_party_id": "00000000-0000-0000-0000-000000000001"
+    }
+  ],
+  "messages": [
+    {
+      "id": "c67eb84c-dba8-44cc-a52a-7f9c864f2f8f",
+      "thread_type": "private",
+      "sender_user_id": "4b9e595d-7c6c-4e65-8f7f-05cd60e85676",
+      "body": "QA coordinator response 416083: message smoke test from admin private thread.",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-05-28T21:40:18.720372+00:00"
+    },
+    {
+      "id": "8d807234-07ed-4cce-831c-2d58b5f8b388",
+      "thread_type": "private",
+      "sender_user_id": null,
+      "body": "Thanks — we'll get back to you within 4 hours.",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-05-28T21:40:18.944873+00:00"
+    }
+  ],
+  "events": [],
+  "reads": [],
+  "errors": {
+    "inquiry": null,
+    "participants": null,
+    "messages": null,
+    "events": null,
+    "reads": null
+  },
+  "eventColumnRetestAt": "2026-05-28T21:40:29.518Z"
+}

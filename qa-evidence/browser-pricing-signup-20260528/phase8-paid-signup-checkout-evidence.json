@@ -1,0 +1,178 @@
+{
+  "capturedAt": "2026-05-28T21:38:19.611Z",
+  "suffix": "244988",
+  "results": [
+    {
+      "tier": "studio",
+      "email": "qa-studio-browser-244988@impronta.test",
+      "userId": "c5f6975e-f7e8-4fc2-8dee-6f04d1f8145a",
+      "lead": {
+        "id": "a8f8fb7d-7c2f-402e-9f22-849569a19e60",
+        "claimed_by_profile_id": "c5f6975e-f7e8-4fc2-8dee-6f04d1f8145a",
+        "provisioned_tenant_id": "e2e7b38f-df6f-40b8-a9ee-8713ecbabd8d",
+        "status": "onboarded",
+        "tier_interest": "studio",
+        "subdomain_wanted": "qa-studio-244988"
+      },
+      "signinStatus": 307,
+      "onboardingStatus": 307,
+      "checkoutLocationHost": "checkout.stripe.com",
+      "checkoutSession": {
+        "id": "cs_test_b1BC2n5rvPxXyPkchS5xXJxhidPtLNY30IMY3MIImci7XNMUb0ZFQomKNt",
+        "mode": "subscription",
+        "amount_subtotal": 4900,
+        "amount_total": 4900,
+        "currency": "usd",
+        "customer": "cus_UbOPNo18nDSzTx",
+        "metadata": {
+          "checkout_type": "workspace_subscription",
+          "plan_key": "studio",
+          "tenant_id": "e2e7b38f-df6f-40b8-a9ee-8713ecbabd8d"
+        },
+        "discounts": [],
+        "line_items": [
+          {
+            "price": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+            "amount_total": 4900,
+            "description": "Studio"
+          }
+        ]
+      },
+      "agency": {
+        "id": "e2e7b38f-df6f-40b8-a9ee-8713ecbabd8d",
+        "slug": "qa-studio-244988",
+        "display_name": "QA Studio Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "operator",
+          "signup_roster_size": "6-20",
+          "signup_tier_interest": "studio"
+        }
+      },
+      "membership": [
+        {
+          "profile_id": "c5f6975e-f7e8-4fc2-8dee-6f04d1f8145a",
+          "role": "owner",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "tier": "agency",
+      "email": "qa-agency-browser-244988@impronta.test",
+      "userId": "abb66861-76e2-4c83-a18d-01140098f828",
+      "lead": {
+        "id": "926fa033-a34d-4892-8d22-87685320a85e",
+        "claimed_by_profile_id": "abb66861-76e2-4c83-a18d-01140098f828",
+        "provisioned_tenant_id": "f1e6980c-f064-4172-befb-02cc7b1e0039",
+        "status": "onboarded",
+        "tier_interest": "agency",
+        "subdomain_wanted": "qa-agency-244988"
+      },
+      "signinStatus": 307,
+      "onboardingStatus": 307,
+      "checkoutLocationHost": "checkout.stripe.com",
+      "checkoutSession": {
+        "id": "cs_test_b1GPzyKGihUiGrb1K9eMBXD9XrcQNXbkAPJeg540tqShAapgXGaP1O9abR",
+        "mode": "subscription",
+        "amount_subtotal": 14900,
+        "amount_total": 14900,
+        "currency": "usd",
+        "customer": "cus_UbOPRKnpWZ0CZH",
+        "metadata": {
+          "checkout_type": "workspace_subscription",
+          "plan_key": "agency",
+          "tenant_id": "f1e6980c-f064-4172-befb-02cc7b1e0039"
+        },
+        "discounts": [],
+        "line_items": [
+          {
+            "price": "price_1TcAIpRrZLyWJgP5Q6WbXbA6",
+            "amount_total": 14900,
+            "description": "Agency"
+          }
+        ]
+      },
+      "agency": {
+        "id": "f1e6980c-f064-4172-befb-02cc7b1e0039",
+        "slug": "qa-agency-244988",
+        "display_name": "QA Agency Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "agency",
+          "signup_roster_size": "21-50",
+          "signup_tier_interest": "agency"
+        }
+      },
+      "membership": [
+        {
+          "profile_id": "abb66861-76e2-4c83-a18d-01140098f828",
+          "role": "owner",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "tier": "network",
+      "email": "qa-network-browser-244988@impronta.test",
+      "userId": "ebbd0b34-f566-40dd-8a43-e63798250621",
+      "lead": {
+        "id": "4d878327-3ebb-49af-aa30-947d818c3f54",
+        "claimed_by_profile_id": "ebbd0b34-f566-40dd-8a43-e63798250621",
+        "provisioned_tenant_id": "b4e5f354-2d1b-4130-a45c-440dcd11021c",
+        "status": "onboarded",
+        "tier_interest": "network",
+        "subdomain_wanted": "qa-network-244988"
+      },
+      "signinStatus": 307,
+      "onboardingStatus": 307,
+      "checkoutLocationHost": "checkout.stripe.com",
+      "checkoutSession": {
+        "id": "cs_test_b1cdgTwWSyIJgrVXnoUb3WXlb1SZe4vxclBmli25Dm8UbMRmqjH1ylaySL",
+        "mode": "subscription",
+        "amount_subtotal": 49900,
+        "amount_total": 49900,
+        "currency": "usd",
+        "customer": "cus_UbOPchm3EKka2T",
+        "metadata": {
+          "checkout_type": "workspace_subscription",
+          "plan_key": "network",
+          "tenant_id": "b4e5f354-2d1b-4130-a45c-440dcd11021c"
+        },
+        "discounts": [],
+        "line_items": [
+          {
+            "price": "price_1TcAJ3RrZLyWJgP5bI3H1O1S",
+            "amount_total": 49900,
+            "description": "Network"
+          }
+        ]
+      },
+      "agency": {
+        "id": "b4e5f354-2d1b-4130-a45c-440dcd11021c",
+        "slug": "qa-network-244988",
+        "display_name": "QA Network Browser Workspace 244988",
+        "plan_tier": "free",
+        "talent_seat_limit": 5,
+        "status": "active",
+        "settings": {
+          "signup_audience": "operator",
+          "signup_roster_size": "50+",
+          "network_requested_at": "2026-05-28T21:38:14.833Z",
+          "signup_tier_interest": "network"
+        }
+      },
+      "membership": [
+        {
+          "profile_id": "ebbd0b34-f566-40dd-8a43-e63798250621",
+          "role": "owner",
+          "status": "active"
+        }
+      ]
+    }
+  ]
+}
