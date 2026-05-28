@@ -1480,6 +1480,14 @@ export function TalentProfileShellDrawer() {
   // useAdminShell at the top of TalentProfileShellDrawer.)
   const [liveEnabledPrimaryIds, setLiveEnabledPrimaryIds] = useState<Set<string> | null>(null);
   const [liveEnabledPrimarySlugs, setLiveEnabledPrimarySlugs] = useState<Set<string>>(new Set());
+  // Phase 2b — parallel set keyed by SECONDARY allowance, walked across the
+  // ENTIRE tree (not just the top level) because secondary chips render
+  // talent_type leaves (children of parent_category / category_group, see
+  // use-taxonomy.ts → toDisplay()). When a leaf's tenant overlay says
+  // `is_enabled=false` OR `allow_as_secondary=false`, that chip should
+  // fade in the SiblingTopNPicker. Identical default-true semantics to
+  // the primary path: when no overlay row exists the leaf stays enabled.
+  const [liveEnabledSecondarySlugs, setLiveEnabledSecondarySlugs] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (!bridgeTenantIdentity?.tenantId) return;
     let cancelled = false;
@@ -1487,14 +1495,26 @@ export function TalentProfileShellDrawer() {
       if (cancelled || !res.ok) return;
       const ids = new Set<string>();
       const slugs = new Set<string>();
-      for (const p of res.tree) {
-        if (p.is_enabled && p.allow_as_primary) {
-          ids.add(p.id);
-          slugs.add(p.slug);
+      const secondarySlugs = new Set<string>();
+      // Walk the full tree depth-first — parents AND every child level —
+      // so we capture talent_type leaves (level 3) as well as the
+      // category_group / parent_category levels above.
+      const walk = (nodes: typeof res.tree): void => {
+        for (const n of nodes) {
+          if (n.is_enabled && n.allow_as_primary) {
+            ids.add(n.id);
+            slugs.add(n.slug);
+          }
+          if (n.is_enabled && n.allow_as_secondary) {
+            secondarySlugs.add(n.slug);
+          }
+          if (n.children?.length) walk(n.children);
         }
-      }
+      };
+      walk(res.tree);
       setLiveEnabledPrimaryIds(ids);
       setLiveEnabledPrimarySlugs(slugs);
+      setLiveEnabledSecondarySlugs(secondarySlugs);
     });
     return () => { cancelled = true; };
   }, [bridgeTenantIdentity?.tenantId]);
@@ -2924,6 +2944,7 @@ export function TalentProfileShellDrawer() {
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
                 lockReasons={state.fieldLockReasons}
                 workspaceScopeTenantId={workspaceScopeTenantId}
+                disabled={personalProfileLocked}
               />
               <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline" tenantId={workspaceScopeTenantId}>
                 <TextInput placeholder={copy.t("e.g. Editorial fashion model · Madrid")} value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
@@ -3049,6 +3070,7 @@ export function TalentProfileShellDrawer() {
                     primaryRes={primaryRes}
                     specialtyOptions={specialtyOptions}
                     tenantEnabledPrimarySlugs={liveEnabledPrimarySlugs}
+                    tenantEnabledSecondarySlugs={liveEnabledSecondarySlugs}
                     tenantSettingsHref={
                       bridgeTenantIdentity?.slug
                         ? `/${bridgeTenantIdentity.slug}/admin/settings#talent-types`
@@ -3388,6 +3410,7 @@ export function TalentProfileShellDrawer() {
                 onChange={patchBios}
                 onRegenerate={onBiosRegenerate}
                 primaryLabel={primaryRes?.child.label}
+                disabled={personalProfileLocked}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
               {/* Languages folded in from the old standalone Languages
@@ -3402,7 +3425,7 @@ export function TalentProfileShellDrawer() {
                   // Real tenant: DB-backed immediate-setAll panel owns
                   // languages (persists independently; batched save skips
                   // languages — see languagesOwnedByPanel).
-                  <LanguageSlotPanel talentProfileId={payload.talentId} />
+                  <LanguageSlotPanel talentProfileId={payload.talentId} disabled={personalProfileLocked} />
                 ) : (
                   <>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>

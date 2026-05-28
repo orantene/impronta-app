@@ -76,8 +76,14 @@ const PRESETS: Array<{ id: string; label: string; codes: string[] }> = [
 
 export function LanguageSlotPanel({
   talentProfileId,
+  disabled,
 }: {
   talentProfileId: string;
+  /** Phase 2b — multi-tenant identity blanket lock. When true the panel
+   *  renders inside `<fieldset disabled>` so add/edit/remove controls
+   *  are inert. Server-side guard on `setTalentLanguages` is the safety
+   *  floor; this is the UI affordance. */
+  disabled?: boolean;
 }) {
   const copy = useDashboardText();
   const [languages, setLanguages] = useState<LangRow[] | null>(null);
@@ -282,6 +288,18 @@ export function LanguageSlotPanel({
   const ready = languages !== null;
 
   return (
+    // Phase 2b — multi-tenant identity safety: `<fieldset disabled>`
+    // disables every nested form control. Server-side guard on
+    // setTalentLanguages backs this up.
+    <fieldset
+      disabled={!!disabled}
+      style={{
+        border: "none",
+        padding: 0,
+        margin: 0,
+        opacity: disabled ? 0.65 : 1,
+      }}
+    >
     <div style={{ fontFamily: F_BODY }}>
       {error && (
         <div
@@ -462,5 +480,6 @@ export function LanguageSlotPanel({
         />
       )}
     </div>
+    </fieldset>
   );
 }

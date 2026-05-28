@@ -52,7 +52,7 @@ export async function updateTalentIdentity(
 
   const { data: roster, error: rosterErr } = await supabase
     .from("agency_talent_roster")
-    .select("id, status")
+    .select("id, status, exclusivity_status")
     .eq("tenant_id", tenantId)
     .eq("talent_profile_id", vId)
     .neq("status", "removed")
@@ -65,6 +65,36 @@ export async function updateTalentIdentity(
     return {
       ok: false,
       error: "That talent isn't on your roster.",
+    };
+  }
+
+  // Phase 2b — multi-tenant identity safety floor. Mirrors the guard in
+  // commitTalentProfileShellAdmin and setTalentLanguages. Identity is the
+  // talent's personal profile by definition, so any non-confirmed
+  // relationship locks the agency out of overwriting it.
+  // talent_profiles is a GLOBAL table (no tenant_id — talents exist
+  // cross-tenant), so this read cannot route through tenantScopedQuery; the
+  // raw .from() is grandfathered in eslint-suppressions.json.
+  const { data: talentRow, error: tErr } = await supabase
+    .from("talent_profiles")
+    .select("user_id")
+    .eq("id", vId)
+    .maybeSingle();
+  if (tErr) {
+    logServerError("admin-talent-identity.talent-check", tErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+  const tulalaNativeIdentity = !!(
+    talentRow as { user_id?: string | null } | null
+  )?.user_id;
+  const rosterExclusivity =
+    (roster as { exclusivity_status?: string | null }).exclusivity_status ??
+    null;
+  if (tulalaNativeIdentity && rosterExclusivity !== "confirmed") {
+    return {
+      ok: false,
+      error:
+        "This talent owns their personal profile. Your agency can manage roster relationship only — not the talent's identity. Ask the talent to confirm exclusivity first.",
     };
   }
 

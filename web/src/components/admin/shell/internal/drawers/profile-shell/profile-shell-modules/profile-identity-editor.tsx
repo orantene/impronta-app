@@ -182,7 +182,7 @@ function SelectPicker({
   );
 }
 
-export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons, workspaceScopeTenantId }: {
+export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons, workspaceScopeTenantId, disabled }: {
   identity: ProfileIdentity;
   onChange: (next: ProfileIdentity) => void;
   isSelf: boolean;
@@ -191,12 +191,37 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
   /** Step 7 — per-path reason text. Surfaced through `LockedHint` so
    *  talent see why a field is greyed out, not just that it is. */
   lockReasons?: Record<string, string>;
+  /** Phase 2b — blanket lock when the talent owns their identity AND
+   *  the relationship is not 'confirmed' exclusivity. When true EVERY
+   *  input renders disabled with reduced opacity, regardless of the
+   *  per-path `isFieldLocked` matrix. The drawer banner explains why
+   *  separately; this is the safety floor for editing affordances. */
+  disabled?: boolean;
 }) {
   const copy = useDashboardText();
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
   const inputStyle: React.CSSProperties = { ...SHARED_FIELD_INPUT_STYLE };
   return (
+    // Phase 2b — `<fieldset disabled>` semantically disables EVERY form
+    // control nested inside (HTML spec: inputs/selects/textareas/buttons
+    // all inherit the disabled state). This layers on top of the existing
+    // per-path `isFieldLocked` matrix + `LockedHint`: that matrix greys out
+    // individual fields for self-edit policy, while this blanket lock makes
+    // the WHOLE editor read-only when the talent owns their identity AND the
+    // relationship is not confirmed exclusivity (the drawer banner explains
+    // why). Visual: opacity 0.65 dims the entire editor — labels included.
+    // border/padding/margin:0 strip the fieldset's UA-default chrome so the
+    // original grid layout is preserved.
+    <fieldset
+      disabled={!!disabled}
+      style={{
+        border: "none",
+        padding: 0,
+        margin: 0,
+        opacity: disabled ? 0.65 : 1,
+      }}
+    >
     <div data-pshell-identity-grid style={{
       display: "grid",
       gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -605,6 +630,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
         </FieldRow>
       </div>
     </div>
+    </fieldset>
   );
 }
 

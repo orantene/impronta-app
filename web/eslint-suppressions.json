@@ -274,7 +274,7 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-editors-core.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 64
+      "count": 65
     },
     "react/no-children-prop": {
       "count": 2
@@ -290,7 +290,7 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-identity-editor.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 41
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-identity-fields.tsx": {
@@ -349,7 +349,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 11
+      "count": 12
     },
     "react-hooks/purity": {
       "count": 2
@@ -1487,12 +1487,12 @@
   },
   "src/lib/server-actions/admin-talent-identity.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 2
+      "count": 3
     }
   },
   "src/lib/server-actions/admin-talent-languages.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 3
+      "count": 4
     }
   },
   "src/lib/server-actions/admin-talent-metrics.ts": {
@@ -1505,7 +1505,7 @@
       "count": 1
     },
     "ratchet/no-untenanted-from": {
-      "count": 26
+      "count": 27
     }
   },
   "src/lib/server-actions/admin-talent-roster.ts": {

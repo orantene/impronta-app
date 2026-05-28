@@ -605,12 +605,25 @@ export function SiblingTopNPicker({
   onToggle,
   parentLabel,
   excludeId,
+  tenantEnabledSlugs,
 }: {
   children: TaxonomyChild[];
   selected: string[];
   onToggle: (id: string) => void;
   parentLabel: string;
   excludeId?: string | null;
+  /** Slugs ENABLED in the current tenant's agency_taxonomy_settings. When
+   *  provided, any chip whose slug is NOT in this set renders faded
+   *  (opacity 0.55 + muted tokens) — Phase 2b multi-tenant identity fade
+   *  for secondary talent types. Optional: omit to keep all chips full
+   *  contrast (standalone / pre-tenant-context usage).
+   *
+   *  Note: TaxonomyChild.id IS the slug in this codebase (see
+   *  use-taxonomy.ts → toDisplay() and fromHardcoded() — both project the
+   *  taxonomy_terms.slug into the display child id). So this set is
+   *  keyed by the same string as `selected` (talent_profile.primary_type
+   *  and the secondary id list). */
+  tenantEnabledSlugs?: Set<string>;
 }) {
   const TOP_N = 6;
   const [localQuery, setLocalQuery] = useState("");
@@ -691,15 +704,53 @@ export function SiblingTopNPicker({
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {visible.map((c) => {
             const active = selected.includes(c.id);
+            // Phase 2b — fade signal. Only fires when this tenant context is
+            // known AND this chip's slug is NOT in the tenant's enabled set.
+            // (When tenantEnabledSlugs is undefined the picker behaves as it
+            // did before — every chip full contrast.)
+            const disabledForTenant =
+              !!tenantEnabledSlugs && !tenantEnabledSlugs.has(c.id);
             return (
-              <button key={c.id} type="button" onClick={() => onToggle(c.id)} style={{
-                padding: "6px 11px", borderRadius: 999,
-                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                color: active ? COLORS.accentDeep : COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>{c.label}</button>
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onToggle(c.id)}
+                title={
+                  disabledForTenant
+                    ? "This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types."
+                    : undefined
+                }
+                style={{
+                  padding: "6px 11px",
+                  borderRadius: 999,
+                  border: `1.5px solid ${
+                    active
+                      ? disabledForTenant
+                        ? COLORS.borderSoft
+                        : COLORS.accent
+                      : COLORS.borderSoft
+                  }`,
+                  background: active
+                    ? disabledForTenant
+                      ? "rgba(11,11,13,0.04)"
+                      : "rgba(15,79,62,0.08)"
+                    : "#fff",
+                  color: active
+                    ? disabledForTenant
+                      ? COLORS.inkMuted
+                      : COLORS.accentDeep
+                    : disabledForTenant
+                      ? COLORS.inkMuted
+                      : COLORS.ink,
+                  opacity: disabledForTenant ? 0.55 : 1,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >
+                {c.label}
+              </button>
             );
           })}
         </div>

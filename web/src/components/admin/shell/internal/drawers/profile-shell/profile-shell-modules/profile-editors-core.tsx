@@ -89,6 +89,7 @@ export function ServicesEditor({
   allowedParents, primaryType, secondaryTypes, specialties, primaryRes, specialtyOptions,
   onPickPrimary, onClearPrimary, onToggleSecondary, onToggleSpecialty, hydrating,
   tenantEnabledPrimarySlugs,
+  tenantEnabledSecondarySlugs,
   tenantSettingsHref,
 }: {
   allowedParents: TaxonomyParent[];
@@ -112,6 +113,11 @@ export function ServicesEditor({
    *  active in her agency. Optional — when omitted (standalone /
    *  pre-tenant-context), no fading is applied. */
   tenantEnabledPrimarySlugs?: Set<string>;
+  /** Phase 2b — slugs ENABLED for SECONDARY in the current tenant's
+   *  agency_taxonomy_settings. Threaded to each SiblingTopNPicker so any
+   *  "Also bookable as" chip whose slug isn't enabled renders faded.
+   *  Optional; omit to keep every secondary chip full contrast. */
+  tenantEnabledSecondarySlugs?: Set<string>;
   /** Deep-link to the agency taxonomy settings drawer; surfaces as
    *  "Enable in Settings →" next to a faded chip. */
   tenantSettingsHref?: string;
@@ -269,6 +275,7 @@ export function ServicesEditor({
             onToggle={onToggleSecondary}
             parentLabel={primaryRes ? shortParentLabel(primaryRes.parent) : "this category"}
             excludeId={primaryType ?? null}
+            tenantEnabledSlugs={tenantEnabledSecondarySlugs}
           />
           {otherCategories.length > 0 && (
             <div className="mt-3">
@@ -296,6 +303,7 @@ export function ServicesEditor({
                         onToggle={onToggleSecondary}
                         parentLabel={shortParentLabel(p)}
                         excludeId={primaryType ?? null}
+                        tenantEnabledSlugs={tenantEnabledSecondarySlugs}
                       />
                     </div>
                   ))}
@@ -347,9 +355,15 @@ export type BiosEditorProps = {
   onChange: (b: LocaleBio[]) => void;
   onRegenerate: () => void;
   primaryLabel?: string;
+  /** Phase 2b — blanket lock when the talent owns their identity AND
+   *  the relationship is not 'confirmed' exclusivity. Wraps the editor
+   *  in `<fieldset disabled>` so the textarea, locale buttons,
+   *  paste-clipboard and regenerate buttons are all inert. Optional;
+   *  defaults to unlocked. */
+  disabled?: boolean;
 };
 
-export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel }: BiosEditorProps) {
+export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel, disabled }: BiosEditorProps) {
   const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
   const ensureLocale = (l: LocaleCode) => {
     if (bios.some(b => b.locale === l)) return;
@@ -368,6 +382,17 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
   const limit = 280;
 
   return (
+    // Phase 2b — see IdentityEditor for the rationale. `<fieldset disabled>`
+    // semantically locks every form control nested below.
+    <fieldset
+      disabled={!!disabled}
+      style={{
+        border: "none",
+        padding: 0,
+        margin: 0,
+        opacity: disabled ? 0.65 : 1,
+      }}
+    >
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
         {bios.map(b => {
@@ -455,6 +480,7 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
         </span>
       </div>
     </div>
+    </fieldset>
   );
 });
 
