@@ -24,6 +24,12 @@
     "src/app/api/cron/reconcile-plan-overrides/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/send-digest-emails/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/retry-failed-emails/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
     }
@@ -33,6 +39,8 @@
     { "path": "/api/cron/cleanup-guest-cart", "schedule": "0 5 * * *" },
     { "path": "/api/cron/refresh-discover-index", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/usage-audit", "schedule": "0 9 * * 1" },
-    { "path": "/api/cron/reconcile-plan-overrides", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/reconcile-plan-overrides", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/send-digest-emails", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/retry-failed-emails", "schedule": "0 * * * *" }
   ]
 }

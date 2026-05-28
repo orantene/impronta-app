@@ -403,3 +403,13 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
 export function findCatalogEntries(eventType: string): CatalogEntry[] {
   return NOTIFICATION_CATALOG.filter((entry) => entry.triggers.includes(eventType));
 }
+
+/**
+ * A single catalog entry by its globally-unique id (e.g. "offer.sent.client"),
+ * or null. The dispatch_log row stores this id in `catalog_entry_id`, so the
+ * digest + retry crons resolve a logged row back to its entry (category,
+ * template, render fn) through this lookup.
+ */
+export function findCatalogEntryById(id: string): CatalogEntry | null {
+  return NOTIFICATION_CATALOG.find((entry) => entry.id === id) ?? null;
+}
