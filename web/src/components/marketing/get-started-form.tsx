@@ -15,10 +15,6 @@ import {
   type GetStartedActionResult,
 } from "@/app/(marketing)/get-started/actions";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
-import {
-  reservedBrandedSubdomainHost,
-  workspacePathHost,
-} from "@/lib/saas/workspace-public-url";
 import { SuccessTick, TextField } from "./get-started-form-fields";
 import { SubdomainHint, type SubdomainState } from "./get-started-form-subdomain-hint";
 
@@ -39,12 +35,20 @@ export type GetStartedSignedIn = {
  * `/platform/admin/pricing` currently has set. Pass `undefined` to fall
  * back to USD defaults.
  */
-export type { GetStartedTierPrices } from "./get-started-form-tier-copy";
-import type { GetStartedTierPrices } from "./get-started-form-tier-copy";
+export type {
+  GetStartedTierPrices,
+  GetStartedTierNames,
+} from "./get-started-form-tier-copy";
+import type {
+  GetStartedTierPrices,
+  GetStartedTierNames,
+} from "./get-started-form-tier-copy";
 import {
   PAID_TIER_PLAN_LABEL,
   formFinePrint,
   isPaidTier,
+  preferredLinkLabel,
+  preferredLinkPreview,
   submitCtaLabel,
 } from "./get-started-form-tier-copy";
 
@@ -56,27 +60,15 @@ type Props = {
   sourcePage?: string;
   /** Live monthly prices from catalog (Phase 2). */
   tierPrices?: GetStartedTierPrices;
+  /**
+   * Live display names per tier from `product_tiers.name` in the catalog.
+   * Plumbed in so `submitCtaLabel` and `formFinePrint` reflect admin
+   * renames without a redeploy.
+   */
+  tierNames?: GetStartedTierNames;
   /** Pre-formatted promo label (Phase 3 — appended to fine-print). */
   appliedDiscountLabel?: string;
 };
-
-function preferredLinkPreview(slug: string, tier?: TierKey): string {
-  // Studio/Agency provision a branded subdomain immediately.
-  // Network leads get a free workspace first (path URL); the branded host
-  // is set up later as part of Network onboarding — surfacing it here
-  // would mis-represent what the user actually receives at signup.
-  if (tier === "studio" || tier === "agency") {
-    return reservedBrandedSubdomainHost(slug);
-  }
-
-  return workspacePathHost(slug);
-}
-
-function preferredLinkLabel(tier?: TierKey): string {
-  return tier === "studio" || tier === "agency"
-    ? "Preferred branded host"
-    : "Your public URL";
-}
 
 const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }[] = [
   {
@@ -124,6 +116,7 @@ export function GetStartedForm({
   initialSignedIn,
   sourcePage = "/get-started",
   tierPrices,
+  tierNames,
   appliedDiscountLabel,
 }: Props) {
   const [state, formAction, isPending] = useActionState<
@@ -770,7 +763,7 @@ export function GetStartedForm({
           boxShadow: "0 18px 40px -18px rgba(31,74,58,0.55)",
         }}
       >
-        {isPending ? "Reserving your link…" : submitCtaLabel(tier, audience, tierPrices)}
+        {isPending ? "Reserving your link…" : submitCtaLabel(tier, audience, tierPrices, tierNames)}
         <svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden>
           <path
             d="M1 5H13M13 5L9 1M13 5L9 9"
@@ -783,7 +776,7 @@ export function GetStartedForm({
       </button>
 
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-        {formFinePrint(tier, tierPrices)}
+        {formFinePrint(tier, tierPrices, tierNames)}
         {appliedDiscountLabel && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
       </p>
     </form>

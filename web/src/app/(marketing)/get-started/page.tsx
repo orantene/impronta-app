@@ -163,6 +163,12 @@ export default async function GetStartedPage({
           agency: workspaceTiers.find((t) => t.key === "agency")?.price,
           network: workspaceTiers.find((t) => t.key === "hub")?.price,
         }}
+        tierNames={{
+          free:    workspaceTiers.find((t) => t.key === "free")?.name,
+          studio:  workspaceTiers.find((t) => t.key === "studio")?.name,
+          agency:  workspaceTiers.find((t) => t.key === "agency")?.name,
+          network: workspaceTiers.find((t) => t.key === "hub")?.name,
+        }}
         appliedDiscountLabel={appliedDiscountLabel}
       />
       <WhoItsForSection />
@@ -192,6 +198,7 @@ function HeroSection({
   initialSignedIn,
   tier,
   tierPrices,
+  tierNames,
   appliedDiscountLabel,
 }: {
   appLoginUrl: string;
@@ -204,6 +211,8 @@ function HeroSection({
   };
   tier?: TierKey;
   tierPrices?: Partial<Record<TierKey, string | undefined>>;
+  /** Live display names from product_tiers.name — same shape as tierPrices. */
+  tierNames?: Partial<Record<TierKey, string | undefined>>;
   /** Pre-formatted discount label (e.g. "50% off · LATAM50") or null
    *  when no ?promo=CODE is applied. Phase 3. */
   appliedDiscountLabel?: string | null;
@@ -323,6 +332,7 @@ function HeroSection({
               initialSignedIn={initialSignedIn}
               sourcePage="/get-started"
               tierPrices={tierPrices}
+              tierNames={tierNames}
               appliedDiscountLabel={appliedDiscountLabel ?? undefined}
             />
             <p
