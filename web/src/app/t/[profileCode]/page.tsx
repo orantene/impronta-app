@@ -1051,6 +1051,23 @@ export async function generateMetadata({
     ? `${canonicalAbsolute.replace(/\/t\/[^/]+$/, "")}${pathEs}`
     : pathEs;
 
+  // OG image / metadataBase host preference:
+  // - On an agency host (improntamodels.com etc.) prefer the agency
+  //   host so social-share previews (WhatsApp / LinkedIn / Twitter /
+  //   Slack link unfurls) use the agency's domain instead of the
+  //   platform's. Image content is identical; only the URL differs.
+  // - Falls back to the platform site URL on app / hub / unknown hosts.
+  const metadataBaseUrl = (() => {
+    if (hostCtx.kind === "agency" && hostCtx.hostname) {
+      try {
+        return new URL(`https://${hostCtx.hostname}`);
+      } catch {
+        /* fall through */
+      }
+    }
+    return new URL(site);
+  })();
+
   const name = profile.display_name?.trim() ||
     [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
     profileCode;
@@ -1071,7 +1088,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    metadataBase: new URL(site),
+    metadataBase: metadataBaseUrl,
     alternates: {
       canonical: locale === "es" ? canonicalEs : canonicalEn,
       languages: {
