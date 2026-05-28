@@ -15,6 +15,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   buildTalentIdentityProfilePatch,
   buildTalentLanguageRpcRows,
@@ -497,6 +498,45 @@ export async function commitTalentProfileShellAdmin(
   const check = await assertOnRoster(supabase as never, tenantId, tid);
   lap("assertOnRoster");
   if (!check.ok) return check;
+
+  // Phase 2b — multi-tenant identity safety floor (server-side).
+  //   When the talent owns their own Tulala identity (user_id IS NOT NULL)
+  //   AND the roster relationship is NOT 'confirmed' (auto_assigned,
+  //   declined, notice_period), the agency must NOT overwrite the
+  //   talent's personal profile. The UI banner + IdentityEditor `disabled`
+  //   prop communicate the lock visually, but this is the floor that
+  //   holds even when a malicious admin DOMs around the disabled attribute
+  //   or scripts the server action directly.
+  const lockProbe = await Promise.all([
+    // talent_profiles is a GLOBAL table (no tenant_id — talents exist
+    // cross-tenant), so it cannot route through tenantScopedQuery; this raw
+    // read is grandfathered in eslint-suppressions.json.
+    supabase
+      .from("talent_profiles")
+      .select("user_id")
+      .eq("id", tid)
+      .maybeSingle(),
+    tenantScopedQuery(supabase, "agency_talent_roster", tenantId)
+      .select("exclusivity_status")
+      .eq("talent_profile_id", tid)
+      .neq("status", "removed")
+      .maybeSingle(),
+  ]);
+  lap("personalProfileLockedProbe");
+  const lockTalentUserId =
+    (lockProbe[0].data as { user_id?: string | null } | null)?.user_id ?? null;
+  const lockExclusivity =
+    (lockProbe[1].data as { exclusivity_status?: string | null } | null)
+      ?.exclusivity_status ?? null;
+  const personalProfileLocked =
+    Boolean(lockTalentUserId) && lockExclusivity !== "confirmed";
+  if (personalProfileLocked) {
+    return {
+      ok: false,
+      error:
+        "This talent owns their personal profile. Your agency can manage roster relationship fields only — not the talent's name, bio, photos, or contact details. Ask the talent to confirm exclusivity (or update on their own behalf) before editing here.",
+    };
+  }
 
   const idBuilt = buildTalentIdentityProfilePatch(input.identity);
   lap("buildTalentIdentityProfilePatch");

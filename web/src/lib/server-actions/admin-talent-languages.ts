@@ -88,7 +88,7 @@ export async function setTalentLanguages(input: {
 
   const { data: roster, error: rErr } = await supabase
     .from("agency_talent_roster")
-    .select("id")
+    .select("id, exclusivity_status")
     .eq("tenant_id", tenantId)
     .eq("talent_profile_id", input.talent_profile_id)
     .neq("status", "removed")
@@ -98,6 +98,39 @@ export async function setTalentLanguages(input: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
   if (!roster) return { ok: false, error: "That talent isn't on your roster." };
+
+  // Phase 2b — multi-tenant identity safety floor. Languages are part of
+  // the talent's personal profile (not the roster relationship), so an
+  // agency that doesn't own the talent's identity must NOT be able to
+  // edit them. Lock = talent.user_id IS NOT NULL AND roster relationship
+  // is not 'confirmed' exclusivity (auto_assigned / declined /
+  // notice_period all lock). Same pattern as
+  // commitTalentProfileShellAdmin.
+  // talent_profiles is a GLOBAL table (no tenant_id — talents exist
+  // cross-tenant), so this read cannot route through tenantScopedQuery; the
+  // raw .from() is grandfathered in eslint-suppressions.json.
+  const { data: talentRow, error: tErr } = await supabase
+    .from("talent_profiles")
+    .select("user_id")
+    .eq("id", input.talent_profile_id)
+    .maybeSingle();
+  if (tErr) {
+    logServerError("setTalentLanguages.talent", tErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+  const tulalaNativeIdentity = !!(
+    talentRow as { user_id?: string | null } | null
+  )?.user_id;
+  const rosterExclusivity =
+    (roster as { exclusivity_status?: string | null }).exclusivity_status ??
+    null;
+  if (tulalaNativeIdentity && rosterExclusivity !== "confirmed") {
+    return {
+      ok: false,
+      error:
+        "This talent owns their personal profile. Your agency can manage roster relationship only — not languages. Ask the talent to confirm exclusivity first.",
+    };
+  }
 
   // Validate + normalize each row. De-dupe by language_code (last wins).
   const byCode = new Map<
