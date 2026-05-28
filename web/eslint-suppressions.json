@@ -1776,7 +1776,17 @@
   },
   "src/lib/server-actions/admin-product-pricing.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 12
+    }
+  },
+  "src/lib/server-actions/admin-product-discounts.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/admin-product-features.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
     }
   }
 }

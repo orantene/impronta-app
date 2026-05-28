@@ -17,6 +17,12 @@ import {
   reservedBrandedSubdomainHost,
   workspacePathHost,
 } from "@/lib/saas/workspace-public-url";
+import { resolveCurrency } from "@/lib/pricing/currency-resolver";
+import {
+  loadMarketingTiers,
+  type MarketingTier,
+} from "@/lib/pricing/get-active-prices";
+import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 
 export const metadata: Metadata = {
   title: "Start free — claim your roster link",
@@ -29,47 +35,101 @@ const STUDIO_LINK_EXAMPLE = reservedBrandedSubdomainHost("your-roster");
 
 type AudienceKey = "operator" | "agency" | "organization";
 
-const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitle: string }> = {
-  free: {
-    eyebrow: "Start free",
-    title: "Your roster, online in ten minutes.",
-    subtitle:
-      "A free Tulala URL, up to five people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
-  },
-  studio: {
-    eyebrow: "Studio · $49/mo",
-    title: "The pipeline, plus WhatsApp.",
-    subtitle:
-      "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
-  },
-  agency: {
-    eyebrow: "Agency · 14-day trial",
-    title: "A branded business surface.",
-    subtitle:
-      "Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full Agency plan, free for 14 days.",
-  },
-  network: {
-    eyebrow: "Network · Book a walkthrough",
-    title: "For teams placing people at scale.",
-    subtitle:
-      "Staffing, casting, and larger placement operations get SSO, advanced roles, API access, and white-label options. Start with a walkthrough.",
-  },
-  default: {
-    eyebrow: "Start free",
-    title: "Put your roster on the internet, properly.",
-    subtitle:
-      "Claim your roster link, add your roster, and share one polished URL. Every plan ships with the full inquiry → offer → booking pipeline.",
-  },
-};
+/**
+ * Tier-specific marketing copy. The Studio eyebrow is templated with the
+ * live monthly price (via Phase 2 catalog read) so the chip stays in sync
+ * with whatever pricing is currently set in `/platform/admin/pricing`.
+ * Other eyebrows have no embedded price — kept as static strings.
+ */
+type TierHeadline = { eyebrow: string; title: string; subtitle: string };
+
+function studioEyebrow(studioTier: MarketingTier | undefined): string {
+  if (!studioTier) return "Studio";
+  // E.g. "Studio · $49/mo" or "Studio · MX$849/mo"
+  const priceText =
+    studioTier.cadence === "per month"
+      ? `${studioTier.price}/mo`
+      : studioTier.cadence === "per year"
+        ? `${studioTier.price}/yr`
+        : studioTier.price;
+  return `Studio · ${priceText}`;
+}
+
+function buildHeadlineByTier(
+  workspaceTiers: MarketingTier[],
+): Record<string, TierHeadline> {
+  const studio = workspaceTiers.find((t) => t.key === "studio");
+  return {
+    free: {
+      eyebrow: "Start free",
+      title: "Your roster, online in ten minutes.",
+      subtitle:
+        "A free Tulala URL, up to five people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
+    },
+    studio: {
+      eyebrow: studioEyebrow(studio),
+      title: "The pipeline, plus WhatsApp.",
+      subtitle:
+        "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
+    },
+    agency: {
+      eyebrow: "Agency · 14-day trial",
+      title: "A branded business surface.",
+      subtitle:
+        "Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full Agency plan, free for 14 days.",
+    },
+    network: {
+      eyebrow: "Network · Book a walkthrough",
+      title: "For teams placing people at scale.",
+      subtitle:
+        "Staffing, casting, and larger placement operations get SSO, advanced roles, API access, and white-label options. Start with a walkthrough.",
+    },
+    default: {
+      eyebrow: "Start free",
+      title: "Put your roster on the internet, properly.",
+      subtitle:
+        "Claim your roster link, add your roster, and share one polished URL. Every plan ships with the full inquiry → offer → booking pipeline.",
+    },
+  };
+}
 
 type TierKey = "free" | "studio" | "agency" | "network";
 
 export default async function GetStartedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tier?: string; audience?: string }>;
+  searchParams: Promise<{
+    tier?: string;
+    audience?: string;
+    currency?: string;
+    promo?: string;
+  }>;
 }) {
   const resolved = await searchParams;
+
+  // L50 Phase 2: read live pricing from the catalog with currency
+  // resolved from URL param > cookie > IP > USD fallback.
+  const { currency } = await resolveCurrency(resolved);
+  const workspaceTiers = await loadMarketingTiers("workspace", currency);
+  const HEADLINE_BY_TIER = buildHeadlineByTier(workspaceTiers);
+
+  // L50 Phase 3: ?promo=CODE → validate against `product_discounts`.
+  // Invalid / expired / out-of-window codes silently fall back to
+  // no-discount rendering (we don't surface "Code expired" to the
+  // visitor — that would confuse anyone who landed on a stale link).
+  //
+  // For Phase 3 we render the LABEL (e.g. "50% off · LATAM50") on the
+  // form chip + fine-print. Phase 8 (Stripe Checkout) will re-validate
+  // the code server-side at submit and pass `promotion_code` to the
+  // Checkout Session so Stripe applies the math.
+  let appliedDiscountLabel: string | null = null;
+  if (resolved.promo) {
+    const v = await validateDiscount(resolved.promo);
+    if (v.ok) {
+      appliedDiscountLabel = v.label;
+    }
+  }
+
   const tierKey = resolved.tier && resolved.tier in HEADLINE_BY_TIER ? resolved.tier : "default";
   const copy = HEADLINE_BY_TIER[tierKey];
   const initialAudience = mapAudience(resolved.audience ?? null);
@@ -97,10 +157,17 @@ export default async function GetStartedPage({
         initialAudience={initialAudience}
         initialSignedIn={initialSignedIn}
         tier={tier}
+        tierPrices={{
+          free:   workspaceTiers.find((t) => t.key === "free")?.price,
+          studio: workspaceTiers.find((t) => t.key === "studio")?.price,
+          agency: workspaceTiers.find((t) => t.key === "agency")?.price,
+          network: workspaceTiers.find((t) => t.key === "hub")?.price,
+        }}
+        appliedDiscountLabel={appliedDiscountLabel}
       />
       <WhoItsForSection />
       <HowItWorksSection />
-      <PlanLadderSection />
+      <PlanLadderSection tiers={workspaceTiers} />
       <ProductPreviewSection />
       <ContrastSection />
       <FaqSection />
@@ -124,6 +191,8 @@ function HeroSection({
   initialAudience,
   initialSignedIn,
   tier,
+  tierPrices,
+  appliedDiscountLabel,
 }: {
   appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
@@ -134,6 +203,10 @@ function HeroSection({
     displayName: string | null;
   };
   tier?: TierKey;
+  tierPrices?: Partial<Record<TierKey, string | undefined>>;
+  /** Pre-formatted discount label (e.g. "50% off · LATAM50") or null
+   *  when no ?promo=CODE is applied. Phase 3. */
+  appliedDiscountLabel?: string | null;
 }) {
   return (
     <MarketingSection spacing="tight" className="relative">
@@ -224,11 +297,33 @@ function HeroSection({
           </div>
 
           <div id="form" className="relative lg:sticky lg:top-24">
+            {appliedDiscountLabel && (
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 text-[0.8125rem]"
+                style={{
+                  background: "rgba(46,107,82,0.07)",
+                  borderColor: "rgba(46,107,82,0.25)",
+                  color: "var(--plt-forest)",
+                  fontWeight: 500,
+                }}
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  aria-hidden
+                  className="mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                  style={{ background: "var(--plt-forest)" }}
+                />
+                Promo applied: <strong>{appliedDiscountLabel}</strong>
+              </div>
+            )}
             <GetStartedForm
               initialAudience={initialAudience}
               tier={tier}
               initialSignedIn={initialSignedIn}
               sourcePage="/get-started"
+              tierPrices={tierPrices}
+              appliedDiscountLabel={appliedDiscountLabel ?? undefined}
             />
             <p
               className="mt-4 text-center text-[0.8125rem]"
@@ -484,7 +579,69 @@ function HowItWorksSection() {
 // 4. Free plan / upgrade path
 // ────────────────────────────────────────────────────────────────────────────
 
-function PlanLadderSection() {
+/**
+ * Tagline fallback when the catalog tagline is empty. Keeps the ladder
+ * card looking finished even before an operator has filled in custom
+ * tagline copy from `/platform/admin/pricing`.
+ */
+function planLadderFallbackTagline(slug: string): string {
+  switch (slug) {
+    case "free":   return "The pipeline, on a free Tulala URL.";
+    case "studio": return "Where your inquiries actually happen.";
+    case "agency": return "A branded business surface.";
+    case "hub":    return "For large placement operations.";
+    default:       return "";
+  }
+}
+
+/**
+ * Tier-specific highlights that live in marketing copy (not the DB).
+ * The `loadMarketingTiers` result also has `highlights` from
+ * `product_features` where `highlight=true` (Phase 4 makes those
+ * editable), but the get-started ladder uses these richer, link-aware
+ * lists. Both can coexist; the Phase 4 editor will replace these.
+ */
+function ladderHighlights(slug: string): string[] {
+  switch (slug) {
+    case "free":
+      return [
+        "Inquiry → offer → booking pipeline",
+        "Email + in-app notifications",
+        FREE_LINK_EXAMPLE,
+        "Up to 10 people profiles",
+        "Hub discovery (opt-in)",
+      ];
+    case "studio":
+      return [
+        "Everything in Free, plus:",
+        `Optional branded host: ${STUDIO_LINK_EXAMPLE}`,
+        "WhatsApp inquiry notifications",
+        "Up to 50 people profiles",
+        "Up to 3 seats",
+        "Priority email routing",
+      ];
+    case "agency":
+      return [
+        "Everything in Studio, plus:",
+        "Custom domain + branded site",
+        "CMS: pages, posts, navigation, design",
+        "Unlimited people profiles",
+        "Up to 8 seats, roles & permissions",
+      ];
+    case "hub":
+      return [
+        "Everything in Agency, plus:",
+        "SSO + advanced roles",
+        "API access (roadmap)",
+        "Private hub / white-label options",
+        "Priority support & onboarding",
+      ];
+    default:
+      return [];
+  }
+}
+
+function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -514,60 +671,17 @@ function PlanLadderSection() {
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
-          <PlanCard
-            tier="Free"
-            price="$0"
-            cadence="forever"
-            tagline="The pipeline, on a free Tulala URL."
-            highlights={[
-              "Inquiry → offer → booking pipeline",
-              "Email + in-app notifications",
-              FREE_LINK_EXAMPLE,
-              "Up to 10 people profiles",
-              "Hub discovery (opt-in)",
-            ]}
-          />
-          <PlanCard
-            tier="Studio"
-            price="$49"
-            cadence="per month"
-            tagline="Where your inquiries actually happen."
-            highlights={[
-              "Everything in Free, plus:",
-              `Optional branded host: ${STUDIO_LINK_EXAMPLE}`,
-              "WhatsApp inquiry notifications",
-              "Up to 50 people profiles",
-              "Up to 3 seats",
-              "Priority email routing",
-            ]}
-          />
-          <PlanCard
-            featured
-            tier="Agency"
-            price="$149"
-            cadence="per month"
-            tagline="A branded business surface."
-            highlights={[
-              "Everything in Studio, plus:",
-              "Custom domain + branded site",
-              "CMS: pages, posts, navigation, design",
-              "Unlimited people profiles",
-              "Up to 8 seats, roles & permissions",
-            ]}
-          />
-          <PlanCard
-            tier="Network"
-            price="Talk to us"
-            cadence=""
-            tagline="For large placement operations."
-            highlights={[
-              "Everything in Agency, plus:",
-              "SSO + advanced roles",
-              "API access (roadmap)",
-              "Private hub / white-label options",
-              "Priority support & onboarding",
-            ]}
-          />
+          {tiers.map((t) => (
+            <PlanCard
+              key={t.key}
+              tier={t.name}
+              price={t.price}
+              cadence={t.cadence}
+              tagline={t.tagline || planLadderFallbackTagline(t.key)}
+              highlights={ladderHighlights(t.key)}
+              featured={t.featured}
+            />
+          ))}
         </div>
 
         <div className="mt-10 flex flex-wrap items-center gap-4">

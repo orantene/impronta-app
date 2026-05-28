@@ -81,6 +81,7 @@ type FeatureRow = {
   highlight: boolean;
   display_order: number;
   category: string | null;
+  value_text: string | null;
 };
 
 type DiscountRow = {
@@ -146,7 +147,9 @@ export const loadProductCatalog = cache(
         .order("currency", { ascending: true }),
       admin
         .from("product_features")
-        .select("id, tier_id, label, included, highlight, display_order, category")
+        .select(
+          "id, tier_id, label, included, highlight, display_order, category, value_text",
+        )
         .order("display_order", { ascending: true }),
     ]);
 
@@ -203,6 +206,7 @@ export const loadProductCatalog = cache(
         highlight: f.highlight,
         displayOrder: f.display_order,
         category: f.category,
+        valueText: f.value_text,
       };
       const bucket = tierFeats.get(f.tier_id);
       if (bucket) bucket.push(mapped);

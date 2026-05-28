@@ -1,84 +1,51 @@
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
+import {
+  loadMarketingTiers,
+  type MarketingTier,
+} from "@/lib/pricing/get-active-prices";
+import { resolveCurrency } from "@/lib/pricing/currency-resolver";
+import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
 
-type Tier = {
-  key: "free" | "studio" | "agency" | "network";
-  name: string;
-  price: string;
-  cadence: string;
-  tagline: string;
-  highlights: string[];
-  cta: { label: string; href: string; intent: string };
-  featured?: boolean;
+/**
+ * The CTA copy + URL intent for each workspace tier slug. Kept in code
+ * (not in the DB) because copy + intent are surface-specific, not
+ * pricing-data. The tier `name` + `tagline` + `price` come from the
+ * `product_*` tables via `loadMarketingTiers` (Phase 2).
+ *
+ * The DB tier slug for the 4th tier is `hub` (the renamed Network from
+ * Phase 1); the funnel URL param keeps `network` for backward-compat
+ * with any external links / docs / emails that already use `?tier=network`.
+ */
+const TIER_CTA: Record<string, { label: string; href: string; intent: string }> = {
+  free:   { label: "Start free",          href: "/get-started?tier=free",    intent: "free"    },
+  studio: { label: "Start on Studio",     href: "/get-started?tier=studio",  intent: "studio"  },
+  agency: { label: "Start 14-day trial",  href: "/get-started?tier=agency",  intent: "agency"  },
+  hub:    { label: "Book a walkthrough",  href: "/get-started?tier=network", intent: "network" },
 };
 
-const TIERS: Tier[] = [
-  {
-    key: "free",
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    tagline: "The full pipeline, on a free subdomain.",
-    highlights: [
-      "Inquiry → offer → booking pipeline",
-      "Email + in-app notifications",
-      "Your roster on a free subdomain",
-      "Up to 10 people profiles",
-      "Hub discovery (opt-in)",
-    ],
-    cta: { label: "Start free", href: "/get-started?tier=free", intent: "free" },
-  },
-  {
-    key: "studio",
-    name: "Studio",
-    price: "$49",
-    cadence: "per month",
-    tagline: "The pipeline, plus WhatsApp where your inquiries actually happen.",
-    highlights: [
-      "Everything in Free, plus:",
-      "WhatsApp inquiry notifications",
-      "Up to 50 people profiles",
-      "Up to 3 seats",
-      "Priority email routing",
-    ],
-    cta: { label: "Start on Studio", href: "/get-started?tier=studio", intent: "studio" },
-  },
-  {
-    key: "agency",
-    name: "Agency",
-    price: "$149",
-    cadence: "per month",
-    tagline: "A branded business surface — not just a subdomain.",
-    highlights: [
-      "Everything in Studio, plus:",
-      "Custom domain + branded site",
-      "Design system & CMS",
-      "Unlimited people profiles",
-      "Up to 8 seats, roles & permissions",
-    ],
-    cta: { label: "Start 14-day trial", href: "/get-started?tier=agency", intent: "agency" },
-    featured: true,
-  },
-  {
-    key: "network",
-    name: "Network",
-    price: "Talk to us",
-    cadence: "",
-    tagline: "For staffing, casting, and large placement operations.",
-    highlights: [
-      "Everything in Agency, plus:",
-      "SSO + advanced roles",
-      "API access (roadmap)",
-      "Private hub / white-label options",
-      "Priority support & onboarding",
-    ],
-    cta: { label: "Book a walkthrough", href: "/get-started?tier=network", intent: "network" },
-  },
-];
+type Tier = MarketingTier & {
+  cta: { label: string; href: string; intent: string };
+};
 
-export function PricingTeaserSection({
+export async function PricingTeaserSection({
   hideHeading = false,
-}: { hideHeading?: boolean } = {}) {
+  currency,
+}: {
+  hideHeading?: boolean;
+  /** Optional override; when omitted the section auto-resolves from
+   *  cookie + IP (no URL param). Page-level callers that know the
+   *  searchParams should pass the resolved currency in to ensure the
+   *  ?currency=X param takes effect on the same render. */
+  currency?: DefaultCurrencyCode;
+} = {}) {
+  const resolvedCurrency =
+    currency ?? (await resolveCurrency(null)).currency;
+  const rows = await loadMarketingTiers("workspace", resolvedCurrency);
+  // Attach CTAs + filter out unknown tiers gracefully.
+  const TIERS: Tier[] = rows
+    .filter((t) => TIER_CTA[t.key] !== undefined)
+    .map((t) => ({ ...t, cta: TIER_CTA[t.key]! }));
   return (
     <MarketingSection id="pricing">
       <MarketingContainer size="wide">
@@ -161,7 +128,7 @@ function TierCard({ tier }: { tier: Tier }) {
         >
           {tier.name}
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
+        <div className="mt-3 flex items-baseline gap-2 flex-wrap">
           <span
             className="plt-display text-[2.25rem] font-semibold leading-none tracking-[-0.03em]"
             style={{ color: featured ? "var(--plt-on-inverse)" : "var(--plt-ink)" }}
@@ -178,6 +145,31 @@ function TierCard({ tier }: { tier: Tier }) {
               {tier.cadence}
             </span>
           ) : null}
+          {tier.isOnSale && tier.canonicalPrice !== tier.price && (
+            <>
+              <span
+                className="text-[0.9375rem] line-through"
+                style={{
+                  color: featured ? "rgba(241,237,227,0.55)" : "var(--plt-muted)",
+                }}
+                aria-label={`Was ${tier.canonicalPrice}`}
+              >
+                {tier.canonicalPrice}
+              </span>
+              <span
+                className="plt-mono ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-[0.18em]"
+                style={{
+                  background: featured
+                    ? "rgba(241,237,227,0.12)"
+                    : "rgba(204,135,42,0.14)",
+                  color: featured ? "var(--plt-on-inverse)" : "#92621f",
+                }}
+                aria-label="Sale price"
+              >
+                Sale
+              </span>
+            </>
+          )}
         </div>
         <p
           className="mt-4 text-[0.875rem] leading-[1.5]"

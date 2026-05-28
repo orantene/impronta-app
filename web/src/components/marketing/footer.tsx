@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { CurrencyPicker } from "./currency-picker";
+import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 
 type FooterColumn = {
   label: string;
@@ -44,7 +46,12 @@ const COLUMNS: FooterColumn[] = [
   },
 ];
 
-export function MarketingFooter() {
+export async function MarketingFooter() {
+  // L50 Phase 2: every marketing footer ends with a currency picker so
+  // any page is the gateway to changing the displayed currency. The
+  // footer doesn't know which page it's on, so it resolves from cookie
+  // + IP only (no URL param).
+  const { currency, source } = await resolveCurrency(null);
   return (
     <footer
       className="relative"
@@ -149,14 +156,17 @@ export function MarketingFooter() {
           <span>
             &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {PLATFORM_BRAND.positioning}
           </span>
-          <span className="inline-flex items-center gap-2">
-            <span
-              className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{ background: "var(--plt-forest-bright)" }}
-              aria-hidden
-            />
-            {PLATFORM_BRAND.stage}
-          </span>
+          <div className="inline-flex items-center gap-3">
+            <CurrencyPicker current={currency} source={source} />
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: "var(--plt-forest-bright)" }}
+                aria-hidden
+              />
+              {PLATFORM_BRAND.stage}
+            </span>
+          </div>
         </div>
       </div>
     </footer>

@@ -14,7 +14,10 @@
  * the surrounding /platform/admin/layout.tsx.
  */
 
-import { loadProductCatalog } from "@/lib/pricing/get-product-catalog";
+import {
+  loadProductCatalog,
+  loadProductDiscounts,
+} from "@/lib/pricing/get-product-catalog";
 import { loadStripeAccountInfo } from "@/lib/pricing/stripe-account-info";
 import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { PricingDashboard } from "./PricingDashboard";
@@ -30,10 +33,11 @@ const F  = '"Inter", system-ui, sans-serif';
 const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 export default async function PlatformPricingPage() {
-  const [catalog, stripeAccount, fx] = await Promise.all([
+  const [catalog, stripeAccount, fx, discounts] = await Promise.all([
     loadProductCatalog(),
     loadStripeAccountInfo(),
     loadFxPreview(),
+    loadProductDiscounts(),
   ]);
 
   if (!catalog) {
@@ -70,6 +74,7 @@ export default async function PlatformPricingPage() {
       catalog={catalog}
       stripeAccount={stripeAccount}
       fx={fx}
+      discounts={discounts}
     />
   );
 }

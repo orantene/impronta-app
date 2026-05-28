@@ -32,12 +32,27 @@ export type GetStartedSignedIn = {
   displayName: string | null;
 };
 
+/**
+ * Pre-formatted monthly prices per tier slug, in the visitor's resolved
+ * currency. Plumbed from the server page (which calls
+ * `loadMarketingTiers`) so the hint copy stays in sync with whatever
+ * `/platform/admin/pricing` currently has set. Pass `undefined` to fall
+ * back to USD defaults.
+ */
+export type { GetStartedTierPrices } from "./get-started-form-tier-copy";
+import type { GetStartedTierPrices } from "./get-started-form-tier-copy";
+import { PAID_TIER_PLAN_LABEL, formFinePrint, isPaidTier } from "./get-started-form-tier-copy";
+
 type Props = {
   initialAudience?: AudienceKey;
   tier?: TierKey;
   variant?: "page" | "compact";
   initialSignedIn?: GetStartedSignedIn;
   sourcePage?: string;
+  /** Live monthly prices from catalog (Phase 2). */
+  tierPrices?: GetStartedTierPrices;
+  /** Pre-formatted promo label (Phase 3 — appended to fine-print). */
+  appliedDiscountLabel?: string;
 };
 
 function preferredLinkPreview(slug: string, tier?: TierKey): string {
@@ -87,27 +102,21 @@ function submitCtaLabel(tier: TierKey | undefined, audience: AudienceKey): strin
   return "Create my free workspace";
 }
 
-function rosterTierHint(rosterSize: RosterBucket, tier?: TierKey): string | null {
+function rosterTierHint(
+  rosterSize: RosterBucket,
+  tier: TierKey | undefined,
+  prices: GetStartedTierPrices | undefined,
+): string | null {
   if (tier && tier !== "free") return null;
+  const studioMonthly = prices?.studio ?? "$49";
+  const agencyMonthly = prices?.agency ?? "$149";
   if (rosterSize === "21-50" || rosterSize === "50+") {
-    return "Most teams your size choose Agency — 200 seats, branded site, $149/mo.";
+    return `Most teams your size choose Agency — 200 seats, branded site, ${agencyMonthly}/mo.`;
   }
   if (rosterSize === "6-20") {
-    return "Studio fits growing rosters — 50 seats and WhatsApp notifications, $49/mo.";
+    return `Studio fits growing rosters — 50 seats and WhatsApp notifications, ${studioMonthly}/mo.`;
   }
   return null;
-}
-
-const PAID_TIER_PLAN_LABEL = { studio: "Studio", agency: "Agency" } as const;
-function isPaidTier(tier?: TierKey): tier is "studio" | "agency" {
-  return tier === "studio" || tier === "agency";
-}
-
-function formFinePrint(tier?: TierKey): string {
-  if (tier === "studio") return "Studio · $49/mo · Cancel any time";
-  if (tier === "agency") return "Agency · 14-day free trial · Cancel any time";
-  if (tier === "network") return "Network · We’ll set up pricing with you";
-  return "No credit card · Free plan forever · Upgrade when you’re ready";
 }
 
 export function GetStartedForm({
@@ -116,6 +125,8 @@ export function GetStartedForm({
   variant = "page",
   initialSignedIn,
   sourcePage = "/get-started",
+  tierPrices,
+  appliedDiscountLabel,
 }: Props) {
   const [state, formAction, isPending] = useActionState<
     GetStartedActionResult | null,
@@ -734,9 +745,9 @@ export function GetStartedForm({
             );
           })}
         </div>
-        {rosterTierHint(rosterSize, tier) ? (
+        {rosterTierHint(rosterSize, tier, tierPrices) ? (
           <p className="mt-3 text-[0.75rem] leading-[1.5]" style={{ color: "var(--plt-muted)" }}>
-            {rosterTierHint(rosterSize, tier)}
+            {rosterTierHint(rosterSize, tier, tierPrices)}
           </p>
         ) : null}
       </fieldset>
@@ -778,7 +789,8 @@ export function GetStartedForm({
       </button>
 
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-        {formFinePrint(tier)}
+        {formFinePrint(tier, tierPrices)}
+        {appliedDiscountLabel && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
       </p>
     </form>
   );

@@ -43,6 +43,8 @@ import {
   syncTierPriceToStripe,
   renameStripeProduct,
 } from "@/lib/pricing/stripe-sync";
+// Phase 3 discount actions live in `admin-product-discounts.ts` (kept
+// out of this file to stay under the 800-line max-lines cap).
 
 const PRICING_PATH = "/platform/admin/pricing";
 
@@ -106,7 +108,7 @@ export async function updateTierPrice(
   const priceLoad = await admin
     .from("product_prices")
     .select(
-      "id, tier_id, currency, interval, unit_amount, stripe_price_id",
+      "id, tier_id, currency, interval, unit_amount, stripe_price_id, valid_from, valid_until",
     )
     .eq("id", input.priceId)
     .maybeSingle();
@@ -121,6 +123,11 @@ export async function updateTierPrice(
     interval: "month" | "year" | "once" | "lifetime";
     unit_amount: number;
     stripe_price_id: string | null;
+    /** Phase 5 — preserved on the replacement row so editing the
+     *  amount of a sale price doesn't accidentally promote it to
+     *  canonical. */
+    valid_from: string | null;
+    valid_until: string | null;
   };
 
   const tierLoad = await admin
@@ -184,6 +191,11 @@ export async function updateTierPrice(
     stripe_price_id: stripe.stub ? null : stripe.stripePriceId,
     is_active: true,
     notes: input.notes ?? null,
+    // Phase 5 — preserve the row's window so editing the AMOUNT of a
+    // sale price doesn't accidentally promote it to canonical (or vice
+    // versa for canonical → still canonical).
+    valid_from: current.valid_from,
+    valid_until: current.valid_until,
   });
   if (insertErr) {
     logServerError("admin-product-pricing.update-price.insert", insertErr);
@@ -331,6 +343,248 @@ export type VerifyStripeAccountResult =
 export async function verifyStripeAccount(): Promise<VerifyStripeAccountResult> {
   const gate = await requirePlatformAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
+  revalidatePath(PRICING_PATH);
+  return { ok: true };
+}
+
+// ─── 4. addTierPrice (Phase 2 + Phase 5 sale windows) ────────────────────────
+// In Phase 2 this added a CANONICAL price for a new currency. Phase 5
+// extends it: when validFrom/validUntil are set, the inserted row is a
+// SALE price that lives ALONGSIDE the canonical row for the same
+// (currency × interval). The reader picks the in-window row at render
+// time; the dupe check below only fires for canonical-vs-canonical
+// collisions (both windows null).
+
+const addPriceSchema = z
+  .object({
+    tierId: z.string().uuid(),
+    currency: z.enum(DEFAULT_CURRENCY_OPTIONS),
+    interval: z.enum(["month", "year", "once", "lifetime"]),
+    unitAmount: z.number().int().min(0).max(99_999_999),
+    notes: z.string().max(280).nullable().optional(),
+    /** Phase 5 — when set, this row is a sale price (skips the unique
+     *  canonical-row constraint). Inclusive lower bound. */
+    validFrom: z.string().datetime().nullable().optional(),
+    /** Phase 5 — sale end (exclusive). */
+    validUntil: z.string().datetime().nullable().optional(),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (
+      v.validFrom &&
+      v.validUntil &&
+      new Date(v.validFrom).getTime() >= new Date(v.validUntil).getTime()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sale start must be before sale end.",
+        path: ["validFrom"],
+      });
+    }
+  });
+
+export type AddTierPriceInput = z.infer<typeof addPriceSchema>;
+export type AddTierPriceResult =
+  | { ok: true; priceId: string; stripe: { synced: boolean; stub: boolean; reason?: string; newPriceId: string | null } }
+  | { ok: false; error: string };
+
+export async function addTierPrice(
+  raw: AddTierPriceInput,
+): Promise<AddTierPriceResult> {
+  const gate = await requirePlatformAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const parsed = addPriceSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const input = parsed.data;
+  const currency = input.currency.toUpperCase();
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    logServerError("admin-product-pricing.add-price.service-role", null);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  // Load the tier to grab the Stripe Product ID + name for the sync call.
+  const tierLoad = await admin
+    .from("product_tiers")
+    .select("id, name, stripe_product_id")
+    .eq("id", input.tierId)
+    .maybeSingle();
+  if (tierLoad.error || !tierLoad.data) {
+    return { ok: false, error: "Tier not found." };
+  }
+  const tier = tierLoad.data as {
+    id: string;
+    name: string;
+    stripe_product_id: string | null;
+  };
+
+  const isSale = Boolean(input.validFrom || input.validUntil);
+
+  // Dupe check: only fires for canonical-vs-canonical collisions
+  // (both windows null). Sale rows are intentionally allowed alongside
+  // a canonical row; the unique index in the migration matches.
+  if (!isSale) {
+    const dupeCheck = await admin
+      .from("product_prices")
+      .select("id")
+      .eq("tier_id", input.tierId)
+      .eq("currency", currency)
+      .eq("interval", input.interval)
+      .eq("is_active", true)
+      .is("archived_at", null)
+      .is("valid_from", null)
+      .is("valid_until", null)
+      .maybeSingle();
+    if (dupeCheck.data) {
+      return {
+        ok: false,
+        error: `${currency} ${input.interval} price already exists. Edit it instead.`,
+      };
+    }
+  }
+
+  // Create the Stripe Price (or stub).
+  const stripe = await syncTierPriceToStripe({
+    stripeProductId: tier.stripe_product_id,
+    oldStripePriceId: null,
+    currency,
+    interval: input.interval,
+    unitAmount: input.unitAmount,
+    tierName: tier.name,
+  });
+  if (!stripe.ok) {
+    return { ok: false, error: stripe.error };
+  }
+
+  const insert = await admin
+    .from("product_prices")
+    .insert({
+      tier_id: input.tierId,
+      currency,
+      interval: input.interval,
+      unit_amount: input.unitAmount,
+      stripe_price_id: stripe.stub ? null : stripe.stripePriceId,
+      is_active: true,
+      notes: input.notes ?? null,
+      valid_from: input.validFrom ?? null,
+      valid_until: input.validUntil ?? null,
+    })
+    .select("id")
+    .single();
+  if (insert.error || !insert.data) {
+    logServerError("admin-product-pricing.add-price.insert", insert.error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(PRICING_PATH);
+
+  return {
+    ok: true,
+    priceId: (insert.data as { id: string }).id,
+    stripe: {
+      synced: !stripe.stub,
+      stub: stripe.stub,
+      reason: stripe.stub ? stripe.reason : undefined,
+      newPriceId: stripe.stub ? null : stripe.stripePriceId,
+    },
+  };
+}
+
+// ─── 5. archiveTierPrice (Phase 2 — soft-delete a row) ───────────────────────
+
+const archivePriceSchema = z.object({ priceId: z.string().uuid() }).strict();
+
+export type ArchiveTierPriceResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Soft-delete: marks is_active=false + archived_at=now() on the row,
+ * archives the underlying Stripe Price (best-effort). We never delete
+ * the DB row or the Stripe Price object — existing subscribers depend
+ * on them and the audit trail matters.
+ *
+ * Refuses to archive the LAST active price for a tier (would leave the
+ * marketing page unable to render). Operators should add a replacement
+ * first, then archive the old one.
+ */
+export async function archiveTierPrice(
+  raw: { priceId: string },
+): Promise<ArchiveTierPriceResult> {
+  const gate = await requirePlatformAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const parsed = archivePriceSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    logServerError("admin-product-pricing.archive-price.service-role", null);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const load = await admin
+    .from("product_prices")
+    .select("id, tier_id, stripe_price_id")
+    .eq("id", parsed.data.priceId)
+    .maybeSingle();
+  if (load.error || !load.data) {
+    return { ok: false, error: "Price not found." };
+  }
+  const current = load.data as {
+    id: string;
+    tier_id: string;
+    stripe_price_id: string | null;
+  };
+
+  // Guard: don't archive the last active row.
+  const otherActive = await admin
+    .from("product_prices")
+    .select("id", { count: "exact", head: true })
+    .eq("tier_id", current.tier_id)
+    .eq("is_active", true)
+    .is("archived_at", null)
+    .neq("id", current.id);
+  if ((otherActive.count ?? 0) === 0) {
+    return {
+      ok: false,
+      error: "This is the only active price — add another before archiving.",
+    };
+  }
+
+  const upd = await admin
+    .from("product_prices")
+    .update({
+      is_active: false,
+      archived_at: new Date().toISOString(),
+    })
+    .eq("id", current.id);
+  if (upd.error) {
+    logServerError("admin-product-pricing.archive-price.update", upd.error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  // Best-effort Stripe archive.
+  if (current.stripe_price_id) {
+    try {
+      const { getStripe, isStripeConfigured } = await import("@/lib/stripe/client");
+      if (isStripeConfigured()) {
+        const stripe = getStripe();
+        await stripe?.prices.update(current.stripe_price_id, { active: false });
+      }
+    } catch (err) {
+      logServerError("admin-product-pricing.archive-price.stripe", err);
+      // Non-fatal — DB row is archived, the Stripe Price can be archived
+      // by hand in the dashboard.
+    }
+  }
+
   revalidatePath(PRICING_PATH);
   return { ok: true };
 }

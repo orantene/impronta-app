@@ -28,6 +28,7 @@ import type {
   PricingCatalog,
   PricingTierRow,
   PricingPackageRow,
+  PricingDiscountRow,
   StripeAccountInfo,
   FxPreview,
 } from "@/lib/pricing/pricing-types";
@@ -35,15 +36,18 @@ import { HQ, F } from "./_tokens";
 import { PageHeader } from "./PageHeader";
 import { PackagesView } from "./PackagesView";
 import { TierDrawer } from "./TierDrawer";
+import { DiscountsTab } from "./DiscountsTab";
 
 export function PricingDashboard({
   catalog,
   stripeAccount,
   fx,
+  discounts,
 }: {
   catalog: PricingCatalog;
   stripeAccount: StripeAccountInfo;
   fx: FxPreview;
+  discounts: PricingDiscountRow[];
 }) {
   const [activeTab, setActiveTab] = useState<"packages" | "discounts">(
     "packages",
@@ -84,7 +88,7 @@ export function PricingDashboard({
           onCardClick={(tier) => setOpenTierId(tier.id)}
         />
       ) : (
-        <DiscountsPlaceholder />
+        <DiscountsTab discounts={discounts} />
       )}
 
       {openTier && (
@@ -128,7 +132,6 @@ function TabStrip({
         active={activeTab === "discounts"}
         onClick={() => onChange("discounts")}
         label="Discounts"
-        badge="Phase 3"
       />
     </div>
   );
@@ -188,32 +191,4 @@ function TabBtn({
   );
 }
 
-// ─── Discounts placeholder (Phase 3) ─────────────────────────────────────────
-
-function DiscountsPlaceholder() {
-  return (
-    <div
-      style={{
-        background: HQ.card,
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 12,
-        padding: 28,
-        textAlign: "center",
-        color: HQ.inkMuted,
-        fontFamily: F,
-        fontSize: 13.5,
-        lineHeight: 1.5,
-      }}
-    >
-      <div style={{ fontSize: 16, color: HQ.ink, marginBottom: 6 }}>
-        Discount codes
-      </div>
-      <p style={{ margin: 0 }}>
-        Code editor, time windows, Stripe Coupon sync, and per-customer limits
-        ship in <strong>Phase 3</strong>. Table is already in the database
-        (<code>public.product_discounts</code>) so codes you create via SQL
-        will surface here.
-      </p>
-    </div>
-  );
-}
+// (Phase 1 placeholder removed — DiscountsTab from Phase 3 replaces it.)
