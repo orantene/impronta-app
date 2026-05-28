@@ -2,6 +2,8 @@ import "server-only";
 
 import * as React from "react";
 import NewWorkspaceAlert from "../../../emails/platform/NewWorkspaceAlert";
+import UsageQuotaAlert from "../../../emails/platform/UsageQuotaAlert";
+import SignupFailedAlert from "../../../emails/platform/SignupFailedAlert";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientOfferReady from "../../../emails/client/OfferReady";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
@@ -157,6 +159,34 @@ const invitedTalent = async (
   const userId = (data as { user_id: string | null } | null)?.user_id ?? null;
   if (!userId) return [];
   return [{ kind: "user", userId, role: "talent" }];
+};
+
+/**
+ * All platform administrators (Phase 10). Identified by
+ * `profiles.app_role = 'super_admin'` — the live schema has NO `platform_role`
+ * column (see migration 20260520224524_platform_media_settings.sql:99-101,
+ * where the same `OR platform_role` clause had to be trimmed because it failed
+ * column-resolution). When Track B.2 adds `platform_role`, widen this query to
+ * dual-read, matching `getPlatformRole` in `@/lib/access/platform-role`.
+ *
+ * Platform alerts must be emitted with `tenantId = null` so the dispatcher
+ * resolves the platform brand — the `/platform/admin/*` links then point at the
+ * platform host rather than an agency's custom domain.
+ */
+const platformAdmins = async (
+  _event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  const { data, error } = await ctx.admin
+    .from("profiles")
+    .select("id")
+    .eq("app_role", "super_admin");
+  if (error || !data) return [];
+  return (data as Array<{ id: string }>).map((r) => ({
+    kind: "user" as const,
+    userId: r.id,
+    role: "platform_admin" as const,
+  }));
 };
 
 // ─── Inquiry-engine entries (Phase 5) ─────────────────────────────────────────
@@ -347,6 +377,102 @@ const ROSTER_TALENT_INVITED: CatalogEntry = {
   },
 };
 
+// ─── Platform admin entries (Phase 10) ────────────────────────────────────────
+//
+// Audience is always `platformAdmins` (every `app_role = 'super_admin'`).
+// Producers MUST emit these with `tenantId = null` so the dispatcher resolves
+// the platform brand and the `/platform/admin/*` CTA points at the platform
+// host. The render fns deliberately ignore `unsubscribeUrl` — the platform
+// templates take no such prop, and operational alerts to staff aren't an
+// opt-out surface (the dispatcher still sets the List-Unsubscribe header for
+// the non-required `platform_alerts` category, which is harmless here).
+//
+// These entries are catalog-ready; the upstream producers (signup flow,
+// usage-audit cron, signup-failure path) don't yet emit notification events —
+// wiring them is a documented follow-up (spec §12 migration table).
+
+/** platform.new_workspace → alert platform admins that a workspace signed up. */
+const PLATFORM_NEW_WORKSPACE: CatalogEntry = {
+  id: "platform.new_workspace",
+  category: "platform_alerts",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["platform.new_workspace", "workspace.created"],
+  resolveAudience: platformAdmins,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: (event) => `${str(event.payload.workspaceName) ?? "A new workspace"} signed up`,
+    body: (event) => {
+      const plan = str(event.payload.planLabel);
+      return plan ? `New ${plan} workspace on Tulala.` : "New workspace on Tulala.";
+    },
+  },
+  email: {
+    templateId: "platform.new_workspace",
+    subject: (event) => `New workspace: ${str(event.payload.workspaceName) ?? "signup"}`,
+    render: ({ event, brand }) =>
+      React.createElement(NewWorkspaceAlert, {
+        workspaceName: str(event.payload.workspaceName) ?? "New workspace",
+        ownerEmail: str(event.payload.ownerEmail) ?? "—",
+        planLabel: str(event.payload.planLabel) ?? "Free",
+        adminUrl: pageUrl(brand, "/platform/admin/tenants"),
+        brand,
+      }),
+  },
+};
+
+/** platform.workspace_over_quota → usage-audit cron flags a workspace over quota. */
+const PLATFORM_WORKSPACE_OVER_QUOTA: CatalogEntry = {
+  id: "platform.workspace_over_quota",
+  category: "platform_alerts",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["platform.workspace_over_quota"],
+  resolveAudience: platformAdmins,
+  email: {
+    templateId: "platform.workspace_over_quota",
+    subject: (event) => `${str(event.payload.workspaceName) ?? "A workspace"} is over quota`,
+    render: ({ event, brand }) =>
+      React.createElement(UsageQuotaAlert, {
+        workspaceName: str(event.payload.workspaceName) ?? "A workspace",
+        metricLabel: str(event.payload.metricLabel) ?? "usage",
+        usageLabel: str(event.payload.usageLabel) ?? "over the plan limit",
+        adminUrl: pageUrl(brand, "/platform/admin/tenants"),
+        brand,
+      }),
+  },
+};
+
+/**
+ * platform.workspace_signup_failed → a workspace signup didn't complete.
+ * Spec §6.6 lists the id as `workspace.signup_failed`; the §12 remediation note
+ * directs the producer to emit `platform.workspace_signup_failed`. We subscribe
+ * to both so whichever the signup-failure path emits routes here. Scoped to
+ * platform admins only — the one existing template is admin-toned ("may need a
+ * manual follow-up"); a user-facing variant is a documented follow-up.
+ */
+const PLATFORM_SIGNUP_FAILED: CatalogEntry = {
+  id: "platform.workspace_signup_failed",
+  category: "platform_alerts",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["platform.workspace_signup_failed", "workspace.signup_failed"],
+  resolveAudience: platformAdmins,
+  email: {
+    templateId: "platform.workspace_signup_failed",
+    subject: () => "A workspace signup didn't complete",
+    render: ({ event, brand }) =>
+      React.createElement(SignupFailedAlert, {
+        attemptedEmail:
+          str(event.payload.attemptedEmail) ?? str(event.payload.ownerEmail) ?? "unknown",
+        reason: str(event.payload.reason) ?? "Unknown error",
+        adminUrl: pageUrl(brand, "/platform/admin/tenants"),
+        brand,
+      }),
+  },
+};
+
 // ─── Self-test (Phase 2) ──────────────────────────────────────────────────────
 //
 // Exercises the full pipeline (audience → prefs → dedupe log → channel
@@ -396,6 +522,9 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   BOOKING_CREATED_CLIENT,
   BOOKING_CREATED_TALENT,
   ROSTER_TALENT_INVITED,
+  PLATFORM_NEW_WORKSPACE,
+  PLATFORM_WORKSPACE_OVER_QUOTA,
+  PLATFORM_SIGNUP_FAILED,
   SELF_TEST,
 ];
 
