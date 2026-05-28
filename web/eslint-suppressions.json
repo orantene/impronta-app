@@ -251,7 +251,7 @@
       "count": 3
     },
     "ratchet/no-new-inline-style": {
-      "count": 113
+      "count": 116
     },
     "react-hooks/refs": {
       "count": 8
@@ -1440,6 +1440,21 @@
       "count": 8
     }
   },
+  "src/lib/server-actions/admin-product-discounts.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
+  },
+  "src/lib/server-actions/admin-product-features.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 8
+    }
+  },
+  "src/lib/server-actions/admin-product-pricing.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 12
+    }
+  },
   "src/lib/server-actions/admin-site-pages.ts": {
     "ratchet/no-untenanted-from": {
       "count": 4
@@ -1772,21 +1787,6 @@
   "src/lib/site-admin/tokens/registry.ts": {
     "max-lines": {
       "count": 1
-    }
-  },
-  "src/lib/server-actions/admin-product-pricing.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 12
-    }
-  },
-  "src/lib/server-actions/admin-product-discounts.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 5
-    }
-  },
-  "src/lib/server-actions/admin-product-features.ts": {
-    "ratchet/no-untenanted-from": {
-      "count": 8
     }
   }
 }

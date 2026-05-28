@@ -500,6 +500,14 @@ export function TalentProfileShellDrawer() {
   // Phase 1 — avatar + hero local state (hydrated from bundle alongside gallery).
   const [avatarPhotoUrl, setAvatarPhotoUrl] = useState<string | null>(null);
   const [heroPhotoUrl, setHeroPhotoUrl] = useState<string | null>(null);
+
+  // Multi-tenant identity gates — surfaced as a banner + read-only badge
+  // when this tenant manages a Tulala-native talent on a non-exclusive
+  // basis. See admin-talent-profile-sections.ts personal_profile_locked
+  // computation for the canonical truth.
+  const [tulalaNativeIdentity, setTulalaNativeIdentity] = useState(false);
+  const [personalProfileLocked, setPersonalProfileLocked] = useState(false);
+  const [rosterExclusivity, setRosterExclusivity] = useState<string | null>(null);
   // All assets for the gallery drawer (populated during bundle hydration).
   const [galleryDrawerOpen, setGalleryDrawerOpen] = useState(false);
   const [galleryDrawerFocus, setGalleryDrawerFocus] = useState<"avatar" | "hero" | "gallery">("gallery");
@@ -627,6 +635,14 @@ export function TalentProfileShellDrawer() {
         }
 
         const d = edRes.data;
+        // Multi-tenant identity flags — three fields added by
+        // admin-talent-profile-sections.ts. Used by the banner + the future
+        // per-field disabled gating. Cast through unknown because the
+        // ProfileEditorData expanded type isn't in scope here without a
+        // bigger refactor; fields are TS-safe at the source loader.
+        setTulalaNativeIdentity(Boolean((d as Record<string, unknown>).tulala_native_identity));
+        setPersonalProfileLocked(Boolean((d as Record<string, unknown>).personal_profile_locked));
+        setRosterExclusivity(((d as Record<string, unknown>).roster_exclusivity_status as string | null) ?? null);
         const patchPayload: Partial<ProfileState> = {};
         {
           // DB enums use underscores; SelectPicker / ProfileIdentity use slash ids (she/her).
@@ -2509,6 +2525,51 @@ export function TalentProfileShellDrawer() {
           })}
         </div>
 
+        {/* Multi-tenant identity banner — visible only when this agency
+            manages a Tulala-native, non-exclusive talent. Tells the admin
+            that personal profile data belongs to the talent, NOT to the
+            agency. Roster relationship fields are still editable. */}
+        {!isSelf && tulalaNativeIdentity && (
+          <div
+            role="status"
+            style={{
+              margin: "0 16px 12px",
+              padding: "10px 14px",
+              border: "1px solid rgba(31,74,58,0.25)",
+              borderRadius: 10,
+              background: "rgba(31,74,58,0.06)",
+              fontFamily: FONTS.body,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontSize: 12.5,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                borderRadius: 999,
+                background: "#1f4a3a",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              ✓
+            </span>
+            <div style={{ flex: 1, lineHeight: 1.45 }}>
+              <strong>Tulala-verified talent.</strong>{" "}
+              {personalProfileLocked
+                ? "Personal profile is owned by the talent — you can manage roster relationship only."
+                : `Roster relationship: ${rosterExclusivity ?? "unspecified"}. Personal profile editable because the relationship is exclusive.`}
+            </div>
+          </div>
+        )}
         {/* Body — rail on the left (>= 601px) + scrolling form on the right.
             On narrow widths the rail collapses and the horizontal pill nav
             above the body takes over (single nav at any width, never two). */}

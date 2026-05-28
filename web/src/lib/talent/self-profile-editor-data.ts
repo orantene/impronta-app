@@ -84,6 +84,12 @@ export async function loadSelfProfileEditorData(input: {
     ok: true,
     data: {
       updated_at: (p.updated_at as string | null) ?? null,
+      // Talent-self mode: the talent IS the owner. By definition not locked,
+      // by definition Tulala-native (they're signed in via their user_id).
+      // Exclusivity status is N/A here (no tenant scope on the self read).
+      tulala_native_identity: true,
+      roster_exclusivity_status: null,
+      personal_profile_locked: false,
       display_name: (p.display_name as string | null) ?? null,
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,

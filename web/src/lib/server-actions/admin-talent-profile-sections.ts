@@ -1061,6 +1061,17 @@ function talentTypeSlugsFromTaxonomyEmbed(rows: unknown): {
 export type ProfileEditorData = {
   /** Row timestamp — shown in drawer when no save in this session yet. */
   updated_at: string | null;
+  /** TRUE when the talent owns their own Tulala identity (talent_profiles.user_id IS NOT NULL).
+   *  Surfaces the "Tulala-verified" badge in the admin profile drawer. */
+  tulala_native_identity: boolean;
+  /** Roster relationship exclusivity for the active tenant. Drives the lock
+   *  decision below — non_exclusive Tulala-native talents can only have
+   *  their roster relationship managed by this agency, not personal data. */
+  roster_exclusivity_status: string | null;
+  /** TRUE when this agency should NOT be able to edit personal profile
+   *  fields (display_name, bio, social, photos). Computed:
+   *    tulala_native_identity AND roster_exclusivity_status !== 'exclusive'. */
+  personal_profile_locked: boolean;
   // Identity
   display_name: string | null;
   first_name: string | null;
@@ -1141,6 +1152,7 @@ export async function getTalentProfileEditorData(input: {
       .from("talent_profiles")
       .select(`
         updated_at,
+        user_id,
         display_name, first_name, last_name, legal_name, field_visibility, pronouns, pronouns_custom,
         gender, date_of_birth, age_display_mode, nationality, home_country_text, response_time,
         is_discoverable,
@@ -1162,7 +1174,7 @@ export async function getTalentProfileEditorData(input: {
       .maybeSingle(),
     supabase
       .from("agency_talent_roster")
-      .select("internal_notes, emergency_contact, field_locks_data, feature_in_directory")
+      .select("internal_notes, emergency_contact, field_locks_data, feature_in_directory, exclusivity_status")
       .eq("talent_profile_id", input.talent_profile_id)
       .eq("tenant_id", tenantId)
       .neq("status", "removed")
@@ -1188,10 +1200,31 @@ export async function getTalentProfileEditorData(input: {
     ? rawBios.map(b => ({ locale: b.locale ?? "en", text: b.text ?? "" }))
     : [{ locale: "en", text: "" }];
 
+  // Multi-tenant identity gates — Tulala-native vs agency-exclusive talent.
+  //   personalProfileLocked = TRUE when the talent owns their own Tulala
+  //   identity (user_id IS NOT NULL) AND this agency's roster relationship
+  //   is non-exclusive. In that case, the admin can manage the roster row
+  //   (internal_notes, status, feature_in_directory, exclusivity flip) but
+  //   NOT the personal profile data (name, bio, photos, social handles) —
+  //   that belongs to the talent.
+  //
+  //   Tulala-native flag is exposed separately so the UI can show the
+  //   "verified" badge even if the relationship IS exclusive (a verified
+  //   talent who signed up on Tulala first AND then went exclusive with
+  //   this agency still has user_id set; the agency can still edit because
+  //   exclusivity_status='exclusive' overrides the lock).
+  const talentUserId = (p.user_id as string | null) ?? null;
+  const rosterExclusivity = (r.exclusivity_status as string | null) ?? null;
+  const tulalaNativeIdentity = Boolean(talentUserId);
+  const personalProfileLocked = tulalaNativeIdentity && rosterExclusivity !== "exclusive";
+
   return {
     ok: true,
     data: {
       updated_at: (p.updated_at as string | null) ?? null,
+      tulala_native_identity: tulalaNativeIdentity,
+      roster_exclusivity_status: rosterExclusivity,
+      personal_profile_locked: personalProfileLocked,
       display_name: (p.display_name as string | null) ?? null,
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
