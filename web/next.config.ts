@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -119,7 +120,7 @@ function contentSecurityPolicy(): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights}`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
     `frame-src ${googleMapsCsp.frameSrc}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
@@ -226,4 +227,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: "tulala-digital",
+  project: "javascript-nextjs",
+  silent: !process.env.CI,
+  reactComponentAnnotation: { enabled: true },
+  automaticVercelMonitors: true,
+});
