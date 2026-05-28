@@ -24,15 +24,19 @@ import type {
  *
  * `sendEmail` no-ops gracefully when `RESEND_API_KEY` is unset, so this runs
  * end-to-end in dev — the send is simply skipped and logged.
+ *
+ * Returns the Resend message id (or null) so the dispatcher can persist it as
+ * the dispatch_log `provider_reference` — the key the Resend webhook uses to
+ * map delivery/bounce/complaint events back to this exact send.
  */
 export async function sendEmailNotification(
   event: NotificationEvent,
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-): Promise<void> {
+): Promise<string | null> {
   const cfg = entry.email;
-  if (!cfg || !recipient.email) return;
+  if (!cfg || !recipient.email) return null;
 
   const brand = await resolveTenantBrand(event.tenantId);
 
@@ -54,7 +58,7 @@ export async function sendEmailNotification(
   const element = cfg.render({ event, recipient, brand, unsubscribeUrl });
   const html = await renderEmailHtml(element);
 
-  await sendEmail({
+  return sendEmail({
     to: recipient.email,
     subject: cfg.subject(event, recipient),
     html,

@@ -29,17 +29,25 @@ export type SendEmailInput = {
   headers?: Record<string, string>;
 };
 
-export async function sendEmail(input: SendEmailInput): Promise<void> {
+/**
+ * Send a transactional email.
+ *
+ * Returns the Resend message id on success — the dispatcher stores it on the
+ * `notification_dispatch_log` row (`provider_reference`) so the Resend webhook
+ * (Phase 8) can correlate delivery/bounce/complaint events back to the exact
+ * dispatch. Returns `null` when the send is skipped (no API key) or errored.
+ */
+export async function sendEmail(input: SendEmailInput): Promise<string | null> {
   const client = getClient();
   if (!client) {
     void improntaLog("email.warn", {
       message: "[email] RESEND_API_KEY not set — skipping email:",
       input: input.subject,
     });
-    return;
+    return null;
   }
 
-  const { error } = await client.emails.send({
+  const { data, error } = await client.emails.send({
     from: getFrom(),
     to: Array.isArray(input.to) ? input.to : [input.to],
     subject: input.subject,
@@ -50,5 +58,7 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
 
   if (error) {
     logServerError("email/send", error);
+    return null;
   }
+  return data?.id ?? null;
 }

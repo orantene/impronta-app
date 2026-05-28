@@ -108,8 +108,12 @@ export async function dispatchEventNotifications(
         }
 
         try {
-          await handler(enriched, entry, recipient, ctx);
-          await markDispatchLogSent(ctx.admin, logId);
+          const providerRef = await handler(enriched, entry, recipient, ctx);
+          await markDispatchLogSent(
+            ctx.admin,
+            logId,
+            typeof providerRef === "string" ? providerRef : null,
+          );
           result.dispatched++;
         } catch (err) {
           await markDispatchLogFailed(ctx.admin, logId, err);
@@ -122,12 +126,15 @@ export async function dispatchEventNotifications(
   return result;
 }
 
+// Handlers may return a provider message id (the email channel returns the
+// Resend id; in_app returns void). The dispatcher persists a string return as
+// the dispatch_log `provider_reference` for webhook correlation.
 type ChannelHandler = (
   event: NotificationEvent,
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-) => Promise<void>;
+) => Promise<string | null | void>;
 
 type DispatchLogInsertArgs = {
   event: NotificationEvent;
@@ -176,10 +183,19 @@ async function tryInsertDispatchLog(
   return (data as { id: string }).id;
 }
 
-async function markDispatchLogSent(admin: SupabaseClient, id: string): Promise<void> {
+async function markDispatchLogSent(
+  admin: SupabaseClient,
+  id: string,
+  providerRef: string | null,
+): Promise<void> {
   const { error } = await admin
     .from("notification_dispatch_log")
-    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .update({
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      // Resend message id (email channel). Null for in_app / dev no-op sends.
+      provider_reference: providerRef,
+    })
     .eq("id", id);
   if (error) logServerError("notifications.dispatchLog.markSent", error);
 }
