@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { buildAudienceContext, hydrateAudience } from "./audience";
 import { findCatalogEntries } from "./catalog";
 import { sendEmailNotification } from "./channels/email";
@@ -57,7 +58,16 @@ export async function dispatchEventNotifications(
     in_app: sendInAppNotification,
   };
 
+  // Per-entry outcome breakdown for the `notif.dispatch` observability line (§9).
+  const perEntry: Array<{
+    id: string;
+    dispatched: number;
+    suppressed: number;
+    failed: number;
+  }> = [];
+
   for (const entry of entries) {
+    const entryResult = { dispatched: 0, suppressed: 0, failed: 0 };
     // Entry-specific hydration: enrich the event payload with whatever this
     // entry's audience resolver + templates need (inquiry context, offer
     // total, …). Runs once per entry; a failure degrades to the bare event
@@ -84,7 +94,8 @@ export async function dispatchEventNotifications(
         `notifications.audience:${entry.id}`,
         err instanceof Error ? err : new Error(String(err)),
       );
-      continue;
+      // recipients stays [], so the loop below is a no-op; we still record the
+      // (zero-count) entry in the dispatch summary at the end of the iteration.
     }
 
     for (const recipient of recipients) {
@@ -103,25 +114,62 @@ export async function dispatchEventNotifications(
         });
         if (!logId) {
           // Duplicate (already attempted) or could not be logged — skip the send.
-          result.suppressed++;
+          entryResult.suppressed++;
           continue;
         }
 
+        const startedAt = Date.now();
+        const recipientRef = recipient.userId ?? `guest:${recipient.email ?? ""}`;
         try {
           const providerRef = await handler(enriched, entry, recipient, ctx);
-          await markDispatchLogSent(
-            ctx.admin,
-            logId,
-            typeof providerRef === "string" ? providerRef : null,
-          );
-          result.dispatched++;
+          const reference = typeof providerRef === "string" ? providerRef : null;
+          await markDispatchLogSent(ctx.admin, logId, reference);
+          entryResult.dispatched++;
+          // §9: every channel send logs with timing + provider response.
+          void improntaLog(`notif.send.${channel}`, {
+            eventType: enriched.type,
+            eventId: enriched.eventId,
+            entryId: entry.id,
+            tenantId: enriched.tenantId,
+            recipient: recipientRef,
+            durationMs: Date.now() - startedAt,
+            providerReference: reference,
+            ok: true,
+          });
         } catch (err) {
           await markDispatchLogFailed(ctx.admin, logId, err);
-          result.failed++;
+          entryResult.failed++;
+          void improntaLog(`notif.send.${channel}`, {
+            eventType: enriched.type,
+            eventId: enriched.eventId,
+            entryId: entry.id,
+            tenantId: enriched.tenantId,
+            recipient: recipientRef,
+            durationMs: Date.now() - startedAt,
+            providerReference: null,
+            ok: false,
+            error: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+          });
         }
       }
     }
+
+    result.dispatched += entryResult.dispatched;
+    result.suppressed += entryResult.suppressed;
+    result.failed += entryResult.failed;
+    perEntry.push({ id: entry.id, ...entryResult });
   }
+
+  // §9: one dispatch summary line per run, with the per-entry breakdown.
+  void improntaLog("notif.dispatch", {
+    eventType: event.type,
+    eventId: event.eventId,
+    tenantId: event.tenantId,
+    entries: JSON.stringify(perEntry),
+    dispatched: result.dispatched,
+    suppressed: result.suppressed,
+    failed: result.failed,
+  });
 
   return result;
 }

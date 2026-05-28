@@ -10,6 +10,10 @@
 // 4. Google Places API key reverted to a referrer-restricted one.
 // 5. Drive API key missing in prod env.
 // 6. Middleware blocking the custom domain (page-not-found at root).
+// 7. Notification surfaces (spec §9): Resend webhook rejecting unsigned
+//    payloads, one-click unsubscribe + landing page mounted, cron endpoints
+//    enforcing CRON_SECRET, and (when RESEND_API_KEY is present) the sending
+//    domain verified. HTTP-only — never sends a real email.
 //
 // Usage:
 //   node web/scripts/post-deploy-smoke-test.mjs
@@ -25,6 +29,7 @@ const PUBLIC_HOST =
   hostFlag !== -1 && args[hostFlag + 1] ? args[hostFlag + 1] : "https://tulala.digital";
 
 let failed = 0;
+let warned = 0;
 
 function pass(label, detail = "") {
   console.log(`  ✓ ${label}${detail ? "  — " + detail : ""}`);
@@ -32,6 +37,12 @@ function pass(label, detail = "") {
 function fail(label, reason) {
   failed += 1;
   console.log(`  ✗ ${label}  — ${reason}`);
+}
+// Non-fatal: a signal we couldn't verify (e.g. a credential-gated check with
+// the credential absent). Surfaced in the summary but doesn't flip the exit code.
+function warn(label, reason) {
+  warned += 1;
+  console.log(`  ⚠ ${label}  — ${reason}`);
 }
 
 async function get(url, opts = {}) {
@@ -189,6 +200,111 @@ async function check_migration_drift() {
   }
 }
 
+// 8) Notification HTTP surfaces are deployed (spec §9 / §14.4). These are
+//    HTTP-only reachability + correctness probes — they never send a real
+//    email, so they're safe to run on every deploy without RESEND_API_KEY.
+async function check_notification_routes() {
+  console.log("\nNotification routes");
+
+  // Resend webhook: unsigned POST must be rejected. 400 = signature enforced
+  // (ideal), 503 = RESEND_WEBHOOK_SECRET unset in prod (warn), 200 = unsigned
+  // payload ACCEPTED (security failure), 404 = route not deployed.
+  try {
+    const r = await get(HOST + "/api/webhooks/resend", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    if (r.status === 400) pass("Resend webhook mounted + rejects unsigned (400)");
+    else if (r.status === 503)
+      warn("Resend webhook", "503 — RESEND_WEBHOOK_SECRET not set in prod (delivery events won't record)");
+    else if (r.status === 200)
+      fail("Resend webhook", "200 to an UNSIGNED payload — signature verification is bypassed");
+    else if (r.status === 404) fail("Resend webhook", "404 — route not deployed");
+    else fail("Resend webhook", `unexpected status=${r.status}`);
+  } catch (e) {
+    fail("Resend webhook", e.message);
+  }
+
+  // One-click unsubscribe (RFC 8058): POST must 200 regardless of token
+  // validity (mail clients require it; we never leak whether a token is real).
+  try {
+    const r = await get(HOST + "/api/unsubscribe/smoke-probe-invalid-token", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "",
+    });
+    if (r.status === 200) pass("one-click unsubscribe (POST) mounted (200)");
+    else if (r.status === 404) fail("unsubscribe API", "404 — route not deployed");
+    else fail("unsubscribe API", `expected 200 for one-click POST, got ${r.status}`);
+  } catch (e) {
+    fail("unsubscribe API", e.message);
+  }
+
+  // Unsubscribe landing page renders (the human-facing confirm/manage surface).
+  try {
+    const r = await get(HOST + "/unsubscribe/smoke-probe-invalid-token");
+    if (r.status >= 200 && r.status < 400) pass(`unsubscribe page renders (${r.status})`);
+    else fail("unsubscribe page", `status=${r.status}`);
+  } catch (e) {
+    fail("unsubscribe page", e.message);
+  }
+}
+
+// 9) Notification cron endpoints reject unauthenticated callers. A bare GET
+//    (no bearer) should 401 — proving the route is mounted AND CRON_SECRET is
+//    set in prod AND auth is enforced. 503 = CRON_SECRET unset (warn). 200 =
+//    auth bypassed (security failure). 404 = not deployed.
+async function check_notification_crons() {
+  console.log("\nNotification cron auth");
+  const crons = ["/api/cron/send-digest-emails", "/api/cron/retry-failed-emails"];
+  for (const path of crons) {
+    try {
+      const r = await get(HOST + path);
+      if (r.status === 401) pass(`${path} enforces CRON_SECRET (401 unauthenticated)`);
+      else if (r.status === 503) warn(path, "503 — CRON_SECRET not set in prod");
+      else if (r.status === 200) fail(path, "200 unauthenticated — CRON_SECRET auth is bypassed");
+      else if (r.status === 404) fail(path, "404 — cron route not deployed");
+      else fail(path, `unexpected status=${r.status}`);
+    } catch (e) {
+      fail(path, e.message);
+    }
+  }
+}
+
+// 10) Resend sending domain is verified (DKIM/SPF/DMARC). Credential-gated:
+//     needs RESEND_API_KEY in env. Since provisioning that key is currently
+//     blocked, this WARNS (not fails) when absent — the honest current state.
+async function check_resend_domain() {
+  console.log("\nResend sending domain");
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    warn("Resend domain", "skipped — RESEND_API_KEY not in env (provisioning blocked)");
+    return;
+  }
+  try {
+    const res = await fetch("https://api.resend.com/domains", {
+      headers: { authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) {
+      fail("Resend domain", `domains API returned ${res.status}`);
+      return;
+    }
+    const body = await res.json();
+    const domains = Array.isArray(body?.data) ? body.data : [];
+    const sending = domains.find((d) => typeof d?.name === "string" && d.name.includes("tulala"));
+    if (!sending) {
+      fail("Resend domain", "no tulala.digital domain found on the Resend account");
+    } else if (sending.status === "verified") {
+      pass(`sending domain verified (${sending.name})`);
+    } else {
+      fail("Resend domain", `${sending.name} status=${sending.status} (DKIM/SPF not green)`);
+    }
+  } catch (e) {
+    fail("Resend domain", e.message);
+  }
+}
+
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
@@ -198,9 +314,15 @@ for (const check of [
   check_edge_region,
   check_alias_drift,
   check_migration_drift,
+  check_notification_routes,
+  check_notification_crons,
+  check_resend_domain,
 ]) {
   await check();
 }
 
-console.log(`\n${failed === 0 ? "✓ all checks passed" : `✗ ${failed} check(s) failed`}`);
+const warnSuffix = warned > 0 ? `  (${warned} warning${warned === 1 ? "" : "s"})` : "";
+console.log(
+  `\n${failed === 0 ? "✓ all checks passed" : `✗ ${failed} check(s) failed`}${warnSuffix}`,
+);
 process.exit(failed === 0 ? 0 : 1);
