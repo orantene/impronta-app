@@ -209,12 +209,20 @@ export async function markToggleTipSeen(): Promise<void> {
 }
 
 /**
- * Persist notification preferences. Fire-and-forget.
- * Auth required — reads user from session cookie.
+ * Read-modify-write merge into `user_prefs.notification_prefs`.
+ *
+ * `notification_prefs` is a shared jsonb blob: the legacy admin/client panels
+ * key it by *event* (`booking-confirmed`, `new_message`, …) while the
+ * notification engine's per-category panel keys it by *category* (`offers`,
+ * `bookings`, …). These are disjoint key namespaces that must coexist in one
+ * column, so we merge rather than overwrite — otherwise saving on one surface
+ * would wipe the other's keys. Mirrors `setPrivacyPrefs` below. Errors are
+ * logged, never surfaced (a pref write is non-critical).
+ *
+ * `user_prefs` is keyed by `user_id`, not tenant — the raw `.from` calls are
+ * intentionally un-tenanted (grandfathered in eslint-suppressions.json).
  */
-export async function setNotificationPrefs(
-  prefs: Record<string, NotificationChannelPrefs>,
-): Promise<void> {
+async function mergeNotificationPrefs(patch: Record<string, unknown>): Promise<void> {
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return;
@@ -222,17 +230,64 @@ export async function setNotificationPrefs(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const { data: existing } = await supabase
+      .from("user_prefs")
+      .select("notification_prefs")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const current =
+      ((existing as { notification_prefs?: unknown } | null)?.notification_prefs as
+        | Record<string, unknown>
+        | null
+        | undefined) ?? {};
+
     const { error } = await supabase.from("user_prefs").upsert(
-      { user_id: user.id, notification_prefs: prefs, updated_at: new Date().toISOString() },
+      {
+        user_id: user.id,
+        notification_prefs: { ...current, ...patch },
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "user_id" },
     );
 
-    if (error) {
-      logServerError("user-prefs.setNotificationPrefs", error);
-    }
+    if (error) logServerError("user-prefs.mergeNotificationPrefs", error);
   } catch (err) {
-    logServerError("user-prefs.setNotificationPrefs", err);
+    logServerError("user-prefs.mergeNotificationPrefs", err);
   }
+}
+
+/**
+ * Persist notification preferences. Fire-and-forget. Auth required.
+ * Merge semantics — see `mergeNotificationPrefs`.
+ */
+export async function setNotificationPrefs(
+  prefs: Record<string, NotificationChannelPrefs>,
+): Promise<void> {
+  await mergeNotificationPrefs(prefs);
+}
+
+/**
+ * Per-category notification channel toggles — the canonical shape the
+ * notification engine reads (`lib/notifications/prefs.ts` →
+ * `getCategoryPrefs`). Keyed by `NotificationCategory` id; each value carries
+ * the live channels (`email`, `in_app`). An absent channel key means "use the
+ * category default"; an explicit `false` is an opt-out.
+ */
+export type CategoryNotificationPrefs = {
+  email?: boolean;
+  in_app?: boolean;
+};
+
+/**
+ * Persist per-category notification preferences written by the engine's
+ * preferences panel. Fire-and-forget. Merge semantics — only the supplied
+ * category keys are touched, so the legacy event-keyed entries (and any
+ * categories the panel didn't render) are preserved.
+ */
+export async function setCategoryNotificationPrefs(
+  catPrefs: Record<string, CategoryNotificationPrefs>,
+): Promise<void> {
+  await mergeNotificationPrefs(catPrefs);
 }
 
 /**
