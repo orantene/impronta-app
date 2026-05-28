@@ -3,7 +3,11 @@ import "server-only";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import { renderEmailHtml } from "@/lib/email/render";
 import { sendEmail } from "@/lib/email";
-import { buildUnsubscribeUrl, getUnsubscribeToken } from "../unsubscribe";
+import {
+  buildUnsubscribeApiUrl,
+  buildUnsubscribeUrl,
+  getUnsubscribeToken,
+} from "../unsubscribe";
 import type {
   AudienceContext,
   CatalogEntry,
@@ -33,9 +37,18 @@ export async function sendEmailNotification(
   const brand = await resolveTenantBrand(event.tenantId);
 
   let unsubscribeUrl: string | undefined;
+  let headers: Record<string, string> | undefined;
   if (!entry.required && recipient.userId) {
     const token = await getUnsubscribeToken(ctx.admin, recipient.userId);
-    if (token) unsubscribeUrl = buildUnsubscribeUrl(token, entry.category);
+    if (token) {
+      unsubscribeUrl = buildUnsubscribeUrl(token, entry.category);
+      // RFC 8058 one-click: the header points at the API POST endpoint while
+      // the footer link (unsubscribeUrl) points at the confirm page.
+      headers = {
+        "List-Unsubscribe": `<${buildUnsubscribeApiUrl(token, entry.category)}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      };
+    }
   }
 
   const element = cfg.render({ event, recipient, brand, unsubscribeUrl });
@@ -45,5 +58,6 @@ export async function sendEmailNotification(
     to: recipient.email,
     subject: cfg.subject(event, recipient),
     html,
+    headers,
   });
 }

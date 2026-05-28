@@ -324,6 +324,28 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
   }
 });
 
+test("compliance endpoints: /unsubscribe + /api/unsubscribe allowed on every host kind", () => {
+  // One-click unsubscribe links are global (built against the platform site
+  // URL) but may be opened from any host context, so they must never 404.
+  const compliance = [
+    "/unsubscribe/abc-token",
+    "/unsubscribe/abc-token/",
+    "/api/unsubscribe/abc-token",
+  ];
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    for (const p of compliance) {
+      assert.equal(
+        isPathAllowedForHostKind(kind, p),
+        true,
+        `${kind} should allow ${p}`,
+      );
+    }
+  }
+  // Segment-boundary protection — a lookalike prefix must not be swallowed.
+  assert.equal(isPathAllowedForHostKind("marketing", "/unsubscribexyz"), false);
+  assert.equal(isPathAllowedForHostKind("app", "/api/unsubscribexyz"), false);
+});
+
 test("prefix boundaries: /talented is not /talent, /administration is not /admin", () => {
   // Segment boundary protection — workspace prefixes must not swallow
   // storefront routes that happen to share a leading substring.

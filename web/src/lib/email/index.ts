@@ -25,6 +25,8 @@ export type SendEmailInput = {
   subject: string;
   html: string;
   replyTo?: string;
+  /** Extra MIME headers, e.g. List-Unsubscribe / List-Unsubscribe-Post. */
+  headers?: Record<string, string>;
 };
 
 export async function sendEmail(input: SendEmailInput): Promise<void> {
@@ -43,6 +45,7 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
     subject: input.subject,
     html: input.html,
     replyTo: input.replyTo,
+    headers: input.headers,
   });
 
   if (error) {

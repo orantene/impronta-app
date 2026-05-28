@@ -79,6 +79,19 @@ const SHARED_API_PREFIXES = [
   "/api/stripe",
 ] as const;
 
+/**
+ * Compliance endpoints reachable on every surface, regardless of host kind:
+ *   - `/unsubscribe/<token>`     → branded one-click unsubscribe page
+ *   - `/api/unsubscribe/<token>` → RFC 8058 List-Unsubscribe POST target
+ * The per-user token in the URL is the only credential; these carry no tenant
+ * data and must never 404, since an unsubscribe link in an email can be opened
+ * from any host context (platform apex, agency vanity domain, or app host).
+ */
+const COMPLIANCE_PREFIXES = [
+  "/unsubscribe",
+  "/api/unsubscribe",
+] as const;
+
 const AUTH_PREFIXES = [
   "/login",
   "/register",
@@ -369,6 +382,7 @@ export function isPathAllowedForHostKind(
   if (anyExact(pathname, STATIC_PATHS)) return true;
   if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
+  if (anyPrefix(pathname, COMPLIANCE_PREFIXES)) return true;
 
   if (kind === "agency") {
     // Agency owners/staff (and clients/talent of this tenant) can use the
