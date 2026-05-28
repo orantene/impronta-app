@@ -39,7 +39,64 @@ export type PricingFeatureRow = {
   highlight: boolean;
   displayOrder: number;
   category: string | null;
+  /** Phase 4 — when set, the compare-table cell renders this string
+   *  (e.g., "Up to 50", "Full + white-label") instead of the ✓/—
+   *  derived from `included`. Null for boolean-shaped rows. */
+  valueText: string | null;
 };
+
+// ─── Compare-table shape (Phase 4) ────────────────────────────────────────────
+
+/**
+ * One row in the compare table. Cells are ordered by tier display_order
+ * (free → studio → agency → hub for the workspace package).
+ */
+export type CompareTableRow = {
+  label: string;
+  category: string;
+  /** Per-tier cell. `value` is the string when set; otherwise check
+   *  `included` for ✓/—. `null` means the tier doesn't have a feature
+   *  row for this (label, category) — render as —. */
+  cells: Array<
+    | { tierSlug: string; included: boolean; value: string | null }
+    | { tierSlug: string; missing: true }
+  >;
+};
+
+export type CompareTableSection = {
+  /** Category slug (e.g. "pipeline"). Human label is derived in the UI. */
+  category: string;
+  rows: CompareTableRow[];
+};
+
+export type CompareTable = {
+  /** Tier slugs in column order — matches `cells` order in every row. */
+  tierSlugs: string[];
+  /** Tier labels keyed by slug, for column headers. */
+  tierLabels: Record<string, string>;
+  sections: CompareTableSection[];
+};
+
+/** Human-readable label for a `product_features.category` slug. */
+export const COMPARE_CATEGORY_LABEL: Record<string, string> = {
+  pipeline:      "Inquiry → booking pipeline",
+  notifications: "Notifications & messaging",
+  roster_site:   "Roster & site",
+  media:         "Media & branding",
+  team_access:   "Team & access",
+  network_data:  "Network & data",
+};
+
+/** Display order for compare-table sections — defines top-to-bottom
+ *  rendering. Categories not in this list go after, alphabetized. */
+export const COMPARE_CATEGORY_ORDER: string[] = [
+  "pipeline",
+  "notifications",
+  "roster_site",
+  "media",
+  "team_access",
+  "network_data",
+];
 
 export type PricingTierRow = {
   id: string;
