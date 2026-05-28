@@ -88,6 +88,8 @@ export function AdvancedAgencySettingsSection({
 export function ServicesEditor({
   allowedParents, primaryType, secondaryTypes, specialties, primaryRes, specialtyOptions,
   onPickPrimary, onClearPrimary, onToggleSecondary, onToggleSpecialty, hydrating,
+  tenantEnabledPrimarySlugs,
+  tenantSettingsHref,
 }: {
   allowedParents: TaxonomyParent[];
   primaryType: string | null;
@@ -103,7 +105,23 @@ export function ServicesEditor({
    *  Prevents flashing the "pick a primary type" grid (false "Not set")
    *  for a talent who actually has a persisted type still loading. */
   hydrating?: boolean;
+  /** Slugs ENABLED in the current tenant's agency_taxonomy_settings. When
+   *  `primaryType` is NOT in this set, the primary chip renders faded with
+   *  a "Disabled in your workspace — Enable in Settings →" hint, letting
+   *  Alejandra SEE Moran's chosen talent type while flagging it as not
+   *  active in her agency. Optional — when omitted (standalone /
+   *  pre-tenant-context), no fading is applied. */
+  tenantEnabledPrimarySlugs?: Set<string>;
+  /** Deep-link to the agency taxonomy settings drawer; surfaces as
+   *  "Enable in Settings →" next to a faded chip. */
+  tenantSettingsHref?: string;
 }) {
+  // Phase 2 — fade signal. Only fires when this tenant context is known AND
+  // the talent's selected primary type is NOT in the tenant's enabled set.
+  const primaryDisabledForTenant =
+    !!tenantEnabledPrimarySlugs &&
+    !!primaryType &&
+    !tenantEnabledPrimarySlugs.has(primaryType);
   // 2026 — when a primary role is picked, default the "Also bookable as"
   // wall to siblings within the same parent_category. The cross-category
   // chips (e.g. picking a Performer when the primary is a Model) live
@@ -127,12 +145,73 @@ export function ServicesEditor({
         </div>
         {primaryRes ? (
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: "rgba(15,79,62,0.08)", border: `1.5px solid ${COLORS.accent}`, fontSize: 13, fontWeight: 600 }} className="text-admin-accent-deep">
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderRadius: 999,
+                background: primaryDisabledForTenant
+                  ? "rgba(11,11,13,0.04)"
+                  : "rgba(15,79,62,0.08)",
+                border: `1.5px solid ${primaryDisabledForTenant ? COLORS.borderSoft : COLORS.accent}`,
+                fontSize: 13,
+                fontWeight: 600,
+                opacity: primaryDisabledForTenant ? 0.55 : 1,
+              }}
+              className={primaryDisabledForTenant ? "text-admin-ink-muted" : "text-admin-accent-deep"}
+              title={
+                primaryDisabledForTenant
+                  ? "This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types."
+                  : undefined
+              }
+            >
               <span className="text-sm">{primaryRes.parent.emoji}</span>
               {primaryRes.child.label}
-              <button type="button" onClick={onClearPrimary} aria-label="Change main service"
-                style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700, padding: 0 }}>×</button>
+              <button
+                type="button"
+                onClick={onClearPrimary}
+                aria-label="Change main service"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: primaryDisabledForTenant ? COLORS.inkMuted : COLORS.accentDeep,
+                  fontSize: 14,
+                  lineHeight: 1,
+                  fontWeight: 700,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
             </div>
+            {primaryDisabledForTenant && (
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 11,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexWrap: "wrap",
+                }}
+                className="text-admin-ink-muted"
+              >
+                <span aria-hidden>⚠</span>
+                <span>Disabled in your workspace.</span>
+                {tenantSettingsHref ? (
+                  <a
+                    href={tenantSettingsHref}
+                    className="underline text-admin-accent-deep"
+                    style={{ fontWeight: 600 }}
+                  >
+                    Enable in Settings →
+                  </a>
+                ) : null}
+              </div>
+            )}
             {primaryRes.child.specialties && primaryRes.child.specialties.length > 0 && (
               <div className="mt-2.5">
                 <div style={{ fontSize: 10.5, marginBottom: 4 }} className="text-admin-ink-dim">

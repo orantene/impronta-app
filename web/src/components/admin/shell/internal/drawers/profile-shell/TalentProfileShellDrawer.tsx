@@ -3048,6 +3048,12 @@ export function TalentProfileShellDrawer() {
                     specialties={state.specialties}
                     primaryRes={primaryRes}
                     specialtyOptions={specialtyOptions}
+                    tenantEnabledPrimarySlugs={liveEnabledPrimarySlugs}
+                    tenantSettingsHref={
+                      bridgeTenantIdentity?.slug
+                        ? `/${bridgeTenantIdentity.slug}/admin/settings#talent-types`
+                        : undefined
+                    }
                     onPickPrimary={async (id) => {
                       patch({ primaryType: id });
                       if (payload.talentId) {

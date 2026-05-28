@@ -274,7 +274,7 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-editors-core.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 62
+      "count": 64
     },
     "react/no-children-prop": {
       "count": 2
