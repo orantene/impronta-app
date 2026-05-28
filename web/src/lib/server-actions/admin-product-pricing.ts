@@ -43,6 +43,8 @@ import {
   syncTierPriceToStripe,
   renameStripeProduct,
 } from "@/lib/pricing/stripe-sync";
+// Phase 3 discount actions live in `admin-product-discounts.ts` (kept
+// out of this file to stay under the 800-line max-lines cap).
 
 const PRICING_PATH = "/platform/admin/pricing";
 

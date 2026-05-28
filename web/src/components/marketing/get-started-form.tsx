@@ -41,11 +41,7 @@ export type GetStartedSignedIn = {
  */
 export type { GetStartedTierPrices } from "./get-started-form-tier-copy";
 import type { GetStartedTierPrices } from "./get-started-form-tier-copy";
-import {
-  PAID_TIER_PLAN_LABEL,
-  formFinePrint,
-  isPaidTier,
-} from "./get-started-form-tier-copy";
+import { PAID_TIER_PLAN_LABEL, formFinePrint, isPaidTier } from "./get-started-form-tier-copy";
 
 type Props = {
   initialAudience?: AudienceKey;
@@ -53,8 +49,10 @@ type Props = {
   variant?: "page" | "compact";
   initialSignedIn?: GetStartedSignedIn;
   sourcePage?: string;
-  /** Live monthly prices from the catalog (Phase 2). */
+  /** Live monthly prices from catalog (Phase 2). */
   tierPrices?: GetStartedTierPrices;
+  /** Pre-formatted promo label (Phase 3 — appended to fine-print). */
+  appliedDiscountLabel?: string;
 };
 
 function preferredLinkPreview(slug: string, tier?: TierKey): string {
@@ -128,6 +126,7 @@ export function GetStartedForm({
   initialSignedIn,
   sourcePage = "/get-started",
   tierPrices,
+  appliedDiscountLabel,
 }: Props) {
   const [state, formAction, isPending] = useActionState<
     GetStartedActionResult | null,
@@ -791,6 +790,7 @@ export function GetStartedForm({
 
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
         {formFinePrint(tier, tierPrices)}
+        {appliedDiscountLabel && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
       </p>
     </form>
   );

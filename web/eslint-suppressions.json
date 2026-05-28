@@ -1778,5 +1778,10 @@
     "ratchet/no-untenanted-from": {
       "count": 12
     }
+  },
+  "src/lib/server-actions/admin-product-discounts.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 5
+    }
   }
 }

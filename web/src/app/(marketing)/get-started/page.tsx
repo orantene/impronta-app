@@ -22,6 +22,7 @@ import {
   loadMarketingTiers,
   type MarketingTier,
 } from "@/lib/pricing/get-active-prices";
+import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 
 export const metadata: Metadata = {
   title: "Start free — claim your roster link",
@@ -97,7 +98,12 @@ type TierKey = "free" | "studio" | "agency" | "network";
 export default async function GetStartedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tier?: string; audience?: string; currency?: string }>;
+  searchParams: Promise<{
+    tier?: string;
+    audience?: string;
+    currency?: string;
+    promo?: string;
+  }>;
 }) {
   const resolved = await searchParams;
 
@@ -106,6 +112,23 @@ export default async function GetStartedPage({
   const { currency } = await resolveCurrency(resolved);
   const workspaceTiers = await loadMarketingTiers("workspace", currency);
   const HEADLINE_BY_TIER = buildHeadlineByTier(workspaceTiers);
+
+  // L50 Phase 3: ?promo=CODE → validate against `product_discounts`.
+  // Invalid / expired / out-of-window codes silently fall back to
+  // no-discount rendering (we don't surface "Code expired" to the
+  // visitor — that would confuse anyone who landed on a stale link).
+  //
+  // For Phase 3 we render the LABEL (e.g. "50% off · LATAM50") on the
+  // form chip + fine-print. Phase 8 (Stripe Checkout) will re-validate
+  // the code server-side at submit and pass `promotion_code` to the
+  // Checkout Session so Stripe applies the math.
+  let appliedDiscountLabel: string | null = null;
+  if (resolved.promo) {
+    const v = await validateDiscount(resolved.promo);
+    if (v.ok) {
+      appliedDiscountLabel = v.label;
+    }
+  }
 
   const tierKey = resolved.tier && resolved.tier in HEADLINE_BY_TIER ? resolved.tier : "default";
   const copy = HEADLINE_BY_TIER[tierKey];
@@ -140,6 +163,7 @@ export default async function GetStartedPage({
           agency: workspaceTiers.find((t) => t.key === "agency")?.price,
           network: workspaceTiers.find((t) => t.key === "hub")?.price,
         }}
+        appliedDiscountLabel={appliedDiscountLabel}
       />
       <WhoItsForSection />
       <HowItWorksSection />
@@ -168,6 +192,7 @@ function HeroSection({
   initialSignedIn,
   tier,
   tierPrices,
+  appliedDiscountLabel,
 }: {
   appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
@@ -179,6 +204,9 @@ function HeroSection({
   };
   tier?: TierKey;
   tierPrices?: Partial<Record<TierKey, string | undefined>>;
+  /** Pre-formatted discount label (e.g. "50% off · LATAM50") or null
+   *  when no ?promo=CODE is applied. Phase 3. */
+  appliedDiscountLabel?: string | null;
 }) {
   return (
     <MarketingSection spacing="tight" className="relative">
@@ -269,12 +297,33 @@ function HeroSection({
           </div>
 
           <div id="form" className="relative lg:sticky lg:top-24">
+            {appliedDiscountLabel && (
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 text-[0.8125rem]"
+                style={{
+                  background: "rgba(46,107,82,0.07)",
+                  borderColor: "rgba(46,107,82,0.25)",
+                  color: "var(--plt-forest)",
+                  fontWeight: 500,
+                }}
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  aria-hidden
+                  className="mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                  style={{ background: "var(--plt-forest)" }}
+                />
+                Promo applied: <strong>{appliedDiscountLabel}</strong>
+              </div>
+            )}
             <GetStartedForm
               initialAudience={initialAudience}
               tier={tier}
               initialSignedIn={initialSignedIn}
               sourcePage="/get-started"
               tierPrices={tierPrices}
+              appliedDiscountLabel={appliedDiscountLabel ?? undefined}
             />
             <p
               className="mt-4 text-center text-[0.8125rem]"
