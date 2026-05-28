@@ -535,9 +535,22 @@ export async function proxy(request: NextRequest) {
   // Phase 3.12 / 3.13 — branded workspace shortcuts on agency hosts.
   // Keep the branded URL (`/admin`, `/talent`, `/client`) but route through
   // the canonical slug handlers (`/<slug>/admin`, etc.) via internal rewrite.
+  //
+  // EXCEPT for the public registration entry points (`/talent/register`,
+  // `/client/register`). Those are unauthenticated marketing-style pages
+  // that resolve via the (auth) route group, NOT via the workspace
+  // [tenantSlug] route. Rewriting them to `/<slug>/talent/register` sent
+  // them to a workspace path that doesn't exist → 404. The talent-
+  // acquisition funnel was visibly broken on improntamodels.com because
+  // of this — adding the bypass below restores it without touching the
+  // existing branded /admin /talent /client /client/<id> rewrite semantics.
+  const isRegistrationEntry =
+    pathnameForAuth === "/talent/register" ||
+    pathnameForAuth === "/client/register";
   if (
     hostContext.kind === "agency" &&
     hostContext.tenantSlug &&
+    !isRegistrationEntry &&
     !pathnameForAuth.startsWith(`/${hostContext.tenantSlug}/`) &&
     (
       pathnameForAuth === "/admin" ||
