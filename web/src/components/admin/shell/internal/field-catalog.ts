@@ -293,6 +293,7 @@ const HARDCODED_FIELDS: ReadonlyArray<FieldCatalogEntry> = [
   { id: "dyn.transportation", label: "Vehicle + license",     tier: "type-specific", section: "type-specific", appliesTo: ["transportation"] },
   { id: "dyn.event_staff",    label: "Event staff tier",      tier: "type-specific", section: "type-specific", appliesTo: ["event_staff"] },
   { id: "dyn.security",       label: "Security credentials",  tier: "type-specific", section: "type-specific", appliesTo: ["security"] },
+  { id: "dyn.services",       label: "Service details",       tier: "type-specific", section: "type-specific", appliesTo: ["services"] },
   // dyn.<parentId> placeholder entries removed — DERIVED_TYPE_FIELDS
   // below now provides the actual fields-per-type, sourced from
   // TAXONOMY_FIELDS. Consumers that called `fieldsForType("models")`
@@ -704,9 +705,11 @@ const __workspaceOverrides: Record<string, TenantOverrides> =
   safeLoadJSON<Record<string, TenantOverrides>>(WORKSPACE_FIELD_OVERRIDES_LS_KEY, {});
 const __workspaceOverrideSubscribers = new Set<() => void>();
 
-/** Convention: a single demo tenant id used by the prototype. Production
- *  pulls from auth context. */
-export const PROTO_TENANT_ID = "tenant.acme-models";
+/** Sentinel for "no tenant scope". Production callers pass the real tenantId
+ *  from auth context; when null, workspace field overrides are not applied
+ *  (catalog defaults used as-is). Previously "tenant.acme-models" — changed
+ *  in Phase B de-fixture to stop leaking prototype tenant into override lookups. */
+export const PROTO_TENANT_ID = null as null;
 
 export function setWorkspaceFieldOverride(
   tenantId: string,

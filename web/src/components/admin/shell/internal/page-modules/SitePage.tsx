@@ -230,7 +230,7 @@ export function SitePage() {
           description={
             bridgeTenantIdentity?.verifiedDomain
               ? `Live at ${bridgeTenantIdentity.verifiedDomain}`
-              : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.app` : effectiveTenant.domain}`
+              : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.digital` : effectiveTenant.domain}`
           }
           icon="globe"
           requiredPlan="studio"

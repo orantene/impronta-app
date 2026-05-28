@@ -1762,9 +1762,9 @@ export function AdminShellProvider({
   const effectiveWebsiteState = useMemo(
     () =>
       bridgeWebsite != null
-        ? mergeWebsiteStateFromBridge(bridgeWebsite)
+        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "")
         : WEBSITE_STATE,
-    [bridgeWebsite],
+    [bridgeWebsite, bridgeTenantIdentity?.slug],
   );
 
   const value: Ctx = useMemo(
