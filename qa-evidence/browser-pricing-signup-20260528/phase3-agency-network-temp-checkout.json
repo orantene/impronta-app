@@ -1,0 +1,42 @@
+[
+  {
+    "planKey": "agency",
+    "activeCanonical": {
+      "id": "be781e6d-28c1-4018-ad5b-4ee313ff276b",
+      "unit_amount": 15100,
+      "stripe_price_id": "price_1TcAHLRrZLyWJgP5ZEufquLN",
+      "archived_at": null,
+      "is_active": true,
+      "valid_from": null,
+      "valid_until": null,
+      "created_at": "2026-05-28T20:11:44.50174+00:00"
+    },
+    "resolved": "price_1TcAHLRrZLyWJgP5ZEufquLN",
+    "checkout": {
+      "id": "cs_test_b10xZkbVmqMmzJNEec6EIwZ1EyDR3wmKWKfNkD2AkWdXrak5goa7ccdm26",
+      "linePrice": "price_1TcAHLRrZLyWJgP5ZEufquLN",
+      "lineAmount": 15100,
+      "expectedAmount": 15100
+    }
+  },
+  {
+    "planKey": "network",
+    "activeCanonical": {
+      "id": "cb2d40e9-bae0-41bc-8bb2-ac56ad4c714b",
+      "unit_amount": 50100,
+      "stripe_price_id": "price_1TcAHaRrZLyWJgP5jvmJLEFS",
+      "archived_at": null,
+      "is_active": true,
+      "valid_from": null,
+      "valid_until": null,
+      "created_at": "2026-05-28T20:11:59.612429+00:00"
+    },
+    "resolved": "price_1TcAHaRrZLyWJgP5jvmJLEFS",
+    "checkout": {
+      "id": "cs_test_b1LBFfEsYksQLL2t7r085jo7PoZ8evzz07mxJ6iQEHqzR74JKsZZts2BCp",
+      "linePrice": "price_1TcAHaRrZLyWJgP5jvmJLEFS",
+      "lineAmount": 50100,
+      "expectedAmount": 50100
+    }
+  }
+]

@@ -68,6 +68,7 @@ type Props = {
   tierNames?: GetStartedTierNames;
   /** Pre-formatted promo label (Phase 3 — appended to fine-print). */
   appliedDiscountLabel?: string;
+  appliedDiscountCode?: string;
 };
 
 const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }[] = [
@@ -118,6 +119,7 @@ export function GetStartedForm({
   tierPrices,
   tierNames,
   appliedDiscountLabel,
+  appliedDiscountCode,
 }: Props) {
   const [state, formAction, isPending] = useActionState<
     GetStartedActionResult | null,
@@ -243,6 +245,10 @@ export function GetStartedForm({
   }, [state, audience, rosterSize, tier]);
 
   const errors = state && !state.ok ? state.errors : {};
+  const promoUrl = (url: string | null | undefined) =>
+    url && appliedDiscountCode
+      ? `${url}${url.includes("?") ? "&" : "?"}promo=${encodeURIComponent(appliedDiscountCode)}`
+      : url;
 
   if (state?.ok && state.kind === "needs_signin") {
     const paidTier = isPaidTier(tier);
@@ -273,7 +279,7 @@ export function GetStartedForm({
         </p>
         {state.signInUrl ? (
           <a
-            href={state.signInUrl}
+            href={promoUrl(state.signInUrl) ?? "#"}
             className="mt-6 inline-flex items-center justify-center rounded-full px-5 py-3 text-[0.875rem] font-medium transition-colors hover:opacity-90"
             style={{
               background: "var(--plt-forest)",
@@ -289,7 +295,7 @@ export function GetStartedForm({
 
   if (state?.ok) {
     const signedInContinue =
-      initialSignedIn && state.workspaceSignupUrl ? state.workspaceSignupUrl : null;
+      initialSignedIn && state.workspaceSignupUrl ? promoUrl(state.workspaceSignupUrl) : null;
     const paidTier = isPaidTier(tier);
     const planLabel = paidTier ? PAID_TIER_PLAN_LABEL[tier] : null;
 
@@ -350,7 +356,7 @@ export function GetStartedForm({
         </p>
         {signedInContinue || state.workspaceSignupUrl ? (
           <a
-            href={signedInContinue ?? state.workspaceSignupUrl ?? "#"}
+            href={signedInContinue ?? promoUrl(state.workspaceSignupUrl) ?? "#"}
             className="mt-6 inline-flex items-center justify-center rounded-full px-5 py-3 text-[0.875rem] font-medium transition-colors hover:opacity-90"
             style={{
               background: "var(--plt-forest)",
@@ -782,4 +788,3 @@ export function GetStartedForm({
     </form>
   );
 }
-

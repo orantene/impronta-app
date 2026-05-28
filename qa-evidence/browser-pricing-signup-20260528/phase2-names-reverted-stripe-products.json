@@ -1,0 +1,47 @@
+{
+  "tiers": [
+    {
+      "slug": "free",
+      "name": "Free",
+      "stripe_product_id": null
+    },
+    {
+      "slug": "studio",
+      "name": "Studio",
+      "stripe_product_id": "prod_USqz7caN3C05as"
+    },
+    {
+      "slug": "agency",
+      "name": "Agency",
+      "stripe_product_id": "prod_USqzOU4yezKAUy"
+    },
+    {
+      "slug": "hub",
+      "name": "Network",
+      "stripe_product_id": "prod_UbB6sySzjqz45y"
+    }
+  ],
+  "products": [
+    {
+      "slug": "studio",
+      "dbName": "Studio",
+      "productId": "prod_USqz7caN3C05as",
+      "stripeName": "Studio",
+      "active": true
+    },
+    {
+      "slug": "agency",
+      "dbName": "Agency",
+      "productId": "prod_USqzOU4yezKAUy",
+      "stripeName": "Agency",
+      "active": true
+    },
+    {
+      "slug": "hub",
+      "dbName": "Network",
+      "productId": "prod_UbB6sySzjqz45y",
+      "stripeName": "Network",
+      "active": true
+    }
+  ]
+}

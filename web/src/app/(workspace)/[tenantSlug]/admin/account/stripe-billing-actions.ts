@@ -25,7 +25,7 @@ import {
 } from "@/lib/stripe/workspace-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { logServerError } from "@/lib/server/safe-error";
-import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { getActiveWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -47,9 +47,9 @@ export async function startWorkspaceUpgrade(
     return { ok: false, error: "Billing is not available yet. Contact support to upgrade." };
   }
 
-  // Network plan requires an explicit price-ID env var to become self-serve.
+  // Network plan requires an explicit catalog/env price ID to become self-serve.
   // Without it, signal the caller to fall back to the sales-contact path.
-  if (planKey === "network" && !getWorkspacePriceId("network", "monthly")) {
+  if (planKey === "network" && !(await getActiveWorkspacePriceId("network", "monthly"))) {
     return { ok: false, error: "network_no_price", noStripe: true };
   }
 

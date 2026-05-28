@@ -1,0 +1,30 @@
+{
+  "activeCanonical": {
+    "id": "bfebe919-7c49-4735-9d4b-5d5eba610257",
+    "unit_amount": 4900,
+    "stripe_price_id": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+    "archived_at": null,
+    "is_active": true,
+    "valid_from": null,
+    "valid_until": null,
+    "created_at": "2026-05-28T20:10:16.051385+00:00"
+  },
+  "resolved": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+  "stripeStates": [
+    {
+      "id": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+      "active": true,
+      "unit_amount": 4900
+    },
+    {
+      "id": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+      "active": false,
+      "unit_amount": 5100
+    },
+    {
+      "id": "price_1TTvHTRrZLyWJgP5rs0thGmh",
+      "active": false,
+      "unit_amount": 4900
+    }
+  ]
+}

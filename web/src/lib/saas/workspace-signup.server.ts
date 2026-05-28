@@ -9,7 +9,7 @@ import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
-import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { getActiveWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import {
   isNetworkWorkspaceTierInterest,
   isPaidWorkspaceTierInterest,
@@ -422,6 +422,7 @@ async function finalizeProvisionResult(params: {
   userId: string;
   userEmail: string | null | undefined;
   reusedExisting: boolean;
+  promoCode?: string | null;
 }): Promise<ProvisionWorkspaceResult> {
   const adminPath = `/${params.agency.slug}/admin`;
   const publicPath = `/${params.agency.slug}`;
@@ -457,7 +458,7 @@ async function finalizeProvisionResult(params: {
       ownerName,
     });
 
-    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    const networkPriceId = await getActiveWorkspacePriceId("network", "monthly");
     if (!networkPriceId) {
       // No self-serve price configured — sales-contact handoff.
       return {
@@ -483,6 +484,7 @@ async function finalizeProvisionResult(params: {
       displayName: params.agency.display_name,
       tenantSlug: params.agency.slug,
       appBaseUrl: getAppUrl(),
+      promoCode: params.promoCode,
     });
 
     if (checkout.ok && checkout.data.url) {
@@ -533,6 +535,7 @@ export async function provisionWorkspaceFromLead(params: {
   userId: string;
   userEmail: string | null | undefined;
   profile: AccessProfileWithDisplayName | null;
+  promoCode?: string | null;
 }): Promise<ProvisionWorkspaceResult> {
   if (!params.leadId) {
     return {
@@ -642,6 +645,7 @@ export async function provisionWorkspaceFromLead(params: {
         userId: params.userId,
         userEmail: params.userEmail,
         reusedExisting: true,
+        promoCode: params.promoCode,
       });
     }
   }
@@ -668,6 +672,7 @@ export async function provisionWorkspaceFromLead(params: {
       userId: params.userId,
       userEmail: params.userEmail,
       reusedExisting: true,
+      promoCode: params.promoCode,
     });
   }
 
@@ -780,5 +785,6 @@ export async function provisionWorkspaceFromLead(params: {
     userId: params.userId,
     userEmail: params.userEmail,
     reusedExisting: false,
+    promoCode: params.promoCode,
   });
 }

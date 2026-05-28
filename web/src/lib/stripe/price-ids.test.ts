@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getWorkspacePriceId } from "./price-ids";
+import { getWorkspacePriceId, pickCurrentWorkspacePriceId } from "./price-ids";
 
 const NETWORK_MONTHLY = "STRIPE_PRICE_NETWORK_MONTHLY";
 const NETWORK_ANNUAL = "STRIPE_PRICE_NETWORK_ANNUAL";
@@ -77,4 +77,44 @@ test("getWorkspacePriceId handles studio independently from network", () => {
       assert.equal(getWorkspacePriceId("network", "monthly"), null);
     },
   );
+});
+
+test("pickCurrentWorkspacePriceId prefers an active sale window over canonical", () => {
+  const priceId = pickCurrentWorkspacePriceId(
+    [
+      {
+        stripe_price_id: "price_canonical",
+        valid_from: null,
+        valid_until: null,
+      },
+      {
+        stripe_price_id: "price_sale",
+        valid_from: "2026-05-01T00:00:00.000Z",
+        valid_until: "2026-06-01T00:00:00.000Z",
+      },
+    ],
+    new Date("2026-05-28T12:00:00.000Z"),
+  );
+
+  assert.equal(priceId, "price_sale");
+});
+
+test("pickCurrentWorkspacePriceId ignores expired sale windows", () => {
+  const priceId = pickCurrentWorkspacePriceId(
+    [
+      {
+        stripe_price_id: "price_expired_sale",
+        valid_from: "2026-04-01T00:00:00.000Z",
+        valid_until: "2026-05-01T00:00:00.000Z",
+      },
+      {
+        stripe_price_id: "price_canonical",
+        valid_from: null,
+        valid_until: null,
+      },
+    ],
+    new Date("2026-05-28T12:00:00.000Z"),
+  );
+
+  assert.equal(priceId, "price_canonical");
 });

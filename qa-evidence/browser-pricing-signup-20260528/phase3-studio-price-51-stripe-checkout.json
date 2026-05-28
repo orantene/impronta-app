@@ -1,0 +1,29 @@
+{
+  "oldStudioMonthly": "price_1TTvHTRrZLyWJgP5rs0thGmh",
+  "activeCanonical": {
+    "id": "0de1e4c9-554e-4e25-afb3-7925edcaf07c",
+    "unit_amount": 5100,
+    "stripe_price_id": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+    "archived_at": null,
+    "is_active": true,
+    "valid_from": null,
+    "valid_until": null
+  },
+  "resolved": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+  "oldStripe": {
+    "id": "price_1TTvHTRrZLyWJgP5rs0thGmh",
+    "active": false,
+    "unit_amount": 4900
+  },
+  "newStripe": {
+    "id": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+    "active": true,
+    "unit_amount": 5100
+  },
+  "checkout": {
+    "id": "cs_test_b1vxxWNPrwPzUZeaEfg2pglELYYr2jVUUz7S3KGPeSPCPUIRQfhOiDtBLL",
+    "urlStartsWithStripe": true,
+    "linePrice": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+    "lineAmount": 5100
+  }
+}

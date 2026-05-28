@@ -1,0 +1,367 @@
+{
+  "capturedAt": "2026-05-28T20:33:19.789Z",
+  "package": {
+    "id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+    "family": "workspace",
+    "slug": "workspace",
+    "label": "Tulala Workspace",
+    "description": "Studios & agencies running the bookings pipeline.",
+    "display_order": 1,
+    "is_active": true,
+    "created_at": "2026-05-27T21:43:29.602829+00:00",
+    "updated_at": "2026-05-27T21:43:29.602829+00:00"
+  },
+  "tiers": [
+    {
+      "id": "db28cf8e-6020-4464-a97e-a6dad2150550",
+      "package_id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+      "slug": "free",
+      "name": "Free",
+      "tagline": "Try it free — limited roster, no commission.",
+      "description": null,
+      "display_order": 1,
+      "is_active": true,
+      "is_featured": false,
+      "stripe_product_id": null,
+      "created_at": "2026-05-27T21:43:29.602829+00:00",
+      "updated_at": "2026-05-27T21:43:29.602829+00:00",
+      "activeMonthlyUsd": null,
+      "stripeProduct": null
+    },
+    {
+      "id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+      "package_id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+      "slug": "studio",
+      "name": "Studio",
+      "tagline": "Solo studios & small agencies — full pipeline.",
+      "description": null,
+      "display_order": 2,
+      "is_active": true,
+      "is_featured": true,
+      "stripe_product_id": "prod_USqz7caN3C05as",
+      "created_at": "2026-05-27T21:43:29.602829+00:00",
+      "updated_at": "2026-05-28T20:02:17.896268+00:00",
+      "activeMonthlyUsd": {
+        "id": "bfebe919-7c49-4735-9d4b-5d5eba610257",
+        "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+        "currency": "USD",
+        "interval": "month",
+        "unit_amount": 4900,
+        "stripe_price_id": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+        "is_active": true,
+        "archived_at": null,
+        "valid_from": null,
+        "valid_until": null,
+        "notes": null,
+        "created_at": "2026-05-28T20:10:16.051385+00:00",
+        "updated_at": "2026-05-28T20:10:16.051385+00:00"
+      },
+      "stripeProduct": {
+        "id": "prod_USqz7caN3C05as",
+        "name": "Studio",
+        "active": true
+      }
+    },
+    {
+      "id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+      "package_id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+      "slug": "agency",
+      "name": "Agency",
+      "tagline": "Full agencies — unlimited roster, white-label.",
+      "description": null,
+      "display_order": 3,
+      "is_active": true,
+      "is_featured": false,
+      "stripe_product_id": "prod_USqzOU4yezKAUy",
+      "created_at": "2026-05-27T21:43:29.602829+00:00",
+      "updated_at": "2026-05-28T20:15:45.770288+00:00",
+      "activeMonthlyUsd": {
+        "id": "48c09acb-6ac5-41f6-abed-012f50448f5e",
+        "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+        "currency": "USD",
+        "interval": "month",
+        "unit_amount": 14900,
+        "stripe_price_id": "price_1TcAIpRrZLyWJgP5Q6WbXbA6",
+        "is_active": true,
+        "archived_at": null,
+        "valid_from": null,
+        "valid_until": null,
+        "notes": null,
+        "created_at": "2026-05-28T20:13:15.974444+00:00",
+        "updated_at": "2026-05-28T20:13:15.974444+00:00"
+      },
+      "stripeProduct": {
+        "id": "prod_USqzOU4yezKAUy",
+        "name": "Agency",
+        "active": true
+      }
+    },
+    {
+      "id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+      "package_id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+      "slug": "hub",
+      "name": "Network",
+      "tagline": "Multi-workspace networks & federated rosters.",
+      "description": null,
+      "display_order": 4,
+      "is_active": true,
+      "is_featured": false,
+      "stripe_product_id": "prod_UbB6sySzjqz45y",
+      "created_at": "2026-05-27T21:43:29.602829+00:00",
+      "updated_at": "2026-05-28T20:15:58.984433+00:00",
+      "activeMonthlyUsd": {
+        "id": "7cf5844b-b95a-4be4-a8aa-b77a87da77ad",
+        "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+        "currency": "USD",
+        "interval": "month",
+        "unit_amount": 49900,
+        "stripe_price_id": "price_1TcAJ3RrZLyWJgP5bI3H1O1S",
+        "is_active": true,
+        "archived_at": null,
+        "valid_from": null,
+        "valid_until": null,
+        "notes": null,
+        "created_at": "2026-05-28T20:13:30.160409+00:00",
+        "updated_at": "2026-05-28T20:13:30.160409+00:00"
+      },
+      "stripeProduct": {
+        "id": "prod_UbB6sySzjqz45y",
+        "name": "Network",
+        "active": true
+      }
+    }
+  ],
+  "monthlyPrices": [
+    {
+      "id": "7cf5844b-b95a-4be4-a8aa-b77a87da77ad",
+      "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 49900,
+      "stripe_price_id": "price_1TcAJ3RrZLyWJgP5bI3H1O1S",
+      "is_active": true,
+      "archived_at": null,
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-28T20:13:30.160409+00:00",
+      "updated_at": "2026-05-28T20:13:30.160409+00:00",
+      "stripePrice": {
+        "id": "price_1TcAJ3RrZLyWJgP5bI3H1O1S",
+        "active": true,
+        "unit_amount": 49900,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "48c09acb-6ac5-41f6-abed-012f50448f5e",
+      "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 14900,
+      "stripe_price_id": "price_1TcAIpRrZLyWJgP5Q6WbXbA6",
+      "is_active": true,
+      "archived_at": null,
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-28T20:13:15.974444+00:00",
+      "updated_at": "2026-05-28T20:13:15.974444+00:00",
+      "stripePrice": {
+        "id": "price_1TcAIpRrZLyWJgP5Q6WbXbA6",
+        "active": true,
+        "unit_amount": 14900,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "cb2d40e9-bae0-41bc-8bb2-ac56ad4c714b",
+      "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 50100,
+      "stripe_price_id": "price_1TcAHaRrZLyWJgP5jvmJLEFS",
+      "is_active": false,
+      "archived_at": "2026-05-28T20:13:29.926+00:00",
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-28T20:11:59.612429+00:00",
+      "updated_at": "2026-05-28T20:13:30.01747+00:00",
+      "stripePrice": {
+        "id": "price_1TcAHaRrZLyWJgP5jvmJLEFS",
+        "active": false,
+        "unit_amount": 50100,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "be781e6d-28c1-4018-ad5b-4ee313ff276b",
+      "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 15100,
+      "stripe_price_id": "price_1TcAHLRrZLyWJgP5ZEufquLN",
+      "is_active": false,
+      "archived_at": "2026-05-28T20:13:15.557+00:00",
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-28T20:11:44.50174+00:00",
+      "updated_at": "2026-05-28T20:13:15.652075+00:00",
+      "stripePrice": {
+        "id": "price_1TcAHLRrZLyWJgP5ZEufquLN",
+        "active": false,
+        "unit_amount": 15100,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "bfebe919-7c49-4735-9d4b-5d5eba610257",
+      "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 4900,
+      "stripe_price_id": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+      "is_active": true,
+      "archived_at": null,
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-28T20:10:16.051385+00:00",
+      "updated_at": "2026-05-28T20:10:16.051385+00:00",
+      "stripePrice": {
+        "id": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+        "active": true,
+        "unit_amount": 4900,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "0de1e4c9-554e-4e25-afb3-7925edcaf07c",
+      "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 5100,
+      "stripe_price_id": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+      "is_active": false,
+      "archived_at": "2026-05-28T20:10:15.636+00:00",
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-28T20:08:34.147836+00:00",
+      "updated_at": "2026-05-28T20:10:15.73313+00:00",
+      "stripePrice": {
+        "id": "price_1TcAEHRrZLyWJgP5LK6sPtTO",
+        "active": false,
+        "unit_amount": 5100,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "fd0b0a15-dc21-4e16-95b3-0f0805f3af2a",
+      "tier_id": "b9320859-7ee5-4578-a0fd-1beb33013d82",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 49900,
+      "stripe_price_id": "price_1TbykRRrZLyWJgP56Y5iONh6",
+      "is_active": false,
+      "archived_at": "2026-05-28T20:11:59.137+00:00",
+      "valid_from": null,
+      "valid_until": null,
+      "notes": "Network self-serve flip — created via Stripe API 2026-05-28",
+      "created_at": "2026-05-28T08:03:07.732207+00:00",
+      "updated_at": "2026-05-28T20:11:59.252793+00:00",
+      "stripePrice": {
+        "id": "price_1TbykRRrZLyWJgP56Y5iONh6",
+        "active": false,
+        "unit_amount": 49900,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "261b12d6-589c-4216-941a-d3a302cb9dce",
+      "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 2450,
+      "stripe_price_id": null,
+      "is_active": false,
+      "archived_at": "2026-05-28T05:18:38.452481+00:00",
+      "valid_from": "2026-05-28T04:35:47.673+00:00",
+      "valid_until": "2026-05-28T05:35:47.673+00:00",
+      "notes": "Phase 5 QA — half off Studio",
+      "created_at": "2026-05-28T04:35:49.547683+00:00",
+      "updated_at": "2026-05-28T05:18:38.452481+00:00",
+      "stripePrice": null
+    },
+    {
+      "id": "cbc2ce42-c754-495e-8dc8-c3954c754a5e",
+      "tier_id": "179ea3c2-4c8e-418a-aebe-6694b80de7d4",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 14900,
+      "stripe_price_id": "price_1TTvHVRrZLyWJgP5eL41Skdg",
+      "is_active": false,
+      "archived_at": "2026-05-28T20:11:44.051+00:00",
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-27T21:43:29.602829+00:00",
+      "updated_at": "2026-05-28T20:11:44.1531+00:00",
+      "stripePrice": {
+        "id": "price_1TTvHVRrZLyWJgP5eL41Skdg",
+        "active": false,
+        "unit_amount": 14900,
+        "currency": "usd"
+      }
+    },
+    {
+      "id": "c94a5b85-0bf3-46cd-873c-b13272f96dca",
+      "tier_id": "88039e49-540d-4cba-9333-a55e3a639cd9",
+      "currency": "USD",
+      "interval": "month",
+      "unit_amount": 4900,
+      "stripe_price_id": "price_1TTvHTRrZLyWJgP5rs0thGmh",
+      "is_active": false,
+      "archived_at": "2026-05-28T20:08:33.903+00:00",
+      "valid_from": null,
+      "valid_until": null,
+      "notes": null,
+      "created_at": "2026-05-27T21:43:29.602829+00:00",
+      "updated_at": "2026-05-28T20:08:33.991633+00:00",
+      "stripePrice": {
+        "id": "price_1TTvHTRrZLyWJgP5rs0thGmh",
+        "active": false,
+        "unit_amount": 4900,
+        "currency": "usd"
+      }
+    }
+  ],
+  "discounts": [
+    {
+      "id": "713f56a7-600b-44a8-95ac-2dc295a38944",
+      "code": "QATEST10",
+      "name": "QA browser test 10 percent",
+      "kind": "percent",
+      "value": 10,
+      "currency": null,
+      "applies_to": "all",
+      "max_redemptions": null,
+      "redemption_count": 0,
+      "per_customer_limit": 1,
+      "starts_at": null,
+      "ends_at": null,
+      "stripe_coupon_id": "Q2444i53",
+      "stripe_promotion_code_id": "promo_1TcAMRRrZLyWJgP5TV6N45Cx",
+      "is_active": false,
+      "created_at": "2026-05-28T20:16:59.689781+00:00",
+      "updated_at": "2026-05-28T20:21:33.313169+00:00",
+      "stripePromotionCode": {
+        "id": "promo_1TcAMRRrZLyWJgP5TV6N45Cx",
+        "active": false,
+        "code": "QATEST10"
+      }
+    }
+  ]
+}

@@ -43,22 +43,34 @@ type AudienceKey = "operator" | "agency" | "organization";
  */
 type TierHeadline = { eyebrow: string; title: string; subtitle: string };
 
-function studioEyebrow(studioTier: MarketingTier | undefined): string {
-  if (!studioTier) return "Studio";
+function priceTextForTier(tier: MarketingTier): string {
+  return tier.fellBackToUSD ? `${tier.price} USD` : tier.price;
+}
+
+function tierPriceEyebrow(
+  tier: MarketingTier | undefined,
+  fallbackName: string,
+): string {
+  if (!tier) return fallbackName;
   // E.g. "Studio · $49/mo" or "Studio · MX$849/mo"
+  const price = priceTextForTier(tier);
   const priceText =
-    studioTier.cadence === "per month"
-      ? `${studioTier.price}/mo`
-      : studioTier.cadence === "per year"
-        ? `${studioTier.price}/yr`
-        : studioTier.price;
-  return `Studio · ${priceText}`;
+    tier.cadence === "per month"
+      ? `${price}/mo`
+      : tier.cadence === "per year"
+        ? `${price}/yr`
+        : price;
+  return `${tier.name || fallbackName} · ${priceText}`;
 }
 
 function buildHeadlineByTier(
   workspaceTiers: MarketingTier[],
 ): Record<string, TierHeadline> {
   const studio = workspaceTiers.find((t) => t.key === "studio");
+  const agency = workspaceTiers.find((t) => t.key === "agency");
+  const hub = workspaceTiers.find((t) => t.key === "hub");
+  const agencyName = agency?.name || "Agency";
+  const hubName = hub?.name || "Network";
   return {
     free: {
       eyebrow: "Start free",
@@ -67,19 +79,19 @@ function buildHeadlineByTier(
         "A free Tulala URL, up to five people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
     },
     studio: {
-      eyebrow: studioEyebrow(studio),
+      eyebrow: tierPriceEyebrow(studio, "Studio"),
       title: "The pipeline, plus WhatsApp.",
       subtitle:
         "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
     },
     agency: {
-      eyebrow: "Agency · 14-day trial",
+      eyebrow: `${agencyName} · 14-day trial`,
       title: "A branded business surface.",
       subtitle:
-        "Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full Agency plan, free for 14 days.",
+        `Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full ${agencyName} plan, free for 14 days.`,
     },
     network: {
-      eyebrow: "Network · Book a walkthrough",
+      eyebrow: `${hubName} · Book a walkthrough`,
       title: "For teams placing people at scale.",
       subtitle:
         "Staffing, casting, and larger placement operations get SSO, advanced roles, API access, and white-label options. Start with a walkthrough.",
@@ -123,10 +135,12 @@ export default async function GetStartedPage({
   // the code server-side at submit and pass `promotion_code` to the
   // Checkout Session so Stripe applies the math.
   let appliedDiscountLabel: string | null = null;
+  let appliedDiscountCode: string | null = null;
   if (resolved.promo) {
     const v = await validateDiscount(resolved.promo);
     if (v.ok) {
       appliedDiscountLabel = v.label;
+      appliedDiscountCode = v.discount.code;
     }
   }
 
@@ -148,6 +162,10 @@ export default async function GetStartedPage({
     : undefined;
 
   const appLoginUrl = `${getAppUrl()}/login`;
+  const freeTier = workspaceTiers.find((t) => t.key === "free");
+  const studioTier = workspaceTiers.find((t) => t.key === "studio");
+  const agencyTier = workspaceTiers.find((t) => t.key === "agency");
+  const networkTier = workspaceTiers.find((t) => t.key === "hub");
 
   return (
     <>
@@ -158,18 +176,19 @@ export default async function GetStartedPage({
         initialSignedIn={initialSignedIn}
         tier={tier}
         tierPrices={{
-          free:   workspaceTiers.find((t) => t.key === "free")?.price,
-          studio: workspaceTiers.find((t) => t.key === "studio")?.price,
-          agency: workspaceTiers.find((t) => t.key === "agency")?.price,
-          network: workspaceTiers.find((t) => t.key === "hub")?.price,
+          free: freeTier ? priceTextForTier(freeTier) : undefined,
+          studio: studioTier ? priceTextForTier(studioTier) : undefined,
+          agency: agencyTier ? priceTextForTier(agencyTier) : undefined,
+          network: networkTier ? priceTextForTier(networkTier) : undefined,
         }}
         tierNames={{
-          free:    workspaceTiers.find((t) => t.key === "free")?.name,
-          studio:  workspaceTiers.find((t) => t.key === "studio")?.name,
-          agency:  workspaceTiers.find((t) => t.key === "agency")?.name,
-          network: workspaceTiers.find((t) => t.key === "hub")?.name,
+          free: freeTier?.name,
+          studio: studioTier?.name,
+          agency: agencyTier?.name,
+          network: networkTier?.name,
         }}
         appliedDiscountLabel={appliedDiscountLabel}
+        appliedDiscountCode={appliedDiscountCode}
       />
       <WhoItsForSection />
       <HowItWorksSection />
@@ -200,6 +219,7 @@ function HeroSection({
   tierPrices,
   tierNames,
   appliedDiscountLabel,
+  appliedDiscountCode,
 }: {
   appLoginUrl: string;
   copy: { eyebrow: string; title: string; subtitle: string };
@@ -216,6 +236,7 @@ function HeroSection({
   /** Pre-formatted discount label (e.g. "50% off · LATAM50") or null
    *  when no ?promo=CODE is applied. Phase 3. */
   appliedDiscountLabel?: string | null;
+  appliedDiscountCode?: string | null;
 }) {
   return (
     <MarketingSection spacing="tight" className="relative">
@@ -334,6 +355,7 @@ function HeroSection({
               tierPrices={tierPrices}
               tierNames={tierNames}
               appliedDiscountLabel={appliedDiscountLabel ?? undefined}
+              appliedDiscountCode={appliedDiscountCode ?? undefined}
             />
             <p
               className="mt-4 text-center text-[0.8125rem]"
@@ -611,7 +633,13 @@ function planLadderFallbackTagline(slug: string): string {
  * editable), but the get-started ladder uses these richer, link-aware
  * lists. Both can coexist; the Phase 4 editor will replace these.
  */
-function ladderHighlights(slug: string): string[] {
+function ladderHighlights(
+  slug: string,
+  tierNames: Partial<Record<string, string>>,
+): string[] {
+  const freeName = tierNames.free || "Free";
+  const studioName = tierNames.studio || "Studio";
+  const agencyName = tierNames.agency || "Agency";
   switch (slug) {
     case "free":
       return [
@@ -623,7 +651,7 @@ function ladderHighlights(slug: string): string[] {
       ];
     case "studio":
       return [
-        "Everything in Free, plus:",
+        `Everything in ${freeName}, plus:`,
         `Optional branded host: ${STUDIO_LINK_EXAMPLE}`,
         "WhatsApp inquiry notifications",
         "Up to 50 people profiles",
@@ -632,7 +660,7 @@ function ladderHighlights(slug: string): string[] {
       ];
     case "agency":
       return [
-        "Everything in Studio, plus:",
+        `Everything in ${studioName}, plus:`,
         "Custom domain + branded site",
         "CMS: pages, posts, navigation, design",
         "Unlimited people profiles",
@@ -640,7 +668,7 @@ function ladderHighlights(slug: string): string[] {
       ];
     case "hub":
       return [
-        "Everything in Agency, plus:",
+        `Everything in ${agencyName}, plus:`,
         "SSO + advanced roles",
         "API access (roadmap)",
         "Private hub / white-label options",
@@ -652,6 +680,7 @@ function ladderHighlights(slug: string): string[] {
 }
 
 function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
+  const tierNames = Object.fromEntries(tiers.map((t) => [t.key, t.name]));
   return (
     <MarketingSection spacing="tight" style={{ background: "var(--plt-bg-elevated)" }}>
       <span
@@ -685,10 +714,10 @@ function PlanLadderSection({ tiers }: { tiers: MarketingTier[] }) {
             <PlanCard
               key={t.key}
               tier={t.name}
-              price={t.price}
+              price={priceTextForTier(t)}
               cadence={t.cadence}
               tagline={t.tagline || planLadderFallbackTagline(t.key)}
-              highlights={ladderHighlights(t.key)}
+              highlights={ladderHighlights(t.key, tierNames)}
               featured={t.featured}
             />
           ))}

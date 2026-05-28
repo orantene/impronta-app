@@ -15,10 +15,11 @@
 
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
-import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { getActiveWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
+import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 import type { AllowedStatus } from "@/lib/stripe/utils";
 import type Stripe from "stripe";
 
@@ -137,6 +138,7 @@ export async function createWorkspaceCheckoutSession(opts: {
   displayName: string;
   tenantSlug: string;
   appBaseUrl: string;
+  promoCode?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -144,15 +146,15 @@ export async function createWorkspaceCheckoutSession(opts: {
   const stripe = getStripe()!;
 
   // Network is sales-assisted; refuse self-serve checkout unless an env price
-  // ID is explicitly configured (future flip: set STRIPE_PRICE_NETWORK_MONTHLY).
+  // or catalog Price ID is explicitly configured.
   if (opts.planKey === "network") {
-    const networkPriceId = getWorkspacePriceId("network", "monthly");
+    const networkPriceId = await getActiveWorkspacePriceId("network", "monthly");
     if (!networkPriceId) {
       return { ok: false, error: "Network is sales-assisted — no self-serve price configured." };
     }
   }
 
-  const priceId = getWorkspacePriceId(opts.planKey, "monthly");
+  const priceId = await getActiveWorkspacePriceId(opts.planKey, "monthly");
   if (!priceId) {
     return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
   }
@@ -166,7 +168,15 @@ export async function createWorkspaceCheckoutSession(opts: {
   if (!customerResult.ok) return customerResult;
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    let promotionCodeId: string | null = null;
+    if (opts.promoCode) {
+      const discount = await validateDiscount(opts.promoCode);
+      if (discount.ok) {
+        promotionCodeId = discount.discount.stripePromotionCodeId;
+      }
+    }
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerResult.data,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
@@ -184,8 +194,6 @@ export async function createWorkspaceCheckoutSession(opts: {
           checkout_type: "workspace_subscription",
         },
       },
-      // Allow promotion codes for early-access discounts
-      allow_promotion_codes: true,
       // Adaptive Pricing: Stripe auto-converts the USD price to the customer's
       // local currency at checkout (e.g. MXN for Mexico, EUR for Europe).
       // Note: subscription-mode sessions require the explicit `currency` to match
@@ -194,7 +202,12 @@ export async function createWorkspaceCheckoutSession(opts: {
       // Workspace owners can set a preferred_currency preference (stored in DB) which
       // will be used when multi-currency Stripe prices are added per currency.
       adaptive_pricing: { enabled: true },
-    });
+      ...(promotionCodeId
+        ? { discounts: [{ promotion_code: promotionCodeId }] }
+        : { allow_promotion_codes: true }),
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

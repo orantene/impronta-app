@@ -1,0 +1,12 @@
+{
+  "db": {
+    "code": "QATEST10",
+    "is_active": false,
+    "stripe_promotion_code_id": "promo_1TcAMRRrZLyWJgP5TV6N45Cx"
+  },
+  "stripePromotion": {
+    "id": "promo_1TcAMRRrZLyWJgP5TV6N45Cx",
+    "active": false,
+    "code": "QATEST10"
+  }
+}

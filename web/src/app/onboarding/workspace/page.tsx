@@ -75,10 +75,11 @@ function WorkspaceStateCard({
 export default async function OnboardingWorkspacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ lead?: string }>;
+  searchParams: Promise<{ lead?: string; promo?: string }>;
 }) {
-  const { lead } = await searchParams;
+  const { lead, promo } = await searchParams;
   const leadId = typeof lead === "string" ? lead.trim() : "";
+  const promoCode = typeof promo === "string" ? promo.trim() : "";
 
   if (!leadId) {
     return (
@@ -128,6 +129,7 @@ export default async function OnboardingWorkspacePage({
     userId: user.id,
     userEmail: user.email,
     profile,
+    promoCode,
   });
 
   if (result.ok) {

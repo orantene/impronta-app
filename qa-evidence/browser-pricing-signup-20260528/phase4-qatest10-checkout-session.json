@@ -1,0 +1,18 @@
+{
+  "sessionId": "cs_test_a1OVlVCOvjwJcs7pR3D4df1lFqcB4aoJnvU3VEgrH84kKFs6NLluYIiQOC",
+  "linePrice": "price_1TcAFvRrZLyWJgP5qoemV0ov",
+  "amountSubtotal": 4900,
+  "amountTotal": 4410,
+  "discounts": [
+    {
+      "coupon": null,
+      "promotion_code": "promo_1TcAMRRrZLyWJgP5TV6N45Cx"
+    }
+  ],
+  "totalDetails": {
+    "amount_discount": 490,
+    "amount_shipping": 0,
+    "amount_tax": 0
+  },
+  "urlStartsWithStripe": true
+}
