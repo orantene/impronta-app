@@ -99,14 +99,18 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         .limit(50),
       loadIdentityForStaff(supabase, tenantId).catch(() => null),
       loadWorkspaceDomainSummary(tenantId).catch(() => emptyDomainSummary),
-      // Phase C — also load workspace_pages so the hero banner counts reflect them
-      supabase
-        .from("workspace_pages")
-        .select("id, slug, title, status, updated_at")
-        .eq("tenant_id", tenantId)
-        .order("updated_at", { ascending: false })
-        .limit(50)
-        .catch(() => ({ data: null })),
+      // Phase C — also load workspace_pages so the hero banner counts reflect them.
+      // Wrap in Promise.resolve so the defensive `.catch` is valid: a Supabase
+      // PostgrestFilterBuilder is only PromiseLike (has `.then`, not `.catch`),
+      // and calling `.catch` on it directly poisons the whole Promise.all type.
+      Promise.resolve(
+        supabase
+          .from("workspace_pages")
+          .select("id, slug, title, status, updated_at")
+          .eq("tenant_id", tenantId)
+          .order("updated_at", { ascending: false })
+          .limit(50),
+      ).catch(() => ({ data: null })),
     ]);
 
     type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };

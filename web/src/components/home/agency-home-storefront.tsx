@@ -32,6 +32,7 @@ import { isLocale } from "@/lib/site-admin/locales";
 import { homepageMeta } from "@/lib/site-admin/templates/homepage/meta";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { EmptyCanvasStarter } from "@/components/edit-chrome/empty-canvas-starter";
+import { DefaultStorefrontBody } from "@/components/home/default-storefront-body";
 // Phase B.2.A — snapshot site shell wrappers. Two server components that
 // return the snapshot-rendered header + footer slots when the feature
 // flag is on for this tenant AND a published shell exists; otherwise
@@ -69,10 +70,16 @@ function compareHomepageSlotEntries(
  * Phase 5 (2026-05-18): the deprecated hardcoded Impronta-flavored body
  * fallback (legacy hero + TalentTypeShortcuts / FeaturedTalentSection /
  * BestForSection / LocationSection / HowItWorks / CtaSection) was removed.
- * The CMS / Page Builder composition is now the canonical and only body
- * render path. A tenant without a published composition gets the starter
- * picker (in edit mode) or a neutral no-composition state (public) — never
- * one tenant's marketing content. The modern-shell-vs-legacy-shell guard
+ * The CMS / Page Builder composition is the canonical body render path.
+ *
+ * Integration (2026-05-28, "Phase A"): a tenant without a published
+ * composition no longer gets a blank placeholder. Public visitors see a
+ * data-driven `DefaultStorefrontBody` — a per-tenant auto-storefront built
+ * from THIS tenant's own identity + published roster. This honors the
+ * Phase-5 rule (no hardcoded single-tenant marketing; nothing leaks across
+ * tenants) while giving a brand-new workspace a branded, populated homepage
+ * out of the box. Owners are still guided to a custom composition via
+ * `EmptyCanvasStarter` in edit mode. The modern-shell-vs-legacy-shell guard
  * is deliberately preserved.
  */
 export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
@@ -121,6 +128,14 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
   const footerTagline =
     identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
+  // Default-storefront CTA — prefer the operator's own configured CTA, then a
+  // contact email, then the canonical public browse surface (`/directory` is
+  // allow-listed on agency hosts).
+  const defaultCtaLabel = identity?.primary_cta_label?.trim() || "Get in touch";
+  const contactEmail = identity?.contact_email?.trim();
+  const defaultCtaHref =
+    identity?.primary_cta_href?.trim() ||
+    (contactEmail ? `mailto:${contactEmail}` : "/directory");
   const cmsSlots = cmsHomepage?.snapshot?.slots ?? [];
   const cmsHeroSlot = cmsSlots.some((s) => s.slotKey === "hero");
   /** Draft/edit canvases use whatever slot keys the builder assigned — never infer emptiness from a legacy whitelist. */
@@ -197,15 +212,20 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 : null}
             </>
           ) : (
-            // No published composition (public visitor). Neutral, brand-safe
-            // placeholder — deliberately minimal. No legacy hardcoded body,
-            // no one-tenant marketing content. Admins are guided to a
-            // starter via EmptyCanvasStarter in edit mode (above).
-            <section className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
-              <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                {t("public.home.noComposition")}
-              </p>
-            </section>
+            // No published composition (public visitor). Render a data-driven
+            // *default* storefront built entirely from THIS tenant's own
+            // identity + published roster — never hardcoded one-tenant
+            // marketing (the Phase-5 concern), and never a blank page. Owners
+            // are still guided to a custom composition via EmptyCanvasStarter
+            // in edit mode (above); this is what the public sees until then.
+            <DefaultStorefrontBody
+              tenantId={tenantId}
+              brandName={brandLabel}
+              tagline={identity?.tagline?.trim() || null}
+              primaryColor={publicBranding?.primary_color ?? null}
+              ctaLabel={defaultCtaLabel}
+              ctaHref={defaultCtaHref}
+            />
           )}
 
           {snapshotShellActive && cmsLocale ? (
