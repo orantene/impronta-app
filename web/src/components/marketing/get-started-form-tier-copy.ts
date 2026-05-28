@@ -6,9 +6,6 @@
  *
  * - `isPaidTier` — type guard narrowing tier to "studio" | "agency" so call
  *   sites get correct TS narrowing without re-checking the union.
- * - `PAID_TIER_PLAN_LABEL` — fallback display label per paid tier slug.
- *   Used when the catalog hasn't loaded yet (e.g. mock mode) or for the
- *   needs_signin panel where we don't yet pass the catalog through.
  * - `formFinePrint` — fineprint string under the submit button. Reads
  *   the per-tier monthly price AND display name from the live catalog
  *   so admin rename + reprice edits propagate without further code
@@ -67,7 +64,10 @@ const FALLBACK_TIER_LABEL: Record<TierKey, string> = {
   network: "Network",
 };
 
-function nameOf(tier: TierKey, names: GetStartedTierNames | undefined): string {
+export function tierDisplayName(
+  tier: TierKey,
+  names: GetStartedTierNames | undefined,
+): string {
   return names?.[tier]?.trim() || FALLBACK_TIER_LABEL[tier];
 }
 
@@ -84,18 +84,16 @@ export function submitCtaLabel(
   prices: GetStartedTierPrices | undefined,
   names?: GetStartedTierNames,
 ): string {
-  if (tier === "studio") return `Continue to ${nameOf("studio", names)} checkout`;
-  if (tier === "agency") return `Continue to ${nameOf("agency", names)} checkout`;
+  if (tier === "studio") return `Continue to ${tierDisplayName("studio", names)} checkout`;
+  if (tier === "agency") return `Continue to ${tierDisplayName("agency", names)} checkout`;
   if (tier === "network") {
-    const name = nameOf("network", names);
+    const name = tierDisplayName("network", names);
     return prices?.network ? `Continue to ${name} checkout` : `Request ${name} setup`;
   }
-  if (audience === "organization") return `Request ${nameOf("network", names)} setup`;
-  if (audience === "agency") return `Continue to ${nameOf("agency", names)} checkout`;
+  if (audience === "organization") return `Request ${tierDisplayName("network", names)} setup`;
+  if (audience === "agency") return `Continue to ${tierDisplayName("agency", names)} checkout`;
   return "Create my free workspace";
 }
-
-export const PAID_TIER_PLAN_LABEL = { studio: "Studio", agency: "Agency" } as const;
 
 export function isPaidTier(tier?: TierKey): tier is "studio" | "agency" {
   return tier === "studio" || tier === "agency";
@@ -107,14 +105,14 @@ export function formFinePrint(
   names?: GetStartedTierNames,
 ): string {
   if (tier === "studio") {
-    return `${nameOf("studio", names)} · ${prices?.studio ?? "$49"}/mo · Cancel any time`;
+    return `${tierDisplayName("studio", names)} · ${prices?.studio ?? "$49"}/mo · Cancel any time`;
   }
   if (tier === "agency") {
     // Agency leads with the 14-day trial framing, not a sticker price.
-    return `${nameOf("agency", names)} · 14-day free trial · Cancel any time`;
+    return `${tierDisplayName("agency", names)} · 14-day free trial · Cancel any time`;
   }
   if (tier === "network") {
-    const name = nameOf("network", names);
+    const name = tierDisplayName("network", names);
     return prices?.network
       ? `${name} · ${prices.network}/mo · Cancel any time`
       : `${name} · We’ll set up pricing with you`;

@@ -1,0 +1,17 @@
+{
+  "capturedAt": "2026-05-28T22:10:57.689Z",
+  "checks": {
+    "getStartedStatus": 200,
+    "getStartedShowsFiveProfiles": true,
+    "getStartedOmitsTenProfiles": true,
+    "helpStatus": 200,
+    "helpShowsFiveProfileCap": true,
+    "helpOmitsTenProfileCap": true,
+    "staleUserFacingScanHasOnlyComment": true
+  },
+  "staleScan": {
+    "stdout": "web/src/components/admin/workspace-context.tsx:54: * tier-chip (\"8 / 10 talents\", \"Unlimited talents\").\n",
+    "stderr": "",
+    "exitCode": 0
+  }
+}

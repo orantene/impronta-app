@@ -44,12 +44,12 @@ import type {
   GetStartedTierNames,
 } from "./get-started-form-tier-copy";
 import {
-  PAID_TIER_PLAN_LABEL,
   formFinePrint,
   isPaidTier,
   preferredLinkLabel,
   preferredLinkPreview,
   submitCtaLabel,
+  tierDisplayName,
 } from "./get-started-form-tier-copy";
 
 type Props = {
@@ -97,15 +97,18 @@ function rosterTierHint(
   rosterSize: RosterBucket,
   tier: TierKey | undefined,
   prices: GetStartedTierPrices | undefined,
+  names: GetStartedTierNames | undefined,
 ): string | null {
   if (tier && tier !== "free") return null;
   const studioMonthly = prices?.studio ?? "$49";
   const agencyMonthly = prices?.agency ?? "$149";
+  const studioName = tierDisplayName("studio", names);
+  const agencyName = tierDisplayName("agency", names);
   if (rosterSize === "21-50" || rosterSize === "50+") {
-    return `Most teams your size choose Agency — 200 seats, branded site, ${agencyMonthly}/mo.`;
+    return `Most teams your size choose ${agencyName} — 200 seats, branded site, ${agencyMonthly}/mo.`;
   }
   if (rosterSize === "6-20") {
-    return `Studio fits growing rosters — 50 seats and WhatsApp notifications, ${studioMonthly}/mo.`;
+    return `${studioName} fits growing rosters — 50 seats and WhatsApp notifications, ${studioMonthly}/mo.`;
   }
   return null;
 }
@@ -245,6 +248,7 @@ export function GetStartedForm({
   }, [state, audience, rosterSize, tier]);
 
   const errors = state && !state.ok ? state.errors : {};
+  const rosterHint = rosterTierHint(rosterSize, tier, tierPrices, tierNames);
   const promoUrl = (url: string | null | undefined) =>
     url && appliedDiscountCode
       ? `${url}${url.includes("?") ? "&" : "?"}promo=${encodeURIComponent(appliedDiscountCode)}`
@@ -252,7 +256,7 @@ export function GetStartedForm({
 
   if (state?.ok && state.kind === "needs_signin") {
     const paidTier = isPaidTier(tier);
-    const planLabel = paidTier ? PAID_TIER_PLAN_LABEL[tier] : null;
+    const planLabel = paidTier ? tierDisplayName(tier, tierNames) : null;
     return (
       <div
         className="rounded-[24px] border p-8 sm:p-10"
@@ -297,7 +301,8 @@ export function GetStartedForm({
     const signedInContinue =
       initialSignedIn && state.workspaceSignupUrl ? promoUrl(state.workspaceSignupUrl) : null;
     const paidTier = isPaidTier(tier);
-    const planLabel = paidTier ? PAID_TIER_PLAN_LABEL[tier] : null;
+    const planLabel = paidTier ? tierDisplayName(tier, tierNames) : null;
+    const networkName = tierDisplayName("network", tierNames);
 
     return (
       <div
@@ -378,8 +383,8 @@ export function GetStartedForm({
             style={{ borderColor: "rgba(46,107,82,0.25)", background: "rgba(46,107,82,0.06)", color: "var(--plt-ink-soft)" }}
           >
             {tierPrices?.network
-              ? `Your free workspace is ready to explore now. Upgrade to Network (${tierPrices.network}/mo) when you’re ready — SSO, custom domain, and dedicated onboarding unlock at checkout.`
-              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the Network plan — pricing, SSO, and a custom domain.</>}
+              ? `Your free workspace is ready to explore now. Upgrade to ${networkName} (${tierPrices.network}/mo) when you’re ready — SSO, custom domain, and dedicated onboarding unlock at checkout.`
+              : <>Your free workspace is ready to explore now. We&apos;ll email <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> separately to set up the {networkName} plan — pricing, SSO, and a custom domain.</>}
           </p>
         )}
         <ul
@@ -738,9 +743,9 @@ export function GetStartedForm({
             );
           })}
         </div>
-        {rosterTierHint(rosterSize, tier, tierPrices) ? (
+        {rosterHint ? (
           <p className="mt-3 text-[0.75rem] leading-[1.5]" style={{ color: "var(--plt-muted)" }}>
-            {rosterTierHint(rosterSize, tier, tierPrices)}
+            {rosterHint}
           </p>
         ) : null}
       </fieldset>

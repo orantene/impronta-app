@@ -37,7 +37,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Add your first 5 people",
         body:
-          "Inside your workspace go to Roster → Add talent. You can either invite someone to claim and edit their own profile (they get a magic link) or manually fill the profile yourself. Free plan caps at 10 profiles; Studio at 50.",
+          "Inside your workspace go to Roster → Add talent. You can either invite someone to claim and edit their own profile (they get a magic link) or manually fill the profile yourself. Free plan caps at 5 profiles; Studio at 50.",
       },
       {
         heading: "Send your first inquiry",

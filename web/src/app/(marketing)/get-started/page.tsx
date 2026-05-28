@@ -240,6 +240,9 @@ function HeroSection({
   appliedDiscountCode?: string | null;
   discountErrorMessage?: string | null;
 }) {
+  const agencyName = tierNames?.agency || "Agency";
+  const networkName = tierNames?.network || "Network";
+
   return (
     <MarketingSection spacing="tight" className="relative">
       <span
@@ -315,9 +318,9 @@ function HeroSection({
                 style={{ color: "var(--plt-ink-soft)" }}
               >
                 Free workspaces are available immediately — claim your link, create your
-                account, and land in your dashboard in minutes. Agency and Network plans include
-                guided setup. No fake social proof, no growth-hack funnel — just a product we&rsquo;re
-                building with the people who use it.
+                account, and land in your dashboard in minutes. {agencyName} and {networkName}
+                plans include guided setup. No fake social proof, no growth-hack funnel — just a
+                product we&rsquo;re building with the people who use it.
               </p>
               <p
                 className="mt-3 text-[0.8125rem]"
@@ -662,7 +665,7 @@ function ladderHighlights(
         "Inquiry → offer → booking pipeline",
         "Email + in-app notifications",
         FREE_LINK_EXAMPLE,
-        "Up to 10 people profiles",
+        "Up to 5 people profiles",
         "Hub discovery (opt-in)",
       ];
     case "studio":

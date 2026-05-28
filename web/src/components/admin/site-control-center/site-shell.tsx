@@ -25,6 +25,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 import { SiteCard } from "./site-card";
 import {
@@ -115,7 +116,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   domain: {
     title: "Domain & Home",
-    subtitle: "nova.rostra.app",
+    subtitle: `nova.${PLATFORM_BRAND.domain}`,
     icon: Globe2,
     body: () => (
       <StubDrawerBody

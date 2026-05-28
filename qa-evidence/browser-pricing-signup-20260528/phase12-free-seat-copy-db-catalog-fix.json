@@ -1,0 +1,47 @@
+{
+  "capturedAt": "2026-05-28T21:58:31.183Z",
+  "action": "free_feature_value_text_10_to_5",
+  "before": {
+    "package": {
+      "id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+      "slug": "workspace",
+      "family": "workspace"
+    },
+    "tier": {
+      "id": "db28cf8e-6020-4464-a97e-a6dad2150550",
+      "slug": "free",
+      "name": "Free",
+      "package_id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c"
+    },
+    "feature": {
+      "id": "009fe174-0ce5-4885-add3-e0325a6f11b6",
+      "tier_id": "db28cf8e-6020-4464-a97e-a6dad2150550",
+      "label": "People profiles",
+      "value_text": "Up to 10",
+      "included": true,
+      "highlight": false
+    }
+  },
+  "after": {
+    "package": {
+      "id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c",
+      "slug": "workspace",
+      "family": "workspace"
+    },
+    "tier": {
+      "id": "db28cf8e-6020-4464-a97e-a6dad2150550",
+      "slug": "free",
+      "name": "Free",
+      "package_id": "d41821ce-a231-4e6f-b4cc-9126ecbb333c"
+    },
+    "feature": {
+      "id": "009fe174-0ce5-4885-add3-e0325a6f11b6",
+      "tier_id": "db28cf8e-6020-4464-a97e-a6dad2150550",
+      "label": "People profiles",
+      "value_text": "Up to 5",
+      "included": true,
+      "highlight": false
+    }
+  },
+  "errors": []
+}

@@ -4,6 +4,7 @@ import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Minus, X } from "lucide-react";
 
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { cn } from "@/lib/utils";
 import type { Plan } from "./capability-catalog";
 
@@ -41,12 +42,12 @@ const PLANS: ReadonlyArray<PlanCard> = [
     name: "Free",
     monthly: 0,
     annual: 0,
-    tagline: "Start your roster on a Rostra subdomain.",
+    tagline: `Start your roster on a ${PLATFORM_BRAND.name} URL.`,
     features: [
-      { text: "Up to 10 talents" },
+      { text: "Up to 5 talents" },
       { text: "Roster, directory, inquiries" },
       { text: "Branding & identity" },
-      { text: "rostra.app subdomain" },
+      { text: `${PLATFORM_BRAND.domain} URL` },
       { text: "Widgets & API", dim: true },
       { text: "Custom branded site", dim: true },
     ],
@@ -63,7 +64,7 @@ const PLANS: ReadonlyArray<PlanCard> = [
       { text: "Up to 50 talents" },
       { text: "Widgets (grid, shelf, inquiry form)" },
       { text: "Read-only public API" },
-      { text: "Rostra subdomain for deep links" },
+      { text: `${PLATFORM_BRAND.name} URL for deep links` },
       { text: "Everything in Free" },
       { text: "Custom branded site", dim: true },
     ],
