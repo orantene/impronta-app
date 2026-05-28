@@ -2,7 +2,7 @@
 
 Date: 2026-05-28
 Branch: `codex/browser-pricing-signup-qa-20260528` (started from local `main`, which was behind `origin/main` by 2 commits)
-Commit: pending final local commit; see final agent summary for exact hash
+Commit: `1af0ae234` (implementation, QA report, and evidence bundle)
 Environment: local Next dev server, marketing proxy at `http://127.0.0.1:3101`, app host at `http://app.local:3102`, Supabase dev database, Stripe test mode account `acct_1RnWGdRrZLyWJgP5`
 Tester: Codex browser QA agent
 
@@ -166,4 +166,4 @@ Tester: Codex browser QA agent
 - [x] QA promo archived: `QATEST10` inactive in DB and Stripe
 - [x] Dev server restarted and available through the marketing/app host proxies
 - [ ] Browser QA fully passes for every requested phase
-- [ ] Final commit created
+- [x] Implementation/evidence commit created: `1af0ae234`
