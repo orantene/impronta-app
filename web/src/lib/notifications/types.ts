@@ -132,6 +132,14 @@ export type CatalogEntry = {
   required: boolean;
   /** Domain event types this entry subscribes to. */
   triggers: string[];
+  /**
+   * Optional per-entry hydration. Returns extra fields that the dispatcher
+   * merges into `event.payload` before `resolveAudience` + the channel
+   * handlers run, so resolvers and templates can read inquiry context the
+   * raw engine event doesn't carry (contact, schedule, offer total, …).
+   * Runs once per entry per dispatch; a throw degrades to the bare event.
+   */
+  hydrate?: (event: NotificationEvent, ctx: AudienceContext) => Promise<Record<string, unknown>>;
   resolveAudience: (event: NotificationEvent, ctx: AudienceContext) => Promise<AudienceMember[]>;
   email?: EmailConfig;
   in_app?: InAppConfig;

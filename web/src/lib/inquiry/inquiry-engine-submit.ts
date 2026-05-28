@@ -11,7 +11,6 @@ import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 // Step 13 — post-submit notifications + auto-ack
 import { logServerError } from "@/lib/server/safe-error";
-import { sendInquirySubmittedNotifications } from "@/lib/email/inquiry-notifications";
 import { insertSystemMessage } from "./inquiry-system-messages";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. All reads/writes against
@@ -509,27 +508,19 @@ export async function submitInquiry(
     // All wrapped in try/catch — failures must NEVER block the submission.
     void (async () => {
       try {
-        // Look up agency display_name + auto-ack settings in one query.
+        // Look up agency auto-ack settings.
         const { data: agencyRow } = await supabase
           .from("agencies")
-          .select("display_name, auto_ack_enabled, auto_ack_message")
+          .select("auto_ack_enabled, auto_ack_message")
           .eq("id", input.tenant_id)
           .maybeSingle();
 
-        const agencyName: string =
-          typeof agencyRow?.display_name === "string" && agencyRow.display_name.trim()
-            ? agencyRow.display_name
-            : "The agency";
-
-        // a/b/c — client confirmation + coordinator assignment + talent invites.
-        await sendInquirySubmittedNotifications({
-          supabase,
-          inquiryId,
-          contactEmail: input.contact_email || null,
-          coordinatorId: assignment.coordinator_id ?? null,
-          talentProfileIds: input.talent_profile_ids,
-          agencyName,
-        });
+        // a/b/c — client confirmation + coordinator notice + talent invites now
+        // fan out through the notification engine, driven by the
+        // INQUIRY_SUBMITTED engine event emitted above (the dispatcher listener
+        // in inquiry-events.ts → catalog entries in lib/notifications/catalog.ts).
+        // Nothing to do here — kept as a marker for where the legacy
+        // sendInquirySubmittedNotifications() call used to live.
 
         // d — workspace auto-ack: system message into client (private) thread.
         // Only fires when: auto_ack_enabled=true (default) AND there is a

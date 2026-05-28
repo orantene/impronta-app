@@ -11,6 +11,8 @@ interface Props {
   eventLocation: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function InquiryReceived({
@@ -20,6 +22,8 @@ export default function InquiryReceived({
   eventLocation,
   inquiryUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const name = contactName ?? "there";
 
@@ -29,7 +33,12 @@ export default function InquiryReceived({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <Layout preview="We've received your inquiry" brand={brand}>
+    <Layout
+      preview="We've received your inquiry"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>We&apos;ve received your inquiry</Heading>
       <Text style={body}>
         Hi {name}, thanks for reaching out to {agencyName}. We&apos;ll get back to you as soon as

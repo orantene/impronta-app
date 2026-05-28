@@ -11,6 +11,8 @@ interface Props {
   eventLocation: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function InquiryInvited({
@@ -20,6 +22,8 @@ export default function InquiryInvited({
   eventLocation,
   inquiryUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const event = contactName ?? "a new inquiry";
   const name = talentName ?? "there";
@@ -30,7 +34,12 @@ export default function InquiryInvited({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <Layout preview="You've been added to an inquiry" brand={brand}>
+    <Layout
+      preview="You've been added to an inquiry"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>You&apos;ve been added to an inquiry</Heading>
       <Text style={body}>
         Hi {name}, the agency has added you to {event}.

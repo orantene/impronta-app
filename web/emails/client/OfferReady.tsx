@@ -10,6 +10,8 @@ interface Props {
   totalAmount: string;
   offerUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function OfferReady({
@@ -18,6 +20,8 @@ export default function OfferReady({
   totalAmount,
   offerUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const name = clientName ?? "there";
   const event = contactName ?? "your inquiry";
@@ -25,7 +29,12 @@ export default function OfferReady({
   const fields = [{ label: "Total", value: totalAmount }];
 
   return (
-    <Layout preview="Your offer is ready" brand={brand}>
+    <Layout
+      preview="Your offer is ready"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Your offer is ready</Heading>
       <Text style={body}>
         Hi {name}, the agency has prepared an offer for {event}.

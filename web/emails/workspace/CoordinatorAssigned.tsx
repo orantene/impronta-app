@@ -10,6 +10,8 @@ interface Props {
   eventDate: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function CoordinatorAssigned({
@@ -19,12 +21,19 @@ export default function CoordinatorAssigned({
   eventDate,
   inquiryUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const name = coordinatorName ?? "there";
   const event = contactName ?? "a new inquiry";
 
   return (
-    <Layout preview="New inquiry assigned to you" brand={brand}>
+    <Layout
+      preview="New inquiry assigned to you"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>New inquiry assigned to you</Heading>
       <Text style={body}>
         Hi {name}, you&apos;ve been assigned as coordinator for {event} at {agencyName}.

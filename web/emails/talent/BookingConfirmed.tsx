@@ -11,6 +11,8 @@ interface Props {
   eventLocation: string | null;
   inquiriesUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function BookingConfirmed({
@@ -20,6 +22,8 @@ export default function BookingConfirmed({
   eventLocation,
   inquiriesUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const event = contactName ?? "your booking";
   const name = talentName ?? "there";
@@ -30,7 +34,12 @@ export default function BookingConfirmed({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <Layout preview="Booking confirmed" brand={brand}>
+    <Layout
+      preview="Booking confirmed"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Booking confirmed</Heading>
       <Text style={body}>
         Hi {name}, {event} has been confirmed.

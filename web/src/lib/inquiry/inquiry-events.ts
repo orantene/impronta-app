@@ -3,6 +3,8 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
 import { insertSystemMessage, type SystemEventType } from "./inquiry-system-messages";
 import { notifyUsers } from "./inquiry-notifications";
+import { findCatalogEntries } from "@/lib/notifications/catalog";
+import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 
 export type EngineEventPriority = "high" | "medium" | "low";
 
@@ -75,6 +77,12 @@ export type EngineEvent = {
   type: EngineEventType;
   inquiryId: string;
   actorUserId: string | null;
+  /**
+   * Idempotency anchor for this logical event. Shared with the notification
+   * dispatcher (becomes part of its `dedupe_key`) and the
+   * `failed_engine_effects.event_id` column.
+   */
+  eventId: string;
   timestamp: string;
   priority: EngineEventPriority;
   payload: {
@@ -137,6 +145,37 @@ const listeners: Listener[] = [
       priority: event.priority,
     });
   },
+  // Notification engine (spec §2.2) — email + future channels, driven by the
+  // code-driven catalog. The inquiry catalog is EMAIL-ONLY, so this never
+  // double-sends the in-app bell that listener[1] (`notifyUsers`) already
+  // emits. Fire-and-forget and self-contained: it must never throw, or the
+  // listener framework would flag the inquiry with `has_failed_effects` for
+  // what is a non-critical side-effect. `dispatchEventNotifications` already
+  // swallows its own errors; the try/catch is belt-and-suspenders.
+  async (supabase, event) => {
+    try {
+      if (findCatalogEntries(event.type).length === 0) return;
+      const { data: inq } = await supabase
+        .from("inquiries")
+        .select("tenant_id")
+        .eq("id", event.inquiryId)
+        .maybeSingle();
+      const tenantId = (inq as { tenant_id?: string } | null)?.tenant_id ?? null;
+      await dispatchEventNotifications({
+        type: event.type,
+        tenantId,
+        inquiryId: event.inquiryId,
+        userId: event.actorUserId,
+        eventId: event.eventId,
+        payload: event.payload.data ?? {},
+      });
+    } catch (err) {
+      logServerError(
+        "inquiry-events/notification-dispatch",
+        err instanceof Error ? err : new Error(String(err)),
+      );
+    }
+  },
 ];
 
 /**
@@ -160,7 +199,7 @@ export async function emitEngineEvents(
   event: EngineEvent,
 ): Promise<{ errors: Array<{ listener: string; error: Error }> }> {
   const errors: Array<{ listener: string; error: Error }> = [];
-  const eventId = crypto.randomUUID();
+  const eventId = event.eventId;
 
   for (let i = 0; i < listeners.length; i++) {
     const listener = listeners[i];
@@ -248,6 +287,7 @@ export async function emitStandardEngineEvent(
     type: input.type,
     inquiryId: input.inquiryId,
     actorUserId: input.actorUserId,
+    eventId: crypto.randomUUID(),
     timestamp: ts,
     priority: input.priority ?? DEFAULT_PRIORITY[input.type],
     payload: {

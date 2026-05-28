@@ -58,9 +58,26 @@ export async function dispatchEventNotifications(
   };
 
   for (const entry of entries) {
+    // Entry-specific hydration: enrich the event payload with whatever this
+    // entry's audience resolver + templates need (inquiry context, offer
+    // total, …). Runs once per entry; a failure degrades to the bare event
+    // rather than dropping the notification.
+    let enriched = event;
+    if (entry.hydrate) {
+      try {
+        const extra = await entry.hydrate(event, ctx);
+        enriched = { ...event, payload: { ...event.payload, ...extra } };
+      } catch (err) {
+        logServerError(
+          `notifications.hydrate:${entry.id}`,
+          err instanceof Error ? err : new Error(String(err)),
+        );
+      }
+    }
+
     let recipients: ResolvedRecipient[] = [];
     try {
-      const members = await entry.resolveAudience(event, ctx);
+      const members = await entry.resolveAudience(enriched, ctx);
       recipients = await hydrateAudience(members, ctx);
     } catch (err) {
       logServerError(
@@ -76,9 +93,9 @@ export async function dispatchEventNotifications(
         const handler = handlers[channel];
         if (!handler) continue;
 
-        const dedupeKey = `${event.eventId}:${recipient.dedupeId}:${channel}`;
+        const dedupeKey = `${enriched.eventId}:${recipient.dedupeId}:${channel}`;
         const logId = await tryInsertDispatchLog(ctx.admin, {
-          event,
+          event: enriched,
           recipient,
           channel,
           entry,
@@ -91,7 +108,7 @@ export async function dispatchEventNotifications(
         }
 
         try {
-          await handler(event, entry, recipient, ctx);
+          await handler(enriched, entry, recipient, ctx);
           await markDispatchLogSent(ctx.admin, logId);
           result.dispatched++;
         } catch (err) {
