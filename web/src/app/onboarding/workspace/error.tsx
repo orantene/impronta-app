@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { logServerError } from "@/lib/server/safe-error";
 
-const SUPPORT_EMAIL = "hello@impronta.group";
+const SUPPORT_EMAIL = "hello@tulala.digital";
 
 export default function OnboardingWorkspaceError({
   error,

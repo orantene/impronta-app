@@ -41,7 +41,9 @@ export function GlobalUpgradeModal() {
           window.location.href = result.redirectUrl;
         } else if (result.noStripe) {
           // Network has no self-serve price configured — hand off to sales.
-          window.open("mailto:hello@impronta.group?subject=Network%20setup", "_blank");
+          // Address matches the product domain (Tulala) so replies route to
+          // the same inbox the user is corresponding with from /get-started.
+          window.open("mailto:hello@tulala.digital?subject=Network%20setup", "_blank");
           setOpen(false);
         } else {
           toast.error(result.error);

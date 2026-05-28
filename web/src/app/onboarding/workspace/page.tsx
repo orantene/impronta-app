@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const SUPPORT_EMAIL = "hello@impronta.group";
+const SUPPORT_EMAIL = "hello@tulala.digital";
 
 function buildSupportMailto(leadId: string, state: string): string {
   const subject = encodeURIComponent(
