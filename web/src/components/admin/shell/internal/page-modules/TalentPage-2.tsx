@@ -394,7 +394,7 @@ function RosterCard({
         boxShadow: hover ? "0 6px 20px -10px rgba(11,11,13,0.18)" : "0 1px 2px rgba(11,11,13,0.03)",
         // Talent has globally hidden themselves — render the card "deactivated"
         // so the agency sees at a glance it is off everywhere, not just here.
-        opacity: profile.talentHidden ? 0.6 : 1,
+        opacity: profile.state === "draft" ? 0.75 : profile.talentHidden ? 0.6 : 1,
       }}
     >
       {/* Photo */}
@@ -648,6 +648,17 @@ function RosterCard({
 
       {/* Card body — name + type + city, hairlined */}
       <div style={{ padding: "10px 12px 12px" }}>
+        {profile.state === "draft" && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            padding: "2px 7px", borderRadius: 5, marginBottom: 5,
+            background: "rgba(11,11,13,0.06)",
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.6,
+            textTransform: "uppercase",
+          }} className="text-admin-ink-muted">
+            Draft
+          </div>
+        )}
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {profile.name}
         </div>
@@ -690,6 +701,31 @@ function RosterCard({
         <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
           <RosterTrustCell talentId={profile.id} />
         </div>
+        {profile.state === "draft" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(profile);
+            }}
+            style={{
+              marginTop: 8,
+              width: "100%",
+              padding: "5px 10px",
+              borderRadius: 7,
+              border: `1px dashed ${COLORS.accent}`,
+              background: "transparent",
+              color: COLORS.accentDeep,
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              letterSpacing: 0.1,
+            }}
+          >
+            Continue editing →
+          </button>
+        )}
       </div>
     </div>
   );

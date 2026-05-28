@@ -8,6 +8,7 @@ import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives";
 import { COLORS, FONTS, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
 import type { WebsitePageRow, WebsitePost } from "../state";
+import { PageBuilderPage } from "./page-builder/PageBuilderPage";
 import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
@@ -356,6 +357,17 @@ export function WebsitePage() {
           <HeroStat label="Posts"            value={totals.publishedPosts.toString()} sub={`${w.posts.length - totals.publishedPosts} unpublished`} />
           <HeroStat label="301 redirects"    value={totals.activeRedirects.toString()} sub={`${w.redirects.length - totals.activeRedirects} paused`} />
           <HeroStat label="Scheduled"        value={totals.scheduledPages.toString()} sub={totals.scheduledPages > 0 ? "next: SS27" : "none"} />
+        </div>
+      </section>
+
+      {/* Phase C — Workspace Page Builder (workspace_pages table) */}
+      <section style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Page Builder</h2>
+          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">Create and publish custom pages</span>
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", minHeight: 200 }}>
+          <PageBuilderPage />
         </div>
       </section>
 

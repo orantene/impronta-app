@@ -402,7 +402,7 @@ import {
 
 // ── external surface re-export (drawer chunks pull from here) ──
 export { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
-export { addTalentToRoster, bulkAddTalentToRoster } from "../actions";
+export { addTalentToRoster, bulkAddTalentToRoster, createTalentDraft, patchTalentDraft, discardTalentDraft } from "../actions";
 export { parseTalentCsv } from "../csv-parser";
 export { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 export { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";

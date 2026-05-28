@@ -1548,6 +1548,12 @@ export function TalentProfileShellDrawer() {
   // Resolve types
   const primaryRes = findChild(state.primaryType);
   const allSelectedTypeIds = state.primaryType ? [state.primaryType, ...state.secondaryTypes] : [...state.secondaryTypes];
+  // F16 — Services-typed talent surface "Photos of work / venue" copy
+  // instead of "Portfolio" (a service business doesn't have a portfolio
+  // in the fashion sense).
+  const isServicesPrimary = state.primaryType
+    ? !!TAXONOMY.find(p => p.id === "services")?.children.some(c => c.id === state.primaryType)
+    : false;
   const allSelectedChildren = allSelectedTypeIds
     .map(id => findChild(id))
     .filter((x): x is { parent: TaxonomyParent; child: TaxonomyChild } => x !== null);
@@ -2600,11 +2606,12 @@ export function TalentProfileShellDrawer() {
             // don't apply (e.g. physical/wardrobe for non-models, admin
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
+            const mediaGroupLabel = isServicesPrimary ? "Photos of work / venue" : "Portfolio";
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
               { label: "Profile", ids: ["identity", "location", "about", "services"] },
               { label: "Craft", ids: ["physical", "wardrobe", "details"] },
               { label: "Logistics", ids: ["logistics", "availability"] },
-              { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
+              { label: mediaGroupLabel, ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
               { label: "Proof", ids: ["credits", "social_proof", "verifications"] },
               { label: "Back office", ids: ["files", "agency_fields", "admin"] },
@@ -3362,8 +3369,11 @@ export function TalentProfileShellDrawer() {
 
             {/* ALBUMS */}
             <ProfileAccordionSection
-              id="albums" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Portfolio albums"
-              sub="Group photos by mood — Editorial, Lookbook, Behind-the-scenes."
+              id="albums" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
+              title={isServicesPrimary ? "Work & venue albums" : "Portfolio albums"}
+              sub={isServicesPrimary
+                ? "Group photos by venue or job — Suites, Hallways, Behind-the-scenes."
+                : "Group photos by mood — Editorial, Lookbook, Behind-the-scenes."}
               complete={sectionComplete.albums} started={sectionStarted.albums}
               open={activeSection === "albums"}
               onToggle={() => setActiveSection(activeSection === "albums" ? "" : "albums")}

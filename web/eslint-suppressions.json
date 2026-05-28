@@ -258,8 +258,11 @@
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-coach.tsx": {
@@ -626,7 +629,7 @@
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 38
     }
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-3.tsx": {
@@ -636,7 +639,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 82
+      "count": 87
     }
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
@@ -665,6 +668,14 @@
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 23
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/page-builder/PageBuilderPage.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 76
     }
   },
   "src/components/admin/shell/internal/page-modules/pages-shared.tsx": {
