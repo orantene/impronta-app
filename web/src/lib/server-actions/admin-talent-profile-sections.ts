@@ -1203,20 +1203,18 @@ export async function getTalentProfileEditorData(input: {
   // Multi-tenant identity gates — Tulala-native vs agency-exclusive talent.
   //   personalProfileLocked = TRUE when the talent owns their own Tulala
   //   identity (user_id IS NOT NULL) AND this agency's roster relationship
-  //   is non-exclusive. In that case, the admin can manage the roster row
-  //   (internal_notes, status, feature_in_directory, exclusivity flip) but
-  //   NOT the personal profile data (name, bio, photos, social handles) —
-  //   that belongs to the talent.
-  //
-  //   Tulala-native flag is exposed separately so the UI can show the
-  //   "verified" badge even if the relationship IS exclusive (a verified
-  //   talent who signed up on Tulala first AND then went exclusive with
-  //   this agency still has user_id set; the agency can still edit because
-  //   exclusivity_status='exclusive' overrides the lock).
+  //   has NOT been confirmed by the talent yet. The enum from
+  //   20260515195642_exclusivity_confirmation_status.sql:
+  //     'confirmed'      = talent accepted exclusivity → agency CAN edit personal
+  //     'auto_assigned'  = admin auto-flagged on add, talent pending decision → LOCKED
+  //     'declined'       = talent rejected exclusivity → LOCKED (non-exclusive)
+  //     'notice_period'  = talent-initiated departure → LOCKED
+  //   So the lock is "is the relationship confirmed?". Anything else means
+  //   the talent has not given the agency edit-personal authority.
   const talentUserId = (p.user_id as string | null) ?? null;
   const rosterExclusivity = (r.exclusivity_status as string | null) ?? null;
   const tulalaNativeIdentity = Boolean(talentUserId);
-  const personalProfileLocked = tulalaNativeIdentity && rosterExclusivity !== "exclusive";
+  const personalProfileLocked = tulalaNativeIdentity && rosterExclusivity !== "confirmed";
 
   return {
     ok: true,
