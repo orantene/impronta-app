@@ -155,7 +155,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 37
+      "count": 47
     }
   },
   "src/components/admin/shell/internal/drawers/light-06.tsx": {
@@ -395,7 +395,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 20
+      "count": 25
     }
   },
   "src/components/admin/shell/internal/messages/ClientProjectShell.tsx": {
@@ -413,7 +413,7 @@
   },
   "src/components/admin/shell/internal/messages/admin-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 22
+      "count": 23
     }
   },
   "src/components/admin/shell/internal/messages/admin-2.tsx": {

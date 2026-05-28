@@ -328,6 +328,7 @@ const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "pl
   calendar: "calendar",
   roster: "team",
   clients: "user",
+  pitches: "bolt",
   operations: "search",
   production: "sparkle",
   settings: "info",

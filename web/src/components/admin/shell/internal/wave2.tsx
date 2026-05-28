@@ -4288,16 +4288,28 @@ export type WorkspaceActivationState = {
 };
 
 export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationState } = {}) {
-  const { openDrawer, setPage, toast } = useAdminShell();
+  const { openDrawer, setPage, openUpgrade, toast, state: shellState, effectiveTenant } = useAdminShell();
   const [dismissed, setDismissed] = useState(false);
   const [, setReminded] = useState(false);
   const s = props.state ?? {};
+  const isFreePlan = shellState.plan === "free";
 
   // Established-tenant gate — once the tenant has talent AND a custom
   // domain, the activation checklist is noise. Owner has moved past
   // "evaluating" into "running the business."
   const isEstablished =
     (s.talentCount ?? 0) >= 1 && (s.hasCustomDomain ?? false);
+
+  // Domain step is dynamically worded per plan:
+  //   Free  → point to their Tulala subdomain + upsell
+  //   Studio+ → "set your branded domain" as before
+  const domainStepDesc = isFreePlan
+    ? `Your storefront is live at ${effectiveTenant.domain}. Upgrade for a branded domain.`
+    : "Go live on your branded URL.";
+  const domainStepCta  = isFreePlan ? "Upgrade to Studio" : "Configure";
+  const domainStepAction = isFreePlan
+    ? () => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain — not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] })
+    : () => setPage("settings");
 
   const steps: ActivationStep[] = [
     // Phase B de-fixture: defaults changed from `?? true` → `?? false` so
@@ -4307,7 +4319,7 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
     { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? false, cta: "Add talent",      onCta: () => setPage("roster") },
     { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: s.hasSentInquiry     ?? false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
     { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
-    { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: s.hasCustomDomain    ?? false, cta: "Configure",       onCta: () => setPage("settings") },
+    { id: "domain",     label: isFreePlan ? "View your storefront URL" : "Set your workspace domain", desc: domainStepDesc, done: !isFreePlan && (s.hasCustomDomain ?? false), cta: domainStepCta, onCta: domainStepAction },
   ];
 
   // Self-hide for established tenants regardless of per-step state —

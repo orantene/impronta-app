@@ -85,7 +85,7 @@ export function AdminInboxList({
   // gesture for multi-row operations (nudge / archive / reassign).
   // Operations are admin+ only — Coord/Editor see the bulk button
   // hidden so they don't get a no-op toggle.
-  const { toast: toastBulk, effectiveTenant } = useAdminShell();
+  const { toast: toastBulk, effectiveTenant, tenantSlug } = useAdminShell();
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const toggleSelect = (id: string) => {
@@ -112,7 +112,9 @@ export function AdminInboxList({
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
           <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">Inbox</h3>
           <div className="flex items-center gap-2">
-            <span className="text-admin-ink-muted text-admin-11">{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
+            <span className="text-admin-ink-muted text-admin-11">
+              {inquiries.length === 0 ? "0 pending" : `${inquiries.length} thread${inquiries.length === 1 ? "" : "s"}`}
+            </span>
             {/* Bulk-select toggle — admin+ only. Visible chevron pill
                 so the affordance reads as "switch into bulk mode" not
                 some hidden gesture. */}
@@ -196,11 +198,31 @@ export function AdminInboxList({
               </svg>
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">
-              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No inquiries yet"}
+              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No messages yet"}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
-              {search.trim() ? "Try a different keyword, or clear the search." : "Inquiries from clients appear here. Share your roster page to get the first one in."}
+              {search.trim()
+                ? "Try a different keyword, or clear the search."
+                : "They’ll appear here as clients reach out via your storefront."}
             </div>
+            {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
+              <a
+                href={`https://${effectiveTenant?.domain ?? `${tenantSlug}.tulala.digital`}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  marginTop: 8, display: "inline-flex", alignItems: "center", gap: 4,
+                  fontSize: 11.5, fontWeight: 600, color: COLORS.accent,
+                  textDecoration: "none", fontFamily: FONTS.body,
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                {effectiveTenant?.domain ?? `${tenantSlug}.tulala.digital`}
+              </a>
+            )}
             {search.trim() && (
               <button type="button" onClick={() => onSearchChange("")} style={{
                 marginTop: 6, padding: "5px 12px", borderRadius: 999,

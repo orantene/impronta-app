@@ -98,8 +98,72 @@ export default async function ClientLayout({
 
   // ── Client profile gate ────────────────────────────────────────────────────
   // User must be a registered client with a relationship to this agency.
+  // Phase E (F20) — instead of a branded 404, show a soft landing page that
+  // surfaces the two most useful next actions: sign-in as a client or open
+  // the admin dashboard (workspace owners land here by accident often).
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
+  if (!clientProfile) {
+    const tenantDisplayName = tenantSlug
+      .split(/[-_]/)
+      .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    return (
+      <div style={{
+        minHeight: "100dvh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "32px 20px",
+        background: "#FAFAF7",
+        fontFamily: '"Inter", system-ui, sans-serif',
+      }}>
+        <div style={{
+          maxWidth: 440, width: "100%",
+          background: "#fff",
+          border: "1px solid rgba(24,24,27,0.08)",
+          borderRadius: 16,
+          padding: "36px 32px",
+          textAlign: "center",
+          boxShadow: "0 2px 16px rgba(11,11,13,0.06)",
+        }}>
+          <div aria-hidden style={{
+            width: 48, height: 48, borderRadius: 14,
+            background: "rgba(29,78,216,0.08)", color: "#1D4ED8",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            marginBottom: 16,
+          }}>
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <circle cx="11" cy="7" r="4" stroke="currentColor" strokeWidth="1.6"/>
+              <path d="M3 19c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h1 style={{
+            fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "#0B0B0D",
+            fontFamily: 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif',
+          }}>
+            No client account here
+          </h1>
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(11,11,13,0.64)", margin: "0 0 24px" }}>
+            You don&apos;t have a client account on <strong>{tenantDisplayName}</strong>. You can ask the workspace admin to add you, or open the admin dashboard if you run this workspace.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <a href={`/${tenantSlug}/admin`} style={{
+              display: "block", padding: "11px 20px", borderRadius: 10,
+              background: "#1D4ED8", color: "#fff",
+              fontWeight: 700, fontSize: 14, textDecoration: "none",
+            }}>
+              Open admin dashboard
+            </a>
+            <a href={`/login?next=/${tenantSlug}/client`} style={{
+              display: "block", padding: "11px 20px", borderRadius: 10,
+              border: "1px solid rgba(24,24,27,0.10)", background: "transparent",
+              color: "#0B0B0D", fontWeight: 600, fontSize: 14, textDecoration: "none",
+            }}>
+              Sign in as a client
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // D4 — seed the canonical discovery state so <TalentCardActions> /
   // useFavorites work on every client-dashboard surface, exactly as the
