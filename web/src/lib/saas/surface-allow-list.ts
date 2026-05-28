@@ -330,6 +330,11 @@ const MARKETING_PAGE_PREFIXES = [
   "/faq",
   "/waitlist",
   "/legal",
+  // Self-served operational pages — both public, no auth required.
+  // `/status` runs HTTP probes on every page load (see (marketing)/status/page.tsx).
+  // `/help` is a four-role docs hub (operators / agencies / talents / clients).
+  "/status",
+  "/help",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {
