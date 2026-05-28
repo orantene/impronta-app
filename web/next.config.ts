@@ -231,6 +231,8 @@ export default withSentryConfig(nextConfig, {
   org: "tulala-digital",
   project: "javascript-nextjs",
   silent: !process.env.CI,
-  reactComponentAnnotation: { enabled: true },
-  automaticVercelMonitors: true,
+  webpack: {
+    reactComponentAnnotation: { enabled: true },
+    automaticVercelMonitors: true,
+  },
 });
