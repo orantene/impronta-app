@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/server/action-guards";
+import { getTenantScope } from "@/lib/saas/scope";
+import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
@@ -23,6 +26,27 @@ const idSchema = z.object({
 
 export type TranslationActionResult = ServerActionResult;
 
+/**
+ * Phase 2b identity floor for the Translation Center. Bio EN/ES are personal-
+ * profile data. This surface authenticates with requireStaff() (no tenant
+ * scope) and is platform-admin-facing, so the lock is a NO-OP for a platform
+ * super_admin with no workspace selected (god-mode preserved), and a floor for
+ * any agency-scoped staff: a Tulala-native talent's bio cannot be rewritten
+ * unless the agency relationship is 'confirmed' exclusive.
+ *
+ * NOTE: this surface still lacks a per-tenant roster check — a separate,
+ * pre-existing cross-tenant concern tracked as a follow-up. This guard adds the
+ * identity floor only.
+ */
+async function assertBioPersonalEditable(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const scope = await getTenantScope();
+  if (!scope?.tenantId) return { ok: true };
+  return assertPersonalProfileEditable(supabase, scope.tenantId, talentProfileId);
+}
+
 export async function adminAiFillMissingSpanishBio(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
@@ -30,6 +54,11 @@ export async function adminAiFillMissingSpanishBio(
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
+  const lock = await assertBioPersonalEditable(
+    auth.supabase,
+    parsed.data.talent_profile_id,
+  );
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await aiFillMissingSpanishBio(
     auth.supabase,
     parsed.data.talent_profile_id,
@@ -49,6 +78,8 @@ export async function adminAiUpdateSpanishBio(input: z.infer<typeof idSchema>): 
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
   const id = parsed.data.talent_profile_id;
 
+  const lock = await assertBioPersonalEditable(auth.supabase, id);
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await aiRefreshSpanishBioLive(auth.supabase, id, auth.user.id);
   if (error) return { ok: false, error };
   revalidatePath("/admin/talent");
@@ -68,6 +99,11 @@ export async function adminSaveManualSpanishBio(
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = manualSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
+  const lock = await assertBioPersonalEditable(
+    auth.supabase,
+    parsed.data.talent_profile_id,
+  );
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await saveManualSpanishBio(
     auth.supabase,
     parsed.data.talent_profile_id,
@@ -88,6 +124,11 @@ export async function adminApproveSpanishBioDraft(
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
+  const lock = await assertBioPersonalEditable(
+    auth.supabase,
+    parsed.data.talent_profile_id,
+  );
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await approveSpanishBioDraft(
     auth.supabase,
     parsed.data.talent_profile_id,
@@ -107,6 +148,11 @@ export async function adminApproveEnglishBioDraft(
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
+  const lock = await assertBioPersonalEditable(
+    auth.supabase,
+    parsed.data.talent_profile_id,
+  );
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await approveEnglishBioDraft(
     auth.supabase,
     parsed.data.talent_profile_id,
@@ -139,6 +185,11 @@ export async function adminSaveTalentBioQuickEdit(
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = quickBioSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
+  const lock = await assertBioPersonalEditable(
+    auth.supabase,
+    parsed.data.talent_profile_id,
+  );
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await saveTalentBioQuickEdit(auth.supabase, parsed.data.talent_profile_id, auth.user.id, {
     bio_en_published: parsed.data.bio_en_published,
     bio_en_draft: parsed.data.bio_en_draft,
@@ -160,6 +211,11 @@ export async function adminSaveTalentBioTranslationCenterLive(
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = translationCenterBioLiveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
+  const lock = await assertBioPersonalEditable(
+    auth.supabase,
+    parsed.data.talent_profile_id,
+  );
+  if (!lock.ok) return { ok: false, error: lock.error };
   const { error } = await saveTalentBioTranslationCenterLive(
     auth.supabase,
     parsed.data.talent_profile_id,
