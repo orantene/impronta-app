@@ -9,6 +9,7 @@ import {
 import { PricingTeaserSection } from "@/components/marketing/pricing-teaser-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
+import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -17,12 +18,23 @@ export const metadata: Metadata = {
 };
 
 /**
- * L50 Phase 4: the per-tier compare table is now read from
- * `product_features` (rows with non-null, non-'core' category). To edit
- * a cell, go to /platform/admin/pricing → click the tier card →
- * Features tab. Phase 1 placeholder removed.
+ * L50 Phase 4: the per-tier compare table is read from `product_features`
+ * (non-null, non-'core' category rows). Edit cells at
+ * /platform/admin/pricing → tier drawer → Features tab.
+ *
+ * L50 post-launch fix (2026-05-28): page is async + accepts searchParams
+ * so `?currency=MXN` shared links honor the override on first render.
+ * Previously the teaser section called `resolveCurrency(null)` which
+ * skipped URL params entirely — visitors landing on a shared link saw
+ * whatever cookie/IP they had, not the link's intended currency.
  */
-export default function PricingPage() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ currency?: string }>;
+}) {
+  const resolved = await searchParams;
+  const { currency } = await resolveCurrency(resolved);
   return (
     <>
       <SimplePageHero
@@ -40,7 +52,7 @@ export default function PricingPage() {
         sourcePage="pricing-hero"
       />
 
-      <PricingTeaserSection hideHeading />
+      <PricingTeaserSection hideHeading currency={currency} />
 
       <MarketingSection
         className="relative"
