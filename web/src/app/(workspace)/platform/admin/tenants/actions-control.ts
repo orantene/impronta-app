@@ -252,11 +252,24 @@ export async function actionAddDomain(input: {
     .maybeSingle();
   if (existing) return { ok: false, error: "That hostname is already registered." };
 
+  // A tenant must always have exactly one primary domain so host/canonical
+  // resolution has a stable target. If this tenant currently has no primary
+  // (brand-new tenant, or a prior orphaned state), the newly-added domain is
+  // promoted to primary. Previously this was hardcoded `false`, which left a
+  // tenant whose *only* domain was added here without any primary at all.
+  const { data: existingPrimary } = await sb
+    .from("agency_domains")
+    .select("id")
+    .eq("tenant_id", input.tenantId)
+    .eq("is_primary", true)
+    .maybeSingle();
+  const shouldBePrimary = !existingPrimary;
+
   const { error } = await sb.from("agency_domains").insert({
     tenant_id: input.tenantId,
     hostname,
     kind: input.kind,
-    is_primary: false,
+    is_primary: shouldBePrimary,
     status: "active",
     verified_at: input.kind === "subdomain" ? NOW() : null,
     ssl_provisioned_at: input.kind === "subdomain" ? NOW() : null,
