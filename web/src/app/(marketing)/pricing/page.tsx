@@ -6,6 +6,7 @@ import {
   MarketingEyebrow,
   MarketingSection,
 } from "@/components/marketing/container";
+import { CurrencyPicker } from "@/components/marketing/currency-picker";
 import { PricingTeaserSection } from "@/components/marketing/pricing-teaser-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
@@ -34,7 +35,7 @@ export default async function PricingPage({
   searchParams: Promise<{ currency?: string }>;
 }) {
   const resolved = await searchParams;
-  const { currency } = await resolveCurrency(resolved);
+  const { currency, source } = await resolveCurrency(resolved);
   return (
     <>
       <SimplePageHero
@@ -51,6 +52,18 @@ export default async function PricingPage({
         secondary={{ label: "See the walkthrough", href: "/how-it-works", intent: "learn" }}
         sourcePage="pricing-hero"
       />
+
+      {/*
+        Currency picker, prominent placement: right above the price cards.
+        Same component the marketing footer uses (no fork) — keeps a single
+        source of truth for the dropdown UI. Visitors landing here from a
+        shared `?currency=MXN` link see the chip pre-populated; visitors
+        auto-detected via IP see "Auto-detected" subtitle and can override
+        without scrolling to the footer.
+      */}
+      <div className="flex justify-center px-4 pt-4 pb-2">
+        <CurrencyPicker current={currency} source={source} />
+      </div>
 
       <PricingTeaserSection hideHeading currency={currency} />
 
