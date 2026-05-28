@@ -390,7 +390,22 @@ export async function actionCreateTenant(input: {
 
   const { data: agency, error: insErr } = await sb
     .from("agencies")
-    .insert({ display_name: displayName, slug, kind: input.kind, status: "active", plan_tier: "free" })
+    // Free-tier seat cap explicitly set on insert. Without it the column
+    // defaults to NULL, and `evaluateRosterSeatAvailability` in
+    // lib/saas/roster-seat-limit.ts treats NULL as "unlimited" — meaning
+    // a Platform-Admin-created Free workspace would silently bypass the
+    // 5-profile cap that every other Free workspace enforces. Mirrors
+    // SEAT_LIMITS.free in lib/server-actions/admin-billing.ts and the
+    // seed value workspace-signup.server.ts uses for the get-started
+    // funnel path, so all 3 agency-creation entry points converge.
+    .insert({
+      display_name: displayName,
+      slug,
+      kind: input.kind,
+      status: "active",
+      plan_tier: "free",
+      talent_seat_limit: 5,
+    })
     .select("id")
     .single();
   if (insErr || !agency) {
