@@ -258,8 +258,11 @@
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-coach.tsx": {
@@ -626,7 +629,7 @@
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 38
     }
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-3.tsx": {

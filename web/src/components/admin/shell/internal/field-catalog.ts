@@ -293,6 +293,7 @@ const HARDCODED_FIELDS: ReadonlyArray<FieldCatalogEntry> = [
   { id: "dyn.transportation", label: "Vehicle + license",     tier: "type-specific", section: "type-specific", appliesTo: ["transportation"] },
   { id: "dyn.event_staff",    label: "Event staff tier",      tier: "type-specific", section: "type-specific", appliesTo: ["event_staff"] },
   { id: "dyn.security",       label: "Security credentials",  tier: "type-specific", section: "type-specific", appliesTo: ["security"] },
+  { id: "dyn.services",       label: "Service details",       tier: "type-specific", section: "type-specific", appliesTo: ["services"] },
   // dyn.<parentId> placeholder entries removed — DERIVED_TYPE_FIELDS
   // below now provides the actual fields-per-type, sourced from
   // TAXONOMY_FIELDS. Consumers that called `fieldsForType("models")`

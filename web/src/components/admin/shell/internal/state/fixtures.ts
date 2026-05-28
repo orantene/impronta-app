@@ -3066,6 +3066,7 @@ export const TYPE_RATE_UNIT: Record<TaxonomyParentId, RateUnit> = {
   photo_video:    "day",
   event_staff:    "hour",
   security:       "hour",
+  services:       "hour",
 };
 export const LOCALE_LABEL: Record<LocaleCode, string> = {
   en: "English",
@@ -3339,6 +3340,19 @@ export const TAXONOMY: TaxonomyParent[] = [
       { id: "door",         label: "Door staff" },
     ],
   },
+  {
+    id: "services", label: "Services", emoji: "🔧", minPlan: "free",
+    helper: "Cleaning, hospitality staff, transport, security, catering, retail, technical support.",
+    children: [
+      { id: "cleaning_staff", label: "Cleaning & Laundry",  specialties: ["Standard clean", "Deep clean", "Industrial", "Laundry & ironing", "Turndown service"] },
+      { id: "hotel_staff",    label: "Hospitality staff",   specialties: ["Front desk", "Housekeeping", "Butler", "Concierge", "Villa staff"] },
+      { id: "svc_transport",  label: "Transport staff",     specialties: ["Airport transfer", "Shuttle", "Delivery", "Long-distance"] },
+      { id: "svc_security",   label: "Security staff",      specialties: ["Event security", "Door staff", "Close protection"] },
+      { id: "svc_catering",   label: "Catering staff",      specialties: ["Events", "Corporate", "Wedding", "Private dining"] },
+      { id: "svc_retail",     label: "Retail staff",        specialties: ["Sales", "Cashier", "Visual merchandising", "Stock management"] },
+      { id: "svc_technical",  label: "Technical & AV",      specialties: ["AV / sound", "Lighting", "IT support", "Stage rigging"] },
+    ],
+  },
 ];
 
 export const PLAN_TAXONOMY_LIMITS: Record<"free" | "studio" | "agency" | "network", number> = {
@@ -3413,6 +3427,15 @@ export const TAXONOMY_FIELDS: Record<TaxonomyParentId, RegField[]> = {
     { id: "training",      label: "Training",       kind: "multiselect", options: ["Close protection", "Crowd control", "First aid", "De-escalation"] },
     { id: "languages_fluent", label: "Languages spoken", kind: "chips", placeholder: "Add a language…" },
   ],
+  services: [
+    { id: "service_types",   label: "Services provided",    kind: "multiselect", options: ["Housekeeping", "Laundry & ironing", "Deep clean", "Industrial clean", "Turndown service", "Concierge support", "Front desk", "Butler service", "Transport", "Security", "Catering", "AV / Technical", "Retail"] },
+    { id: "experience_yrs",  label: "Years experience",     kind: "number",      optional: true, placeholder: "3" },
+    { id: "equipment_own",   label: "Brings own equipment", kind: "select",      optional: true, options: ["Yes", "No", "Partial"] },
+    { id: "availability",    label: "Availability schedule",kind: "select",      optional: true, options: ["Full-time", "Part-time", "On-call", "Seasonal", "Flexible"] },
+    { id: "certifications",  label: "Certifications",       kind: "chips",       optional: true, placeholder: "Add cert…" },
+    { id: "languages_fluent",label: "Languages spoken",     kind: "chips",       optional: true, placeholder: "Add a language…" },
+    { id: "uniform",         label: "Uniform",              kind: "select",      optional: true, options: ["Formal / black tie", "Smart casual", "Company uniform", "Casual", "None"] },
+  ],
 };
 
 /** Default settings for the demo agency (Atelier Roma). Free plan = 3 enabled. */
@@ -3429,6 +3452,7 @@ export const WORKSPACE_TAXONOMY_DEFAULT: WorkspaceTaxonomySetting[] = [
   { parentId: "photo_video",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: false },
   { parentId: "event_staff",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: false },
   { parentId: "security",       isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "services",       isEnabled: true,  showInDirectory: true,  showInRegistration: true,  requiresApproval: false },
 ];
 
 export const DISCOVER_TALENT: DiscoverTalent[] = [
