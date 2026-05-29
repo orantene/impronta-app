@@ -27,9 +27,14 @@ export const nodePresentationValueSchema = z.object({
   letterSpacingPx: z.number().min(-5).max(30).optional(),
   lineHeightPct: z.number().int().min(80).max(300).optional(),
   textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
-  textColor: z.string().max(32).optional(),
-  backgroundColor: z.string().max(32).optional(),
-  borderColor: z.string().max(32).optional(),
+  // Colors hold either a literal CSS color OR a theme-token binding such as
+  // `var(--token-color-surface-raised, #ffffff)` (~42 chars). Capped at 64 so a
+  // token binding survives the parse — a too-long KNOWN key makes Zod THROW
+  // (it does not silently strip), which would fail the save. Mirrors the
+  // builder-node registry color fields (registry.ts).
+  textColor: z.string().max(64).optional(),
+  backgroundColor: z.string().max(64).optional(),
+  borderColor: z.string().max(64).optional(),
   borderWidthPx: z.number().int().min(0).max(24).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
 });

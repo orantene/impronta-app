@@ -4549,6 +4549,7 @@ export function StylePanel({
                 <ColorPickerPopover
                   open={roleColorField !== null}
                   anchor={roleColorField?.anchor ?? null}
+                  themeTokens={BUILDER_NODE_THEME_COLOR_TOKENS}
                   value={
                     (roleColorField
                       ? selectedNodeViewportPresentation?.[roleColorField.field]

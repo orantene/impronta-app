@@ -3,7 +3,9 @@ import { test } from "node:test";
 
 import {
   buildNodePresentationResponsiveCss,
+  nodePresentationInlineStyle,
   nodePresentationSchema,
+  nodePresentationValueSchema,
 } from "./node-presentation";
 
 test("nodePresentation schema accepts breakpoint overrides", () => {
@@ -67,6 +69,43 @@ test("nodePresentation schema rejects out-of-range padding values", () => {
     paddingRightPx: 240,
   });
   assert.equal(result?.success, false);
+});
+
+test("nodePresentation schema preserves a theme-token color binding (max 64)", () => {
+  // A theme-bound color is stored as `var(--token-…, <fallback>)` (~42 chars).
+  // The schema must keep it intact — Zod THROWS on a too-long known key (it
+  // does not silently strip), so a tight cap would fail the save outright.
+  const result = nodePresentationValueSchema.safeParse({
+    textColor: "var(--token-color-surface-raised, #ffffff)",
+    backgroundColor: "var(--token-color-primary, #111111)",
+    borderColor: "var(--token-color-line, #e5e5e5)",
+  });
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(
+      result.data.textColor,
+      "var(--token-color-surface-raised, #ffffff)",
+    );
+    assert.equal(
+      result.data.backgroundColor,
+      "var(--token-color-primary, #111111)",
+    );
+    assert.equal(result.data.borderColor, "var(--token-color-line, #e5e5e5)");
+  }
+});
+
+test("nodePresentationInlineStyle emits theme-token color bindings inline", () => {
+  // Curated sub-elements apply colors inline (not via a class), so a token
+  // binding cascades to the live theme exactly like a literal color would.
+  const style = nodePresentationInlineStyle({
+    textColor: "var(--token-color-primary, #111111)",
+    backgroundColor: "var(--token-color-accent, #0ea5e9)",
+    borderColor: "var(--token-color-line, #e5e5e5)",
+    borderWidthPx: 2,
+  });
+  assert.equal(style?.color, "var(--token-color-primary, #111111)");
+  assert.equal(style?.backgroundColor, "var(--token-color-accent, #0ea5e9)");
+  assert.equal(style?.borderColor, "var(--token-color-line, #e5e5e5)");
 });
 
 test("buildNodePresentationResponsiveCss returns null when no section id", () => {
