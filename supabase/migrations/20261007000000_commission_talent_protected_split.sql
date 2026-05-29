@@ -12,10 +12,11 @@
 -- per the product owner's worked example (MX$4,000 booking → client 4,120 /
 -- talent 3,000 / workspace 880 / platform 240).
 --
--- Timestamp note: named after the latest existing migration (20261004000000)
--- so the version order stays monotonic for `supabase db push`, rather than
--- today's UTC date which would sort *before* already-staged future-dated
--- migrations.
+-- Timestamp note: 20261007000000 — placed after the latest existing migration
+-- so the version order stays monotonic for `supabase db push`. Bumped from
+-- 20261005000000, which collided with the already-shipped
+-- 20261005000000_plan_trials_engine.sql; a shared version prefix would have
+-- masked this migration in the drift check (which matches on the prefix).
 
 BEGIN;
 
