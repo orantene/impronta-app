@@ -3070,15 +3070,14 @@ function VisibilityEye({
     : partial
       ? `Visible on ${visibility === "desktop-only" ? "desktop" : "mobile"} only`
       : "Visible everywhere — click to hide";
-  // Match NodeInlineActionButton: 22px rounded target with a soft hover tint
-  // so the eye sits consistently in the row's action cluster.
+  // Match NodeInlineActionButton exactly so the eye reads as the same kind of
+  // button as its neighbours. (Earlier bug: a white icon for `selected` rows —
+  // invisible now that the eye sits in a light action chip. Never white.)
   const [hover, setHover] = useState(false);
-  const baseColor = selected
-    ? hidden
-      ? "rgba(255,255,255,0.85)"
-      : "rgba(255,255,255,0.65)"
-    : hidden
-      ? CHROME.amber
+  const baseColor = hidden
+    ? CHROME.amber
+    : hover || selected
+      ? CHROME.accent
       : CHROME.muted2;
   return (
     <button
@@ -3100,22 +3099,21 @@ function VisibilityEye({
       style={{
         width: 22,
         height: 22,
+        boxSizing: "border-box",
         padding: 0,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "none",
         borderRadius: 6,
-        background: hover
-          ? selected
-            ? "rgba(255,255,255,0.14)"
-            : "rgba(42,49,71,0.10)"
-          : "transparent",
+        border: `1px solid ${
+          hover ? "rgba(42,49,71,0.22)" : "rgba(42,49,71,0.12)"
+        }`,
+        background: hover ? "rgba(42,49,71,0.13)" : "rgba(42,49,71,0.06)",
         color: baseColor,
         cursor: "pointer",
-        opacity: hidden ? 1 : hover ? 1 : 0.78,
+        opacity: 1,
         transition:
-          "background 110ms ease, color 110ms ease, opacity 110ms ease",
+          "background 110ms ease, color 110ms ease, border-color 110ms ease",
         flexShrink: 0,
       }}
     >
@@ -3254,15 +3252,23 @@ function NodeInlineActionButton({
   const [active, setActive] = useState(false);
   const interactive = !disabled;
   const lit = interactive && (hover || active);
+  // Reads as a real button at rest (subtle fill + hairline), strengthens on
+  // hover, presses on active. Consistent whether it sits bare on the row or
+  // inside the hover toolbar.
   const background = disabled
     ? "transparent"
     : active
-      ? "rgba(42,49,71,0.18)"
+      ? "rgba(42,49,71,0.20)"
       : hover
-        ? "rgba(42,49,71,0.10)"
+        ? "rgba(42,49,71,0.13)"
         : inverted
-          ? "rgba(42,49,71,0.08)"
-          : "transparent";
+          ? "rgba(42,49,71,0.12)"
+          : "rgba(42,49,71,0.06)";
+  const borderColor = disabled
+    ? "transparent"
+    : lit
+      ? "rgba(42,49,71,0.22)"
+      : "rgba(42,49,71,0.12)";
   const color = disabled
     ? CHROME.muted2
     : lit || inverted
@@ -3302,11 +3308,12 @@ function NodeInlineActionButton({
       style={{
         width: dim,
         height: dim,
+        boxSizing: "border-box",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 6,
-        border: "none",
+        border: `1px solid ${borderColor}`,
         background,
         color,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -3315,7 +3322,7 @@ function NodeInlineActionButton({
         flexShrink: 0,
         fontSize: compact ? 11 : 12,
         transition:
-          "background 110ms ease, color 110ms ease, transform 90ms ease",
+          "background 110ms ease, color 110ms ease, border-color 110ms ease, transform 90ms ease",
         transform: active ? "scale(0.9)" : "scale(1)",
       }}
     >
