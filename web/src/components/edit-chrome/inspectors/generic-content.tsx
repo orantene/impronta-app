@@ -44,12 +44,13 @@ export function GenericContent({
   }
   const Editor = entry.Editor;
   return (
-    <div className="text-sm [&_details]:hidden">
+    <div className="text-sm [&_[data-presentation-panel]]:hidden">
       {/*
-        The registry Editor carries a collapsed <details>Presentation</details>
-        panel for the composer route. We hide it in the inspector (Layout +
-        Style tabs are canonical) via the utility selector above so the
-        generic fallback stays tidy without editing every per-type form.
+        The registry Editor carries a collapsed Presentation panel for the
+        composer route (PresentationPanel, marked data-presentation-panel).
+        We hide ONLY that panel in the inspector (Layout + Style tabs are
+        canonical) — NOT every <details>, so editors are free to use
+        <details> for their own content rows without vanishing here.
       */}
       <Editor
         initial={draftProps as never}
