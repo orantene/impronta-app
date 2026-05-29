@@ -228,7 +228,7 @@ export function TalentRegistrationDrawer() {
         if (!v) return false;
         return Array.isArray(v) ? v.length > 0 : v.toString().trim().length > 0;
       }
-      const r = validateField(entry, fields[f.id], g.parent.id);
+      const r = validateField(entry, fields[f.id], g.parent.id, workspaceScopeTenantId);
       return r.ok;
     })
   );

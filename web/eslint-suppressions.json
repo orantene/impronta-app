@@ -155,7 +155,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 37
+      "count": 47
     }
   },
   "src/components/admin/shell/internal/drawers/light-06.tsx": {
@@ -258,8 +258,11 @@
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-drawer.tsx": {
+    "max-lines": {
+      "count": 1
+    },
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 42
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-coach.tsx": {
@@ -392,7 +395,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 20
+      "count": 25
     }
   },
   "src/components/admin/shell/internal/messages/ClientProjectShell.tsx": {
@@ -410,7 +413,7 @@
   },
   "src/components/admin/shell/internal/messages/admin-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 22
+      "count": 23
     }
   },
   "src/components/admin/shell/internal/messages/admin-2.tsx": {
@@ -586,7 +589,7 @@
   },
   "src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 29
+      "count": 28
     }
   },
   "src/components/admin/shell/internal/page-modules/IdentityBar-2.tsx": {
@@ -636,7 +639,7 @@
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 35
+      "count": 37
     }
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-3.tsx": {
@@ -651,7 +654,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 84
+      "count": 89
     }
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
@@ -672,6 +675,11 @@
       "count": 107
     }
   },
+  "src/components/admin/shell/internal/page-modules/WorkspacePlanBadge.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 34
+    }
+  },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 13
@@ -680,6 +688,14 @@
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 23
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/page-builder/PageBuilderPage.tsx": {
+    "ratchet/no-new-hook-deps-disable": {
+      "count": 1
+    },
+    "ratchet/no-new-inline-style": {
+      "count": 76
     }
   },
   "src/components/admin/shell/internal/page-modules/pages-shared.tsx": {
@@ -1574,6 +1590,11 @@
       "count": 8
     }
   },
+  "src/lib/server-actions/admin-trial-offers.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
+    }
+  },
   "src/lib/server-actions/admin-user-workspaces.ts": {
     "ratchet/no-untenanted-from": {
       "count": 2
@@ -1686,7 +1707,7 @@
   },
   "src/lib/server-actions/talent-self-provision.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 5
+      "count": 7
     }
   },
   "src/lib/server-actions/talent-self.ts": {

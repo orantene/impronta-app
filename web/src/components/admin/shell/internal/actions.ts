@@ -221,6 +221,208 @@ export async function addTalentToRoster(
   return { ok: true as const, talentProfileId, warnings };
 }
 
+// ── Create Draft (autosave — first blur) ───────────────────────────────────────
+
+/**
+ * Allocates a minimal `draft` talent_profiles row + roster entry on the first
+ * name-field blur. Returns the new talentProfileId for subsequent patch calls.
+ * Callers should discard this draft if the drawer is dismissed without saving.
+ */
+export async function createTalentDraft(
+  tenantSlug: string,
+  firstName: string,
+  lastName: string,
+): Promise<ActionResult & { talentProfileId?: string }> {
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, error: "Not authenticated." };
+
+  const scope = await getTenantScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false, error: "Workspace not found." };
+
+  const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
+  if (!canEdit) return { ok: false, error: "You don't have permission to add talent." };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const seats = await checkRosterSeatAvailability(admin, scope.tenantId, 1);
+  if (!seats.ok) return { ok: false, error: seats.message };
+
+  const { data: codeRow, error: codeErr } = await admin.rpc("generate_profile_code");
+  if (codeErr || !codeRow) {
+    logServerError("admin-shell._actions.createTalentDraft/code", codeErr);
+    return { ok: false, error: "Could not allocate a profile code. Try again." };
+  }
+
+  const displayName = `${firstName} ${lastName}`.trim() || firstName || lastName;
+  const { data: inserted, error: insertErr } = await admin
+    .from("talent_profiles")
+    .insert({
+      profile_code:      String(codeRow),
+      display_name:      displayName,
+      first_name:        firstName || null,
+      last_name:         lastName || null,
+      workflow_status:   "draft",
+      visibility:        "hidden",
+      membership_tier:   "free",
+      membership_status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !inserted) {
+    logServerError("admin-shell._actions.createTalentDraft/insert", insertErr);
+    return { ok: false, error: "Could not create draft. Try again." };
+  }
+
+  const talentProfileId = inserted.id as string;
+  const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
+
+  const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
+    tenant_id:           scope.tenantId,
+    source_workspace_id: scope.tenantId,
+    origin_domain:       originDomain,
+    talent_profile_id:   talentProfileId,
+    source_type:         "agency_created",
+    status:              "active",
+    agency_visibility:   "roster_only",
+    added_by:            session.user.id,
+  });
+
+  if (rosterErr) {
+    logServerError("admin-shell._actions.createTalentDraft/roster", rosterErr);
+    await admin.from("talent_profiles").delete().eq("id", talentProfileId);
+    return { ok: false, error: "Could not add to roster. Try again." };
+  }
+
+  revalidatePath(`/${tenantSlug}/admin/roster`, "page");
+  return { ok: true as const, talentProfileId };
+}
+
+// ── Patch Draft (autosave — subsequent blurs) ──────────────────────────────────
+
+const patchDraftSchema = z.object({
+  tenantSlug:           z.string().min(1),
+  talentProfileId:      z.string().uuid(),
+  firstName:            z.string().trim().optional(),
+  lastName:             z.string().trim().optional(),
+  displayName:          z.string().trim().optional(),
+  email:                z.string().trim().optional(),
+  phone:                z.string().trim().optional(),
+  homeBase:             z.string().trim().optional(),
+  pronunciation:        z.string().trim().optional(),
+  primaryTypeSlugorId:  z.string().trim().optional(),
+});
+
+export async function patchTalentDraft(
+  input: z.input<typeof patchDraftSchema>,
+): Promise<ActionResult> {
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, error: "Not authenticated." };
+
+  const parsed = patchDraftSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const d = parsed.data;
+
+  const scope = await getTenantScopeBySlug(d.tenantSlug);
+  if (!scope) return { ok: false, error: "Workspace not found." };
+
+  const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
+  if (!canEdit) return { ok: false, error: "You don't have permission." };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Verify this draft belongs to this tenant's roster before patching.
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", d.talentProfileId)
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Draft not found in this workspace." };
+
+  const patch: Record<string, string | null> = {};
+  if (d.firstName !== undefined)   patch.first_name = d.firstName || null;
+  if (d.lastName !== undefined)    patch.last_name = d.lastName || null;
+  if (d.displayName !== undefined || d.firstName !== undefined || d.lastName !== undefined) {
+    patch.display_name = d.displayName?.trim() ||
+      `${d.firstName ?? ""} ${d.lastName ?? ""}`.trim() || null;
+  }
+  if (d.email !== undefined)         patch.invitation_email = d.email || null;
+  if (d.phone !== undefined)         patch.phone = d.phone || null;
+  if (d.homeBase !== undefined)      patch.home_city_text = d.homeBase || null;
+  if (d.pronunciation !== undefined) patch.pronunciation = d.pronunciation || null;
+
+  if (Object.keys(patch).length > 0) {
+    const { error: updateErr } = await admin
+      .from("talent_profiles")
+      .update(patch)
+      .eq("id", d.talentProfileId);
+    if (updateErr) {
+      logServerError("admin-shell._actions.patchTalentDraft/update", updateErr);
+      return { ok: false, error: "Patch failed." };
+    }
+  }
+
+  if (d.primaryTypeSlugorId) {
+    const { assignTaxonomyTermToProfile, resolveTenantTalentTypeTermId: resolve } =
+      await import("@/lib/talent-taxonomy-service");
+    const resolved = await resolve(admin, {
+      tenantId: scope.tenantId,
+      slugOrId: d.primaryTypeSlugorId,
+      relationshipType: "primary_role",
+    });
+    if (resolved.ok) {
+      await admin.from("talent_profile_taxonomy").delete()
+        .eq("talent_profile_id", d.talentProfileId)
+        .eq("relationship_type", "primary_role");
+      await assignTaxonomyTermToProfile(admin, {
+        talentProfileId: d.talentProfileId,
+        taxonomyTermId: resolved.termId,
+        relationshipType: "primary_role",
+      });
+    }
+  }
+
+  return { ok: true as const };
+}
+
+// ── Discard Draft ──────────────────────────────────────────────────────────────
+
+export async function discardTalentDraft(
+  tenantSlug: string,
+  talentProfileId: string,
+): Promise<ActionResult> {
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, error: "Not authenticated." };
+
+  const scope = await getTenantScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false, error: "Workspace not found." };
+
+  const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
+  if (!canEdit) return { ok: false, error: "You don't have permission." };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Draft not found." };
+
+  await admin.from("agency_talent_roster").delete().eq("id", rosterRow.id);
+  await admin.from("talent_profiles").delete().eq("id", talentProfileId);
+
+  revalidatePath(`/${tenantSlug}/admin/roster`, "page");
+  return { ok: true as const };
+}
+
 // ─── Bulk Add Talent (CSV import) ─────────────────────────────────────────────
 //
 // Calls addTalentToRoster sequentially for each row so per-row failures

@@ -57,17 +57,21 @@ function daysUntil(iso: string): number {
 
 export function DomainDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
-  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
+  const { state, closeDrawer, openUpgrade, toast, effectiveTenant } = useAdminShell();
   const [pending, startTransition] = useTransition();
-  const isLive = meetsPlan(state.plan, "studio");
+  const isStudio = meetsPlan(state.plan, "studio");
   // I3 — read live domain status from the Website page's source of
   // truth so the drawer stays in sync with WebsiteDomainPanel.
   const domain = WEBSITE_STATE.domain;
-  const [customDomain, setCustomDomain] = useState(isLive ? domain.primaryDomain : "");
+  const [customDomain, setCustomDomain] = useState(isStudio ? domain.primaryDomain : "");
   const [redirectToWww, setRedirectToWww] = useState(domain.redirectsToWww);
   const [loaded, setLoaded] = useState(false);
 
+  // The assigned Tulala subdomain — always real, comes from the bridge.
+  const tulalaSubdomain = effectiveTenant.domain;
+
   useEffect(() => {
+    if (!isStudio) { setLoaded(true); return; }
     let cancelled = false;
     void loadAgencySettingsNamespace("", "domain").then((r) => {
       if (cancelled) return;
@@ -79,7 +83,7 @@ export function DomainDrawer() {
       setLoaded(true);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [isStudio]);
 
   const onSave = () => {
     startTransition(async () => {
@@ -95,7 +99,7 @@ export function DomainDrawer() {
   const dnsAllMatched = (domain.dnsRecords ?? []).every(r => r.matched);
   const verified = domain.status === "verified" && dnsAllMatched;
   const sslHealthy = domain.sslStatus === "active";
-  const copy = (text: string, label: string) => {
+  const copyText = (text: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text).catch(() => {});
     }
@@ -106,31 +110,101 @@ export function DomainDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Custom domain"
-      description={isLive ? `Your storefront runs on ${domain.primaryDomain}.` : "Your storefront runs on Tulala's subdomain."}
+      title="Workspace domain"
+      description={
+        isStudio
+          ? `Your storefront runs on ${domain.primaryDomain}.`
+          : `Your storefront is live at ${tulalaSubdomain}.`
+      }
       width={580}
-      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
+      footer={
+        isStudio
+          ? <StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />
+          : undefined
+      }
     >
-      <Section title="Public URL">
-        <FieldRow label="Tulala subdomain" hint="Always available. Used as fallback.">
-          <TextInput defaultValue={effectiveTenant.domain} prefix="https://" />
+      <Section title="Your Tulala subdomain">
+        <FieldRow label="Subdomain" hint="Always available — your permanent address on the platform.">
+          {/* Read-only subdomain display with one-click copy.
+              Every plan can see and copy this; no plan gate. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+            <div style={{
+              flex: 1, display: "flex", alignItems: "center",
+              padding: "9px 12px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: COLORS.surfaceAlt,
+              fontFamily: "ui-monospace, monospace", fontSize: 13,
+              overflow: "hidden",
+            }}>
+              <span style={{ color: COLORS.inkMuted, marginRight: 2, userSelect: "none" }}>https://</span>
+              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{tulalaSubdomain}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => copyText(`https://${tulalaSubdomain}`, "Subdomain URL")}
+              style={{
+                padding: "7px 14px", borderRadius: 8,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: "#fff", cursor: "pointer",
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+                color: COLORS.ink, flexShrink: 0,
+              }}
+            >
+              Copy
+            </button>
+          </div>
         </FieldRow>
-        <FieldRow label="Custom domain" optional>
-          <TextInput
-            value={customDomain}
-            onChange={(e) => setCustomDomain((e.target as HTMLInputElement).value)}
-            placeholder="acme-models.com"
-            prefix="https://"
-          />
-        </FieldRow>
-        {isLive && (
+      </Section>
+
+      {isStudio ? (
+        <Section title="Custom domain" description="Point any domain you own at your Tulala storefront.">
+          <FieldRow label="Custom domain" optional>
+            <TextInput
+              value={customDomain}
+              onChange={(e) => setCustomDomain((e.target as HTMLInputElement).value)}
+              placeholder="acme-models.com"
+              prefix="https://"
+            />
+          </FieldRow>
           <FieldRow label="Redirect bare → www" optional hint="When on, atelier-roma.com is rewritten to www.atelier-roma.com at the edge.">
             <ToggleControl value={redirectToWww} label="" onChange={(v) => setRedirectToWww(v)} />
           </FieldRow>
-        )}
-      </Section>
+        </Section>
+      ) : (
+        /* Free tier: show upsell instead of the custom-domain input. */
+        <Section title="Custom domain" description="Run your storefront at your own brand's domain.">
+          <div style={{
+            padding: "16px 16px", borderRadius: 10,
+            background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}20`,
+            display: "flex", flexDirection: "column", gap: 10,
+          }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+              Your storefront lives at <span style={{ fontFamily: "ui-monospace, monospace", color: COLORS.accent }}>{tulalaSubdomain}</span>.
+            </div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+              Want a branded domain? Upgrade to Studio to connect your own domain (e.g.&nbsp;<em>your-agency.com</em>), auto-renew SSL, and use a verified email-from address.
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                closeDrawer();
+                openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain — not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] });
+              }}
+              style={{
+                alignSelf: "flex-start",
+                padding: "8px 16px", borderRadius: 999,
+                border: "none", cursor: "pointer",
+                background: COLORS.accent, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700,
+              }}
+            >
+              Upgrade to Studio →
+            </button>
+          </div>
+        </Section>
+      )}
 
-      {isLive && (
+      {isStudio && (
         <Section title="Verification & SSL">
           <div
             style={{
@@ -183,7 +257,7 @@ export function DomainDrawer() {
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{r.value}</span>
                       <button
                         type="button"
-                        onClick={() => copy(r.value, `${r.type} value`)}
+                        onClick={() => copyText(r.value, `${r.type} value`)}
                         style={{
                           padding: "2px 8px", borderRadius: 999,
                           border: `1px solid ${COLORS.borderSoft}`,
@@ -222,7 +296,7 @@ export function DomainDrawer() {
         </Section>
       )}
 
-      {isLive && domain.alternateDomains.length > 0 && (
+      {isStudio && domain.alternateDomains.length > 0 && (
         <Section title="Alternate domains" description="Additional domains that redirect to the primary.">
           <div className="flex flex-col gap-1.5">
             {domain.alternateDomains.map(d => (
@@ -259,8 +333,8 @@ export function DomainDrawer() {
         </Section>
       )}
 
-      {!isLive && (
-        <Section title="Why upgrade" description="Studio takes you off the Tulala subdomain and onto your own brand.">
+      {!isStudio && (
+        <Section title="What Studio unlocks" description="Beyond your Tulala subdomain.">
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
             {["Your own domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address", "Removed from Tulala discovery"].map((p) => (
               <li key={p} style={{ display: "flex", gap: 10, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>

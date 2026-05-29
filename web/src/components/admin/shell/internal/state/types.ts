@@ -1498,7 +1498,8 @@ export type DiscoverTalent = {
 export type TaxonomyParentId =
   | "models" | "hosts" | "performers" | "music" | "creators"
   | "chefs" | "wellness" | "hospitality" | "transportation"
-  | "photo_video" | "event_staff" | "security";
+  | "photo_video" | "event_staff" | "security"
+  | "services";
 
 /**
  * A specific bookable Talent Type (the answer to "I need a ___").

@@ -25,8 +25,11 @@ export function CalendarPage() {
   // Build event map. When bridge calendar events are available, use ISO
   // dates directly. Otherwise fall back to RICH_INQUIRIES + parseInquiryDays.
   const events: Record<number, { id: string; title: string; tone: "ink" | "green" | "amber" | "red" }[]> = {};
-  if (effectiveCalendarEvents != null && effectiveCalendarEvents.length > 0) {
+  if (effectiveCalendarEvents != null) {
     // Bridge path: ISO date strings, filter to current month/year.
+    // Empty array = real workspace with no bookings → calendar stays blank;
+    // no RICH_INQUIRIES mock fallback. Previously guarded by `length > 0`,
+    // which caused new workspaces to see Mango / Vogue Italia mock events.
     effectiveCalendarEvents.forEach((ev) => {
       const d = new Date(ev.event_date + "T00:00:00");
       if (d.getFullYear() !== year || d.getMonth() !== month) return;

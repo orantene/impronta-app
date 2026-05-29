@@ -9,7 +9,7 @@
  * detail page.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HQ, HQ_F, HQ_FM, PlanChip, StatusDot, EntityChip } from "./hq-kit";
@@ -245,6 +245,14 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [openId, setOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  // Tenants whose override dot was just cleared in-drawer; suppress the dot
+  // until router.refresh() lands fresh server rows, which reconcile reality.
+  const [clearedOverrides, setClearedOverrides] = useState<Set<string>>(() => new Set());
+
+  // Fresh server rows arrived — drop optimistic suppression and trust the data.
+  useEffect(() => {
+    setClearedOverrides((prev) => (prev.size === 0 ? prev : new Set()));
+  }, [rows]);
 
   const statusOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.status))).sort(),
@@ -476,7 +484,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                     <td style={{ padding: "10px 12px" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                         <PlanChip plan={r.plan} />
-                        {r.hasActiveOverride && (
+                        {r.hasActiveOverride && !clearedOverrides.has(r.id) && (
                           <span
                             title={`Plan override active — ${expiryLabel(r.overrideExpiresAt)}`}
                             style={{
@@ -585,7 +593,17 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
         </div>
       </section>
 
-      <TenantDrawer tenantId={openId} onClose={() => setOpenId(null)} />
+      <TenantDrawer
+        tenantId={openId}
+        onClose={() => setOpenId(null)}
+        onChanged={(id) =>
+          setClearedOverrides((prev) => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+          })
+        }
+      />
       {showCreate && (
         <CreateWorkspaceModal
           onClose={() => setShowCreate(false)}

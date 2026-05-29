@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import * as Sentry from "@sentry/nextjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -34,23 +35,34 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 500 });
   }
 
-  const startedAt = new Date().toISOString();
-  const { data, error } = await supabase.rpc(
-    "refresh_talent_skill_metrics_all",
+  return await Sentry.withMonitor(
+    "skill-metrics-refresh",
+    async () => {
+      const startedAt = new Date().toISOString();
+      const { data, error } = await supabase.rpc(
+        "refresh_talent_skill_metrics_all",
+      );
+
+      if (error) {
+        logServerError("cron/skill-metrics-refresh", error);
+        return NextResponse.json(
+          { ok: false, error: error.message, startedAt },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        pairsWritten: typeof data === "number" ? data : null,
+      });
+    },
+    {
+      schedule: { type: "crontab", value: "0 4 * * *" },
+      checkinMargin: 5,
+      maxRuntime: 25,
+      timezone: "UTC",
+    },
   );
-
-  if (error) {
-    logServerError("cron/skill-metrics-refresh", error);
-    return NextResponse.json(
-      { ok: false, error: error.message, startedAt },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    startedAt,
-    completedAt: new Date().toISOString(),
-    pairsWritten: typeof data === "number" ? data : null,
-  });
 }

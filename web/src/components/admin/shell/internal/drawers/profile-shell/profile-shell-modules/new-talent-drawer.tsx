@@ -1,6 +1,6 @@
 // QuickAdd drawer: single-talent entry, CSV import, then full profile handoff.
 "use client";
-import React, { useState, useEffect, useMemo, useRef, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useRef, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -22,8 +22,11 @@ import {
   addTalentToRoster,
   bulkAddTalentToRoster,
   clearProfileDraft,
+  createTalentDraft,
+  discardTalentDraft,
   getEnabledTaxonomyTree,
   patchProfileDraft,
+  patchTalentDraft,
   resolvedFieldsForMode,
   useAdminShell,
   useLiveTaxonomy,
@@ -37,6 +40,66 @@ import {
   qaInputStyle,
 } from "./talent-type-picker";
 import { buildNewTalentPickerTaxonomy } from "./new-talent-taxonomy";
+
+// ── F14/F15 — Publish checklist ────────────────────────────────────────────────
+function PublishChecklist({
+  hasName, hasPrimaryType, hasHomeBase, hasPhoto,
+  saveState, draftId, onDiscard,
+}: {
+  hasName: boolean; hasPrimaryType: boolean; hasHomeBase: boolean; hasPhoto: boolean;
+  saveState: "idle" | "saving" | "saved" | "error";
+  draftId: string | null;
+  onDiscard: () => void;
+}) {
+  const items = [
+    { label: "Name",              done: hasName },
+    { label: "Primary talent type", done: hasPrimaryType },
+    { label: "Home base",         done: hasHomeBase },
+    { label: "At least one photo",done: hasPhoto },
+  ];
+  const allDone = items.every(i => i.done);
+  const anyStarted = items.some(i => i.done);
+  if (!anyStarted && saveState === "idle") return null;
+
+  return (
+    <div style={{
+      marginTop: 12, padding: "12px 14px", borderRadius: 10,
+      border: `1px solid ${allDone ? "rgba(15,79,62,0.25)" : COLORS.borderSoft}`,
+      background: allDone ? "rgba(15,79,62,0.04)" : "rgba(11,11,13,0.03)",
+      fontFamily: FONTS.body,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}
+          className={allDone ? "text-admin-accent-deep" : "text-admin-ink-muted"}>
+          {allDone ? "Ready to publish" : "Before publishing"}
+        </span>
+        <span style={{ fontSize: 10.5 }} className="text-admin-ink-dim">
+          {saveState === "saving" && "Saving…"}
+          {saveState === "saved" && "✓ Draft saved"}
+          {saveState === "error" && "⚠ Save failed"}
+        </span>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
+        {items.map(it => (
+          <span key={it.label} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: it.done ? 600 : 500 }}
+            className={it.done ? "text-admin-green" : "text-admin-ink-muted"}>
+            <span style={{ fontSize: 10, lineHeight: 1 }}>{it.done ? "✓" : "○"}</span>
+            {it.label}
+          </span>
+        ))}
+      </div>
+      {draftId && (
+        <button type="button" onClick={onDiscard} style={{
+          marginTop: 10, background: "none", border: "none", cursor: "pointer",
+          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, padding: 0,
+        }} className="text-admin-ink-muted">
+          Discard this draft →
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function NewTalentDrawer() {
   const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant, bridgeTenantIdentity } = useAdminShell();
   const router = useRouter();
@@ -70,6 +133,10 @@ export function NewTalentDrawer() {
   // #12 — Tab between single-talent quick-add and CSV bulk import.
   const [addMode, setAddMode] = useState<"single" | "csv">("single");
   const [tenantTaxonomyTree, setTenantTaxonomyTree] = useState<TaxonomyNode[] | null>(null);
+  // F4 — autosave draft state
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live taxonomy (PR-A) — picker source.
   const live = useLiveTaxonomy();
@@ -132,6 +199,59 @@ export function NewTalentDrawer() {
     contact: email,
   });
   const workspaceScopeTenantId = bridgeTenantIdentity?.tenantId ?? bridgeTenantIdentity?.slug ?? tenantSlug ?? PROTO_TENANT_ID;
+
+  // F4 — Create a persistent draft row on the first name-field blur.
+  const createDraft = useCallback(async () => {
+    if (!tenantSlug || draftId) return;
+    const name = firstName.trim() || lastName.trim();
+    if (!name) return;
+    setSaveState("saving");
+    const res = await createTalentDraft(tenantSlug, firstName.trim(), lastName.trim());
+    if (res.ok && res.talentProfileId) {
+      setDraftId(res.talentProfileId);
+      setSaveState("saved");
+    } else {
+      setSaveState("error");
+    }
+  }, [tenantSlug, draftId, firstName, lastName]);
+
+  // F4 — Schedule a debounced patch 400ms after a field blurs.
+  const schedulePatch = useCallback(() => {
+    if (!tenantSlug || !draftId) return;
+    if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
+    setSaveState("saving");
+    patchTimerRef.current = setTimeout(async () => {
+      const res = await patchTalentDraft({
+        tenantSlug,
+        talentProfileId: draftId,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        displayName: displayName.trim(),
+        email: email.trim(),
+        phone: phoneCountry && phone ? `${phoneCountry} ${phone}` : phone,
+        homeBase: homeBase.trim(),
+        primaryTypeSlugorId: primaryType ?? undefined,
+      });
+      setSaveState(res.ok ? "saved" : "error");
+    }, 400);
+  }, [tenantSlug, draftId, firstName, lastName, displayName, email, phone, phoneCountry, homeBase, primaryType]);
+
+  // Patch when primaryType changes after a draft is open (no blur event for type picker).
+  useEffect(() => {
+    if (draftId && primaryType) schedulePatch();
+  }, [primaryType, draftId, schedulePatch]);
+
+  // F4 — Discard: delete the draft row then close.
+  const handleDiscard = useCallback(async () => {
+    if (tenantSlug && draftId) {
+      await discardTalentDraft(tenantSlug, draftId);
+    }
+    setDraftId(null);
+    setSaveState("idle");
+    clearProfileDraft("default");
+    closeDrawer();
+  }, [tenantSlug, draftId, closeDrawer]);
+
   // ── CTA handlers — use real server action in production, mock in prototype ──
   const runAdd = (managementMethod: "agency" | "invited" | "draft", afterOk: (id?: string) => void) => {
     if (!tenantSlug) {
@@ -216,15 +336,48 @@ export function NewTalentDrawer() {
     });
   };
 
-  // Primary CTA copy is intentionally explicit so admins know what
-  // happens next. Invited → email goes out and talent finishes their
-  // own profile. Agency-managed → drawer hands off to the full Profile
-  // Shell where admin completes everything. Draft → quietly saves.
-  const primaryAction = method === "invited"
+  // F14/F15 — Footer semantics: "Save draft & exit" (always) + "Publish"
+  // (gated on the checklist). The legacy method-based primary CTA is
+  // demoted to a hint inside the Management section.
+  const allChecklistDone =
+    !!(firstName.trim() || lastName.trim() || displayName.trim()) &&
+    !!primaryType &&
+    !!homeBase.trim() &&
+    !!photoUrl;
+
+  const saveDraftAndExit = () => {
+    if (!tenantSlug) {
+      // Prototype mode — local mock only.
+      toast(`${computedDisplayName || "Talent"} saved as draft`);
+      clearProfileDraft("default");
+      closeDrawer();
+      return;
+    }
+    // Live mode — the draft is already persisted via autosave on blur.
+    // A pending debounced patch (if any) will complete in the background.
+    toast(draftId ? "Draft saved" : "Closed without changes");
+    clearProfileDraft("default");
+    closeDrawer();
+  };
+
+  const publish = () => {
+    if (!allChecklistDone) return;
+    // Live mode + draft already exists → hand off to the full editor at
+    // the existing draftId. No duplicate row.
+    if (tenantSlug && draftId) {
+      closeDrawer();
+      router.push(`/${tenantSlug}/admin/roster/${draftId}`);
+      return;
+    }
+    // Prototype mode or no draftId yet → use the legacy create-and-handoff.
+    continueEditing();
+  };
+
+  // Alternative CTAs surfaced from the Management method picker (visible
+  // only when the admin explicitly picks an non-default method).
+  const altCta = method === "invited"
     ? { label: isPending ? "Sending…" : "Send claim invite", run: sendInvite, enabled: inviteValid && !isPending }
-    : method === "draft"
-    ? { label: isPending ? "Saving…" : "Save as draft", run: saveDraft, enabled: minimumValid && !isPending }
-    : { label: isPending ? "Creating…" : "Create + open full profile", run: continueEditing, enabled: minimumValid && !isPending };
+    : null;
 
   // #11 — Paste a vCard / Instagram handle / LinkedIn URL / plain text
   // contact. Parser detects shape and autofills first name + last name +
@@ -309,19 +462,26 @@ export function NewTalentDrawer() {
       width={620}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          {method !== "invited" && method !== "agency" && (
-            <SecondaryButton onClick={continueEditing}>Continue editing</SecondaryButton>
+          <SecondaryButton onClick={handleDiscard}>
+            {draftId ? "Discard draft" : "Cancel"}
+          </SecondaryButton>
+          <SecondaryButton onClick={saveDraftAndExit}>
+            Save draft & exit
+          </SecondaryButton>
+          {altCta && (
+            <SecondaryButton onClick={altCta.run}>
+              {altCta.label}
+            </SecondaryButton>
           )}
           <span
-            title={!primaryAction.enabled && !isPending ? "Pick a primary type and home base to continue" : undefined}
+            title={!allChecklistDone && !isPending ? "Complete the checklist above to publish" : undefined}
             style={{ display: "inline-flex" }}
           >
             <PrimaryButton
-              onClick={primaryAction.run}
-              disabled={!primaryAction.enabled}
+              onClick={publish}
+              disabled={!allChecklistDone || isPending}
             >
-              {primaryAction.label}
+              {isPending ? "Publishing…" : "Publish"}
             </PrimaryButton>
           </span>
         </>
@@ -481,9 +641,11 @@ export function NewTalentDrawer() {
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           <div className="flex gap-1.5">
             <input type="text" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+              onBlur={() => { void createDraft(); if (draftId) schedulePatch(); }}
               style={qaInputStyle()}
             />
             <input type="text" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)}
+              onBlur={() => { void createDraft(); if (draftId) schedulePatch(); }}
               style={qaInputStyle()}
             />
           </div>
@@ -503,6 +665,7 @@ export function NewTalentDrawer() {
           <div className="relative">
             <input type="email" placeholder="talent@example.com"
               value={email} onChange={(e) => setEmail(e.target.value)}
+              onBlur={schedulePatch}
               style={{
                 width: "100%", boxSizing: "border-box",
                 padding: "10px 90px 10px 12px", borderRadius: 10,
@@ -539,6 +702,7 @@ export function NewTalentDrawer() {
             </select>
             <input type="tel" placeholder="612 345 678"
               value={phone} onChange={(e) => setPhone(e.target.value)}
+              onBlur={schedulePatch}
               style={qaInputStyle()}
             />
           </div>
@@ -719,6 +883,7 @@ export function NewTalentDrawer() {
         <FieldRow label="Where is this talent based?" hint="Service areas + travel radius are set in the full profile.">
           <input type="text" placeholder="e.g. Playa del Carmen"
             value={homeBase} onChange={(e) => setHomeBase(e.target.value)}
+            onBlur={schedulePatch}
             style={qaInputStyle()}
           />
         </FieldRow>
@@ -774,18 +939,17 @@ export function NewTalentDrawer() {
         </>
       )}
 
-      {/* Inline hint when required fields aren't filled yet */}
-      {addMode === "single" && !minimumValid && (firstName.trim() || lastName.trim()) && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "rgba(11,11,13,0.04)", fontFamily: FONTS.body, fontSize: 12, marginTop: 4 }} className="text-admin-ink-muted">
-          <span className="shrink-0">ℹ</span>
-          <span>
-            {!primaryType && !homeBase.trim()
-              ? "Pick a primary type and home base to continue"
-              : !primaryType
-                ? "Pick a primary type to continue"
-                : "Enter a home base to continue"}
-          </span>
-        </div>
+      {/* F14/F15 — Publish checklist (replaces cascade one-at-a-time errors) */}
+      {addMode === "single" && (
+        <PublishChecklist
+          hasName={!!(firstName.trim() || lastName.trim() || displayName.trim())}
+          hasPrimaryType={!!primaryType}
+          hasHomeBase={!!homeBase.trim()}
+          hasPhoto={!!photoUrl}
+          saveState={saveState}
+          draftId={draftId}
+          onDiscard={handleDiscard}
+        />
       )}
 
       {/* #11 — Paste-anywhere fallback when clipboard.readText is denied */}
