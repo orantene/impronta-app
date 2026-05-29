@@ -388,6 +388,37 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /border-radius:8px/);
   });
 
+  it("renders a free aspect-ratio that overrides the ratio enum", () => {
+    const html = render([
+      {
+        id: "free:aspect",
+        kind: "image",
+        props: {
+          src: "https://example.com/a.jpg",
+          alt: "Cinematic",
+          style: {
+            // Enum and free are both set — free must win at the desktop level.
+            aspectRatio: "1:1",
+            aspectRatioFree: "1.85",
+            responsive: {
+              tablet: { aspectRatioFree: "2 / 3" },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop inline carries the free ratio (literal absent from the static
+    // sheet, which only has `aspect-ratio:var(--bn-…)` rules).
+    assert.match(html, /aspect-ratio:1\.85/);
+    // The enum value never makes it to the inline style — free won.
+    assert.doesNotMatch(html, /aspect-ratio:1 \/ 1/);
+    // Tablet free override is gated by its own empty-string data-attr.
+    assert.match(html, /data-builder-style-tablet-aspect-free=""/);
+    // No mobile override, so that gate attr stays absent.
+    assert.doesNotMatch(html, /data-builder-style-mobile-aspect-free=""/);
+  });
+
   it("renders freeform surface escapes (shadow, background image, opacity)", () => {
     const html = render([
       {

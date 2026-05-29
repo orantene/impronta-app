@@ -143,6 +143,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-fit]{object-fit:var(--bn-tablet-fit)!important}
   .site-builder-node[data-builder-style-tablet-object-position]{object-position:var(--bn-tablet-object-position)!important}
   .site-builder-node[data-builder-style-tablet-ratio]{aspect-ratio:var(--bn-tablet-ratio)!important}
+  .site-builder-node[data-builder-style-tablet-aspect-free]{aspect-ratio:var(--bn-tablet-aspect-free)!important}
   .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
   .site-builder-node[data-builder-style-tablet-font-family]{font-family:var(--bn-tablet-font-family)!important}
   .site-builder-node[data-builder-style-tablet-font-size]{font-size:var(--bn-tablet-font-size)!important}
@@ -226,6 +227,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-fit]{object-fit:var(--bn-mobile-fit)!important}
   .site-builder-node[data-builder-style-mobile-object-position]{object-position:var(--bn-mobile-object-position)!important}
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
+  .site-builder-node[data-builder-style-mobile-aspect-free]{aspect-ratio:var(--bn-mobile-aspect-free)!important}
   .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
   .site-builder-node[data-builder-style-mobile-font-family]{font-family:var(--bn-mobile-font-family)!important}
   .site-builder-node[data-builder-style-mobile-font-size]{font-size:var(--bn-mobile-font-size)!important}
@@ -331,6 +333,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-fit": tablet?.objectFit,
     "data-builder-style-tablet-object-position": tablet?.objectPosition,
     "data-builder-style-tablet-ratio": tablet?.aspectRatio,
+    "data-builder-style-tablet-aspect-free": tablet?.aspectRatioFree ? "" : undefined,
     "data-builder-style-tablet-hidden": tablet?.visibility === "hidden" ? "" : undefined,
     "data-builder-style-tablet-font-family": tablet?.fontFamily ? "" : undefined,
     "data-builder-style-tablet-font-size": tablet?.fontSize ? "" : undefined,
@@ -409,6 +412,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-fit": mobile?.objectFit,
     "data-builder-style-mobile-object-position": mobile?.objectPosition,
     "data-builder-style-mobile-ratio": mobile?.aspectRatio,
+    "data-builder-style-mobile-aspect-free": mobile?.aspectRatioFree ? "" : undefined,
     "data-builder-style-mobile-hidden": mobile?.visibility === "hidden" ? "" : undefined,
     "data-builder-style-mobile-font-family": mobile?.fontFamily ? "" : undefined,
     "data-builder-style-mobile-font-size": mobile?.fontSize ? "" : undefined,
@@ -522,6 +526,7 @@ function responsiveStyleVars(
     "--bn-tablet-ratio": style?.responsive?.tablet?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.tablet.aspectRatio]
       : undefined,
+    "--bn-tablet-aspect-free": style?.responsive?.tablet?.aspectRatioFree,
     "--bn-mobile-align": style?.responsive?.mobile?.align,
     "--bn-mobile-color": styleColor(style?.responsive?.mobile?.tone),
     "--bn-mobile-max-width": style?.responsive?.mobile?.maxWidth
@@ -548,6 +553,7 @@ function responsiveStyleVars(
     "--bn-mobile-ratio": style?.responsive?.mobile?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.mobile.aspectRatio]
       : undefined,
+    "--bn-mobile-aspect-free": style?.responsive?.mobile?.aspectRatioFree,
     // Free-value escapes — per-breakpoint overrides. Desktop applies these inline
     // in sharedNodeStyle; these vars only render when the breakpoint value is set,
     // gated by the matching data-attr so an unset var never clobbers the desktop
@@ -1365,7 +1371,9 @@ function renderBuilderNode(
             maxWidth: "100%",
             objectFit: node.props.style?.objectFit ?? "cover",
             objectPosition: node.props.style?.objectPosition ?? "center",
-            aspectRatio: NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
+            aspectRatio:
+              node.props.style?.aspectRatioFree ??
+              NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
             ...sharedNodeStyle(node.props.style),
             ...alignSelfStyle(node.props.style),
           }}

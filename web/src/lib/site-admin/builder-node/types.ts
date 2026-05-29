@@ -38,6 +38,9 @@ export interface BuilderNodeStyleValue {
   // value, e.g. "center", "left top", "50% 20%".
   objectPosition?: string;
   aspectRatio?: "auto" | "1:1" | "4:3" | "3:4" | "16:9" | "21:9";
+  // Free aspect-ratio override — any CSS aspect-ratio value ("1.85", "16 / 9",
+  // "2 / 3"). Wins over the aspectRatio enum at every breakpoint when set.
+  aspectRatioFree?: string;
   // Visibility — hide this node at the active viewport. On a breakpoint it hides
   // only there (desktop stays shown); on desktop it hides everywhere.
   visibility?: "visible" | "hidden";

@@ -881,6 +881,7 @@ function cleanBuilderNodeStyle(
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
   if (value.objectPosition) out.objectPosition = value.objectPosition;
+  if (value.aspectRatioFree) out.aspectRatioFree = value.aspectRatioFree;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
   if (value.visibility) out.visibility = value.visibility;
   if (value.fontFamily) out.fontFamily = value.fontFamily;
@@ -969,6 +970,7 @@ function cleanBuilderNodeStyleValue(
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
   if (value.objectPosition) out.objectPosition = value.objectPosition;
+  if (value.aspectRatioFree) out.aspectRatioFree = value.aspectRatioFree;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
   if (value.visibility) out.visibility = value.visibility;
   if (value.fontFamily) out.fontFamily = value.fontFamily;
@@ -6476,6 +6478,29 @@ export function StylePanel({
                     value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
                     onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
                     options={BUILDER_NODE_RATIO_OPTIONS}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatioFree">
+                  <span className={FIELD_LABEL}>Custom ratio</span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1.85 · 16 / 9 · 2 / 3"
+                    value={selectedStandaloneViewportStyle?.aspectRatioFree ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        aspectRatioFree: e.target.value.trim() || undefined,
+                      })
+                    }
                   />
                 </div>
               </>
