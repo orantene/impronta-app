@@ -49,7 +49,7 @@ export function InspectorItemRow({
           aria-label="Drag to reorder"
           title="Drag to reorder"
           {...handleProps}
-          className="flex size-6 shrink-0 cursor-grab items-center justify-center text-zinc-300 transition hover:text-zinc-600 active:cursor-grabbing"
+          className="flex size-6 shrink-0 cursor-grab items-center justify-center text-zinc-500 transition hover:text-zinc-600 active:cursor-grabbing"
         >
           <svg
             width="12"
