@@ -710,6 +710,22 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-filter=""/);
   });
 
+  it("themes builder nodes from design tokens (buttons, fonts, tones)", () => {
+    const html = render([
+      { id: "t:btn", kind: "button", props: { label: "Go", href: "/x", tone: "primary" } },
+      { id: "t:h", kind: "heading", props: { text: "Title", level: 2 } },
+      { id: "t:strong", kind: "paragraph", props: { text: "Bold", style: { tone: "strong" } } },
+    ]);
+
+    // Button color is wired to the brand primary token (literal fallback keeps the default).
+    assert.match(html, /background:var\(--token-color-primary,#111\)/);
+    // Heading + paragraph fonts wired to the themed font tokens (additive, inherit fallback).
+    assert.match(html, /font-family:var\(--site-heading-font,inherit\)/);
+    assert.match(html, /font-family:var\(--site-body-font,inherit\)/);
+    // Curated "strong" tone resolves to the ink token inline (distinct #111 fallback).
+    assert.match(html, /color:var\(--token-color-ink,#111\)/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

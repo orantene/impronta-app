@@ -110,12 +110,14 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--live-search-shell{display:flex;width:min(100%,680px);align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(18,18,18,0.16);background:#fff;padding:0.75rem 0.75rem 0.75rem 1rem}
 .site-builder-node--live-search-shell span{color:rgba(18,18,18,0.58)}
 .site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid rgba(18,18,18,0.18);border-radius:999px;padding:0.8rem 1.2rem;font-weight:700;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
-.site-builder-node--button[data-builder-button-tone="primary"]{background:#111;color:#fff}
-.site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:#111}
-.site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:#111!important;color:#fff!important;border-color:#111!important}
-.site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:#111!important;border-color:rgba(18,18,18,0.28)!important}
+.site-builder-node--button[data-builder-button-tone="primary"]{background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff)}
+.site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:var(--token-color-primary,#111)}
+.site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:var(--token-color-primary,#111)!important;color:var(--token-color-surface-raised,#fff)!important;border-color:var(--token-color-primary,#111)!important}
+.site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:var(--token-color-primary,#111)!important;border-color:rgba(18,18,18,0.28)!important}
 .site-builder-node--button[data-builder-button-disabled-tone="secondary"][aria-disabled="true"]{background:transparent;color:rgba(18,18,18,0.42);border-color:rgba(18,18,18,0.16);pointer-events:none}
 .site-builder-node--button[data-builder-button-disabled-tone="primary"][aria-disabled="true"]{background:rgba(18,18,18,0.35);color:#fff;border-color:rgba(18,18,18,0.08);pointer-events:none}
+.site-builder-node--heading{font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
+.site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -656,11 +658,11 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.radius) out.borderRadius = NODE_RADIUS[style.radius];
   if (style.background === "surface") out.background = "rgba(246, 241, 232, 0.92)";
   if (style.background === "contrast") {
-    out.background = "#111";
+    out.background = "var(--token-color-ink,#111)";
     out.color = "#fff";
   }
   if (style.tone === "muted") out.color = "rgba(18, 18, 18, 0.62)";
-  if (style.tone === "strong") out.color = "#111";
+  if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
   if (style.fontFamily) out.fontFamily = style.fontFamily;
   if (style.fontSize) out.fontSize = style.fontSize;
