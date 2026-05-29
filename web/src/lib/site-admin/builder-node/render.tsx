@@ -159,6 +159,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-padding-right]{padding-right:var(--bn-tablet-padding-right)!important}
   .site-builder-node[data-builder-style-tablet-padding-bottom]{padding-bottom:var(--bn-tablet-padding-bottom)!important}
   .site-builder-node[data-builder-style-tablet-padding-left]{padding-left:var(--bn-tablet-padding-left)!important}
+  .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
+  .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
+  .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -203,6 +206,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-padding-right]{padding-right:var(--bn-mobile-padding-right)!important}
   .site-builder-node[data-builder-style-mobile-padding-bottom]{padding-bottom:var(--bn-mobile-padding-bottom)!important}
   .site-builder-node[data-builder-style-mobile-padding-left]{padding-left:var(--bn-mobile-padding-left)!important}
+  .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
+  .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
+  .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -271,6 +277,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-padding-right": tablet?.paddingRight ? "" : undefined,
     "data-builder-style-tablet-padding-bottom": tablet?.paddingBottom ? "" : undefined,
     "data-builder-style-tablet-padding-left": tablet?.paddingLeft ? "" : undefined,
+    "data-builder-style-tablet-shadow": tablet?.boxShadow ? "" : undefined,
+    "data-builder-style-tablet-bg-image": tablet?.backgroundImage ? "" : undefined,
+    "data-builder-style-tablet-opacity":
+      typeof tablet?.opacity === "number" ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -305,6 +315,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-padding-right": mobile?.paddingRight ? "" : undefined,
     "data-builder-style-mobile-padding-bottom": mobile?.paddingBottom ? "" : undefined,
     "data-builder-style-mobile-padding-left": mobile?.paddingLeft ? "" : undefined,
+    "data-builder-style-mobile-shadow": mobile?.boxShadow ? "" : undefined,
+    "data-builder-style-mobile-bg-image": mobile?.backgroundImage ? "" : undefined,
+    "data-builder-style-mobile-opacity":
+      typeof mobile?.opacity === "number" ? "" : undefined,
   };
 }
 
@@ -437,6 +451,12 @@ function responsiveStyleVars(
     "--bn-mobile-padding-right": style?.responsive?.mobile?.paddingRight,
     "--bn-mobile-padding-bottom": style?.responsive?.mobile?.paddingBottom,
     "--bn-mobile-padding-left": style?.responsive?.mobile?.paddingLeft,
+    "--bn-tablet-shadow": style?.responsive?.tablet?.boxShadow,
+    "--bn-tablet-bg-image": style?.responsive?.tablet?.backgroundImage,
+    "--bn-tablet-opacity": style?.responsive?.tablet?.opacity,
+    "--bn-mobile-shadow": style?.responsive?.mobile?.boxShadow,
+    "--bn-mobile-bg-image": style?.responsive?.mobile?.backgroundImage,
+    "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
   });
 }
 
@@ -490,6 +510,16 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.paddingRight) out.paddingRight = style.paddingRight;
   if (style.paddingBottom) out.paddingBottom = style.paddingBottom;
   if (style.paddingLeft) out.paddingLeft = style.paddingLeft;
+  // Surface & depth escapes. A box-shadow layers over the token background; a
+  // background image/gradient is painted cover/center/no-repeat; opacity 0–1.
+  if (style.boxShadow) out.boxShadow = style.boxShadow;
+  if (style.backgroundImage) {
+    out.backgroundImage = style.backgroundImage;
+    out.backgroundSize = "cover";
+    out.backgroundPosition = "center";
+    out.backgroundRepeat = "no-repeat";
+  }
+  if (typeof style.opacity === "number") out.opacity = style.opacity;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

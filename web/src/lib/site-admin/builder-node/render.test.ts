@@ -379,6 +379,47 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /border-radius:8px/);
   });
 
+  it("renders freeform surface escapes (shadow, background image, opacity)", () => {
+    const html = render([
+      {
+        id: "free:surface",
+        kind: "heading",
+        props: {
+          text: "Surface styled",
+          level: 2,
+          style: {
+            boxShadow: "0 4px 8px rgba(18,18,18,0.06)",
+            backgroundImage: "linear-gradient(180deg,#fff,#000)",
+            opacity: 0.5,
+            responsive: {
+              mobile: {
+                boxShadow: "none",
+                backgroundImage: "url(/m.jpg)",
+                opacity: 1,
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop free values land inline on the element (match the specific value
+    // so we don't accidentally hit the static stylesheet's var() rules).
+    assert.match(html, /box-shadow:0 4px 8px/);
+    assert.match(html, /background-image:linear-gradient/);
+    assert.match(html, /opacity:0\.5/);
+    // Per-breakpoint overrides are gated by their own data-attr so an unset
+    // breakpoint never clobbers the desktop value at computed-value time. The
+    // gate renders as an empty-string attribute (`=""`), which distinguishes it
+    // from the bare `[data-...]` selectors that always appear in the CSS sheet.
+    assert.match(html, /data-builder-style-mobile-shadow=""/);
+    assert.match(html, /data-builder-style-mobile-bg-image=""/);
+    assert.match(html, /data-builder-style-mobile-opacity=""/);
+    // No tablet override was set, so the tablet gate attrs stay absent.
+    assert.doesNotMatch(html, /data-builder-style-tablet-shadow=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-opacity=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

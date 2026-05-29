@@ -63,6 +63,11 @@ export interface BuilderNodeStyleValue {
   paddingRight?: string;
   paddingBottom?: string;
   paddingLeft?: string;
+  // Surface & depth escapes. backgroundImage takes a CSS url()/gradient and is
+  // rendered cover/center/no-repeat. opacity is 0–1.
+  boxShadow?: string;
+  backgroundImage?: string;
+  opacity?: number;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

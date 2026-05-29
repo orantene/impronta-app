@@ -308,6 +308,13 @@ const BUILDER_NODE_VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = 
   { value: "hidden", label: "Hidden" },
 ];
 
+const BUILDER_NODE_SHADOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "0 1px 2px rgba(18,18,18,0.06), 0 1px 3px rgba(18,18,18,0.10)", label: "S" },
+  { value: "0 4px 8px rgba(18,18,18,0.06), 0 6px 16px rgba(18,18,18,0.12)", label: "M" },
+  { value: "0 12px 24px rgba(18,18,18,0.10), 0 20px 48px rgba(18,18,18,0.16)", label: "L" },
+];
+
 /**
  * Parse a stored CSS length string ("48px", "1.5rem") back into the
  * structured {value, unit} the NumberUnit control expects. Returns null for
@@ -801,6 +808,9 @@ function cleanBuilderNodeStyle(
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
   if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
+  if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
+  if (typeof value.opacity === "number") out.opacity = value.opacity;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -847,6 +857,9 @@ function cleanBuilderNodeStyleValue(
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
   if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
+  if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
+  if (typeof value.opacity === "number") out.opacity = value.opacity;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5215,6 +5228,102 @@ export function StylePanel({
                 </div>
               </div>
             ) : null}
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="surface"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Surface &amp; depth</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="boxShadow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Shadow
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
+                  options={BUILDER_NODE_SHADOW_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="backgroundImage"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background image / gradient
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="url(…) or linear-gradient(…)"
+                  value={selectedStandaloneViewportStyle?.backgroundImage ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundImage: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="opacity"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Opacity
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={5}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: 72,
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="100"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.opacity === "number"
+                        ? Math.round(selectedStandaloneViewportStyle.opacity * 100)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      patchSelectedStandaloneStyle({
+                        opacity:
+                          raw === ""
+                            ? undefined
+                            : Math.max(0, Math.min(100, Number(raw))) / 100,
+                      });
+                    }}
+                  />
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {selectedStandaloneStyleNode.kind === "image" ? (
               <>

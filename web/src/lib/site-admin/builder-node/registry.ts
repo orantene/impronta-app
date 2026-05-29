@@ -97,6 +97,10 @@ const builderNodeStyleValueSchema = z.object({
   paddingRight: z.string().max(16).optional(),
   paddingBottom: z.string().max(16).optional(),
   paddingLeft: z.string().max(16).optional(),
+  // Surface & depth escapes (length/string-capped; opacity normalized 0–1).
+  boxShadow: z.string().max(200).optional(),
+  backgroundImage: z.string().max(500).optional(),
+  opacity: z.number().min(0).max(1).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
