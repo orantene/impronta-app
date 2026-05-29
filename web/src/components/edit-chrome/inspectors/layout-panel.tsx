@@ -1357,11 +1357,12 @@ function AdvancedNodeLayoutEditor({
               style={{
                 height: 30,
                 fontSize: 12.5,
-                background: CHROME.surface2,
-                border: `1px solid ${CHROME.lineMid}`,
+                background: CHROME.controlFill,
+                border: `1px solid ${CHROME.controlBorder}`,
                 borderRadius: 6,
                 color: CHROME.ink,
                 outline: "none",
+                colorScheme: "light",
               }}
             >
               <option value="">First tab</option>

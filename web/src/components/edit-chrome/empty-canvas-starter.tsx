@@ -1518,7 +1518,7 @@ function TemplateApplyReviewDialog({
                         <select
                           value={styleByIndex.get(index) ?? ""}
                           onChange={(event) => setStyle(index, event.target.value)}
-                          className="mt-1 block h-8 w-full rounded-lg border border-indigo-100 bg-white px-2 text-xs text-zinc-700"
+                          className="mt-1 block h-8 w-full cursor-pointer rounded-lg border border-[#cfc7b6] bg-white px-2 text-xs text-zinc-700 [color-scheme:light] transition-[border-color,box-shadow] hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
                         >
                           <option value="">Default style</option>
                           {(STARTER_STYLE_OPTIONS_BY_TYPE[sectionType] ?? []).map((option) => (

@@ -91,12 +91,12 @@ export function AiTranslateSectionButton({
           className="absolute right-0 top-full z-50 mt-1 w-[340px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
             Translate section copy
           </div>
           <div className="mb-2 flex items-center gap-2">
             <select
-              className="flex-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5 text-[12px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+              className="flex-1 cursor-pointer rounded-lg border border-[#cfc7b6] bg-white px-2 py-1.5 text-[12px] text-stone-800 [color-scheme:light] hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
               value={target}
               onChange={(e) => {
                 setTarget(e.target.value);

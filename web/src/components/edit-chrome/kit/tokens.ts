@@ -56,6 +56,21 @@ export const CHROME = {
   lineStrong: "rgba(24, 24, 27, 0.16)",
   lineWarm: "rgba(24, 24, 27, 0.08)", // collapsed → line
 
+  // ── Control affordance (inputs / selects / segmented / toggle) ──
+  // The `line` token (8% ink) is correct for a hairline DIVIDER but far
+  // too faint for an interactive control *edge* — a field with an 8%
+  // border on warm paper reads as flat, non-interactive text, so the
+  // user can't tell it's something to act on. These give form controls
+  // a clearly visible idle edge (warm taupe, not cold zinc), a stronger
+  // hover edge, and a white "well" fill that separates the control from
+  // the warm paper / white-card ground it sits on (the 2026-04-30
+  // "premium restraint" pass dropped visible borders entirely — that
+  // went too far; affordance beats restraint for a control surface).
+  controlBorder: "#cfc7b6",
+  controlBorderStrong: "#b3a892",
+  controlFill: "#ffffff",
+  controlTrackOff: "#c9c3b6", // toggle off-track — visible on warm paper
+
   // ── Text (3 real values, 5 names for back-compat) ────────────
   text: "#18181b",
   text2: "#18181b", // collapsed → text

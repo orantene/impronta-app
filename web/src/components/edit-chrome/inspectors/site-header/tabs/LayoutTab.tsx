@@ -237,7 +237,7 @@ export function LayoutTab({ config, patch }: Props) {
             <div className={KIT.field}>
               <label className={KIT.label}>Layout</label>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={config.section.variant}
                 onChange={(e) =>
                   patch.patchSection({ variant: e.target.value })
@@ -255,7 +255,7 @@ export function LayoutTab({ config, patch }: Props) {
             <div className={KIT.field}>
               <label className={KIT.label}>Brand display</label>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={config.section.brandDisplay}
                 onChange={(e) =>
                   patch.patchSection({ brandDisplay: e.target.value })
@@ -282,7 +282,7 @@ export function LayoutTab({ config, patch }: Props) {
             <div className={KIT.field}>
               <label className={KIT.label}>Logo size</label>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={config.section.density?.logoScale ?? ""}
                 onChange={(e) =>
                   patch.patchSection({
@@ -300,7 +300,7 @@ export function LayoutTab({ config, patch }: Props) {
             <div className={KIT.field}>
               <label className={KIT.label}>Navigation spacing</label>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={config.section.density?.navDensity ?? ""}
                 onChange={(e) =>
                   patch.patchSection({
@@ -317,7 +317,7 @@ export function LayoutTab({ config, patch }: Props) {
             <div className={KIT.field}>
               <label className={KIT.label}>Vertical padding</label>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={config.section.density?.verticalPadding ?? ""}
                 onChange={(e) =>
                   patch.patchSection({
@@ -334,7 +334,7 @@ export function LayoutTab({ config, patch }: Props) {
             <div className={KIT.field}>
               <label className={KIT.label}>Mobile menu</label>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={config.section.density?.mobileMenuStyle ?? ""}
                 onChange={(e) =>
                   patch.patchSection({

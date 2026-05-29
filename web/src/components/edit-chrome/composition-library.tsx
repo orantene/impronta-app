@@ -1405,8 +1405,8 @@ export function CompositionLibraryOverlay() {
                   </button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-500">
                 Kind
               </span>
               <select
@@ -1416,7 +1416,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterKindFilter(event.target.value as StarterKindFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-zinc-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="data">Data ({starterKindCounts.data})</option>
@@ -1426,8 +1426,8 @@ export function CompositionLibraryOverlay() {
                 </option>
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-500">
                 Source
               </span>
               <select
@@ -1437,7 +1437,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterSourceFilter(event.target.value as StarterSourceFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-zinc-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="live-data">
@@ -1454,8 +1454,8 @@ export function CompositionLibraryOverlay() {
                 </option>
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-500">
                 Ready
               </span>
               <select
@@ -1465,7 +1465,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterReadinessFilter(event.target.value as StarterReadinessFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-zinc-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="ready-now">
@@ -1476,8 +1476,8 @@ export function CompositionLibraryOverlay() {
                 </option>
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-500">
                 Data
               </span>
               <select
@@ -1489,7 +1489,7 @@ export function CompositionLibraryOverlay() {
                     event.target.value as StarterDataBindingFilter,
                   )
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-zinc-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 {BUILDER_DATA_SOURCE_REGISTRY.map((source) => {
@@ -1503,8 +1503,8 @@ export function CompositionLibraryOverlay() {
                 })}
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-500">
                 Control
               </span>
               <select
@@ -1516,7 +1516,7 @@ export function CompositionLibraryOverlay() {
                     event.target.value as StarterCapabilityFilter,
                   )
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-zinc-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 {EDITABLE_CAPABILITY_OPTIONS.map((capability) => (
@@ -1527,8 +1527,8 @@ export function CompositionLibraryOverlay() {
                 ))}
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-500">
                 Plan
               </span>
               <select
@@ -1538,7 +1538,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterPlanFilter(event.target.value as StarterPlanFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-zinc-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="free">Free ({starterPlanCounts.free})</option>

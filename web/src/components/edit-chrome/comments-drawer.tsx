@@ -542,10 +542,12 @@ export function CommentsDrawer() {
                 width: "100%",
                 padding: "6px 8px",
                 fontSize: 12,
-                border: "1px solid #e5e0d5",
+                border: `1px solid ${CHROME.controlBorder}`,
                 borderRadius: 7,
-                background: "#faf9f6",
+                background: CHROME.controlFill,
                 color: CHROME.ink,
+                colorScheme: "light",
+                cursor: "pointer",
                 transition: "border-color 150ms, box-shadow 150ms",
               }}
             >

@@ -54,12 +54,15 @@ import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
+// 2026-05-29 readability pass: warm stone (matches the kit) instead of cold
+// zinc, and INHERIT_HINT lifted off the AA-failing zinc-400 (~2.5:1) to a
+// legible stone-500 (~4.9:1). Labels nudged +0.5px for clarity.
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
 const FIELD_LABEL =
-  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
-const HINT = "text-[10.5px] leading-tight text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-400";
+  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
+const HINT = "text-[11px] leading-tight text-stone-500";
+const INHERIT_HINT = "text-[11px] text-stone-500";
 
 // Approximate hex for each background palette token. Real tenant rendering
 // uses CSS variables from token-presets.css — these swatches are inspector

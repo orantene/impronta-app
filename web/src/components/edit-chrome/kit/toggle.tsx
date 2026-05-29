@@ -101,7 +101,10 @@ function Switch({
       style={{
         width: 30,
         height: 18,
-        background: on ? CHROME.blue : CHROME.lineMid,
+        // Off-track uses a visible warm grey, not the 8%-ink `lineMid`
+        // (which vanished against warm paper — you couldn't see the switch
+        // was there when off).
+        background: on ? CHROME.blue : CHROME.controlTrackOff,
         border: "none",
         borderRadius: 999,
         padding: 0,
