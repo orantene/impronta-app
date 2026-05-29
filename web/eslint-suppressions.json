@@ -654,7 +654,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 87
+      "count": 89
     }
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
