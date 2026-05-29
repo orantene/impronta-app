@@ -11,6 +11,7 @@ import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
 import WorkspaceWelcome from "../../../emails/workspace/Welcome";
 import BookingCanceled from "../../../emails/workspace/BookingCanceled";
 import DayOfReminder from "../../../emails/notifications/DayOfReminder";
+import SeatLimitReached from "../../../emails/workspace/SeatLimitReached";
 import type { CatalogEntry } from "./types";
 import {
   allRosterTalent,
@@ -21,6 +22,7 @@ import {
   loadInquiryView,
   platformAdmins,
   str,
+  workspaceAdmins,
 } from "./catalog-audiences";
 import { formatDateLabel, pageUrl, redeemHref } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
@@ -522,6 +524,61 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
   },
 };
 
+// ─── Workspace over seat limit (spec §6.6, Slice 15.7, direct dispatch) ───────
+//
+// The weekly `usage-audit` cron sweeps every active tenant and, for any whose
+// roster (agency_talent_roster rows, status != 'removed') exceeds its finite
+// `agencies.talent_seat_limit`, dispatches `workspace.over_seat_limit` with the
+// agency `tenantId`, the headcount + limit, and a stable `eventId`
+// (`seat-limit:<tenant>:<auditDate>`). The date in the eventId means a same-day
+// re-run is a dedupe no-op, while each weekly run re-nudges a still-over tenant.
+//
+// Direct dispatch (no engine `notifyUsers` upstream), so the single entry owns
+// BOTH channels with no double-notify risk. Audience is the workspace
+// owners/admins (`workspaceAdmins`); the in-app bell lands on the admin surface
+// and the CTA points at the account + billing page. Category `workspace_activity`
+// + `required: false` keeps it mutable, but the "absent toggle = on" rule means
+// a workspace that hasn't customized prefs still gets email + in_app by default.
+const WORKSPACE_OVER_SEAT_LIMIT: CatalogEntry = {
+  id: "workspace.over_seat_limit",
+  category: "workspace_activity",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["workspace.over_seat_limit"],
+  resolveAudience: workspaceAdmins,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: () => "Your roster is over its plan limit",
+    body: (event) => {
+      const active = Number(event.payload.activeCount);
+      const limit = Number(event.payload.seatLimit);
+      return Number.isFinite(active) && Number.isFinite(limit)
+        ? `Your roster has ${active} talent — above your plan's limit of ${limit}.`
+        : "Your roster is above your plan's seat limit.";
+    },
+  },
+  email: {
+    templateId: "workspace.over_seat_limit",
+    subject: () => "Your roster is over its plan limit",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const active = Number(event.payload.activeCount);
+      const limit = Number(event.payload.seatLimit);
+      return React.createElement(SeatLimitReached, {
+        recipientName: recipient.displayName,
+        workspaceName: str(event.payload.workspaceName),
+        activeCount: Number.isFinite(active) ? active : null,
+        seatLimit: Number.isFinite(limit) ? limit : null,
+        planLabel: str(event.payload.planLabel),
+        accountUrl: pageUrl(brand, "/admin/account"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "workspace",
+      });
+    },
+  },
+};
+
 // ─── Self-test (Phase 2) ──────────────────────────────────────────────────────
 //
 // Exercises the full pipeline (audience → prefs → dedupe log → channel
@@ -578,6 +635,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   BOOKING_CANCELLED_COORDINATOR,
   BOOKING_DAY_OF_REMINDER_CLIENT,
   BOOKING_DAY_OF_REMINDER_TALENT,
+  WORKSPACE_OVER_SEAT_LIMIT,
   SELF_TEST,
 ];
 

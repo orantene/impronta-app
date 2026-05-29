@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { sendEmail } from "@/lib/email";
+import { notifyWorkspaceOverSeatLimit } from "@/lib/notifications/producers/workspace-over-seat-limit-notify";
 
 /**
  * Scheduled job — weekly Supabase usage audit.
@@ -235,6 +237,78 @@ function contentHashFor(finding: Finding): string {
 }
 
 // ---------------------------------------------------------------------------
+// Per-tenant roster seat audit (spec §6.6) — orthogonal to the Supabase infra
+// checks above. Sweeps every active tenant with a finite plan seat limit and
+// emails + in-app-notifies the workspace owners/admins of any whose roster has
+// outgrown that limit. "Active roster" mirrors the Account page's usage bar:
+// `agency_talent_roster` rows with status != 'removed'. Runs every cron pass
+// (independent of the infra findings), and the producer's date-stamped eventId
+// dedupes a same-day re-run while re-nudging weekly.
+// ---------------------------------------------------------------------------
+type SeatAuditSummary = { scanned: number; overLimit: number; notified: number };
+
+async function auditTenantSeatLimits(
+  supabase: SupabaseClient,
+  auditDate: string,
+): Promise<SeatAuditSummary> {
+  const summary: SeatAuditSummary = { scanned: 0, overLimit: 0, notified: 0 };
+
+  const { data, error } = await supabase
+    .from("agencies")
+    .select("id, display_name, plan_tier, talent_seat_limit")
+    .eq("status", "active")
+    .not("talent_seat_limit", "is", null);
+  if (error) {
+    logServerError("cron/usage-audit.seats.agencies", error);
+    return summary;
+  }
+
+  const agencies = (data ?? []) as Array<{
+    id: string;
+    display_name: string | null;
+    plan_tier: string | null;
+    talent_seat_limit: number | null;
+  }>;
+  summary.scanned = agencies.length;
+
+  for (const agency of agencies) {
+    const limit = agency.talent_seat_limit;
+    if (limit == null) continue; // unlimited (e.g. network plan) — never over.
+
+    const { count, error: countError } = await supabase
+      .from("agency_talent_roster")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", agency.id)
+      .neq("status", "removed");
+    if (countError) {
+      logServerError("cron/usage-audit.seats.count", countError);
+      continue;
+    }
+
+    const active = count ?? 0;
+    if (active <= limit) continue;
+    summary.overLimit++;
+
+    try {
+      const result = await notifyWorkspaceOverSeatLimit({
+        tenantId: agency.id,
+        workspaceName: agency.display_name,
+        planLabel: agency.plan_tier,
+        activeCount: active,
+        seatLimit: limit,
+        auditDate,
+      });
+      if (result.dispatched > 0 || result.queued > 0) summary.notified++;
+    } catch (notifyError) {
+      // A single tenant's dispatch failure must not abort the sweep.
+      logServerError("cron/usage-audit.seats.notify", notifyError);
+    }
+  }
+
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
 export async function GET(request: Request) {
@@ -278,20 +352,26 @@ export async function GET(request: Request) {
     // 2) Classify each check.
     const findings = evaluate(metrics);
     const alerts = findings.filter((f) => f.severity !== "ok");
+    const auditDate = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
 
-    // 3) All green → nothing to log or send.
+    // 2b) Per-tenant roster seat audit (spec §6.6). Independent of the infra
+    // findings — a tenant can be over its seat limit while Supabase usage is
+    // all green — so it runs before the all-green early return below.
+    const seatAudit = await auditTenantSeatLimits(supabase, auditDate);
+
+    // 3) All green → nothing to log or send (but report the seat sweep).
     if (alerts.length === 0) {
       return NextResponse.json({
         ok: true,
         summary: "all green",
         durationMs: Date.now() - startedAt,
+        seatAudit,
         metrics,
       });
     }
 
     // 4) Build report + persist alerts.
     const report = buildReport(findings, metrics);
-    const auditDate = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
     const rows = alerts.map((f) => ({
       audit_date: auditDate,
       severity: f.severity,
@@ -347,6 +427,7 @@ export async function GET(request: Request) {
       durationMs: Date.now() - startedAt,
       report,
       alerts,
+      seatAudit,
       metrics,
     });
   } catch (error) {
