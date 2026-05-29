@@ -171,6 +171,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-margin-bottom-free]{margin-bottom:var(--bn-tablet-margin-bottom-free)!important}
   .site-builder-node[data-builder-style-tablet-margin-left-free]{margin-left:var(--bn-tablet-margin-left-free)!important}
   .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
+  .site-builder-node[data-builder-style-tablet-text-shadow]{text-shadow:var(--bn-tablet-text-shadow)!important}
   .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
   .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
@@ -252,6 +253,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-margin-bottom-free]{margin-bottom:var(--bn-mobile-margin-bottom-free)!important}
   .site-builder-node[data-builder-style-mobile-margin-left-free]{margin-left:var(--bn-mobile-margin-left-free)!important}
   .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
+  .site-builder-node[data-builder-style-mobile-text-shadow]{text-shadow:var(--bn-mobile-text-shadow)!important}
   .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
   .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
@@ -357,6 +359,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-margin-bottom-free": tablet?.marginBottomFree ? "" : undefined,
     "data-builder-style-tablet-margin-left-free": tablet?.marginLeftFree ? "" : undefined,
     "data-builder-style-tablet-shadow": tablet?.boxShadow ? "" : undefined,
+    "data-builder-style-tablet-text-shadow": tablet?.textShadow ? "" : undefined,
     "data-builder-style-tablet-bg-image": tablet?.backgroundImage ? "" : undefined,
     "data-builder-style-tablet-opacity":
       typeof tablet?.opacity === "number" ? "" : undefined,
@@ -433,6 +436,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-margin-bottom-free": mobile?.marginBottomFree ? "" : undefined,
     "data-builder-style-mobile-margin-left-free": mobile?.marginLeftFree ? "" : undefined,
     "data-builder-style-mobile-shadow": mobile?.boxShadow ? "" : undefined,
+    "data-builder-style-mobile-text-shadow": mobile?.textShadow ? "" : undefined,
     "data-builder-style-mobile-bg-image": mobile?.backgroundImage ? "" : undefined,
     "data-builder-style-mobile-opacity":
       typeof mobile?.opacity === "number" ? "" : undefined,
@@ -616,9 +620,11 @@ function responsiveStyleVars(
     "--bn-mobile-margin-bottom-free": style?.responsive?.mobile?.marginBottomFree,
     "--bn-mobile-margin-left-free": style?.responsive?.mobile?.marginLeftFree,
     "--bn-tablet-shadow": style?.responsive?.tablet?.boxShadow,
+    "--bn-tablet-text-shadow": style?.responsive?.tablet?.textShadow,
     "--bn-tablet-bg-image": style?.responsive?.tablet?.backgroundImage,
     "--bn-tablet-opacity": style?.responsive?.tablet?.opacity,
     "--bn-mobile-shadow": style?.responsive?.mobile?.boxShadow,
+    "--bn-mobile-text-shadow": style?.responsive?.mobile?.textShadow,
     "--bn-mobile-bg-image": style?.responsive?.mobile?.backgroundImage,
     "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
     "--bn-tablet-radius-free": style?.responsive?.tablet?.borderRadius,
@@ -742,6 +748,7 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // Surface & depth escapes. A box-shadow layers over the token background; a
   // background image/gradient is painted cover/center/no-repeat; opacity 0–1.
   if (style.boxShadow) out.boxShadow = style.boxShadow;
+  if (style.textShadow) out.textShadow = style.textShadow;
   if (style.backgroundImage) {
     out.backgroundImage = style.backgroundImage;
     out.backgroundSize = "cover";

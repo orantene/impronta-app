@@ -82,8 +82,10 @@ export interface BuilderNodeStyleValue {
   marginBottomFree?: string;
   marginLeftFree?: string;
   // Surface & depth escapes. backgroundImage takes a CSS url()/gradient and is
-  // rendered cover/center/no-repeat. opacity is 0–1.
+  // rendered cover/center/no-repeat. opacity is 0–1. textShadow takes a free CSS
+  // text-shadow value (e.g. "0 2px 8px rgba(0,0,0,.4)").
   boxShadow?: string;
+  textShadow?: string;
   backgroundImage?: string;
   opacity?: number;
   // Free gap escape (layout nodes) — overrides the gap token on container /

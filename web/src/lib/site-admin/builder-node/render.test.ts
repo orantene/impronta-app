@@ -421,6 +421,33 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-opacity=""/);
   });
 
+  it("renders the free text-shadow escape (desktop inline + tablet gate)", () => {
+    const html = render([
+      {
+        id: "free:text-shadow",
+        kind: "heading",
+        props: {
+          text: "Glow",
+          level: 2,
+          style: {
+            textShadow: "0 2px 8px rgba(0,0,0,.4)",
+            responsive: {
+              tablet: { textShadow: "none" },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop value lands inline (the literal is absent from the static sheet,
+    // which only carries the `text-shadow:var(--bn-…)` gated rules).
+    assert.match(html, /text-shadow:0 2px 8px/);
+    // Tablet override is gated by its own empty-string data-attr.
+    assert.match(html, /data-builder-style-tablet-text-shadow=""/);
+    // No mobile override, so that gate attr stays absent.
+    assert.doesNotMatch(html, /data-builder-style-mobile-text-shadow=""/);
+  });
+
   it("renders the free border-radius escape over the radius token", () => {
     const html = render([
       {

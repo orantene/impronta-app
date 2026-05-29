@@ -904,6 +904,7 @@ function cleanBuilderNodeStyle(
   if (value.marginBottomFree) out.marginBottomFree = value.marginBottomFree;
   if (value.marginLeftFree) out.marginLeftFree = value.marginLeftFree;
   if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.textShadow) out.textShadow = value.textShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
@@ -987,6 +988,7 @@ function cleanBuilderNodeStyleValue(
   if (value.marginBottomFree) out.marginBottomFree = value.marginBottomFree;
   if (value.marginLeftFree) out.marginLeftFree = value.marginLeftFree;
   if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.textShadow) out.textShadow = value.textShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
@@ -6172,6 +6174,34 @@ export function StylePanel({
                   value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
                   onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
                   options={BUILDER_NODE_SHADOW_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="textShadow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text shadow
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="0 2px 8px rgba(0,0,0,.4)"
+                  value={selectedStandaloneViewportStyle?.textShadow ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      textShadow: e.target.value.trim() || undefined,
+                    })
+                  }
                 />
               </div>
               <div
