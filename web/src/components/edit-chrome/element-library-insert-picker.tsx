@@ -121,6 +121,39 @@ export function ElementLibraryInsertPicker({
       ? "rgb(79 70 229)"
       : "rgba(255,255,255,0.45)";
 
+  // Per-variant pill tone. Drives the new hover/press affordance so each
+  // element reads as a real, tappable button (the picker had no hover state
+  // at all — it looked inert).
+  const pillTone: PillTone = isNavigator
+    ? {
+        bg: CHROME.paper,
+        border: CHROME.line,
+        text: CHROME.text,
+        hoverBg: "rgba(42,49,71,0.07)",
+        hoverBorder: "rgba(42,49,71,0.28)",
+        hoverText: CHROME.text,
+        radius: 999,
+      }
+    : isInspector
+      ? {
+          bg: "white",
+          border: "rgb(199 210 254)",
+          text: "rgb(41 37 36)",
+          hoverBg: "rgb(238 242 255)",
+          hoverBorder: "rgb(129 140 248)",
+          hoverText: "rgb(55 48 163)",
+          radius: 7,
+        }
+      : {
+          bg: "rgba(255,255,255,0.07)",
+          border: "rgba(255,255,255,0.12)",
+          text: "white",
+          hoverBg: "rgba(255,255,255,0.16)",
+          hoverBorder: "rgba(255,255,255,0.34)",
+          hoverText: "white",
+          radius: 7,
+        };
+
   if (allowedKinds.length === 0) {
     return (
       <div
@@ -239,41 +272,22 @@ export function ElementLibraryInsertPicker({
                 }}
               >
                 {group.kinds.map((kind) => (
-                  <button
+                  <PickerPill
                     key={kind}
-                    type="button"
-                    data-element-library-kind={kind}
-                    data-builder-node-insert-kind={kind}
-                    {...(isCanvas ? { "data-builder-node-canvas-insert-kind": kind } : {})}
-                    {...(isInspector ? { "data-builder-node-inspector-insert-kind": kind } : {})}
+                    label={elementLibraryPrimaryLabel(kind)}
+                    tone={pillTone}
                     onClick={() => void onPick(kind)}
-                    style={{
-                      minHeight: isNavigator ? 24 : 25,
-                      padding: "0 8px",
-                      borderRadius: isNavigator ? 999 : 6,
-                      border: isNavigator
-                        ? `1px solid ${CHROME.line}`
-                        : isInspector
-                          ? "1px solid rgb(199 210 254)"
-                          : "1px solid rgba(255,255,255,0.12)",
-                      background: isNavigator
-                        ? CHROME.paper
-                        : isInspector
-                          ? "white"
-                          : "rgba(255,255,255,0.07)",
-                      color: isNavigator
-                        ? CHROME.text
-                        : isInspector
-                          ? "rgb(41 37 36)"
-                          : "white",
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
+                    dataAttrs={{
+                      "data-element-library-kind": kind,
+                      "data-builder-node-insert-kind": kind,
+                      ...(isCanvas
+                        ? { "data-builder-node-canvas-insert-kind": kind }
+                        : {}),
+                      ...(isInspector
+                        ? { "data-builder-node-inspector-insert-kind": kind }
+                        : {}),
                     }}
-                  >
-                    {elementLibraryPrimaryLabel(kind)}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
@@ -281,5 +295,65 @@ export function ElementLibraryInsertPicker({
         )}
       </div>
     </>
+  );
+}
+
+interface PillTone {
+  bg: string;
+  border: string;
+  text: string;
+  hoverBg: string;
+  hoverBorder: string;
+  hoverText: string;
+  radius: number;
+}
+
+function PickerPill({
+  label,
+  tone,
+  onClick,
+  dataAttrs,
+}: {
+  label: string;
+  tone: PillTone;
+  onClick: () => void;
+  dataAttrs: Record<string, string>;
+}) {
+  const [hover, setHover] = useState(false);
+  const [active, setActive] = useState(false);
+  const lit = hover || active;
+  return (
+    <button
+      type="button"
+      {...dataAttrs}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => {
+        setHover(false);
+        setActive(false);
+      }}
+      onMouseDown={() => setActive(true)}
+      onMouseUp={() => setActive(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
+      style={{
+        minHeight: 26,
+        padding: "0 11px",
+        boxSizing: "border-box",
+        borderRadius: tone.radius,
+        border: `1px solid ${lit ? tone.hoverBorder : tone.border}`,
+        background: lit ? tone.hoverBg : tone.bg,
+        color: lit ? tone.hoverText : tone.text,
+        fontSize: 10.5,
+        fontWeight: 600,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        transition:
+          "background 110ms ease, border-color 110ms ease, color 110ms ease, transform 90ms ease",
+        transform: active ? "scale(0.96)" : "scale(1)",
+      }}
+    >
+      {label}
+    </button>
   );
 }
