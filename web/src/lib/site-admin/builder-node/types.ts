@@ -35,6 +35,20 @@ export interface BuilderNodeStyleValue {
   radius?: "none" | "sm" | "md" | "lg" | "pill";
   objectFit?: "cover" | "contain";
   aspectRatio?: "auto" | "1:1" | "4:3" | "3:4" | "16:9" | "21:9";
+  // Free-value escapes — override the token presets above with raw CSS so any
+  // design can be matched. Stored as CSS strings (lengths keep their unit) and
+  // layered after the tokens in the renderer, so a free value always wins.
+  fontFamily?: string;
+  fontSize?: string;
+  fontWeight?: number;
+  lineHeight?: string;
+  letterSpacing?: string;
+  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  textColor?: string;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: string;
+  borderStyle?: "solid" | "dashed" | "dotted";
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

@@ -323,6 +323,20 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   }
   if (style.tone === "muted") out.color = "rgba(18, 18, 18, 0.62)";
   if (style.tone === "strong") out.color = "#111";
+  // Free-value escapes — applied last so they override the token presets above.
+  if (style.fontFamily) out.fontFamily = style.fontFamily;
+  if (style.fontSize) out.fontSize = style.fontSize;
+  if (typeof style.fontWeight === "number") out.fontWeight = style.fontWeight;
+  if (style.lineHeight) out.lineHeight = style.lineHeight;
+  if (style.letterSpacing) out.letterSpacing = style.letterSpacing;
+  if (style.textTransform) out.textTransform = style.textTransform;
+  if (style.textColor) out.color = style.textColor;
+  if (style.backgroundColor) out.backgroundColor = style.backgroundColor;
+  if (style.borderColor || style.borderWidth || style.borderStyle) {
+    out.borderStyle = style.borderStyle ?? "solid";
+    out.borderWidth = style.borderWidth ?? "1px";
+    if (style.borderColor) out.borderColor = style.borderColor;
+  }
   return out;
 }
 
