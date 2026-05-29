@@ -850,3 +850,97 @@ test("chained operation flow keeps duplicated id stable across move + patch + re
   const validation = validateBuilderNodeTree(removed.tree);
   assert.equal(validation.ok, true);
 });
+
+// ── #55 resilience: a single pre-existing corrupt node must NOT make the
+//    whole tree uneditable ──────────────────────────────────────────────
+//
+// Classic trigger: a legacy `section` whose `sectionId` is not a UUID (old
+// seed data). It fails validation, but it must not block edits elsewhere —
+// otherwise the editor can't even delete it (every structural op re-validates
+// the whole tree and trips on the same node).
+function treeWithCorruptSectionSibling(): BuilderNodeTree {
+  return [
+    {
+      id: "section-corrupt",
+      kind: "section",
+      props: {
+        sectionId: "legacy-not-a-uuid", // fails z.string().uuid()
+        sectionTypeKey: "hero",
+        slotKey: "body",
+        sortOrder: 0,
+      },
+      children: [],
+    },
+    {
+      id: "container-ok",
+      kind: "container",
+      props: { layout: "stack", gap: "m" },
+      children: [
+        {
+          id: "container-ok:heading",
+          kind: "heading",
+          props: { text: "Still editable", level: 2 },
+        },
+      ],
+    },
+  ];
+}
+
+test("insertBuilderNode is not blocked by a pre-existing corrupt sibling and heals the tree", () => {
+  const original = treeWithCorruptSectionSibling();
+  // Precondition: the input really is corrupt (this is the bug's trigger).
+  assert.equal(validateBuilderNodeTree(original).ok, false);
+
+  const inserted = insertBuilderNode({
+    tree: original,
+    parentId: "container-ok",
+    node: {
+      id: "container-ok:new-heading",
+      kind: "heading",
+      props: { text: "Added despite corruption", level: 3 },
+    },
+  });
+
+  assert.equal(inserted.ok, true);
+  if (!inserted.ok) return;
+  // Result is a valid (repaired) tree...
+  assert.equal(validateBuilderNodeTree(inserted.tree).ok, true);
+  // ...the corrupt section was dropped...
+  assert.equal(
+    inserted.tree.some((node) => node.id === "section-corrupt"),
+    false,
+  );
+  // ...and the user's new node landed inside the surviving container.
+  const container = inserted.tree.find((node) => node.id === "container-ok");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  assert.equal(
+    container.children.some((node) => node.id === "container-ok:new-heading"),
+    true,
+  );
+});
+
+test("removeBuilderNode can delete the corrupt node that was blocking edits", () => {
+  const removed = removeBuilderNode({
+    tree: treeWithCorruptSectionSibling(),
+    nodeId: "section-corrupt",
+  });
+  assert.equal(removed.ok, true);
+  if (!removed.ok) return;
+  assert.equal(validateBuilderNodeTree(removed.tree).ok, true);
+  assert.equal(
+    removed.tree.some((node) => node.id === "section-corrupt"),
+    false,
+  );
+});
+
+test("patchBuilderNodeProps still rejects a patch that introduces NEW corruption, even with a pre-existing corrupt sibling", () => {
+  const patched = patchBuilderNodeProps({
+    tree: treeWithCorruptSectionSibling(),
+    nodeId: "container-ok:heading",
+    patch: { text: "" }, // empty text fails headingPropsSchema → net-new issue
+  });
+  assert.equal(patched.ok, false);
+  if (patched.ok) return;
+  assert.equal(patched.code, "VALIDATION_FAILED");
+});
