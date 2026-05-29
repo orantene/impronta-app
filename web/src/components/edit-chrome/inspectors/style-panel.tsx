@@ -805,6 +805,9 @@ function cleanBuilderNodeStyle(
   if (value.width) out.width = value.width;
   if (value.height) out.height = value.height;
   if (value.minHeight) out.minHeight = value.minHeight;
+  if (value.minWidth) out.minWidth = value.minWidth;
+  if (value.maxWidthFree) out.maxWidthFree = value.maxWidthFree;
+  if (value.maxHeight) out.maxHeight = value.maxHeight;
   if (value.paddingTop) out.paddingTop = value.paddingTop;
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
@@ -860,6 +863,9 @@ function cleanBuilderNodeStyleValue(
   if (value.width) out.width = value.width;
   if (value.height) out.height = value.height;
   if (value.minHeight) out.minHeight = value.minHeight;
+  if (value.minWidth) out.minWidth = value.minWidth;
+  if (value.maxWidthFree) out.maxWidthFree = value.maxWidthFree;
+  if (value.maxHeight) out.maxHeight = value.maxHeight;
   if (value.paddingTop) out.paddingTop = value.paddingTop;
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
@@ -4790,7 +4796,7 @@ export function StylePanel({
             ) : null}
 
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
-              <span className={FIELD_LABEL}>Max width</span>
+              <span className={FIELD_LABEL}>Max width (preset)</span>
               <Segmented
                 fullWidth
                 compact
@@ -4834,19 +4840,65 @@ export function StylePanel({
                   />
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <span className={FIELD_LABEL}>Min height</span>
-                <NumberUnit
-                  units={["px", "vh", "%", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      minHeight: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Min height</span>
+                  <NumberUnit
+                    units={["px", "vh", "%", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        minHeight: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Min width</span>
+                  <NumberUnit
+                    units={["px", "%", "vw", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.minWidth)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        minWidth: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Max width</span>
+                  <NumberUnit
+                    units={["px", "%", "vw", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.maxWidthFree)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        maxWidthFree: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Max height</span>
+                  <NumberUnit
+                    units={["px", "vh", "%", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.maxHeight)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        maxHeight: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
               </div>
             </div>
 

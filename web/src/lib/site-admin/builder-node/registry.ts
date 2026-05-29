@@ -95,6 +95,9 @@ const builderNodeStyleValueSchema = z.object({
   width: z.string().max(16).optional(),
   height: z.string().max(16).optional(),
   minHeight: z.string().max(16).optional(),
+  minWidth: z.string().max(16).optional(),
+  maxWidthFree: z.string().max(16).optional(),
+  maxHeight: z.string().max(16).optional(),
   // Free per-side padding escapes — layer after the paddingX/paddingY token.
   paddingTop: z.string().max(16).optional(),
   paddingRight: z.string().max(16).optional(),

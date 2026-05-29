@@ -498,6 +498,34 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-margin-top-free=""/);
   });
 
+  it("renders the free min/max dimension clamps over the width token", () => {
+    const html = render([
+      {
+        id: "free:clamps",
+        kind: "paragraph",
+        props: {
+          text: "Clamped",
+          style: {
+            maxWidth: "narrow",
+            maxWidthFree: "1280px",
+            minWidth: "320px",
+            maxHeight: "480px",
+            responsive: { mobile: { maxHeight: "200px" } },
+          },
+        },
+      },
+    ]);
+
+    // The free max-width clamp beats the maxWidth token; min-width / max-height
+    // have no token and land inline at their exact values.
+    assert.match(html, /max-width:1280px/);
+    assert.match(html, /min-width:320px/);
+    assert.match(html, /max-height:480px/);
+    // The mobile max-height override is gated by its own attr; no tablet was set.
+    assert.match(html, /data-builder-style-mobile-max-height=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-max-width-free=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

@@ -56,11 +56,16 @@ export interface BuilderNodeStyleValue {
   // token so an exact value wins, and the shorthand supports per-corner control
   // ("12px 12px 0 0", "50%", etc.).
   borderRadius?: string;
-  // Free dimension escapes — exact width / height / min-height as CSS length
-  // strings. Coexist with the maxWidth token (max-width clamps the free width).
+  // Free dimension escapes — exact width / height + min/max clamps as CSS length
+  // strings. maxWidthFree is collision-safe (maxWidth above is a preset enum);
+  // it layers after the token so an exact clamp wins. minWidth / maxHeight have
+  // no token, so they take the plain CSS-property name.
   width?: string;
   height?: string;
   minHeight?: string;
+  minWidth?: string;
+  maxWidthFree?: string;
+  maxHeight?: string;
   // Free per-side padding escapes (CSS length strings). Layer after the
   // paddingX/paddingY token block so an exact side wins over the preset.
   paddingTop?: string;

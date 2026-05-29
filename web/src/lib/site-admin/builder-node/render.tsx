@@ -155,6 +155,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-free-width]{width:var(--bn-tablet-free-width)!important}
   .site-builder-node[data-builder-style-tablet-height]{height:var(--bn-tablet-height)!important}
   .site-builder-node[data-builder-style-tablet-min-height]{min-height:var(--bn-tablet-min-height)!important}
+  .site-builder-node[data-builder-style-tablet-min-width]{min-width:var(--bn-tablet-min-width)!important}
+  .site-builder-node[data-builder-style-tablet-max-width-free]{max-width:var(--bn-tablet-max-width-free)!important}
+  .site-builder-node[data-builder-style-tablet-max-height]{max-height:var(--bn-tablet-max-height)!important}
   .site-builder-node[data-builder-style-tablet-padding-top]{padding-top:var(--bn-tablet-padding-top)!important}
   .site-builder-node[data-builder-style-tablet-padding-right]{padding-right:var(--bn-tablet-padding-right)!important}
   .site-builder-node[data-builder-style-tablet-padding-bottom]{padding-bottom:var(--bn-tablet-padding-bottom)!important}
@@ -208,6 +211,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-free-width]{width:var(--bn-mobile-free-width)!important}
   .site-builder-node[data-builder-style-mobile-height]{height:var(--bn-mobile-height)!important}
   .site-builder-node[data-builder-style-mobile-min-height]{min-height:var(--bn-mobile-min-height)!important}
+  .site-builder-node[data-builder-style-mobile-min-width]{min-width:var(--bn-mobile-min-width)!important}
+  .site-builder-node[data-builder-style-mobile-max-width-free]{max-width:var(--bn-mobile-max-width-free)!important}
+  .site-builder-node[data-builder-style-mobile-max-height]{max-height:var(--bn-mobile-max-height)!important}
   .site-builder-node[data-builder-style-mobile-padding-top]{padding-top:var(--bn-mobile-padding-top)!important}
   .site-builder-node[data-builder-style-mobile-padding-right]{padding-right:var(--bn-mobile-padding-right)!important}
   .site-builder-node[data-builder-style-mobile-padding-bottom]{padding-bottom:var(--bn-mobile-padding-bottom)!important}
@@ -285,6 +291,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-free-width": tablet?.width ? "" : undefined,
     "data-builder-style-tablet-height": tablet?.height ? "" : undefined,
     "data-builder-style-tablet-min-height": tablet?.minHeight ? "" : undefined,
+    "data-builder-style-tablet-min-width": tablet?.minWidth ? "" : undefined,
+    "data-builder-style-tablet-max-width-free": tablet?.maxWidthFree ? "" : undefined,
+    "data-builder-style-tablet-max-height": tablet?.maxHeight ? "" : undefined,
     "data-builder-style-tablet-padding-top": tablet?.paddingTop ? "" : undefined,
     "data-builder-style-tablet-padding-right": tablet?.paddingRight ? "" : undefined,
     "data-builder-style-tablet-padding-bottom": tablet?.paddingBottom ? "" : undefined,
@@ -329,6 +338,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-free-width": mobile?.width ? "" : undefined,
     "data-builder-style-mobile-height": mobile?.height ? "" : undefined,
     "data-builder-style-mobile-min-height": mobile?.minHeight ? "" : undefined,
+    "data-builder-style-mobile-min-width": mobile?.minWidth ? "" : undefined,
+    "data-builder-style-mobile-max-width-free": mobile?.maxWidthFree ? "" : undefined,
+    "data-builder-style-mobile-max-height": mobile?.maxHeight ? "" : undefined,
     "data-builder-style-mobile-padding-top": mobile?.paddingTop ? "" : undefined,
     "data-builder-style-mobile-padding-right": mobile?.paddingRight ? "" : undefined,
     "data-builder-style-mobile-padding-bottom": mobile?.paddingBottom ? "" : undefined,
@@ -464,9 +476,15 @@ function responsiveStyleVars(
     "--bn-tablet-free-width": style?.responsive?.tablet?.width,
     "--bn-tablet-height": style?.responsive?.tablet?.height,
     "--bn-tablet-min-height": style?.responsive?.tablet?.minHeight,
+    "--bn-tablet-min-width": style?.responsive?.tablet?.minWidth,
+    "--bn-tablet-max-width-free": style?.responsive?.tablet?.maxWidthFree,
+    "--bn-tablet-max-height": style?.responsive?.tablet?.maxHeight,
     "--bn-mobile-free-width": style?.responsive?.mobile?.width,
     "--bn-mobile-height": style?.responsive?.mobile?.height,
     "--bn-mobile-min-height": style?.responsive?.mobile?.minHeight,
+    "--bn-mobile-min-width": style?.responsive?.mobile?.minWidth,
+    "--bn-mobile-max-width-free": style?.responsive?.mobile?.maxWidthFree,
+    "--bn-mobile-max-height": style?.responsive?.mobile?.maxHeight,
     "--bn-tablet-padding-top": style?.responsive?.tablet?.paddingTop,
     "--bn-tablet-padding-right": style?.responsive?.tablet?.paddingRight,
     "--bn-tablet-padding-bottom": style?.responsive?.tablet?.paddingBottom,
@@ -538,11 +556,15 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // Free border-radius escape — applied after the radius token so an exact value
   // (or per-corner shorthand) wins over the preset.
   if (style.borderRadius) out.borderRadius = style.borderRadius;
-  // Free dimension escapes — exact width/height/min-height. width coexists with
-  // the maxWidth token above (max-width clamps it on smaller viewports).
+  // Free dimension escapes — exact width/height + min/max clamps. width coexists
+  // with the maxWidth token above; maxWidthFree is applied after it so an exact
+  // clamp wins over the preset.
   if (style.width) out.width = style.width;
   if (style.height) out.height = style.height;
   if (style.minHeight) out.minHeight = style.minHeight;
+  if (style.minWidth) out.minWidth = style.minWidth;
+  if (style.maxWidthFree) out.maxWidth = style.maxWidthFree;
+  if (style.maxHeight) out.maxHeight = style.maxHeight;
   // Free per-side padding — applied after the paddingX/paddingY token so an
   // exact side overrides the preset.
   if (style.paddingTop) out.paddingTop = style.paddingTop;
