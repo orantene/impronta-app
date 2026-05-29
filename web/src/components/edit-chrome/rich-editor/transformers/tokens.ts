@@ -8,11 +8,12 @@
  * scope cap).
  *
  * Token grammar (mirrors `shared/rich-text.tsx`):
- *   - `{accent}…{/accent}`  → `{ kind: "accent", text }`
- *   - `{b}…{/b}`            → `{ kind: "bold", text }`
- *   - `{i}…{/i}`            → `{ kind: "italic", text }`
- *   - `[text](url)`         → `{ kind: "link", text, url }`
- *   - anything else         → `{ kind: "text", text }`
+ *   - `{accent}…{/accent}`        → `{ kind: "accent", text }`
+ *   - `{color:#hex}…{/color}`     → `{ kind: "color", text, color }`
+ *   - `{b}…{/b}`                  → `{ kind: "bold", text }`
+ *   - `{i}…{/i}`                  → `{ kind: "italic", text }`
+ *   - `[text](url)`               → `{ kind: "link", text, url }`
+ *   - anything else               → `{ kind: "text", text }`
  *
  * Round-trip rule: `serialize(tokenize(s)) === s` for any byte-string
  * `s`. The pure-token snapshot fixtures in `transformers.test.ts` lock
@@ -22,12 +23,14 @@
 export type MarkerToken =
   | { kind: "text"; text: string }
   | { kind: "accent"; text: string }
+  | { kind: "color"; text: string; color: string }
   | { kind: "bold"; text: string }
   | { kind: "italic"; text: string }
   | { kind: "link"; text: string; url: string };
 
 const TOKEN_RE = new RegExp(
   [
+    /\{color:#[0-9a-fA-F]{3,8}\}[^{]*\{\/color\}/.source,
     /\{accent\}[^{]*\{\/accent\}/.source,
     /\{b\}[^{]*\{\/b\}/.source,
     /\{i\}[^{]*\{\/i\}/.source,
@@ -37,6 +40,7 @@ const TOKEN_RE = new RegExp(
 );
 
 const ACCENT_RE = /^\{accent\}([^{]*)\{\/accent\}$/;
+const COLOR_RE = /^\{color:(#[0-9a-fA-F]{3,8})\}([^{]*)\{\/color\}$/;
 const BOLD_RE = /^\{b\}([^{]*)\{\/b\}$/;
 const ITALIC_RE = /^\{i\}([^{]*)\{\/i\}$/;
 const LINK_RE = /^\[([^\]]+)\]\(([^)]+)\)$/;
@@ -52,6 +56,11 @@ export function tokenize(input: string): MarkerToken[] {
     let m = part.match(ACCENT_RE);
     if (m) {
       out.push({ kind: "accent", text: m[1]! });
+      continue;
+    }
+    m = part.match(COLOR_RE);
+    if (m) {
+      out.push({ kind: "color", color: m[1]!, text: m[2]! });
       continue;
     }
     m = part.match(BOLD_RE);
@@ -88,6 +97,9 @@ export function serialize(tokens: MarkerToken[]): string {
         break;
       case "accent":
         out += `{accent}${t.text}{/accent}`;
+        break;
+      case "color":
+        out += `{color:${t.color}}${t.text}{/color}`;
         break;
       case "bold":
         out += `{b}${t.text}{/b}`;

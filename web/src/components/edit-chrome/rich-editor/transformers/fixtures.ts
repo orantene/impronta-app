@@ -24,9 +24,22 @@ export const ROUND_TRIP_FIXTURES: ReadonlyArray<string> = [
 
   // Each marker in isolation
   "{accent}only accent{/accent}",
+  "{color:#dc2626}only color{/color}",
   "{b}only bold{/b}",
   "{i}only italic{/i}",
   "[only link](https://example.com)",
+
+  // Color: hex shapes + byte-identical case preservation
+  "{color:#fff}short hex{/color}",
+  "{color:#DC2626}uppercase hex preserved{/color}",
+  "{color:#16a34a80}eight-digit alpha hex{/color}",
+  "{color:#3d4f7c}Welcome{/color} to the site.",
+  "End with {color:#16a34a}green{/color}",
+  "A {color:#2563eb}blue{/color} word here.",
+  "{color:#ea580c} padded {/color}",
+  "{color:#dc2626}A{/color} {color:#16a34a}B{/color}",
+  "{accent}x{/accent}{color:#dc2626}y{/color}",
+  "Mix {b}bold{/b} and {color:#7c3aed}color{/color}.",
 
   // Marker at start
   "{accent}Welcome{/accent} to the site.",
@@ -96,8 +109,10 @@ export const ROUND_TRIP_FIXTURES: ReadonlyArray<string> = [
  */
 export const GHOST_MARKER_FIXTURES: ReadonlyArray<[string, string]> = [
   ["{accent}{/accent}", ""],
+  ["{color:#fff}{/color}", ""],
   ["{b}{/b}", ""],
   ["{i}{/i}", ""],
   ["leading{accent}{/accent}trailing", "leadingtrailing"],
+  ["a{color:#dc2626}{/color}b", "ab"],
   ["a{b}{/b}b{i}{/i}c", "abc"],
 ];

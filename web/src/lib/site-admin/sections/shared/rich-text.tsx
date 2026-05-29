@@ -4,10 +4,11 @@ import type { ReactNode } from "react";
  * M8 / Phase 2 — lightweight rich-text annotation renderer.
  *
  * Supported markers (Zod-validated text fields, no HTML parsing):
- *   {accent}…{/accent}   →  italic serif blush accent (the editorial voice)
- *   {b}…{/b}             →  semantic <strong>
- *   {i}…{/i}             →  semantic <em> (plain italic, not the accent)
- *   [text](url)          →  Markdown link → <a href="url">text</a>
+ *   {accent}…{/accent}      →  italic serif blush accent (the editorial voice)
+ *   {color:#hex}…{/color}   →  inline run painted in an author-chosen color
+ *   {b}…{/b}                →  semantic <strong>
+ *   {i}…{/i}                →  semantic <em> (plain italic, not the accent)
+ *   [text](url)             →  Markdown link → <a href="url">text</a>
  *
  * The tokenizer is regex-based and the markers are non-nesting (a {b} can
  * sit inside an [link]() but not inside another {b}). This is intentional
@@ -21,6 +22,7 @@ import type { ReactNode } from "react";
 // Match any marker. Order matters: longer/specific markers first.
 const TOKEN_RE = new RegExp(
   [
+    /\{color:#[0-9a-fA-F]{3,8}\}[^{]*\{\/color\}/.source,
     /\{accent\}[^{]*\{\/accent\}/.source,
     /\{b\}[^{]*\{\/b\}/.source,
     /\{i\}[^{]*\{\/i\}/.source,
@@ -30,6 +32,7 @@ const TOKEN_RE = new RegExp(
 );
 
 const ACCENT_RE = /^\{accent\}(.*)\{\/accent\}$/;
+const COLOR_RE = /^\{color:(#[0-9a-fA-F]{3,8})\}(.*)\{\/color\}$/;
 const BOLD_RE = /^\{b\}(.*)\{\/b\}$/;
 const ITALIC_RE = /^\{i\}(.*)\{\/i\}$/;
 const LINK_RE = /^\[([^\]]+)\]\(([^)]+)\)$/;
@@ -53,6 +56,14 @@ export function renderInlineRich(
         >
           {m[1]}
         </em>
+      );
+    }
+    m = part.match(COLOR_RE);
+    if (m) {
+      return (
+        <span key={i} className="site-color" style={{ color: m[1] }}>
+          {m[2]}
+        </span>
       );
     }
     m = part.match(BOLD_RE);
@@ -85,7 +96,7 @@ export function renderInlineRich(
  */
 export function hasRichAnnotations(input: string | null | undefined): boolean {
   if (!input) return false;
-  return /\{accent\}[^{]*\{\/accent\}|\{b\}[^{]*\{\/b\}|\{i\}[^{]*\{\/i\}|\[[^\]]+\]\([^)]+\)/.test(
+  return /\{accent\}[^{]*\{\/accent\}|\{color:#[0-9a-fA-F]{3,8}\}[^{]*\{\/color\}|\{b\}[^{]*\{\/b\}|\{i\}[^{]*\{\/i\}|\[[^\]]+\]\([^)]+\)/.test(
     input,
   );
 }

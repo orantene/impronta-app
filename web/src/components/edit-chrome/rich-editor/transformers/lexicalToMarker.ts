@@ -27,6 +27,7 @@ import {
 import { $isLinkNode } from "@lexical/link";
 
 import { $isAccentNode } from "../nodes/AccentNode";
+import { $isColorNode } from "../nodes/ColorNode";
 import { type MarkerToken, serialize } from "./tokens";
 
 export function lexicalNodesToMarkerString(nodes: LexicalNode[]): string {
@@ -40,6 +41,15 @@ export function lexicalNodesToMarkerString(nodes: LexicalNode[]): string {
       // in the canonical grammar). The toolbar prevents the operator
       // from layering bold inside accent.
       tokens.push({ kind: "accent", text });
+      continue;
+    }
+    if ($isColorNode(node)) {
+      // ColorNode is a TextNode subclass — must be matched before the
+      // generic $isTextNode branch below. Color supersedes BOLD/ITALIC at
+      // the marker layer (non-nesting grammar), same as accent.
+      const text = node.getTextContent();
+      if (text === "") continue;
+      tokens.push({ kind: "color", text, color: node.getColor() });
       continue;
     }
     if ($isLinkNode(node)) {
