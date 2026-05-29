@@ -52,6 +52,11 @@ export interface BuilderNodeStyleValue {
   borderColor?: string;
   borderWidth?: string;
   borderStyle?: "solid" | "dashed" | "dotted";
+  // Free dimension escapes — exact width / height / min-height as CSS length
+  // strings. Coexist with the maxWidth token (max-width clamps the free width).
+  width?: string;
+  height?: string;
+  minHeight?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

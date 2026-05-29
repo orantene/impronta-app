@@ -152,6 +152,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-border-color]{border-color:var(--bn-tablet-border-color)!important}
   .site-builder-node[data-builder-style-tablet-border-width]{border-width:var(--bn-tablet-border-width)!important}
   .site-builder-node[data-builder-style-tablet-border-style]{border-style:var(--bn-tablet-border-style)!important}
+  .site-builder-node[data-builder-style-tablet-free-width]{width:var(--bn-tablet-free-width)!important}
+  .site-builder-node[data-builder-style-tablet-height]{height:var(--bn-tablet-height)!important}
+  .site-builder-node[data-builder-style-tablet-min-height]{min-height:var(--bn-tablet-min-height)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -189,6 +192,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-border-color]{border-color:var(--bn-mobile-border-color)!important}
   .site-builder-node[data-builder-style-mobile-border-width]{border-width:var(--bn-mobile-border-width)!important}
   .site-builder-node[data-builder-style-mobile-border-style]{border-style:var(--bn-mobile-border-style)!important}
+  .site-builder-node[data-builder-style-mobile-free-width]{width:var(--bn-mobile-free-width)!important}
+  .site-builder-node[data-builder-style-mobile-height]{height:var(--bn-mobile-height)!important}
+  .site-builder-node[data-builder-style-mobile-min-height]{min-height:var(--bn-mobile-min-height)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -250,6 +256,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
       tablet?.borderColor || tablet?.borderWidth || tablet?.borderStyle ? "" : undefined,
     "data-builder-style-tablet-border-style":
       tablet?.borderColor || tablet?.borderWidth || tablet?.borderStyle ? "" : undefined,
+    "data-builder-style-tablet-free-width": tablet?.width ? "" : undefined,
+    "data-builder-style-tablet-height": tablet?.height ? "" : undefined,
+    "data-builder-style-tablet-min-height": tablet?.minHeight ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -277,6 +286,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
       mobile?.borderColor || mobile?.borderWidth || mobile?.borderStyle ? "" : undefined,
     "data-builder-style-mobile-border-style":
       mobile?.borderColor || mobile?.borderWidth || mobile?.borderStyle ? "" : undefined,
+    "data-builder-style-mobile-free-width": mobile?.width ? "" : undefined,
+    "data-builder-style-mobile-height": mobile?.height ? "" : undefined,
+    "data-builder-style-mobile-min-height": mobile?.minHeight ? "" : undefined,
   };
 }
 
@@ -395,6 +407,12 @@ function responsiveStyleVars(
       style?.responsive?.mobile?.borderStyle
         ? style?.responsive?.mobile?.borderStyle ?? style?.borderStyle ?? "solid"
         : undefined,
+    "--bn-tablet-free-width": style?.responsive?.tablet?.width,
+    "--bn-tablet-height": style?.responsive?.tablet?.height,
+    "--bn-tablet-min-height": style?.responsive?.tablet?.minHeight,
+    "--bn-mobile-free-width": style?.responsive?.mobile?.width,
+    "--bn-mobile-height": style?.responsive?.mobile?.height,
+    "--bn-mobile-min-height": style?.responsive?.mobile?.minHeight,
   });
 }
 
@@ -437,6 +455,11 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.borderWidth = style.borderWidth ?? "1px";
     if (style.borderColor) out.borderColor = style.borderColor;
   }
+  // Free dimension escapes — exact width/height/min-height. width coexists with
+  // the maxWidth token above (max-width clamps it on smaller viewports).
+  if (style.width) out.width = style.width;
+  if (style.height) out.height = style.height;
+  if (style.minHeight) out.minHeight = style.minHeight;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

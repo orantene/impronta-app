@@ -794,6 +794,9 @@ function cleanBuilderNodeStyle(
   if (value.borderColor) out.borderColor = value.borderColor;
   if (value.borderWidth) out.borderWidth = value.borderWidth;
   if (value.borderStyle) out.borderStyle = value.borderStyle;
+  if (value.width) out.width = value.width;
+  if (value.height) out.height = value.height;
+  if (value.minHeight) out.minHeight = value.minHeight;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -833,6 +836,9 @@ function cleanBuilderNodeStyleValue(
   if (value.borderColor) out.borderColor = value.borderColor;
   if (value.borderWidth) out.borderWidth = value.borderWidth;
   if (value.borderStyle) out.borderStyle = value.borderStyle;
+  if (value.width) out.width = value.width;
+  if (value.height) out.height = value.height;
+  if (value.minHeight) out.minHeight = value.minHeight;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -4751,7 +4757,7 @@ export function StylePanel({
             ) : null}
 
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
-              <span className={FIELD_LABEL}>Width</span>
+              <span className={FIELD_LABEL}>Max width</span>
               <Segmented
                 fullWidth
                 compact
@@ -4759,6 +4765,56 @@ export function StylePanel({
                 onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
                 options={BUILDER_NODE_WIDTH_OPTIONS}
               />
+            </div>
+
+            <div
+              className="flex flex-col gap-2"
+              data-builder-node-style-control="dimensions"
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Exact width</span>
+                  <NumberUnit
+                    units={["px", "%", "vw", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.width)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        width: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Height</span>
+                  <NumberUnit
+                    units={["px", "vh", "%", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.height)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        height: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Min height</span>
+                <NumberUnit
+                  units={["px", "vh", "%", "rem"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      minHeight: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
+              </div>
             </div>
 
             {["container", "split", "card", "cta_group"].includes(

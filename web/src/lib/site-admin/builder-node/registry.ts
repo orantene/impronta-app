@@ -87,6 +87,11 @@ const builderNodeStyleValueSchema = z.object({
   borderColor: z.string().max(32).optional(),
   borderWidth: z.string().max(16).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
+  // Free dimension escapes — exact width / height / min-height (length-capped).
+  // Coexist with the maxWidth token above (max-width clamps the free width).
+  width: z.string().max(16).optional(),
+  height: z.string().max(16).optional(),
+  minHeight: z.string().max(16).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
