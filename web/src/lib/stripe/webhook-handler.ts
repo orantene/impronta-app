@@ -61,6 +61,7 @@ import {
 } from "@/lib/payments/stripe-connect-talent";
 import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
 import { markPaid } from "@/lib/bookings/transactions";
+import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -208,6 +209,10 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
         // booking — the idempotency claim is released before the 5xx.
         throw new TransientWebhookError(`markPaid(${action.transactionId}): ${result.error}`);
       }
+      // Payment settled — fan out the confirmation (PDF → Files + email).
+      // Best-effort + idempotent; never throws, so a confirmation hiccup
+      // cannot fail the webhook and force a needless Stripe retry.
+      await emitBookingConfirmation(action.transactionId);
       return;
     }
 
