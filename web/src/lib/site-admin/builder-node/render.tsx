@@ -187,6 +187,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-overflow]{overflow:var(--bn-tablet-overflow)!important}
   .site-builder-node[data-builder-style-tablet-rotate]{rotate:var(--bn-tablet-rotate)!important}
   .site-builder-node[data-builder-style-tablet-scale]{scale:var(--bn-tablet-scale)!important}
+  .site-builder-node[data-builder-style-tablet-translate]{translate:var(--bn-tablet-translate)!important}
+  .site-builder-node[data-builder-style-tablet-transform-origin]{transform-origin:var(--bn-tablet-transform-origin)!important}
   .site-builder-node[data-builder-style-tablet-align-self]{align-self:var(--bn-tablet-align-self)!important}
   .site-builder-node[data-builder-style-tablet-flex-grow]{flex-grow:var(--bn-tablet-flex-grow)!important}
   .site-builder-node[data-builder-style-tablet-flex-shrink]{flex-shrink:var(--bn-tablet-flex-shrink)!important}
@@ -271,6 +273,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-overflow]{overflow:var(--bn-mobile-overflow)!important}
   .site-builder-node[data-builder-style-mobile-rotate]{rotate:var(--bn-mobile-rotate)!important}
   .site-builder-node[data-builder-style-mobile-scale]{scale:var(--bn-mobile-scale)!important}
+  .site-builder-node[data-builder-style-mobile-translate]{translate:var(--bn-mobile-translate)!important}
+  .site-builder-node[data-builder-style-mobile-transform-origin]{transform-origin:var(--bn-mobile-transform-origin)!important}
   .site-builder-node[data-builder-style-mobile-align-self]{align-self:var(--bn-mobile-align-self)!important}
   .site-builder-node[data-builder-style-mobile-flex-grow]{flex-grow:var(--bn-mobile-flex-grow)!important}
   .site-builder-node[data-builder-style-mobile-flex-shrink]{flex-shrink:var(--bn-mobile-flex-shrink)!important}
@@ -382,6 +386,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-overflow": tablet?.overflow ? "" : undefined,
     "data-builder-style-tablet-rotate": tablet?.rotate ? "" : undefined,
     "data-builder-style-tablet-scale": tablet?.scale ? "" : undefined,
+    "data-builder-style-tablet-translate": tablet?.translate ? "" : undefined,
+    "data-builder-style-tablet-transform-origin": tablet?.transformOrigin
+      ? ""
+      : undefined,
     "data-builder-style-tablet-align-self": tablet?.alignSelf ? "" : undefined,
     "data-builder-style-tablet-flex-grow":
       typeof tablet?.flexGrow === "number" ? "" : undefined,
@@ -461,6 +469,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-overflow": mobile?.overflow ? "" : undefined,
     "data-builder-style-mobile-rotate": mobile?.rotate ? "" : undefined,
     "data-builder-style-mobile-scale": mobile?.scale ? "" : undefined,
+    "data-builder-style-mobile-translate": mobile?.translate ? "" : undefined,
+    "data-builder-style-mobile-transform-origin": mobile?.transformOrigin
+      ? ""
+      : undefined,
     "data-builder-style-mobile-align-self": mobile?.alignSelf ? "" : undefined,
     "data-builder-style-mobile-flex-grow":
       typeof mobile?.flexGrow === "number" ? "" : undefined,
@@ -660,8 +672,12 @@ function responsiveStyleVars(
     "--bn-mobile-overflow": style?.responsive?.mobile?.overflow,
     "--bn-tablet-rotate": style?.responsive?.tablet?.rotate,
     "--bn-tablet-scale": style?.responsive?.tablet?.scale,
+    "--bn-tablet-translate": style?.responsive?.tablet?.translate,
+    "--bn-tablet-transform-origin": style?.responsive?.tablet?.transformOrigin,
     "--bn-mobile-rotate": style?.responsive?.mobile?.rotate,
     "--bn-mobile-scale": style?.responsive?.mobile?.scale,
+    "--bn-mobile-translate": style?.responsive?.mobile?.translate,
+    "--bn-mobile-transform-origin": style?.responsive?.mobile?.transformOrigin,
     "--bn-tablet-align-self": style?.responsive?.tablet?.alignSelf,
     "--bn-tablet-flex-grow": style?.responsive?.tablet?.flexGrow,
     "--bn-tablet-flex-shrink": style?.responsive?.tablet?.flexShrink,
@@ -794,10 +810,13 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // valid value, so test the type); overflow clips/scrolls the node's box.
   if (typeof style.zIndex === "number") out.zIndex = style.zIndex;
   if (style.overflow) out.overflow = style.overflow;
-  // Transform escapes — standalone rotate/scale (compose independently of any
-  // position/layout). Applied after positioning so they layer on top.
+  // Transform escapes — standalone rotate/scale/translate (compose
+  // independently of any position/layout). Applied after positioning so they
+  // layer on top. transformOrigin sets the pivot for rotate/scale.
   if (style.rotate) out.rotate = style.rotate;
   if (style.scale) out.scale = style.scale;
+  if (style.translate) out.translate = style.translate;
+  if (style.transformOrigin) out.transformOrigin = style.transformOrigin;
   // Flex/grid child placement — how this node sizes/aligns inside its parent
   // (0 is meaningful for grow/shrink, so test the type). No-op outside flex/grid.
   if (style.alignSelf) out.alignSelf = style.alignSelf;

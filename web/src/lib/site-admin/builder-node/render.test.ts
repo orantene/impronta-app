@@ -750,6 +750,32 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-rotate=""/);
   });
 
+  it("renders transform translate + transform-origin escapes", () => {
+    const html = render([
+      {
+        id: "free:xlate",
+        kind: "paragraph",
+        props: {
+          text: "Nudged",
+          style: {
+            translate: "10px -8px",
+            transformOrigin: "top left",
+            responsive: { mobile: { translate: "4px 0" } },
+          },
+        },
+      },
+    ]);
+
+    // Standalone translate + transform-origin land inline at desktop with
+    // literal values (compose independently of rotate/scale and layout).
+    assert.match(html, /translate:10px -8px/);
+    assert.match(html, /transform-origin:top left/);
+    // The mobile translate override is attr-gated; no tablet, no mobile origin.
+    assert.match(html, /data-builder-style-mobile-translate=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-translate=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-transform-origin=""/);
+  });
+
   it("renders flex child placement escapes (align-self + flex sizing)", () => {
     const html = render([
       {

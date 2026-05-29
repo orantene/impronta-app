@@ -929,6 +929,8 @@ function cleanBuilderNodeStyle(
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
   if (value.scale) out.scale = value.scale;
+  if (value.translate) out.translate = value.translate;
+  if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
   if (value.alignSelf) out.alignSelf = value.alignSelf;
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
   if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
@@ -1018,6 +1020,8 @@ function cleanBuilderNodeStyleValue(
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
   if (value.scale) out.scale = value.scale;
+  if (value.translate) out.translate = value.translate;
+  if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
   if (value.alignSelf) out.alignSelf = value.alignSelf;
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
   if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
@@ -5833,6 +5837,64 @@ export function StylePanel({
                             : String(n / 100),
                       });
                     }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="translate"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Move X Y
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="10px -8px"
+                    value={selectedStandaloneViewportStyle?.translate ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        translate: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="transformOrigin"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Pivot
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="center"
+                    value={selectedStandaloneViewportStyle?.transformOrigin ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        transformOrigin: e.target.value.trim() || undefined,
+                      })
+                    }
                   />
                 </div>
               </div>

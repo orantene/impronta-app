@@ -138,9 +138,12 @@ const builderNodeStyleValueSchema = z.object({
   // overflow control.
   zIndex: z.number().int().min(-999).max(999).optional(),
   overflow: z.enum(["visible", "hidden", "auto", "scroll"]).optional(),
-  // Transform escapes — standalone rotate (angle) + scale (factor).
+  // Transform escapes — standalone rotate (angle) + scale (factor) +
+  // translate (1-2 lengths) + transform-origin (pivot).
   rotate: z.string().max(16).optional(),
   scale: z.string().max(16).optional(),
+  translate: z.string().max(24).optional(),
+  transformOrigin: z.string().max(32).optional(),
   // Flex/grid child placement — self-alignment + flex sizing inside a parent.
   alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),
   flexGrow: z.number().min(0).max(999).optional(),

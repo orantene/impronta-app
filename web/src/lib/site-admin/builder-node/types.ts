@@ -115,11 +115,15 @@ export interface BuilderNodeStyleValue {
   // content is clipped or scrolls within the node's box.
   zIndex?: number;
   overflow?: "visible" | "hidden" | "auto" | "scroll";
-  // Transform escapes — standalone CSS rotate/scale properties (compose
-  // independently of layout/position). rotate takes an angle ("-3deg"); scale
-  // takes a unitless factor ("1.05" = 105%). Negatives / sub-1 allowed.
+  // Transform escapes — standalone CSS rotate/scale/translate properties
+  // (compose independently of layout/position). rotate takes an angle ("-3deg");
+  // scale takes a unitless factor ("1.05" = 105%); translate takes 1-2 lengths
+  // ("10px -8px" = x y). Negatives / sub-1 allowed. transformOrigin sets the
+  // pivot for rotate/scale ("top left", "50% 0").
   rotate?: string;
   scale?: string;
+  translate?: string;
+  transformOrigin?: string;
   // Flex/grid child placement — how this node sizes & aligns inside a row/grid
   // parent. alignSelf overrides the parent's cross-axis alignment for just this
   // child; flexGrow/Shrink tune flex sizing (0 is meaningful — don't grow/shrink);
