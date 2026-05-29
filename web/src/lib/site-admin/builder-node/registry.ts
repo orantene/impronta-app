@@ -87,6 +87,9 @@ const builderNodeStyleValueSchema = z.object({
   borderColor: z.string().max(32).optional(),
   borderWidth: z.string().max(16).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
+  // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
+  // after the radius token so an exact value wins.
+  borderRadius: z.string().max(64).optional(),
   // Free dimension escapes — exact width / height / min-height (length-capped).
   // Coexist with the maxWidth token above (max-width clamps the free width).
   width: z.string().max(16).optional(),

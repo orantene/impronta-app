@@ -420,6 +420,31 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-opacity=""/);
   });
 
+  it("renders the free border-radius escape over the radius token", () => {
+    const html = render([
+      {
+        id: "free:rounded",
+        kind: "heading",
+        props: {
+          text: "Rounded",
+          level: 2,
+          style: {
+            radius: "sm",
+            borderRadius: "20px 20px 0 0",
+            responsive: { mobile: { borderRadius: "8px" } },
+          },
+        },
+      },
+    ]);
+
+    // The free value lands inline with its shorthand preserved and beats the
+    // radius token (which would otherwise resolve to the "sm" preset).
+    assert.match(html, /border-radius:20px 20px 0 0/);
+    // The mobile override is gated by its own attr; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-radius-free=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-radius-free=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

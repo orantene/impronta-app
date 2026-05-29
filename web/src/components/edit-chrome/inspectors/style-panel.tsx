@@ -801,6 +801,7 @@ function cleanBuilderNodeStyle(
   if (value.borderColor) out.borderColor = value.borderColor;
   if (value.borderWidth) out.borderWidth = value.borderWidth;
   if (value.borderStyle) out.borderStyle = value.borderStyle;
+  if (value.borderRadius) out.borderRadius = value.borderRadius;
   if (value.width) out.width = value.width;
   if (value.height) out.height = value.height;
   if (value.minHeight) out.minHeight = value.minHeight;
@@ -850,6 +851,7 @@ function cleanBuilderNodeStyleValue(
   if (value.borderColor) out.borderColor = value.borderColor;
   if (value.borderWidth) out.borderWidth = value.borderWidth;
   if (value.borderStyle) out.borderStyle = value.borderStyle;
+  if (value.borderRadius) out.borderRadius = value.borderRadius;
   if (value.width) out.width = value.width;
   if (value.height) out.height = value.height;
   if (value.minHeight) out.minHeight = value.minHeight;
@@ -4865,6 +4867,25 @@ export function StylePanel({
                   onChange={(next) => setOrToggleStandaloneStyle("radius", next)}
                   options={BUILDER_NODE_RADIUS_OPTIONS}
                 />
+                <div
+                  className="flex items-center justify-between gap-2"
+                  data-builder-node-style-control="radiusFree"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Exact
+                  </span>
+                  <NumberUnit
+                    units={["px", "rem", "%"]}
+                    defaultUnit="px"
+                    placeholder="Token"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.borderRadius)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        borderRadius: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
               </div>
             ) : null}
 

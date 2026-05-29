@@ -162,6 +162,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
   .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
+  .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -209,6 +210,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
   .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
+  .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -281,6 +283,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-bg-image": tablet?.backgroundImage ? "" : undefined,
     "data-builder-style-tablet-opacity":
       typeof tablet?.opacity === "number" ? "" : undefined,
+    "data-builder-style-tablet-radius-free": tablet?.borderRadius ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -319,6 +322,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-bg-image": mobile?.backgroundImage ? "" : undefined,
     "data-builder-style-mobile-opacity":
       typeof mobile?.opacity === "number" ? "" : undefined,
+    "data-builder-style-mobile-radius-free": mobile?.borderRadius ? "" : undefined,
   };
 }
 
@@ -457,6 +461,8 @@ function responsiveStyleVars(
     "--bn-mobile-shadow": style?.responsive?.mobile?.boxShadow,
     "--bn-mobile-bg-image": style?.responsive?.mobile?.backgroundImage,
     "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
+    "--bn-tablet-radius-free": style?.responsive?.tablet?.borderRadius,
+    "--bn-mobile-radius-free": style?.responsive?.mobile?.borderRadius,
   });
 }
 
@@ -499,6 +505,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.borderWidth = style.borderWidth ?? "1px";
     if (style.borderColor) out.borderColor = style.borderColor;
   }
+  // Free border-radius escape — applied after the radius token so an exact value
+  // (or per-corner shorthand) wins over the preset.
+  if (style.borderRadius) out.borderRadius = style.borderRadius;
   // Free dimension escapes — exact width/height/min-height. width coexists with
   // the maxWidth token above (max-width clamps it on smaller viewports).
   if (style.width) out.width = style.width;

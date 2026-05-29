@@ -52,6 +52,10 @@ export interface BuilderNodeStyleValue {
   borderColor?: string;
   borderWidth?: string;
   borderStyle?: "solid" | "dashed" | "dotted";
+  // Free border-radius escape — raw CSS border-radius. Layers after the radius
+  // token so an exact value wins, and the shorthand supports per-corner control
+  // ("12px 12px 0 0", "50%", etc.).
+  borderRadius?: string;
   // Free dimension escapes — exact width / height / min-height as CSS length
   // strings. Coexist with the maxWidth token (max-width clamps the free width).
   width?: string;
