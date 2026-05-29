@@ -1016,6 +1016,7 @@ export function InspectorDock() {
                 }
                 onPatch={handlePresentationPatch}
                 onDeepPatch={handlePresentationDeepPatch}
+                hasResponsiveTab={visibleTabs.includes("responsive")}
               />
             ) : null}
             {tab === "style" ? (

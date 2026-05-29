@@ -70,6 +70,14 @@ interface LayoutPanelProps {
   presentation: Record<string, unknown>;
   onPatch: (patch: Record<string, unknown>) => void;
   onDeepPatch?: (patch: Record<string, unknown>) => void;
+  /**
+   * True when the section also exposes a dedicated Responsive tab (see
+   * TABS_BY_SECTION_TYPE in inspector-dock). When set, the in-tab
+   * "Per-screen overrides" block is hidden to avoid two editors writing
+   * the same `presentation.breakpoints` store. Sections without a
+   * Responsive tab keep the block as their only per-breakpoint editor.
+   */
+  hasResponsiveTab?: boolean;
 }
 
 // Short pill labels — full descriptors live in PRESENTATION_OPTIONS for the
@@ -1690,6 +1698,7 @@ export function LayoutPanel({
   presentation,
   onPatch,
   onDeepPatch,
+  hasResponsiveTab,
 }: LayoutPanelProps) {
   const {
     builderTree,
@@ -2084,10 +2093,10 @@ export function LayoutPanel({
         </div>
       </section>
 
-      {onDeepPatch ? (
+      {onDeepPatch && !hasResponsiveTab ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Responsive layout</div>
+            <div className={SECTION_TITLE}>Per-screen overrides</div>
             {hasResponsiveLayoutOverride ? (
               <button
                 type="button"
@@ -2381,10 +2390,11 @@ export function LayoutPanel({
         </div>
       </section>
 
-      {/* ── Responsive (in-tab summary; the Responsive tab carries the
-            full per-breakpoint editor) ──────────────────────────────── */}
+      {/* ── Stacking & visibility (mobileStack + visibility — NOT covered
+            by the Responsive tab's OVERRIDE_KEYS, so this stays in every
+            Layout tab regardless of hasResponsiveTab) ─────────────────── */}
       <section className="flex flex-col gap-3">
-        <div className={SECTION_TITLE}>Responsive</div>
+        <div className={SECTION_TITLE}>Stacking &amp; visibility</div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className={FIELD_LABEL}>
