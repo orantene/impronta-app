@@ -9,10 +9,11 @@
  */
 
 import { useState } from "react";
-import { Bookmark, Check, Heart, Send } from "lucide-react";
+import { Bookmark, Check, Eye, Heart, Send } from "lucide-react";
 
 import { Icon, Toggle } from "../primitives";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
+import type { RosterCardBadgePrefs } from "@/lib/talent-cards/roster-card-badges";
 
 // ────────────────────────────────────────────────────────────────────────
 // Surfaces + per-surface action rules (baked product decision)
@@ -555,6 +556,233 @@ export function PreviewCard({
             No client actions on this surface.
           </div>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Roster badge preview — faithful replica of a real RosterCard's overlay
+// stack, gated by the live badge prefs. The Roster surface in the studio
+// swaps PreviewCard for this so the admin sees exactly which corner each
+// toggle controls. Pill base matches OVERLAY_PILL_BASE in TalentPage-2.
+// ────────────────────────────────────────────────────────────────────────
+
+const PREVIEW_PILL_BASE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  height: 22,
+  padding: "0 8px",
+  borderRadius: 999,
+  background: "rgba(11,11,13,0.62)",
+  border: "1px solid rgba(255,255,255,0.14)",
+  color: "#fff",
+  fontSize: 10,
+  fontWeight: 600,
+  lineHeight: 1,
+  backdropFilter: "blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
+};
+
+export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePrefs }) {
+  return (
+    <div
+      data-tulala-roster-badge-preview
+      style={{
+        width: 240,
+        maxWidth: "100%",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        overflow: "hidden",
+        boxShadow: COLORS.shadowHover,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {/* Photo area — 4:5 like the real roster card */}
+      <div
+        style={{
+          position: "relative",
+          aspectRatio: "4 / 5",
+          background: `linear-gradient(150deg, ${COLORS.accentSoft}, ${COLORS.indigoSoft})`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 38,
+            fontWeight: 600,
+            color: "rgba(11,11,13,0.18)",
+            userSelect: "none",
+          }}
+        >
+          TR
+        </span>
+
+        {/* Top-right stack: visibility eye + Discover pill */}
+        <div
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 5,
+            zIndex: 2,
+          }}
+        >
+          {badges.visibility ? (
+            <span
+              title="Visibility eye — the live show / hide control for the agency site"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 999,
+                border: `1px solid ${COLORS.accent}`,
+                background: COLORS.accent,
+                color: "#fff",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 1px 4px rgba(11,11,13,0.16)",
+              }}
+            >
+              <Eye size={15} aria-hidden />
+            </span>
+          ) : null}
+          {badges.discover ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "3px 9px",
+                borderRadius: 999,
+                background: "rgba(46,125,91,0.92)",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                textTransform: "uppercase",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+              }}
+            >
+              Discover
+            </span>
+          ) : null}
+        </div>
+
+        {/* Bottom-left stack: completeness % + photo count */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 8,
+            left: 8,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            zIndex: 2,
+          }}
+        >
+          {badges.completeness ? <span style={PREVIEW_PILL_BASE}>82%</span> : null}
+          {badges.photoCount ? (
+            <span style={PREVIEW_PILL_BASE}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="6" width="18" height="14" rx="2" />
+                <circle cx="12" cy="13" r="3.2" />
+                <path d="M8 6l1.5-2h5L16 6" />
+              </svg>
+              12
+            </span>
+          ) : null}
+        </div>
+
+        {/* Bottom-right stack: verified mark + availability pill + canonical
+            TAL-ID — stacked vertically so none overlap (mirrors the real card). */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 4,
+            zIndex: 2,
+          }}
+        >
+          {badges.trust ? (
+            <span
+              title="Tulala Verified"
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: COLORS.success,
+                boxShadow: "0 0 0 2px #fff, 0 1px 3px rgba(11,11,13,0.20)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+              }}
+            >
+              <Check size={11} strokeWidth={3} aria-hidden />
+            </span>
+          ) : null}
+          {badges.availability ? (
+            <span
+              style={{
+                ...PREVIEW_PILL_BASE,
+                background: "rgba(255,255,255,0.92)",
+                border: "1px solid rgba(11,11,13,0.06)",
+                color: COLORS.ink,
+                textTransform: "capitalize",
+                boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
+              }}
+            >
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.green }} />
+              available
+            </span>
+          ) : null}
+          {badges.talentId ? (
+            <span
+              style={{
+                ...PREVIEW_PILL_BASE,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                fontFamily: FONTS.mono,
+              }}
+            >
+              TAL-00042
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Body — name + type + city always show, like the real roster card */}
+      <div style={{ padding: "10px 12px 12px" }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, color: COLORS.ink }}>
+          Tina Rossi
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.accentDeep,
+            fontWeight: 600,
+            marginTop: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>📸</span>
+          Fashion Model
+        </div>
+        <div style={{ fontSize: 11, marginTop: 1, color: COLORS.inkMuted }}>📍 Milano, IT</div>
       </div>
     </div>
   );
