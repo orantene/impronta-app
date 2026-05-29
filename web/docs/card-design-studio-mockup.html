@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Design · Tulala studio</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b1f27;background:#f4f6f9;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px 90px}
+
+  /* top bar */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 22px;background:#fff;border-bottom:1px solid #e7ebf0;position:sticky;top:0;z-index:40}
+  .crumb{font-size:12.5px;color:#8a94a1}.crumb b{color:#1b1f27}.crumb span{margin:0 7px;color:#c4ccd5}
+  .top-actions{display:flex;gap:12px}
+  .mini{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#9aa3b0;display:flex;flex-direction:column;gap:4px}
+  .mini select{font-family:inherit;font-size:12.5px;letter-spacing:0;text-transform:none;color:#1b1f27;padding:7px 9px;border:1px solid #dce2e9;border-radius:9px;background:#fff;min-width:150px}
+
+  /* lead */
+  .lead{padding:26px 0 18px}
+  .lead h1{margin:0 0 6px;font-size:23px;letter-spacing:-.02em}
+  .lead p{margin:0;max-width:640px;color:#5d6675;font-size:13.5px;line-height:1.55}
+
+  /* surface strip */
+  .surfaces{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px}
+  .surf{background:#fff;border:1px solid #e7ebf0;border-radius:16px;padding:13px;cursor:pointer;transition:.18s;position:relative}
+  .surf:hover{border-color:#cdd6e0;box-shadow:0 6px 18px rgba(25,35,50,.06)}
+  .surf.active{border-color:var(--focus,#46617a);box-shadow:0 0 0 2px rgba(70,97,122,.16)}
+  .surf-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+  .surf-head .lbl{font-size:13px;font-weight:600}
+  .surf-head .dot{width:8px;height:8px;border-radius:50%;background:#f0a83a;box-shadow:0 0 0 3px rgba(240,168,58,.18);display:none}
+  .surf.dirty .dot{display:block}
+  .surf .hint{font-size:10.5px;color:#9aa3b0;margin-top:10px;letter-spacing:.02em}
+
+  /* focus area */
+  .focus{display:grid;grid-template-columns:1fr 326px;gap:24px;align-items:start}
+  .bigwrap{background:#fff;border:1px solid #e7ebf0;border-radius:18px;padding:20px}
+  .bighead{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:14px}
+  .eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#46617a;font-weight:700}
+  .bighead h2{margin:4px 0 0;font-size:18px;letter-spacing:-.01em}
+  .bigtoggle{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .bigtoggle button{font-family:inherit;font-size:12px;padding:6px 13px;border:1px solid #dce2e9;background:#fff;color:#5d6675;border-radius:9px;cursor:pointer}
+  .bigtoggle button.on{background:#1b1f27;color:#fff;border-color:#1b1f27}
+  .hovertip{font-size:10.5px;color:#aab2bd}
+  .bigstage{max-width:300px;margin:6px auto 0}
+
+  /* panel */
+  .panel{background:#fff;border:1px solid #e7ebf0;border-radius:18px;padding:6px 16px 16px}
+  .prow{padding:14px 0;border-bottom:1px solid #f0f2f5}
+  .prow:last-of-type{border-bottom:none}
+  .prow .plabel{font-size:12.5px;font-weight:600;margin-bottom:3px}
+  .prow .pdesc{font-size:11px;color:#9aa3b0;line-height:1.4;margin-bottom:10px}
+  .prow.disabled{opacity:.38;pointer-events:none}
+  .swrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .swrow .pdesc{margin-bottom:0}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{font-family:inherit;font-size:11.5px;padding:7px 11px;border:1px solid #dce2e9;background:#fff;color:#46535f;border-radius:8px;cursor:pointer;transition:.14s}
+  .seg button.on{background:#46617a;border-color:#46617a;color:#fff}
+  .switch{width:42px;height:24px;border-radius:999px;background:#d7dde4;position:relative;cursor:pointer;transition:.18s;flex:none}
+  .switch.on{background:#46617a}
+  .switch i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.18s}
+  .switch.on i{left:21px}
+  .accent-dots{display:flex;gap:8px;flex-wrap:wrap}
+  .adot{width:27px;height:27px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:.14s}
+  .adot.on{border-color:#1b1f27;box-shadow:0 0 0 2px #fff inset}
+  .panel-actions{display:flex;gap:9px;margin-top:18px}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;padding:10px 14px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+  .btn.save{background:#1b1f27;color:#fff;flex:1}
+  .btn.save:disabled{background:#c8cfd7;cursor:default}
+  .btn.reset{background:#fff;border-color:#dce2e9;color:#5d6675}
+  .savehint{font-size:10.5px;color:#9aa3b0;margin-top:11px;text-align:center;line-height:1.4}
+
+  /* gallery */
+  .gallery{margin-top:34px}
+  .gallery-head{display:flex;align-items:baseline;gap:10px;margin-bottom:15px}
+  .gallery-head b{font-size:15px}
+  .gallery-head span{font-size:12px;color:#9aa3b0}
+  .thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+  .thumb{cursor:pointer}
+  .thumb .tbox{border-radius:12px;overflow:hidden;border:2px solid transparent;transition:.16s}
+  .thumb:hover .tbox{border-color:#cdd6e0}
+  .thumb.on .tbox{border-color:#1b1f27;box-shadow:0 4px 14px rgba(25,35,50,.12)}
+  .thumb .tname{font-size:10.5px;color:#5d6675;margin-top:7px;text-align:center;letter-spacing:.01em}
+  .thumb.on .tname{color:#1b1f27;font-weight:600}
+
+  /* toast */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b1f27;color:#fff;padding:11px 18px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ===== card base + flip ===== */
+  .flip{position:relative;width:100%;aspect-ratio:3/4;perspective:1200px}
+  .flip .inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .72s cubic-bezier(.2,.7,.2,1)}
+  .flip .face{position:absolute;inset:0;backface-visibility:hidden;overflow:hidden;border-radius:var(--r,18px);background:#0c1118;color:#fff}
+  .flip .face.back{transform:rotateY(180deg)}
+  body.mode-hover .can-flip:hover .inner,.can-flip.flipped .inner{transform:rotateY(180deg)}
+
+  .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  .scrim-b{position:absolute;inset:0;background:linear-gradient(to top,rgba(8,11,17,.82),rgba(8,11,17,.04) 52%,transparent);z-index:1}
+  .scrim-tb{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.4),transparent 28%,transparent 58%,rgba(0,0,0,.6));z-index:1}
+  .cap{position:absolute;left:14px;right:14px;bottom:13px;z-index:3}
+  .nm{font-size:16px;font-weight:600;line-height:1.12;letter-spacing:.01em}
+  .rl{font-size:10px;letter-spacing:.05em;opacity:.86;margin-top:3px;text-transform:uppercase}
+  .catpill{display:inline-block;background:var(--accent,#46617a);color:#fff;font-size:9.5px;font-weight:700;line-height:1;letter-spacing:.14em;text-transform:uppercase;padding:5px 9px;border-radius:999px}
+  .cat-corner{position:absolute;top:11px;left:11px;z-index:3;background:rgba(0,0,0,.3);color:#fff;font-size:9px;font-weight:600;line-height:1;letter-spacing:.16em;text-transform:uppercase;padding:5px 9px;border-radius:999px;backdrop-filter:blur(6px)}
+  .chip{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);color:#fff;font-size:9px;letter-spacing:.05em;text-transform:uppercase;padding:4px 8px;border-radius:999px}
+  .scell{display:flex;flex-direction:column;line-height:1.1}
+  .scell b{font-size:12px;color:#1b1f27}
+  .scell span{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8a94a1;margin-top:2px}
+  .img-back-cap{position:absolute;left:14px;right:14px;bottom:14px;z-index:3}
+  .img-back-cap .catpill{margin-bottom:8px}
+
+  /* ===== summary back ===== */
+  .face.summary{background:#fff;color:#26313c;padding:17px 16px;display:flex;flex-direction:column;gap:8px;justify-content:center}
+  .face.summary .catword{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--accent,#46617a);font-weight:800}
+  .face.summary .sum-nm{font-size:19px;font-weight:600;color:#16202b;letter-spacing:-.01em}
+  .face.summary .sum-rl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#7a8490;margin-top:-3px}
+  .face.summary .sum-bio{font-size:11.5px;line-height:1.5;color:#46535f;margin:0}
+  .face.summary .scells{display:flex;gap:14px;margin-top:4px}
+  .face.summary .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .face.summary .chips .chip{background:var(--accent-soft,#eaf1f6);border:none;color:var(--accent-ink,#2f4456);font-weight:600}
+  .face.summary .meta{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7a8490;margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+  .face.summary .drows{display:flex;flex-direction:column;gap:7px;margin-top:2px}
+  .face.summary .drow{display:flex;justify-content:space-between;gap:10px;font-size:11px;border-bottom:1px solid #f0f2f5;padding-bottom:6px}
+  .face.summary .drow span{color:#8a94a1;text-transform:uppercase;letter-spacing:.08em;font-size:9px}
+  .face.summary .drow b{color:#2a3540;font-weight:600;text-align:right}
+  .face.summary .avail{font-size:10px;font-weight:700;letter-spacing:.04em}
+  .face.summary .avail.ok{color:#2f6f5e}.face.summary .avail.no{color:#9aa3b0}
+  .face.summary.dark{background:#141a22;color:#cdd6e0}
+  .face.summary.dark .sum-nm{color:#fff}
+  .face.summary.dark .sum-rl{color:#8a94a1}
+  .face.summary.dark .sum-bio{color:#aeb8c4}
+  .face.summary.dark .drow{border-color:rgba(255,255,255,.08)}
+  .face.summary.dark .drow b{color:#eef2f6}
+  .face.summary.dark .scell b{color:#fff}
+  .face.summary.dark .chips .chip{background:rgba(255,255,255,.1);color:#dce4ec}
+
+  /* A — editorial minimal: scrim + bottom caption + corner category */
+  /* (uses base .scrim-b / .cap / .cat-corner — no extra rules) */
+
+  /* B — glass overlay */
+  .tplB .glass{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;background:rgba(15,20,28,.42);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:11px 13px}
+  .tplB .catpill{position:absolute;top:11px;right:11px;z-index:3}
+
+  /* C — split catalog */
+  .tplC .face.front{background:#fff;color:#1b1f27}
+  .tplC .c-img{position:absolute;top:0;left:0;right:0;height:62%;overflow:hidden}
+  .tplC .c-body{position:absolute;left:0;right:0;bottom:0;height:38%;padding:11px 14px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+  .tplC .c-body .nm{color:#16202b;font-size:15px}
+  .tplC .c-body .rl{color:var(--accent,#46617a);opacity:1;font-size:9px}
+  .tplC .scells{display:flex;gap:12px;margin-top:2px}
+  .tplC .catpill{position:absolute;top:10px;left:10px;z-index:3}
+
+  /* D — full-bleed fashion */
+  .tplD .d-cat{position:absolute;top:13px;left:14px;z-index:3;font-size:9px;letter-spacing:.32em;text-transform:uppercase;color:#fff;opacity:.9}
+  .tplD .d-nm{position:absolute;left:14px;right:14px;bottom:14px;z-index:3;font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:27px;line-height:.98;color:#fff;letter-spacing:-.01em}
+  .tplD .d-rl{font-family:-apple-system,sans-serif;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.85;margin-top:7px}
+
+  /* E — framed gallery */
+  .tplE .face{background:var(--accent-soft,#eaf1f6)}
+  .tplE .face.front,.tplE .face.back{padding:11px 11px 0}
+  .tplE .e-frame{position:relative;height:78%;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(20,30,45,.18)}
+  .tplE .e-cap{height:22%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+  .tplE .e-cap .nm{font-size:14px;color:var(--accent-ink,#2f4456)}
+  .tplE .e-cap .rl{color:var(--accent,#46617a);opacity:1;font-size:9px}
+  .tplE .catpill{position:absolute;top:9px;left:9px;z-index:3}
+
+  /* F — stat compact */
+  .tplF .face.front{background:#fff;color:#1b1f27}
+  .tplF .f-img{position:absolute;top:0;left:0;right:0;height:60%;overflow:hidden}
+  .tplF .f-foot{position:absolute;left:0;right:0;bottom:0;height:40%;padding:10px 13px;display:flex;flex-direction:column;gap:8px;justify-content:center}
+  .tplF .f-foot .nm{font-size:14px;color:#16202b}
+  .tplF .f-stats{display:flex;justify-content:space-between;border-top:1px solid #eef1f4;padding-top:8px}
+  .tplF .catpill{position:absolute;top:10px;right:10px;z-index:3}
+
+  /* G — category banner */
+  .tplG .g-band{position:absolute;top:0;left:0;right:0;height:15%;background:var(--accent,#46617a);color:#fff;display:flex;align-items:center;justify-content:center;z-index:3;font-size:11px;font-weight:800;letter-spacing:.34em;text-transform:uppercase}
+  .tplG .g-img{position:absolute;top:15%;left:0;right:0;bottom:0;overflow:hidden}
+
+  /* H — magazine cover */
+  .tplH .h-mast{position:absolute;top:14px;left:14px;right:14px;z-index:3;text-align:center;font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:25px;line-height:.95;color:#fff;letter-spacing:-.01em;text-shadow:0 1px 14px rgba(0,0,0,.45)}
+  .tplH .h-sub{display:block;font-family:-apple-system,sans-serif;font-size:8px;letter-spacing:.4em;text-transform:uppercase;opacity:.85;margin-top:8px;font-weight:600}
+  .tplH .h-cover{position:absolute;left:14px;bottom:15px;z-index:3}
+  .tplH .h-cover .catpill{font-size:10px;padding:7px 11px}
+  .tplH .h-issue{position:absolute;right:13px;bottom:16px;z-index:3;font-size:8px;letter-spacing:.28em;text-transform:uppercase;color:#fff;opacity:.7;writing-mode:vertical-rl}
+
+  /* I — corner badge */
+  .tplI .i-badge{position:absolute;top:0;left:0;z-index:3;background:var(--accent,#46617a);color:#fff;padding:8px 13px 9px;border-bottom-right-radius:14px;font-size:11px;font-weight:700;line-height:1;letter-spacing:.16em;text-transform:uppercase}
+
+  /* J — duotone bold */
+  .tplJ .j-img{position:absolute;inset:0;overflow:hidden}
+  .tplJ .j-img .ph{filter:grayscale(1) contrast(1.05)}
+  .tplJ .j-tint{position:absolute;inset:0;background:var(--accent,#46617a);mix-blend-mode:color;z-index:1}
+  .tplJ .j-tint2{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.62),transparent 58%);z-index:1}
+  .tplJ .j-cat{position:absolute;top:13px;left:14px;z-index:3;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:#fff;opacity:.92;font-weight:700}
+  .tplJ .j-nm{position:absolute;left:14px;right:14px;bottom:14px;z-index:3;font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:25px;line-height:1;color:#fff}
+  .tplJ .j-rl{font-family:-apple-system,sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;opacity:.9;margin-top:6px}
+
+  /* K — multi-discipline stack */
+  .tplK .face.front{background:#fff;color:#1b1f27}
+  .tplK .k-img{position:absolute;top:0;left:0;right:0;height:46%;overflow:hidden}
+  .tplK .k-body{position:absolute;left:0;right:0;bottom:0;height:54%;padding:13px 14px;display:flex;flex-direction:column;justify-content:center}
+  .tplK .k-over{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--accent,#46617a);font-weight:700}
+  .tplK .k-nm{font-size:18px;font-weight:600;color:#16202b;letter-spacing:-.01em;margin-top:4px}
+  .tplK .k-types{margin-top:9px;display:flex;flex-direction:column;gap:4px}
+  .tplK .k-type{font-size:11px;color:#46535f;display:flex;align-items:center;gap:8px}
+  .tplK .k-type::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent,#46617a);flex:none}
+  .tplK .catpill{position:absolute;top:10px;left:10px;z-index:3}
+
+  /* L — type-forward editorial */
+  .tplL .face.front{background:var(--accent-soft,#eaf1f6);color:var(--accent-ink,#2f4456)}
+  .tplL .l-head{position:absolute;top:0;left:0;right:0;height:56%;padding:15px 15px 0;display:flex;flex-direction:column;gap:8px}
+  .tplL .l-over{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent,#46617a);font-weight:700}
+  .tplL .l-nm{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:23px;line-height:1;color:var(--accent-ink,#2f4456);letter-spacing:-.01em}
+  .tplL .l-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+  .tplL .chip{background:#fff;border:1px solid rgba(0,0,0,.06);color:var(--accent-ink,#2f4456);font-weight:600}
+  .tplL .l-img{position:absolute;left:0;right:0;bottom:0;height:44%;overflow:hidden}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="crumb">Workspace settings <span>&rsaquo;</span> Appearance <span>&rsaquo;</span> <b>Card Design</b></div>
+    <div class="top-actions">
+      <label class="mini">Preview talent
+        <select id="talentSel"></select>
+      </label>
+      <label class="mini">2nd image
+        <select id="secondSel">
+          <option value="1" selected>Has one</option>
+          <option value="0">None</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="lead">
+      <h1>Card Design</h1>
+      <p>Design how talent cards look — and how they flip to a second image or a profile summary — on each surface. Pick a surface, choose a template, tune the details. Saving applies it live everywhere that surface appears.</p>
+    </div>
+
+    <div class="surfaces" id="surfaces"></div>
+
+    <div class="focus">
+      <div class="bigwrap">
+        <div class="bighead">
+          <div>
+            <span class="eyebrow" id="bigEyebrow"></span>
+            <h2 id="bigTitle"></h2>
+          </div>
+          <div class="bigtoggle">
+            <button id="bigToggleFront" class="on">Front</button>
+            <button id="bigToggleBack">Back</button>
+            <span class="hovertip">…or hover the card</span>
+          </div>
+        </div>
+        <div class="bigstage" id="bigStage"></div>
+      </div>
+      <aside class="panel" id="panel"></aside>
+    </div>
+
+    <div class="gallery">
+      <div class="gallery-head"><b>Templates</b><span id="galleryFor"></span></div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const TALENTS = [
+    {name:'Sofia Marchetti', category:'Model', types:['Editorial','Runway'], city:'Milan', avail:'Booking Sept', ok:true,
+      bio:'Editorial and runway model with a decade on European fashion weeks; known for sculptural posing and quiet intensity.',
+      stats:{Height:'179cm', Shoe:'40', Eyes:'Green'},
+      facts:{Height:'179 cm', Bust:'82', Waist:'61', Hips:'88', Hair:'Chestnut'}, s1:1011, s2:1021},
+    {name:'Marcus Webb', category:'Chef', types:['Private dining','Pastry'], city:'London', avail:'Open this month', ok:true,
+      bio:'Private-dining chef and pastry specialist; menus built around British produce with a French technique backbone.',
+      stats:{Covers:'2–40', Style:'Modern Brit', Since:'2012'},
+      facts:{Cuisine:'Modern British', Experience:'12 yrs', Signature:'Smoked cod, brown butter', Covers:'Up to 40'}, s1:1032, s2:1014},
+    {name:'Yuki Tanaka', category:'Stylist', types:['Editorial','Wardrobe','Set'], city:'Tokyo', avail:'Booking Oct', ok:true,
+      bio:'Stylist working across editorial, wardrobe and set; a restrained, texture-led eye trusted by Tokyo magazines.',
+      stats:{Focus:'Editorial', Kits:'Full', Since:'2015'},
+      facts:{Specialty:'Editorial', Wardrobe:'Womenswear', Set:'Yes', Experience:'9 yrs'}, s1:1048, s2:1027},
+    {name:'Liang Chen', category:'Model', types:['Commercial','Fitness','Actor'], city:'Singapore', avail:'Limited', ok:false,
+      bio:'Commercial and fitness model who also acts; equally at home in campaign stills and short-form spots.',
+      stats:{Height:'186cm', Shoe:'44', Eyes:'Brown'},
+      facts:{Height:'186 cm', Chest:'104', Waist:'81', Hair:'Black', Reel:'Available'}, s1:1053, s2:1036},
+    {name:'Amara Okafor', category:'Photographer', types:['Fashion','Portrait'], city:'Lagos', avail:'Booking Sept', ok:true,
+      bio:'Fashion and portrait photographer with a painterly use of colour and light; shoots on location and in studio.',
+      stats:{Focus:'Fashion', Studio:'Yes', Since:'2014'},
+      facts:{Specialty:'Fashion & portrait', Studio:'Own studio', Travel:'Worldwide', Experience:'10 yrs'}, s1:1064, s2:1042},
+    {name:'Nina Volkov', category:'Makeup Artist', types:['Beauty','SFX','Editorial'], city:'Berlin', avail:'Open this week', ok:true,
+      bio:'Makeup artist spanning clean beauty to full SFX; editorial-led, kit-complete, fast on set.',
+      stats:{Focus:'Beauty', Kit:'Pro', Since:'2013'},
+      facts:{Specialty:'Beauty & SFX', Editorial:'Yes', Kit:'Pro complete', Experience:'11 yrs'}, s1:1075, s2:1058},
+  ];
+
+  const TPL = {
+    A:{name:'Editorial minimal'}, B:{name:'Glass overlay'}, C:{name:'Split catalog'},
+    D:{name:'Full-bleed fashion'}, E:{name:'Framed gallery'}, F:{name:'Stat compact'},
+    G:{name:'Category banner'}, H:{name:'Magazine cover'}, I:{name:'Corner badge'},
+    J:{name:'Duotone bold'}, K:{name:'Multi-discipline'}, L:{name:'Type-forward'},
+  };
+
+  const ACCENTS = {
+    slate:   {accent:'#46617a', soft:'#eaf1f6', ink:'#2f4456'},
+    ink:     {accent:'#1b1f27', soft:'#eceef1', ink:'#1b1f27'},
+    plum:    {accent:'#6b3f6e', soft:'#f1e9f2', ink:'#4f2e52'},
+    emerald: {accent:'#2f6f5e', soft:'#e6f1ed', ink:'#22513f'},
+    blush:   {accent:'#b0617a', soft:'#f7e9ee', ink:'#7d3f54'},
+    steel:   {accent:'#5a6b7d', soft:'#eef1f4', ink:'#3c4856'},
+  };
+
+  const SURFACES = [
+    {id:'pitch', label:'Pitch', hint:'Curated client link', cfg:{template:'H', flip:true, back:'summary', fallback:'spec', overlay:'name', accent:'ink', corners:'sharp', showCat:true}},
+    {id:'roster', label:'Roster', hint:'Your workspace grid', cfg:{template:'C', flip:true, back:'image', fallback:'detail', overlay:'namerole', accent:'slate', corners:'rounded', showCat:true}},
+    {id:'discover', label:'Discover grid', hint:'Shared marketplace', cfg:{template:'I', flip:true, back:'image', fallback:'spec', overlay:'name', accent:'slate', corners:'rounded', showCat:true}},
+    {id:'embedded', label:'Embedded', hint:'On your own site', cfg:{template:'G', flip:true, back:'summary', fallback:'spec', overlay:'namerole', accent:'plum', corners:'rounded', showCat:true}},
+  ];
+  SURFACES.forEach(s=>s.saved=JSON.stringify(s.cfg));
+
+  const state = { focus:'roster', talent:0, hasSecond:true, bigFace:'front' };
+
+  const $ = s => document.querySelector(s);
+
+  function img(seed){ return `<img class="ph" src="https://picsum.photos/seed/tlla${seed}/600/800" alt="" loading="lazy" onerror="this.style.display='none'">`; }
+  function roleLine(t){ return t.types.join(' · '); }
+  function typeChips(t){ return t.types.map(x=>`<span class="chip">${x}</span>`).join(''); }
+  function statCells(t){ return Object.entries(t.stats).map(([k,v])=>`<div class="scell"><b>${v}</b><span>${k}</span></div>`).join(''); }
+  function detailRows(t){ return Object.entries(t.facts).map(([k,v])=>`<div class="drow"><span>${k}</span><b>${v}</b></div>`).join(''); }
+  function capHtml(t,cfg){
+    if(cfg.overlay==='none') return '';
+    const nm = `<div class="nm">${t.name}</div>`;
+    const rl = cfg.overlay==='namerole' ? `<div class="rl">${roleLine(t)}</div>` : '';
+    return nm+rl;
+  }
+  function catPill(t,cfg){ return cfg.showCat ? `<span class="catpill">${t.category}</span>` : ''; }
+  function catCorner(t,cfg){ return cfg.showCat ? `<span class="cat-corner">${t.category}</span>` : ''; }
+
+  function front(t,cfg){
+    const i = img(t.s1);
+    let h='';
+    switch(cfg.template){
+      case 'A': h=`${i}<div class="scrim-b"></div><div class="cap">${capHtml(t,cfg)}</div>${catCorner(t,cfg)}`;break;
+      case 'B': h=`${i}<div class="glass">${capHtml(t,cfg)||`<div class="nm">${t.name}</div>`}</div>${catPill(t,cfg)}`;break;
+      case 'C': h=`<div class="c-img">${i}</div>${catPill(t,cfg)}<div class="c-body"><div class="nm">${t.name}</div><div class="rl">${roleLine(t)}</div><div class="scells">${statCells(t)}</div></div>`;break;
+      case 'D': h=`${i}<div class="scrim-b"></div>${cfg.showCat?`<div class="d-cat">${t.category}</div>`:''}<div class="d-nm">${t.name}${cfg.overlay==='namerole'?`<div class="d-rl">${roleLine(t)}</div>`:''}</div>`;break;
+      case 'E': h=`<div class="e-frame">${i}${catPill(t,cfg)}</div><div class="e-cap"><div class="nm">${t.name}</div><div class="rl">${roleLine(t)}</div></div>`;break;
+      case 'F': h=`<div class="f-img">${i}</div>${catPill(t,cfg)}<div class="f-foot"><div class="nm">${t.name}</div><div class="f-stats">${statCells(t)}</div></div>`;break;
+      case 'G': h=`<div class="g-band">${t.category}</div><div class="g-img">${i}<div class="scrim-b"></div></div><div class="cap">${capHtml(t,cfg)||`<div class="nm">${t.name}</div>`}</div>`;break;
+      case 'H': h=`${i}<div class="scrim-tb"></div><div class="h-mast">${t.name}<span class="h-sub">${t.category} · ${t.city}</span></div><div class="h-cover">${catPill(t,cfg)||`<span class="catpill">Feature</span>`}</div><div class="h-issue">${t.city}</div>`;break;
+      case 'I': h=`${i}${cfg.showCat?`<div class="i-badge">${t.category}</div>`:''}<div class="scrim-b"></div><div class="cap">${capHtml(t,cfg)||`<div class="nm">${t.name}</div>`}</div>`;break;
+      case 'J': h=`<div class="j-img">${i}</div><div class="j-tint"></div><div class="j-tint2"></div>${cfg.showCat?`<div class="j-cat">${t.category}</div>`:''}<div class="j-nm">${t.name}${cfg.overlay==='namerole'?`<div class="j-rl">${roleLine(t)}</div>`:''}</div>`;break;
+      case 'K': h=`<div class="k-img">${i}</div>${catPill(t,cfg)}<div class="k-body"><div class="k-over">${t.category}</div><div class="k-nm">${t.name}</div><div class="k-types">${t.types.map(x=>`<div class="k-type">${x}</div>`).join('')}</div></div>`;break;
+      case 'L': h=`<div class="l-head"><div class="l-over">${t.category}</div><div class="l-nm">${t.name}</div><div class="l-chips">${typeChips(t)}</div></div><div class="l-img">${i}</div>`;break;
+      default:  h=`${i}<div class="scrim-b"></div><div class="cap">${capHtml(t,cfg)}</div>`;
+    }
+    return `<div class="face front">${h}</div>`;
+  }
+
+  function backImage(t,cfg){
+    const i = img(t.s2);
+    let h='';
+    switch(cfg.template){
+      case 'A': h=`${i}<div class="scrim-b"></div><div class="cap"><div class="nm">${t.name}</div><div class="rl">Second look · ${t.city}</div></div>`;break;
+      case 'B': h=`${i}<div class="glass"><div class="nm">${t.name}</div><div class="rl">Second look</div></div>`;break;
+      case 'D': h=`${i}<div class="scrim-b"></div><div class="d-nm">${t.name}<div class="d-rl">Second look</div></div>`;break;
+      case 'E': h=`<div class="e-frame">${i}</div><div class="e-cap"><div class="nm">${t.name}</div><div class="rl">Second look</div></div>`;break;
+      case 'J': h=`<div class="j-img">${i}</div><div class="j-tint"></div><div class="j-tint2"></div><div class="j-nm">${t.name}<div class="j-rl">Second look</div></div>`;break;
+      default:  h=`${i}<div class="scrim-b"></div><div class="img-back-cap">${catPill(t,cfg)}<div class="nm">${t.name}</div><div class="rl">${roleLine(t)}</div></div>`;
+    }
+    return `<div class="face back">${h}</div>`;
+  }
+
+  function backSummary(t,cfg){
+    const dark = (cfg.template==='D' || cfg.template==='J');
+    let body='';
+    if(cfg.fallback==='bio')      body=`<p class="sum-bio">${t.bio}</p><div class="scells">${statCells(t)}</div>`;
+    else if(cfg.fallback==='spec') body=`<div class="chips">${typeChips(t)}</div><div class="meta"><span>${t.city}</span><span class="avail ${t.ok?'ok':'no'}">${t.avail}</span></div>`;
+    else                          body=`<div class="drows">${detailRows(t)}</div><div class="meta"><span>${t.city}</span><span class="avail ${t.ok?'ok':'no'}">${t.avail}</span></div>`;
+    return `<div class="face back summary ${dark?'dark':''}"><span class="catword">${t.category}</span><div class="sum-nm">${t.name}</div><div class="sum-rl">${roleLine(t)}</div>${body}</div>`;
+  }
+
+  function renderCard(t,cfg,opts={}){
+    const ac = ACCENTS[cfg.accent] || ACCENTS.slate;
+    const r = cfg.corners==='sharp' ? '4px' : '18px';
+    const hasSecond = !!t.s2 && state.hasSecond;
+    const flipEnabled = cfg.flip && cfg.back!=='off' && !opts.noFlip;
+    const useImage = cfg.back==='image' && hasSecond;
+    const f = front(t,cfg);
+    let back='';
+    if(cfg.back!=='off') back = useImage ? backImage(t,cfg) : backSummary(t,cfg);
+    const flipped = opts.face==='back' && cfg.back!=='off';
+    const style = `--accent:${ac.accent};--accent-soft:${ac.soft};--accent-ink:${ac.ink};--r:${r}`;
+    return `<div class="flip tpl${cfg.template} ${flipEnabled?'can-flip':''} ${flipped?'flipped':''}" style="${style}"><div class="inner">${f}${back}</div></div>`;
+  }
+
+  function renderSurfaces(){
+    const t = TALENTS[state.talent];
+    $('#surfaces').innerHTML = SURFACES.map(s=>{
+      const dirty  = JSON.stringify(s.cfg)!==s.saved;
+      const active = s.id===state.focus;
+      const ac = ACCENTS[s.cfg.accent] || ACCENTS.slate;
+      return `<div class="surf ${active?'active':''} ${dirty?'dirty':''}" style="--focus:${ac.accent}" data-surf="${s.id}">
+        <div class="surf-head"><span class="lbl">${s.label}</span><span class="dot"></span></div>
+        <div class="mini-stage">${renderCard(t,s.cfg)}</div>
+        <div class="hint">${s.hint}</div>
+      </div>`;
+    }).join('');
+    $('#surfaces').querySelectorAll('.surf').forEach(el=>el.onclick=()=>{ state.focus=el.dataset.surf; state.bigFace='front'; renderAll(); });
+  }
+
+  function renderBig(){
+    const s = SURFACES.find(x=>x.id===state.focus);
+    const t = TALENTS[state.talent];
+    $('#bigEyebrow').textContent = s.label + ' surface';
+    $('#bigTitle').textContent = TPL[s.cfg.template].name;
+    $('#bigStage').innerHTML = renderCard(t,s.cfg,{face:state.bigFace});
+    $('#bigToggleFront').classList.toggle('on', state.bigFace==='front');
+    $('#bigToggleBack').classList.toggle('on', state.bigFace==='back');
+  }
+
+  function renderPanel(){
+    const s = SURFACES.find(x=>x.id===state.focus);
+    const c = s.cfg;
+    const flipOff = !c.flip;
+    const backDesc = c.back==='image' ? 'Flips to the talent’s second favourite image.'
+                   : c.back==='summary' ? 'Flips to an auto-built profile summary.'
+                   : 'Card stays still — no flip.';
+    const fbLabel = c.back==='image' ? 'If there’s no second image' : 'Summary style';
+    const dirty = JSON.stringify(c)!==s.saved;
+    $('#panel').innerHTML = `
+      <div class="prow swrow">
+        <div><div class="plabel">Enable flip</div><div class="pdesc">Hover on desktop · tap on mobile</div></div>
+        <div class="switch ${c.flip?'on':''}" data-act="flip"><i></i></div>
+      </div>
+      <div class="prow ${flipOff?'disabled':''}">
+        <div class="plabel">Back of card</div>
+        <div class="pdesc">${backDesc}</div>
+        <div class="seg" data-act="back">
+          <button data-v="image" class="${c.back==='image'?'on':''}">Second image</button>
+          <button data-v="summary" class="${c.back==='summary'?'on':''}">Summary</button>
+          <button data-v="off" class="${c.back==='off'?'on':''}">Off</button>
+        </div>
+      </div>
+      <div class="prow ${flipOff||c.back==='off'?'disabled':''}">
+        <div class="plabel">${fbLabel}</div>
+        <div class="pdesc">What the summary side shows.</div>
+        <div class="seg" data-act="fallback">
+          <button data-v="bio" class="${c.fallback==='bio'?'on':''}">Bio + stats</button>
+          <button data-v="spec" class="${c.fallback==='spec'?'on':''}">Types + city</button>
+          <button data-v="detail" class="${c.fallback==='detail'?'on':''}">Detail facts</button>
+        </div>
+      </div>
+      <div class="prow">
+        <div class="plabel">Overlay text</div>
+        <div class="pdesc">Name / role over photo-led templates.</div>
+        <div class="seg" data-act="overlay">
+          <button data-v="namerole" class="${c.overlay==='namerole'?'on':''}">Name + role</button>
+          <button data-v="name" class="${c.overlay==='name'?'on':''}">Name only</button>
+          <button data-v="none" class="${c.overlay==='none'?'on':''}">None</button>
+        </div>
+      </div>
+      <div class="prow">
+        <div class="plabel">Accent colour</div>
+        <div class="pdesc">Tints badges, labels and frames.</div>
+        <div class="accent-dots" data-act="accent">${Object.entries(ACCENTS).map(([k,v])=>`<div class="adot ${c.accent===k?'on':''}" data-v="${k}" style="background:${v.accent}" title="${k}"></div>`).join('')}</div>
+      </div>
+      <div class="prow swrow">
+        <div><div class="plabel">Category badge</div><div class="pdesc">Show “${TALENTS[state.talent].category}” on the card.</div></div>
+        <div class="switch ${c.showCat?'on':''}" data-act="showCat"><i></i></div>
+      </div>
+      <div class="prow">
+        <div class="plabel">Corners</div>
+        <div class="pdesc">Card corner radius.</div>
+        <div class="seg" data-act="corners">
+          <button data-v="rounded" class="${c.corners==='rounded'?'on':''}">Rounded</button>
+          <button data-v="sharp" class="${c.corners==='sharp'?'on':''}">Sharp</button>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button class="btn save" id="saveBtn" ${dirty?'':'disabled'}>Save &amp; apply</button>
+        <button class="btn reset" id="resetBtn">Reset</button>
+      </div>
+      <div class="savehint">Saving applies to every place <b>${s.label}</b> cards appear, live.</div>
+    `;
+    $('#panel').querySelectorAll('[data-act]').forEach(el=>{
+      const act = el.dataset.act;
+      if(el.classList.contains('switch')) el.onclick=()=>{ c[act]=!c[act]; afterEdit(); };
+      else el.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ c[act]=b.dataset.v; afterEdit(); });
+    });
+    $('#saveBtn').onclick = ()=>{ s.saved=JSON.stringify(c); showToast(`Saved — ${s.label} cards updated live`); afterEdit(); };
+    $('#resetBtn').onclick = ()=>{ Object.assign(c, JSON.parse(s.saved)); afterEdit(); };
+  }
+
+  function renderGallery(){
+    const s = SURFACES.find(x=>x.id===state.focus);
+    const t = TALENTS[state.talent];
+    $('#galleryFor').textContent = `for ${s.label} — click to apply`;
+    $('#thumbs').innerHTML = Object.entries(TPL).map(([k,v])=>{
+      const cfg = {...s.cfg, template:k};
+      const on = s.cfg.template===k;
+      return `<div class="thumb ${on?'on':''}" data-tpl="${k}"><div class="tbox">${renderCard(t,cfg,{noFlip:true})}</div><div class="tname">${v.name}</div></div>`;
+    }).join('');
+    $('#thumbs').querySelectorAll('.thumb').forEach(el=>el.onclick=()=>{ s.cfg.template=el.dataset.tpl; afterEdit(); });
+  }
+
+  function afterEdit(){ renderPanel(); renderBig(); renderSurfaces(); renderGallery(); }
+  function renderAll(){ renderPanel(); renderBig(); renderSurfaces(); renderGallery(); }
+
+  let toastT;
+  function showToast(m){ const el=$('#toast'); el.textContent=m; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200); }
+
+  function init(){
+    const tsel = $('#talentSel');
+    tsel.innerHTML = TALENTS.map((t,i)=>`<option value="${i}">${t.name} — ${t.category}</option>`).join('');
+    tsel.onchange = ()=>{ state.talent=+tsel.value; renderAll(); };
+    $('#secondSel').onchange = e=>{ state.hasSecond = e.target.value==='1'; renderAll(); };
+    $('#bigToggleFront').onclick = ()=>{ state.bigFace='front'; renderBig(); };
+    $('#bigToggleBack').onclick  = ()=>{ state.bigFace='back';  renderBig(); };
+    document.body.classList.add('mode-hover');
+    renderAll();
+  }
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tulala · Talent Card Flip — Design Lab</title>
+<style>
+  /* ---------- Cool, premium palette (no gold / no red-orange) ---------- */
+  :root{
+    --ground:#eef1f5; --ground-2:#e5e9ef;
+    --card:#ffffff; --card-2:#f6f8fb;
+    --ink:#1b1f27; --ink-soft:#5d6675; --ink-faint:#9aa3b0;
+    --line:#e2e7ee; --line-2:#d4dae3;
+    --accent:#46617a; --accent-soft:#e9f0f5; --accent-ink:#2f4456;
+    --ok:#3f8f7a; --busy:#8a93a1;
+    --shadow:0 1px 2px rgba(27,31,39,.04), 0 8px 28px rgba(27,31,39,.10);
+    --shadow-lift:0 6px 16px rgba(27,31,39,.10), 0 22px 48px rgba(27,31,39,.18);
+    --r:18px;
+    --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  body.dark{
+    --ground:#0f1217; --ground-2:#161b22;
+    --card:#1a1f27; --card-2:#20262f;
+    --ink:#eef1f5; --ink-soft:#b3bcc8; --ink-faint:#7d8794;
+    --line:#2a313b; --line-2:#363f4b;
+    --accent:#9fc0d8; --accent-soft:#23303b; --accent-ink:#cfe0ec;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.5);
+    --shadow-lift:0 8px 20px rgba(0,0,0,.5), 0 26px 56px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--sans); color:var(--ink); background:var(--ground);
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+    transition:background .3s ease,color .3s ease;
+  }
+
+  /* ---------- Page chrome ---------- */
+  header.page{ max-width:1180px; margin:0 auto; padding:48px 28px 8px; }
+  .kicker{ font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  h1{ font-family:var(--serif); font-weight:600; font-size:38px; line-height:1.08; margin:10px 0 12px; letter-spacing:-.01em; }
+  .lede{ max-width:660px; color:var(--ink-soft); font-size:16px; margin:0; }
+  .lede b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- Control bar ---------- */
+  .controls{
+    position:sticky; top:0; z-index:40; margin-top:26px;
+    background:color-mix(in srgb,var(--ground) 86%, transparent);
+    backdrop-filter:saturate(140%) blur(10px);
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .controls-inner{ max-width:1180px; margin:0 auto; padding:12px 28px; display:flex; flex-wrap:wrap; gap:10px 22px; align-items:center; }
+  .ctl{ display:flex; align-items:center; gap:8px; }
+  .ctl > label{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; }
+  .seg{ display:inline-flex; background:var(--card-2); border:1px solid var(--line); border-radius:999px; padding:3px; }
+  .seg button{
+    appearance:none; border:0; background:transparent; cursor:pointer; font:inherit;
+    font-size:13px; font-weight:500; color:var(--ink-soft); padding:6px 13px; border-radius:999px; transition:.18s;
+  }
+  .seg button[aria-pressed="true"]{ background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(27,31,39,.12); }
+  body.dark .seg button[aria-pressed="true"]{ box-shadow:0 1px 3px rgba(0,0,0,.5); }
+  .hint{ margin-left:auto; font-size:12.5px; color:var(--ink-faint); }
+  .hint b{ color:var(--accent); font-weight:600; }
+
+  /* ---------- Grid ---------- */
+  main{ max-width:1180px; margin:0 auto; padding:34px 28px 90px; }
+  .section-h{ display:flex; align-items:baseline; gap:12px; margin:6px 0 20px; }
+  .section-h h2{ font-family:var(--serif); font-size:22px; font-weight:600; margin:0; }
+  .section-h span{ font-size:13px; color:var(--ink-faint); }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:30px 26px; }
+
+  .cardwrap{ display:flex; flex-direction:column; gap:10px; }
+  .meta-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 2px; }
+  .tpl-name{ font-size:12.5px; font-weight:600; color:var(--ink); }
+  .tpl-use{ font-size:11px; color:var(--ink-faint); }
+
+  /* ---------- The flip mechanics ---------- */
+  .flip{ perspective:1400px; }
+  .flip .inner{
+    position:relative; width:100%; aspect-ratio:3/4; border-radius:var(--r);
+    transform-style:preserve-3d; transition:transform .62s cubic-bezier(.2,.7,.2,1), box-shadow .3s ease;
+    box-shadow:var(--shadow);
+  }
+  .flip .face{
+    position:absolute; inset:0; border-radius:var(--r); overflow:hidden;
+    -webkit-backface-visibility:hidden; backface-visibility:hidden;
+    background:var(--card);
+  }
+  .flip .back{ transform:rotateY(180deg); }
+  /* Hover mode flips on hover; Tap mode flips only via .flipped */
+  body.mode-hover .flip:hover .inner{ transform:rotateY(180deg); box-shadow:var(--shadow-lift); }
+  body.mode-hover .flip:hover{ z-index:2; }
+  .flip.flipped .inner{ transform:rotateY(180deg); box-shadow:var(--shadow-lift); }
+  body.mode-tap .flip{ cursor:pointer; }
+
+  /* show one back-variant per global toggle */
+  body.back-image  .back .b-sum{ display:none; }
+  body.back-summary .back .b-img{ display:none; }
+  .b-img,.b-sum{ position:absolute; inset:0; }
+
+  /* tiny variant label */
+  .vtag{ position:absolute; top:10px; left:10px; z-index:5; font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+    background:color-mix(in srgb,var(--card) 80%, transparent); color:var(--ink-soft); border:1px solid var(--line);
+    padding:4px 8px; border-radius:999px; font-weight:600; backdrop-filter:blur(4px); }
+  body.no-labels .vtag{ display:none; }
+
+  /* image helpers */
+  .ph{ position:absolute; inset:0; background:linear-gradient(150deg,#cfd9e4,#aeb9c8 60%,#9aa6b6); }
+  .ph.v2{ background:linear-gradient(150deg,#c6d2cf,#a9bbc4 55%,#93a6b3); }
+  .ph img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .scrim{ position:absolute; inset:0; background:linear-gradient(to top,rgba(15,19,26,.74) 0%,rgba(15,19,26,.18) 38%,rgba(15,19,26,0) 62%); }
+  .scrim.soft{ background:linear-gradient(to top,rgba(15,19,26,.55) 0%,rgba(15,19,26,0) 50%); }
+
+  .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; flex:none; }
+  .dot.ok{ background:var(--ok); box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%, transparent); }
+  .dot.busy{ background:var(--busy); }
+  .avail{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; }
+  .avail.ok{ color:var(--ok); } .avail.busy{ color:var(--busy); }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ font-size:11px; font-weight:600; padding:4px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent-ink); }
+
+  /* ===== Template A — Editorial Minimal ===== */
+  .tplA .face{ background:var(--card); padding:12px; }
+  .tplA .ph{ inset:12px; border-radius:8px; }
+  .tplA .cap{ position:absolute; left:14px; right:14px; bottom:12px; }
+  .tplA .nm{ font-family:var(--serif); font-size:18px; font-weight:600; color:#fff; text-shadow:0 1px 12px rgba(0,0,0,.5); }
+  .tplA .rl{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.85); text-shadow:0 1px 8px rgba(0,0,0,.5); }
+  .tplA .b-sum{ padding:22px 20px; display:flex; flex-direction:column; }
+  .tplA .b-sum .nm2{ font-family:var(--serif); font-size:19px; font-weight:600; }
+  .tplA .b-sum .rl2{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:3px 0 12px; }
+  .tplA .bio{ font-size:13px; color:var(--ink-soft); line-height:1.5; }
+  .tplA .stats{ margin-top:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; border-top:1px solid var(--line); padding-top:12px; }
+  .tplA .stats div{ font-size:11px; color:var(--ink-faint); }
+  .tplA .stats b{ display:block; font-size:14px; color:var(--ink); font-weight:600; }
+
+  /* ===== Template B — Glass Overlay ===== */
+  .tplB .glass{ position:absolute; left:10px; right:10px; bottom:10px; padding:12px 14px; border-radius:14px;
+    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); backdrop-filter:blur(14px) saturate(140%); color:#fff; }
+  .tplB .glass .nm{ font-size:16px; font-weight:700; letter-spacing:-.01em; }
+  .tplB .glass .sub{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:5px; font-size:12px; opacity:.95; }
+  .tplB .glass .avail{ color:#fff; } .tplB .glass .dot.ok{ box-shadow:0 0 0 3px rgba(255,255,255,.25); }
+  .tplB .b-sum{ padding:0; }
+  .tplB .b-sum .glass{ top:10px; bottom:10px; display:flex; flex-direction:column; gap:10px; }
+  .tplB .b-sum .glass .lbl{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; opacity:.8; }
+  .tplB .b-sum .glass .chip{ background:rgba(255,255,255,.2); color:#fff; }
+
+  /* ===== Template C — Split Card (catalog / roster) ===== */
+  .tplC .face{ display:flex; flex-direction:column; background:var(--card); }
+  .tplC .ph{ position:relative; inset:auto; flex:1 1 auto; border-radius:0; }
+  .tplC .panel{ flex:0 0 auto; padding:12px 14px 14px; }
+  .tplC .panel .nm{ font-size:15px; font-weight:700; letter-spacing:-.01em; }
+  .tplC .panel .rl{ font-size:11px; color:var(--ink-faint); margin-top:2px; }
+  .tplC .panel .mini{ display:flex; gap:14px; margin-top:9px; padding-top:9px; border-top:1px solid var(--line); }
+  .tplC .panel .mini div{ font-size:10.5px; color:var(--ink-faint); }
+  .tplC .panel .mini b{ display:block; font-size:13px; color:var(--ink); }
+  .tplC .b-sum{ padding:16px 16px; display:flex; flex-direction:column; }
+  .tplC .b-sum .nm2{ font-size:15px; font-weight:700; }
+  .tplC .detail{ margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; }
+  .tplC .detail .row{ display:flex; justify-content:space-between; font-size:12px; border-bottom:1px dotted var(--line); padding-bottom:5px; }
+  .tplC .detail .row span{ color:var(--ink-faint); } .tplC .detail .row b{ color:var(--ink); font-weight:600; }
+
+  /* ===== Template D — Full Bleed + Gradient (bold fashion) ===== */
+  .tplD .nm{ position:absolute; left:16px; right:16px; bottom:14px; color:#fff; }
+  .tplD .nm b{ display:block; font-family:var(--serif); font-size:26px; font-weight:600; line-height:1; letter-spacing:-.01em; }
+  .tplD .nm small{ font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; opacity:.9; }
+  .tplD .b-sum{ background:#12161d; color:#eef1f5; padding:20px 18px; display:flex; flex-direction:column; }
+  .tplD .b-sum .nm2{ font-family:var(--serif); font-size:22px; font-weight:600; }
+  .tplD .b-sum .bio{ font-size:13px; color:#c2cad4; margin:8px 0 14px; line-height:1.5; }
+  .tplD .b-sum .stats{ margin-top:auto; display:flex; gap:18px; }
+  .tplD .b-sum .stats div{ font-size:11px; color:#8b95a3; } .tplD .b-sum .stats b{ display:block; font-size:15px; color:#fff; }
+
+  /* ===== Template E — Framed Gallery ===== */
+  .tplE .face{ background:var(--card-2); padding:14px 14px 0; display:flex; flex-direction:column; }
+  .tplE .frame{ position:relative; flex:1 1 auto; border:1px solid var(--line-2); background:#fff; padding:8px; border-radius:4px; }
+  body.dark .tplE .frame{ background:#0e1218; }
+  .tplE .frame .ph{ position:absolute; inset:8px; border-radius:2px; }
+  .tplE .placard{ flex:0 0 auto; text-align:center; padding:11px 6px 13px; }
+  .tplE .placard .nm{ font-family:var(--serif); font-size:15px; font-weight:600; }
+  .tplE .placard .rl{ font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-faint); margin-top:3px; }
+  .tplE .b-sum{ background:var(--card-2); padding:18px 16px; display:flex; flex-direction:column; gap:10px; text-align:center; }
+  .tplE .b-sum .nm2{ font-family:var(--serif); font-size:16px; font-weight:600; }
+  .tplE .b-sum .chips{ justify-content:center; }
+
+  /* ===== Template F — Stat Card (admin / pitch utility) ===== */
+  .tplF .face{ background:var(--card); padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .tplF .top{ display:flex; gap:11px; align-items:center; }
+  .tplF .av{ width:58px; height:58px; border-radius:12px; overflow:hidden; flex:none; position:relative; }
+  .tplF .av .ph{ position:absolute; inset:0; }
+  .tplF .who .nm{ font-size:14px; font-weight:700; }
+  .tplF .who .rl{ font-size:11px; color:var(--ink-faint); }
+  .tplF .big{ position:relative; flex:1 1 auto; border-radius:10px; overflow:hidden; }
+  .tplF .big .ph{ position:absolute; inset:0; }
+  .tplF .foot{ display:flex; align-items:center; justify-content:space-between; }
+  .tplF .b-sum{ padding:14px; display:flex; flex-direction:column; gap:9px; }
+  .tplF .detail{ display:grid; grid-template-columns:1fr 1fr; gap:7px 12px; margin-top:2px; }
+  .tplF .detail .row{ display:flex; justify-content:space-between; font-size:12px; border-bottom:1px dotted var(--line); padding-bottom:5px; }
+  .tplF .detail .row span{ color:var(--ink-faint); } .tplF .detail .row b{ color:var(--ink); font-weight:600; }
+
+  /* flip affordance icon (tap mode) */
+  .flipcue{ position:absolute; top:10px; right:10px; z-index:5; width:26px; height:26px; border-radius:50%;
+    display:none; align-items:center; justify-content:center; color:var(--ink-soft);
+    background:color-mix(in srgb,var(--card) 80%, transparent); border:1px solid var(--line); backdrop-filter:blur(4px); }
+  body.mode-tap .flipcue{ display:flex; }
+  .flipcue svg{ width:14px; height:14px; }
+
+  /* ---------- Page-builder mock ---------- */
+  .pb{ margin-top:64px; border:1px solid var(--line); border-radius:20px; background:var(--card); box-shadow:var(--shadow); overflow:hidden; }
+  .pb-head{ padding:16px 22px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; }
+  .pb-head .dot3{ display:flex; gap:6px; } .pb-head .dot3 i{ width:9px; height:9px; border-radius:50%; background:var(--line-2); }
+  .pb-head h3{ margin:0; font-size:14px; font-weight:700; }
+  .pb-head .tag{ margin-left:auto; font-size:11px; color:var(--ink-faint); }
+  .pb-body{ display:grid; grid-template-columns:1fr 1fr; gap:0; }
+  @media (max-width:720px){ .pb-body{ grid-template-columns:1fr; } }
+  .pb-col{ padding:20px 22px; }
+  .pb-col + .pb-col{ border-left:1px solid var(--line); }
+  @media (max-width:720px){ .pb-col + .pb-col{ border-left:0; border-top:1px solid var(--line); } }
+  .pb-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 0; border-bottom:1px solid var(--line); }
+  .pb-row:last-child{ border-bottom:0; }
+  .pb-row label{ font-size:13px; font-weight:600; }
+  .pb-row .desc{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  select.pb-sel{ font:inherit; font-size:13px; padding:7px 10px; border-radius:9px; border:1px solid var(--line-2); background:var(--card-2); color:var(--ink); }
+  .switch{ width:42px; height:25px; border-radius:999px; background:var(--accent); position:relative; border:0; cursor:pointer; flex:none; }
+  .switch::after{ content:""; position:absolute; top:3px; left:20px; width:19px; height:19px; border-radius:50%; background:#fff; transition:.18s; }
+  .switch[aria-pressed="false"]{ background:var(--line-2); } .switch[aria-pressed="false"]::after{ left:3px; }
+
+  footer.page{ max-width:1180px; margin:0 auto; padding:8px 28px 70px; color:var(--ink-faint); font-size:13px; }
+  footer.page b{ color:var(--ink-soft); }
+
+  /* toast */
+  #toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
+    background:var(--ink); color:var(--ground); padding:11px 18px; border-radius:999px; font-size:13.5px; font-weight:600;
+    box-shadow:var(--shadow-lift); transition:.25s; pointer-events:none; z-index:99; }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body class="mode-hover back-image">
+
+<header class="page">
+  <div class="kicker">Tulala · Design Lab</div>
+  <h1>Talent card — the flip reveal</h1>
+  <p class="lede">Every talent card has a front (the <b>profile image</b>) and a back. The back shows the talent's
+  <b>second favourite image</b> — and when they haven't chosen one, it falls back to an <b>auto-generated summary</b>.
+  Six template directions below. Flip any card, then tell me which to take into the page builder.</p>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="ctl">
+      <label>Interaction</label>
+      <div class="seg" id="mode">
+        <button data-mode="hover" aria-pressed="true">Hover</button>
+        <button data-mode="tap" aria-pressed="false">Tap (mobile)</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>Back of card</label>
+      <div class="seg" id="back">
+        <button data-back="image" aria-pressed="true">2nd image</button>
+        <button data-back="summary" aria-pressed="false">Auto-summary</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>Ground</label>
+      <div class="seg" id="theme">
+        <button data-theme="light" aria-pressed="true">Light</button>
+        <button data-theme="dark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>Labels</label>
+      <div class="seg" id="labels">
+        <button data-labels="on" aria-pressed="true">On</button>
+        <button data-labels="off" aria-pressed="false">Off</button>
+      </div>
+    </div>
+    <div class="hint" id="hint"><b>Hover</b> a card to flip it.</div>
+  </div>
+</div>
+
+<main>
+  <div class="section-h"><h2>Six template directions</h2><span>each shows a different back treatment — toggle “Back of card” above to compare</span></div>
+  <div class="grid" id="grid"><!-- cards injected --></div>
+
+  <!-- ---------- Page builder concept ---------- -->
+  <div class="pb">
+    <div class="pb-head">
+      <span class="dot3"><i></i><i></i><i></i></span>
+      <h3>Card behaviour — per directory / roster block</h3>
+      <span class="tag">Page Builder · Studio &amp; Agency templates</span>
+    </div>
+    <div class="pb-body">
+      <div class="pb-col">
+        <div class="pb-row">
+          <div><label>Enable flip</label><div class="desc">Hover on desktop · tap on mobile</div></div>
+          <button class="switch" aria-pressed="true" id="pbFlip"></button>
+        </div>
+        <div class="pb-row">
+          <div><label>Back of card</label><div class="desc">What the flip reveals</div></div>
+          <select class="pb-sel" id="pbBack">
+            <option value="image">Second favourite image</option>
+            <option value="summary">Auto-summary</option>
+            <option value="off">Off (no flip)</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <div><label>If no second image</label><div class="desc">Fallback summary style</div></div>
+          <select class="pb-sel">
+            <option>Bio + key stats</option>
+            <option>Specialties + availability</option>
+            <option>Mini detail card</option>
+          </select>
+        </div>
+      </div>
+      <div class="pb-col">
+        <div class="pb-row">
+          <div><label>Overlay text on image</label><div class="desc">Drawn over front &amp; image-back</div></div>
+          <select class="pb-sel">
+            <option>Name only</option>
+            <option>Name + role</option>
+            <option>None (image only)</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <div><label>Template</label><div class="desc">Visual style of the card</div></div>
+          <select class="pb-sel">
+            <option>Editorial minimal</option><option>Glass overlay</option><option>Split / catalog</option>
+            <option>Full-bleed fashion</option><option>Framed gallery</option><option>Stat / compact</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <div><label>Context preset</label><div class="desc">Sensible defaults per surface</div></div>
+          <select class="pb-sel">
+            <option>Discover grid</option><option>Roster (admin)</option><option>Pitch</option><option>Embedded directory</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="page">
+  Mockup only — not wired to real data. The <b>“Back of card”</b> switch and the page-builder <b>“Back of card”</b> dropdown are live so you can compare.
+  Resize the window narrow, switch <b>Interaction → Tap</b>, and try: <b>first tap flips, second tap opens</b>.
+</footer>
+
+<div id="toast"></div>
+
+<script>
+  // ---------- talent data ----------
+  const T = [
+    { name:"Sofia Marchetti", role:"Editorial · Runway", city:"Milan, IT", avail:"Available now", ok:true,
+      bio:"Milan-based editorial talent with a decade on international runways and a calm, directable presence on set.",
+      specialties:["Runway","Editorial","Campaign"],
+      stats:{Height:"178 cm",Shoe:"40 EU",Eyes:"Green"},
+      detail:{Height:"178 cm",Shoe:"40 EU",Eyes:"Green",Hair:"Brown",Languages:"IT · EN",Based:"Milan"},
+      tpl:"A", sumKind:"bio", s1:101, s2:201 },
+    { name:"Liang Chen", role:"Commercial · Fitness", city:"Singapore", avail:"From Jun 12", ok:true,
+      bio:"Commercial and fitness specialist — brand-safe, high energy, fluent on camera in three languages.",
+      specialties:["Commercial","Fitness","Lifestyle"],
+      stats:{Height:"182 cm",Shoe:"43 EU",Eyes:"Brown"},
+      detail:{Height:"182 cm",Shoe:"43 EU",Eyes:"Brown",Hair:"Black",Languages:"EN · ZH · MS",Based:"Singapore"},
+      tpl:"B", sumKind:"spec", s1:102, s2:202 },
+    { name:"Amara Okafor", role:"Runway · Beauty", city:"Lagos, NG", avail:"Available now", ok:true,
+      bio:"Statuesque runway and beauty talent; striking on camera, seasoned with global campaigns.",
+      specialties:["Runway","Beauty","Editorial"],
+      stats:{Height:"180 cm",Shoe:"41 EU",Eyes:"Brown"},
+      detail:{Height:"180 cm",Shoe:"41 EU",Eyes:"Brown",Hair:"Black",Languages:"EN · YO",Based:"Lagos"},
+      tpl:"C", sumKind:"detail", s1:103, s2:203 },
+    { name:"Nina Volkov", role:"Beauty · Print", city:"Berlin, DE", avail:"Booked til Jun 3", ok:false,
+      bio:"Beauty and print specialist with an expressive, editorial face and meticulous on-set discipline.",
+      specialties:["Beauty","Print","Hair"],
+      stats:{Height:"175 cm",Shoe:"39 EU",Eyes:"Blue"},
+      detail:{Height:"175 cm",Shoe:"39 EU",Eyes:"Blue",Hair:"Blonde",Languages:"DE · EN · RU",Based:"Berlin"},
+      tpl:"D", sumKind:"bio", s1:104, s2:204 },
+    { name:"Mateo Rossi", role:"Commercial", city:"Rome, IT", avail:"Available now", ok:true,
+      bio:"Warm, versatile commercial talent — equally at home in lifestyle, hospitality and automotive work.",
+      specialties:["Commercial","Lifestyle"],
+      stats:{Height:"185 cm",Shoe:"44 EU",Eyes:"Hazel"},
+      detail:{Height:"185 cm",Shoe:"44 EU",Eyes:"Hazel",Hair:"Brown",Languages:"IT · EN",Based:"Rome"},
+      tpl:"E", sumKind:"spec", s1:105, s2:205 },
+    { name:"Yuki Tanaka", role:"Editorial · Avant-garde", city:"Tokyo, JP", avail:"Available now", ok:true,
+      bio:"Boundary-pushing editorial and avant-garde talent; a favourite of art directors for conceptual shoots.",
+      specialties:["Editorial","Art","Avant-garde"],
+      stats:{Height:"170 cm",Shoe:"38 EU",Eyes:"Brown"},
+      detail:{Height:"170 cm",Shoe:"38 EU",Eyes:"Brown",Hair:"Black",Languages:"JA · EN",Based:"Tokyo"},
+      tpl:"F", sumKind:"detail", s1:106, s2:206 },
+  ];
+
+  const img = (seed)=>`https://picsum.photos/seed/tlla${seed}/600/800`;
+  const ph  = (seed,v2)=>`<div class="ph ${v2?'v2':''}"><img src="${img(seed)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></div>`;
+  const flipcue = `<div class="flipcue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg></div>`;
+  const availHTML = (t)=>`<span class="avail ${t.ok?'ok':'busy'}"><span class="dot ${t.ok?'ok':'busy'}"></span>${t.avail}</span>`;
+  const chips = (t)=>t.specialties.map(s=>`<span class="chip">${s}</span>`).join("");
+  const detailRows = (t)=>Object.entries(t.detail).map(([k,v])=>`<div class="row"><span>${k}</span><b>${v}</b></div>`).join("");
+  const statCells = (t)=>Object.entries(t.stats).map(([k,v])=>`<div><b>${v}</b>${k}</div>`).join("");
+
+  function summaryFor(t){
+    if(t.sumKind==="bio") return `<div class="vtag">Summary · Bio + stats</div>`;
+    if(t.sumKind==="spec") return `<div class="vtag">Summary · Specialties</div>`;
+    return `<div class="vtag">Summary · Detail</div>`;
+  }
+
+  // ---------- per-template renderers ----------
+  function front(t){
+    switch(t.tpl){
+      case "A": return `${ph(t.s1)}<div class="scrim soft"></div><div class="cap"><div class="nm">${t.name}</div><div class="rl">${t.role}</div></div>`;
+      case "B": return `${ph(t.s1)}<div class="scrim"></div><div class="glass"><div class="nm">${t.name}</div><div class="sub"><span>${t.city}</span>${availHTML(t)}</div></div>`;
+      case "C": return `${ph(t.s1)}<div class="panel"><div class="nm">${t.name}</div><div class="rl">${t.role} · ${t.city}</div><div class="mini">${statCells(t)}</div></div>`;
+      case "D": return `${ph(t.s1)}<div class="scrim"></div><div class="nm"><small>${t.role}</small><b>${t.name}</b></div>`;
+      case "E": return `<div class="frame">${ph(t.s1)}</div><div class="placard"><div class="nm">${t.name}</div><div class="rl">${t.role}</div></div>`;
+      case "F": return `<div class="top"><div class="av">${ph(t.s1)}</div><div class="who"><div class="nm">${t.name}</div><div class="rl">${t.role}</div></div></div><div class="big">${ph(t.s1)}</div><div class="foot"><span style="font-size:12px;color:var(--ink-faint)">${t.city}</span>${availHTML(t)}</div>`;
+    }
+  }
+  function backImage(t){
+    switch(t.tpl){
+      case "A": return `<div class="b-img"><div class="vtag">2nd image</div>${ph(t.s2,1)}<div class="scrim soft"></div><div class="cap"><div class="nm">${t.name}</div></div></div>`;
+      case "B": return `<div class="b-img"><div class="vtag">2nd image</div>${ph(t.s2,1)}<div class="scrim"></div><div class="glass"><div class="nm">${t.name}</div><div class="sub"><span>${t.city}</span>${availHTML(t)}</div></div></div>`;
+      case "C": return `<div class="b-img"><div class="vtag">2nd image</div>${ph(t.s2,1)}<div class="scrim"></div><div class="cap" style="position:absolute;left:14px;bottom:12px"><div class="nm" style="color:#fff;font-weight:700">${t.name}</div></div></div>`;
+      case "D": return `<div class="b-img"><div class="vtag">2nd image</div>${ph(t.s2,1)}<div class="scrim"></div><div class="nm"><b>${t.name}</b></div></div>`;
+      case "E": return `<div class="b-img"><div class="vtag">2nd image</div><div class="frame">${ph(t.s2,1)}</div><div class="placard"><div class="nm">${t.name}</div></div></div>`;
+      case "F": return `<div class="b-img"><div class="vtag">2nd image</div>${ph(t.s2,1)}<div class="scrim"></div><div class="cap" style="position:absolute;left:14px;bottom:12px"><div class="nm" style="color:#fff;font-weight:700">${t.name}</div></div></div>`;
+    }
+  }
+  function backSummary(t){
+    const bioBlock = `<div class="nm2">${t.name}</div><div class="rl2">${t.role}</div><div class="bio">${t.bio}</div><div class="stats">${statCells(t)}</div>`;
+    switch(t.tpl){
+      case "A": return `<div class="b-sum">${summaryFor(t)}${bioBlock}</div>`;
+      case "B": return `<div class="b-sum">${ph(t.s1)}<div class="scrim"></div><div class="glass">${summaryFor(t)}<div><div class="nm">${t.name}</div><div style="font-size:11.5px;opacity:.9;margin-top:2px">${t.city}</div></div><div><div class="lbl">Specialties</div><div class="chips" style="margin-top:6px">${chips(t)}</div></div><div style="margin-top:auto">${availHTML(t)}</div></div></div>`;
+      case "C": return `<div class="b-sum">${summaryFor(t)}<div class="nm2">${t.name}</div><div class="detail">${detailRows(t)}</div><div style="margin-top:12px">${availHTML(t)}</div></div>`;
+      case "D": return `<div class="b-sum">${summaryFor(t)}<div class="nm2">${t.name}</div><div class="bio">${t.bio}</div><div class="stats">${statCells(t)}</div></div>`;
+      case "E": return `<div class="b-sum">${summaryFor(t)}<div class="nm2">${t.name}</div><div class="chips">${chips(t)}</div><div style="font-size:12.5px;color:var(--ink-soft)">${t.city}</div>${availHTML(t)}</div>`;
+      case "F": return `<div class="b-sum">${summaryFor(t)}<div style="font-size:14px;font-weight:700">${t.name}</div><div class="detail">${detailRows(t)}</div><div style="margin-top:6px">${availHTML(t)}</div></div>`;
+    }
+  }
+  const tplUse = {A:"Discover · editorial",B:"Discover · modern",C:"Roster · catalog",D:"Hero · fashion",E:"Gallery · page builder",F:"Admin · pitch"};
+  const tplLabel = {A:"Editorial minimal",B:"Glass overlay",C:"Split / catalog",D:"Full-bleed fashion",E:"Framed gallery",F:"Stat / compact"};
+
+  // ---------- build grid ----------
+  const grid = document.getElementById("grid");
+  grid.innerHTML = T.map(t=>`
+    <div class="cardwrap">
+      <div class="meta-row"><span class="tpl-name">${t.tpl} · ${tplLabel[t.tpl]}</span><span class="tpl-use">${tplUse[t.tpl]}</span></div>
+      <div class="flip tpl${t.tpl}" data-name="${t.name}">
+        <div class="inner">
+          <div class="face front">${flipcue}${front(t)}</div>
+          <div class="face back">${backImage(t)}${backSummary(t)}</div>
+        </div>
+      </div>
+    </div>`).join("");
+
+  // ---------- controls ----------
+  const body = document.body, hint = document.getElementById("hint");
+  function seg(id, fn){
+    const box = document.getElementById(id);
+    box.addEventListener("click", e=>{
+      const b = e.target.closest("button"); if(!b) return;
+      [...box.children].forEach(x=>x.setAttribute("aria-pressed", x===b));
+      fn(b.dataset);
+    });
+  }
+  seg("mode",  d=>{
+    body.classList.toggle("mode-hover", d.mode==="hover");
+    body.classList.toggle("mode-tap",   d.mode==="tap");
+    document.querySelectorAll(".flip.flipped").forEach(f=>f.classList.remove("flipped"));
+    hint.innerHTML = d.mode==="hover" ? "<b>Hover</b> a card to flip it." : "<b>Tap</b> to flip · tap the back to <b>open</b>.";
+  });
+  seg("back",  d=>{
+    body.classList.toggle("back-image",   d.back==="image");
+    body.classList.toggle("back-summary", d.back==="summary");
+    document.getElementById("pbBack").value = d.back;
+  });
+  seg("theme", d=> body.classList.toggle("dark", d.theme==="dark"));
+  seg("labels",d=> body.classList.toggle("no-labels", d.labels==="off"));
+
+  // tap-to-flip / tap-again-to-open
+  grid.addEventListener("click", e=>{
+    if(!body.classList.contains("mode-tap")) return;
+    const card = e.target.closest(".flip"); if(!card) return;
+    if(card.classList.contains("flipped")){
+      showToast(`↗  Opening ${card.dataset.name}'s profile…`);
+      setTimeout(()=>card.classList.remove("flipped"), 1100); // demo reset
+    } else {
+      document.querySelectorAll(".flip.flipped").forEach(f=>f!==card && f.classList.remove("flipped"));
+      card.classList.add("flipped");
+    }
+  });
+
+  // page-builder live bits
+  const pbBack = document.getElementById("pbBack");
+  pbBack.addEventListener("change", ()=>{
+    if(pbBack.value==="off"){ showToast("Flip disabled for this block"); return; }
+    body.classList.toggle("back-image",   pbBack.value==="image");
+    body.classList.toggle("back-summary", pbBack.value==="summary");
+    document.querySelectorAll("#back button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.back===pbBack.value));
+  });
+  document.getElementById("pbFlip").addEventListener("click", e=>{
+    const on = e.currentTarget.getAttribute("aria-pressed")==="true";
+    e.currentTarget.setAttribute("aria-pressed", String(!on));
+  });
+
+  // toast
+  let toastTimer;
+  function showToast(msg){
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 1600);
+  }
+</script>
+</body>
+</html>

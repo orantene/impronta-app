@@ -1,0 +1,136 @@
+- status "Real workspace identity (live data)":
+  - generic "Live tenant scoped from URL slug": Live
+  - strong: Hotels Express Lavanderia
+  - generic: Free
+  - generic: ·
+  - generic "Signed-in user from the Supabase session":
+    - text: orantene@gmail.com
+    - generic: (Owner)
+  - generic: ·
+  - generic "Live aggregates from agency_talent_roster + inquiries": 0 talento0 open inquiries
+  - generic "Slug from URL": /hotels-express-lavanderia
+  - button "Sign out"
+- link "Skip to main content":
+  - /url: "#tulala-main"
+- main "workspace surface":
+  - generic "Tulala"
+  - button "Open account menu — Signed in as Oran Tene":
+    - generic: Oran Tene
+  - generic: /
+  - button "Acting as Hotels Express Lavanderia — switch":
+    - generic: Hotels Express Lavanderia
+    - generic: Free
+    - generic: €0 pending · 0 confirmed
+  - button "Notifications · 7 unread":
+    - generic: "7"
+  - button "Help":
+    - generic: "?"
+  - group "Language":
+    - button "EN" [pressed]
+    - button "ES"
+  - button "Sign out":
+  - navigation "Workspace sections":
+    - 'button "Overview — Today''s snapshot: unread, pending actions, recent activity"': Overview
+    - button "Messages — All threads across active inquiries and bookings": Messages
+    - button "Calendar — Scheduled shoots, holds, and deadlines": Calendar
+    - button "Roster — Your talent, availability, and performance":
+      - text: Roster
+      - generic "2 items need attention": "2"
+    - button "Clients — Client accounts, trust tiers, and booking history": Clients
+    - button "Pitches — Curated talent suggestions sent to clients": Pitches
+    - button "Operations — Analytics, queues, SLAs, automations, and team workload": Operations
+    - button "Production — Casting, crew bookings, call sheets, rights, and safety": Production
+    - button "Website — Pages, posts, redirects, custom code, tracking, SEO, domain": Website
+    - button "Media — Workspace photo library, watermark control, and usage tracking": Media
+    - button "Settings — Account, plan, branding, integrations, team, and danger zone": Settings
+  - button "Search anything (⌘K)":
+    - generic: Search
+    - generic: ⌘K
+  - button "Workspace settings":
+  - button "Switch to sidebar layout":
+  - main:
+    - generic: Setup
+    - heading "You're already live." [level=1]
+    - paragraph: Five steps to your first booking. About 10 minutes total.
+    - generic: 0 of 5 steps · ~10 min total
+    - generic: First 10 minutes
+    - generic: 0% complete
+    - heading "Your activation arc" [level=3]
+    - paragraph: All five are reversible — skip what you don't need.
+    - list:
+      - button "1 Add your first talent Name + 3 photos. You can edit later. 2 min Open":
+        - generic: "1"
+        - generic: Add your first talent
+        - generic: Name + 3 photos. You can edit later.
+        - generic: 2 min
+        - text: Open
+      - button "2 Publish a profile Once published, the public link works. 30 sec Open":
+        - generic: "2"
+        - generic: Publish a profile
+        - generic: Once published, the public link works.
+        - generic: 30 sec
+        - text: Open
+      - button "3 Copy your storefront link Share with a client — it's live now. 15 sec Open":
+        - generic: "3"
+        - generic: Copy your storefront link
+        - generic: Share with a client — it's live now.
+        - generic: 15 sec
+        - text: Open
+      - button "4 Walk through a demo inquiry See how a coordinator works a brief. 3 min Open":
+        - generic: "4"
+        - generic: Walk through a demo inquiry
+        - generic: See how a coordinator works a brief.
+        - generic: 3 min
+        - text: Open
+      - button "5 Invite a teammate (optional) Up to 1 collaborator on Free. 1 min Open":
+        - generic: "5"
+        - generic: Invite a teammate (optional)
+        - generic: Up to 1 collaborator on Free.
+        - generic: 1 min
+        - text: Open
+    - generic: Today on Free
+    - generic: What works right now
+    - button "Compare plans →"
+    - generic: Public roster
+    - generic: Searchable across the Tulala network.
+    - generic: 3 / 5 talent
+    - generic: Inbound inquiries
+    - generic: Clients message you through your storefront.
+    - generic: 1 / 5 this month
+    - generic: Storefront page
+    - generic: Lives at acme-models.tulala.app.
+    - generic: Talent + client messaging
+    - generic: Two-thread conversations on every inquiry.
+    - generic: Listed in the public directory
+    - generic: Brands looking for talent can find you.
+    - generic: Caps are soft. We'll nudge before you run out — never block mid-conversation.
+    - button "Open roster"
+    - button "See pipeline"
+    - button "Your public storefront Live at hotels-express-lavanderia.tulala.app. Anyone with the link can see your published roster. Live Manage visibility":
+      - heading "Your public storefront" [level=3]
+      - paragraph: Live at hotels-express-lavanderia.tulala.app. Anyone with the link can see your published roster.
+      - generic: Live
+      - text: Manage visibility
+    - button "Your roster 0 talent profiles. Add more, invite talent to claim, or publish drafts. 0 profiles · 0 published Open roster":
+      - heading "Your roster" [level=3]
+      - paragraph: 0 talent profiles. Add more, invite talent to claim, or publish drafts.
+      - generic: 0 profiles · 0 published
+      - text: Open roster
+    - button "More with Studio":
+      - generic: 🔒
+      - text: More with Studio
+      - generic: →
+    - button "3 more with Agency":
+      - generic: 🔒
+      - text: 3 more with Agency
+      - generic: →
+- dialog:
+  - separator "Resize drawer"
+  - banner:
+    - heading [level=2]
+    - button "Copy link to this drawer":
+    - button "Close":
+- status
+- button "Open quick actions · 5 pending":
+- generic: "5"
+- alert

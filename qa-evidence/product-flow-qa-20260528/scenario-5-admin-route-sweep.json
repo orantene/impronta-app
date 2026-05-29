@@ -1,0 +1,357 @@
+[
+  {
+    "label": "Overview",
+    "route": "",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin",
+    "ok": false,
+    "error": "Timed out waiting for tab 1 to navigate to http://localhost:3000/hotels-express-lavanderia/admin."
+  },
+  {
+    "label": "Messages",
+    "route": "/messages",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/messages",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/messages",
+    "title": "Tulala",
+    "h1": [],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\n5",
+    "textLength": 348,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-messages.png"
+  },
+  {
+    "label": "Calendar",
+    "route": "/calendar",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/calendar",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/calendar",
+    "title": "Tulala",
+    "h1": [
+      "Calendar"
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nCalendar\nNew booking\nConfirmed\n3\nSubmitted\n0\nIn progress\n4\nExpired\n0\nMay 2026\nAmerica/Cancun · EST\nToday\nSun\nMon\nTue\nWed\nThu\nFri\nSat\n1\n2\n3\n4\n5\n6\nMango — Spring lookbook · 3\n7\n8\n9\n10\n11\n12\n13\n14\nVogue Italia — Editorial spread · 2\n15\nVogue Italia — Editorial spread · 2\n16\n17\n18\nBvlgari — Jewelry campaign · 1\n19\nBvlgari — Jewelry campaign · 1\n20\nBvlgari —",
+    "textLength": 792,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": true,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-calendar.png"
+  },
+  {
+    "label": "Roster",
+    "route": "/roster",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/roster",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/roster",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Roster"
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nTALENT\nRoster\n\nProfiles you represent. Each one moves through draft → invited → published → claimed.\n\n⋯\nTeam\nInvite\nAdd talent\n🔍\nFind talent by skill\nVisible\n0\nHidden\n0\n⌕\n0 talent\nSort: Newest ↓\nSelect all\n✨\nYour roster is empty\nThree fast ways to start. Templates pre-fill the common types so your first 3 are 30 seconds each.\n+ Add your first talent\n",
+    "textLength": 735,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-roster.png"
+  },
+  {
+    "label": "Roster Add",
+    "route": "/roster/new",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/roster/new",
+    "ok": false,
+    "error": "Timed out waiting for tab 1 to navigate to http://localhost:3000/hotels-express-lavanderia/admin/roster/new."
+  },
+  {
+    "label": "Clients",
+    "route": "/clients",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/clients",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/clients",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Clients"
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out",
+    "textLength": 131,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-clients.png"
+  },
+  {
+    "label": "Pitches",
+    "route": "/pitches",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/pitches",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/pitches",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Pitches"
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nPitches\n\nCurated talent suggestions you've sent to clients.\n\n+ New pitch\n📨\nNo pitches yet\n\nCurate a talent suggestion, attach a brief, and send a mobile-friendly link your client can review and convert into a booking inquiry.\n\n+ Compose your first pitch\n5",
+    "textLength": 603,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-pitches.png"
+  },
+  {
+    "label": "Operations",
+    "route": "/operations",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/operations",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/operations",
+    "title": "Tulala",
+    "h1": [
+      "Operations"
+    ],
+    "h2": [
+      "Analytics",
+      "Workflow",
+      "Comms & growth",
+      "Admin tools"
+    ],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nOperations\n\nAnalytics, queues, SLAs & automations.\n\nAnalytics\nRevenue, conversion, and team performance.\nRevenue\nMonthly revenue, top clients, and trend. Opens the live Business financials page.\nConversion funnel\nInquiry → offer → booking conversion.\nTop performers\nMost-booked talent and best clients.\nTeam workload\nPer-coordinator queue depth and SLA ri",
+    "textLength": 1694,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-operations.png"
+  },
+  {
+    "label": "Production",
+    "route": "/production",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/production",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/production",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Production"
+    ],
+    "h2": [
+      "Casting",
+      "Crew & shoot day",
+      "Rights & safety",
+      "Account lifecycle"
+    ],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nProduction\n\nCasting, crew, shoot day, rights & safety.\n\nCasting\nOpen or closed casting flows and round-by-round callbacks.\nCasting flow\n\nConfigure open/closed casting and rounds.\n\nOpen\nCallback tracker\n\nPer-round talent status with feedback.\n\nOpen\nDiscovery feed\n\nTrending talent and editorial picks.\n\nOpen\nAvailability search\n\nFind talent for a date ra",
+    "textLength": 1761,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-production.png"
+  },
+  {
+    "label": "Website",
+    "route": "/website",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/website",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/website",
+    "title": "Tulala",
+    "h1": [
+      "Website"
+    ],
+    "h2": [
+      "Performance",
+      "Pages",
+      "Configuration"
+    ],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nWebsite\n\nhotels-express.tulala.digital · pages, posts, redirects, code, tracking, SEO\n\nView live\nEdit homepage\nAdd page\nLIVE URL\nhttps://hotels-express.tulala.digital\nCopy\nLive\n0\nPages live· 0 draft\n0\nPosts· 0 unpublished\n0\n301 redirects· 0 paused\n0\nScheduled· none\nPerformance\nvs prior 7d\n7 days\n30 days\nVISITS\n4,730\n↑ 14.0%vs 4,148\nINQUIRIES\n23\n↑ 27.8%v",
+    "textLength": 1971,
+    "hasNotFound": false,
+    "hasPlaceholder": true,
+    "fixtures": {
+      "acme": true,
+      "vogue": false,
+      "four730": true,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-website.png"
+  },
+  {
+    "label": "Media",
+    "route": "/media",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/media",
+    "ok": false,
+    "error": "Timed out waiting for tab 1 to navigate to http://localhost:3000/hotels-express-lavanderia/admin/media."
+  },
+  {
+    "label": "Settings",
+    "route": "/settings",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/settings",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/settings",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Settings"
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nSettings\n\nPlan, team, branding, identity — the controls that shape who you are inside Tulala.\n\nExpand all\n🏛\nWorkspace\n🎯\nRoster\n👥\nTeam & legal\n💳\nPlan & integrations\n⚙\nAdvanced\nAccount\nWorkspace name, slug, and contact info.\nHotels Express Lavanderia\nName · Slug · Contact email\nEdit\nWant to take bookings yourself?\nCreate your talent page — becomes v",
+    "textLength": 1013,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-settings.png"
+  },
+  {
+    "label": "Work",
+    "route": "/work",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/work",
+    "ok": false,
+    "error": "Timed out waiting for tab 1 to navigate to http://localhost:3000/hotels-express-lavanderia/admin/work."
+  },
+  {
+    "label": "Bookings",
+    "route": "/bookings",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/bookings",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/bookings",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Bookings0",
+      "You're already live."
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nHOTELS EXPRESS LAVANDERIA\nBookings\n0\nFull pipeline →\n📋\n\nNo confirmed bookings yet\n\nBookings appear here once an inquiry is confirmed.\n\nView pipeline →\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nSETUP\nYou're already live.\n\nFive steps to your first booking. About 10 minutes total.\n\n0 of 5 steps · ~10 min total\nFIRST 10 MINUTES\n0% complete\nYour activation arc\n\nAll five are reversible — skip what",
+    "textLength": 1892,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": true,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-bookings.png"
+  },
+  {
+    "label": "Triage",
+    "route": "/triage",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/triage",
+    "ok": false,
+    "error": "Timed out running CDP command \"Page.navigate\" for tab 1"
+  },
+  {
+    "label": "Discover Inquiries",
+    "route": "/discover-inquiries",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/discover-inquiries",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/discover-inquiries",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "Something broke"
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\n⚠️\nSomething broke\n\nNEXT_HTTP_ERROR_FALLBACK;404\n\nReload",
+    "textLength": 188,
+    "hasNotFound": true,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": false,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-discover-inquiries.png"
+  },
+  {
+    "label": "Site",
+    "route": "/site",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/site",
+    "ok": false,
+    "error": "Timed out waiting for tab 1 to navigate to http://localhost:3000/hotels-express-lavanderia/admin/site."
+  },
+  {
+    "label": "Pages",
+    "route": "/site-settings/content/pages",
+    "url": "http://localhost:3000/hotels-express-lavanderia/admin/site-settings/content/pages",
+    "ok": true,
+    "finalUrl": "http://localhost:3000/hotels-express-lavanderia/admin/site-settings/content/pages",
+    "title": "Tulala — The Talent Business Platform",
+    "h1": [
+      "You're already live."
+    ],
+    "h2": [],
+    "textStart": "LIVE\nHotels Express LavanderiaFREE\n·\nqa-admin@impronta.test (Admin)\n·\n0 talento0 open inquiries\n/hotels-express-lavanderia\nSign out\nSkip to main content\nTULALA\nQA\nQA Admin\n/\nHotels Express Lavanderia\nFree\n€0 pending · 0 confirmed\n7\n?\nEN\nES\nOverview\nMessages\nCalendar\nRoster\n2\nClients\nPitches\nOperations\nProduction\nWebsite\nMedia\nSettings\nSearch\n⌘K\nSETUP\nYou're already live.\n\nFive steps to your first booking. About 10 minutes total.\n\n0 of 5 steps · ~10 min total\nFIRST 10 MINUTES\n0% complete\nYour activation arc\n\nAll five are reversible — skip what you don't need.\n\n1\nAdd your first talent\nName + 3 photos. You can edit later.\n2 min\nOpen\n2\nPublish a profile\nOnce published, the public link works.\n30 ",
+    "textLength": 1740,
+    "hasNotFound": false,
+    "hasPlaceholder": false,
+    "fixtures": {
+      "acme": true,
+      "vogue": false,
+      "four730": false,
+      "mock": false
+    },
+    "nextOverlay": true,
+    "logs": [],
+    "screenshotPath": "/Users/oranpersonal/Desktop/impronta-app/qa-evidence/product-flow-qa-20260528/screenshots/scenario-5-pages.png"
+  }
+]

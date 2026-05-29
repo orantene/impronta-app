@@ -1,0 +1,9 @@
+PR-C QA evidence — 2026-05-26
+URL: http://localhost:3102/impronta/admin/financials
+User: qa-admin@impronta.test (Admin — has manage_billing per capabilities.ts)
+
+H1: Business financials
+Sections rendered (H2): P&L · Per-talent payouts · Top clients by gross · Payment status · Commission policy
+Per-talent table: empty-state "No commission snapshots yet."
+Cross-check vs identity bar (PR-A): identity bar still €0 pending · 0 confirmed → both surfaces zero → consistent.
+Console: no errors.

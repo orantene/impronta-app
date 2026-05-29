@@ -1,0 +1,9 @@
+PR-A QA evidence — 2026-05-26
+URL: http://localhost:3102/impronta/admin
+User: qa-admin@impronta.test (Admin · Impronta Models)
+
+Identity-bar acting label DOM:
+  data-tulala-acting-label: "Impronta ModelsAgency€0 pending · 0 confirmed"
+  data-tulala-acting-detail: "€0 pending · 0 confirmed"
+
+Verdict: Live financial KPI path is firing (was hardcoded "€4,200 pending · 3 confirmed"). Zero euros reflects an empty booking_commission_snapshot for the Impronta tenant in EUR — accurate. Browser console: no errors.

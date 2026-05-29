@@ -1,0 +1,23 @@
+{
+  "agency": {
+    "id": "8340d45d-52c2-4cc6-b527-641d9446e9f5",
+    "display_name": "Hotels Express Lavanderia",
+    "slug": "hotels-express-lavanderia",
+    "plan_tier": "free",
+    "status": "active",
+    "kind": "agency"
+  },
+  "error": null,
+  "domains": [
+    {
+      "id": "b6eb2560-cd98-4795-bb0e-cb549cb4b463",
+      "hostname": "hotels-express.tulala.digital",
+      "kind": "subdomain",
+      "status": "active",
+      "is_primary": false,
+      "tenant_id": "8340d45d-52c2-4cc6-b527-641d9446e9f5",
+      "tenant_slug": null
+    }
+  ],
+  "domainError": null
+}
