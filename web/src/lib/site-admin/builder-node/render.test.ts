@@ -740,6 +740,35 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-justify-content=""/);
   });
 
+  it("renders free grid-template escapes (columns/rows + auto-flow)", () => {
+    const html = render([
+      {
+        id: "free:grid-tracks",
+        kind: "container",
+        props: {
+          layout: "grid",
+          style: {
+            gridTemplateColumns: "2fr 1fr",
+            gridTemplateRows: "auto 1fr",
+            gridAutoFlow: "column",
+            responsive: { mobile: { gridTemplateColumns: "1fr" } },
+          },
+        },
+        children: [],
+      },
+    ]);
+
+    // Desktop grid tracks + flow land inline. These literal values are absent
+    // from the embedded static sheet (which uses var()/repeat()), so a match
+    // proves the inline render — not a stray sheet rule — emitted them.
+    assert.match(html, /grid-template-columns:2fr 1fr/);
+    assert.match(html, /grid-template-rows:auto 1fr/);
+    assert.match(html, /grid-auto-flow:column/);
+    // The mobile column-track override is attr-gated; no tablet override set.
+    assert.match(html, /data-builder-style-mobile-grid-template-columns=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-grid-template-columns=""/);
+  });
+
   it("themes builder nodes from design tokens (buttons, fonts, tones)", () => {
     const html = render([
       { id: "t:btn", kind: "button", props: { label: "Go", href: "/x", tone: "primary" } },

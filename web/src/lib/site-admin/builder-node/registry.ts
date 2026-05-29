@@ -160,6 +160,14 @@ const builderNodeStyleValueSchema = z.object({
     .enum(["flex-start", "center", "flex-end", "stretch", "baseline"])
     .optional(),
   flexWrap: z.enum(["nowrap", "wrap", "wrap-reverse"]).optional(),
+  // Free grid-template tracks — raw CSS so asymmetric / auto-responsive grids work
+  // ("2fr 1fr", "repeat(auto-fit, minmax(200px, 1fr))"). Capped at 120 to fit a
+  // multi-track definition; gridAutoFlow is a small enum.
+  gridTemplateColumns: z.string().max(120).optional(),
+  gridTemplateRows: z.string().max(120).optional(),
+  gridAutoFlow: z
+    .enum(["row", "column", "row dense", "column dense"])
+    .optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

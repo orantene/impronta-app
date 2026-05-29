@@ -195,6 +195,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-justify-content]{justify-content:var(--bn-tablet-justify-content)!important}
   .site-builder-node[data-builder-style-tablet-align-items]{align-items:var(--bn-tablet-align-items)!important}
   .site-builder-node[data-builder-style-tablet-flex-wrap]{flex-wrap:var(--bn-tablet-flex-wrap)!important}
+  .site-builder-node[data-builder-style-tablet-grid-template-columns]{grid-template-columns:var(--bn-tablet-grid-template-columns)!important}
+  .site-builder-node[data-builder-style-tablet-grid-template-rows]{grid-template-rows:var(--bn-tablet-grid-template-rows)!important}
+  .site-builder-node[data-builder-style-tablet-grid-auto-flow]{grid-auto-flow:var(--bn-tablet-grid-auto-flow)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -273,6 +276,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-justify-content]{justify-content:var(--bn-mobile-justify-content)!important}
   .site-builder-node[data-builder-style-mobile-align-items]{align-items:var(--bn-mobile-align-items)!important}
   .site-builder-node[data-builder-style-mobile-flex-wrap]{flex-wrap:var(--bn-mobile-flex-wrap)!important}
+  .site-builder-node[data-builder-style-mobile-grid-template-columns]{grid-template-columns:var(--bn-mobile-grid-template-columns)!important}
+  .site-builder-node[data-builder-style-mobile-grid-template-rows]{grid-template-rows:var(--bn-mobile-grid-template-rows)!important}
+  .site-builder-node[data-builder-style-mobile-grid-auto-flow]{grid-auto-flow:var(--bn-mobile-grid-auto-flow)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -380,6 +386,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-justify-content": tablet?.justifyContent ? "" : undefined,
     "data-builder-style-tablet-align-items": tablet?.alignItems ? "" : undefined,
     "data-builder-style-tablet-flex-wrap": tablet?.flexWrap ? "" : undefined,
+    "data-builder-style-tablet-grid-template-columns": tablet?.gridTemplateColumns ? "" : undefined,
+    "data-builder-style-tablet-grid-template-rows": tablet?.gridTemplateRows ? "" : undefined,
+    "data-builder-style-tablet-grid-auto-flow": tablet?.gridAutoFlow ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -453,6 +462,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-justify-content": mobile?.justifyContent ? "" : undefined,
     "data-builder-style-mobile-align-items": mobile?.alignItems ? "" : undefined,
     "data-builder-style-mobile-flex-wrap": mobile?.flexWrap ? "" : undefined,
+    "data-builder-style-mobile-grid-template-columns": mobile?.gridTemplateColumns ? "" : undefined,
+    "data-builder-style-mobile-grid-template-rows": mobile?.gridTemplateRows ? "" : undefined,
+    "data-builder-style-mobile-grid-auto-flow": mobile?.gridAutoFlow ? "" : undefined,
   };
 }
 
@@ -653,6 +665,12 @@ function responsiveStyleVars(
     "--bn-mobile-justify-content": style?.responsive?.mobile?.justifyContent,
     "--bn-mobile-align-items": style?.responsive?.mobile?.alignItems,
     "--bn-mobile-flex-wrap": style?.responsive?.mobile?.flexWrap,
+    "--bn-tablet-grid-template-columns": style?.responsive?.tablet?.gridTemplateColumns,
+    "--bn-tablet-grid-template-rows": style?.responsive?.tablet?.gridTemplateRows,
+    "--bn-tablet-grid-auto-flow": style?.responsive?.tablet?.gridAutoFlow,
+    "--bn-mobile-grid-template-columns": style?.responsive?.mobile?.gridTemplateColumns,
+    "--bn-mobile-grid-template-rows": style?.responsive?.mobile?.gridTemplateRows,
+    "--bn-mobile-grid-auto-flow": style?.responsive?.mobile?.gridAutoFlow,
   });
 }
 
@@ -766,6 +784,12 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.justifyContent) out.justifyContent = style.justifyContent;
   if (style.alignItems) out.alignItems = style.alignItems;
   if (style.flexWrap) out.flexWrap = style.flexWrap;
+  // Grid container tracks — free column/row templates + implicit-flow direction.
+  // Applied inline so an exact track definition wins over the container's
+  // structured repeat(columns) grid. No-op on non-grid nodes.
+  if (style.gridTemplateColumns) out.gridTemplateColumns = style.gridTemplateColumns;
+  if (style.gridTemplateRows) out.gridTemplateRows = style.gridTemplateRows;
+  if (style.gridAutoFlow) out.gridAutoFlow = style.gridAutoFlow;
   // Filter effects — self filter + backdrop frost (with the -webkit- prefix so
   // backdrop-filter works on Safari).
   if (style.filter) out.filter = style.filter;

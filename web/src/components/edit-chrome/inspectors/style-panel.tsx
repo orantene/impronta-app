@@ -360,6 +360,14 @@ const BUILDER_NODE_FLEX_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "wrap-reverse", label: "Reverse" },
 ];
 
+const BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "row", label: "Row" },
+  { value: "column", label: "Column" },
+  { value: "row dense", label: "Row dense" },
+  { value: "column dense", label: "Col dense" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -919,6 +927,9 @@ function cleanBuilderNodeStyle(
   if (value.justifyContent) out.justifyContent = value.justifyContent;
   if (value.alignItems) out.alignItems = value.alignItems;
   if (value.flexWrap) out.flexWrap = value.flexWrap;
+  if (value.gridTemplateColumns) out.gridTemplateColumns = value.gridTemplateColumns;
+  if (value.gridTemplateRows) out.gridTemplateRows = value.gridTemplateRows;
+  if (value.gridAutoFlow) out.gridAutoFlow = value.gridAutoFlow;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -999,6 +1010,9 @@ function cleanBuilderNodeStyleValue(
   if (value.justifyContent) out.justifyContent = value.justifyContent;
   if (value.alignItems) out.alignItems = value.alignItems;
   if (value.flexWrap) out.flexWrap = value.flexWrap;
+  if (value.gridTemplateColumns) out.gridTemplateColumns = value.gridTemplateColumns;
+  if (value.gridTemplateRows) out.gridTemplateRows = value.gridTemplateRows;
+  if (value.gridAutoFlow) out.gridAutoFlow = value.gridAutoFlow;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -6058,6 +6072,83 @@ export function StylePanel({
                     })
                   }
                   options={BUILDER_NODE_FLEX_WRAP_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="gridTemplateColumns"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Grid columns (grid layout)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="2fr 1fr · repeat(auto-fit,minmax(200px,1fr))"
+                  value={selectedStandaloneViewportStyle?.gridTemplateColumns ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      gridTemplateColumns: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="gridTemplateRows"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Grid rows
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="auto 1fr"
+                  value={selectedStandaloneViewportStyle?.gridTemplateRows ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      gridTemplateRows: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="gridAutoFlow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Auto-flow
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.gridAutoFlow ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      gridAutoFlow: (next || undefined) as BuilderNodeStyleValue["gridAutoFlow"],
+                    })
+                  }
+                  options={BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS}
                 />
               </div>
             </div>

@@ -137,6 +137,14 @@ export interface BuilderNodeStyleValue {
     | "space-evenly";
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
   flexWrap?: "nowrap" | "wrap" | "wrap-reverse";
+  // Grid CONTAINER tracks — free grid-template escapes so a grid node can express
+  // asymmetric ("2fr 1fr"), fixed ("200px 1fr"), or auto-responsive
+  // ("repeat(auto-fit, minmax(200px, 1fr))") column/row tracks the structured
+  // columns:1|2|3|4 enum can't. gridAutoFlow steers implicit-item placement.
+  // Stored as raw CSS strings; layer after the grid token. No-op outside a grid.
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridAutoFlow?: "row" | "column" | "row dense" | "column dense";
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {
