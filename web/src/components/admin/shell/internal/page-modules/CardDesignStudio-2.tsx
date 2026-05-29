@@ -623,30 +623,6 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
           TR
         </span>
 
-        {/* Trust marks — bottom-right corner, mirrors RosterPhotoBadgeOverlay.
-            Painted first / lower so the availability + ID stack sits on top,
-            exactly like the real card's DOM order. */}
-        {badges.trust ? (
-          <div style={{ position: "absolute", bottom: 4, right: 4, zIndex: 1, pointerEvents: "none" }}>
-            <span
-              title="Tulala Verified"
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                background: COLORS.success,
-                boxShadow: "0 0 0 2px #fff, 0 1px 3px rgba(11,11,13,0.20)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-              }}
-            >
-              <Check size={11} strokeWidth={3} aria-hidden />
-            </span>
-          </div>
-        ) : null}
-
         {/* Top-right stack: visibility eye + Discover pill */}
         <div
           style={{
@@ -725,7 +701,8 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
           ) : null}
         </div>
 
-        {/* Bottom-right stack: availability pill + canonical TAL-ID */}
+        {/* Bottom-right stack: verified mark + availability pill + canonical
+            TAL-ID — stacked vertically so none overlap (mirrors the real card). */}
         <div
           style={{
             position: "absolute",
@@ -738,6 +715,24 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
             zIndex: 2,
           }}
         >
+          {badges.trust ? (
+            <span
+              title="Tulala Verified"
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: COLORS.success,
+                boxShadow: "0 0 0 2px #fff, 0 1px 3px rgba(11,11,13,0.20)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+              }}
+            >
+              <Check size={11} strokeWidth={3} aria-hidden />
+            </span>
+          ) : null}
           {badges.availability ? (
             <span
               style={{

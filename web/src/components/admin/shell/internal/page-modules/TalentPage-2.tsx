@@ -452,8 +452,8 @@ function RosterCard({
             {profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
           </div>
         )}
-        {/* Modern verified-icon overlay — IG / Tulala / Agency. */}
-        {rosterCardBadges.trust && <RosterPhotoBadgeOverlay talentId={profile.id} />}
+        {/* Verified marks now live in the bottom-right stack (below) so they
+            stack with availability + TAL-ID instead of overlapping them. */}
         {/* "You" badge — persistent marker when this is the signed-in talent's own profile */}
         {isSelf && (
           <div
@@ -614,9 +614,9 @@ function RosterCard({
           )}
         </div>
 
-        {/* Bottom-right stack: availability pill (published only) +
-            the talent's canonical code (TAL-NNNNN). Stacked vertically
-            so the two never overlap. */}
+        {/* Bottom-right stack: verified marks + availability pill (published
+            only) + the talent's canonical code (TAL-NNNNN). Stacked vertically
+            so the verified mark, availability, and ID never overlap. */}
         <div
           style={{
             position: "absolute",
@@ -626,8 +626,10 @@ function RosterCard({
             flexDirection: "column",
             alignItems: "flex-end",
             gap: 4,
+            zIndex: 2,
           }}
         >
+          {rosterCardBadges.trust && <RosterPhotoBadgeOverlay talentId={profile.id} inline />}
           {rosterCardBadges.availability && profile.state === "published" && profile.availability && (
             <div
               style={{

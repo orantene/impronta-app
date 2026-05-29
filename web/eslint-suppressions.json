@@ -566,7 +566,7 @@
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 47
+      "count": 46
     }
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio.tsx": {

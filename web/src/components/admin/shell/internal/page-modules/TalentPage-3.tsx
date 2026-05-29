@@ -164,11 +164,30 @@ export function RosterTrustCell({ talentId }: { talentId: string }) {
   );
 }
 
-/** Modern verified-icon overlay on the talent's photo corner. */
-export function RosterPhotoBadgeOverlay({ talentId }: { talentId: string }) {
+/**
+ * Modern verified-icon overlay for the talent's photo.
+ *
+ * `inline` renders the marks without their own corner anchor so the roster
+ * card can stack them inside its existing bottom-right column (trust →
+ * availability → TAL-ID) instead of overlapping that stack in the corner.
+ */
+export function RosterPhotoBadgeOverlay({
+  talentId,
+  inline,
+}: {
+  talentId: string;
+  inline?: boolean;
+}) {
   const { getTrustSummary } = useAdminShell();
   const trust = getTrustSummary("talent_profile", talentId);
-  return <ProfilePhotoBadgeOverlay trust={trust} size="md" max={2} position="bottom-right" />;
+  return (
+    <ProfilePhotoBadgeOverlay
+      trust={trust}
+      size="md"
+      max={2}
+      position={inline ? "inline" : "bottom-right"}
+    />
+  );
 }
 
 // ── Roster list view ────────────────────────────────────────────────
