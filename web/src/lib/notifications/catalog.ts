@@ -9,8 +9,10 @@ import ClientOfferReady from "../../../emails/client/OfferReady";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
 import TalentClaimInvite from "../../../emails/talent/ClaimInvite";
+import TalentWelcome from "../../../emails/talent/Welcome";
 import TalentBookingConfirmed from "../../../emails/talent/BookingConfirmed";
 import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
+import WorkspaceWelcome from "../../../emails/workspace/Welcome";
 import WorkspaceCoordinatorAssigned from "../../../emails/workspace/CoordinatorAssigned";
 import WorkspaceOfferAccepted from "../../../emails/workspace/OfferAccepted";
 import WorkspaceOfferDeclined from "../../../emails/workspace/OfferDeclined";
@@ -26,6 +28,7 @@ import {
   clientOrGuest,
   coordinatorAndAdmins,
   emailInvitee,
+  eventUser,
   invitedTalent,
   loadInquiryView,
   platformAdmins,
@@ -606,6 +609,72 @@ const WORKSPACE_TEAM_INVITE: CatalogEntry = {
   },
 };
 
+// ─── Account-lifecycle welcomes (spec §6.6 / §12) ─────────────────────────────
+//
+// Both fire once at signup, before the user has any saved preferences, so the
+// dispatcher's default-on channels apply. Email-only — the in-app surface the
+// user is about to land on is itself the "welcome", so a bell would be noise.
+
+/**
+ * workspace.signup_welcome (§6.6) — the new workspace owner. `tenantId` carries
+ * the agency brand so the email + dashboard link render on their host;
+ * `userId` is the owner, resolved by `eventUser`. Producer:
+ * `workspace-signup.server.ts` emits `workspace.signup_completed`.
+ */
+const WORKSPACE_SIGNUP_WELCOME: CatalogEntry = {
+  id: "workspace.signup_welcome",
+  category: "workspace_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["workspace.signup_completed"],
+  resolveAudience: eventUser("workspace_member"),
+  email: {
+    templateId: "workspace.signup_welcome",
+    subject: (event) => {
+      const ws = str(event.payload.workspaceName) ?? "Your workspace";
+      return `${ws} is ready on Tulala`;
+    },
+    render: ({ event, recipient, brand }) =>
+      React.createElement(WorkspaceWelcome, {
+        ownerName: recipient.displayName ?? str(event.payload.ownerName),
+        workspaceName: str(event.payload.workspaceName) ?? brand.accountName,
+        planLabel: str(event.payload.planLabel) ?? "Free",
+        adminUrl: redeemHref(brand, str(event.payload.adminUrl) ?? "/"),
+        publicUrl: redeemHref(brand, str(event.payload.publicUrl) ?? "/"),
+        brand,
+      }),
+  },
+};
+
+/**
+ * account.talent_welcome (§12: onboarding/actions.ts) — the freshly-onboarded
+ * talent. Platform-scoped (`tenantId: null` → Tulala brand): a talent isn't
+ * tenant-bound at onboarding, and the dashboard link points at the platform
+ * host. `userId` is the talent, resolved by `eventUser`.
+ */
+const TALENT_WELCOME_ENTRY: CatalogEntry = {
+  id: "account.talent_welcome",
+  category: "workspace_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["account.talent_onboarded"],
+  resolveAudience: eventUser("talent"),
+  email: {
+    templateId: "account.talent_welcome",
+    subject: (event, recipient) => {
+      const full = str(event.payload.talentName) ?? recipient.displayName;
+      const first = full?.trim() ? full.split(" ")[0] : null;
+      return first ? `Welcome to Tulala, ${first}` : "Welcome to Tulala — your profile is ready";
+    },
+    render: ({ event, recipient, brand }) =>
+      React.createElement(TalentWelcome, {
+        talentName: str(event.payload.talentName) ?? recipient.displayName,
+        dashboardUrl: pageUrl(brand, "/talent"),
+        brand,
+      }),
+  },
+};
+
 // ─── Self-test (Phase 2) ──────────────────────────────────────────────────────
 //
 // Exercises the full pipeline (audience → prefs → dedupe log → channel
@@ -666,6 +735,8 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   PLATFORM_SIGNUP_FAILED,
   ROSTER_CLAIM_INVITE,
   WORKSPACE_TEAM_INVITE,
+  WORKSPACE_SIGNUP_WELCOME,
+  TALENT_WELCOME_ENTRY,
   SELF_TEST,
 ];
 

@@ -394,3 +394,145 @@ test("catalog: Slice 15.3 renders fall back gracefully on an empty payload", () 
     assert.ok(entry.email!.render({ event, recipient: recip, brand }), `${id} render falsy`);
   }
 });
+
+// ─── Slice 15.3 — account-lifecycle welcomes (§6.6 / §12 conversions) ─────────
+//
+// workspace.signup_welcome (new owner) + account.talent_welcome (onboarded
+// talent) replace direct sends in workspace-signup.server.ts + onboarding.
+// Their audience resolver (`eventUser`) reads only `event.userId` — no DB — so
+// it IS unit-tested here, and it resolves a USER recipient (not a guest).
+
+const SLICE_15_3_WELCOMES: Array<{
+  id: string;
+  trigger: string;
+  role: ResolvedRecipient["role"];
+}> = [
+  { id: "workspace.signup_welcome", trigger: "workspace.signup_completed", role: "workspace_member" },
+  { id: "account.talent_welcome", trigger: "account.talent_onboarded", role: "talent" },
+];
+
+test("catalog: Slice 15.3 welcomes are email-only, optional, workspace_activity, no in_app", () => {
+  for (const { id } of SLICE_15_3_WELCOMES) {
+    const entry = findCatalogEntryById(id);
+    assert.ok(entry, `missing catalog entry ${id}`);
+    assert.equal(entry!.category, "workspace_activity");
+    assert.equal(entry!.required, false);
+    assert.deepEqual(entry!.defaultChannels, ["email"]);
+    assert.ok(entry!.email, `${id} should have an email config`);
+    assert.equal(entry!.in_app, undefined, `${id} must not route in_app`);
+  }
+});
+
+test("catalog: Slice 15.3 welcome triggers route to their entries", () => {
+  for (const { id, trigger } of SLICE_15_3_WELCOMES) {
+    assert.ok(
+      findCatalogEntries(trigger).some((e) => e.id === id),
+      `${trigger} should route to ${id}`,
+    );
+  }
+});
+
+test("catalog: welcome audience resolves event.userId as a user recipient", async () => {
+  for (const { id, trigger, role } of SLICE_15_3_WELCOMES) {
+    const entry = findCatalogEntryById(id)!;
+    const withUser: NotificationEvent = {
+      type: trigger,
+      tenantId: id.startsWith("workspace.") ? "tenant-1" : null,
+      userId: "user-9",
+      eventId: `evt-${id}`,
+      payload: {},
+    };
+    const members = await entry.resolveAudience(withUser, {} as never);
+    assert.equal(members.length, 1, `${id} should resolve one recipient`);
+    assert.equal(members[0]!.kind, "user");
+    assert.equal(members[0]!.kind === "user" ? members[0]!.userId : null, "user-9");
+    assert.equal(members[0]!.role, role, `${id} role`);
+
+    // No userId on the event → no recipient (defensive, never throws).
+    const noUser: NotificationEvent = { type: trigger, tenantId: "t", userId: null, eventId: id, payload: {} };
+    assert.deepEqual(await entry.resolveAudience(noUser, {} as never), []);
+  }
+});
+
+test("catalog: workspace welcome passes absolute admin/public links through", () => {
+  const entry = findCatalogEntryById("workspace.signup_welcome")!;
+  const recip: ResolvedRecipient = {
+    userId: "owner-1",
+    email: "owner@acme.test",
+    displayName: "Mara Conti",
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "workspace_member",
+    dedupeId: "owner-1",
+  };
+  const event: NotificationEvent = {
+    type: "workspace.signup_completed",
+    tenantId: "tenant-1",
+    userId: "owner-1",
+    eventId: "workspace-welcome:tenant-1",
+    payload: {
+      ownerName: "Mara Conti",
+      workspaceName: "Studio Conti",
+      planLabel: "Free",
+      adminUrl: "https://studio-conti.tulala.digital/studio-conti/admin",
+      publicUrl: "https://studio-conti.tulala.digital/studio-conti",
+    },
+  };
+  assert.ok(entry.email!.subject(event, recip).includes("Studio Conti"));
+  const el = entry.email!.render({ event, recipient: recip, brand }) as ReactElement<{
+    ownerName: string | null;
+    workspaceName: string;
+    planLabel: string;
+    adminUrl: string;
+    publicUrl: string;
+  }>;
+  assert.equal(el.props.adminUrl, "https://studio-conti.tulala.digital/studio-conti/admin");
+  assert.equal(el.props.publicUrl, "https://studio-conti.tulala.digital/studio-conti");
+  assert.equal(el.props.workspaceName, "Studio Conti");
+  assert.equal(el.props.planLabel, "Free");
+});
+
+test("catalog: talent welcome links to /talent on the platform host + greets by first name", () => {
+  const entry = findCatalogEntryById("account.talent_welcome")!;
+  const recip: ResolvedRecipient = {
+    userId: "talent-1",
+    email: "tina@acme.test",
+    displayName: "Tina Rossi",
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "talent",
+    dedupeId: "talent-1",
+  };
+  const event: NotificationEvent = {
+    type: "account.talent_onboarded",
+    tenantId: null,
+    userId: "talent-1",
+    eventId: "talent-welcome:talent-1",
+    payload: { talentName: "Tina Rossi" },
+  };
+  assert.match(entry.email!.subject(event, recip), /Tina/);
+  const el = entry.email!.render({ event, recipient: recip, brand }) as ReactElement<{
+    talentName: string | null;
+    dashboardUrl: string;
+  }>;
+  assert.equal(el.props.dashboardUrl, "https://tulala.digital/talent");
+  assert.equal(el.props.talentName, "Tina Rossi");
+});
+
+test("catalog: Slice 15.3 welcome renders fall back gracefully on an empty payload", () => {
+  const recip: ResolvedRecipient = {
+    userId: "user-1",
+    email: "x@acme.test",
+    displayName: null,
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "workspace_member",
+    dedupeId: "user-1",
+  };
+  for (const { id, trigger } of SLICE_15_3_WELCOMES) {
+    const entry = findCatalogEntryById(id)!;
+    const event: NotificationEvent = { type: trigger, tenantId: "t", userId: "user-1", eventId: id, payload: {} };
+    assert.ok(entry.email!.subject(event, recip).length > 0, `${id} subject empty`);
+    assert.ok(entry.email!.render({ event, recipient: recip, brand }), `${id} render falsy`);
+  }
+});

@@ -232,3 +232,18 @@ export const emailInvitee =
       { kind: "guest", email, displayName: str(event.payload.inviteeName), role },
     ];
   };
+
+/**
+ * The single user the event is *about* — its actor/subject, carried on
+ * `event.userId`. Used by account-lifecycle welcomes: the new workspace owner
+ * (workspace.signup_welcome) and the freshly-onboarded talent
+ * (account.talent_welcome). These fire once at signup before any preferences
+ * exist, so the dispatcher's default-on channels apply.
+ */
+export const eventUser =
+  (role: AudienceMember["role"]) =>
+  async (event: NotificationEvent): Promise<AudienceMember[]> => {
+    const userId = str(event.userId);
+    if (!userId) return [];
+    return [{ kind: "user", userId, role }];
+  };
