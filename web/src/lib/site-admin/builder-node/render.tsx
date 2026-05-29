@@ -186,6 +186,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-flex-grow]{flex-grow:var(--bn-tablet-flex-grow)!important}
   .site-builder-node[data-builder-style-tablet-flex-shrink]{flex-shrink:var(--bn-tablet-flex-shrink)!important}
   .site-builder-node[data-builder-style-tablet-flex-basis]{flex-basis:var(--bn-tablet-flex-basis)!important}
+  .site-builder-node[data-builder-style-tablet-grid-column]{grid-column:var(--bn-tablet-grid-column)!important}
+  .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -257,6 +259,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-flex-grow]{flex-grow:var(--bn-mobile-flex-grow)!important}
   .site-builder-node[data-builder-style-mobile-flex-shrink]{flex-shrink:var(--bn-mobile-flex-shrink)!important}
   .site-builder-node[data-builder-style-mobile-flex-basis]{flex-basis:var(--bn-mobile-flex-basis)!important}
+  .site-builder-node[data-builder-style-mobile-grid-column]{grid-column:var(--bn-mobile-grid-column)!important}
+  .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -356,6 +360,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-flex-shrink":
       typeof tablet?.flexShrink === "number" ? "" : undefined,
     "data-builder-style-tablet-flex-basis": tablet?.flexBasis ? "" : undefined,
+    "data-builder-style-tablet-grid-column": tablet?.gridColumn ? "" : undefined,
+    "data-builder-style-tablet-grid-row": tablet?.gridRow ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -421,6 +427,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-flex-shrink":
       typeof mobile?.flexShrink === "number" ? "" : undefined,
     "data-builder-style-mobile-flex-basis": mobile?.flexBasis ? "" : undefined,
+    "data-builder-style-mobile-grid-column": mobile?.gridColumn ? "" : undefined,
+    "data-builder-style-mobile-grid-row": mobile?.gridRow ? "" : undefined,
   };
 }
 
@@ -607,6 +615,10 @@ function responsiveStyleVars(
     "--bn-mobile-flex-grow": style?.responsive?.mobile?.flexGrow,
     "--bn-mobile-flex-shrink": style?.responsive?.mobile?.flexShrink,
     "--bn-mobile-flex-basis": style?.responsive?.mobile?.flexBasis,
+    "--bn-tablet-grid-column": style?.responsive?.tablet?.gridColumn,
+    "--bn-tablet-grid-row": style?.responsive?.tablet?.gridRow,
+    "--bn-mobile-grid-column": style?.responsive?.mobile?.gridColumn,
+    "--bn-mobile-grid-row": style?.responsive?.mobile?.gridRow,
   });
 }
 
@@ -710,6 +722,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (typeof style.flexGrow === "number") out.flexGrow = style.flexGrow;
   if (typeof style.flexShrink === "number") out.flexShrink = style.flexShrink;
   if (style.flexBasis) out.flexBasis = style.flexBasis;
+  // Grid child placement — span/line position in a grid parent. No-op elsewhere.
+  if (style.gridColumn) out.gridColumn = style.gridColumn;
+  if (style.gridRow) out.gridRow = style.gridRow;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

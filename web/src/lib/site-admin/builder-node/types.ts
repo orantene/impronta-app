@@ -115,6 +115,10 @@ export interface BuilderNodeStyleValue {
   flexGrow?: number;
   flexShrink?: number;
   flexBasis?: string;
+  // Grid child placement — where/how far this node spans in a grid parent
+  // (e.g. "span 2", "1 / 3"). No-op outside a grid container.
+  gridColumn?: string;
+  gridRow?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

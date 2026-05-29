@@ -135,6 +135,9 @@ const builderNodeStyleValueSchema = z.object({
   flexGrow: z.number().min(0).max(999).optional(),
   flexShrink: z.number().min(0).max(999).optional(),
   flexBasis: z.string().max(16).optional(),
+  // Grid child placement — grid-column / grid-row span/line specs.
+  gridColumn: z.string().max(24).optional(),
+  gridRow: z.string().max(24).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

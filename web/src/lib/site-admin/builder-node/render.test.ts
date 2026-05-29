@@ -662,6 +662,30 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-flex-grow=""/);
   });
 
+  it("renders grid child placement escapes (grid-column + grid-row)", () => {
+    const html = render([
+      {
+        id: "free:grid",
+        kind: "paragraph",
+        props: {
+          text: "Spanning",
+          style: {
+            gridColumn: "span 2",
+            gridRow: "1 / 3",
+            responsive: { tablet: { gridColumn: "span 1" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop grid placement lands inline with literal span/line specs.
+    assert.match(html, /grid-column:span 2/);
+    assert.match(html, /grid-row:1 \/ 3/);
+    // The tablet grid-column override is attr-gated; no mobile override set.
+    assert.match(html, /data-builder-style-tablet-grid-column=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-grid-column=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

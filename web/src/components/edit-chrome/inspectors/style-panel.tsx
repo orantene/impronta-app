@@ -871,6 +871,8 @@ function cleanBuilderNodeStyle(
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
   if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
   if (value.flexBasis) out.flexBasis = value.flexBasis;
+  if (value.gridColumn) out.gridColumn = value.gridColumn;
+  if (value.gridRow) out.gridRow = value.gridRow;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -944,6 +946,8 @@ function cleanBuilderNodeStyleValue(
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
   if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
   if (value.flexBasis) out.flexBasis = value.flexBasis;
+  if (value.gridColumn) out.gridColumn = value.gridColumn;
+  if (value.gridRow) out.gridRow = value.gridRow;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5873,6 +5877,66 @@ export function StylePanel({
                     })
                   }
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="gridColumn"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Grid col
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="span 2"
+                    value={selectedStandaloneViewportStyle?.gridColumn ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        gridColumn: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="gridRow"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Grid row
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1 / 3"
+                    value={selectedStandaloneViewportStyle?.gridRow ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        gridRow: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
               </div>
             </div>
 
