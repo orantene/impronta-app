@@ -776,6 +776,28 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-mobile-transform-origin=""/);
   });
 
+  it("renders the mix-blend-mode compositing escape", () => {
+    const html = render([
+      {
+        id: "free:blend",
+        kind: "paragraph",
+        props: {
+          text: "Overlaid",
+          style: {
+            mixBlendMode: "multiply",
+            responsive: { tablet: { mixBlendMode: "screen" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop blend mode lands inline with a literal value.
+    assert.match(html, /mix-blend-mode:multiply/);
+    // The tablet override is attr-gated; no mobile set.
+    assert.match(html, /data-builder-style-tablet-mix-blend-mode=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-mix-blend-mode=""/);
+  });
+
   it("renders flex child placement escapes (align-self + flex sizing)", () => {
     const html = render([
       {

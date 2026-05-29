@@ -141,6 +141,10 @@ export interface BuilderNodeStyleValue {
   // (glassmorphism). e.g. "blur(8px)", "grayscale(1) contrast(1.2)".
   filter?: string;
   backdropFilter?: string;
+  // Compositing — how this node's pixels blend with whatever sits behind it
+  // (multiply/darken for overlays, screen/lighten to brighten, overlay for
+  // contrast). Immediately visible; great for image overlays + duotone.
+  mixBlendMode?: "multiply" | "screen" | "overlay" | "darken" | "lighten";
   // Flex/grid CONTAINER layout — how this node distributes & aligns its OWN
   // children: justifyContent on the main axis, alignItems on the cross axis,
   // flexWrap toggles row wrapping. Complements the container/split structured

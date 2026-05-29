@@ -394,6 +394,15 @@ const BUILDER_NODE_BG_REPEAT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "repeat-y", label: "Y" },
 ];
 
+const BUILDER_NODE_BLEND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Normal" },
+  { value: "multiply", label: "Multiply" },
+  { value: "screen", label: "Screen" },
+  { value: "overlay", label: "Overlay" },
+  { value: "darken", label: "Darken" },
+  { value: "lighten", label: "Lighten" },
+];
+
 /**
  * Parse a stored CSS length string ("48px", "1.5rem") back into the
  * structured {value, unit} the NumberUnit control expects. Returns null for
@@ -939,6 +948,7 @@ function cleanBuilderNodeStyle(
   if (value.gridRow) out.gridRow = value.gridRow;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
   if (value.justifyContent) out.justifyContent = value.justifyContent;
   if (value.alignItems) out.alignItems = value.alignItems;
   if (value.flexWrap) out.flexWrap = value.flexWrap;
@@ -1030,6 +1040,7 @@ function cleanBuilderNodeStyleValue(
   if (value.gridRow) out.gridRow = value.gridRow;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
   if (value.justifyContent) out.justifyContent = value.justifyContent;
   if (value.alignItems) out.alignItems = value.alignItems;
   if (value.flexWrap) out.flexWrap = value.flexWrap;
@@ -6493,6 +6504,26 @@ export function StylePanel({
                       backdropFilter: e.target.value.trim() || undefined,
                     })
                   }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="mixBlendMode"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Blend
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.mixBlendMode ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      mixBlendMode: (next ||
+                        undefined) as BuilderNodeStyleValue["mixBlendMode"],
+                    })
+                  }
+                  options={BUILDER_NODE_BLEND_OPTIONS}
                 />
               </div>
             </div>

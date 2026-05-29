@@ -155,6 +155,10 @@ const builderNodeStyleValueSchema = z.object({
   // Filter effects — CSS filter (self) + backdrop-filter (behind, glassmorphism).
   filter: z.string().max(120).optional(),
   backdropFilter: z.string().max(120).optional(),
+  // Compositing — blend this node against the backdrop (overlays/duotone).
+  mixBlendMode: z
+    .enum(["multiply", "screen", "overlay", "darken", "lighten"])
+    .optional(),
   // Flex/grid container layout — main-axis distribution + cross-axis alignment
   // of children, plus row-wrap control. Complements the structured layout/align.
   justifyContent: z

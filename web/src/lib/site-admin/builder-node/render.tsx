@@ -197,6 +197,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
   .site-builder-node[data-builder-style-tablet-filter]{filter:var(--bn-tablet-filter)!important}
   .site-builder-node[data-builder-style-tablet-backdrop-filter]{backdrop-filter:var(--bn-tablet-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-backdrop-filter)!important}
+  .site-builder-node[data-builder-style-tablet-mix-blend-mode]{mix-blend-mode:var(--bn-tablet-mix-blend-mode)!important}
   .site-builder-node[data-builder-style-tablet-justify-content]{justify-content:var(--bn-tablet-justify-content)!important}
   .site-builder-node[data-builder-style-tablet-align-items]{align-items:var(--bn-tablet-align-items)!important}
   .site-builder-node[data-builder-style-tablet-flex-wrap]{flex-wrap:var(--bn-tablet-flex-wrap)!important}
@@ -283,6 +284,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
   .site-builder-node[data-builder-style-mobile-filter]{filter:var(--bn-mobile-filter)!important}
   .site-builder-node[data-builder-style-mobile-backdrop-filter]{backdrop-filter:var(--bn-mobile-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-backdrop-filter)!important}
+  .site-builder-node[data-builder-style-mobile-mix-blend-mode]{mix-blend-mode:var(--bn-mobile-mix-blend-mode)!important}
   .site-builder-node[data-builder-style-mobile-justify-content]{justify-content:var(--bn-mobile-justify-content)!important}
   .site-builder-node[data-builder-style-mobile-align-items]{align-items:var(--bn-mobile-align-items)!important}
   .site-builder-node[data-builder-style-mobile-flex-wrap]{flex-wrap:var(--bn-mobile-flex-wrap)!important}
@@ -401,6 +403,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-filter": tablet?.filter ? "" : undefined,
     "data-builder-style-tablet-backdrop-filter":
       tablet?.backdropFilter ? "" : undefined,
+    "data-builder-style-tablet-mix-blend-mode":
+      tablet?.mixBlendMode ? "" : undefined,
     "data-builder-style-tablet-justify-content": tablet?.justifyContent ? "" : undefined,
     "data-builder-style-tablet-align-items": tablet?.alignItems ? "" : undefined,
     "data-builder-style-tablet-flex-wrap": tablet?.flexWrap ? "" : undefined,
@@ -484,6 +488,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-filter": mobile?.filter ? "" : undefined,
     "data-builder-style-mobile-backdrop-filter":
       mobile?.backdropFilter ? "" : undefined,
+    "data-builder-style-mobile-mix-blend-mode":
+      mobile?.mixBlendMode ? "" : undefined,
     "data-builder-style-mobile-justify-content": mobile?.justifyContent ? "" : undefined,
     "data-builder-style-mobile-align-items": mobile?.alignItems ? "" : undefined,
     "data-builder-style-mobile-flex-wrap": mobile?.flexWrap ? "" : undefined,
@@ -692,8 +698,10 @@ function responsiveStyleVars(
     "--bn-mobile-grid-row": style?.responsive?.mobile?.gridRow,
     "--bn-tablet-filter": style?.responsive?.tablet?.filter,
     "--bn-tablet-backdrop-filter": style?.responsive?.tablet?.backdropFilter,
+    "--bn-tablet-mix-blend-mode": style?.responsive?.tablet?.mixBlendMode,
     "--bn-mobile-filter": style?.responsive?.mobile?.filter,
     "--bn-mobile-backdrop-filter": style?.responsive?.mobile?.backdropFilter,
+    "--bn-mobile-mix-blend-mode": style?.responsive?.mobile?.mixBlendMode,
     "--bn-tablet-justify-content": style?.responsive?.tablet?.justifyContent,
     "--bn-tablet-align-items": style?.responsive?.tablet?.alignItems,
     "--bn-tablet-flex-wrap": style?.responsive?.tablet?.flexWrap,
@@ -846,6 +854,8 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.backdropFilter = style.backdropFilter;
     out.WebkitBackdropFilter = style.backdropFilter;
   }
+  // Compositing — blend this node against the backdrop (overlays/duotone).
+  if (style.mixBlendMode) out.mixBlendMode = style.mixBlendMode;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
