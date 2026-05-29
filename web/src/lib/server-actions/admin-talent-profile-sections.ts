@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import {
   buildTalentIdentityProfilePatch,
   buildTalentLanguageRpcRows,
@@ -78,6 +79,16 @@ export async function updateTalentAbout(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
+  // Phase 2b — multi-tenant identity safety floor. Bio / tagline are personal-
+  // profile data; an agency without confirmed exclusivity over a native
+  // talent's identity must not overwrite them, even via a direct POST.
+  const lock = await assertPersonalProfileEditable(
+    supabase,
+    tenantId,
+    input.talent_profile_id,
+  );
+  if (!lock.ok) return lock;
+
   const patch: Record<string, unknown> = {
     bios: input.bios,
     updated_at: new Date().toISOString(),
@@ -116,6 +127,16 @@ export async function updateTalentLocation(input: {
 
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
+
+  // Phase 2b — multi-tenant identity safety floor. Home base / residence is
+  // personal-profile data; an agency without confirmed exclusivity over a
+  // native talent's identity must not overwrite it.
+  const lock = await assertPersonalProfileEditable(
+    supabase,
+    tenantId,
+    input.talent_profile_id,
+  );
+  if (!lock.ok) return lock;
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.home_base !== undefined) patch.home_city_text = input.home_base?.trim() || null;

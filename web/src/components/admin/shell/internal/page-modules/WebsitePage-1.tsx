@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import { buildPostPublicPathname, buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
@@ -9,6 +9,7 @@ import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives"
 import { COLORS, FONTS, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
 import type { WebsitePageRow, WebsitePost } from "../state";
 import { PageBuilderPage } from "./page-builder/PageBuilderPage";
+import { CardDesignStudio } from "./CardDesignStudio";
 import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
@@ -148,8 +149,76 @@ function WebsitePagesStatusTabs({
   );
 }
 
+/**
+ * Website is one surface with two sub-views: the site-management body and the
+ * Card Design studio. Both live under the same top-nav "Website" tab; this
+ * pill switcher is the in-page way to move between them (the topbar hover
+ * dropdown is the other). The active view is derived from the pathname so the
+ * deep link (`/[slug]/admin/website/card-design`) and the breadcrumb stay in
+ * sync — see admin-shell-top-bar SUBROUTE_LABELS.
+ */
+function WebsiteSubviewTabs({
+  active,
+  tenantSlug,
+}: {
+  active: "site" | "card-design";
+  tenantSlug: string | undefined;
+}) {
+  const router = useRouter();
+  const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
+  const tabs: { id: "site" | "card-design"; label: string; href: string }[] = [
+    { id: "site", label: "Site", href: base },
+    { id: "card-design", label: "Card Design", href: `${base}/card-design` },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Website sections"
+      data-tulala-website-subview-tabs
+      style={{
+        display: "inline-flex",
+        gap: 4,
+        background: COLORS.surfaceAlt,
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 999,
+        padding: 3,
+        marginBottom: 16,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {tabs.map(t => {
+        const isActive = t.id === active;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => router.push(t.href)}
+            style={{
+              border: "none",
+              borderRadius: 999,
+              padding: "6px 14px",
+              fontSize: 12.5,
+              fontWeight: isActive ? 600 : 500,
+              cursor: "pointer",
+              background: isActive ? COLORS.card : "transparent",
+              color: isActive ? COLORS.ink : COLORS.inkMuted,
+              boxShadow: isActive ? COLORS.shadow : "none",
+              transition: `background ${TRANSITION.micro}`,
+            }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function WebsitePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     state,
     openDrawer,
@@ -161,6 +230,7 @@ export function WebsitePage() {
   } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
   const w = effectiveWebsiteState;
+  const isCardDesign = pathname?.endsWith("/website/card-design") ?? false;
 
   const [isCreatingPage, startCreatePageTransition] = useTransition();
 
@@ -295,8 +365,18 @@ export function WebsitePage() {
     pagesTab === "all" ? w.pages : w.pages.filter(p => p.status === pagesTab);
   const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
 
+  if (isCardDesign) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="card-design" tenantSlug={tenantSlug} />
+        <CardDesignStudio />
+      </>
+    );
+  }
+
   return (
     <>
+      <WebsiteSubviewTabs active="site" tenantSlug={tenantSlug} />
       <PageHeader
         title="Website"
         subtitle={`${w.domain.primaryDomain} · pages, posts, redirects, code, tracking, SEO`}

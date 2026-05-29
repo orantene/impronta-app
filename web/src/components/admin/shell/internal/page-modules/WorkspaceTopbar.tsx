@@ -5,6 +5,7 @@ import { useDashboardText } from "../dashboard-i18n";
 import { FloatingFab, Icon, Popover, useRovingTabindex } from "../primitives";
 import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
 import { ControlBar } from "./ControlBar";
+import { WebsiteNavItem } from "./WebsiteNavDropdown";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -12,7 +13,7 @@ import { ControlBar } from "./ControlBar";
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
-  const { state, setPage, setWorkspaceLayout, effectiveRoster, verificationRequests, overviewMetrics } = useAdminShell();
+  const { state, setPage, setWorkspaceLayout, effectiveRoster, verificationRequests, overviewMetrics, tenantSlug } = useAdminShell();
   const copy = useDashboardText();
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
@@ -89,7 +90,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
             // admins can tell at a glance which queue needs attention.
             const showRosterBadges = p === "roster" && (effectivePendingTalentCount + pendingVerifications) > 0;
             const pageBadge = p === "roster" ? (effectivePendingTalentCount + pendingVerifications) : 0;
-            return (
+            const navButton = (
               <button
                 key={p}
                 onClick={() => setPage(p)}
@@ -185,6 +186,17 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                 />
               </button>
             );
+            // The Website tab gets a hover dropdown with its two sub-views
+            // (overview + Card Design). The menu is portalled to <body> so the
+            // nav's `overflow: auto` can't clip it.
+            if (p === "website") {
+              return (
+                <WebsiteNavItem key={p} tenantSlug={tenantSlug}>
+                  {navButton}
+                </WebsiteNavItem>
+              );
+            }
+            return navButton;
           })}
         </nav>
 

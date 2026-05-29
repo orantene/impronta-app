@@ -12,6 +12,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { buildTalentLanguageRpcRows } from "@/lib/talent/talent-profile-shell-persistence";
 // Types live in the sibling .types.ts — a "use server" file may ONLY export
 // async functions; exporting `type` from here throws at runtime once a
@@ -41,6 +42,19 @@ export async function saveTalentLanguages(input: {
     .maybeSingle();
   if (rErr) { logServerError("talent-languages.roster", rErr); return { ok: false, error: CLIENT_ERROR.update }; }
   if (!roster) return { ok: false, error: "That talent isn't on your roster." };
+
+  // Phase 2b — multi-tenant identity safety floor. Languages are personal-
+  // profile data, so an agency that doesn't own a native talent's identity
+  // (relationship not 'confirmed' exclusive) must not edit them — even via a
+  // direct / DOM-tampered POST that bypasses the disabled LanguagesEditor.
+  // setTalentLanguages enforces the same rule inline; this is the sibling save
+  // path the editor's debounce can also reach.
+  const lock = await assertPersonalProfileEditable(
+    supabase,
+    tenantId,
+    input.talent_profile_id,
+  );
+  if (!lock.ok) return lock;
 
   const rows = buildTalentLanguageRpcRows(input.languages);
 
