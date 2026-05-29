@@ -21,6 +21,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshots,
+  sumBookingClientSurchargeCents,
 } from "@/lib/billing/commission-engine";
 import type {
   PaymentMethod,
@@ -404,12 +405,16 @@ export async function createInquiryTransactionDraft(
       return { ok: false, error: "An active transaction already exists for this booking." };
     }
 
-    const grossAmountCents = booking.total_client_revenue != null
+    const baseRevenueCents = booking.total_client_revenue != null
       ? Math.max(0, Math.round(Number(booking.total_client_revenue) * 100))
       : 0;
-    if (grossAmountCents <= 0) {
+    if (baseRevenueCents <= 0) {
       return { ok: false, error: "Set booking revenue before creating a transaction." };
     }
+    // P1 (talent-protected): bill the full gross_charged = revenue + the
+    // client-side platform surcharge frozen in the commission snapshot.
+    const surchargeCents = await sumBookingClientSurchargeCents(supabase, booking.id as string);
+    const grossAmountCents = baseRevenueCents + surchargeCents;
 
     const { data: agency } = await supabase
       .from("agencies")

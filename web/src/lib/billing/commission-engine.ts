@@ -283,3 +283,16 @@ export async function sumBookingPlatformFeeCents(
   const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
   return rows.reduce((sum, r) => sum + r.platform_fee_cents, 0);
 }
+
+/** Sum the client-side surcharge across every participant snapshot on a
+ *  booking — the platform's client-side half, added ON TOP of the subtotal.
+ *  The booking transaction adds this so the client is billed `gross_charged`
+ *  (subtotal + surcharge) and the platform actually collects its client share.
+ *  Returns 0 when no snapshot exists yet (charge the bare subtotal). */
+export async function sumBookingClientSurchargeCents(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<number> {
+  const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
+  return rows.reduce((sum, r) => sum + (r.client_surcharge_cents ?? 0), 0);
+}
