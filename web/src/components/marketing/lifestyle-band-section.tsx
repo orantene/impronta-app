@@ -1,5 +1,5 @@
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
-import { MarketingContainer, MarketingSection } from "./container";
+import { MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 
 /**
@@ -50,15 +50,10 @@ const SLIDES = [
 export function LifestyleBandSection() {
   return (
     <MarketingSection spacing="tight" className="relative overflow-hidden">
-      <MarketingContainer size="wide">
-        <div
-          className="relative min-h-[30rem] overflow-hidden rounded-[32px] px-6 py-12 sm:px-10 sm:py-16 lg:min-h-[34rem] lg:px-14 lg:py-20"
-          style={{
-            background: "var(--plt-bg-deep)",
-            border: "1px solid var(--plt-hairline-strong)",
-            boxShadow: "0 42px 90px -54px rgba(15,23,20,0.42)",
-          }}
-        >
+      <div
+        className="relative min-h-[32rem] w-full overflow-hidden px-5 py-14 sm:px-8 sm:py-16 lg:min-h-[36rem] lg:px-16 lg:py-20"
+        style={{ background: "var(--plt-bg-deep)" }}
+      >
           <input
             id="pathway-services"
             name="pathway-slider"
@@ -135,8 +130,7 @@ export function LifestyleBandSection() {
 
           <SlideContent slide={SLIDES[0]} mode="services" />
           <SlideContent slide={SLIDES[1]} mode="workspace" />
-        </div>
-      </MarketingContainer>
+      </div>
     </MarketingSection>
   );
 }
