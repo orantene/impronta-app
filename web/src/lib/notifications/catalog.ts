@@ -8,7 +8,9 @@ import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientOfferReady from "../../../emails/client/OfferReady";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
+import TalentClaimInvite from "../../../emails/talent/ClaimInvite";
 import TalentBookingConfirmed from "../../../emails/talent/BookingConfirmed";
+import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
 import WorkspaceCoordinatorAssigned from "../../../emails/workspace/CoordinatorAssigned";
 import WorkspaceOfferAccepted from "../../../emails/workspace/OfferAccepted";
 import WorkspaceOfferDeclined from "../../../emails/workspace/OfferDeclined";
@@ -16,13 +18,20 @@ import WorkspaceAssignmentTimedOut from "../../../emails/workspace/AssignmentTim
 import WorkspaceTalentDeclined from "../../../emails/workspace/TalentDeclined";
 import InquiryCancelledEmail from "../../../emails/notifications/InquiryCancelled";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
-import { resolveInquiryRecipients } from "./recipients";
-import type {
-  AudienceContext,
-  AudienceMember,
-  CatalogEntry,
-  NotificationEvent,
-} from "./types";
+import type { CatalogEntry } from "./types";
+import {
+  allRosterTalent,
+  assignedCoordinator,
+  clientAndRosterTalent,
+  clientOrGuest,
+  coordinatorAndAdmins,
+  emailInvitee,
+  invitedTalent,
+  loadInquiryView,
+  platformAdmins,
+  str,
+  workspaceAdmins,
+} from "./catalog-audiences";
 
 /**
  * The notification catalog — a code-driven registry, one entry per
@@ -40,12 +49,10 @@ import type {
  * (listener[1]); routing in_app here too would double-notify.
  */
 
-// ─── Shared helpers ──────────────────────────────────────────────────────────
-
-/** Narrow an unknown payload value to a non-empty trimmed string, else null. */
-function str(v: unknown): string | null {
-  return typeof v === "string" && v.trim() ? v : null;
-}
+// ─── Render helpers ───────────────────────────────────────────────────────────
+// `str` + the audience resolvers + inquiry hydrator live in `catalog-audiences`
+// (extracted to keep this file under the 800-line cap); the URL/date helpers
+// below are render-only and stay with the entries that use them.
 
 /**
  * Build an absolute URL on the recipient's branded host. `brand.homeHref` is
@@ -57,198 +64,26 @@ function pageUrl(brand: EmailBrand, path: string): string {
 }
 
 /**
- * Hydrate inquiry context for an inquiry-scoped event. The engine event only
- * carries its `data` block (e.g. `{ offerId }` or `{ bookingId }`); templates
- * + resolvers need the inquiry's contact, schedule, client + coordinator and —
- * when present — the current offer total. The dispatcher merges this into
- * `event.payload` before resolveAudience + render run.
+ * Resolve a redeem target to an absolute URL: pass an absolute URL through,
+ * else hang a bare path off the recipient's branded host. Mirrors the legacy
+ * `href = redeemUrl.startsWith("http") ? redeemUrl : siteUrl()+redeemUrl`
+ * behaviour the direct-send helpers used.
  */
-async function loadInquiryView(
-  event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<Record<string, unknown>> {
-  const inquiryId = event.inquiryId;
-  if (!inquiryId) return {};
-
-  const { data } = await ctx.admin
-    .from("inquiries")
-    .select(
-      "contact_name, contact_email, event_date, event_location, client_user_id, coordinator_id, current_offer_id",
-    )
-    .eq("id", inquiryId)
-    .maybeSingle();
-  if (!data) return {};
-  const inq = data as {
-    contact_name: string | null;
-    contact_email: string | null;
-    event_date: string | null;
-    event_location: string | null;
-    client_user_id: string | null;
-    coordinator_id: string | null;
-    current_offer_id: string | null;
-  };
-
-  let offerTotal: string | null = null;
-  if (inq.current_offer_id) {
-    const { data: offerRow } = await ctx.admin
-      .from("inquiry_offers")
-      .select("total_client_price, currency_code")
-      .eq("id", inq.current_offer_id)
-      .maybeSingle();
-    const offer = offerRow as
-      | { total_client_price: number | null; currency_code: string | null }
-      | null;
-    if (offer && offer.total_client_price != null) {
-      offerTotal = `${offer.currency_code ?? ""} ${Number(offer.total_client_price).toFixed(2)}`.trim();
-    }
-  }
-
-  return {
-    contactName: inq.contact_name,
-    contactEmail: inq.contact_email,
-    eventDate: inq.event_date,
-    eventLocation: inq.event_location,
-    clientUserId: inq.client_user_id,
-    coordinatorId: inq.coordinator_id,
-    offerTotal,
-  };
+function redeemHref(brand: EmailBrand, target: string): string {
+  return target.startsWith("http") ? target : pageUrl(brand, target);
 }
 
-// ─── Audience resolvers ──────────────────────────────────────────────────────
-// Read from the hydrated payload (loadInquiryView) + the shared recipient
-// resolver. Each returns lightweight AudienceMembers; the dispatcher hydrates
-// them to addresses and dedupes.
-
-/** The inquiry client — the authenticated user if known, else the guest contact. */
-const clientOrGuest = async (event: NotificationEvent): Promise<AudienceMember[]> => {
-  const clientUserId = str(event.payload.clientUserId);
-  if (clientUserId) return [{ kind: "user", userId: clientUserId, role: "client" }];
-  const email = str(event.payload.contactEmail);
-  if (email) {
-    return [
-      { kind: "guest", email, displayName: str(event.payload.contactName), role: "client" },
-    ];
-  }
-  return [];
-};
-
-/** Every active talent on the inquiry roster, by their user account. */
-const allRosterTalent = async (
-  event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<AudienceMember[]> => {
-  if (!event.inquiryId || !event.tenantId) return [];
-  const r = await resolveInquiryRecipients(ctx.admin, event.inquiryId, event.tenantId);
-  return r.talentUserIds.map((userId) => ({ kind: "user", userId, role: "talent" as const }));
-};
-
-/** The assigned coordinator, when the inquiry has one. */
-const assignedCoordinator = async (event: NotificationEvent): Promise<AudienceMember[]> => {
-  const coordinatorId = str(event.payload.coordinatorId);
-  if (!coordinatorId) return [];
-  return [{ kind: "user", userId: coordinatorId, role: "workspace_member" }];
-};
-
-/**
- * Workspace owners + admins for the event's tenant — the people who triage
- * ops-level alerts (assignment time-outs, offer outcomes). Keys on
- * `agency_memberships.profile_id` (→ `profiles.id`, the canonical user id);
- * the engine resolves `event.tenantId` from the inquiry before dispatch.
- *
- * NB: this deliberately selects `profile_id`, not `user_id` — that column
- * does not exist on `agency_memberships` (the `user_id` select in
- * `recipients.ts` is a latent bug that silently returns zero rows).
- */
-const workspaceAdmins = async (
-  event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<AudienceMember[]> => {
-  if (!event.tenantId) return [];
-  const { data, error } = await ctx.admin
-    .from("agency_memberships")
-    .select("profile_id")
-    .eq("tenant_id", event.tenantId)
-    .eq("status", "active")
-    .in("role", ["owner", "admin"]);
-  if (error || !data) return [];
-  return (data as Array<{ profile_id: string | null }>)
-    .map((r) => r.profile_id)
-    .filter((id): id is string => Boolean(id))
-    .map((userId) => ({ kind: "user" as const, userId, role: "workspace_member" as const }));
-};
-
-/**
- * Offer-outcome audience: the assigned coordinator plus every workspace
- * owner/admin. The dispatcher dedupes by recipient, so a coordinator who is
- * also an admin is only notified once.
- */
-const coordinatorAndAdmins = async (
-  event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<AudienceMember[]> => {
-  const [coordinator, admins] = await Promise.all([
-    assignedCoordinator(event),
-    workspaceAdmins(event, ctx),
-  ]);
-  return [...coordinator, ...admins];
-};
-
-/** Inquiry-cancellation audience: the client (or guest) plus all roster talent. */
-const clientAndRosterTalent = async (
-  event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<AudienceMember[]> => {
-  const [client, talent] = await Promise.all([
-    clientOrGuest(event),
-    allRosterTalent(event, ctx),
-  ]);
-  return [...client, ...talent];
-};
-
-/** The single talent named in a `roster.talent_invited` event. */
-const invitedTalent = async (
-  event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<AudienceMember[]> => {
-  const talentProfileId = str(event.payload.talentProfileId);
-  if (!talentProfileId) return [];
-  const { data } = await ctx.admin
-    .from("talent_profiles")
-    .select("user_id")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-  const userId = (data as { user_id: string | null } | null)?.user_id ?? null;
-  if (!userId) return [];
-  return [{ kind: "user", userId, role: "talent" }];
-};
-
-/**
- * All platform administrators (Phase 10). Identified by
- * `profiles.app_role = 'super_admin'` — the live schema has NO `platform_role`
- * column (see migration 20260520224524_platform_media_settings.sql:99-101,
- * where the same `OR platform_role` clause had to be trimmed because it failed
- * column-resolution). When Track B.2 adds `platform_role`, widen this query to
- * dual-read, matching `getPlatformRole` in `@/lib/access/platform-role`.
- *
- * Platform alerts must be emitted with `tenantId = null` so the dispatcher
- * resolves the platform brand — the `/platform/admin/*` links then point at the
- * platform host rather than an agency's custom domain.
- */
-const platformAdmins = async (
-  _event: NotificationEvent,
-  ctx: AudienceContext,
-): Promise<AudienceMember[]> => {
-  const { data, error } = await ctx.admin
-    .from("profiles")
-    .select("id")
-    .eq("app_role", "super_admin");
-  if (error || !data) return [];
-  return (data as Array<{ id: string }>).map((r) => ({
-    kind: "user" as const,
-    userId: r.id,
-    role: "platform_admin" as const,
-  }));
-};
+/** Format an ISO timestamp as a short "5 Jun 2026" label, or undefined. */
+function formatDateLabel(iso: string | null): string | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 // ─── Inquiry-engine entries (Phase 5) ─────────────────────────────────────────
 
@@ -700,6 +535,77 @@ const PLATFORM_SIGNUP_FAILED: CatalogEntry = {
   },
 };
 
+// ─── Workspace invite entries (§12 producer conversions) ──────────────────────
+//
+// These replace direct `sendEmail` calls in the roster-invite + team-invite
+// server actions with dispatcher-routed email. Recipients are email-only (no
+// account yet), so the resolvers return a `guest` member and the dispatcher
+// delivers email-only. Producers emit with the agency `tenantId` so the brand
+// resolves to the workspace and the claim/redeem links land on its host.
+
+/**
+ * roster.claim_invite_requested → invite a talent to claim their roster
+ * profile. Two producers emit this: the initial roster-add invite (no token,
+ * redeems at /get-started) and the token-based resend from the talent profile
+ * section (carries `redeemPath` + `expiresAtIso` + `isResend`). The template
+ * shows the expiry line only when an `expiresAtIso` is supplied.
+ */
+const ROSTER_CLAIM_INVITE: CatalogEntry = {
+  id: "roster.claim_invite.talent",
+  category: "roster_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["roster.claim_invite_requested"],
+  resolveAudience: emailInvitee("talent"),
+  email: {
+    templateId: "talent.claim_invite",
+    subject: (event) => {
+      const agency = str(event.payload.workspaceName) ?? "A workspace";
+      const prefix = event.payload.isResend ? "Reminder · " : "";
+      return `${prefix}${agency} invited you to claim your profile on Tulala`;
+    },
+    render: ({ event, recipient, brand }) =>
+      React.createElement(TalentClaimInvite, {
+        agencyName: str(event.payload.workspaceName) ?? brand.accountName,
+        talentDisplayName: recipient.displayName ?? str(event.payload.inviteeName),
+        redeemUrl: redeemHref(brand, str(event.payload.redeemPath) ?? "/get-started"),
+        expiresLabel: formatDateLabel(str(event.payload.expiresAtIso)),
+        brand,
+      }),
+  },
+};
+
+/**
+ * workspace.team_invite_sent → invite a new member to join a workspace team.
+ * The token always carries an expiry, so `expiresAtIso` is expected; the
+ * `redeemPath` is the `/team-invite/<id>` redeem route.
+ */
+const WORKSPACE_TEAM_INVITE: CatalogEntry = {
+  id: "workspace.team_invite.invitee",
+  category: "workspace_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["workspace.team_invite_sent"],
+  resolveAudience: emailInvitee("guest"),
+  email: {
+    templateId: "workspace.team_invite",
+    subject: (event) => {
+      const inviter = str(event.payload.inviterName) ?? "A teammate";
+      const agency = str(event.payload.workspaceName) ?? "a workspace";
+      return `${inviter} invited you to ${agency} on Tulala`;
+    },
+    render: ({ event, brand }) =>
+      React.createElement(WorkspaceTeamInvite, {
+        inviterName: str(event.payload.inviterName) ?? "A teammate",
+        agencyName: str(event.payload.workspaceName) ?? brand.accountName,
+        roleLabel: str(event.payload.roleLabel) ?? "Member",
+        redeemUrl: redeemHref(brand, str(event.payload.redeemPath) ?? "/"),
+        expiresLabel: formatDateLabel(str(event.payload.expiresAtIso)) ?? "soon",
+        brand,
+      }),
+  },
+};
+
 // ─── Self-test (Phase 2) ──────────────────────────────────────────────────────
 //
 // Exercises the full pipeline (audience → prefs → dedupe log → channel
@@ -758,6 +664,8 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,
+  ROSTER_CLAIM_INVITE,
+  WORKSPACE_TEAM_INVITE,
   SELF_TEST,
 ];
 

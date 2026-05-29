@@ -7,7 +7,11 @@ interface Props {
   agencyName: string;
   talentDisplayName: string | null;
   redeemUrl: string;
-  expiresLabel: string;
+  /**
+   * Optional — token-based claim invites carry an expiry; the roster "sign up
+   * with this email to claim" path has no token, so the line is omitted.
+   */
+  expiresLabel?: string;
   brand?: EmailBrand;
 }
 
@@ -28,7 +32,7 @@ export default function ClaimInvite({
         {agencyName} added you to their roster. Claim your profile to manage bookings, reply to
         inquiries, and edit your photos and bio.
       </Text>
-      <Text style={note}>Link expires {expiresLabel}.</Text>
+      {expiresLabel ? <Text style={note}>Link expires {expiresLabel}.</Text> : null}
       <Button href={redeemUrl}>Claim profile →</Button>
     </Layout>
   );

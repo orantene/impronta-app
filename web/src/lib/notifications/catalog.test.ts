@@ -235,3 +235,162 @@ test("catalog: inquiry.cancelled link points at the recipient's own surface", ()
   assert.match(clientEl.props.inquiryUrl, /\/client\/inquiries\/inq-42$/);
   assert.match(talentEl.props.inquiryUrl, /\/talent\/inquiries\/inq-42$/);
 });
+
+// ─── Slice 15.3b — roster claim-invite + team-invite (§12 conversions) ────────
+//
+// These two replace direct sendEmail calls with dispatcher-routed email to an
+// email-only (guest) recipient. Unlike the inquiry resolvers, the audience
+// resolvers here read only the event payload (no DB), so they ARE unit-tested.
+
+const SLICE_15_3: Array<{ id: string; trigger: string; category: string }> = [
+  { id: "roster.claim_invite.talent", trigger: "roster.claim_invite_requested", category: "roster_activity" },
+  { id: "workspace.team_invite.invitee", trigger: "workspace.team_invite_sent", category: "workspace_activity" },
+];
+
+test("catalog: Slice 15.3 invite entries are email-only, optional, no in_app", () => {
+  for (const { id, category } of SLICE_15_3) {
+    const entry = findCatalogEntryById(id);
+    assert.ok(entry, `missing catalog entry ${id}`);
+    assert.equal(entry!.category, category);
+    assert.equal(entry!.required, false);
+    assert.deepEqual(entry!.defaultChannels, ["email"]);
+    assert.ok(entry!.email, `${id} should have an email config`);
+    // Guests have no in-app surface; these must be email-only.
+    assert.equal(entry!.in_app, undefined, `${id} must not route in_app`);
+  }
+});
+
+test("catalog: Slice 15.3 triggers route to their entries", () => {
+  for (const { id, trigger } of SLICE_15_3) {
+    assert.ok(
+      findCatalogEntries(trigger).some((e) => e.id === id),
+      `${trigger} should route to ${id}`,
+    );
+  }
+});
+
+test("catalog: Slice 15.3 audience resolves the payload email as a guest", async () => {
+  for (const { id } of SLICE_15_3) {
+    const entry = findCatalogEntryById(id)!;
+    const withEmail: NotificationEvent = {
+      type: id,
+      tenantId: "tenant-1",
+      eventId: `evt-${id}`,
+      payload: { inviteeEmail: "invitee@acme.test", inviteeName: "Tina Rossi" },
+    };
+    // ctx is unused by these payload-only resolvers.
+    const members = await entry.resolveAudience(withEmail, {} as never);
+    assert.equal(members.length, 1, `${id} should resolve one recipient`);
+    assert.equal(members[0]!.kind, "guest");
+    assert.equal(
+      members[0]!.kind === "guest" ? members[0]!.email : null,
+      "invitee@acme.test",
+    );
+
+    // No email on the payload → no recipient (defensive, never throws).
+    const noEmail: NotificationEvent = { type: id, tenantId: "t", eventId: id, payload: {} };
+    assert.deepEqual(await entry.resolveAudience(noEmail, {} as never), []);
+  }
+});
+
+test("catalog: claim-invite resolves an absolute redeem link + reminder subject", () => {
+  const entry = findCatalogEntryById("roster.claim_invite.talent")!;
+  const recip: ResolvedRecipient = {
+    userId: null,
+    email: "tina@acme.test",
+    displayName: "Tina Rossi",
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "talent",
+    dedupeId: "guest:tina@acme.test",
+  };
+
+  // Token-based resend: carries redeemPath + expiry + isResend.
+  const resend: NotificationEvent = {
+    type: "roster.claim_invite_requested",
+    tenantId: "tenant-1",
+    eventId: "talent-claim:abc",
+    payload: {
+      workspaceName: "Impronta Models",
+      inviteeEmail: "tina@acme.test",
+      redeemPath: "/register?invitation=abc",
+      expiresAtIso: "2026-06-05T00:00:00.000Z",
+      isResend: true,
+    },
+  };
+  assert.match(entry.email!.subject(resend, recip), /^Reminder · /);
+  const el = entry.email!.render({ event: resend, recipient: recip, brand }) as ReactElement<{
+    redeemUrl: string;
+    expiresLabel?: string;
+  }>;
+  assert.equal(el.props.redeemUrl, "https://tulala.digital/register?invitation=abc");
+  assert.ok(el.props.expiresLabel, "resend should carry an expiry label");
+
+  // Roster-add path: no token, defaults to /get-started, no expiry line.
+  const initial: NotificationEvent = {
+    type: "roster.claim_invite_requested",
+    tenantId: "tenant-1",
+    eventId: "roster-claim:xyz",
+    payload: { workspaceName: "Impronta Models", inviteeEmail: "tina@acme.test" },
+  };
+  assert.doesNotMatch(entry.email!.subject(initial, recip), /^Reminder · /);
+  const el2 = entry.email!.render({ event: initial, recipient: recip, brand }) as ReactElement<{
+    redeemUrl: string;
+    expiresLabel?: string;
+  }>;
+  assert.equal(el2.props.redeemUrl, "https://tulala.digital/get-started");
+  assert.equal(el2.props.expiresLabel, undefined);
+});
+
+test("catalog: team-invite renders the redeem path + role on the branded host", () => {
+  const entry = findCatalogEntryById("workspace.team_invite.invitee")!;
+  const recip: ResolvedRecipient = {
+    userId: null,
+    email: "newhire@acme.test",
+    displayName: null,
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "guest",
+    dedupeId: "guest:newhire@acme.test",
+  };
+  const event: NotificationEvent = {
+    type: "workspace.team_invite_sent",
+    tenantId: "tenant-1",
+    eventId: "team-invite:tok-1",
+    payload: {
+      inviterName: "Giulia Conti",
+      workspaceName: "Impronta Models",
+      roleLabel: "Manager",
+      inviteeEmail: "newhire@acme.test",
+      redeemPath: "/team-invite/tok-1",
+      expiresAtIso: "2026-06-05T00:00:00.000Z",
+    },
+  };
+  assert.ok(entry.email!.subject(event, recip).length > 0);
+  const el = entry.email!.render({ event, recipient: recip, brand }) as ReactElement<{
+    redeemUrl: string;
+    roleLabel: string;
+    expiresLabel: string;
+  }>;
+  assert.equal(el.props.redeemUrl, "https://tulala.digital/team-invite/tok-1");
+  assert.equal(el.props.roleLabel, "Manager");
+  assert.ok(el.props.expiresLabel.length > 0);
+});
+
+test("catalog: Slice 15.3 renders fall back gracefully on an empty payload", () => {
+  const recip: ResolvedRecipient = {
+    userId: null,
+    email: "x@acme.test",
+    displayName: null,
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "guest",
+    dedupeId: "guest:x@acme.test",
+  };
+  for (const { id, trigger } of SLICE_15_3) {
+    const entry = findCatalogEntryById(id)!;
+    const event: NotificationEvent = { type: trigger, tenantId: "t", eventId: id, payload: {} };
+    assert.ok(entry.email!.subject(event, recip).length > 0, `${id} subject empty`);
+    assert.ok(entry.email!.render({ event, recipient: recip, brand }), `${id} render falsy`);
+  }
+});
