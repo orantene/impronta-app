@@ -4,6 +4,9 @@ import { useState } from "react";
 import {
   FOCUS_RING,
   orderedTrustFacets,
+  smartTitleCase,
+  cityFacetKey,
+  parseCityFacetKey,
   type DirectoryActiveFilters,
   type DirectoryFacets,
 } from "./shared";
@@ -30,7 +33,7 @@ export function DirectoryFilters({
   active: DirectoryActiveFilters;
   variant?: "rail" | "sheet";
   onCountry: (value: string | null) => void;
-  onCity: (value: string | null) => void;
+  onCity: (city: string | null, country: string | null) => void;
   onAvailableOnly: (value: boolean) => void;
   onTrust: (value: string | null) => void;
   onClearAll: () => void;
@@ -39,6 +42,13 @@ export function DirectoryFilters({
   const cities = active.country
     ? facets.cities.filter((c) => c.country === active.country)
     : facets.cities;
+  // When the same city name spans countries in the visible set (no country
+  // filter narrowing it), append the country to disambiguate the two rows.
+  const cityNameCounts = new Map<string, number>();
+  for (const c of cities) {
+    const k = c.city.toLowerCase();
+    cityNameCounts.set(k, (cityNameCounts.get(k) ?? 0) + 1);
+  }
 
   const anyActive =
     !!active.country || !!active.city || !!active.trustTier || active.availableOnly;
@@ -82,7 +92,11 @@ export function DirectoryFilters({
       {facets.countries.length > 0 ? (
         <FilterSection title="Country">
           <FacetList
-            items={facets.countries.map((c) => ({ value: c.value, label: c.value, count: c.count }))}
+            items={facets.countries.map((c) => ({
+              value: c.value,
+              label: smartTitleCase(c.value),
+              count: c.count,
+            }))}
             activeValue={active.country}
             onToggle={(v) => onCountry(active.country === v ? null : v)}
           />
@@ -90,11 +104,28 @@ export function DirectoryFilters({
       ) : null}
 
       {cities.length > 0 ? (
-        <FilterSection title={active.country ? `Cities in ${active.country}` : "City"}>
+        <FilterSection title={active.country ? `Cities in ${smartTitleCase(active.country)}` : "City"}>
           <FacetList
-            items={cities.map((c) => ({ value: c.value, label: c.value, count: c.count }))}
-            activeValue={active.city}
-            onToggle={(v) => onCity(active.city === v ? null : v)}
+            items={cities.map((c) => {
+              const ambiguous = (cityNameCounts.get(c.city.toLowerCase()) ?? 0) > 1;
+              const label =
+                ambiguous && c.country
+                  ? `${smartTitleCase(c.city)}, ${smartTitleCase(c.country)}`
+                  : smartTitleCase(c.city);
+              return { value: cityFacetKey(c.city, c.country), label, count: c.count };
+            })}
+            activeValue={active.city ? cityFacetKey(active.city, active.country) : null}
+            onToggle={(v) => {
+              if (active.city && cityFacetKey(active.city, active.country) === v) {
+                // Drill *up*: clear the city but keep the country, so an
+                // explicitly-chosen country survives deselecting one of its
+                // cities (and the grid widens to the whole country, not all).
+                onCity(null, active.country);
+              } else {
+                const { city, country } = parseCityFacetKey(v);
+                onCity(city, country);
+              }
+            }}
           />
         </FilterSection>
       ) : null}

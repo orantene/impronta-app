@@ -140,13 +140,57 @@ export function availabilityLine(
   return { text: "Availability on request", open: false };
 }
 
+/**
+ * Gentle title-case for free-text location labels. Only *all-lowercase* tokens
+ * are capitalized; any token that already carries an uppercase letter is left
+ * exactly as stored. This fixes the common "mexico" / "london" lowercase rows
+ * while preserving correctly-cased proper nouns ("Cancún", "McDermott") and
+ * acronyms ("USA", "UK", "UAE") — we never down-case what the source already
+ * capitalized. Commas, hyphens, apostrophes and spacing survive because we only
+ * transform letter/number runs in place.
+ */
+export function smartTitleCase(input: string): string {
+  return input.replace(/[\p{L}\p{N}]+/gu, (token) =>
+    token === token.toLowerCase()
+      ? token.charAt(0).toUpperCase() + token.slice(1)
+      : token,
+  );
+}
+
 export function locationLine(city: string | null, country: string | null): string | null {
   const c = (city ?? "").trim();
   const co = (country ?? "").trim();
-  if (!c) return co.length > 0 ? co : null;
-  if (!co) return c;
-  // Stored city labels sometimes already include the country
-  // ("Cancún, Quintana Roo, Mexico") — don't append it a second time.
-  if (c.toLowerCase().endsWith(co.toLowerCase())) return c;
-  return `${c}, ${co}`;
+  let line: string;
+  if (!c) {
+    if (co.length === 0) return null;
+    line = co;
+  } else if (!co) {
+    line = c;
+  } else if (c.toLowerCase().endsWith(co.toLowerCase())) {
+    // Stored city labels sometimes already include the country
+    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time.
+    line = c;
+  } else {
+    line = `${c}, ${co}`;
+  }
+  return smartTitleCase(line);
+}
+
+/** Unit-separator (0x1F) joins the city facet composite key — a control char
+ *  that can't appear in a place label, so the split stays unambiguous. Built at
+ *  runtime so no literal control byte lives in the source. */
+const CITY_FACET_SEP = String.fromCharCode(31);
+
+/** Join a city to its country so the city filter scopes by both. Disambiguates
+ *  same-named cities across countries (e.g. "Springfield"). */
+export function cityFacetKey(city: string, country: string | null): string {
+  return `${city}${CITY_FACET_SEP}${country ?? ""}`;
+}
+
+/** Split a composite city key back into its city + (optional) country. */
+export function parseCityFacetKey(key: string): { city: string; country: string | null } {
+  const idx = key.indexOf(CITY_FACET_SEP);
+  if (idx === -1) return { city: key, country: null };
+  const country = key.slice(idx + CITY_FACET_SEP.length);
+  return { city: key.slice(0, idx), country: country.length > 0 ? country : null };
 }

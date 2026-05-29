@@ -158,7 +158,7 @@ export function MarketingDirectoryShell({
       facets={facets}
       active={activeFilters}
       onCountry={(v) => updateParams({ country: v, city: null })}
-      onCity={(v) => updateParams({ city: v })}
+      onCity={(city, country) => updateParams({ city, country })}
       onAvailableOnly={(v) => updateParams({ avail: v ? "1" : null })}
       onTrust={(v) => updateParams({ trust: v })}
       onClearAll={() => updateParams({ country: null, city: null, avail: null, trust: null })}

@@ -9,7 +9,7 @@ import {
   useApiIsLoaded,
 } from "@vis.gl/react-google-maps";
 import type { DiscoverMapPoint } from "./shared";
-import { FOCUS_RING, initialsOf, agencyLine, locationLine } from "./shared";
+import { FOCUS_RING, initialsOf, agencyLine, locationLine, smartTitleCase } from "./shared";
 
 // Forest palette hexes (canonical --tl-* values). Inline literals because the
 // Google Maps canvas + Symbol markers live outside the token cascade. Cool
@@ -73,7 +73,7 @@ export function MarketingDirectoryMapClient({
           lat: 0,
           lng: 0,
         });
-        return { country: display, count: list.length, lat: sum.lat / list.length, lng: sum.lng / list.length };
+        return { country: smartTitleCase(display), count: list.length, lat: sum.lat / list.length, lng: sum.lng / list.length };
       })
       .sort((a, b) => b.count - a.count);
   }, [points]);

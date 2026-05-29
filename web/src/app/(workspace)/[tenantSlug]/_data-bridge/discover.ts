@@ -349,7 +349,9 @@ export async function loadDiscoverTalents(
 export type DirectoryFacets = {
   countries: Array<{ value: string; count: number }>;
   categories: Array<{ value: string; label: string; count: number }>;
-  cities: Array<{ value: string; country: string | null; count: number }>;
+  /** One row per (city, country) pair — a city in two countries stays two
+   *  rows so the filter scopes by both. The view composes the dedupe key. */
+  cities: Array<{ city: string; country: string | null; count: number }>;
   trustTiers: Array<{ value: string; count: number }>;
 };
 
@@ -380,7 +382,7 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
   // slug and trust tier are controlled enums, so a plain string key is correct.
   const countryAgg = new Map<string, { display: string; count: number }>();
   const categoryCounts = new Map<string, { label: string; count: number }>();
-  const cityAgg = new Map<string, { city: string; countryKeyCounts: Map<string, number>; count: number }>();
+  const cityAgg = new Map<string, { city: string; countryKey: string | null; count: number }>();
   const trustCounts = new Map<string, number>();
 
   for (const row of rows) {
@@ -400,20 +402,18 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
 
     const city = row.home_city_text?.trim();
     if (city) {
-      // Fold case so "london"/"London" don't split; tally per-country so the
-      // city can be attributed to the country most of its talents list under
-      // (resolved to that country's canonical display at emit, so the
-      // country→city cross-filter in DirectoryFilters still matches exactly).
-      const ckey = city.toLowerCase();
-      const cur = cityAgg.get(ckey);
-      const countryKeyCounts = cur?.countryKeyCounts ?? new Map<string, number>();
-      if (country) {
-        const cck = country.toLowerCase();
-        countryKeyCounts.set(cck, (countryKeyCounts.get(cck) ?? 0) + 1);
-      }
-      cityAgg.set(ckey, {
+      // Bucket by (city, country) composite so a city that appears in more than
+      // one country yields a distinct, exactly-scopable row each ("London, UK"
+      // vs "London, Canada") instead of collapsing to the majority country.
+      // Case folds within each bucket; display prefers a cased variant. The
+      // map key is JSON (not a raw separator char) so it can't collide.
+      const cityKey = city.toLowerCase();
+      const countryKey = country ? country.toLowerCase() : null;
+      const mapKey = JSON.stringify([cityKey, countryKey]);
+      const cur = cityAgg.get(mapKey);
+      cityAgg.set(mapKey, {
         city: preferDisplay(cur?.city, city),
-        countryKeyCounts,
+        countryKey,
         count: (cur?.count ?? 0) + 1,
       });
     }
@@ -430,19 +430,15 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
       .map(([value, { label, count }]) => ({ value, label, count }))
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
     cities: Array.from(cityAgg.values())
-      .map(({ city, countryKeyCounts, count }) => {
-        let bestKey: string | null = null;
-        let bestN = 0;
-        for (const [k, n] of countryKeyCounts) {
-          if (n > bestN) {
-            bestKey = k;
-            bestN = n;
-          }
-        }
-        const country = bestKey ? (countryAgg.get(bestKey)?.display ?? null) : null;
-        return { value: city, country, count };
-      })
-      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+      .map(({ city, countryKey, count }) => ({
+        city,
+        // Resolve to the country's canonical display so it matches the country
+        // facet value exactly — the DirectoryFilters country→city cross-filter
+        // compares these by equality.
+        country: countryKey ? (countryAgg.get(countryKey)?.display ?? null) : null,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city)),
     trustTiers: Array.from(trustCounts.entries())
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
@@ -626,13 +622,19 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
   };
 
   const rows = (data ?? []) as unknown as Row[];
-  const countryCounts = new Map<string, number>();
+  // Country folds case (see helpers at top of file) so "Mexico"/"mexico" don't
+  // split into two rows with halved counts — the buyer Discover filter matches
+  // case-insensitively (ilike), so the folded display value still catches every
+  // stored variant.
+  const countryAgg = new Map<string, { display: string; count: number }>();
   const categoryCounts = new Map<string, { label: string; count: number }>();
 
   for (const row of rows) {
     const country = row.home_country_text?.trim();
     if (country) {
-      countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
+      const key = country.toLowerCase();
+      const cur = countryAgg.get(key);
+      countryAgg.set(key, { display: preferDisplay(cur?.display, country), count: (cur?.count ?? 0) + 1 });
     }
     const tax = row.talent_profile_taxonomy ?? [];
     const primary = tax.find((t) => t.relationship_type === "primary_role");
@@ -648,8 +650,8 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
   }
 
   return {
-    countries: Array.from(countryCounts.entries())
-      .map(([value, count]) => ({ value, count }))
+    countries: Array.from(countryAgg.values())
+      .map(({ display, count }) => ({ value: display, count }))
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
     categories: Array.from(categoryCounts.entries())
       .map(([value, { label, count }]) => ({ value, label, count }))
