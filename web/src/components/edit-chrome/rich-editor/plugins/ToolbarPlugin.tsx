@@ -36,6 +36,7 @@ import { createPortal } from "react-dom";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $createRangeSelection,
+  $getNodeByKey,
   $getSelection,
   $isRangeSelection,
   $isTextNode,
@@ -202,9 +203,14 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
     };
   }, [paletteRect]);
 
+  /** Rebuild the snapshotted selection — only when the live one is gone. */
   function restoreSelection(): boolean {
     const snap = selectionRef.current;
     if (!snap) return false;
+    // Guard against stale keys (nodes that no longer exist).
+    if (!$getNodeByKey(snap.anchorKey) || !$getNodeByKey(snap.focusKey)) {
+      return false;
+    }
     try {
       const sel = $createRangeSelection();
       sel.anchor.set(snap.anchorKey, snap.anchorOffset, snap.anchorType);
@@ -216,20 +222,24 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
     }
   }
 
-  function applyColor(hex: string) {
+  /** Prefer the live selection; only rebuild from snapshot if it's gone. */
+  function withSelection(run: () => void) {
     editor.update(() => {
-      restoreSelection();
-      $applyColor(hex);
+      const live = $getSelection();
+      const haveLive = $isRangeSelection(live) && !live.isCollapsed();
+      if (!haveLive) restoreSelection();
+      run();
     });
+  }
+
+  function applyColor(hex: string) {
+    withSelection(() => $applyColor(hex));
     setLastColor(hex);
     setPaletteRect(null);
   }
 
   function removeColor() {
-    editor.update(() => {
-      restoreSelection();
-      $clearColor();
-    });
+    withSelection(() => $clearColor());
     setPaletteRect(null);
   }
 
@@ -303,7 +313,7 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
         </svg>
       </ToolbarButton>
 
-      {/* Color — opens the palette popover. */}
+      {/* Color — opens the palette popover. "A" over a color bar + chevron. */}
       <button
         type="button"
         title="Text color"
@@ -318,15 +328,31 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
           }
         }}
         className={[
-          "relative inline-flex h-7 w-7 flex-col items-center justify-center rounded-full transition",
-          state?.color ? "bg-white/15" : "hover:bg-white/10",
+          "inline-flex h-7 items-center gap-1 rounded-full pl-2 pr-1.5 transition",
+          state?.color || paletteRect ? "bg-white/15" : "hover:bg-white/10",
         ].join(" ")}
       >
-        <span className="text-[12px] font-semibold leading-none">A</span>
-        <span
-          className="mt-0.5 block h-[3px] w-3.5 rounded-full"
-          style={{ backgroundColor: swatchHex }}
-        />
+        <span className="flex flex-col items-center justify-center leading-none">
+          <span className="text-[11px] font-bold leading-none">A</span>
+          <span
+            className="mt-[2px] block h-[3.5px] w-[15px] rounded-sm ring-1 ring-inset ring-white/30"
+            style={{ backgroundColor: swatchHex }}
+          />
+        </span>
+        <svg
+          width="9"
+          height="9"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-white/70"
+          aria-hidden
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
 
       <span className="mx-0.5 h-4 w-px bg-white/15" />
