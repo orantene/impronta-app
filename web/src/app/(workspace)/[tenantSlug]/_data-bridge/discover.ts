@@ -22,6 +22,40 @@ import { logServerError } from "@/lib/server/safe-error";
 // the egress-hygiene rationale (raw camera files dominate storage egress).
 const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery"];
 
+// ---------------------------------------------------------------------------
+// Free-text location data-quality helpers.
+//
+// `home_country_text` / `home_city_text` are denormalized free text in the
+// matview, so upstream entry produces case variants ("Mexico" vs "mexico").
+// Facets group case-insensitively (so the variants don't split into two rows
+// with halved counts) and the country/city WHERE clauses match the chosen
+// display value case-insensitively so it still catches every stored variant.
+// ---------------------------------------------------------------------------
+
+/** True if `s` contains any uppercase character (Unicode-aware). */
+const hasUpper = (s: string) => s.toLowerCase() !== s;
+
+/**
+ * Pick the cleanest display variant among same-but-differently-cased values.
+ * Prefers a variant that carries case ("Mexico", "USA") over an all-lowercase
+ * one ("mexico"); otherwise keeps the first-seen (stable). The result is a
+ * real value from the data, never a synthetically re-cased string.
+ */
+function preferDisplay(prev: string | undefined, next: string): string {
+  if (!prev) return next;
+  if (!hasUpper(prev) && hasUpper(next)) return next;
+  return prev;
+}
+
+/**
+ * Escape ILIKE wildcards so a facet value matches as a case-insensitive
+ * literal rather than a glob (no country/city realistically contains % or _,
+ * but treating them as wildcards would be a silent correctness bug).
+ */
+function likeEscape(value: string): string {
+  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
 export type DiscoverTalentListItem = {
   id: string;
   displayName: string;
@@ -172,10 +206,10 @@ export async function loadDiscoverTalents(
       { count: "exact" },
     );
 
-  if (opts.country)   query = query.eq("home_country_text", opts.country);
+  if (opts.country)   query = query.ilike("home_country_text", likeEscape(opts.country));
   if (opts.category)  query = query.eq("category_slug", opts.category);
   if (opts.hub)       query = query.eq("agency_tenant_id", opts.hub);
-  if (opts.city)      query = query.eq("home_city_text", opts.city);
+  if (opts.city)      query = query.ilike("home_city_text", likeEscape(opts.city));
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
   if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
@@ -342,14 +376,20 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
   };
   const rows = (data ?? []) as unknown as Row[];
 
-  const countryCounts = new Map<string, number>();
+  // Country / city aggregates fold case (see helpers at top of file); category
+  // slug and trust tier are controlled enums, so a plain string key is correct.
+  const countryAgg = new Map<string, { display: string; count: number }>();
   const categoryCounts = new Map<string, { label: string; count: number }>();
-  const cityCounts = new Map<string, { country: string | null; count: number }>();
+  const cityAgg = new Map<string, { city: string; countryKeyCounts: Map<string, number>; count: number }>();
   const trustCounts = new Map<string, number>();
 
   for (const row of rows) {
     const country = row.home_country_text?.trim();
-    if (country) countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
+    if (country) {
+      const key = country.toLowerCase();
+      const cur = countryAgg.get(key);
+      countryAgg.set(key, { display: preferDisplay(cur?.display, country), count: (cur?.count ?? 0) + 1 });
+    }
 
     const slug = row.category_slug?.trim();
     const label = row.category_label?.trim();
@@ -360,8 +400,22 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
 
     const city = row.home_city_text?.trim();
     if (city) {
-      const existing = cityCounts.get(city);
-      cityCounts.set(city, { country: existing?.country ?? (country || null), count: (existing?.count ?? 0) + 1 });
+      // Fold case so "london"/"London" don't split; tally per-country so the
+      // city can be attributed to the country most of its talents list under
+      // (resolved to that country's canonical display at emit, so the
+      // country→city cross-filter in DirectoryFilters still matches exactly).
+      const ckey = city.toLowerCase();
+      const cur = cityAgg.get(ckey);
+      const countryKeyCounts = cur?.countryKeyCounts ?? new Map<string, number>();
+      if (country) {
+        const cck = country.toLowerCase();
+        countryKeyCounts.set(cck, (countryKeyCounts.get(cck) ?? 0) + 1);
+      }
+      cityAgg.set(ckey, {
+        city: preferDisplay(cur?.city, city),
+        countryKeyCounts,
+        count: (cur?.count ?? 0) + 1,
+      });
     }
 
     const tier = row.trust_tier?.trim();
@@ -369,14 +423,25 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
   }
 
   return {
-    countries: Array.from(countryCounts.entries())
-      .map(([value, count]) => ({ value, count }))
+    countries: Array.from(countryAgg.values())
+      .map(({ display, count }) => ({ value: display, count }))
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
     categories: Array.from(categoryCounts.entries())
       .map(([value, { label, count }]) => ({ value, label, count }))
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
-    cities: Array.from(cityCounts.entries())
-      .map(([value, { country, count }]) => ({ value, country, count }))
+    cities: Array.from(cityAgg.values())
+      .map(({ city, countryKeyCounts, count }) => {
+        let bestKey: string | null = null;
+        let bestN = 0;
+        for (const [k, n] of countryKeyCounts) {
+          if (n > bestN) {
+            bestKey = k;
+            bestN = n;
+          }
+        }
+        const country = bestKey ? (countryAgg.get(bestKey)?.display ?? null) : null;
+        return { value: city, country, count };
+      })
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
     trustTiers: Array.from(trustCounts.entries())
       .map(([value, count]) => ({ value, count }))
@@ -420,9 +485,9 @@ export async function loadDiscoverMapPoints(
     .order("display_name", { ascending: true, nullsFirst: false })
     .limit(500);
 
-  if (opts.country)   query = query.eq("home_country_text", opts.country);
+  if (opts.country)   query = query.ilike("home_country_text", likeEscape(opts.country));
   if (opts.category)  query = query.eq("category_slug", opts.category);
-  if (opts.city)      query = query.eq("home_city_text", opts.city);
+  if (opts.city)      query = query.ilike("home_city_text", likeEscape(opts.city));
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
   if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);

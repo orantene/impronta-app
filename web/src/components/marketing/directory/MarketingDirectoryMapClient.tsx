@@ -51,20 +51,29 @@ export function MarketingDirectoryMapClient({
   }, [points]);
 
   const countryClusters = useMemo<CountryCluster[]>(() => {
-    const buckets = new Map<string, DiscoverMapPoint[]>();
+    // Fold case so "Mexico"/"mexico" cluster together; keep a cased display
+    // label (prefer a variant that carries case over an all-lowercase one).
+    const buckets = new Map<string, { display: string; list: DiscoverMapPoint[] }>();
     for (const p of points) {
-      const key = (p.homeCountry ?? "Unknown").trim() || "Unknown";
-      const list = buckets.get(key) ?? [];
-      list.push(p);
-      buckets.set(key, list);
+      const display = (p.homeCountry ?? "").trim() || "Unknown";
+      const key = display.toLowerCase();
+      const cur = buckets.get(key);
+      if (cur) {
+        cur.list.push(p);
+        if (cur.display.toLowerCase() === cur.display && display.toLowerCase() !== display) {
+          cur.display = display;
+        }
+      } else {
+        buckets.set(key, { display, list: [p] });
+      }
     }
-    return Array.from(buckets.entries())
-      .map(([country, list]) => {
+    return Array.from(buckets.values())
+      .map(({ display, list }) => {
         const sum = list.reduce((a, p) => ({ lat: a.lat + p.homeLat, lng: a.lng + p.homeLng }), {
           lat: 0,
           lng: 0,
         });
-        return { country, count: list.length, lat: sum.lat / list.length, lng: sum.lng / list.length };
+        return { country: display, count: list.length, lat: sum.lat / list.length, lng: sum.lng / list.length };
       })
       .sort((a, b) => b.count - a.count);
   }, [points]);
