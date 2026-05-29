@@ -143,6 +143,81 @@ export const workspaceAdmins = async (
 };
 
 /**
+ * Workspace owner(s) for the event's tenant — the billing-responsible party for
+ * plan-change + cancellation notices (spec §6.6). Mirrors `workspaceAdmins` but
+ * narrows to `role = 'owner'`; keys on `agency_memberships.profile_id` (the
+ * canonical user id, not the non-existent `user_id` column). Empty without a
+ * tenant scope.
+ */
+export const workspaceOwner = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  if (!event.tenantId) return [];
+  const { data, error } = await ctx.admin
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", event.tenantId)
+    .eq("status", "active")
+    .eq("role", "owner");
+  if (error || !data) return [];
+  return (data as Array<{ profile_id: string | null }>)
+    .map((r) => r.profile_id)
+    .filter((id): id is string => Boolean(id))
+    .map((userId) => ({ kind: "user" as const, userId, role: "workspace_member" as const }));
+};
+
+// ─── Payment + payout resolvers (Slice 15.4, spec §6.5) ────────────────────────
+// Read the transaction fields the `markPaid` / `markPayoutSent` producers copy
+// onto the event payload; the dispatcher hydrates + dedupes the result.
+
+/**
+ * The party who paid for a booking transaction (`payment.received.client`). The
+ * authenticated payer when known (`payerUserId`), else the guest contact
+ * (`payerEmail`). Mirrors `clientOrGuest` but keys on the transaction's payer
+ * fields rather than the inquiry's client.
+ */
+export const transactionPayer = async (event: NotificationEvent): Promise<AudienceMember[]> => {
+  const userId = str(event.payload.payerUserId);
+  if (userId) return [{ kind: "user", userId, role: "client" }];
+  const email = str(event.payload.payerEmail);
+  if (email) {
+    return [{ kind: "guest", email, displayName: str(event.payload.contactName), role: "client" }];
+  }
+  return [];
+};
+
+/**
+ * The talent behind a settled payout (`payment.payout_settled.talent`). The
+ * `markPayoutSent` producer carries the transaction's `payoutAccountId`
+ * (= `payout_accounts.id`); resolve it through `payout_accounts.owner_id` (the
+ * talent_profile id for a talent-owned account) to `talent_profiles.user_id`.
+ * Returns nothing for a non-talent payout account or an unclaimed profile.
+ */
+export const payoutReceiverTalent = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  const payoutAccountId = str(event.payload.payoutAccountId);
+  if (!payoutAccountId) return [];
+  const { data: acct } = await ctx.admin
+    .from("payout_accounts")
+    .select("owner_type, owner_id")
+    .eq("id", payoutAccountId)
+    .maybeSingle();
+  const a = acct as { owner_type: string | null; owner_id: string | null } | null;
+  if (!a || a.owner_type !== "talent" || !a.owner_id) return [];
+  const { data: tp } = await ctx.admin
+    .from("talent_profiles")
+    .select("user_id")
+    .eq("id", a.owner_id)
+    .maybeSingle();
+  const userId = (tp as { user_id: string | null } | null)?.user_id ?? null;
+  if (!userId) return [];
+  return [{ kind: "user", userId, role: "talent" }];
+};
+
+/**
  * Offer-outcome audience: the assigned coordinator plus every workspace
  * owner/admin. The dispatcher dedupes by recipient, so a coordinator who is
  * also an admin is only notified once.

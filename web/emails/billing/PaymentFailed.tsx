@@ -9,13 +9,27 @@ interface Props {
   amountDue: string;
   billingUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
-export default function PaymentFailed({ agencyName, amountDue, billingUrl, brand }: Props) {
-  const fields = [{ label: "Amount due", value: amountDue }];
+export default function PaymentFailed({
+  agencyName,
+  amountDue,
+  billingUrl,
+  brand,
+  unsubscribeUrl,
+  categoryLabel,
+}: Props) {
+  const fields = [{ label: "Amount due", value: amountDue }].filter((f) => Boolean(f.value));
 
   return (
-    <Layout preview="Payment failed" brand={brand}>
+    <Layout
+      preview="Payment failed"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Payment failed</Heading>
       <Text style={body}>We couldn&apos;t process the latest payment for {agencyName}.</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}

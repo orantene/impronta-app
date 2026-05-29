@@ -20,7 +20,7 @@ export default function SubscriptionCanceled({
   billingUrl,
   brand,
 }: Props) {
-  const isFullCancel = toPlan === "free";
+  const isFullCancel = toPlan.trim().toLowerCase() === "free";
   const preview = isFullCancel
     ? `${agencyName} — subscription canceled`
     : `${agencyName} — plan changed to ${toPlan}`;

@@ -18,6 +18,10 @@ import { calculateTransactionAmounts } from "@/lib/bookings/commission";
 import {
   describeTransactionTransitionEvent,
 } from "@/lib/bookings/transaction-events";
+import {
+  notifyPaymentReceived,
+  notifyTalentPayoutSettled,
+} from "@/lib/notifications/producers/payment-notify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -424,6 +428,23 @@ export async function markPaid(
       });
     }
   }
+  // Slice 15.4: payment.received → client receipt (email) + workspace alert
+  // (email + in-app). Fires for every paid transition regardless of a source
+  // inquiry; the dispatcher no-ops without RESEND_API_KEY and dedupes a retry
+  // on the stable transaction-scoped eventId.
+  if (result.ok) {
+    notifyPaymentReceived({
+      transactionId: result.data.id,
+      tenantId: result.data.sourceTenantId,
+      inquiryId: result.data.sourceInquiryId,
+      bookingId: result.data.bookingId,
+      payerUserId: result.data.payerUserId,
+      payerEmail: result.data.payerEmail,
+      grossAmountCents: result.data.grossAmountCents,
+      currency: result.data.currency,
+      paidAt: result.data.paidAt,
+    });
+  }
   return result;
 }
 
@@ -455,6 +476,21 @@ export async function markPayoutSent(
     provider_reference: opts?.providerReference?.trim() || null,
   });
   if (!result.ok) return result;
+
+  // Slice 15.4: payment.payout_settled → the talent who was paid (email +
+  // in-app). Only talent-owned payout accounts have a talent recipient; the
+  // resolver chains payoutReceiverId (= payout_accounts.id) to the user.
+  if (result.data.payoutReceiverKind === "talent" && result.data.payoutReceiverId) {
+    notifyTalentPayoutSettled({
+      transactionId: result.data.id,
+      tenantId: result.data.sourceTenantId,
+      inquiryId: result.data.sourceInquiryId,
+      bookingId: result.data.bookingId,
+      payoutAccountId: result.data.payoutReceiverId,
+      netAmountCents: result.data.netAmountCents,
+      currency: result.data.currency,
+    });
+  }
 
   // Manual provider trail: store operator note as a staff-only event.
   if (result.data.provider === "manual") {

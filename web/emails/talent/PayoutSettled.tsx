@@ -5,58 +5,54 @@ import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
 
 interface Props {
-  clientName: string | null;
+  talentName: string | null;
   contactName: string | null;
-  amountPaid: string;
-  paymentDate: string;
-  receiptUrl: string;
+  amountSettled: string;
+  payoutsUrl: string;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
 }
 
-export default function PaymentReceipt({
-  clientName,
+export default function PayoutSettled({
+  talentName,
   contactName,
-  amountPaid,
-  paymentDate,
-  receiptUrl,
+  amountSettled,
+  payoutsUrl,
   brand,
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const name = clientName ?? "there";
+  const name = talentName ?? "there";
   const event = contactName ?? "your booking";
 
-  const fields = [
-    { label: "Amount", value: amountPaid },
-    { label: "Date", value: paymentDate },
-  ];
+  const fields = [{ label: "Amount", value: amountSettled }].filter(
+    (f) => Boolean(f.value),
+  );
 
   return (
     <Layout
-      preview="Payment received"
+      preview="Your payout is on its way"
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Payment received</Heading>
+      <Heading style={h2}>Your payout is on its way</Heading>
       <Text style={body}>
-        Hi {name}, we&apos;ve received your payment for {event}. Thank you.
+        Hi {name}, your payout for {event} has been settled.
       </Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>A copy of this receipt is always available from your dashboard.</Text>
-      <Button href={receiptUrl}>View receipt →</Button>
+      <Text style={note}>Track this and past payouts from your payout settings.</Text>
+      <Button href={payoutsUrl}>View payouts →</Button>
     </Layout>
   );
 }
 
-PaymentReceipt.PreviewProps = {
-  clientName: "Marco Bianchi",
+PayoutSettled.PreviewProps = {
+  talentName: "Tina Rossi",
   contactName: "Sofia's Wedding",
-  amountPaid: "EUR 2,250.00",
-  paymentDate: "28 May 2026",
-  receiptUrl: "https://tulala.digital/client/bookings/abc123?tab=payment",
+  amountSettled: "EUR 1,800.00",
+  payoutsUrl: "https://tulala.digital/talent/settings/payouts",
 } satisfies Props;
 
 const h2: React.CSSProperties = { margin: "0 0 8px", fontSize: "20px", fontWeight: 700, color: "#1a1a1a" };

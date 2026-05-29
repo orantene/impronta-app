@@ -10,6 +10,8 @@ interface Props {
   amountReceived: string;
   inquiryUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function PaymentReceived({
@@ -18,13 +20,20 @@ export default function PaymentReceived({
   amountReceived,
   inquiryUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const event = contactName ?? "a booking";
 
   const fields = [{ label: "Amount", value: amountReceived }];
 
   return (
-    <Layout preview="Payment received" brand={brand}>
+    <Layout
+      preview="Payment received"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Payment received</Heading>
       <Text style={body}>A payment for {event} has been received.</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}

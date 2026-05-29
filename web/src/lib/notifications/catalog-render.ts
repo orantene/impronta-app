@@ -39,3 +39,33 @@ export function formatDateLabel(iso: string | null): string | undefined {
     year: "numeric",
   });
 }
+
+/**
+ * Format integer minor units (cents) + an ISO-4217 code as a display amount,
+ * e.g. (225000, "eur") → "EUR 2,250.00". Returns "" for a missing/non-finite
+ * amount so the template's FieldTable row drops out (no "undefined" / "NaN").
+ */
+export function formatMoneyCents(
+  cents: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (cents == null || !Number.isFinite(cents)) return "";
+  const amount = (cents / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const code = (currency ?? "").trim().toUpperCase();
+  return code ? `${code} ${amount}` : amount;
+}
+
+/** Title-case a plan tier key for display ("agency" → "Agency"). */
+const PLAN_LABELS: Record<string, string> = {
+  free: "Free",
+  studio: "Studio",
+  agency: "Agency",
+  network: "Network",
+};
+export function planLabel(plan: string | null | undefined): string {
+  if (!plan) return "";
+  return PLAN_LABELS[plan.trim().toLowerCase()] ?? plan;
+}
