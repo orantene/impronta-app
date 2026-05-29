@@ -29,6 +29,7 @@ import {
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadUserNotifications,
+  loadRosterCardBadges,
 } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -116,6 +117,7 @@ export default async function WorkspaceAdminLayout({
     talentSelfProfile,
     websiteData,
     userNotifications,
+    rosterCardBadges,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
@@ -136,6 +138,8 @@ export default async function WorkspaceAdminLayout({
     loadWebsiteData(tenantId),
     // B.2 — user notifications feed for the workspace surface.
     loadUserNotifications(tenantId, "workspace"),
+    // Roster-card badge prefs (agencies.settings.rosterCardBadges).
+    loadRosterCardBadges(tenantId),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -206,6 +210,7 @@ export default async function WorkspaceAdminLayout({
           firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
           website: websiteData,
           userNotifications,
+          rosterCardBadges,
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}

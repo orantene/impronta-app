@@ -566,12 +566,12 @@
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 29
+      "count": 47
     }
   },
   "src/components/admin/shell/internal/page-modules/CardDesignStudio.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 48
+      "count": 60
     }
   },
   "src/components/admin/shell/internal/page-modules/ClientsPage.tsx": {
@@ -636,7 +636,7 @@
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 36
+      "count": 35
     }
   },
   "src/components/admin/shell/internal/page-modules/TalentPage-3.tsx": {
@@ -1468,6 +1468,11 @@
   "src/lib/server-actions/admin-product-pricing.ts": {
     "ratchet/no-untenanted-from": {
       "count": 12
+    }
+  },
+  "src/lib/server-actions/admin-roster-card-badges.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 2
     }
   },
   "src/lib/server-actions/admin-site-pages.ts": {

@@ -30,6 +30,8 @@ import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-fla
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import { setRosterCardBadges as persistRosterCardBadges } from "@/lib/server-actions/admin-roster-card-badges";
+import { normalizeRosterCardBadges, type RosterCardBadgePrefs, type RosterCardBadgeKey } from "@/lib/talent-cards/roster-card-badges";
 
 // ─── Provider ────────────────────────────────────────────────────────
 
@@ -231,6 +233,19 @@ type Ctx = {
   effectiveRoster: TalentProfile[];
   /** Set when running in production (cutover) mode — the real tenant slug from the URL. */
   tenantSlug: string | undefined;
+
+  /**
+   * Per-tenant roster-card badge visibility prefs. Seeded from the bridge
+   * (`agencies.settings.rosterCardBadges`), mutated live by the Card Design
+   * studio, consumed by the roster cards. Always a full set (defaults applied).
+   */
+  rosterCardBadges: RosterCardBadgePrefs;
+  /**
+   * Toggle one roster-card badge on/off. Optimistic: flips local state
+   * immediately, persists via the server action, reverts + toasts on
+   * failure. Resolves `true` on success, `false` on failure.
+   */
+  setRosterCardBadge: (key: RosterCardBadgeKey, visible: boolean) => Promise<boolean>;
 
   // ── Phase 3.12 real-data bridge — additional surfaces ────────────────
   /**
@@ -1282,6 +1297,10 @@ export function AdminShellProvider({
   }, [talentContactGates, profileVerifications, claimStatusByTalent]);
   const [density, setDensityState] = useState<Density>("comfortable");
   const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("topbar");
+  // Roster-card badge prefs — seeded SSR from the bridge, mutated by the studio.
+  const [rosterCardBadges, setRosterCardBadgesState] = useState<RosterCardBadgePrefs>(
+    () => normalizeRosterCardBadges(initialBridgeData?.rosterCardBadges),
+  );
   const toastIdRef = useRef(0);
 
   // Hydrate density + workspace layout from localStorage on mount.
@@ -1531,6 +1550,30 @@ export function AdminShellProvider({
       router.refresh();
     },
     [router, toast],
+  );
+
+  // Toggle a single roster-card badge. Optimistic flip → persist → reconcile
+  // with the server's normalized set on success, or revert + toast on failure.
+  const setRosterCardBadge = useCallback(
+    async (key: RosterCardBadgeKey, visible: boolean): Promise<boolean> => {
+      setRosterCardBadgesState((prev) => ({ ...prev, [key]: visible }));
+      try {
+        const res = await persistRosterCardBadges({ [key]: visible });
+        if (!res.ok) {
+          setRosterCardBadgesState((prev) => ({ ...prev, [key]: !visible }));
+          toast(res.error, { tone: "error" });
+          return false;
+        }
+        setRosterCardBadgesState(res.data);
+        return true;
+      } catch (err) {
+        setRosterCardBadgesState((prev) => ({ ...prev, [key]: !visible }));
+        logServerError("admin-shell.setRosterCardBadge", err);
+        toast("Could not save badge setting. Try again.", { tone: "error" });
+        return false;
+      }
+    },
+    [toast],
   );
 
   const completeTask = useCallback((id: string) => {
@@ -1877,6 +1920,8 @@ export function AdminShellProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      rosterCardBadges,
+      setRosterCardBadge,
       // Phase 3.12 — additional surface bridge fields
       effectiveMessagesInquiries,
       effectiveClients,
@@ -1983,6 +2028,8 @@ export function AdminShellProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      rosterCardBadges,
+      setRosterCardBadge,
       effectiveMessagesInquiries,
       effectiveClients,
       effectiveCalendarEvents,

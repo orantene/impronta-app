@@ -35,6 +35,10 @@ import {
   setFieldCardVisible,
 } from "@/lib/site-admin/server/directory-catalogs";
 import { useFavoriteIcon } from "@/lib/talent-cards/use-favorite-icon";
+import {
+  ROSTER_CARD_BADGE_META,
+  type RosterCardBadgeKey,
+} from "@/lib/talent-cards/roster-card-badges";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
 import { COLORS, FONTS, RADIUS, SPACE, TRANSITION, meetsRole, useAdminShell } from "../state";
 import {
@@ -48,6 +52,7 @@ import {
   GroupHeader,
   HOVER_LABEL,
   PreviewCard,
+  RosterBadgePreviewCard,
   Segmented,
   SURFACE_ORDER,
   SURFACE_RULES,
@@ -59,7 +64,7 @@ import {
 // ────────────────────────────────────────────────────────────────────────
 
 export function CardDesignStudio() {
-  const { state, toast } = useAdminShell();
+  const { state, toast, rosterCardBadges, setRosterCardBadge } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
   const tenantFavoriteIcon = useFavoriteIcon();
 
@@ -72,6 +77,10 @@ export function CardDesignStudio() {
   const [fieldsError, setFieldsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fieldStatus, setFieldStatus] = useState<Record<string, FieldSaveState>>({});
+
+  // Roster card badge save-state chrome (the prefs themselves live in the
+  // AdminShell context, which owns the optimistic flip + revert + toast).
+  const [badgeStatus, setBadgeStatus] = useState<Partial<Record<RosterCardBadgeKey, FieldSaveState>>>({});
 
   // Seed the preview favorite glyph from the tenant's live token.
   useEffect(() => {
@@ -139,6 +148,33 @@ export function CardDesignStudio() {
     [canEdit, toast],
   );
 
+  const handleToggleBadge = useCallback(
+    (key: RosterCardBadgeKey, next: boolean) => {
+      if (!canEdit) {
+        toast("You need admin access to change roster card badges.");
+        return;
+      }
+      setBadgeStatus((prev) => ({ ...prev, [key]: "saving" }));
+      void (async () => {
+        // setRosterCardBadge handles the optimistic flip + revert + error toast.
+        const ok = await setRosterCardBadge(key, next);
+        if (!ok) {
+          setBadgeStatus((prev) => ({ ...prev, [key]: "error" }));
+          return;
+        }
+        setBadgeStatus((prev) => ({ ...prev, [key]: "saved" }));
+        window.setTimeout(() => {
+          setBadgeStatus((prev) => {
+            const nextState = { ...prev };
+            if (nextState[key] === "saved") delete nextState[key];
+            return nextState;
+          });
+        }, 1600);
+      })();
+    },
+    [canEdit, toast, setRosterCardBadge],
+  );
+
   // Card-visible engine fields → preview chips (cap at the maxFieldLines feel).
   const fieldChips = useMemo(
     () => (fields ?? []).filter((f) => f.cardVisible).slice(0, 4).map((f) => f.label),
@@ -146,6 +182,7 @@ export function CardDesignStudio() {
   );
 
   const rule = SURFACE_RULES[activeSurface];
+  const isRoster = activeSurface === "roster";
 
   return (
     <div data-tulala-card-design-studio style={{ fontFamily: FONTS.body, color: COLORS.ink }}>
@@ -203,9 +240,19 @@ export function CardDesignStudio() {
       >
         <Icon name="info" size={15} color={COLORS.indigoDeep} />
         <div style={{ fontSize: 12.5, color: COLORS.indigoDeep, lineHeight: 1.5 }}>
-          <strong style={{ fontWeight: 600 }}>Card fields save instantly</strong> to your engine and
-          apply everywhere. <strong style={{ fontWeight: 600 }}>Per-surface styling</strong> below is a
-          live preview — saving distinct styling per surface ships in the next release.
+          {isRoster ? (
+            <>
+              <strong style={{ fontWeight: 600 }}>Roster badges save instantly</strong> to this
+              workspace and show or hide on every roster card right away. The roster grid is internal —
+              only your team sees it.
+            </>
+          ) : (
+            <>
+              <strong style={{ fontWeight: 600 }}>Card fields save instantly</strong> to your engine and
+              apply everywhere. <strong style={{ fontWeight: 600 }}>Per-surface styling</strong> below is a
+              live preview — saving distinct styling per surface ships in the next release.
+            </>
+          )}
         </div>
       </div>
 
@@ -285,6 +332,90 @@ export function CardDesignStudio() {
       >
         {/* LEFT — controls */}
         <div style={{ display: "flex", flexDirection: "column", gap: SPACE.group, minWidth: 0 }}>
+          {isRoster ? (
+            /* Roster card badges — REAL per-workspace persistence (agencies.settings) */
+            <section
+              style={{
+                background: COLORS.card,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: RADIUS.lg,
+                padding: 16,
+              }}
+            >
+              <GroupHeader
+                title="Roster card badges"
+                hint="Show or hide each overlay on your roster cards. Saved instantly to this workspace — the roster grid is internal to your team."
+              />
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {ROSTER_CARD_BADGE_META.map((meta, idx) => {
+                  const on = rosterCardBadges[meta.key];
+                  const status = badgeStatus[meta.key];
+                  const showWarn = !!meta.warnOnHide && !on;
+                  return (
+                    <div
+                      key={meta.key}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "10px 0",
+                        borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{meta.label}</div>
+                        <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginTop: 2, lineHeight: 1.4 }}>
+                          {meta.description}
+                        </div>
+                        {showWarn ? (
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "flex-start",
+                              gap: 5,
+                              marginTop: 6,
+                              padding: "5px 9px",
+                              borderRadius: RADIUS.md,
+                              background: COLORS.amberSoft,
+                              color: COLORS.amberDeep,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            <Icon name="info" size={12} color={COLORS.amberDeep} />
+                            <span>
+                              Hiding the eye removes the only show / hide control from the card. You can
+                              still manage visibility from the talent drawer.
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, paddingTop: 1 }}>
+                        {status === "saving" ? (
+                          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Saving…</span>
+                        ) : status === "saved" ? (
+                          <span style={{ fontSize: 11, color: COLORS.successDeep, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                            <Icon name="check" size={12} color={COLORS.success} />
+                            Saved
+                          </span>
+                        ) : status === "error" ? (
+                          <span style={{ fontSize: 11, color: COLORS.critical }}>Failed</span>
+                        ) : null}
+                        <Toggle
+                          on={on}
+                          onChange={canEdit ? (v) => handleToggleBadge(meta.key, v) : undefined}
+                          label={`Show ${meta.label} on roster cards`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : (
+            <>
           {/* Actions on this surface */}
           <section
             style={{
@@ -482,6 +613,8 @@ export function CardDesignStudio() {
               </div>
             )}
           </section>
+            </>
+          )}
         </div>
 
         {/* RIGHT — live preview */}
@@ -489,15 +622,20 @@ export function CardDesignStudio() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, alignSelf: "flex-start" }}>
             {rule.label} preview
           </div>
-          <PreviewCard
-            surface={activeSurface}
-            appearance={appearance}
-            favoriteIcon={favoriteIcon}
-            fieldChips={fieldChips}
-          />
+          {isRoster ? (
+            <RosterBadgePreviewCard badges={rosterCardBadges} />
+          ) : (
+            <PreviewCard
+              surface={activeSurface}
+              appearance={appearance}
+              favoriteIcon={favoriteIcon}
+              fieldChips={fieldChips}
+            />
+          )}
           <div style={{ fontSize: 11, color: COLORS.inkDim, textAlign: "center", maxWidth: 260, lineHeight: 1.45 }}>
-            Favorite + inquiry here are interactive so you can see both states. On the live surface they
-            connect to the client’s real favorites and inquiry list.
+            {isRoster
+              ? "Toggle a badge to see it appear or disappear here — exactly how the overlay stacks on your live roster cards."
+              : "Favorite + inquiry here are interactive so you can see both states. On the live surface they connect to the client’s real favorites and inquiry list."}
           </div>
         </div>
       </div>

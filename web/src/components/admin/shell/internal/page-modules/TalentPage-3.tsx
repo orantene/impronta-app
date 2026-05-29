@@ -183,7 +183,7 @@ export function RosterList({
   onSelect?: (id: string) => void;
   onOpen: (p: TalentProfile) => void;
 }) {
-  const { t } = useAdminShell();
+  const { t, rosterCardBadges } = useAdminShell();
   return (
     <div
       data-tulala-roster-list
@@ -224,9 +224,13 @@ export function RosterList({
         {onSelect && <span style={{ width: 18, flexShrink: 0 }} />}
         <span style={{ width: 36, flexShrink: 0 }} />
         <span className="flex-1 min-w-0">{t("admin.roster.row.colName")}</span>
-        <span data-rl-completeness style={{ width: 56, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colProfile")}</span>
+        {rosterCardBadges.completeness && (
+          <span data-rl-completeness style={{ width: 56, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colProfile")}</span>
+        )}
         <span data-rl-lastactive style={{ width: 60, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colActive")}</span>
-        <span style={{ width: 84, flexShrink: 0 }}>{t("admin.roster.row.colState")}</span>
+        {rosterCardBadges.visibility && (
+          <span style={{ width: 84, flexShrink: 0 }}>{t("admin.roster.row.colState")}</span>
+        )}
       </div>
       {items.map((p, i) => (
         <RosterRow
@@ -256,7 +260,7 @@ function RosterRow({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const { tenantSlug, t } = useAdminShell();
+  const { tenantSlug, t, rosterCardBadges } = useAdminShell();
 
   const typeMeta = (() => {
     if (!profile.primaryType) return null;
@@ -355,7 +359,7 @@ function RosterRow({
       </div>
 
       {/* Completeness (non-published) */}
-      {profile.state !== "published" && profile.completeness !== undefined && (
+      {rosterCardBadges.completeness && profile.state !== "published" && profile.completeness !== undefined && (
         <div style={{ width: 56, flexShrink: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 2, textAlign: "right" }} className="text-admin-ink-muted">
             {profile.completeness}%
@@ -377,12 +381,14 @@ function RosterRow({
       )}
 
       {/* Directory-visibility eye toggle */}
-      <RosterEyeToggle
-        talentId={profile.id}
-        tenantSlug={tenantSlug}
-        siteVisible={profile.siteVisible ?? false}
-        talentHidden={profile.talentHidden ?? false}
-      />
+      {rosterCardBadges.visibility && (
+        <RosterEyeToggle
+          talentId={profile.id}
+          tenantSlug={tenantSlug}
+          siteVisible={profile.siteVisible ?? false}
+          talentHidden={profile.talentHidden ?? false}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,10 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  normalizeRosterCardBadges,
+  type RosterCardBadgePrefs,
+} from "@/lib/talent-cards/roster-card-badges";
 
 // Re-export the workspace-level loaders so layout.tsx has a single import
 // surface for all bridge data. The workspace bridge is tenant-id-explicit;
@@ -305,6 +309,14 @@ export type BridgeData = {
    * Empty `pages` arrays still mean "real tenant, zero pages" — not mock.
    */
   website?: WebsiteData | null;
+
+  /**
+   * Per-tenant roster-card badge visibility prefs (visibility eye, trust
+   * marks, Discover pill, completeness, photo count, availability, TAL-ID).
+   * Read from `agencies.settings.rosterCardBadges`. `null`/omitted = the
+   * shell falls back to `DEFAULT_ROSTER_CARD_BADGES` (all visible).
+   */
+  rosterCardBadges?: RosterCardBadgePrefs | null;
 };
 
 export function createBridgeDataFromRoster(
@@ -325,6 +337,49 @@ export function createBridgeDataFromRoster(
     talentAgencies: null,
     website: null,
   };
+}
+
+/**
+ * Load the per-tenant roster-card badge prefs from
+ * `agencies.settings.rosterCardBadges`. Read under the user's RLS via the SSR
+ * client — `agencies.settings` is staff-only and the workspace admin owns the
+ * row, so no service-role elevation is needed. Returns `null` on any failure
+ * (no scope, no env, query error); the shell then falls back to the all-on
+ * default, so a transient read failure never silently hides badges.
+ */
+export async function loadRosterCardBadges(
+  explicitTenantId?: string,
+): Promise<RosterCardBadgePrefs | null> {
+  try {
+    let tenantId = explicitTenantId ?? null;
+    if (!tenantId) {
+      const scope = await getTenantScope();
+      if (!scope) return null;
+      tenantId = scope.tenantId;
+    }
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const { data: agency, error } = await supabase
+      .from("agencies")
+      .select("settings")
+      .eq("id", tenantId)
+      .single();
+    if (error) {
+      logServerError("admin-shell-prototype.loadRosterCardBadges", error);
+      return null;
+    }
+
+    const settings =
+      typeof agency?.settings === "object" && agency.settings !== null
+        ? (agency.settings as Record<string, unknown>)
+        : {};
+    return normalizeRosterCardBadges(settings.rosterCardBadges);
+  } catch (err) {
+    logServerError("admin-shell-prototype.loadRosterCardBadges", err);
+    return null;
+  }
 }
 
 type RosterRow = {
