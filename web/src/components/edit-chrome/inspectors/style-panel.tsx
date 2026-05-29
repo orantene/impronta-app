@@ -303,6 +303,11 @@ const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> 
   { value: "dotted", label: "Dot" },
 ];
 
+const BUILDER_NODE_VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Shown" },
+  { value: "hidden", label: "Hidden" },
+];
+
 /**
  * Parse a stored CSS length string ("48px", "1.5rem") back into the
  * structured {value, unit} the NumberUnit control expects. Returns null for
@@ -750,6 +755,7 @@ function cleanBuilderNodeStyle(
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
+  if (value.visibility) out.visibility = value.visibility;
   if (value.fontFamily) out.fontFamily = value.fontFamily;
   if (value.fontSize) out.fontSize = value.fontSize;
   if (typeof value.fontWeight === "number") out.fontWeight = value.fontWeight;
@@ -788,6 +794,7 @@ function cleanBuilderNodeStyleValue(
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
+  if (value.visibility) out.visibility = value.visibility;
   if (value.fontFamily) out.fontFamily = value.fontFamily;
   if (value.fontSize) out.fontSize = value.fontSize;
   if (typeof value.fontWeight === "number") out.fontWeight = value.fontWeight;
@@ -4618,6 +4625,39 @@ export function StylePanel({
                 ))}
               </div>
             ) : null}
+
+            <div
+              className="flex flex-col gap-1.5 border-t pt-3"
+              data-builder-node-style-control="visibility"
+              style={{ borderColor: CHROME.line }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className={FIELD_LABEL}>Visibility</span>
+                {selectedStandaloneViewportStyle?.visibility === "hidden" ? (
+                  <span className={INHERIT_HINT}>
+                    {selectedViewport === "desktop"
+                      ? "Hidden everywhere"
+                      : `Hidden on ${selectedViewport}`}
+                  </span>
+                ) : null}
+              </div>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedStandaloneViewportStyle?.visibility ?? ""}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({
+                    visibility: next === "hidden" ? "hidden" : undefined,
+                  })
+                }
+                options={BUILDER_NODE_VISIBILITY_OPTIONS}
+              />
+              <span className={INHERIT_HINT}>
+                {selectedViewport === "desktop"
+                  ? "Hides on every screen. Switch to tablet/mobile to hide only there."
+                  : `Hides only on ${selectedViewport}; desktop stays shown.`}
+              </span>
+            </div>
 
             <div
               className="flex flex-col gap-2 border-t pt-3"

@@ -140,6 +140,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-radius]{border-radius:var(--bn-tablet-radius)!important}
   .site-builder-node[data-builder-style-tablet-fit]{object-fit:var(--bn-tablet-fit)!important}
   .site-builder-node[data-builder-style-tablet-ratio]{aspect-ratio:var(--bn-tablet-ratio)!important}
+  .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -165,6 +166,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-radius]{border-radius:var(--bn-mobile-radius)!important}
   .site-builder-node[data-builder-style-mobile-fit]{object-fit:var(--bn-mobile-fit)!important}
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
+  .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -211,6 +213,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-radius": tablet?.radius,
     "data-builder-style-tablet-fit": tablet?.objectFit,
     "data-builder-style-tablet-ratio": tablet?.aspectRatio,
+    "data-builder-style-tablet-hidden": tablet?.visibility === "hidden" ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -223,6 +226,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-radius": mobile?.radius,
     "data-builder-style-mobile-fit": mobile?.objectFit,
     "data-builder-style-mobile-ratio": mobile?.aspectRatio,
+    "data-builder-style-mobile-hidden": mobile?.visibility === "hidden" ? "" : undefined,
   };
 }
 
@@ -337,6 +341,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.borderWidth = style.borderWidth ?? "1px";
     if (style.borderColor) out.borderColor = style.borderColor;
   }
+  // Visibility — a desktop-level "hidden" removes the node everywhere (the
+  // breakpoint layers inherit it). Per-breakpoint hides are handled by the
+  // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
+  if (style.visibility === "hidden") out.display = "none";
   return out;
 }
 

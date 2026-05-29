@@ -35,6 +35,9 @@ export interface BuilderNodeStyleValue {
   radius?: "none" | "sm" | "md" | "lg" | "pill";
   objectFit?: "cover" | "contain";
   aspectRatio?: "auto" | "1:1" | "4:3" | "3:4" | "16:9" | "21:9";
+  // Visibility — hide this node at the active viewport. On a breakpoint it hides
+  // only there (desktop stays shown); on desktop it hides everywhere.
+  visibility?: "visible" | "hidden";
   // Free-value escapes — override the token presets above with raw CSS so any
   // design can be matched. Stored as CSS strings (lengths keep their unit) and
   // layered after the tokens in the renderer, so a free value always wins.

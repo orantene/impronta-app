@@ -72,6 +72,7 @@ const builderNodeStyleValueSchema = z.object({
   radius: z.enum(["none", "sm", "md", "lg", "pill"]).optional(),
   objectFit: z.enum(["cover", "contain"]).optional(),
   aspectRatio: z.enum(["auto", "1:1", "4:3", "3:4", "16:9", "21:9"]).optional(),
+  visibility: z.enum(["visible", "hidden"]).optional(),
   // Free-value escapes (mirror of BuilderNodeStyleValue). Length-capped so a
   // hand-crafted tree can't smuggle an oversized declaration; values land in
   // React inline styles, which the CSSOM validates (no injection surface).
