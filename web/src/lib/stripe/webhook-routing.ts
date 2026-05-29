@@ -245,20 +245,30 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
 
     case "payment_intent.succeeded": {
       const intent = event.data.object as Stripe.PaymentIntent;
-      if ((intent.metadata?.purpose ?? null) !== "booking_deposit") {
-        return { kind: "ignore" };
+      // Admin-initiated booking deposit (PI with purpose=booking_deposit).
+      if ((intent.metadata?.purpose ?? null) === "booking_deposit") {
+        const bookingId = strOrNull(intent.metadata?.booking_id);
+        if (!bookingId) {
+          return { kind: "invalid", reason: `booking_deposit PI ${intent.id} missing booking_id` };
+        }
+        return {
+          kind: "booking_deposit",
+          bookingId,
+          amountCents: intent.amount ?? 0,
+          currency: (intent.currency ?? "usd").toUpperCase(),
+          paymentIntentId: intent.id,
+        };
       }
-      const bookingId = strOrNull(intent.metadata?.booking_id);
-      if (!bookingId) {
-        return { kind: "invalid", reason: `booking_deposit PI ${intent.id} missing booking_id` };
+      // Embedded client checkout (Payment Element): the booking-transaction id
+      // rides on metadata.transaction_id. Same idempotent mark-paid path as
+      // the hosted flow's checkout.session.completed. (The hosted flow's PI
+      // does NOT carry transaction_id — it sits on the Checkout session — so
+      // this branch only fires for the on-page Payment Element charge.)
+      const transactionId = strOrNull(intent.metadata?.transaction_id);
+      if (transactionId) {
+        return { kind: "booking_payment", transactionId };
       }
-      return {
-        kind: "booking_deposit",
-        bookingId,
-        amountCents: intent.amount ?? 0,
-        currency: (intent.currency ?? "usd").toUpperCase(),
-        paymentIntentId: intent.id,
-      };
+      return { kind: "ignore" };
     }
 
     case "payment_intent.payment_failed": {

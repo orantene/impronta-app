@@ -406,6 +406,28 @@ test("payment_intent.succeeded without booking_deposit purpose → ignore", () =
   expectKind(a, "ignore");
 });
 
+test("payment_intent.succeeded with metadata.transaction_id (embedded checkout) → booking_payment", () => {
+  // The on-page Payment Element charge carries transaction_id on the PI
+  // itself (no Checkout session). Same idempotent mark-paid path.
+  const a = classifyStripeEvent(
+    evt("payment_intent.succeeded", {
+      id: "pi_embedded",
+      amount: 412000,
+      currency: "mxn",
+      metadata: { transaction_id: "txn_99", inquiry_id: "inq_1", booking_id: "bk_1" },
+    }),
+  );
+  const action = expectKind(a, "booking_payment");
+  assert.equal(action.transactionId, "txn_99");
+});
+
+test("payment_intent.succeeded with neither deposit purpose nor transaction_id → ignore", () => {
+  const a = classifyStripeEvent(
+    evt("payment_intent.succeeded", { id: "pi_bare", metadata: {} }),
+  );
+  expectKind(a, "ignore");
+});
+
 test("payment_intent.payment_failed → payment_intent_failed with transaction id", () => {
   const a = classifyStripeEvent(
     evt("payment_intent.payment_failed", {
