@@ -84,9 +84,12 @@ const builderNodeStyleValueSchema = z.object({
   textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
   fontStyle: z.enum(["normal", "italic"]).optional(),
   textDecoration: z.enum(["none", "underline", "line-through"]).optional(),
-  textColor: z.string().max(32).optional(),
-  backgroundColor: z.string().max(32).optional(),
-  borderColor: z.string().max(32).optional(),
+  // max 64 (not 32) so a theme-token binding like
+  // `var(--token-color-surface-raised, #ffffff)` (and rgba()/hsl() free values)
+  // survives the schema instead of being silently stripped on save.
+  textColor: z.string().max(64).optional(),
+  backgroundColor: z.string().max(64).optional(),
+  borderColor: z.string().max(64).optional(),
   borderWidth: z.string().max(16).optional(),
   borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
   // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers

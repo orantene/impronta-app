@@ -4,6 +4,7 @@ import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { hasRenderableBuilderNodes, renderBuilderNodes } from "./render";
+import { BUILDER_NODE_REGISTRY } from "./registry";
 import type { BuilderNode } from "./types";
 
 function render(nodes: ReadonlyArray<BuilderNode>): string {
@@ -724,6 +725,21 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /font-family:var\(--site-body-font,inherit\)/);
     // Curated "strong" tone resolves to the ink token inline (distinct #111 fallback).
     assert.match(html, /color:var\(--token-color-ink,#111\)/);
+  });
+
+  it("preserves a theme-token color binding through the style schema (max 64)", () => {
+    // A token binding like `var(--token-color-surface-raised, #ffffff)` is ~42
+    // chars. textColor is a known schema key, so an over-length value THROWS on
+    // parse (it isn't stripped) — this guards the max(64) widening from sliding
+    // back to a tight cap that would reject token bindings on save.
+    const parsed = BUILDER_NODE_REGISTRY.paragraph.propsSchema.parse({
+      text: "Bound",
+      style: { textColor: "var(--token-color-surface-raised, #ffffff)" },
+    }) as { style?: { textColor?: string } };
+    assert.equal(
+      parsed.style?.textColor,
+      "var(--token-color-surface-raised, #ffffff)",
+    );
   });
 
   it("renders carousel affordances from layout props", () => {

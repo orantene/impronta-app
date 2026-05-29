@@ -464,6 +464,19 @@ const VIEWPORT_TRACKED_KEYS: ReadonlyArray<keyof NodePresentationValue> = [
   "borderWidthPx",
   "borderStyle",
 ];
+// Theme-token swatches offered in the freeform node color pickers so a node's
+// text / fill / border can bind to the global theme (emits `var(--token-…)`)
+// instead of freezing a one-off hex. Fallbacks mirror token-presets.css defaults.
+const BUILDER_NODE_THEME_COLOR_TOKENS = [
+  { label: "Primary", cssVar: "--token-color-primary", fallback: "#111111" },
+  { label: "Secondary", cssVar: "--token-color-secondary", fallback: "#6b7280" },
+  { label: "Accent", cssVar: "--token-color-accent", fallback: "#0ea5e9" },
+  { label: "Neutral", cssVar: "--token-color-neutral", fallback: "#737373" },
+  { label: "Ink", cssVar: "--token-color-ink", fallback: "#111111" },
+  { label: "Muted", cssVar: "--token-color-muted", fallback: "#737373" },
+  { label: "Line", cssVar: "--token-color-line", fallback: "#e5e5e5" },
+  { label: "Surface", cssVar: "--token-color-surface-raised", fallback: "#ffffff" },
+];
 const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
   "headline",
   "subheadline",
@@ -5292,6 +5305,7 @@ export function StylePanel({
                       [nodeColorField.field]: next,
                     } as Partial<BuilderNodeStyleValue>);
                   }}
+                  themeTokens={BUILDER_NODE_THEME_COLOR_TOKENS}
                   onClose={() => setNodeColorField(null)}
                 />
               </div>

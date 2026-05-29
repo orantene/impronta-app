@@ -110,6 +110,48 @@ function normaliseHex(input: string): string | null {
   }
 }
 
+/**
+ * Resolve a CSS custom property's live value off the document root so a theme
+ * swatch can preview the *current* theme color, not just its literal fallback.
+ * getComputedStyle returns rgb()/hex; callers normalise to hex where needed.
+ */
+function resolveCssVarColor(cssVar: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const live = getComputedStyle(document.documentElement)
+      .getPropertyValue(cssVar)
+      .trim();
+    return live || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Best-effort hex for the preview tile + native `<input type="color">`. A token
+ * value (`var(--token-…, #hex)`) resolves through the live custom property,
+ * falling back to the declared literal; plain values go through normaliseHex.
+ */
+function previewHex(value: string): string {
+  const v = value.trim();
+  if (v.startsWith("var(")) {
+    const m = /^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([^)]+))?\)$/i.exec(v);
+    if (m) {
+      const fallback = (m[2] ?? "").trim();
+      const live = resolveCssVarColor(m[1], fallback);
+      return normaliseHex(live) ?? normaliseHex(fallback) ?? "#000000";
+    }
+  }
+  return normaliseHex(v) ?? "#000000";
+}
+
+/** A theme-token swatch the field can bind to (emits `var(--token-…, fallback)`). */
+export interface ColorTokenSwatch {
+  label: string;
+  cssVar: string;
+  fallback: string;
+}
+
 interface ColorPickerPopoverProps {
   open: boolean;
   /** The element the popover should anchor against. */
@@ -117,6 +159,11 @@ interface ColorPickerPopoverProps {
   value: string;
   onChange: (next: string) => void;
   onClose: () => void;
+  /**
+   * Optional theme-token swatches. When present, a "Theme" row lets the field
+   * bind to a token so it tracks the global theme instead of freezing a hex.
+   */
+  themeTokens?: ColorTokenSwatch[];
 }
 
 export function ColorPickerPopover({
@@ -125,6 +172,7 @@ export function ColorPickerPopover({
   value,
   onChange,
   onClose,
+  themeTokens,
 }: ColorPickerPopoverProps): ReactElement | null {
   const inputId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -231,7 +279,7 @@ export function ColorPickerPopover({
 
   if (!open || typeof document === "undefined") return null;
 
-  const normalised = normaliseHex(value) ?? "#000000";
+  const normalised = previewHex(value);
 
   return createPortal(
     <div
@@ -388,6 +436,44 @@ export function ColorPickerPopover({
           }}
         >
           {eyedropperError}
+        </div>
+      ) : null}
+
+      {/* Theme tokens — bind the field to a global color so it tracks the theme
+          (emits `var(--token-…, fallback)`) instead of freezing a one-off hex.
+          onChange is called directly, bypassing the hex-only commit() path. */}
+      {themeTokens && themeTokens.length > 0 ? (
+        <div className="mt-2.5">
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: CHROME.muted2,
+              marginBottom: 4,
+            }}
+          >
+            Theme
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {themeTokens.map((token) => {
+              const emitted = `var(${token.cssVar}, ${token.fallback})`;
+              const swatchHex =
+                normaliseHex(resolveCssVarColor(token.cssVar, token.fallback)) ??
+                token.fallback;
+              return (
+                <Swatch
+                  key={token.cssVar}
+                  color={swatchHex}
+                  size={20}
+                  title={`${token.label} — binds to ${token.cssVar}`}
+                  active={value.trim() === emitted}
+                  onClick={() => onChange(emitted)}
+                />
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
