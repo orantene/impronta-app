@@ -100,6 +100,12 @@ const builderNodeStyleValueSchema = z.object({
   paddingRight: z.string().max(16).optional(),
   paddingBottom: z.string().max(16).optional(),
   paddingLeft: z.string().max(16).optional(),
+  // Free per-side margin escapes (collision-safe *Free keys; the margin tokens
+  // are enums). Layer after every margin token so the exact value wins.
+  marginTopFree: z.string().max(16).optional(),
+  marginRightFree: z.string().max(16).optional(),
+  marginBottomFree: z.string().max(16).optional(),
+  marginLeftFree: z.string().max(16).optional(),
   // Surface & depth escapes (length/string-capped; opacity normalized 0–1).
   boxShadow: z.string().max(200).optional(),
   backgroundImage: z.string().max(500).optional(),

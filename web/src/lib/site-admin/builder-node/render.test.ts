@@ -472,6 +472,32 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-gap-free=""/);
   });
 
+  it("renders the free per-side margin escapes over the margin token", () => {
+    const html = render([
+      {
+        id: "free:margin",
+        kind: "paragraph",
+        props: {
+          text: "Spaced",
+          style: {
+            marginTop: "s",
+            marginTopFree: "44px",
+            marginLeftFree: "12px",
+            responsive: { mobile: { marginBottomFree: "8px" } },
+          },
+        },
+      },
+    ]);
+
+    // The free top margin beats the marginTop token; left margin has no token at
+    // all and lands inline. Both serialize to their exact values.
+    assert.match(html, /margin-top:44px/);
+    assert.match(html, /margin-left:12px/);
+    // The mobile override is gated by its own attr; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-margin-bottom-free=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-margin-top-free=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

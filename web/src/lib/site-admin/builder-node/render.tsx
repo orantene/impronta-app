@@ -159,6 +159,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-padding-right]{padding-right:var(--bn-tablet-padding-right)!important}
   .site-builder-node[data-builder-style-tablet-padding-bottom]{padding-bottom:var(--bn-tablet-padding-bottom)!important}
   .site-builder-node[data-builder-style-tablet-padding-left]{padding-left:var(--bn-tablet-padding-left)!important}
+  .site-builder-node[data-builder-style-tablet-margin-top-free]{margin-top:var(--bn-tablet-margin-top-free)!important}
+  .site-builder-node[data-builder-style-tablet-margin-right-free]{margin-right:var(--bn-tablet-margin-right-free)!important}
+  .site-builder-node[data-builder-style-tablet-margin-bottom-free]{margin-bottom:var(--bn-tablet-margin-bottom-free)!important}
+  .site-builder-node[data-builder-style-tablet-margin-left-free]{margin-left:var(--bn-tablet-margin-left-free)!important}
   .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
   .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
@@ -208,6 +212,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-padding-right]{padding-right:var(--bn-mobile-padding-right)!important}
   .site-builder-node[data-builder-style-mobile-padding-bottom]{padding-bottom:var(--bn-mobile-padding-bottom)!important}
   .site-builder-node[data-builder-style-mobile-padding-left]{padding-left:var(--bn-mobile-padding-left)!important}
+  .site-builder-node[data-builder-style-mobile-margin-top-free]{margin-top:var(--bn-mobile-margin-top-free)!important}
+  .site-builder-node[data-builder-style-mobile-margin-right-free]{margin-right:var(--bn-mobile-margin-right-free)!important}
+  .site-builder-node[data-builder-style-mobile-margin-bottom-free]{margin-bottom:var(--bn-mobile-margin-bottom-free)!important}
+  .site-builder-node[data-builder-style-mobile-margin-left-free]{margin-left:var(--bn-mobile-margin-left-free)!important}
   .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
   .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
@@ -281,6 +289,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-padding-right": tablet?.paddingRight ? "" : undefined,
     "data-builder-style-tablet-padding-bottom": tablet?.paddingBottom ? "" : undefined,
     "data-builder-style-tablet-padding-left": tablet?.paddingLeft ? "" : undefined,
+    "data-builder-style-tablet-margin-top-free": tablet?.marginTopFree ? "" : undefined,
+    "data-builder-style-tablet-margin-right-free": tablet?.marginRightFree ? "" : undefined,
+    "data-builder-style-tablet-margin-bottom-free": tablet?.marginBottomFree ? "" : undefined,
+    "data-builder-style-tablet-margin-left-free": tablet?.marginLeftFree ? "" : undefined,
     "data-builder-style-tablet-shadow": tablet?.boxShadow ? "" : undefined,
     "data-builder-style-tablet-bg-image": tablet?.backgroundImage ? "" : undefined,
     "data-builder-style-tablet-opacity":
@@ -321,6 +333,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-padding-right": mobile?.paddingRight ? "" : undefined,
     "data-builder-style-mobile-padding-bottom": mobile?.paddingBottom ? "" : undefined,
     "data-builder-style-mobile-padding-left": mobile?.paddingLeft ? "" : undefined,
+    "data-builder-style-mobile-margin-top-free": mobile?.marginTopFree ? "" : undefined,
+    "data-builder-style-mobile-margin-right-free": mobile?.marginRightFree ? "" : undefined,
+    "data-builder-style-mobile-margin-bottom-free": mobile?.marginBottomFree ? "" : undefined,
+    "data-builder-style-mobile-margin-left-free": mobile?.marginLeftFree ? "" : undefined,
     "data-builder-style-mobile-shadow": mobile?.boxShadow ? "" : undefined,
     "data-builder-style-mobile-bg-image": mobile?.backgroundImage ? "" : undefined,
     "data-builder-style-mobile-opacity":
@@ -459,6 +475,14 @@ function responsiveStyleVars(
     "--bn-mobile-padding-right": style?.responsive?.mobile?.paddingRight,
     "--bn-mobile-padding-bottom": style?.responsive?.mobile?.paddingBottom,
     "--bn-mobile-padding-left": style?.responsive?.mobile?.paddingLeft,
+    "--bn-tablet-margin-top-free": style?.responsive?.tablet?.marginTopFree,
+    "--bn-tablet-margin-right-free": style?.responsive?.tablet?.marginRightFree,
+    "--bn-tablet-margin-bottom-free": style?.responsive?.tablet?.marginBottomFree,
+    "--bn-tablet-margin-left-free": style?.responsive?.tablet?.marginLeftFree,
+    "--bn-mobile-margin-top-free": style?.responsive?.mobile?.marginTopFree,
+    "--bn-mobile-margin-right-free": style?.responsive?.mobile?.marginRightFree,
+    "--bn-mobile-margin-bottom-free": style?.responsive?.mobile?.marginBottomFree,
+    "--bn-mobile-margin-left-free": style?.responsive?.mobile?.marginLeftFree,
     "--bn-tablet-shadow": style?.responsive?.tablet?.boxShadow,
     "--bn-tablet-bg-image": style?.responsive?.tablet?.backgroundImage,
     "--bn-tablet-opacity": style?.responsive?.tablet?.opacity,
@@ -525,6 +549,12 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.paddingRight) out.paddingRight = style.paddingRight;
   if (style.paddingBottom) out.paddingBottom = style.paddingBottom;
   if (style.paddingLeft) out.paddingLeft = style.paddingLeft;
+  // Free per-side margin — applied after the marginTop/marginBottom token so an
+  // exact side overrides the preset (and adds left/right, which have no token).
+  if (style.marginTopFree) out.marginTop = style.marginTopFree;
+  if (style.marginRightFree) out.marginRight = style.marginRightFree;
+  if (style.marginBottomFree) out.marginBottom = style.marginBottomFree;
+  if (style.marginLeftFree) out.marginLeft = style.marginLeftFree;
   // Surface & depth escapes. A box-shadow layers over the token background; a
   // background image/gradient is painted cover/center/no-repeat; opacity 0–1.
   if (style.boxShadow) out.boxShadow = style.boxShadow;

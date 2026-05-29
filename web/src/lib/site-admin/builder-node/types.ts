@@ -67,6 +67,13 @@ export interface BuilderNodeStyleValue {
   paddingRight?: string;
   paddingBottom?: string;
   paddingLeft?: string;
+  // Free per-side margin escapes (CSS length strings). The marginTop/marginBottom
+  // tokens above are preset enums, so the exact values use collision-safe *Free
+  // keys and layer after every margin token in the renderer (free always wins).
+  marginTopFree?: string;
+  marginRightFree?: string;
+  marginBottomFree?: string;
+  marginLeftFree?: string;
   // Surface & depth escapes. backgroundImage takes a CSS url()/gradient and is
   // rendered cover/center/no-repeat. opacity is 0–1.
   boxShadow?: string;

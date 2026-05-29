@@ -809,6 +809,10 @@ function cleanBuilderNodeStyle(
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
   if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
+  if (value.marginTopFree) out.marginTopFree = value.marginTopFree;
+  if (value.marginRightFree) out.marginRightFree = value.marginRightFree;
+  if (value.marginBottomFree) out.marginBottomFree = value.marginBottomFree;
+  if (value.marginLeftFree) out.marginLeftFree = value.marginLeftFree;
   if (value.boxShadow) out.boxShadow = value.boxShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
@@ -860,6 +864,10 @@ function cleanBuilderNodeStyleValue(
   if (value.paddingRight) out.paddingRight = value.paddingRight;
   if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
   if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
+  if (value.marginTopFree) out.marginTopFree = value.marginTopFree;
+  if (value.marginRightFree) out.marginRightFree = value.marginRightFree;
+  if (value.marginBottomFree) out.marginBottomFree = value.marginBottomFree;
+  if (value.marginLeftFree) out.marginLeftFree = value.marginLeftFree;
   if (value.boxShadow) out.boxShadow = value.boxShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
@@ -5244,6 +5252,83 @@ export function StylePanel({
                       onChange={(next) =>
                         patchSelectedStandaloneStyle({
                           paddingLeft: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {!["divider", "spacer"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2"
+                data-builder-node-style-control="exactMargin"
+              >
+                <span className={FIELD_LABEL}>Exact margin</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Top
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginTopFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginTopFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Right
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginRightFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginRightFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Bottom
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginBottomFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginBottomFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Left
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginLeftFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginLeftFree: next ? formatLength(next) : undefined,
                         })
                       }
                     />
