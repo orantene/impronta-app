@@ -104,6 +104,8 @@ const builderNodeStyleValueSchema = z.object({
   boxShadow: z.string().max(200).optional(),
   backgroundImage: z.string().max(500).optional(),
   opacity: z.number().min(0).max(1).optional(),
+  // Free gap escape — overrides the layout gap token via the --bn-gap variable.
+  gap: z.string().max(16).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

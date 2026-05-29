@@ -812,6 +812,7 @@ function cleanBuilderNodeStyle(
   if (value.boxShadow) out.boxShadow = value.boxShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
+  if (value.gap) out.gap = value.gap;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -862,6 +863,7 @@ function cleanBuilderNodeStyleValue(
   if (value.boxShadow) out.boxShadow = value.boxShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
+  if (value.gap) out.gap = value.gap;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5247,6 +5249,28 @@ export function StylePanel({
                     />
                   </div>
                 </div>
+              </div>
+            ) : null}
+
+            {["container", "split", "card", "cta_group", "carousel", "masonry"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex items-center justify-between gap-2"
+                data-builder-node-style-control="gap"
+              >
+                <span className={FIELD_LABEL}>Gap</span>
+                <NumberUnit
+                  units={["px", "rem", "%"]}
+                  defaultUnit="px"
+                  placeholder="Token"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.gap)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      gap: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
               </div>
             ) : null}
 

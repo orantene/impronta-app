@@ -72,6 +72,10 @@ export interface BuilderNodeStyleValue {
   boxShadow?: string;
   backgroundImage?: string;
   opacity?: number;
+  // Free gap escape (layout nodes) — overrides the gap token on container /
+  // split / card / cta_group / carousel / masonry by reassigning the --bn-gap
+  // CSS variable, so every consumer (incl. child tracks) picks it up.
+  gap?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

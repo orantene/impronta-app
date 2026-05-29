@@ -163,6 +163,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
   .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
+  .site-builder-node[data-builder-style-tablet-gap-free]{--bn-gap:var(--bn-tablet-gap-free)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -211,6 +212,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
   .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
+  .site-builder-node[data-builder-style-mobile-gap-free]{--bn-gap:var(--bn-mobile-gap-free)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -284,6 +286,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-opacity":
       typeof tablet?.opacity === "number" ? "" : undefined,
     "data-builder-style-tablet-radius-free": tablet?.borderRadius ? "" : undefined,
+    "data-builder-style-tablet-gap-free": tablet?.gap ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -323,6 +326,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-opacity":
       typeof mobile?.opacity === "number" ? "" : undefined,
     "data-builder-style-mobile-radius-free": mobile?.borderRadius ? "" : undefined,
+    "data-builder-style-mobile-gap-free": mobile?.gap ? "" : undefined,
   };
 }
 
@@ -463,6 +467,8 @@ function responsiveStyleVars(
     "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
     "--bn-tablet-radius-free": style?.responsive?.tablet?.borderRadius,
     "--bn-mobile-radius-free": style?.responsive?.mobile?.borderRadius,
+    "--bn-tablet-gap-free": style?.responsive?.tablet?.gap,
+    "--bn-mobile-gap-free": style?.responsive?.mobile?.gap,
   });
 }
 
@@ -529,6 +535,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.backgroundRepeat = "no-repeat";
   }
   if (typeof style.opacity === "number") out.opacity = style.opacity;
+  // Free gap escape — reassign the --bn-gap variable that every layout consumer
+  // reads. Spread after the node's own --bn-gap (see containerStyle etc.) so the
+  // exact value wins, and inherited by child tracks (carousel) automatically.
+  if (style.gap) out["--bn-gap" as keyof CSSProperties] = style.gap as never;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

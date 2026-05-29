@@ -445,6 +445,33 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-radius-free=""/);
   });
 
+  it("renders the free gap escape over the layout gap token", () => {
+    const html = render([
+      {
+        id: "free:gap",
+        kind: "container",
+        props: {
+          layout: "stack",
+          gap: "m",
+          style: {
+            gap: "30px",
+            responsive: { mobile: { gap: "10px" } },
+          },
+        },
+        children: [
+          { id: "free:gap:p", kind: "paragraph", props: { text: "Spaced" } },
+        ],
+      },
+    ]);
+
+    // The free gap reassigns the --bn-gap variable inline, beating the token
+    // ("m" → 1.25rem) that the container would otherwise resolve to.
+    assert.match(html, /--bn-gap:30px/);
+    // The mobile override is gated by its own attr; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-gap-free=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-gap-free=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {
