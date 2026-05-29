@@ -711,6 +711,35 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-filter=""/);
   });
 
+  it("renders flex container layout escapes (justify-content + align-items + flex-wrap)", () => {
+    const html = render([
+      {
+        id: "free:flexbox",
+        kind: "container",
+        props: {
+          layout: "row",
+          style: {
+            justifyContent: "space-around",
+            alignItems: "baseline",
+            flexWrap: "nowrap",
+            responsive: { mobile: { justifyContent: "center" } },
+          },
+        },
+        children: [],
+      },
+    ]);
+
+    // Desktop main/cross-axis distribution + wrap land inline. These three literal
+    // values are absent from the embedded static sheet, so a match proves the
+    // inline render (not a stray sheet rule) emitted them.
+    assert.match(html, /justify-content:space-around/);
+    assert.match(html, /align-items:baseline/);
+    assert.match(html, /flex-wrap:nowrap/);
+    // The mobile justify override is attr-gated; no tablet override set.
+    assert.match(html, /data-builder-style-mobile-justify-content=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-justify-content=""/);
+  });
+
   it("themes builder nodes from design tokens (buttons, fonts, tones)", () => {
     const html = render([
       { id: "t:btn", kind: "button", props: { label: "Go", href: "/x", tone: "primary" } },

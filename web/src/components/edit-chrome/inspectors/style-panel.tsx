@@ -332,6 +332,34 @@ const BUILDER_NODE_ALIGN_SELF_OPTIONS: ReadonlyArray<SegmentedOption<string>> = 
   { value: "stretch", label: "Stretch" },
 ];
 
+// Container layout (children) — how a flex/grid node distributes its OWN children
+// on the main axis (justify), cross axis (align), and whether rows wrap.
+const BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "flex-start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "flex-end", label: "End" },
+  { value: "space-between", label: "Between" },
+  { value: "space-around", label: "Around" },
+  { value: "space-evenly", label: "Evenly" },
+];
+
+const BUILDER_NODE_ALIGN_ITEMS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "flex-start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "flex-end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+  { value: "baseline", label: "Baseline" },
+];
+
+const BUILDER_NODE_FLEX_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "nowrap", label: "No wrap" },
+  { value: "wrap", label: "Wrap" },
+  { value: "wrap-reverse", label: "Reverse" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -888,6 +916,9 @@ function cleanBuilderNodeStyle(
   if (value.gridRow) out.gridRow = value.gridRow;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.justifyContent) out.justifyContent = value.justifyContent;
+  if (value.alignItems) out.alignItems = value.alignItems;
+  if (value.flexWrap) out.flexWrap = value.flexWrap;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -965,6 +996,9 @@ function cleanBuilderNodeStyleValue(
   if (value.gridRow) out.gridRow = value.gridRow;
   if (value.filter) out.filter = value.filter;
   if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.justifyContent) out.justifyContent = value.justifyContent;
+  if (value.alignItems) out.alignItems = value.alignItems;
+  if (value.flexWrap) out.flexWrap = value.flexWrap;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5956,6 +5990,75 @@ export function StylePanel({
                     }
                   />
                 </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="childLayout"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Layout (children)</span>
+              <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                Distributes this box&apos;s own children — works on row / grid
+                containers (container, split, card, CTA group).
+              </span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="justifyContent"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Main axis (justify)
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.justifyContent ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      justifyContent: (next || undefined) as BuilderNodeStyleValue["justifyContent"],
+                    })
+                  }
+                  options={BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="alignItems"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Cross axis (align)
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.alignItems ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      alignItems: (next || undefined) as BuilderNodeStyleValue["alignItems"],
+                    })
+                  }
+                  options={BUILDER_NODE_ALIGN_ITEMS_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="flexWrap"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Wrap
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.flexWrap ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      flexWrap: (next || undefined) as BuilderNodeStyleValue["flexWrap"],
+                    })
+                  }
+                  options={BUILDER_NODE_FLEX_WRAP_OPTIONS}
+                />
               </div>
             </div>
 

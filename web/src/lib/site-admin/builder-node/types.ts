@@ -124,6 +124,19 @@ export interface BuilderNodeStyleValue {
   // (glassmorphism). e.g. "blur(8px)", "grayscale(1) contrast(1.2)".
   filter?: string;
   backdropFilter?: string;
+  // Flex/grid CONTAINER layout — how this node distributes & aligns its OWN
+  // children: justifyContent on the main axis, alignItems on the cross axis,
+  // flexWrap toggles row wrapping. Complements the container/split structured
+  // layout+align props; a free value wins. No-op on non-flex/grid nodes.
+  justifyContent?:
+    | "flex-start"
+    | "center"
+    | "flex-end"
+    | "space-between"
+    | "space-around"
+    | "space-evenly";
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+  flexWrap?: "nowrap" | "wrap" | "wrap-reverse";
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

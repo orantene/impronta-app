@@ -144,6 +144,22 @@ const builderNodeStyleValueSchema = z.object({
   // Filter effects — CSS filter (self) + backdrop-filter (behind, glassmorphism).
   filter: z.string().max(120).optional(),
   backdropFilter: z.string().max(120).optional(),
+  // Flex/grid container layout — main-axis distribution + cross-axis alignment
+  // of children, plus row-wrap control. Complements the structured layout/align.
+  justifyContent: z
+    .enum([
+      "flex-start",
+      "center",
+      "flex-end",
+      "space-between",
+      "space-around",
+      "space-evenly",
+    ])
+    .optional(),
+  alignItems: z
+    .enum(["flex-start", "center", "flex-end", "stretch", "baseline"])
+    .optional(),
+  flexWrap: z.enum(["nowrap", "wrap", "wrap-reverse"]).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

@@ -192,6 +192,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
   .site-builder-node[data-builder-style-tablet-filter]{filter:var(--bn-tablet-filter)!important}
   .site-builder-node[data-builder-style-tablet-backdrop-filter]{backdrop-filter:var(--bn-tablet-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-backdrop-filter)!important}
+  .site-builder-node[data-builder-style-tablet-justify-content]{justify-content:var(--bn-tablet-justify-content)!important}
+  .site-builder-node[data-builder-style-tablet-align-items]{align-items:var(--bn-tablet-align-items)!important}
+  .site-builder-node[data-builder-style-tablet-flex-wrap]{flex-wrap:var(--bn-tablet-flex-wrap)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -267,6 +270,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
   .site-builder-node[data-builder-style-mobile-filter]{filter:var(--bn-mobile-filter)!important}
   .site-builder-node[data-builder-style-mobile-backdrop-filter]{backdrop-filter:var(--bn-mobile-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-backdrop-filter)!important}
+  .site-builder-node[data-builder-style-mobile-justify-content]{justify-content:var(--bn-mobile-justify-content)!important}
+  .site-builder-node[data-builder-style-mobile-align-items]{align-items:var(--bn-mobile-align-items)!important}
+  .site-builder-node[data-builder-style-mobile-flex-wrap]{flex-wrap:var(--bn-mobile-flex-wrap)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -371,6 +377,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-filter": tablet?.filter ? "" : undefined,
     "data-builder-style-tablet-backdrop-filter":
       tablet?.backdropFilter ? "" : undefined,
+    "data-builder-style-tablet-justify-content": tablet?.justifyContent ? "" : undefined,
+    "data-builder-style-tablet-align-items": tablet?.alignItems ? "" : undefined,
+    "data-builder-style-tablet-flex-wrap": tablet?.flexWrap ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -441,6 +450,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-filter": mobile?.filter ? "" : undefined,
     "data-builder-style-mobile-backdrop-filter":
       mobile?.backdropFilter ? "" : undefined,
+    "data-builder-style-mobile-justify-content": mobile?.justifyContent ? "" : undefined,
+    "data-builder-style-mobile-align-items": mobile?.alignItems ? "" : undefined,
+    "data-builder-style-mobile-flex-wrap": mobile?.flexWrap ? "" : undefined,
   };
 }
 
@@ -635,6 +647,12 @@ function responsiveStyleVars(
     "--bn-tablet-backdrop-filter": style?.responsive?.tablet?.backdropFilter,
     "--bn-mobile-filter": style?.responsive?.mobile?.filter,
     "--bn-mobile-backdrop-filter": style?.responsive?.mobile?.backdropFilter,
+    "--bn-tablet-justify-content": style?.responsive?.tablet?.justifyContent,
+    "--bn-tablet-align-items": style?.responsive?.tablet?.alignItems,
+    "--bn-tablet-flex-wrap": style?.responsive?.tablet?.flexWrap,
+    "--bn-mobile-justify-content": style?.responsive?.mobile?.justifyContent,
+    "--bn-mobile-align-items": style?.responsive?.mobile?.alignItems,
+    "--bn-mobile-flex-wrap": style?.responsive?.mobile?.flexWrap,
   });
 }
 
@@ -741,6 +759,13 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // Grid child placement — span/line position in a grid parent. No-op elsewhere.
   if (style.gridColumn) out.gridColumn = style.gridColumn;
   if (style.gridRow) out.gridRow = style.gridRow;
+  // Flex/grid container layout — distribute this node's OWN children on the main
+  // axis (justifyContent) / cross axis (alignItems) and control row wrapping.
+  // Applied inline so a free value wins over the container's structured align /
+  // hardcoded wrap. No-op on non-flex/grid nodes.
+  if (style.justifyContent) out.justifyContent = style.justifyContent;
+  if (style.alignItems) out.alignItems = style.alignItems;
+  if (style.flexWrap) out.flexWrap = style.flexWrap;
   // Filter effects — self filter + backdrop frost (with the -webkit- prefix so
   // backdrop-filter works on Safari).
   if (style.filter) out.filter = style.filter;
@@ -967,22 +992,22 @@ function ctaGroupStyle(node: Extract<BuilderNode, { kind: "cta_group" }>): CSSPr
   } as const;
   const layout = node.props.layout ?? "row";
   const align = node.props.align ?? "center";
-  const base = {
+  // Structured justify/align come first; sharedNodeStyle is spread LAST so a free
+  // justifyContent / alignItems / flexWrap escape wins over the cta_group preset
+  // (matching the "free always wins" rule the container/split/card paths follow).
+  const structured: CSSProperties =
+    layout === "stack"
+      ? { alignItems: align === "stretch" ? "stretch" : alignMap[align] }
+      : {
+          justifyContent: alignMap[align === "stretch" ? "center" : align],
+          alignItems: "center",
+        };
+  return {
     ...builderNodeStyleVars({
       "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
     }),
+    ...structured,
     ...sharedNodeStyle(node.props.style),
-  };
-  if (layout === "stack") {
-    return {
-      ...base,
-      alignItems: align === "stretch" ? "stretch" : alignMap[align],
-    };
-  }
-  return {
-    ...base,
-    justifyContent: alignMap[align === "stretch" ? "center" : align],
-    alignItems: "center",
   };
 }
 

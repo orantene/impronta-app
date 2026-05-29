@@ -1714,6 +1714,11 @@
       "count": 1
     }
   },
+  "src/lib/site-admin/builder-node/render.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/site-admin/builder-node/render.tsx": {
     "max-lines": {
       "count": 1
