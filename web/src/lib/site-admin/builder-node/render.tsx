@@ -802,6 +802,18 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     out.backgroundPosition = style.backgroundPosition ?? "center";
     out.backgroundRepeat = style.backgroundRepeat ?? "no-repeat";
   }
+  // Gradient/clipped text — paint the background through the text glyphs. Gated
+  // on an actual background paint so we never blank the text, and bundled with
+  // the -webkit- prefix + transparent text fill the technique requires. Set at
+  // the base layer so it cascades to every breakpoint.
+  if (
+    style.backgroundClip === "text" &&
+    (style.backgroundImage || style.backgroundColor)
+  ) {
+    out.backgroundClip = "text";
+    out.WebkitBackgroundClip = "text";
+    out.WebkitTextFillColor = "transparent";
+  }
   if (typeof style.opacity === "number") out.opacity = style.opacity;
   // Free gap escape — reassign the --bn-gap variable that every layout consumer
   // reads. Spread after the node's own --bn-gap (see containerStyle etc.) so the

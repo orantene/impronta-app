@@ -403,6 +403,11 @@ const BUILDER_NODE_BLEND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "lighten", label: "Lighten" },
 ];
 
+const BUILDER_NODE_BG_CLIP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "text", label: "Through text" },
+];
+
 /**
  * Parse a stored CSS length string ("48px", "1.5rem") back into the
  * structured {value, unit} the NumberUnit control expects. Returns null for
@@ -927,6 +932,7 @@ function cleanBuilderNodeStyle(
   if (value.backgroundSize) out.backgroundSize = value.backgroundSize;
   if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
   if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
+  if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.position) out.position = value.position;
@@ -1019,6 +1025,7 @@ function cleanBuilderNodeStyleValue(
   if (value.backgroundSize) out.backgroundSize = value.backgroundSize;
   if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
   if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
+  if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.position) out.position = value.position;
@@ -6394,6 +6401,32 @@ export function StylePanel({
                   }
                   options={BUILDER_NODE_BG_REPEAT_OPTIONS}
                 />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backgroundClip"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background clip
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.backgroundClip ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundClip: (next ||
+                        undefined) as BuilderNodeStyleValue["backgroundClip"],
+                    })
+                  }
+                  options={BUILDER_NODE_BG_CLIP_OPTIONS}
+                />
+                <span
+                  className="text-[10px] leading-tight"
+                  style={{ color: CHROME.muted }}
+                >
+                  Set a gradient or color background to show it through the text.
+                </span>
               </div>
               <div
                 className="flex flex-col gap-1"

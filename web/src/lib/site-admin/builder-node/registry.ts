@@ -125,6 +125,8 @@ const builderNodeStyleValueSchema = z.object({
   backgroundRepeat: z
     .enum(["no-repeat", "repeat", "repeat-x", "repeat-y"])
     .optional(),
+  // Gradient/clipped text — clip the background paint to the glyphs.
+  backgroundClip: z.enum(["text"]).optional(),
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
   gap: z.string().max(16).optional(),

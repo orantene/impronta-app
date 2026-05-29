@@ -98,6 +98,12 @@ export interface BuilderNodeStyleValue {
   backgroundSize?: string;
   backgroundPosition?: string;
   backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
+  // Gradient/clipped text — clip the background paint to the text glyphs so a
+  // gradient (or any background) shows *through* the letters. Only "text" is
+  // meaningful; the renderer also emits the -webkit- prefix and a transparent
+  // text fill. Ignored unless a backgroundImage or backgroundColor is set, so
+  // it can never silently blank the text.
+  backgroundClip?: "text";
   opacity?: number;
   // Free gap escape (layout nodes) — overrides the gap token on container /
   // split / card / cta_group / carousel / masonry by reassigning the --bn-gap

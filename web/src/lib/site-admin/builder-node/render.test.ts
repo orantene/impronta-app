@@ -798,6 +798,45 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-mobile-mix-blend-mode=""/);
   });
 
+  it("renders gradient-clipped text when a background is present", () => {
+    const html = render([
+      {
+        id: "free:gradtext",
+        kind: "paragraph",
+        props: {
+          text: "Gradient",
+          style: {
+            backgroundImage: "linear-gradient(90deg, #f0f, #0ff)",
+            backgroundClip: "text",
+          },
+        },
+      },
+    ]);
+
+    // The clip bundle lands inline: clip the background to the glyphs + make the
+    // text fill transparent so the gradient shows through.
+    assert.match(html, /-webkit-background-clip:text/);
+    assert.match(html, /-webkit-text-fill-color:transparent/);
+  });
+
+  it("ignores background clip-to-text when no background paint is set", () => {
+    const html = render([
+      {
+        id: "free:gradtext-bare",
+        kind: "paragraph",
+        props: {
+          text: "Plain",
+          style: { backgroundClip: "text" },
+        },
+      },
+    ]);
+
+    // No background → the clip bundle is suppressed, so the text never goes
+    // invisible (the footgun guard).
+    assert.doesNotMatch(html, /-webkit-text-fill-color:transparent/);
+    assert.doesNotMatch(html, /background-clip:text/);
+  });
+
   it("renders flex child placement escapes (align-self + flex sizing)", () => {
     const html = render([
       {
