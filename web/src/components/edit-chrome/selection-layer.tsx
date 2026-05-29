@@ -1043,6 +1043,14 @@ export function SelectionLayer() {
   const chipPrimaryType = selectedNodeIsEditableBlock
     ? "Block"
     : chipType;
+  // Show the type label only when it adds information — most sections derive
+  // a name equal to their humanized type ("Featured Talent"), which made the
+  // chip print the same words twice. Hoisted (not inline in JSX) to keep the
+  // React Compiler's memoization analysis of the breadcrumb useMemo stable.
+  const showChipType =
+    chipPrimaryType.trim().length > 0 &&
+    chipPrimaryType.trim().toLowerCase() !==
+      chipPrimaryLabel.trim().toLowerCase();
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
@@ -1918,35 +1926,41 @@ export function SelectionLayer() {
                 </span>
               ) : null}
 
-              {/* Divider + type label */}
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 0,
-                }}
-              >
+              {/* Divider + type label — only when the type adds information.
+               *  For most sections the auto-derived name equals the humanized
+               *  type (e.g. "Featured Talent"), which made the chip read the
+               *  same words twice ("FEATURED TALENT  FEATURED TALENT"). Skip
+               *  the type when it just echoes the name. */}
+              {showChipType ? (
                 <span
                   style={{
-                    width: 1,
-                    height: 16,
-                    background: "rgba(255,255,255,0.16)",
-                    margin: "0 4px",
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.55)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0,
                   }}
                 >
-                  {chipPrimaryType}
+                  <span
+                    style={{
+                      width: 1,
+                      height: 16,
+                      background: "rgba(255,255,255,0.16)",
+                      margin: "0 4px",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: "0.10em",
+                      textTransform: "uppercase",
+                      color: "rgba(255,255,255,0.55)",
+                    }}
+                  >
+                    {chipPrimaryType}
+                  </span>
                 </span>
-              </span>
+              ) : null}
             </div>
 
             {/* Toolbar buttons.
