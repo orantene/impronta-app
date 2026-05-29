@@ -6,10 +6,9 @@
  * choice out of UI code and lets the whole photography layer be re-curated in
  * a single file when we commission or replace shots.
  *
- * Current sources: curated Unsplash editorial photos served from
- * `images.unsplash.com`. The CSP allows `img-src https:` so direct `<img>`
- * tags work without next.config changes. Replace `url` with a Supabase
- * storage path or a bundled asset when we ship commissioned photography.
+ * Current sources: project-owned AI-generated editorial photos bundled under
+ * `/public/marketing/photos`. Keeping them local makes the marketing site feel
+ * curated and keeps the surface from depending on remote stock-photo crops.
  */
 export type MarketingPhoto = {
   key: string;
@@ -21,63 +20,102 @@ export type MarketingPhoto = {
   focal: "center" | "top" | "bottom" | "left-center" | "right-center";
 };
 
-const unsplash =
-  (id: string, alt: string, intent: string, focal: MarketingPhoto["focal"] = "center") =>
+const local =
+  (path: string, alt: string, intent: string, focal: MarketingPhoto["focal"] = "center") =>
   (key: string): MarketingPhoto => ({
     key,
-    url: ({ w = 1200, q = 72 } = {}) =>
-      `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=${q}`,
+    url: () => path,
     alt,
     intent,
     focal,
   });
 
 export const MARKETING_PHOTOS = {
-  /** Independent operator — solo professional, warm tone. */
-  operator: unsplash(
-    "1551836022-deb4988cc6c0",
-    "Independent operator reviewing roster on a laptop in a bright workspace",
-    "Solo, focused, polished work",
+  /** Homepage hero — many kinds of talent and service work can become income. */
+  heroServices: local(
+    "/marketing/photos/talent-services-hero.jpg",
+    "Singer, chef, cleaner, and beauty professional working in a premium modern studio",
+    "Multiple service professionals turning their work into a business",
     "center",
+  )("heroServices"),
+
+  /** Talent CTA — a young adult performer checking a booking on her phone. */
+  talentBooking: local(
+    "/marketing/photos/independent-singer-booking.jpg",
+    "Independent singer smiling while checking a booking on her phone in a rehearsal room",
+    "Individual talent feeling the business value of one good booking",
+    "top",
+  )("talentBooking"),
+
+  /** Agency/workspace CTA — a team building their roster website and pipeline. */
+  agencyBuilder: local(
+    "/marketing/photos/agency-workspace-builder.jpg",
+    "Small agency team reviewing a roster website and inquiry dashboard together",
+    "Agency owner building a polished workspace business",
+    "center",
+  )("agencyBuilder"),
+
+  /** Service marketplace band — real people doing high-value work. */
+  servicePros: local(
+    "/marketing/photos/service-pros-lifestyle.jpg",
+    "Cleaner, chef, makeup artist, and fitness professional working in bright premium spaces",
+    "Attractive real-life service categories that can sell through Tulala",
+    "center",
+  )("servicePros"),
+
+  /** Agencies and hubs discovery page — choosing where to apply next. */
+  hubDiscovery: local(
+    "/marketing/photos/hub-agency-discovery.jpg",
+    "Adult talent reviewing agency and hub opportunities on a tablet in a creative studio",
+    "Talent browsing agencies and hubs as a premium opportunity network",
+    "right-center",
+  )("hubDiscovery"),
+
+  /** Independent operator — solo professional, warm tone. */
+  operator: local(
+    "/marketing/photos/independent-singer-booking.jpg",
+    "Independent singer smiling while checking a booking on her phone in a rehearsal room",
+    "Solo professional, polished and ready to earn",
+    "top",
   )("operator"),
 
   /** Agency — coordinated team reviewing work at a long workspace table. */
-  agency: unsplash(
-    "1521737604893-d14cc237f11d",
-    "Agency team reviewing a roster together around a meeting table",
-    "Collaborative team coordination",
+  agency: local(
+    "/marketing/photos/agency-workspace-builder.jpg",
+    "Small agency team reviewing a roster website and inquiry dashboard together",
+    "Collaborative agency coordination",
     "center",
   )("agency"),
 
   /** Organization — modern open-plan workspace for scaled teams. */
-  organization: unsplash(
-    "1556761175-4b46a572b786",
-    "Modern open-plan workspace for a larger placement organization",
-    "Scale, operations, infrastructure feel",
-    "center",
+  organization: local(
+    "/marketing/photos/hub-agency-discovery.jpg",
+    "Talent browsing agency and hub opportunities in a modern creative studio",
+    "Scale, discovery, and network selection",
+    "right-center",
   )("organization"),
 
-  /** Homepage lifestyle band — "we review rosters calmly now" gesture. */
-  reviewMoment: unsplash(
-    "1517245386807-bb43f82c33c4",
-    "Two people reviewing a roster together on a laptop, hands gesturing",
-    "The human review moment the platform replaces with structure",
+  /** Homepage lifestyle band — services and talent in motion. */
+  reviewMoment: local(
+    "/marketing/photos/service-pros-lifestyle.jpg",
+    "Cleaner, chef, makeup artist, and fitness professional working in bright premium spaces",
+    "The real-life work people can package and sell through Tulala",
     "center",
   )("reviewMoment"),
 
   /** /get-started side — welcoming, buyer-focused portrait. */
-  welcome: unsplash(
-    "1573497019940-1c28c88b4f3e",
-    "Operator smiling confidently in a bright workspace",
-    "Welcoming, low-stakes, buyer-focused",
+  welcome: local(
+    "/marketing/photos/independent-singer-booking.jpg",
+    "Independent singer smiling while checking a booking on her phone in a rehearsal room",
+    "Welcoming, low-stakes, talent-focused",
     "top",
   )("welcome"),
 
   /** /integrations — devices, surfaces, systems. */
-  systems: unsplash(
-    "1519389950473-47ba0277781c",
-    "Top-down desk view with multiple devices — laptops, phones, notebooks",
-    "Systems, integrations, multi-surface",
+  systems: local(
+    "/marketing/photos/agency-workspace-builder.jpg",
+    "Small agency team reviewing a roster website and inquiry dashboard together",
+    "Systems, integrations, multi-surface workspace",
     "center",
   )("systems"),
 } as const;

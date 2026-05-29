@@ -236,6 +236,7 @@ test("path-based tenant public routes do not swallow workspace or reserved route
     "/impronta/onboarding/role",
     "/impronta/api/directory",
     "/pricing",
+    "/discover-agencies",
     "/directory",
     "/t/jane-doe",
   ];
@@ -254,6 +255,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/api/analytics/events",
     "/t/jane-doe",
     "/get-started",
+    "/discover-agencies",
     "/operators",
     "/agencies",
     "/organizations",
@@ -307,6 +309,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
 test("marketing host: non-marketing hosts must 404 marketing pages", () => {
   const marketingPages = [
     "/get-started",
+    "/discover-agencies",
     "/operators",
     "/agencies",
     "/organizations",

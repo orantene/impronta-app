@@ -1,4 +1,5 @@
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
 type Tab = {
@@ -220,45 +221,54 @@ function MockSite() {
         </div>
         <div
           className="relative aspect-[3/4] overflow-hidden rounded-xl"
-          style={{
-            background:
-              "linear-gradient(140deg, #0f1714 0%, #1f4a3a 45%, #5c8b76 100%)",
-          }}
+          style={{ background: "var(--plt-bg-deep)" }}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={MARKETING_PHOTOS.talentBooking.url()}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
           <span
             aria-hidden
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "radial-gradient(120% 80% at 20% 10%, rgba(241,237,227,0.18), transparent 55%)",
+                "linear-gradient(180deg, rgba(15,23,20,0.02) 30%, rgba(15,23,20,0.24) 100%)",
             }}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3 px-6 pb-6 sm:px-8 sm:pb-8">
-        <RosterTile name="Sofía" tone="a" />
-        <RosterTile name="Julián" tone="b" />
-        <RosterTile name="Rami" tone="c" />
-        <RosterTile name="Ines" tone="d" />
+        <RosterTile name="Sofía" photo={MARKETING_PHOTOS.talentBooking} />
+        <RosterTile name="Nadia" photo={MARKETING_PHOTOS.servicePros} />
+        <RosterTile name="Rami" photo={MARKETING_PHOTOS.heroServices} />
+        <RosterTile name="Ines" photo={MARKETING_PHOTOS.hubDiscovery} />
       </div>
     </div>
   );
 }
 
-function RosterTile({ name, tone }: { name: string; tone: "a" | "b" | "c" | "d" }) {
-  const tones: Record<typeof tone, string> = {
-    a: "linear-gradient(160deg, #0f1714, #1f4a3a 55%, #5c8b76)",
-    b: "linear-gradient(160deg, #1f4a3a, #2e6b52 55%, #9ec9b2)",
-    c: "linear-gradient(180deg, #0a1d16, #1f4a3a 55%, #3d7a60)",
-    d: "linear-gradient(200deg, #050d0a, #143226, #2e6b52)",
-  };
+function RosterTile({ name, photo }: { name: string; photo: MarketingPhoto }) {
   return (
     <div>
       <div
-        className="aspect-[3/4] rounded-lg"
-        style={{ background: tones[tone], border: "1px solid rgba(15,23,20,0.08)" }}
-      />
+        className="relative aspect-[3/4] overflow-hidden rounded-lg"
+        style={{ background: "var(--plt-bg-deep)", border: "1px solid rgba(15,23,20,0.08)" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photo.url()}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "linear-gradient(180deg, transparent 20%, rgba(15,23,20,0.2) 100%)" }}
+        />
+      </div>
       <div
         className="mt-2 text-[0.75rem] font-medium"
         style={{ color: "var(--plt-ink)" }}
@@ -308,17 +318,20 @@ function MobileProfileCard() {
       </div>
       <div
         className="relative aspect-[4/5] w-full overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(145deg, #0f1714 0%, #1f4a3a 45%, #5c8b76 95%)",
-        }}
+        style={{ background: "var(--plt-bg-deep)" }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={MARKETING_PHOTOS.talentBooking.url()}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(120% 80% at 30% 20%, rgba(241,237,227,0.22), transparent 60%)",
+              "linear-gradient(180deg, rgba(15,23,20,0) 35%, rgba(15,23,20,0.2) 100%)",
           }}
         />
       </div>
