@@ -633,6 +633,35 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-rotate=""/);
   });
 
+  it("renders flex child placement escapes (align-self + flex sizing)", () => {
+    const html = render([
+      {
+        id: "free:selflayout",
+        kind: "paragraph",
+        props: {
+          text: "Wide column",
+          style: {
+            alignSelf: "end",
+            flexGrow: 1,
+            flexShrink: 0,
+            flexBasis: "240px",
+            responsive: { mobile: { flexGrow: 0 } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop child-placement props land inline with their literal values.
+    assert.match(html, /align-self:end/);
+    assert.match(html, /flex-grow:1/);
+    assert.match(html, /flex-shrink:0/);
+    assert.match(html, /flex-basis:240px/);
+    // The mobile flex-grow override of 0 is still emitted (typeof-number gate),
+    // while no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-flex-grow=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-flex-grow=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

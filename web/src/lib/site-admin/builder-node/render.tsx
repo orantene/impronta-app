@@ -182,6 +182,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-overflow]{overflow:var(--bn-tablet-overflow)!important}
   .site-builder-node[data-builder-style-tablet-rotate]{rotate:var(--bn-tablet-rotate)!important}
   .site-builder-node[data-builder-style-tablet-scale]{scale:var(--bn-tablet-scale)!important}
+  .site-builder-node[data-builder-style-tablet-align-self]{align-self:var(--bn-tablet-align-self)!important}
+  .site-builder-node[data-builder-style-tablet-flex-grow]{flex-grow:var(--bn-tablet-flex-grow)!important}
+  .site-builder-node[data-builder-style-tablet-flex-shrink]{flex-shrink:var(--bn-tablet-flex-shrink)!important}
+  .site-builder-node[data-builder-style-tablet-flex-basis]{flex-basis:var(--bn-tablet-flex-basis)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -249,6 +253,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-overflow]{overflow:var(--bn-mobile-overflow)!important}
   .site-builder-node[data-builder-style-mobile-rotate]{rotate:var(--bn-mobile-rotate)!important}
   .site-builder-node[data-builder-style-mobile-scale]{scale:var(--bn-mobile-scale)!important}
+  .site-builder-node[data-builder-style-mobile-align-self]{align-self:var(--bn-mobile-align-self)!important}
+  .site-builder-node[data-builder-style-mobile-flex-grow]{flex-grow:var(--bn-mobile-flex-grow)!important}
+  .site-builder-node[data-builder-style-mobile-flex-shrink]{flex-shrink:var(--bn-mobile-flex-shrink)!important}
+  .site-builder-node[data-builder-style-mobile-flex-basis]{flex-basis:var(--bn-mobile-flex-basis)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -342,6 +350,12 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-overflow": tablet?.overflow ? "" : undefined,
     "data-builder-style-tablet-rotate": tablet?.rotate ? "" : undefined,
     "data-builder-style-tablet-scale": tablet?.scale ? "" : undefined,
+    "data-builder-style-tablet-align-self": tablet?.alignSelf ? "" : undefined,
+    "data-builder-style-tablet-flex-grow":
+      typeof tablet?.flexGrow === "number" ? "" : undefined,
+    "data-builder-style-tablet-flex-shrink":
+      typeof tablet?.flexShrink === "number" ? "" : undefined,
+    "data-builder-style-tablet-flex-basis": tablet?.flexBasis ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -401,6 +415,12 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-overflow": mobile?.overflow ? "" : undefined,
     "data-builder-style-mobile-rotate": mobile?.rotate ? "" : undefined,
     "data-builder-style-mobile-scale": mobile?.scale ? "" : undefined,
+    "data-builder-style-mobile-align-self": mobile?.alignSelf ? "" : undefined,
+    "data-builder-style-mobile-flex-grow":
+      typeof mobile?.flexGrow === "number" ? "" : undefined,
+    "data-builder-style-mobile-flex-shrink":
+      typeof mobile?.flexShrink === "number" ? "" : undefined,
+    "data-builder-style-mobile-flex-basis": mobile?.flexBasis ? "" : undefined,
   };
 }
 
@@ -579,6 +599,14 @@ function responsiveStyleVars(
     "--bn-tablet-scale": style?.responsive?.tablet?.scale,
     "--bn-mobile-rotate": style?.responsive?.mobile?.rotate,
     "--bn-mobile-scale": style?.responsive?.mobile?.scale,
+    "--bn-tablet-align-self": style?.responsive?.tablet?.alignSelf,
+    "--bn-tablet-flex-grow": style?.responsive?.tablet?.flexGrow,
+    "--bn-tablet-flex-shrink": style?.responsive?.tablet?.flexShrink,
+    "--bn-tablet-flex-basis": style?.responsive?.tablet?.flexBasis,
+    "--bn-mobile-align-self": style?.responsive?.mobile?.alignSelf,
+    "--bn-mobile-flex-grow": style?.responsive?.mobile?.flexGrow,
+    "--bn-mobile-flex-shrink": style?.responsive?.mobile?.flexShrink,
+    "--bn-mobile-flex-basis": style?.responsive?.mobile?.flexBasis,
   });
 }
 
@@ -676,6 +704,12 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // position/layout). Applied after positioning so they layer on top.
   if (style.rotate) out.rotate = style.rotate;
   if (style.scale) out.scale = style.scale;
+  // Flex/grid child placement — how this node sizes/aligns inside its parent
+  // (0 is meaningful for grow/shrink, so test the type). No-op outside flex/grid.
+  if (style.alignSelf) out.alignSelf = style.alignSelf;
+  if (typeof style.flexGrow === "number") out.flexGrow = style.flexGrow;
+  if (typeof style.flexShrink === "number") out.flexShrink = style.flexShrink;
+  if (style.flexBasis) out.flexBasis = style.flexBasis;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

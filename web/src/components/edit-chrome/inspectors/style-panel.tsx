@@ -324,6 +324,14 @@ const BUILDER_NODE_OVERFLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "scroll", label: "Scroll" },
 ];
 
+const BUILDER_NODE_ALIGN_SELF_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Auto" },
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -859,6 +867,10 @@ function cleanBuilderNodeStyle(
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
   if (value.scale) out.scale = value.scale;
+  if (value.alignSelf) out.alignSelf = value.alignSelf;
+  if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
+  if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
+  if (value.flexBasis) out.flexBasis = value.flexBasis;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -928,6 +940,10 @@ function cleanBuilderNodeStyleValue(
   if (value.overflow) out.overflow = value.overflow;
   if (value.rotate) out.rotate = value.rotate;
   if (value.scale) out.scale = value.scale;
+  if (value.alignSelf) out.alignSelf = value.alignSelf;
+  if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
+  if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
+  if (value.flexBasis) out.flexBasis = value.flexBasis;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5729,6 +5745,134 @@ export function StylePanel({
                     }}
                   />
                 </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="selfLayout"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Layout in parent</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="alignSelf"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Self-align
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.alignSelf ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      alignSelf: (next || undefined) as BuilderNodeStyleValue["alignSelf"],
+                    })
+                  }
+                  options={BUILDER_NODE_ALIGN_SELF_OPTIONS}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="flexGrow"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Grow
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.flexGrow === "number"
+                        ? selectedStandaloneViewportStyle.flexGrow
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        flexGrow:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : Math.max(0, Math.min(999, n)),
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="flexShrink"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Shrink
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.flexShrink === "number"
+                        ? selectedStandaloneViewportStyle.flexShrink
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        flexShrink:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : Math.max(0, Math.min(999, n)),
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="flexBasis"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Basis
+                </span>
+                <NumberUnit
+                  units={["px", "%", "rem", "vw", "vh"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.flexBasis)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      flexBasis: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
               </div>
             </div>
 

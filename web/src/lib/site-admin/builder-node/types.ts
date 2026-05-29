@@ -107,6 +107,14 @@ export interface BuilderNodeStyleValue {
   // takes a unitless factor ("1.05" = 105%). Negatives / sub-1 allowed.
   rotate?: string;
   scale?: string;
+  // Flex/grid child placement — how this node sizes & aligns inside a row/grid
+  // parent. alignSelf overrides the parent's cross-axis alignment for just this
+  // child; flexGrow/Shrink tune flex sizing (0 is meaningful — don't grow/shrink);
+  // flexBasis sets the main-axis base size (CSS length). No-ops outside flex/grid.
+  alignSelf?: "auto" | "start" | "center" | "end" | "stretch";
+  flexGrow?: number;
+  flexShrink?: number;
+  flexBasis?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

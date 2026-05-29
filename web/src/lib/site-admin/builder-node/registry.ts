@@ -130,6 +130,11 @@ const builderNodeStyleValueSchema = z.object({
   // Transform escapes — standalone rotate (angle) + scale (factor).
   rotate: z.string().max(16).optional(),
   scale: z.string().max(16).optional(),
+  // Flex/grid child placement — self-alignment + flex sizing inside a parent.
+  alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),
+  flexGrow: z.number().min(0).max(999).optional(),
+  flexShrink: z.number().min(0).max(999).optional(),
+  flexBasis: z.string().max(16).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
