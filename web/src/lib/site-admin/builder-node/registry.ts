@@ -82,6 +82,8 @@ const builderNodeStyleValueSchema = z.object({
   lineHeight: z.string().max(16).optional(),
   letterSpacing: z.string().max(16).optional(),
   textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
+  fontStyle: z.enum(["normal", "italic"]).optional(),
+  textDecoration: z.enum(["none", "underline", "line-through"]).optional(),
   textColor: z.string().max(32).optional(),
   backgroundColor: z.string().max(32).optional(),
   borderColor: z.string().max(32).optional(),

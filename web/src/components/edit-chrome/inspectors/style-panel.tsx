@@ -296,6 +296,19 @@ const BUILDER_NODE_TEXT_TRANSFORM_OPTIONS: ReadonlyArray<SegmentedOption<string>
   { value: "capitalize", label: "Aa" },
 ];
 
+const BUILDER_NODE_FONT_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "normal", label: "Normal" },
+  { value: "italic", label: "Italic" },
+];
+
+const BUILDER_NODE_TEXT_DECORATION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "none", label: "None" },
+  { value: "underline", label: "Under" },
+  { value: "line-through", label: "Strike" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -796,6 +809,8 @@ function cleanBuilderNodeStyle(
   if (value.lineHeight) out.lineHeight = value.lineHeight;
   if (value.letterSpacing) out.letterSpacing = value.letterSpacing;
   if (value.textTransform) out.textTransform = value.textTransform;
+  if (value.fontStyle) out.fontStyle = value.fontStyle;
+  if (value.textDecoration) out.textDecoration = value.textDecoration;
   if (value.textColor) out.textColor = value.textColor;
   if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
   if (value.borderColor) out.borderColor = value.borderColor;
@@ -854,6 +869,8 @@ function cleanBuilderNodeStyleValue(
   if (value.lineHeight) out.lineHeight = value.lineHeight;
   if (value.letterSpacing) out.letterSpacing = value.letterSpacing;
   if (value.textTransform) out.textTransform = value.textTransform;
+  if (value.fontStyle) out.fontStyle = value.fontStyle;
+  if (value.textDecoration) out.textDecoration = value.textDecoration;
   if (value.textColor) out.textColor = value.textColor;
   if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
   if (value.borderColor) out.borderColor = value.borderColor;
@@ -4790,6 +4807,44 @@ export function StylePanel({
                       })
                     }
                     options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="fontStyle"
+                >
+                  <span className={FIELD_LABEL}>Style</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.fontStyle ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        fontStyle:
+                          (next || undefined) as BuilderNodeStyleValue["fontStyle"],
+                      })
+                    }
+                    options={BUILDER_NODE_FONT_STYLE_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="textDecoration"
+                >
+                  <span className={FIELD_LABEL}>Decoration</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.textDecoration ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        textDecoration:
+                          (next || undefined) as BuilderNodeStyleValue["textDecoration"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_DECORATION_OPTIONS}
                   />
                 </div>
               </div>

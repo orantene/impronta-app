@@ -526,6 +526,30 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-max-width-free=""/);
   });
 
+  it("renders italic + text-decoration escapes", () => {
+    const html = render([
+      {
+        id: "free:type-style",
+        kind: "paragraph",
+        props: {
+          text: "Styled",
+          style: {
+            fontStyle: "italic",
+            textDecoration: "underline",
+            responsive: { mobile: { textDecoration: "line-through" } },
+          },
+        },
+      },
+    ]);
+
+    // Both land inline at desktop with their literal CSS values.
+    assert.match(html, /font-style:italic/);
+    assert.match(html, /text-decoration:underline/);
+    // The mobile decoration override is gated by its own attr; no tablet was set.
+    assert.match(html, /data-builder-style-mobile-text-decoration=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-font-style=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

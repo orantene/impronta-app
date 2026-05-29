@@ -47,6 +47,8 @@ export interface BuilderNodeStyleValue {
   lineHeight?: string;
   letterSpacing?: string;
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  fontStyle?: "normal" | "italic";
+  textDecoration?: "none" | "underline" | "line-through";
   textColor?: string;
   backgroundColor?: string;
   borderColor?: string;

@@ -147,6 +147,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-line-height]{line-height:var(--bn-tablet-line-height)!important}
   .site-builder-node[data-builder-style-tablet-letter-spacing]{letter-spacing:var(--bn-tablet-letter-spacing)!important}
   .site-builder-node[data-builder-style-tablet-text-transform]{text-transform:var(--bn-tablet-text-transform)!important}
+  .site-builder-node[data-builder-style-tablet-font-style]{font-style:var(--bn-tablet-font-style)!important}
+  .site-builder-node[data-builder-style-tablet-text-decoration]{text-decoration:var(--bn-tablet-text-decoration)!important}
   .site-builder-node[data-builder-style-tablet-text-color]{color:var(--bn-tablet-text-color)!important}
   .site-builder-node[data-builder-style-tablet-bg-color]{background-color:var(--bn-tablet-bg-color)!important}
   .site-builder-node[data-builder-style-tablet-border-color]{border-color:var(--bn-tablet-border-color)!important}
@@ -203,6 +205,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-line-height]{line-height:var(--bn-mobile-line-height)!important}
   .site-builder-node[data-builder-style-mobile-letter-spacing]{letter-spacing:var(--bn-mobile-letter-spacing)!important}
   .site-builder-node[data-builder-style-mobile-text-transform]{text-transform:var(--bn-mobile-text-transform)!important}
+  .site-builder-node[data-builder-style-mobile-font-style]{font-style:var(--bn-mobile-font-style)!important}
+  .site-builder-node[data-builder-style-mobile-text-decoration]{text-decoration:var(--bn-mobile-text-decoration)!important}
   .site-builder-node[data-builder-style-mobile-text-color]{color:var(--bn-mobile-text-color)!important}
   .site-builder-node[data-builder-style-mobile-bg-color]{background-color:var(--bn-mobile-bg-color)!important}
   .site-builder-node[data-builder-style-mobile-border-color]{border-color:var(--bn-mobile-border-color)!important}
@@ -281,6 +285,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-line-height": tablet?.lineHeight ? "" : undefined,
     "data-builder-style-tablet-letter-spacing": tablet?.letterSpacing ? "" : undefined,
     "data-builder-style-tablet-text-transform": tablet?.textTransform ? "" : undefined,
+    "data-builder-style-tablet-font-style": tablet?.fontStyle ? "" : undefined,
+    "data-builder-style-tablet-text-decoration": tablet?.textDecoration ? "" : undefined,
     "data-builder-style-tablet-text-color": tablet?.textColor ? "" : undefined,
     "data-builder-style-tablet-bg-color": tablet?.backgroundColor ? "" : undefined,
     "data-builder-style-tablet-border-color": tablet?.borderColor ? "" : undefined,
@@ -328,6 +334,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-line-height": mobile?.lineHeight ? "" : undefined,
     "data-builder-style-mobile-letter-spacing": mobile?.letterSpacing ? "" : undefined,
     "data-builder-style-mobile-text-transform": mobile?.textTransform ? "" : undefined,
+    "data-builder-style-mobile-font-style": mobile?.fontStyle ? "" : undefined,
+    "data-builder-style-mobile-text-decoration": mobile?.textDecoration ? "" : undefined,
     "data-builder-style-mobile-text-color": mobile?.textColor ? "" : undefined,
     "data-builder-style-mobile-bg-color": mobile?.backgroundColor ? "" : undefined,
     "data-builder-style-mobile-border-color": mobile?.borderColor ? "" : undefined,
@@ -437,6 +445,8 @@ function responsiveStyleVars(
     "--bn-tablet-line-height": style?.responsive?.tablet?.lineHeight,
     "--bn-tablet-letter-spacing": style?.responsive?.tablet?.letterSpacing,
     "--bn-tablet-text-transform": style?.responsive?.tablet?.textTransform,
+    "--bn-tablet-font-style": style?.responsive?.tablet?.fontStyle,
+    "--bn-tablet-text-decoration": style?.responsive?.tablet?.textDecoration,
     "--bn-tablet-text-color": style?.responsive?.tablet?.textColor,
     "--bn-tablet-bg-color": style?.responsive?.tablet?.backgroundColor,
     "--bn-tablet-border-color": style?.responsive?.tablet?.borderColor,
@@ -458,6 +468,8 @@ function responsiveStyleVars(
     "--bn-mobile-line-height": style?.responsive?.mobile?.lineHeight,
     "--bn-mobile-letter-spacing": style?.responsive?.mobile?.letterSpacing,
     "--bn-mobile-text-transform": style?.responsive?.mobile?.textTransform,
+    "--bn-mobile-font-style": style?.responsive?.mobile?.fontStyle,
+    "--bn-mobile-text-decoration": style?.responsive?.mobile?.textDecoration,
     "--bn-mobile-text-color": style?.responsive?.mobile?.textColor,
     "--bn-mobile-bg-color": style?.responsive?.mobile?.backgroundColor,
     "--bn-mobile-border-color": style?.responsive?.mobile?.borderColor,
@@ -546,6 +558,8 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.lineHeight) out.lineHeight = style.lineHeight;
   if (style.letterSpacing) out.letterSpacing = style.letterSpacing;
   if (style.textTransform) out.textTransform = style.textTransform;
+  if (style.fontStyle) out.fontStyle = style.fontStyle;
+  if (style.textDecoration) out.textDecoration = style.textDecoration;
   if (style.textColor) out.color = style.textColor;
   if (style.backgroundColor) out.backgroundColor = style.backgroundColor;
   if (style.borderColor || style.borderWidth || style.borderStyle) {
