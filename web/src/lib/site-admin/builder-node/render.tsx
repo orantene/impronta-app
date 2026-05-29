@@ -141,6 +141,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-background]{background:var(--bn-tablet-background)!important}
   .site-builder-node[data-builder-style-tablet-radius]{border-radius:var(--bn-tablet-radius)!important}
   .site-builder-node[data-builder-style-tablet-fit]{object-fit:var(--bn-tablet-fit)!important}
+  .site-builder-node[data-builder-style-tablet-object-position]{object-position:var(--bn-tablet-object-position)!important}
   .site-builder-node[data-builder-style-tablet-ratio]{aspect-ratio:var(--bn-tablet-ratio)!important}
   .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
   .site-builder-node[data-builder-style-tablet-font-family]{font-family:var(--bn-tablet-font-family)!important}
@@ -223,6 +224,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-background]{background:var(--bn-mobile-background)!important}
   .site-builder-node[data-builder-style-mobile-radius]{border-radius:var(--bn-mobile-radius)!important}
   .site-builder-node[data-builder-style-mobile-fit]{object-fit:var(--bn-mobile-fit)!important}
+  .site-builder-node[data-builder-style-mobile-object-position]{object-position:var(--bn-mobile-object-position)!important}
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
   .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
   .site-builder-node[data-builder-style-mobile-font-family]{font-family:var(--bn-mobile-font-family)!important}
@@ -314,6 +316,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-background": style?.background,
     "data-builder-style-radius": style?.radius,
     "data-builder-style-fit": style?.objectFit,
+    "data-builder-style-object-position": style?.objectPosition,
     "data-builder-style-ratio": style?.aspectRatio,
     "data-builder-style-tablet-align": tablet?.align,
     "data-builder-style-tablet-size": tablet?.size,
@@ -326,6 +329,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-background": tablet?.background,
     "data-builder-style-tablet-radius": tablet?.radius,
     "data-builder-style-tablet-fit": tablet?.objectFit,
+    "data-builder-style-tablet-object-position": tablet?.objectPosition,
     "data-builder-style-tablet-ratio": tablet?.aspectRatio,
     "data-builder-style-tablet-hidden": tablet?.visibility === "hidden" ? "" : undefined,
     "data-builder-style-tablet-font-family": tablet?.fontFamily ? "" : undefined,
@@ -403,6 +407,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-background": mobile?.background,
     "data-builder-style-mobile-radius": mobile?.radius,
     "data-builder-style-mobile-fit": mobile?.objectFit,
+    "data-builder-style-mobile-object-position": mobile?.objectPosition,
     "data-builder-style-mobile-ratio": mobile?.aspectRatio,
     "data-builder-style-mobile-hidden": mobile?.visibility === "hidden" ? "" : undefined,
     "data-builder-style-mobile-font-family": mobile?.fontFamily ? "" : undefined,
@@ -513,6 +518,7 @@ function responsiveStyleVars(
       ? NODE_RADIUS[style.responsive.tablet.radius]
       : undefined,
     "--bn-tablet-fit": style?.responsive?.tablet?.objectFit,
+    "--bn-tablet-object-position": style?.responsive?.tablet?.objectPosition,
     "--bn-tablet-ratio": style?.responsive?.tablet?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.tablet.aspectRatio]
       : undefined,
@@ -538,6 +544,7 @@ function responsiveStyleVars(
       ? NODE_RADIUS[style.responsive.mobile.radius]
       : undefined,
     "--bn-mobile-fit": style?.responsive?.mobile?.objectFit,
+    "--bn-mobile-object-position": style?.responsive?.mobile?.objectPosition,
     "--bn-mobile-ratio": style?.responsive?.mobile?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.mobile.aspectRatio]
       : undefined,
@@ -1347,6 +1354,7 @@ function renderBuilderNode(
             width: "100%",
             maxWidth: "100%",
             objectFit: node.props.style?.objectFit ?? "cover",
+            objectPosition: node.props.style?.objectPosition ?? "center",
             aspectRatio: NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
             ...sharedNodeStyle(node.props.style),
             ...alignSelfStyle(node.props.style),

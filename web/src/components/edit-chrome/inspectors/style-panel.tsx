@@ -873,6 +873,7 @@ function cleanBuilderNodeStyle(
   if (value.background) out.background = value.background;
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
+  if (value.objectPosition) out.objectPosition = value.objectPosition;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
   if (value.visibility) out.visibility = value.visibility;
   if (value.fontFamily) out.fontFamily = value.fontFamily;
@@ -957,6 +958,7 @@ function cleanBuilderNodeStyleValue(
   if (value.background) out.background = value.background;
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
+  if (value.objectPosition) out.objectPosition = value.objectPosition;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
   if (value.visibility) out.visibility = value.visibility;
   if (value.fontFamily) out.fontFamily = value.fontFamily;
@@ -6355,6 +6357,29 @@ export function StylePanel({
                     value={selectedStandaloneViewportStyle?.objectFit ?? ""}
                     onChange={(next) => setOrToggleStandaloneStyle("objectFit", next)}
                     options={BUILDER_NODE_FIT_OPTIONS}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="objectPosition">
+                  <span className={FIELD_LABEL}>Focal point</span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="center · top · 50% 20%"
+                    value={selectedStandaloneViewportStyle?.objectPosition ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        objectPosition: e.target.value.trim() || undefined,
+                      })
+                    }
                   />
                 </div>
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatio">

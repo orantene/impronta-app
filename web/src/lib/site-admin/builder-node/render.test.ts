@@ -349,6 +349,7 @@ describe("renderBuilderNodes", () => {
           style: {
             radius: "none",
             objectFit: "contain",
+            objectPosition: "left top",
             aspectRatio: "4:3",
             responsive: {
               tablet: {
@@ -359,6 +360,7 @@ describe("renderBuilderNodes", () => {
                 maxWidth: "full",
                 aspectRatio: "1:1",
                 objectFit: "cover",
+                objectPosition: "50% 20%",
               },
             },
           },
@@ -372,11 +374,17 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /data-builder-style-radius="none"/);
     assert.match(html, /data-builder-style-fit="contain"/);
     assert.match(html, /data-builder-style-ratio="4:3"/);
+    // Desktop object-position lands inline (literal absent from the static
+    // sheet, which only carries the `object-position:var(--bn-…)` gated rules).
+    assert.match(html, /object-position:left top/);
+    assert.match(html, /data-builder-style-object-position="left top"/);
     assert.match(html, /data-builder-style-tablet-width="wide"/);
     assert.match(html, /data-builder-style-tablet-ratio="16:9"/);
     assert.match(html, /data-builder-style-mobile-width="full"/);
     assert.match(html, /data-builder-style-mobile-ratio="1:1"/);
     assert.match(html, /data-builder-style-mobile-fit="cover"/);
+    // Mobile focal-point override is gated by its own value-carrying data-attr.
+    assert.match(html, /data-builder-style-mobile-object-position="50% 20%"/);
     assert.doesNotMatch(html, /border-radius:8px/);
   });
 

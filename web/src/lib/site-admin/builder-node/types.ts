@@ -34,6 +34,9 @@ export interface BuilderNodeStyleValue {
   background?: "none" | "surface" | "contrast";
   radius?: "none" | "sm" | "md" | "lg" | "pill";
   objectFit?: "cover" | "contain";
+  // Focal point for cropped images (object-fit:cover). Free CSS object-position
+  // value, e.g. "center", "left top", "50% 20%".
+  objectPosition?: string;
   aspectRatio?: "auto" | "1:1" | "4:3" | "3:4" | "16:9" | "21:9";
   // Visibility — hide this node at the active viewport. On a breakpoint it hides
   // only there (desktop stays shown); on desktop it hides everywhere.
