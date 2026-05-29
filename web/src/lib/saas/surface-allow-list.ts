@@ -335,6 +335,11 @@ const MARKETING_PAGE_PREFIXES = [
   // `/help` is a four-role docs hub (operators / agencies / talents / clients).
   "/status",
   "/help",
+  // Global Talent Directory — public, platform-wide cross-tenant browse of
+  // the discoverable set (talent_discover_index matview). Reads no per-tenant
+  // private data, requires no auth. `/directory` is already reserved in
+  // PATH_BASED_TENANT_RESERVED_PREFIXES so it never resolves as a tenant slug.
+  "/directory",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {

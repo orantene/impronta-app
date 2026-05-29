@@ -107,12 +107,33 @@ export type DiscoverShortlistWithTalents = {
   talents: DiscoverShortlistTalent[];
 };
 
+/**
+ * Result ordering for the public directory. Both are deterministic against
+ * existing matview columns so offset pagination stays stable:
+ *   - "recommended" (default): stable display-name order. The matview's
+ *     natural set, neutral across talent — doesn't foreground sparse
+ *     availability data.
+ *   - "availability": most free days in the next 30 first, name as tiebreak.
+ * "Newest" is intentionally NOT offered — the matview has no per-talent
+ * recency column (index_refreshed_at is the same for every row), and we
+ * don't widen shared DB infra speculatively.
+ */
+export type DiscoverSort = "recommended" | "availability";
+
 export type LoadDiscoverTalentsOpts = {
   country?: string;
   category?: string;
   q?: string;
   /** Filter to talents whose primary roster is on this tenant (= agency hub). */
   hub?: string;
+  /** Filter to a specific home city (matview home_city_text). */
+  city?: string;
+  /** Only talents with at least one free day in the next 30. */
+  availableOnly?: boolean;
+  /** Filter to a trust ladder tier (basic | verified | silver | gold). */
+  trustTier?: string;
+  /** Result ordering. Defaults to "recommended". */
+  sort?: DiscoverSort;
   limit?: number;
   offset?: number;
 };
@@ -149,14 +170,25 @@ export async function loadDiscoverTalents(
        next_available_date, available_days_in_next_30, availability_dots_14d,
        trust_tier`,
       { count: "exact" },
-    )
-    .order("display_name", { ascending: true, nullsFirst: false })
-    .range(offset, offset + limit - 1);
+    );
 
-  if (opts.country)  query = query.eq("home_country_text", opts.country);
-  if (opts.category) query = query.eq("category_slug", opts.category);
-  if (opts.hub)      query = query.eq("agency_tenant_id", opts.hub);
-  if (opts.q)        query = query.ilike("display_name", `%${opts.q}%`);
+  if (opts.country)   query = query.eq("home_country_text", opts.country);
+  if (opts.category)  query = query.eq("category_slug", opts.category);
+  if (opts.hub)       query = query.eq("agency_tenant_id", opts.hub);
+  if (opts.city)      query = query.eq("home_city_text", opts.city);
+  if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
+  if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
+  if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
+
+  if (opts.sort === "availability") {
+    query = query
+      .order("available_days_in_next_30", { ascending: false, nullsFirst: false })
+      .order("display_name", { ascending: true, nullsFirst: false });
+  } else {
+    query = query.order("display_name", { ascending: true, nullsFirst: false });
+  }
+
+  query = query.range(offset, offset + limit - 1);
 
   const { data, error, count } = await query;
   if (error) {
@@ -270,6 +302,227 @@ export async function loadDiscoverTalents(
   });
 
   return { items, total: count ?? items.length };
+}
+
+/**
+ * Directory facets for the public marketing directory. Single pass over the
+ * `talent_discover_index` matview (already filtered to discoverable +
+ * approved/published), tallied in JS. Distinct from `loadDiscoverFacets`
+ * (which reads talent_profiles for the buyer Discover surface): this one
+ * adds city + trust-tier facets the marketing sidebar needs, sourced from
+ * the same denormalized row the cards render from.
+ */
+export type DirectoryFacets = {
+  countries: Array<{ value: string; count: number }>;
+  categories: Array<{ value: string; label: string; count: number }>;
+  cities: Array<{ value: string; country: string | null; count: number }>;
+  trustTiers: Array<{ value: string; count: number }>;
+};
+
+export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
+  const admin = createServiceRoleClient();
+  const empty: DirectoryFacets = { countries: [], categories: [], cities: [], trustTiers: [] };
+  if (!admin) return empty;
+
+  const { data, error } = await admin
+    .from("talent_discover_index")
+    .select("home_country_text, home_city_text, category_slug, category_label, trust_tier");
+
+  if (error) {
+    logServerError("workspace.loadDirectoryFacets", error);
+    return empty;
+  }
+
+  type Row = {
+    home_country_text: string | null;
+    home_city_text: string | null;
+    category_slug: string | null;
+    category_label: string | null;
+    trust_tier: string | null;
+  };
+  const rows = (data ?? []) as unknown as Row[];
+
+  const countryCounts = new Map<string, number>();
+  const categoryCounts = new Map<string, { label: string; count: number }>();
+  const cityCounts = new Map<string, { country: string | null; count: number }>();
+  const trustCounts = new Map<string, number>();
+
+  for (const row of rows) {
+    const country = row.home_country_text?.trim();
+    if (country) countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
+
+    const slug = row.category_slug?.trim();
+    const label = row.category_label?.trim();
+    if (slug && label) {
+      const existing = categoryCounts.get(slug);
+      categoryCounts.set(slug, { label: existing?.label ?? label, count: (existing?.count ?? 0) + 1 });
+    }
+
+    const city = row.home_city_text?.trim();
+    if (city) {
+      const existing = cityCounts.get(city);
+      cityCounts.set(city, { country: existing?.country ?? (country || null), count: (existing?.count ?? 0) + 1 });
+    }
+
+    const tier = row.trust_tier?.trim();
+    if (tier) trustCounts.set(tier, (trustCounts.get(tier) ?? 0) + 1);
+  }
+
+  return {
+    countries: Array.from(countryCounts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+    categories: Array.from(categoryCounts.entries())
+      .map(([value, { label, count }]) => ({ value, label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    cities: Array.from(cityCounts.entries())
+      .map(([value, { country, count }]) => ({ value, country, count }))
+      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+    trustTiers: Array.from(trustCounts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+  };
+}
+
+/**
+ * Lean map points for the directory map view. Unlike `loadDiscoverTalents`
+ * (page-capped at 60), this returns the FULL filtered discoverable set that
+ * has geocoded coordinates, so every matching talent appears as a pin.
+ * Same matview + same filters as the grid — only the shape differs.
+ */
+export type DiscoverMapPoint = {
+  id: string;
+  displayName: string;
+  profileCode: string | null;
+  primaryTypeLabel: string | null;
+  homeCity: string | null;
+  homeCountry: string | null;
+  agencyName: string | null;
+  isExclusive: boolean;
+  headshotUrl: string | null;
+  homeLat: number;
+  homeLng: number;
+};
+
+export async function loadDiscoverMapPoints(
+  opts: Pick<LoadDiscoverTalentsOpts, "country" | "category" | "q" | "city" | "trustTier" | "availableOnly"> = {},
+): Promise<{ points: DiscoverMapPoint[]; unmappedCount: number }> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { points: [], unmappedCount: 0 };
+
+  let query = admin
+    .from("talent_discover_index")
+    .select(
+      `id, display_name, first_name, last_name, profile_code,
+       home_country_text, home_city_text, residence_city_id,
+       agency_name, is_exclusive, category_label`,
+    )
+    .order("display_name", { ascending: true, nullsFirst: false })
+    .limit(500);
+
+  if (opts.country)   query = query.eq("home_country_text", opts.country);
+  if (opts.category)  query = query.eq("category_slug", opts.category);
+  if (opts.city)      query = query.eq("home_city_text", opts.city);
+  if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
+  if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
+  if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
+
+  const { data, error } = await query;
+  if (error) {
+    logServerError("workspace.loadDiscoverMapPoints", error);
+    return { points: [], unmappedCount: 0 };
+  }
+
+  type Row = {
+    id: string;
+    display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    profile_code: string | null;
+    home_country_text: string | null;
+    home_city_text: string | null;
+    residence_city_id: string | null;
+    agency_name: string | null;
+    is_exclusive: boolean;
+    category_label: string | null;
+  };
+  const rows = (data ?? []) as unknown as Row[];
+  const ids = rows.map((r) => r.id);
+
+  const photoByTalent = new Map<string, string>();
+  const coordsByCityId = new Map<string, { lat: number | null; lng: number | null }>();
+
+  if (ids.length > 0) {
+    const { data: photos } = await admin
+      .from("media_assets")
+      .select("owner_talent_profile_id, storage_path, variant_kind")
+      .in("owner_talent_profile_id", ids)
+      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
+      .is("deleted_at", null);
+
+    const bestRank = new Map<string, number>();
+    for (const m of (photos ?? []) as Array<{
+      owner_talent_profile_id: string;
+      storage_path: string;
+      variant_kind: string;
+    }>) {
+      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
+      if (rank < 0) continue;
+      const current = bestRank.get(m.owner_talent_profile_id);
+      if (current === undefined || rank < current) {
+        bestRank.set(m.owner_talent_profile_id, rank);
+        const url = m.storage_path.startsWith("http")
+          ? m.storage_path
+          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
+        photoByTalent.set(m.owner_talent_profile_id, url);
+      }
+    }
+
+    const cityIds = Array.from(
+      new Set(rows.map((r) => r.residence_city_id).filter((x): x is string => !!x)),
+    );
+    if (cityIds.length > 0) {
+      const { data: locs } = await admin
+        .from("locations")
+        .select("id, latitude, longitude")
+        .in("id", cityIds);
+      for (const l of (locs ?? []) as Array<{ id: string; latitude: number | null; longitude: number | null }>) {
+        coordsByCityId.set(l.id, {
+          lat: typeof l.latitude === "number" ? l.latitude : null,
+          lng: typeof l.longitude === "number" ? l.longitude : null,
+        });
+      }
+    }
+  }
+
+  const points: DiscoverMapPoint[] = [];
+  let unmappedCount = 0;
+  for (const row of rows) {
+    const coords = row.residence_city_id ? coordsByCityId.get(row.residence_city_id) : null;
+    if (coords?.lat == null || coords?.lng == null) {
+      unmappedCount++;
+      continue;
+    }
+    const displayName =
+      (row.display_name ?? "").trim()
+      || `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim()
+      || "Unnamed";
+    points.push({
+      id: row.id,
+      displayName,
+      profileCode: row.profile_code,
+      primaryTypeLabel: row.category_label,
+      homeCity: row.home_city_text,
+      homeCountry: row.home_country_text,
+      agencyName: row.agency_name,
+      isExclusive: row.is_exclusive,
+      headshotUrl: photoByTalent.get(row.id) ?? null,
+      homeLat: coords.lat,
+      homeLng: coords.lng,
+    });
+  }
+
+  return { points, unmappedCount };
 }
 
 /**

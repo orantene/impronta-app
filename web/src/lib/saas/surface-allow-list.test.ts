@@ -265,6 +265,8 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/waitlist",
     "/legal/privacy",
     "/legal/terms",
+    // Global Talent Directory — public cross-tenant browse on the marketing host.
+    "/directory",
   ];
   for (const p of allowed) {
     assert.equal(
@@ -275,7 +277,6 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
   }
 
   const blocked = [
-    "/directory",
     "/admin",
     "/client",
     "/talent",
