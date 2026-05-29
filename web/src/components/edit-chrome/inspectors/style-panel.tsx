@@ -316,6 +316,14 @@ const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "sticky", label: "Sticky" },
 ];
 
+const BUILDER_NODE_OVERFLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "visible", label: "Visible" },
+  { value: "hidden", label: "Hidden" },
+  { value: "auto", label: "Auto" },
+  { value: "scroll", label: "Scroll" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -847,6 +855,8 @@ function cleanBuilderNodeStyle(
   if (value.right) out.right = value.right;
   if (value.bottom) out.bottom = value.bottom;
   if (value.left) out.left = value.left;
+  if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
+  if (value.overflow) out.overflow = value.overflow;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -912,6 +922,8 @@ function cleanBuilderNodeStyleValue(
   if (value.right) out.right = value.right;
   if (value.bottom) out.bottom = value.bottom;
   if (value.left) out.left = value.left;
+  if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
+  if (value.overflow) out.overflow = value.overflow;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5563,6 +5575,66 @@ export function StylePanel({
                         left: next ? formatLength(next) : undefined,
                       })
                     }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="zIndex"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Z-index
+                  </span>
+                  <input
+                    type="number"
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="Auto"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.zIndex === "number"
+                        ? selectedStandaloneViewportStyle.zIndex
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        zIndex:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : Math.max(-999, Math.min(999, Math.trunc(n))),
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="overflow"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Overflow
+                  </span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.overflow ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        overflow: (next || undefined) as BuilderNodeStyleValue["overflow"],
+                      })
+                    }
+                    options={BUILDER_NODE_OVERFLOW_OPTIONS}
                   />
                 </div>
               </div>

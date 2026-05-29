@@ -178,6 +178,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-inset-right]{right:var(--bn-tablet-inset-right)!important}
   .site-builder-node[data-builder-style-tablet-inset-bottom]{bottom:var(--bn-tablet-inset-bottom)!important}
   .site-builder-node[data-builder-style-tablet-inset-left]{left:var(--bn-tablet-inset-left)!important}
+  .site-builder-node[data-builder-style-tablet-z-index]{z-index:var(--bn-tablet-z-index)!important}
+  .site-builder-node[data-builder-style-tablet-overflow]{overflow:var(--bn-tablet-overflow)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -241,6 +243,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-inset-right]{right:var(--bn-mobile-inset-right)!important}
   .site-builder-node[data-builder-style-mobile-inset-bottom]{bottom:var(--bn-mobile-inset-bottom)!important}
   .site-builder-node[data-builder-style-mobile-inset-left]{left:var(--bn-mobile-inset-left)!important}
+  .site-builder-node[data-builder-style-mobile-z-index]{z-index:var(--bn-mobile-z-index)!important}
+  .site-builder-node[data-builder-style-mobile-overflow]{overflow:var(--bn-mobile-overflow)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -329,6 +333,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-inset-right": tablet?.right ? "" : undefined,
     "data-builder-style-tablet-inset-bottom": tablet?.bottom ? "" : undefined,
     "data-builder-style-tablet-inset-left": tablet?.left ? "" : undefined,
+    "data-builder-style-tablet-z-index":
+      typeof tablet?.zIndex === "number" ? "" : undefined,
+    "data-builder-style-tablet-overflow": tablet?.overflow ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -383,6 +390,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-inset-right": mobile?.right ? "" : undefined,
     "data-builder-style-mobile-inset-bottom": mobile?.bottom ? "" : undefined,
     "data-builder-style-mobile-inset-left": mobile?.left ? "" : undefined,
+    "data-builder-style-mobile-z-index":
+      typeof mobile?.zIndex === "number" ? "" : undefined,
+    "data-builder-style-mobile-overflow": mobile?.overflow ? "" : undefined,
   };
 }
 
@@ -553,6 +563,10 @@ function responsiveStyleVars(
     "--bn-mobile-inset-right": style?.responsive?.mobile?.right,
     "--bn-mobile-inset-bottom": style?.responsive?.mobile?.bottom,
     "--bn-mobile-inset-left": style?.responsive?.mobile?.left,
+    "--bn-tablet-z-index": style?.responsive?.tablet?.zIndex,
+    "--bn-tablet-overflow": style?.responsive?.tablet?.overflow,
+    "--bn-mobile-z-index": style?.responsive?.mobile?.zIndex,
+    "--bn-mobile-overflow": style?.responsive?.mobile?.overflow,
   });
 }
 
@@ -642,6 +656,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.right) out.right = style.right;
   if (style.bottom) out.bottom = style.bottom;
   if (style.left) out.left = style.left;
+  // Stacking & clipping escapes — z-index orders overlapping nodes (0 is a
+  // valid value, so test the type); overflow clips/scrolls the node's box.
+  if (typeof style.zIndex === "number") out.zIndex = style.zIndex;
+  if (style.overflow) out.overflow = style.overflow;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

@@ -577,6 +577,36 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-position=""/);
   });
 
+  it("renders stacking + clipping escapes (z-index + overflow)", () => {
+    const html = render([
+      {
+        id: "free:stack",
+        kind: "paragraph",
+        props: {
+          text: "Layered",
+          style: {
+            zIndex: 5,
+            overflow: "hidden",
+            responsive: {
+              tablet: { zIndex: 0 },
+              mobile: { overflow: "scroll" },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop z-index + overflow land inline with their literal values.
+    assert.match(html, /z-index:5/);
+    assert.match(html, /overflow:hidden/);
+    // The tablet z-index override of 0 is still emitted — the gate is a
+    // typeof-number check, so a valid 0 stacking level isn't dropped as falsy.
+    assert.match(html, /data-builder-style-tablet-z-index=""/);
+    // The mobile overflow override is attr-gated; no mobile z-index was set.
+    assert.match(html, /data-builder-style-mobile-overflow=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-z-index=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

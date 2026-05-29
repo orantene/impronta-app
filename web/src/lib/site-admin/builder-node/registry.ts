@@ -123,6 +123,10 @@ const builderNodeStyleValueSchema = z.object({
   right: z.string().max(16).optional(),
   bottom: z.string().max(16).optional(),
   left: z.string().max(16).optional(),
+  // Stacking & clipping escapes — z-index (integer, negatives allowed) +
+  // overflow control.
+  zIndex: z.number().int().min(-999).max(999).optional(),
+  overflow: z.enum(["visible", "hidden", "auto", "scroll"]).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

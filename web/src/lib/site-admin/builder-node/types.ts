@@ -97,6 +97,11 @@ export interface BuilderNodeStyleValue {
   right?: string;
   bottom?: string;
   left?: string;
+  // Stacking & clipping escapes — z-index orders overlapping/absolute nodes
+  // (integer, negatives allowed to send behind); overflow controls whether
+  // content is clipped or scrolls within the node's box.
+  zIndex?: number;
+  overflow?: "visible" | "hidden" | "auto" | "scroll";
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {
