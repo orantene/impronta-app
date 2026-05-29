@@ -322,6 +322,22 @@ function parseCssLength(input?: string): LengthValue | null {
   return { value: parsed, unit: match[2] as LengthUnit };
 }
 
+/**
+ * Curated NodePresentation stores plain numbers (px / %), while the NumberUnit
+ * control speaks LengthValue. These adapters bridge the two without leaking the
+ * unit into storage (the unit is fixed per field).
+ */
+function pxLength(value: number | undefined): LengthValue | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? { value, unit: "px" }
+    : null;
+}
+function pctLength(value: number | undefined): LengthValue | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? { value, unit: "%" }
+    : null;
+}
+
 const VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
   { value: "visible", label: "Show" },
@@ -393,6 +409,17 @@ const VIEWPORT_TRACKED_KEYS: ReadonlyArray<keyof NodePresentationValue> = [
   "size",
   "tone",
   "visibility",
+  "fontFamily",
+  "fontSizePx",
+  "fontWeight",
+  "letterSpacingPx",
+  "lineHeightPct",
+  "textTransform",
+  "textColor",
+  "backgroundColor",
+  "borderColor",
+  "borderWidthPx",
+  "borderStyle",
 ];
 const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
   "headline",
@@ -1419,6 +1446,36 @@ export function StylePanel({
     if (value.size) cleaned.size = value.size;
     if (value.tone) cleaned.tone = value.tone;
     if (value.visibility) cleaned.visibility = value.visibility;
+    if (value.fontFamily) cleaned.fontFamily = value.fontFamily;
+    if (typeof value.fontSizePx === "number" && Number.isFinite(value.fontSizePx)) {
+      cleaned.fontSizePx = value.fontSizePx;
+    }
+    if (typeof value.fontWeight === "number" && Number.isFinite(value.fontWeight)) {
+      cleaned.fontWeight = value.fontWeight;
+    }
+    if (
+      typeof value.letterSpacingPx === "number" &&
+      Number.isFinite(value.letterSpacingPx)
+    ) {
+      cleaned.letterSpacingPx = value.letterSpacingPx;
+    }
+    if (
+      typeof value.lineHeightPct === "number" &&
+      Number.isFinite(value.lineHeightPct)
+    ) {
+      cleaned.lineHeightPct = value.lineHeightPct;
+    }
+    if (value.textTransform) cleaned.textTransform = value.textTransform;
+    if (value.textColor) cleaned.textColor = value.textColor;
+    if (value.backgroundColor) cleaned.backgroundColor = value.backgroundColor;
+    if (value.borderColor) cleaned.borderColor = value.borderColor;
+    if (
+      typeof value.borderWidthPx === "number" &&
+      Number.isFinite(value.borderWidthPx)
+    ) {
+      cleaned.borderWidthPx = value.borderWidthPx;
+    }
+    if (value.borderStyle) cleaned.borderStyle = value.borderStyle;
     const cleanBreakpoint = (
       breakpoint: NodePresentationValue | undefined,
     ): NodePresentationValue | undefined => {
@@ -1494,6 +1551,44 @@ export function StylePanel({
       if (breakpoint.size) out.size = breakpoint.size;
       if (breakpoint.tone) out.tone = breakpoint.tone;
       if (breakpoint.visibility) out.visibility = breakpoint.visibility;
+      if (breakpoint.fontFamily) out.fontFamily = breakpoint.fontFamily;
+      if (
+        typeof breakpoint.fontSizePx === "number" &&
+        Number.isFinite(breakpoint.fontSizePx)
+      ) {
+        out.fontSizePx = breakpoint.fontSizePx;
+      }
+      if (
+        typeof breakpoint.fontWeight === "number" &&
+        Number.isFinite(breakpoint.fontWeight)
+      ) {
+        out.fontWeight = breakpoint.fontWeight;
+      }
+      if (
+        typeof breakpoint.letterSpacingPx === "number" &&
+        Number.isFinite(breakpoint.letterSpacingPx)
+      ) {
+        out.letterSpacingPx = breakpoint.letterSpacingPx;
+      }
+      if (
+        typeof breakpoint.lineHeightPct === "number" &&
+        Number.isFinite(breakpoint.lineHeightPct)
+      ) {
+        out.lineHeightPct = breakpoint.lineHeightPct;
+      }
+      if (breakpoint.textTransform) out.textTransform = breakpoint.textTransform;
+      if (breakpoint.textColor) out.textColor = breakpoint.textColor;
+      if (breakpoint.backgroundColor) {
+        out.backgroundColor = breakpoint.backgroundColor;
+      }
+      if (breakpoint.borderColor) out.borderColor = breakpoint.borderColor;
+      if (
+        typeof breakpoint.borderWidthPx === "number" &&
+        Number.isFinite(breakpoint.borderWidthPx)
+      ) {
+        out.borderWidthPx = breakpoint.borderWidthPx;
+      }
+      if (breakpoint.borderStyle) out.borderStyle = breakpoint.borderStyle;
       return Object.keys(out).length > 0 ? out : undefined;
     };
     const tablet = cleanBreakpoint(value.breakpoints?.tablet);
@@ -1544,6 +1639,27 @@ export function StylePanel({
       if ("size" in patch) nextForRole.size = patch.size;
       if ("tone" in patch) nextForRole.tone = patch.tone;
       if ("visibility" in patch) nextForRole.visibility = patch.visibility;
+      if ("fontFamily" in patch) nextForRole.fontFamily = patch.fontFamily;
+      if ("fontSizePx" in patch) nextForRole.fontSizePx = patch.fontSizePx;
+      if ("fontWeight" in patch) nextForRole.fontWeight = patch.fontWeight;
+      if ("letterSpacingPx" in patch) {
+        nextForRole.letterSpacingPx = patch.letterSpacingPx;
+      }
+      if ("lineHeightPct" in patch) {
+        nextForRole.lineHeightPct = patch.lineHeightPct;
+      }
+      if ("textTransform" in patch) {
+        nextForRole.textTransform = patch.textTransform;
+      }
+      if ("textColor" in patch) nextForRole.textColor = patch.textColor;
+      if ("backgroundColor" in patch) {
+        nextForRole.backgroundColor = patch.backgroundColor;
+      }
+      if ("borderColor" in patch) nextForRole.borderColor = patch.borderColor;
+      if ("borderWidthPx" in patch) {
+        nextForRole.borderWidthPx = patch.borderWidthPx;
+      }
+      if ("borderStyle" in patch) nextForRole.borderStyle = patch.borderStyle;
     } else {
       const currentViewport = nextForRole.breakpoints?.[selectedViewport] ?? {};
       const nextViewport: NodePresentationValue = {
@@ -2478,6 +2594,13 @@ export function StylePanel({
     anchor: HTMLButtonElement;
   } | null>(null);
   const [nodeFontPickerOpen, setNodeFontPickerOpen] = useState(false);
+  // Curated-role free-color popover: same single-instance-keyed-by-field pattern
+  // as the freeform nodeColorField, so the role's three swatches never stack.
+  const [roleColorField, setRoleColorField] = useState<{
+    field: "textColor" | "backgroundColor" | "borderColor";
+    anchor: HTMLButtonElement;
+  } | null>(null);
+  const [roleFontPickerOpen, setRoleFontPickerOpen] = useState(false);
   function recordNodeAction(label: string) {
     const nextId = nodeActionIdRef.current;
     nodeActionIdRef.current += 1;
@@ -3926,6 +4049,388 @@ export function StylePanel({
                   />
                 </div>
               ) : null}
+
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-node-presentation-control="typography"
+                style={{ borderColor: CHROME.line }}
+              >
+                <div className="flex items-end justify-between gap-2">
+                  <span className={FIELD_LABEL}>Font</span>
+                  <button
+                    type="button"
+                    data-node-presentation-control="fontFamily-toggle"
+                    onClick={() => setRoleFontPickerOpen((v) => !v)}
+                    className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: CHROME.muted,
+                      padding: 0,
+                    }}
+                  >
+                    {roleFontPickerOpen ? "Close" : "Change"}
+                  </button>
+                </div>
+                <span
+                  className="truncate text-[11px]"
+                  style={{
+                    color: selectedNodeViewportPresentation?.fontFamily
+                      ? CHROME.ink
+                      : CHROME.muted2,
+                    fontFamily:
+                      selectedNodeViewportPresentation?.fontFamily || undefined,
+                  }}
+                >
+                  {selectedNodeViewportPresentation?.fontFamily
+                    ? selectedNodeViewportPresentation.fontFamily
+                        .split(",")[0]
+                        .replace(/["']/g, "")
+                    : "Theme default"}
+                </span>
+                {roleFontPickerOpen ? (
+                  <GoogleFontPicker
+                    slot={selectedNodeRole === "copy" ? "body" : "heading"}
+                    value={selectedNodeViewportPresentation?.fontFamily ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        fontFamily: next || undefined,
+                      })
+                    }
+                  />
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-node-presentation-control="fontSizePx"
+                  >
+                    <span className={FIELD_LABEL}>Size</span>
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
+                      min={8}
+                      max={240}
+                      placeholder="Theme"
+                      value={pxLength(selectedNodeViewportPresentation?.fontSizePx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          fontSizePx: next ? Math.round(next.value) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-node-presentation-control="lineHeightPct"
+                  >
+                    <span className={FIELD_LABEL}>Line height</span>
+                    <NumberUnit
+                      units={["%"]}
+                      defaultUnit="%"
+                      min={80}
+                      max={300}
+                      step={10}
+                      placeholder="Theme"
+                      value={pctLength(
+                        selectedNodeViewportPresentation?.lineHeightPct,
+                      )}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          lineHeightPct: next
+                            ? Math.round(next.value)
+                            : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="letterSpacingPx"
+                >
+                  <span className={FIELD_LABEL}>Letter spacing</span>
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
+                    step={0.5}
+                    min={-5}
+                    max={30}
+                    placeholder="Theme"
+                    value={pxLength(
+                      selectedNodeViewportPresentation?.letterSpacingPx,
+                    )}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        letterSpacingPx: next ? next.value : undefined,
+                      })
+                    }
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="fontWeight"
+                >
+                  <span className={FIELD_LABEL}>Weight</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={
+                      selectedNodeViewportPresentation?.fontWeight
+                        ? String(selectedNodeViewportPresentation.fontWeight)
+                        : ""
+                    }
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        fontWeight: next ? Number(next) : undefined,
+                      })
+                    }
+                    options={BUILDER_NODE_FONT_WEIGHT_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="textTransform"
+                >
+                  <span className={FIELD_LABEL}>Transform</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedNodeViewportPresentation?.textTransform ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        textTransform:
+                          (next || undefined) as NodePresentationValue["textTransform"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-node-presentation-control="color"
+                style={{ borderColor: CHROME.line }}
+              >
+                <span className={FIELD_LABEL}>Color &amp; border</span>
+
+                <div
+                  className="flex items-center justify-between gap-2"
+                  data-node-presentation-control="textColor"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Text
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedNodeViewportPresentation?.textColor ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchSelectedNodePresentation({ textColor: undefined })
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label="Pick text color"
+                      onClick={(e) => {
+                        const btn = e.currentTarget;
+                        setRoleColorField((prev) =>
+                          prev?.field === "textColor"
+                            ? null
+                            : { field: "textColor", anchor: btn },
+                        );
+                      }}
+                      className="cursor-pointer"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        background:
+                          selectedNodeViewportPresentation?.textColor ||
+                          "transparent",
+                        backgroundImage: selectedNodeViewportPresentation?.textColor
+                          ? undefined
+                          : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex items-center justify-between gap-2"
+                  data-node-presentation-control="backgroundColor"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Fill
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedNodeViewportPresentation?.backgroundColor ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchSelectedNodePresentation({
+                            backgroundColor: undefined,
+                          })
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label="Pick fill color"
+                      onClick={(e) => {
+                        const btn = e.currentTarget;
+                        setRoleColorField((prev) =>
+                          prev?.field === "backgroundColor"
+                            ? null
+                            : { field: "backgroundColor", anchor: btn },
+                        );
+                      }}
+                      className="cursor-pointer"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        background:
+                          selectedNodeViewportPresentation?.backgroundColor ||
+                          "transparent",
+                        backgroundImage: selectedNodeViewportPresentation?.backgroundColor
+                          ? undefined
+                          : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="border"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Border
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {selectedNodeViewportPresentation?.borderColor ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchSelectedNodePresentation({
+                              borderColor: undefined,
+                            })
+                          }
+                          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: CHROME.muted,
+                            padding: 0,
+                          }}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Pick border color"
+                        onClick={(e) => {
+                          const btn = e.currentTarget;
+                          setRoleColorField((prev) =>
+                            prev?.field === "borderColor"
+                              ? null
+                              : { field: "borderColor", anchor: btn },
+                          );
+                        }}
+                        className="cursor-pointer"
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 6,
+                          border: `1px solid ${CHROME.lineMid}`,
+                          background:
+                            selectedNodeViewportPresentation?.borderColor ||
+                            "transparent",
+                          backgroundImage: selectedNodeViewportPresentation?.borderColor
+                            ? undefined
+                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
+                      placeholder="Width"
+                      min={0}
+                      max={24}
+                      value={pxLength(
+                        selectedNodeViewportPresentation?.borderWidthPx,
+                      )}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          borderWidthPx: next
+                            ? Math.round(next.value)
+                            : undefined,
+                        })
+                      }
+                    />
+                    <Segmented
+                      fullWidth
+                      compact
+                      value={selectedNodeViewportPresentation?.borderStyle ?? ""}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          borderStyle:
+                            (next || undefined) as NodePresentationValue["borderStyle"],
+                        })
+                      }
+                      options={BUILDER_NODE_BORDER_STYLE_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                <ColorPickerPopover
+                  open={roleColorField !== null}
+                  anchor={roleColorField?.anchor ?? null}
+                  value={
+                    (roleColorField
+                      ? selectedNodeViewportPresentation?.[roleColorField.field]
+                      : undefined) || "#111111"
+                  }
+                  onChange={(next) => {
+                    if (!roleColorField) return;
+                    patchSelectedNodePresentation({
+                      [roleColorField.field]: next,
+                    } as Partial<NodePresentationValue>);
+                  }}
+                  onClose={() => setRoleColorField(null)}
+                />
+              </div>
             </div>
           </div>
         </section>
