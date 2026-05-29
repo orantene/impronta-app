@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { DiscoverTalentListItem } from "./shared";
-import { agencyLine, locationLine } from "./shared";
+import { agencyLine, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
 
 /**
@@ -66,7 +66,7 @@ export function DirectoryTalentRow({ talent }: { talent: DiscoverTalentListItem 
   return (
     <Link
       href={href}
-      className={`${rowClass} hover:border-[var(--plt-forest-soft)] hover:bg-[var(--plt-bg-elevated)]`}
+      className={`${rowClass} ${FOCUS_RING} hover:border-[var(--plt-forest-soft)] hover:bg-[var(--plt-bg-elevated)]`}
       style={rowStyle}
       data-directory-row
     >

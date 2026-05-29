@@ -28,6 +28,14 @@ export const DIRECTORY_PAGE_SIZE = 24;
  *  into a "More" overflow. Derive-top-N-by-count (product decision). */
 export const DIRECTORY_TOP_TYPES = 6;
 
+/** Shared keyboard focus ring for the directory's interactive controls.
+ *  Mirrors the search/sort inputs (forest ring, no UA outline) so every
+ *  focusable target — cards, rows, pills, toggles, tabs, buttons — gets one
+ *  consistent, on-brand focus state. Defined as a literal so Tailwind's
+ *  scanner generates the classes; consumers just append it. */
+export const FOCUS_RING =
+  "outline-none focus-visible:shadow-[0_0_0_4px_var(--plt-forest-ring)]";
+
 export type DirectoryView = "grid" | "list" | "map";
 
 export type DirectoryActiveFilters = {

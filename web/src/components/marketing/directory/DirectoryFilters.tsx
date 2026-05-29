@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  FOCUS_RING,
   orderedTrustFacets,
   type DirectoryActiveFilters,
   type DirectoryFacets,
@@ -18,6 +19,7 @@ const COLLAPSE_AT = 8;
 export function DirectoryFilters({
   facets,
   active,
+  variant = "rail",
   onCountry,
   onCity,
   onAvailableOnly,
@@ -26,6 +28,7 @@ export function DirectoryFilters({
 }: {
   facets: DirectoryFacets;
   active: DirectoryActiveFilters;
+  variant?: "rail" | "sheet";
   onCountry: (value: string | null) => void;
   onCity: (value: string | null) => void;
   onAvailableOnly: (value: boolean) => void;
@@ -39,27 +42,34 @@ export function DirectoryFilters({
 
   const anyActive =
     !!active.country || !!active.city || !!active.trustTier || active.availableOnly;
+  // The mobile sheet already carries its own "Filters" header, so the rail is
+  // the only variant that renders the label here (avoids a duplicate heading).
+  const showHeading = variant === "rail";
 
   return (
     <div className="flex flex-col gap-7">
-      <div className="flex items-center justify-between">
-        <span
-          className="plt-mono text-[0.6875rem] uppercase tracking-[0.22em]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          Filters
-        </span>
-        {anyActive ? (
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="text-[0.75rem] font-medium transition-colors hover:underline"
-            style={{ color: "var(--plt-forest)" }}
-          >
-            Clear all
-          </button>
-        ) : null}
-      </div>
+      {showHeading || anyActive ? (
+        <div className={`flex items-center ${showHeading ? "justify-between" : "justify-end"}`}>
+          {showHeading ? (
+            <span
+              className="plt-mono text-[0.6875rem] uppercase tracking-[0.22em]"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              Filters
+            </span>
+          ) : null}
+          {anyActive ? (
+            <button
+              type="button"
+              onClick={onClearAll}
+              className={`rounded text-[0.75rem] font-medium transition-colors hover:underline ${FOCUS_RING}`}
+              style={{ color: "var(--plt-forest)" }}
+            >
+              Clear all
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <FilterSection title="Availability">
         <ToggleRow
@@ -163,7 +173,7 @@ function FacetList({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-1 self-start text-[0.75rem] font-medium transition-colors hover:underline"
+          className={`mt-1 self-start rounded text-[0.75rem] font-medium transition-colors hover:underline ${FOCUS_RING}`}
           style={{ color: "var(--plt-forest)" }}
         >
           {expanded ? "Show less" : `Show all ${items.length}`}
@@ -189,7 +199,7 @@ function ToggleRow({
       type="button"
       onClick={onClick}
       aria-pressed={checked}
-      className="flex w-full items-center justify-between gap-3 rounded-[11px] px-2.5 py-2 text-left text-[0.8125rem] transition-colors"
+      className={`flex w-full items-center justify-between gap-3 rounded-[11px] px-2.5 py-2 text-left text-[0.8125rem] transition-colors ${FOCUS_RING}`}
       style={{
         background: checked ? "color-mix(in srgb, var(--plt-forest) 8%, var(--plt-bg-raised))" : "transparent",
         color: checked ? "var(--plt-forest-deep)" : "var(--plt-ink-soft)",

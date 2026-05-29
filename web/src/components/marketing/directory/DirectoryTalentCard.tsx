@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { DiscoverTalentListItem } from "./shared";
-import { agencyLine, locationLine } from "./shared";
+import { agencyLine, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
 
 /**
@@ -54,12 +54,13 @@ export function DirectoryTalentCard({ talent }: { talent: DiscoverTalentListItem
     </>
   );
 
+  // Base shadow lives in a class (not inline) so the hover + focus shadows can
+  // win — an inline box-shadow would beat any `hover:`/`focus-visible:` class.
   const surfaceClass =
-    "group flex h-full flex-col overflow-hidden rounded-[22px] transition-[transform,border-color,box-shadow] duration-200";
+    "group flex h-full flex-col overflow-hidden rounded-[22px] shadow-[0_1px_2px_rgba(15,23,20,0.04)] transition-[transform,border-color,box-shadow] duration-200";
   const surfaceStyle: React.CSSProperties = {
     background: "var(--plt-bg-raised)",
     border: "1px solid var(--plt-hairline)",
-    boxShadow: "0 1px 2px rgba(15,23,20,0.04)",
   };
 
   if (!href) {
@@ -73,7 +74,7 @@ export function DirectoryTalentCard({ talent }: { talent: DiscoverTalentListItem
   return (
     <Link
       href={href}
-      className={`${surfaceClass} hover:-translate-y-[2px] hover:shadow-[0_18px_36px_-20px_rgba(31,74,58,0.4)]`}
+      className={`${surfaceClass} ${FOCUS_RING} hover:-translate-y-[2px] hover:shadow-[0_18px_36px_-20px_rgba(31,74,58,0.4)]`}
       style={surfaceStyle}
       data-directory-card
     >

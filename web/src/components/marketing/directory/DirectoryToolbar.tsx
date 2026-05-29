@@ -1,6 +1,6 @@
 "use client";
 
-import type { DirectoryView, DiscoverSort } from "./shared";
+import { FOCUS_RING, type DirectoryView, type DiscoverSort } from "./shared";
 
 /**
  * Results toolbar: live count · mobile "Filters" trigger · grid/list/map view
@@ -31,7 +31,7 @@ export function DirectoryToolbar({
         <button
           type="button"
           onClick={onOpenFilters}
-          className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium leading-none lg:hidden"
+          className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium leading-none lg:hidden ${FOCUS_RING}`}
           style={{
             border: "1px solid var(--plt-hairline-strong)",
             background: "var(--plt-bg-raised)",
@@ -63,6 +63,7 @@ export function DirectoryToolbar({
             <span className="hidden sm:inline">Sort</span>
             <select
               value={sort}
+              aria-label="Sort"
               onChange={(e) => onSort(e.target.value === "availability" ? "availability" : "recommended")}
               className="h-9 rounded-full pl-3.5 pr-8 text-[0.8125rem] font-medium outline-none transition-colors focus:shadow-[0_0_0_4px_var(--plt-forest-ring)]"
               style={{
@@ -120,11 +121,10 @@ function ViewTab({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[0.75rem] font-medium leading-none transition-colors"
+      className={`inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[0.75rem] font-medium leading-none transition-colors ${active ? "shadow-[var(--plt-shadow-sm)]" : ""} ${FOCUS_RING}`}
       style={{
         background: active ? "var(--plt-bg-raised)" : "transparent",
         color: active ? "var(--plt-forest)" : "var(--plt-muted)",
-        boxShadow: active ? "var(--plt-shadow-sm)" : "none",
       }}
     >
       {children}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { DIRECTORY_TOP_TYPES, type DirectoryFacets } from "./shared";
+import { useEffect, useState } from "react";
+import { DIRECTORY_TOP_TYPES, FOCUS_RING, type DirectoryFacets } from "./shared";
 
 type Category = DirectoryFacets["categories"][number];
 
@@ -20,6 +20,17 @@ export function DirectoryTypeBar({
   onSelect: (slug: string | null) => void;
 }) {
   const [overflowOpen, setOverflowOpen] = useState(false);
+
+  // Escape closes the overflow popover (click-away is handled by the backdrop).
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOverflowOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [overflowOpen]);
+
   if (categories.length === 0) return null;
 
   const top = categories.slice(0, DIRECTORY_TOP_TYPES);
@@ -55,7 +66,8 @@ export function DirectoryTypeBar({
             type="button"
             onClick={() => setOverflowOpen((o) => !o)}
             aria-expanded={overflowOpen}
-            className="inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium leading-none transition-colors"
+            aria-haspopup="true"
+            className={`inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium leading-none transition-colors ${FOCUS_RING}`}
             style={{
               border: "1px solid var(--plt-hairline-strong)",
               background: "var(--plt-bg-raised)",
@@ -92,7 +104,7 @@ export function DirectoryTypeBar({
                         onSelect(selected ? null : c.value);
                         setOverflowOpen(false);
                       }}
-                      className="flex w-full items-center justify-between gap-3 rounded-[11px] px-3 py-2 text-left text-[0.8125rem] transition-colors hover:bg-[var(--plt-bg-deep)]"
+                      className={`flex w-full items-center justify-between gap-3 rounded-[11px] px-3 py-2 text-left text-[0.8125rem] transition-colors hover:bg-[var(--plt-bg-deep)] ${FOCUS_RING}`}
                       style={{ color: selected ? "var(--plt-forest)" : "var(--plt-ink-soft)" }}
                     >
                       <span className="truncate">{c.label}</span>
@@ -127,7 +139,7 @@ function Pill({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium leading-none transition-[background,color,border-color] duration-200"
+      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium leading-none transition-[background,color,border-color] duration-200 ${FOCUS_RING}`}
       style={
         selected
           ? {

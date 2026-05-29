@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { MarketingContainer } from "@/components/marketing/container";
 import { loadMoreDirectoryTalents } from "@/app/(marketing)/global-directory/actions";
 import {
+  FOCUS_RING,
   type DirectoryActiveFilters,
   type DirectoryFacets,
   type DirectoryView,
@@ -70,8 +71,13 @@ export function MarketingDirectoryShell({
     if (!sheetOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSheetOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
     };
   }, [sheetOpen]);
 
@@ -114,8 +120,9 @@ export function MarketingDirectoryShell({
     }
   }, [activeFilters, sort, items.length, loadingMore]);
 
-  const filters = (
+  const renderFilters = (variant: "rail" | "sheet") => (
     <DirectoryFilters
+      variant={variant}
       facets={facets}
       active={activeFilters}
       onCountry={(v) => updateParams({ country: v, city: null })}
@@ -142,7 +149,7 @@ export function MarketingDirectoryShell({
 
       <div className="mt-8 flex gap-8">
         <aside className="hidden w-64 shrink-0 lg:block">
-          <div className="sticky top-24">{filters}</div>
+          <div className="sticky top-24">{renderFilters("rail")}</div>
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -197,7 +204,7 @@ export function MarketingDirectoryShell({
                   type="button"
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className="inline-flex h-12 items-center rounded-full px-7 text-[0.9375rem] font-medium transition-colors disabled:opacity-60"
+                  className={`inline-flex h-12 items-center rounded-full px-7 text-[0.9375rem] font-medium transition-colors disabled:opacity-60 ${FOCUS_RING}`}
                   style={{
                     border: "1px solid var(--plt-hairline-strong)",
                     background: "var(--plt-bg-raised)",
@@ -240,7 +247,7 @@ export function MarketingDirectoryShell({
               type="button"
               onClick={() => setSheetOpen(false)}
               aria-label="Close filters"
-              className="flex h-9 w-9 items-center justify-center rounded-full"
+              className={`flex h-9 w-9 items-center justify-center rounded-full ${FOCUS_RING}`}
               style={{ border: "1px solid var(--plt-hairline-strong)", color: "var(--plt-ink)" }}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
@@ -248,12 +255,12 @@ export function MarketingDirectoryShell({
               </svg>
             </button>
           </div>
-          <div className="flex-1 overflow-auto px-6 py-6">{filters}</div>
+          <div className="flex-1 overflow-auto px-6 py-6">{renderFilters("sheet")}</div>
           <div className="px-6 py-4" style={{ borderTop: "1px solid var(--plt-hairline)" }}>
             <button
               type="button"
               onClick={() => setSheetOpen(false)}
-              className="inline-flex h-12 w-full items-center justify-center rounded-full text-[0.9375rem] font-semibold"
+              className={`inline-flex h-12 w-full items-center justify-center rounded-full text-[0.9375rem] font-semibold ${FOCUS_RING}`}
               style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
             >
               Show {total.toLocaleString()} {total === 1 ? "profile" : "profiles"}
@@ -364,7 +371,7 @@ function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear:
         <button
           type="button"
           onClick={onClear}
-          className="mt-1 inline-flex h-11 items-center rounded-full px-6 text-[0.875rem] font-semibold"
+          className={`mt-1 inline-flex h-11 items-center rounded-full px-6 text-[0.875rem] font-semibold ${FOCUS_RING}`}
           style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
         >
           Clear filters
