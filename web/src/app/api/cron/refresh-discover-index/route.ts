@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -50,42 +51,53 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 500 });
   }
 
-  try {
-    const startedAt = Date.now();
-    const { error } = await supabase.rpc("refresh_talent_discover_index");
+  return await Sentry.withMonitor(
+    "refresh-discover-index",
+    async () => {
+      try {
+        const startedAt = Date.now();
+        const { error } = await supabase.rpc("refresh_talent_discover_index");
 
-    if (error) {
-      logServerError("cron/refresh-discover-index", error);
-      return NextResponse.json(
-        { ok: false, error: error.message },
-        { status: 500 },
-      );
-    }
+        if (error) {
+          logServerError("cron/refresh-discover-index", error);
+          return NextResponse.json(
+            { ok: false, error: error.message },
+            { status: 500 },
+          );
+        }
 
-    // Touch the view to fetch the row count for observability.
-    const { count, error: countError } = await supabase
-      .from("talent_discover_index")
-      .select("id", { count: "exact", head: true });
+        // Touch the view to fetch the row count for observability.
+        const { count, error: countError } = await supabase
+          .from("talent_discover_index")
+          .select("id", { count: "exact", head: true });
 
-    if (countError) {
-      // Refresh succeeded; count failure is non-fatal.
-      logServerError("cron/refresh-discover-index.count", countError);
-    }
+        if (countError) {
+          // Refresh succeeded; count failure is non-fatal.
+          logServerError("cron/refresh-discover-index.count", countError);
+        }
 
-    return NextResponse.json({
-      ok: true,
-      refreshedAt: new Date().toISOString(),
-      durationMs: Date.now() - startedAt,
-      rowCount: count ?? null,
-    });
-  } catch (error) {
-    logServerError("cron/refresh-discover-index", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
-  }
+        return NextResponse.json({
+          ok: true,
+          refreshedAt: new Date().toISOString(),
+          durationMs: Date.now() - startedAt,
+          rowCount: count ?? null,
+        });
+      } catch (error) {
+        logServerError("cron/refresh-discover-index", error);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+          { status: 500 },
+        );
+      }
+    },
+    {
+      schedule: { type: "crontab", value: "*/15 * * * *" },
+      checkinMargin: 5,
+      maxRuntime: 25,
+      timezone: "UTC",
+    },
+  );
 }

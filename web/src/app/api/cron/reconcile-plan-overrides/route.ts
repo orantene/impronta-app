@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -48,51 +49,66 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 500 });
   }
 
-  try {
-    const startedAt = Date.now();
-    const { data, error } = await supabase.rpc(
-      "reconcile_expired_plan_overrides",
-      { p_tenant_id: null },
-    );
-    if (error) {
-      logServerError("cron/reconcile-plan-overrides.rpc", error);
-      return NextResponse.json(
-        { ok: false, error: error.message },
-        { status: 500 },
-      );
-    }
+  return await Sentry.withMonitor(
+    "reconcile-plan-overrides",
+    async () => {
+      try {
+        const startedAt = Date.now();
+        const { data, error } = await supabase.rpc(
+          "reconcile_expired_plan_overrides",
+          { p_tenant_id: null },
+        );
+        if (error) {
+          logServerError("cron/reconcile-plan-overrides.rpc", error);
+          return NextResponse.json(
+            { ok: false, error: error.message },
+            { status: 500 },
+          );
+        }
 
-    // Talent overrides have their own reconcile (reverts talent_plan_key);
-    // sweep both in the same daily job so a dormant talent page also degrades
-    // on time when a Pro/Max trial lapses.
-    const { data: talentData, error: talentError } = await supabase.rpc(
-      "reconcile_expired_talent_plan_overrides",
-      { p_talent_profile_id: null },
-    );
-    if (talentError) {
-      logServerError("cron/reconcile-plan-overrides.talent-rpc", talentError);
-      return NextResponse.json(
-        { ok: false, error: talentError.message },
-        { status: 500 },
-      );
-    }
+        // Talent overrides have their own reconcile (reverts talent_plan_key);
+        // sweep both in the same daily job so a dormant talent page also
+        // degrades on time when a Pro/Max trial lapses.
+        const { data: talentData, error: talentError } = await supabase.rpc(
+          "reconcile_expired_talent_plan_overrides",
+          { p_talent_profile_id: null },
+        );
+        if (talentError) {
+          logServerError(
+            "cron/reconcile-plan-overrides.talent-rpc",
+            talentError,
+          );
+          return NextResponse.json(
+            { ok: false, error: talentError.message },
+            { status: 500 },
+          );
+        }
 
-    const reconciled = typeof data === "number" ? data : 0;
-    const talentReconciled = typeof talentData === "number" ? talentData : 0;
-    return NextResponse.json({
-      ok: true,
-      reconciled,
-      talentReconciled,
-      durationMs: Date.now() - startedAt,
-    });
-  } catch (error) {
-    logServerError("cron/reconcile-plan-overrides", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
-  }
+        const reconciled = typeof data === "number" ? data : 0;
+        const talentReconciled =
+          typeof talentData === "number" ? talentData : 0;
+        return NextResponse.json({
+          ok: true,
+          reconciled,
+          talentReconciled,
+          durationMs: Date.now() - startedAt,
+        });
+      } catch (error) {
+        logServerError("cron/reconcile-plan-overrides", error);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+          { status: 500 },
+        );
+      }
+    },
+    {
+      schedule: { type: "crontab", value: "0 3 * * *" },
+      checkinMargin: 5,
+      maxRuntime: 25,
+      timezone: "UTC",
+    },
+  );
 }
