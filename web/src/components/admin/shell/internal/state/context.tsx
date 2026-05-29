@@ -99,6 +99,8 @@ type Ctx = {
   setDensity: (d: Density) => void;
   setWorkspaceLayout: (l: WorkspaceLayout) => void;
   setPage: (p: WorkspacePage) => void;
+  /** Update active surface from route mount without pushing a navigation. */
+  syncPage: (p: WorkspacePage) => void;
   setTalentPage: (p: TalentPage) => void;
   /** Switch the talent's plan tier (dev/test affordance until billing is live). */
   setTalentTier: (t: TalentSubscriptionTier) => void;
@@ -810,9 +812,13 @@ export function AdminShellProvider({
   })();
   const initialRole: Role = (() => {
     const r = initialBridgeData?.sessionIdentity?.role;
-    return r === "owner" || r === "admin" || r === "coordinator" || r === "editor" || r === "viewer"
+    // Whitelist the canonical role ladder (Viewer→Editor→Manager→Admin→Owner).
+    // NB: the rank formerly called "coordinator" was renamed to "manager" in the
+    // May 2026 role-model cleanup; an unrecognized/legacy role MUST fall back to
+    // the least-privilege "viewer" — never fail OPEN to "owner".
+    return r === "owner" || r === "admin" || r === "manager" || r === "editor" || r === "viewer"
       ? (r as Role)
-      : "owner";
+      : "viewer";
   })();
 
   // (Phase 1 mutation removed — the old `useState(() => { TENANT.xxx = ... })`
@@ -853,6 +859,13 @@ export function AdminShellProvider({
       }
     }
   }, [router]);
+  // Sync-only page setter for PageRouteSyncer: updates the shell's active
+  // surface WITHOUT pushing a navigation. Plain setPage maps a page to its
+  // canonical segment and pushes there, which would strip deeper sub-routes
+  // (e.g. /website/card-design → /website) when the route-mount sync fires.
+  const syncPage = useCallback((p: WorkspacePage) => {
+    setPageRaw(p);
+  }, []);
   // talent
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
   const setTalentPage = useCallback((p: TalentPage) => {
@@ -1800,6 +1813,7 @@ export function AdminShellProvider({
       setDensity,
       setWorkspaceLayout,
       setPage,
+      syncPage,
       setTalentPage,
       setTalentTier: handleSetTalentTier,
       setClientPlan,
