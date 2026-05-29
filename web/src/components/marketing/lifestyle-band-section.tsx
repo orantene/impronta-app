@@ -4,10 +4,9 @@ import { EditorialFrame } from "./editorial-image";
 
 /**
  * Homepage lifestyle band — a single wide editorial photo that breathes
- * between hero and contrast. Purpose: ground the product story in a human
- * moment (two people reviewing a roster together) before the pain/gain
- * argument lands. The frame's grade overlay pulls the photo into the
- * Rostra palette so it reads as part of the brand, not a decoration.
+ * between hero and contrast. Purpose: make the opportunity feel real for
+ * service professionals, performers, and operators before the product logic
+ * takes over.
  */
 export function LifestyleBandSection() {
   return (
@@ -20,8 +19,8 @@ export function LifestyleBandSection() {
             size="lg"
             tone="ink"
             priority
-            eyebrow="The moment the work changes"
-            caption="Same roster, same clients — presented like a business instead of a group chat."
+            eyebrow="Real work, packaged beautifully"
+            caption="Cleaner, chef, beauty pro, performer — Tulala turns the service into a sellable page and a real request flow."
           />
         </div>
       </MarketingContainer>

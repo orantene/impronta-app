@@ -216,6 +216,7 @@ const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
   "contact",
   "directory",
   "get-started",
+  "discover-agencies",
   "operators",
   "agencies",
   "organizations",
@@ -320,6 +321,7 @@ export function resolvePathBasedTenantPublicPath(
  */
 const MARKETING_PAGE_PREFIXES = [
   "/get-started",
+  "/discover-agencies",
   "/operators",
   "/agencies",
   "/organizations",
