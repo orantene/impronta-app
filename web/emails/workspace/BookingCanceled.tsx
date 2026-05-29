@@ -10,6 +10,8 @@ interface Props {
   eventDate: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function BookingCanceled({
@@ -18,6 +20,8 @@ export default function BookingCanceled({
   eventDate,
   inquiryUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const event = contactName ?? "the booking";
 
@@ -26,7 +30,12 @@ export default function BookingCanceled({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <Layout preview="Booking canceled" brand={brand}>
+    <Layout
+      preview="Booking canceled"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Booking canceled</Heading>
       <Text style={body}>{event} has been canceled.</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}

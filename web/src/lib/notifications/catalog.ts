@@ -6,12 +6,18 @@ import UsageQuotaAlert from "../../../emails/platform/UsageQuotaAlert";
 import SignupFailedAlert from "../../../emails/platform/SignupFailedAlert";
 import TalentClaimInvite from "../../../emails/talent/ClaimInvite";
 import TalentWelcome from "../../../emails/talent/Welcome";
+import TalentProfileApproved from "../../../emails/talent/ProfileApproved";
 import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
 import WorkspaceWelcome from "../../../emails/workspace/Welcome";
+import BookingCanceled from "../../../emails/workspace/BookingCanceled";
 import type { CatalogEntry } from "./types";
 import {
+  allRosterTalent,
+  assignedCoordinator,
+  clientOrGuest,
   emailInvitee,
   eventUser,
+  loadInquiryView,
   platformAdmins,
   str,
 } from "./catalog-audiences";
@@ -264,6 +270,169 @@ const TALENT_WELCOME_ENTRY: CatalogEntry = {
   },
 };
 
+// ─── Booking + roster-moderation entries (Slice 15.5, direct dispatch) ────────
+//
+// Unlike the inquiry-engine entries (catalog-entries-inquiry.ts), these are
+// dispatched directly from server actions — the pipeline cancel-booking action
+// and the roster site-visibility actions — NOT through the engine's
+// `notifyUsers` path. So no in_app bell is emitted upstream, and these entries
+// own BOTH channels themselves with no double-notify risk. Producers emit with
+// the agency `tenantId` (required for in_app delivery) and, for booking events,
+// the source `inquiryId` (so `loadInquiryView` can hydrate contact + schedule).
+
+/**
+ * talent.profile_approved (spec §6.3) — a roster talent's profile was made
+ * site-visible by a workspace admin (roster_only → site_visible). `userId` is
+ * the talent (resolved by `eventUser`); `tenantId` is the agency, so the bell
+ * lands on the talent's surface and the brand resolves to the workspace. The
+ * producer passes an absolute `profileUrl` (the canonical /t/<code> page),
+ * which `redeemHref` passes through unchanged.
+ */
+const TALENT_PROFILE_APPROVED: CatalogEntry = {
+  id: "talent.profile_approved",
+  category: "roster_activity",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["talent.profile_approved"],
+  resolveAudience: eventUser("talent"),
+  in_app: {
+    kind: "profile",
+    surface: "talent",
+    title: () => "Your profile is approved",
+    body: () => "It's now visible and discoverable to clients.",
+  },
+  email: {
+    templateId: "talent.profile_approved",
+    subject: () => "Your profile is approved",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(TalentProfileApproved, {
+        talentName: str(event.payload.talentName) ?? recipient.displayName,
+        profileUrl: redeemHref(brand, str(event.payload.profileUrl) ?? "/talent"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "roster",
+      }),
+  },
+};
+
+/**
+ * booking.cancelled → the client (or guest). Surface-scoped to `client` so the
+ * in-app bell lands on the client dashboard; the link points at the client's
+ * own inquiry view.
+ */
+const BOOKING_CANCELLED_CLIENT: CatalogEntry = {
+  id: "booking.cancelled.client",
+  category: "bookings",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["booking.cancelled"],
+  hydrate: loadInquiryView,
+  resolveAudience: clientOrGuest,
+  in_app: {
+    kind: "booking",
+    surface: "client",
+    title: () => "Your booking was cancelled",
+    body: (event) => {
+      const date = str(event.payload.eventDate);
+      return date
+        ? `The booking for ${date} has been cancelled.`
+        : "Your booking has been cancelled.";
+    },
+  },
+  email: {
+    templateId: "client.booking_cancelled",
+    subject: () => "Your booking was cancelled",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(BookingCanceled, {
+        recipientName: recipient.displayName ?? str(event.payload.contactName),
+        contactName: str(event.payload.contactName),
+        eventDate: str(event.payload.eventDate),
+        inquiryUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "booking",
+      }),
+  },
+};
+
+/**
+ * booking.cancelled → every talent on the booking. Surface-scoped to `talent`;
+ * the link points at the talent inquiry view.
+ */
+const BOOKING_CANCELLED_TALENT: CatalogEntry = {
+  id: "booking.cancelled.talent",
+  category: "bookings",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["booking.cancelled"],
+  hydrate: loadInquiryView,
+  resolveAudience: allRosterTalent,
+  in_app: {
+    kind: "booking",
+    surface: "talent",
+    title: () => "A booking was cancelled",
+    body: (event) => {
+      const contact = str(event.payload.contactName);
+      const date = str(event.payload.eventDate);
+      const who = contact ? `${contact}'s booking` : "A booking";
+      return date ? `${who} on ${date} has been cancelled.` : `${who} has been cancelled.`;
+    },
+  },
+  email: {
+    templateId: "talent.booking_cancelled",
+    subject: () => "A booking was cancelled",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(BookingCanceled, {
+        recipientName: recipient.displayName ?? str(event.payload.contactName),
+        contactName: str(event.payload.contactName),
+        eventDate: str(event.payload.eventDate),
+        inquiryUrl: pageUrl(brand, `/talent/inquiries/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "booking",
+      }),
+  },
+};
+
+/**
+ * booking.cancelled → the assigned coordinator. Surface-scoped to `workspace`;
+ * the link points at the admin work queue.
+ */
+const BOOKING_CANCELLED_COORDINATOR: CatalogEntry = {
+  id: "booking.cancelled.coordinator",
+  category: "bookings",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["booking.cancelled"],
+  hydrate: loadInquiryView,
+  resolveAudience: assignedCoordinator,
+  in_app: {
+    kind: "booking",
+    surface: "workspace",
+    title: () => "A booking was cancelled",
+    body: (event) => {
+      const contact = str(event.payload.contactName);
+      const date = str(event.payload.eventDate);
+      const who = contact ? `${contact}'s booking` : "A booking";
+      return date ? `${who} on ${date} has been cancelled.` : `${who} has been cancelled.`;
+    },
+  },
+  email: {
+    templateId: "workspace.booking_cancelled",
+    subject: () => "A booking was cancelled",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(BookingCanceled, {
+        recipientName: recipient.displayName ?? str(event.payload.contactName),
+        contactName: str(event.payload.contactName),
+        eventDate: str(event.payload.eventDate),
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "booking",
+      }),
+  },
+};
+
 // ─── Self-test (Phase 2) ──────────────────────────────────────────────────────
 //
 // Exercises the full pipeline (audience → prefs → dedupe log → channel
@@ -314,6 +483,10 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   WORKSPACE_TEAM_INVITE,
   WORKSPACE_SIGNUP_WELCOME,
   TALENT_WELCOME_ENTRY,
+  TALENT_PROFILE_APPROVED,
+  BOOKING_CANCELLED_CLIENT,
+  BOOKING_CANCELLED_TALENT,
+  BOOKING_CANCELLED_COORDINATOR,
   SELF_TEST,
 ];
 

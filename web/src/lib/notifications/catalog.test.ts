@@ -536,3 +536,138 @@ test("catalog: Slice 15.3 welcome renders fall back gracefully on an empty paylo
     assert.ok(entry.email!.render({ event, recipient: recip, brand }), `${id} render falsy`);
   }
 });
+
+// ─── Slice 15.5 — booking.cancelled (×3 surfaces) + talent.profile_approved ───
+//
+// Unlike the engine entries, these are dispatched directly from server actions
+// (the pipeline cancel action + the roster site-visibility actions), so they
+// own BOTH channels. booking.cancelled is split into three surface-scoped
+// entries because the in-app bell query filters by surface — one entry per
+// audience (client / talent / coordinator) so each role's bell is reachable.
+
+const BOOKING_CANCELLED = [
+  { id: "booking.cancelled.client", surface: "client", urlRe: /\/client\/inquiries\/inq-7$/ },
+  { id: "booking.cancelled.talent", surface: "talent", urlRe: /\/talent\/inquiries\/inq-7$/ },
+  { id: "booking.cancelled.coordinator", surface: "workspace", urlRe: /\/admin\/work\/inq-7$/ },
+] as const;
+
+test("catalog: booking.cancelled has three surface-scoped entries, email + in_app", () => {
+  for (const { id, surface } of BOOKING_CANCELLED) {
+    const entry = findCatalogEntryById(id);
+    assert.ok(entry, `missing catalog entry ${id}`);
+    assert.equal(entry!.category, "bookings");
+    assert.equal(entry!.required, false);
+    assert.deepEqual(entry!.defaultChannels, ["email", "in_app"]);
+    assert.ok(entry!.email, `${id} should have an email config`);
+    assert.ok(entry!.in_app, `${id} should have an in_app config`);
+    assert.equal(entry!.in_app!.surface, surface, `${id} surface`);
+    assert.equal(entry!.in_app!.kind, "booking");
+  }
+});
+
+test("catalog: booking.cancelled trigger routes to all three entries", () => {
+  const ids = findCatalogEntries("booking.cancelled").map((e) => e.id).sort();
+  assert.deepEqual(ids, [
+    "booking.cancelled.client",
+    "booking.cancelled.coordinator",
+    "booking.cancelled.talent",
+  ]);
+});
+
+test("catalog: booking.cancelled links point at each recipient's own surface", () => {
+  const event: NotificationEvent = {
+    type: "booking.cancelled",
+    tenantId: "tenant-1",
+    inquiryId: "inq-7",
+    bookingId: "bk-7",
+    eventId: "booking-cancelled:bk-7",
+    payload: { contactName: "Sofia's Wedding", eventDate: "14 Jun 2026" },
+  };
+  for (const { id, urlRe } of BOOKING_CANCELLED) {
+    const entry = findCatalogEntryById(id)!;
+    const r = recipientWithRole(id.endsWith(".client") ? "client" : "workspace_member");
+    const el = entry.email!.render({ event, recipient: r, brand }) as ReactElement<{
+      inquiryUrl: string;
+    }>;
+    assert.match(el.props.inquiryUrl, urlRe, `${id} link`);
+    // The in-app title + body build without throwing on a populated payload.
+    assert.ok(entry.in_app!.title(event, r).length > 0, `${id} in_app title empty`);
+    assert.ok((entry.in_app!.body?.(event, r) ?? "").length > 0, `${id} in_app body empty`);
+  }
+});
+
+test("catalog: booking.cancelled renders fall back gracefully on an empty payload", () => {
+  for (const { id } of BOOKING_CANCELLED) {
+    const entry = findCatalogEntryById(id)!;
+    const r = recipientWithRole("client");
+    const event: NotificationEvent = {
+      type: "booking.cancelled",
+      tenantId: "tenant-1",
+      inquiryId: "inq-7",
+      eventId: id,
+      payload: {},
+    };
+    assert.ok(entry.email!.subject(event, r).length > 0, `${id} subject empty`);
+    assert.ok(entry.email!.render({ event, recipient: r, brand }), `${id} render falsy`);
+    // No eventDate/contactName → in-app copy still renders a sane fallback.
+    assert.ok(entry.in_app!.title(event, r).length > 0, `${id} in_app title empty`);
+    assert.ok((entry.in_app!.body?.(event, r) ?? "").length > 0, `${id} in_app body empty`);
+  }
+});
+
+test("catalog: talent.profile_approved is roster_activity, email + in_app on talent surface", () => {
+  const entry = findCatalogEntryById("talent.profile_approved");
+  assert.ok(entry, "missing talent.profile_approved");
+  assert.equal(entry!.category, "roster_activity");
+  assert.equal(entry!.required, false);
+  assert.deepEqual(entry!.defaultChannels, ["email", "in_app"]);
+  assert.ok(entry!.email, "should have an email config");
+  assert.ok(entry!.in_app, "should have an in_app config");
+  assert.equal(entry!.in_app!.surface, "talent");
+  assert.ok(findCatalogEntries("talent.profile_approved").some((e) => e.id === "talent.profile_approved"));
+});
+
+test("catalog: talent.profile_approved resolves event.userId + passes the profile URL through", async () => {
+  const entry = findCatalogEntryById("talent.profile_approved")!;
+  const recip: ResolvedRecipient = {
+    userId: "talent-9",
+    email: "tina@acme.test",
+    displayName: "Tina Rossi",
+    locale: "en",
+    isPlatformAdmin: false,
+    role: "talent",
+    dedupeId: "talent-9",
+  };
+  const event: NotificationEvent = {
+    type: "talent.profile_approved",
+    tenantId: "tenant-1",
+    userId: "talent-9",
+    eventId: "talent-approved:tenant-1:talent-9",
+    payload: { talentName: "Tina Rossi", profileUrl: "https://tulala.digital/t/tina-rossi" },
+  };
+
+  const members = await entry.resolveAudience(event, {} as never);
+  assert.equal(members.length, 1);
+  assert.equal(members[0]!.kind, "user");
+  assert.equal(members[0]!.kind === "user" ? members[0]!.userId : null, "talent-9");
+  assert.equal(members[0]!.role, "talent");
+
+  // Absolute profile URL passes through redeemHref unchanged.
+  const el = entry.email!.render({ event, recipient: recip, brand }) as ReactElement<{
+    profileUrl: string;
+    talentName: string | null;
+  }>;
+  assert.equal(el.props.profileUrl, "https://tulala.digital/t/tina-rossi");
+  assert.equal(el.props.talentName, "Tina Rossi");
+  assert.ok(entry.in_app!.title(event, recip).length > 0);
+
+  // No userId → no recipient (defensive).
+  const noUser: NotificationEvent = {
+    type: "talent.profile_approved",
+    tenantId: "tenant-1",
+    userId: null,
+    eventId: "x",
+    payload: {},
+  };
+  assert.deepEqual(await entry.resolveAudience(noUser, {} as never), []);
+});

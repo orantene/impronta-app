@@ -7,13 +7,26 @@ interface Props {
   talentName: string | null;
   profileUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
-export default function ProfileApproved({ talentName, profileUrl, brand }: Props) {
+export default function ProfileApproved({
+  talentName,
+  profileUrl,
+  brand,
+  unsubscribeUrl,
+  categoryLabel,
+}: Props) {
   const name = talentName ?? "there";
 
   return (
-    <Layout preview="Your profile is approved" brand={brand}>
+    <Layout
+      preview="Your profile is approved"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Your profile is approved</Heading>
       <Text style={body}>
         Hi {name}, your profile has been reviewed and approved. It&apos;s now visible and
