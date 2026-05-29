@@ -7,48 +7,53 @@ import { Layout, type EmailBrand } from "../components/Layout";
 interface Props {
   recipientName: string | null;
   contactName: string | null;
-  totalAmount: string;
+  eventDate: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
 }
 
-export default function OfferAccepted({
+export default function AssignmentTimedOut({
   recipientName,
   contactName,
-  totalAmount,
+  eventDate,
   inquiryUrl,
   brand,
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "the inquiry";
+  const name = recipientName ?? "there";
+  const event = contactName ?? "a new inquiry";
 
-  const fields = totalAmount ? [{ label: "Total", value: totalAmount }] : [];
+  const fields = [eventDate ? { label: "Date", value: eventDate } : null].filter(
+    Boolean,
+  ) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="Offer accepted"
+      preview="An inquiry needs a coordinator"
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Offer accepted</Heading>
+      <Heading style={h2}>An inquiry needs a coordinator</Heading>
       <Text style={body}>
-        Good news — the client accepted the offer for {event}.
+        Hi {name}, {event} hasn&apos;t been picked up automatically and is still
+        waiting for a coordinator. Please assign someone so the client gets a timely
+        reply.
       </Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Confirm the booking and coordinate next steps.</Text>
-      <Button href={inquiryUrl}>Open inquiry →</Button>
+      <Text style={note}>Open the inquiry to assign a coordinator.</Text>
+      <Button href={inquiryUrl}>Assign coordinator →</Button>
     </Layout>
   );
 }
 
-OfferAccepted.PreviewProps = {
+AssignmentTimedOut.PreviewProps = {
   recipientName: "Giulia Conti",
   contactName: "Sofia's Wedding",
-  totalAmount: "EUR 4,500.00",
+  eventDate: "14 Jun 2026",
   inquiryUrl: "https://tulala.digital/admin/work/abc123",
 } satisfies Props;
 

@@ -10,6 +10,11 @@ import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
 import TalentBookingConfirmed from "../../../emails/talent/BookingConfirmed";
 import WorkspaceCoordinatorAssigned from "../../../emails/workspace/CoordinatorAssigned";
+import WorkspaceOfferAccepted from "../../../emails/workspace/OfferAccepted";
+import WorkspaceOfferDeclined from "../../../emails/workspace/OfferDeclined";
+import WorkspaceAssignmentTimedOut from "../../../emails/workspace/AssignmentTimedOut";
+import WorkspaceTalentDeclined from "../../../emails/workspace/TalentDeclined";
+import InquiryCancelledEmail from "../../../emails/notifications/InquiryCancelled";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { resolveInquiryRecipients } from "./recipients";
 import type {
@@ -142,6 +147,62 @@ const assignedCoordinator = async (event: NotificationEvent): Promise<AudienceMe
   const coordinatorId = str(event.payload.coordinatorId);
   if (!coordinatorId) return [];
   return [{ kind: "user", userId: coordinatorId, role: "workspace_member" }];
+};
+
+/**
+ * Workspace owners + admins for the event's tenant — the people who triage
+ * ops-level alerts (assignment time-outs, offer outcomes). Keys on
+ * `agency_memberships.profile_id` (→ `profiles.id`, the canonical user id);
+ * the engine resolves `event.tenantId` from the inquiry before dispatch.
+ *
+ * NB: this deliberately selects `profile_id`, not `user_id` — that column
+ * does not exist on `agency_memberships` (the `user_id` select in
+ * `recipients.ts` is a latent bug that silently returns zero rows).
+ */
+const workspaceAdmins = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  if (!event.tenantId) return [];
+  const { data, error } = await ctx.admin
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", event.tenantId)
+    .eq("status", "active")
+    .in("role", ["owner", "admin"]);
+  if (error || !data) return [];
+  return (data as Array<{ profile_id: string | null }>)
+    .map((r) => r.profile_id)
+    .filter((id): id is string => Boolean(id))
+    .map((userId) => ({ kind: "user" as const, userId, role: "workspace_member" as const }));
+};
+
+/**
+ * Offer-outcome audience: the assigned coordinator plus every workspace
+ * owner/admin. The dispatcher dedupes by recipient, so a coordinator who is
+ * also an admin is only notified once.
+ */
+const coordinatorAndAdmins = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  const [coordinator, admins] = await Promise.all([
+    assignedCoordinator(event),
+    workspaceAdmins(event, ctx),
+  ]);
+  return [...coordinator, ...admins];
+};
+
+/** Inquiry-cancellation audience: the client (or guest) plus all roster talent. */
+const clientAndRosterTalent = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  const [client, talent] = await Promise.all([
+    clientOrGuest(event),
+    allRosterTalent(event, ctx),
+  ]);
+  return [...client, ...talent];
 };
 
 /** The single talent named in a `roster.talent_invited` event. */
@@ -377,6 +438,172 @@ const ROSTER_TALENT_INVITED: CatalogEntry = {
   },
 };
 
+/** coordinator.assigned → notify the coordinator they now own this inquiry. */
+const COORDINATOR_ASSIGNED: CatalogEntry = {
+  id: "coordinator.assigned.coordinator",
+  category: "workspace_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["coordinator.assigned"],
+  hydrate: loadInquiryView,
+  resolveAudience: assignedCoordinator,
+  email: {
+    templateId: "workspace.coordinator_assigned",
+    subject: () => "New inquiry assigned to you",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(WorkspaceCoordinatorAssigned, {
+        coordinatorName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        agencyName: brand.accountName,
+        eventDate: str(event.payload.eventDate),
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "workspace activity",
+      }),
+  },
+};
+
+/** offer.client_rejected → tell the coordinator the client declined the offer. */
+const OFFER_DECLINED_WORKSPACE: CatalogEntry = {
+  id: "offer.declined.workspace",
+  category: "offers",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["offer.client_rejected"],
+  hydrate: loadInquiryView,
+  resolveAudience: assignedCoordinator,
+  email: {
+    templateId: "workspace.offer_declined",
+    subject: () => "An offer was declined",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(WorkspaceOfferDeclined, {
+        recipientName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "offer",
+      }),
+  },
+};
+
+/**
+ * approval.all_complete → tell the coordinator + workspace admins the client
+ * accepted the offer (every approver signed off). This is the clean "offer
+ * accepted" signal — the engine only emits it on the `approved` transition.
+ */
+const OFFER_ACCEPTED_WORKSPACE: CatalogEntry = {
+  id: "offer.accepted.workspace",
+  category: "offers",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["approval.all_complete"],
+  hydrate: loadInquiryView,
+  resolveAudience: coordinatorAndAdmins,
+  email: {
+    templateId: "workspace.offer_accepted",
+    subject: () => "An offer was accepted",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(WorkspaceOfferAccepted, {
+        recipientName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        totalAmount: str(event.payload.offerTotal) ?? "",
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "offer",
+      }),
+  },
+};
+
+/**
+ * coordinator.assignment_timed_out → auto-assignment lapsed without a
+ * coordinator; alert workspace owners/admins to triage manually. (The inquiry
+ * has no coordinator yet, so `assignedCoordinator` would be empty — this is
+ * why the audience is `workspaceAdmins`.)
+ */
+const COORDINATOR_ASSIGNMENT_TIMED_OUT: CatalogEntry = {
+  id: "coordinator.assignment_timed_out.workspace",
+  category: "workspace_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["coordinator.assignment_timed_out"],
+  hydrate: loadInquiryView,
+  resolveAudience: workspaceAdmins,
+  email: {
+    templateId: "workspace.assignment_timed_out",
+    subject: () => "An inquiry needs a coordinator",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(WorkspaceAssignmentTimedOut, {
+        recipientName: recipient.displayName,
+        contactName: str(event.payload.contactName),
+        eventDate: str(event.payload.eventDate),
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "workspace activity",
+      }),
+  },
+};
+
+/** roster.talent_declined → tell the coordinator a talent turned down the invite. */
+const ROSTER_TALENT_DECLINED: CatalogEntry = {
+  id: "roster.talent_declined.coordinator",
+  category: "roster_activity",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["roster.talent_declined"],
+  hydrate: loadInquiryView,
+  resolveAudience: assignedCoordinator,
+  email: {
+    templateId: "workspace.talent_declined",
+    subject: () => "A talent declined an inquiry",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(WorkspaceTalentDeclined, {
+        recipientName: recipient.displayName,
+        talentName: str(event.payload.talentName),
+        contactName: str(event.payload.contactName),
+        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "roster",
+      }),
+  },
+};
+
+/**
+ * inquiry.cancelled → notify everyone still attached to the inquiry (the
+ * client/guest + all roster talent). The link points at each recipient's own
+ * surface, branched on their resolved role.
+ */
+const INQUIRY_CANCELLED: CatalogEntry = {
+  id: "inquiry.cancelled.participants",
+  category: "inquiry_updates",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["inquiry.cancelled"],
+  hydrate: loadInquiryView,
+  resolveAudience: clientAndRosterTalent,
+  email: {
+    templateId: "inquiry.cancelled",
+    subject: () => "An inquiry has been cancelled",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const surface = recipient.role === "client" ? "client" : "talent";
+      return React.createElement(InquiryCancelledEmail, {
+        recipientName: recipient.displayName ?? str(event.payload.contactName),
+        contactName: str(event.payload.contactName),
+        eventDate: str(event.payload.eventDate),
+        eventLocation: str(event.payload.eventLocation),
+        inquiryUrl: pageUrl(brand, `/${surface}/inquiries/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "inquiry",
+      });
+    },
+  },
+};
+
 // ─── Platform admin entries (Phase 10) ────────────────────────────────────────
 //
 // Audience is always `platformAdmins` (every `app_role = 'super_admin'`).
@@ -522,6 +749,12 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   BOOKING_CREATED_CLIENT,
   BOOKING_CREATED_TALENT,
   ROSTER_TALENT_INVITED,
+  COORDINATOR_ASSIGNED,
+  OFFER_DECLINED_WORKSPACE,
+  OFFER_ACCEPTED_WORKSPACE,
+  COORDINATOR_ASSIGNMENT_TIMED_OUT,
+  ROSTER_TALENT_DECLINED,
+  INQUIRY_CANCELLED,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,

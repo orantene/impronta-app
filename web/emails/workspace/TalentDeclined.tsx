@@ -1,54 +1,53 @@
 import { Heading, Text } from "@react-email/components";
 import * as React from "react";
 import { Button } from "../components/Button";
-import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
 
 interface Props {
   recipientName: string | null;
+  talentName: string | null;
   contactName: string | null;
-  totalAmount: string;
   inquiryUrl: string;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
 }
 
-export default function OfferAccepted({
+export default function TalentDeclined({
   recipientName,
+  talentName,
   contactName,
-  totalAmount,
   inquiryUrl,
   brand,
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "the inquiry";
-
-  const fields = totalAmount ? [{ label: "Total", value: totalAmount }] : [];
+  const name = recipientName ?? "there";
+  const talent = talentName ?? "A talent";
+  const event = contactName ?? "an inquiry";
 
   return (
     <Layout
-      preview="Offer accepted"
+      preview="A talent declined an inquiry"
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Offer accepted</Heading>
+      <Heading style={h2}>A talent declined</Heading>
       <Text style={body}>
-        Good news — the client accepted the offer for {event}.
+        Hi {name}, {talent} declined the invite for {event}. You may want to line up
+        an alternative or follow up with them.
       </Text>
-      {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Confirm the booking and coordinate next steps.</Text>
+      <Text style={note}>Open the inquiry to review the roster.</Text>
       <Button href={inquiryUrl}>Open inquiry →</Button>
     </Layout>
   );
 }
 
-OfferAccepted.PreviewProps = {
+TalentDeclined.PreviewProps = {
   recipientName: "Giulia Conti",
+  talentName: "Marco Rossi",
   contactName: "Sofia's Wedding",
-  totalAmount: "EUR 4,500.00",
   inquiryUrl: "https://tulala.digital/admin/work/abc123",
 } satisfies Props;
 

@@ -7,49 +7,56 @@ import { Layout, type EmailBrand } from "../components/Layout";
 interface Props {
   recipientName: string | null;
   contactName: string | null;
-  totalAmount: string;
+  eventDate: string | null;
+  eventLocation: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
 }
 
-export default function OfferAccepted({
+export default function InquiryCancelled({
   recipientName,
   contactName,
-  totalAmount,
+  eventDate,
+  eventLocation,
   inquiryUrl,
   brand,
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const event = contactName ?? "the inquiry";
+  const name = recipientName ?? "there";
+  const event = contactName ?? "an inquiry";
 
-  const fields = totalAmount ? [{ label: "Total", value: totalAmount }] : [];
+  const fields = [
+    eventDate ? { label: "Date", value: eventDate } : null,
+    eventLocation ? { label: "Location", value: eventLocation } : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <Layout
-      preview="Offer accepted"
+      preview="An inquiry has been cancelled"
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
     >
-      <Heading style={h2}>Offer accepted</Heading>
+      <Heading style={h2}>Inquiry cancelled</Heading>
       <Text style={body}>
-        Good news — the client accepted the offer for {event}.
+        Hi {name}, {event} has been cancelled. No further action is needed.
       </Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
-      <Text style={note}>Confirm the booking and coordinate next steps.</Text>
-      <Button href={inquiryUrl}>Open inquiry →</Button>
+      <Text style={note}>You can review the details any time.</Text>
+      <Button href={inquiryUrl}>View details →</Button>
     </Layout>
   );
 }
 
-OfferAccepted.PreviewProps = {
-  recipientName: "Giulia Conti",
+InquiryCancelled.PreviewProps = {
+  recipientName: "Sofia Marino",
   contactName: "Sofia's Wedding",
-  totalAmount: "EUR 4,500.00",
-  inquiryUrl: "https://tulala.digital/admin/work/abc123",
+  eventDate: "14 Jun 2026",
+  eventLocation: "Lake Como, Italy",
+  inquiryUrl: "https://tulala.digital/client/inquiries/abc123",
 } satisfies Props;
 
 const h2: React.CSSProperties = { margin: "0 0 8px", fontSize: "20px", fontWeight: 700, color: "#1a1a1a" };

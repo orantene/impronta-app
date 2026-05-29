@@ -8,6 +8,8 @@ interface Props {
   contactName: string | null;
   inquiryUrl: string;
   brand?: EmailBrand;
+  unsubscribeUrl?: string;
+  categoryLabel?: string;
 }
 
 export default function OfferDeclined({
@@ -15,11 +17,18 @@ export default function OfferDeclined({
   contactName,
   inquiryUrl,
   brand,
+  unsubscribeUrl,
+  categoryLabel,
 }: Props) {
   const event = contactName ?? "the inquiry";
 
   return (
-    <Layout preview="Offer declined" brand={brand}>
+    <Layout
+      preview="Offer declined"
+      brand={brand}
+      unsubscribeUrl={unsubscribeUrl}
+      categoryLabel={categoryLabel}
+    >
       <Heading style={h2}>Offer declined</Heading>
       <Text style={body}>The client declined the offer for {event}.</Text>
       <Text style={note}>You can revise the offer or follow up with the client.</Text>
