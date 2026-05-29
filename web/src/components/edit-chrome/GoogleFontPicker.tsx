@@ -135,7 +135,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
         <input
           type="text"
           placeholder="Search…"
-          className="ml-auto w-32 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+          className="ml-auto w-32 rounded-lg border border-[#cfc7b6] bg-white px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

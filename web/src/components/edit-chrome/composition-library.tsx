@@ -1278,7 +1278,7 @@ export function CompositionLibraryOverlay() {
                 ? "No sections available"
                 : `Search ${totalSearchable} item${totalSearchable === 1 ? "" : "s"} — kits, hero, cta, testimonials…`
             }
-            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg border border-[#cfc7b6] bg-white py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow] disabled:cursor-not-allowed disabled:opacity-60"
           />
           {compositionError ? (
             <span id="composition-library-catalog-error-desc" className="sr-only">

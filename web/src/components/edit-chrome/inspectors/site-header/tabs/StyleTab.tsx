@@ -211,7 +211,7 @@ function ColorRow({
         <span className={KIT.label}>{label}</span>
         {hint ? <span className={KIT.hint}>{hint}</span> : null}
       </div>
-      <div className="flex items-center gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5">
+      <div className="flex items-center gap-2 rounded-lg border border-[#cfc7b6] bg-white px-2 py-1.5 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
         {/* Native color picker — no popover anchoring complexity. The
          *  visible swatch IS the input, hidden but clickable through a
          *  custom-styled wrapper. */}
@@ -238,7 +238,7 @@ function ColorRow({
         </label>
         <input
           type="text"
-          className="flex-1 bg-transparent font-mono text-[12px] text-stone-700 placeholder:text-stone-400 focus:outline-none"
+          className="flex-1 bg-transparent font-mono text-[12px] text-stone-800 placeholder:text-stone-500 focus:outline-none"
           placeholder="#— or rgba()"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
