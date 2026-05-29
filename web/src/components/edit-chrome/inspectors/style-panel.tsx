@@ -797,6 +797,10 @@ function cleanBuilderNodeStyle(
   if (value.width) out.width = value.width;
   if (value.height) out.height = value.height;
   if (value.minHeight) out.minHeight = value.minHeight;
+  if (value.paddingTop) out.paddingTop = value.paddingTop;
+  if (value.paddingRight) out.paddingRight = value.paddingRight;
+  if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
+  if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -839,6 +843,10 @@ function cleanBuilderNodeStyleValue(
   if (value.width) out.width = value.width;
   if (value.height) out.height = value.height;
   if (value.minHeight) out.minHeight = value.minHeight;
+  if (value.paddingTop) out.paddingTop = value.paddingTop;
+  if (value.paddingRight) out.paddingRight = value.paddingRight;
+  if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
+  if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5127,6 +5135,83 @@ export function StylePanel({
                     onChange={(next) => setOrToggleStandaloneStyle("paddingY", next)}
                     options={BUILDER_NODE_SPACING_OPTIONS}
                   />
+                </div>
+              </div>
+            ) : null}
+
+            {!["divider", "spacer"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2"
+                data-builder-node-style-control="exactPadding"
+              >
+                <span className={FIELD_LABEL}>Exact padding</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Top
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingTop)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingTop: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Right
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingRight)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingRight: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Bottom
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingBottom)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingBottom: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Left
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingLeft)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingLeft: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             ) : null}

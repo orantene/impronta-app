@@ -57,6 +57,12 @@ export interface BuilderNodeStyleValue {
   width?: string;
   height?: string;
   minHeight?: string;
+  // Free per-side padding escapes (CSS length strings). Layer after the
+  // paddingX/paddingY token block so an exact side wins over the preset.
+  paddingTop?: string;
+  paddingRight?: string;
+  paddingBottom?: string;
+  paddingLeft?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

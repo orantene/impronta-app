@@ -155,6 +155,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-free-width]{width:var(--bn-tablet-free-width)!important}
   .site-builder-node[data-builder-style-tablet-height]{height:var(--bn-tablet-height)!important}
   .site-builder-node[data-builder-style-tablet-min-height]{min-height:var(--bn-tablet-min-height)!important}
+  .site-builder-node[data-builder-style-tablet-padding-top]{padding-top:var(--bn-tablet-padding-top)!important}
+  .site-builder-node[data-builder-style-tablet-padding-right]{padding-right:var(--bn-tablet-padding-right)!important}
+  .site-builder-node[data-builder-style-tablet-padding-bottom]{padding-bottom:var(--bn-tablet-padding-bottom)!important}
+  .site-builder-node[data-builder-style-tablet-padding-left]{padding-left:var(--bn-tablet-padding-left)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -195,6 +199,10 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-free-width]{width:var(--bn-mobile-free-width)!important}
   .site-builder-node[data-builder-style-mobile-height]{height:var(--bn-mobile-height)!important}
   .site-builder-node[data-builder-style-mobile-min-height]{min-height:var(--bn-mobile-min-height)!important}
+  .site-builder-node[data-builder-style-mobile-padding-top]{padding-top:var(--bn-mobile-padding-top)!important}
+  .site-builder-node[data-builder-style-mobile-padding-right]{padding-right:var(--bn-mobile-padding-right)!important}
+  .site-builder-node[data-builder-style-mobile-padding-bottom]{padding-bottom:var(--bn-mobile-padding-bottom)!important}
+  .site-builder-node[data-builder-style-mobile-padding-left]{padding-left:var(--bn-mobile-padding-left)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -259,6 +267,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-free-width": tablet?.width ? "" : undefined,
     "data-builder-style-tablet-height": tablet?.height ? "" : undefined,
     "data-builder-style-tablet-min-height": tablet?.minHeight ? "" : undefined,
+    "data-builder-style-tablet-padding-top": tablet?.paddingTop ? "" : undefined,
+    "data-builder-style-tablet-padding-right": tablet?.paddingRight ? "" : undefined,
+    "data-builder-style-tablet-padding-bottom": tablet?.paddingBottom ? "" : undefined,
+    "data-builder-style-tablet-padding-left": tablet?.paddingLeft ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -289,6 +301,10 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-free-width": mobile?.width ? "" : undefined,
     "data-builder-style-mobile-height": mobile?.height ? "" : undefined,
     "data-builder-style-mobile-min-height": mobile?.minHeight ? "" : undefined,
+    "data-builder-style-mobile-padding-top": mobile?.paddingTop ? "" : undefined,
+    "data-builder-style-mobile-padding-right": mobile?.paddingRight ? "" : undefined,
+    "data-builder-style-mobile-padding-bottom": mobile?.paddingBottom ? "" : undefined,
+    "data-builder-style-mobile-padding-left": mobile?.paddingLeft ? "" : undefined,
   };
 }
 
@@ -413,6 +429,14 @@ function responsiveStyleVars(
     "--bn-mobile-free-width": style?.responsive?.mobile?.width,
     "--bn-mobile-height": style?.responsive?.mobile?.height,
     "--bn-mobile-min-height": style?.responsive?.mobile?.minHeight,
+    "--bn-tablet-padding-top": style?.responsive?.tablet?.paddingTop,
+    "--bn-tablet-padding-right": style?.responsive?.tablet?.paddingRight,
+    "--bn-tablet-padding-bottom": style?.responsive?.tablet?.paddingBottom,
+    "--bn-tablet-padding-left": style?.responsive?.tablet?.paddingLeft,
+    "--bn-mobile-padding-top": style?.responsive?.mobile?.paddingTop,
+    "--bn-mobile-padding-right": style?.responsive?.mobile?.paddingRight,
+    "--bn-mobile-padding-bottom": style?.responsive?.mobile?.paddingBottom,
+    "--bn-mobile-padding-left": style?.responsive?.mobile?.paddingLeft,
   });
 }
 
@@ -460,6 +484,12 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.width) out.width = style.width;
   if (style.height) out.height = style.height;
   if (style.minHeight) out.minHeight = style.minHeight;
+  // Free per-side padding — applied after the paddingX/paddingY token so an
+  // exact side overrides the preset.
+  if (style.paddingTop) out.paddingTop = style.paddingTop;
+  if (style.paddingRight) out.paddingRight = style.paddingRight;
+  if (style.paddingBottom) out.paddingBottom = style.paddingBottom;
+  if (style.paddingLeft) out.paddingLeft = style.paddingLeft;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
