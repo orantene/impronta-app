@@ -54,11 +54,11 @@ import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
 const FIELD_LABEL =
-  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
-const HINT = "text-[10.5px] leading-snug text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
+const HINT = "text-[11px] leading-tight text-stone-500";
+const INHERIT_HINT = "text-[11px] text-stone-500";
 
 // Mirror Style panel swatches so background overrides are visually
 // consistent across tabs.
@@ -561,7 +561,7 @@ function ResponsiveDiagnosticsCard({
           Breakpoint overrides look structurally consistent.
         </p>
       ) : (
-        <div className="mt-2 flex flex-col gap-1.5 text-[10.5px] leading-snug text-zinc-600">
+        <div className="mt-2 flex flex-col gap-1.5 text-[10.5px] leading-snug text-stone-600">
           {overflow.length > 0 ? (
             <p>
               {overflow.length} potential overflow risk
@@ -593,7 +593,7 @@ function ResponsiveDiagnosticsCard({
             </p>
           ) : null}
           {diagnostics.length > 0 ? (
-            <div className="mt-1 rounded-md border border-zinc-200 bg-white/70 px-2.5 py-2 text-[10px] leading-snug text-zinc-700">
+            <div className="mt-1 rounded-md border border-zinc-200 bg-white/70 px-2.5 py-2 text-[10px] leading-snug text-stone-700">
               {diagnostics.map((item) => {
                 const quickFix = item.quickFix;
                 return (
@@ -607,7 +607,7 @@ function ResponsiveDiagnosticsCard({
                         <button
                           type="button"
                           onClick={() => onApplyBreakpointPatch(quickFix.patch)}
-                          className="mt-1 rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-zinc-600 hover:bg-zinc-50"
+                          className="mt-1 rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-zinc-50"
                         >
                           {quickFix.label}
                         </button>
@@ -618,7 +618,7 @@ function ResponsiveDiagnosticsCard({
                         <button
                           type="button"
                           onClick={() => onJumpToBreakpoint(item.breakpoint ?? "desktop")}
-                          className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-zinc-600 hover:bg-zinc-50"
+                          className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-zinc-50"
                         >
                           {item.breakpoint}
                         </button>
@@ -675,7 +675,7 @@ function FieldHeader({
           <button
             type="button"
             onClick={onClear}
-            className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-zinc-600 hover:bg-zinc-50"
+            className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-zinc-50"
           >
             Reset
           </button>

@@ -42,10 +42,10 @@ import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { CHROME } from "../kit/tokens";
 
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
 const FIELD_LABEL =
-  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
-const HINT = "text-[10.5px] leading-snug text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
+const HINT = "text-[11px] leading-tight text-stone-500";
 
 /**
  * Debounced range slider.
@@ -116,7 +116,7 @@ function DebouncedRangeInput({
     />
   );
 }
-const INHERIT_HINT = "text-[10.5px] text-zinc-500";
+const INHERIT_HINT = "text-[11px] text-stone-500";
 
 type AnimationKey = "entry" | "scroll" | "hover" | "reducedMotion";
 

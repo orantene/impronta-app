@@ -60,11 +60,11 @@ import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { CHROME } from "../kit/tokens";
 
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
 const FIELD_LABEL =
-  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
-const HINT = "text-[10.5px] leading-tight text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
+const HINT = "text-[11px] leading-tight text-stone-500";
+const INHERIT_HINT = "text-[11px] text-stone-500";
 
 interface LayoutPanelProps {
   presentation: Record<string, unknown>;
@@ -806,7 +806,7 @@ function NodeLayoutPresetGrid({
             <span className="block text-[11.5px] font-semibold">
               {preset.label}
             </span>
-            <span className="mt-0.5 block text-[10.5px] leading-tight text-zinc-500">
+            <span className="mt-0.5 block text-[10.5px] leading-tight text-stone-500">
               {preset.description}
             </span>
           </button>
@@ -836,8 +836,8 @@ function ToggleRow({
       }}
     >
       <span className="flex flex-col">
-        <span className="text-[11.5px] font-semibold text-zinc-700">{label}</span>
-        <span className="text-[10.5px] text-zinc-500">{hint}</span>
+        <span className="text-[11.5px] font-semibold text-stone-700">{label}</span>
+        <span className="text-[10.5px] text-stone-500">{hint}</span>
       </span>
       <input
         type="checkbox"
@@ -970,10 +970,10 @@ function LayoutHealthCard({
                     ? "Warning"
                     : "Recommendation"}
               </div>
-              <div className="text-[11px] font-semibold text-zinc-800">
+              <div className="text-[11px] font-semibold text-stone-800">
                 {finding.title}
               </div>
-              <p className="mt-0.5 text-[10.5px] leading-snug text-zinc-500">
+              <p className="mt-0.5 text-[10.5px] leading-snug text-stone-500">
                 {finding.message}
               </p>
             </div>
@@ -1304,7 +1304,7 @@ function AdvancedNodeLayoutEditor({
                     border: `1px solid ${CHROME.line}`,
                   }}
                 >
-                  <span className="text-[11.5px] text-zinc-700">{item.props.title}</span>
+                  <span className="text-[11.5px] text-stone-700">{item.props.title}</span>
                   <input
                     type="checkbox"
                     checked={checked}
@@ -2295,10 +2295,10 @@ export function LayoutPanel({
           }}
         >
           <span className="flex flex-col">
-            <span className="text-[11.5px] font-semibold text-zinc-700">
+            <span className="text-[11.5px] font-semibold text-stone-700">
               Full bleed
             </span>
-            <span className="text-[10.5px] text-zinc-500">
+            <span className="text-[10.5px] text-stone-500">
               Escape the page container — touch viewport edges.
             </span>
           </span>
@@ -2363,7 +2363,7 @@ export function LayoutPanel({
               outline: "none",
             }}
           />
-          <span className="text-[10.5px] text-zinc-500">
+          <span className="text-[10.5px] text-stone-500">
             Section sticks at this offset while you scroll past it.
           </span>
         </div>
