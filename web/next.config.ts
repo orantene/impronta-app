@@ -147,6 +147,18 @@ if (isProd) {
 
 const nextConfig: NextConfig = {
   /**
+   * Skip the integrated `next build` type-check. Under Next 16.2.3 (Turbopack)
+   * this phase intermittently HANGS on Vercel's build machines after a clean
+   * compile — the log freezes at "Running TypeScript ..." and the deploy is
+   * killed by the 45-minute build timeout (observed across multiple branches).
+   * Type-safety is NOT lost: CI (`ci.yml` Gate 1) runs `npx tsc --noEmit` with
+   * a zero-error baseline on every PR to `main`, and `main` is the only branch
+   * that builds production — so type-error code can never reach a prod build.
+   */
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  /**
    * Opt into Next.js' integration with React's `<ViewTransition>` component
    * (https://react.dev/reference/react/ViewTransition). Enabling this is
    * harmless on its own — it only takes effect where content is wrapped

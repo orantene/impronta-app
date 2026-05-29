@@ -533,6 +533,22 @@ export async function proxy(request: NextRequest) {
     pathBasedTenantRewrite = true;
   }
 
+  // Marketing apex global directory. The agency storefront owns the literal
+  // `(public)/directory` route (its own commerce shell: favorites, inquiry
+  // sheet, cart), so the platform-wide cross-tenant directory lives in the
+  // marketing route group at `/global-directory` — it must inherit
+  // MarketingShell, NOT the storefront chrome. Two route groups cannot both
+  // resolve `/directory`, so on marketing hosts we internally rewrite the
+  // canonical `/directory` URL to `/global-directory`. The browser URL stays
+  // `/directory`; `/global-directory` is intentionally absent from the
+  // marketing allow-list, so it is reachable only through this rewrite.
+  let marketingDirectoryRewrite = false;
+  if (effectiveHostContext.kind === "marketing" && pathnameForAuth === "/directory") {
+    nextUrl.pathname = "/global-directory";
+    pathnameForAuth = "/global-directory";
+    marketingDirectoryRewrite = true;
+  }
+
   // Apply CMS clean-URL rewrite — map the slug portion to /p/{slug}
   // so Next.js routes to the CMS page catch-all. ORIGINAL_PATHNAME_HEADER
   // (set above) still contains the browser-facing URL, so EditChromeMount
@@ -595,7 +611,8 @@ export async function proxy(request: NextRequest) {
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
     cmsSlugRewrite ||
-    brandedWorkspaceShortcutRewrite
+    brandedWorkspaceShortcutRewrite ||
+    marketingDirectoryRewrite
   ) {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = pathnameForAuth;
