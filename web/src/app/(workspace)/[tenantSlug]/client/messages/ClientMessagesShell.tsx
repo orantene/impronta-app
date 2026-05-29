@@ -729,6 +729,7 @@ function ThreadPaneWithTabs({
   onAfterOfferAction?: () => void;
 }) {
   const stage = stageStyle(inq.status);
+  const router = useRouter();
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const [payNowSheet, setPayNowSheet] = useState<{ amountLabel: string } | null>(null);
   const statusSheetData = useMemo<StatusSheetData>(
@@ -898,6 +899,7 @@ function ThreadPaneWithTabs({
           inquiryId={inq.id}
           amountLabel={payNowSheet.amountLabel}
           onClose={() => setPayNowSheet(null)}
+          onPaid={() => router.refresh()}
         />
       )}
 

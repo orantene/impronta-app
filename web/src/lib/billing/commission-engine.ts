@@ -151,6 +151,11 @@ export async function persistBookingCommissionSnapshot(
         // so traceability still has a value to surface.
         tenantId: p.tenant_id ?? p.owning_party_id,
         workspacePlan: normalizePlan(p.workspace_plan),
+        // Seller of record drives who bears the seller-side platform fee.
+        // owning_party_type='talent' → the independent talent sells direct and
+        // bears it; agency/workspace → the workspace bears it and the talent is
+        // paid their full quote (protected).
+        sellerOfRecord: p.owning_party_type === "talent" ? "talent" : "workspace",
         offerLineItems: p.offer_line_items as OfferLineItemForResolver[],
         currencyCode: ctx.currency_code,
         paymentMethod,
@@ -188,6 +193,10 @@ export async function persistBookingCommissionSnapshot(
         platform_fee_cents: s.platform_fee_cents,
         workspace_fee_cents: s.workspace_fee_cents,
         talent_net_cents: s.talent_net_cents,
+        client_surcharge_cents: s.client_surcharge_cents,
+        seller_deduction_cents: s.seller_deduction_cents,
+        gross_charged_cents: s.gross_charged_cents,
+        seller_shortfall_cents: s.seller_shortfall_cents,
         currency_code: s.currency_code,
         payment_method: s.payment_method,
         off_platform_reason: s.off_platform_reason,
