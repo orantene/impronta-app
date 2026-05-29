@@ -74,9 +74,13 @@ export async function createPaymentIntentForTransaction(
     }
 
     const stripe = getStripe();
-    if (!stripe) {
-      // Mock mode — no live keys. Hand back a synthetic client secret the
-      // drawer recognises (prefix `mock_pi_`) so it can simulate the confirm.
+    // The embedded Payment Element cannot render without the PUBLISHABLE key
+    // on the client. If either key is absent we mock — a real PaymentIntent
+    // with no publishable key would strand the client on a config error.
+    const hasPublishableKey = !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (!stripe || !hasPublishableKey) {
+      // Mock mode — no usable live keys. Hand back a synthetic client secret
+      // the drawer recognises (prefix `mock_pi_`) so it can simulate the confirm.
       return {
         ok: true,
         clientSecret: `mock_pi_${input.transactionId}_secret`,
