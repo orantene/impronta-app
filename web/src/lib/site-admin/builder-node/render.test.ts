@@ -550,6 +550,33 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-tablet-font-style=""/);
   });
 
+  it("renders positioning escapes (position + inset offsets)", () => {
+    const html = render([
+      {
+        id: "free:pos",
+        kind: "paragraph",
+        props: {
+          text: "Pinned",
+          style: {
+            position: "absolute",
+            top: "12px",
+            left: "-8px",
+            responsive: { mobile: { position: "relative" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop position + offsets land inline with their literal CSS values
+    // (negatives survive for overlap designs).
+    assert.match(html, /position:absolute/);
+    assert.match(html, /top:12px/);
+    assert.match(html, /left:-8px/);
+    // The mobile position override is attr-gated; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-position=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-position=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

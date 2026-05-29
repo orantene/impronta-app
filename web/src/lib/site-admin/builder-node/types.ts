@@ -90,6 +90,13 @@ export interface BuilderNodeStyleValue {
   // split / card / cta_group / carousel / masonry by reassigning the --bn-gap
   // CSS variable, so every consumer (incl. child tracks) picks it up.
   gap?: string;
+  // Positioning escapes — establish a positioning context and nudge the node
+  // with inset offsets (CSS length strings; negatives allowed for overlaps).
+  position?: "relative" | "absolute" | "sticky";
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

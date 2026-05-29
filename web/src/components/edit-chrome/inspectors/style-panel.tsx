@@ -309,6 +309,13 @@ const BUILDER_NODE_TEXT_DECORATION_OPTIONS: ReadonlyArray<SegmentedOption<string
   { value: "line-through", label: "Strike" },
 ];
 
+const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "relative", label: "Relative" },
+  { value: "absolute", label: "Absolute" },
+  { value: "sticky", label: "Sticky" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -835,6 +842,11 @@ function cleanBuilderNodeStyle(
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
+  if (value.position) out.position = value.position;
+  if (value.top) out.top = value.top;
+  if (value.right) out.right = value.right;
+  if (value.bottom) out.bottom = value.bottom;
+  if (value.left) out.left = value.left;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -895,6 +907,11 @@ function cleanBuilderNodeStyleValue(
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
+  if (value.position) out.position = value.position;
+  if (value.top) out.top = value.top;
+  if (value.right) out.right = value.right;
+  if (value.bottom) out.bottom = value.bottom;
+  if (value.left) out.left = value.left;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5465,6 +5482,91 @@ export function StylePanel({
                 />
               </div>
             ) : null}
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="position"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Position</span>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedStandaloneViewportStyle?.position ?? ""}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({
+                    position: (next || undefined) as BuilderNodeStyleValue["position"],
+                  })
+                }
+                options={BUILDER_NODE_POSITION_OPTIONS}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Top
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.top)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        top: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Right
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.right)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        right: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Bottom
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.bottom)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        bottom: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Left
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.left)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        left: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
 
             <div
               className="flex flex-col gap-2 border-t pt-3"

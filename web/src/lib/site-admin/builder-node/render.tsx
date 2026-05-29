@@ -173,6 +173,11 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
   .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
   .site-builder-node[data-builder-style-tablet-gap-free]{--bn-gap:var(--bn-tablet-gap-free)!important}
+  .site-builder-node[data-builder-style-tablet-position]{position:var(--bn-tablet-position)!important}
+  .site-builder-node[data-builder-style-tablet-inset-top]{top:var(--bn-tablet-inset-top)!important}
+  .site-builder-node[data-builder-style-tablet-inset-right]{right:var(--bn-tablet-inset-right)!important}
+  .site-builder-node[data-builder-style-tablet-inset-bottom]{bottom:var(--bn-tablet-inset-bottom)!important}
+  .site-builder-node[data-builder-style-tablet-inset-left]{left:var(--bn-tablet-inset-left)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -231,6 +236,11 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
   .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
   .site-builder-node[data-builder-style-mobile-gap-free]{--bn-gap:var(--bn-mobile-gap-free)!important}
+  .site-builder-node[data-builder-style-mobile-position]{position:var(--bn-mobile-position)!important}
+  .site-builder-node[data-builder-style-mobile-inset-top]{top:var(--bn-mobile-inset-top)!important}
+  .site-builder-node[data-builder-style-mobile-inset-right]{right:var(--bn-mobile-inset-right)!important}
+  .site-builder-node[data-builder-style-mobile-inset-bottom]{bottom:var(--bn-mobile-inset-bottom)!important}
+  .site-builder-node[data-builder-style-mobile-inset-left]{left:var(--bn-mobile-inset-left)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -314,6 +324,11 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
       typeof tablet?.opacity === "number" ? "" : undefined,
     "data-builder-style-tablet-radius-free": tablet?.borderRadius ? "" : undefined,
     "data-builder-style-tablet-gap-free": tablet?.gap ? "" : undefined,
+    "data-builder-style-tablet-position": tablet?.position ? "" : undefined,
+    "data-builder-style-tablet-inset-top": tablet?.top ? "" : undefined,
+    "data-builder-style-tablet-inset-right": tablet?.right ? "" : undefined,
+    "data-builder-style-tablet-inset-bottom": tablet?.bottom ? "" : undefined,
+    "data-builder-style-tablet-inset-left": tablet?.left ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -363,6 +378,11 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
       typeof mobile?.opacity === "number" ? "" : undefined,
     "data-builder-style-mobile-radius-free": mobile?.borderRadius ? "" : undefined,
     "data-builder-style-mobile-gap-free": mobile?.gap ? "" : undefined,
+    "data-builder-style-mobile-position": mobile?.position ? "" : undefined,
+    "data-builder-style-mobile-inset-top": mobile?.top ? "" : undefined,
+    "data-builder-style-mobile-inset-right": mobile?.right ? "" : undefined,
+    "data-builder-style-mobile-inset-bottom": mobile?.bottom ? "" : undefined,
+    "data-builder-style-mobile-inset-left": mobile?.left ? "" : undefined,
   };
 }
 
@@ -523,6 +543,16 @@ function responsiveStyleVars(
     "--bn-mobile-radius-free": style?.responsive?.mobile?.borderRadius,
     "--bn-tablet-gap-free": style?.responsive?.tablet?.gap,
     "--bn-mobile-gap-free": style?.responsive?.mobile?.gap,
+    "--bn-tablet-position": style?.responsive?.tablet?.position,
+    "--bn-tablet-inset-top": style?.responsive?.tablet?.top,
+    "--bn-tablet-inset-right": style?.responsive?.tablet?.right,
+    "--bn-tablet-inset-bottom": style?.responsive?.tablet?.bottom,
+    "--bn-tablet-inset-left": style?.responsive?.tablet?.left,
+    "--bn-mobile-position": style?.responsive?.mobile?.position,
+    "--bn-mobile-inset-top": style?.responsive?.mobile?.top,
+    "--bn-mobile-inset-right": style?.responsive?.mobile?.right,
+    "--bn-mobile-inset-bottom": style?.responsive?.mobile?.bottom,
+    "--bn-mobile-inset-left": style?.responsive?.mobile?.left,
   });
 }
 
@@ -605,6 +635,13 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // reads. Spread after the node's own --bn-gap (see containerStyle etc.) so the
   // exact value wins, and inherited by child tracks (carousel) automatically.
   if (style.gap) out["--bn-gap" as keyof CSSProperties] = style.gap as never;
+  // Positioning escapes — a position context plus inset offsets. Applied after
+  // layout so an explicit position/offset wins; negatives enable overlaps.
+  if (style.position) out.position = style.position;
+  if (style.top) out.top = style.top;
+  if (style.right) out.right = style.right;
+  if (style.bottom) out.bottom = style.bottom;
+  if (style.left) out.left = style.left;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

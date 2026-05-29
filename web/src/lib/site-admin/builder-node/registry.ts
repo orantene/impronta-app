@@ -117,6 +117,12 @@ const builderNodeStyleValueSchema = z.object({
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
   gap: z.string().max(16).optional(),
+  // Positioning escapes — context + inset offsets (negatives allowed).
+  position: z.enum(["relative", "absolute", "sticky"]).optional(),
+  top: z.string().max(16).optional(),
+  right: z.string().max(16).optional(),
+  bottom: z.string().max(16).optional(),
+  left: z.string().max(16).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
