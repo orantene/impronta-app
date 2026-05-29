@@ -1,6 +1,7 @@
 import { getAppUrl } from "@/lib/auth-flow";
 import { renderWorkspaceWelcomeEmail } from "@/lib/email/workspace-welcome";
 import { sendProvisioningFailureEmailOnce } from "./workspace-signup-failure-notify";
+import { notifyPlatformNewWorkspace } from "./workspace-signup-platform-alerts";
 import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
@@ -444,6 +445,15 @@ async function finalizeProvisionResult(params: {
       slug: params.agency.slug,
       adminPath,
       publicUrl,
+    });
+  }
+
+  if (!params.reusedExisting) {
+    notifyPlatformNewWorkspace({
+      tenantId: params.agency.id,
+      workspaceName: params.agency.display_name,
+      ownerEmail,
+      planLabel: tierInterest ?? "free",
     });
   }
 

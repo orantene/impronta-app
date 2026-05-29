@@ -14,6 +14,7 @@ import {
 import { sendEmail } from "@/lib/email";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { notifyPlatformSignupFailed } from "./workspace-signup-platform-alerts";
 
 const PROVISION_FAILURE_NOTE_MARKER = "[provision-failure-emailed]";
 
@@ -60,6 +61,16 @@ export async function sendProvisioningFailureEmailOnce(params: {
   if (!recipient) return;
   const ownerName =
     params.lead.name?.trim() || recipient.split("@")[0] || "there";
+
+  // Alert platform admins that a signup failed — separate audience from the
+  // user-facing "we'll be in touch" email below, so it fires regardless of
+  // that send's outcome.
+  notifyPlatformSignupFailed({
+    leadId: params.lead.id,
+    attemptedEmail: recipient,
+    reason: params.kind,
+  });
+
   try {
     await sendEmail({
       to: recipient,
