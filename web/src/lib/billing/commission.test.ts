@@ -1,13 +1,16 @@
 /**
- * Unit tests for the commission resolver.
+ * Unit tests for the commission resolver (talent-protected split).
  *
  * The resolver is pure — no mocks needed, no DB, no Stripe. Just inputs in,
  * snapshot out. Tests pin down:
  *   - the override hierarchy (platform → plan-tier → tenant → booking)
- *   - line-item math (gross, workspace fee, talent net)
- *   - floor enforcement (max of % and floor)
+ *   - the talent-protected split (client surcharge + seller deduction)
+ *   - talent is paid in full when a workspace is the seller of record
+ *   - independent talent bears the seller-side fee directly
+ *   - a thin/zero-margin workspace → platform absorbs the gap (talent whole)
+ *   - floor enforcement (topped up via the client surcharge)
  *   - input validation (negative, talent > price, no items, currency)
- *   - the lane-sum invariant (lanes must sum to gross)
+ *   - the lane-sum invariant (lanes sum to what the client is charged)
  */
 
 import { strict as assert } from "node:assert";
@@ -26,7 +29,7 @@ const TENANT = "tenant-uuid-1";
 const defaultPlatformConfig = (
   overrides: Partial<PlatformCommissionConfig> = {},
 ): PlatformCommissionConfig => ({
-  default_take_bps: 500,           // 5%
+  default_take_bps: 500,           // 5% total (split 2.5% client / 2.5% seller)
   default_take_floor_cents: 0,
   plan_tier_bps: {},
   ...overrides,
@@ -61,17 +64,26 @@ function expectCode(
   });
 }
 
-describe("resolveBookingCommissions — happy path", () => {
-  it("computes the three lanes for a single line item, card payment", () => {
-    // Gross = 1000.00 MXN
-    // Platform fee @ 5% = 50.00
-    // Workspace margin = (1000 - 800) × 1 = 200
-    // Talent net = 1000 - 50 - 200 = 750
+describe("resolveBookingCommissions — happy path (talent-protected)", () => {
+  it("computes the lanes for a single line item, card payment", () => {
+    // Subtotal = 1000.00 MXN (talent 800 + margin 200)
+    // 5% total, even split → 2.5% client + 2.5% seller
+    //   client surcharge = 25.00 (added on top)
+    //   seller deduction = 25.00 (out of the 200 margin)
+    //   platform fee     = 50.00
+    //   talent net       = 800.00  (FULL quote — protected)
+    //   workspace net    = 200 − 25 = 175.00
+    //   client charged   = 1000 + 25 = 1025.00
     const result = resolveBookingCommissions(baseInput());
-    assert.equal(result.gross_cents, 100_000);
-    assert.equal(result.platform_fee_cents, 5_000);
-    assert.equal(result.workspace_fee_cents, 20_000);
-    assert.equal(result.talent_net_cents, 75_000);
+    assert.equal(result.gross_cents, 100_000);        // subtotal (service value)
+    assert.equal(result.client_surcharge_cents, 2_500);
+    assert.equal(result.seller_deduction_cents, 2_500);
+    assert.equal(result.platform_fee_cents, 5_000);   // total take, unchanged
+    assert.equal(result.workspace_fee_cents, 17_500); // margin net of deduction
+    assert.equal(result.talent_net_cents, 80_000);    // protected — full quote
+    assert.equal(result.gross_charged_cents, 102_500);
+    assert.equal(result.seller_shortfall_cents, 0);
+    assert.equal(result.seller_of_record, "workspace");
     assert.equal(result.platform_take_bps, 500);
     assert.equal(result.resolved_from, "platform_default");
     assert.equal(result.currency_code, "MXN");
@@ -79,36 +91,80 @@ describe("resolveBookingCommissions — happy path", () => {
     assert.equal(result.off_platform_reason, null);
   });
 
-  it("handles the user's example: 400 MXN/hr client, 200/hr talent, 8 hours", () => {
-    // 8 × 400 = 3200 gross
-    // Workspace margin = 8 × (400 - 200) = 1600
-    // Platform fee @ 5% = 160
-    // Talent net = 3200 - 160 - 1600 = 1440
-    const result = resolveBookingCommissions(baseInput({
-      offerLineItems: [
-        { units: 8, unit_price_cents: 40_000, talent_cost_cents: 20_000 },
-      ],
-    }));
-    assert.equal(result.gross_cents, 320_000);
-    assert.equal(result.workspace_fee_cents, 160_000);
-    assert.equal(result.platform_fee_cents, 16_000);
-    assert.equal(result.talent_net_cents, 144_000);
-  });
-
   it("sums multiple line items correctly", () => {
     const result = resolveBookingCommissions(baseInput({
       offerLineItems: [
-        { units: 2, unit_price_cents: 50_000, talent_cost_cents: 40_000 }, // 1000 gross, 200 margin
-        { units: 1, unit_price_cents: 80_000, talent_cost_cents: 60_000 }, // 800 gross, 200 margin
+        { units: 2, unit_price_cents: 50_000, talent_cost_cents: 40_000 }, // 1000 sub, 200 margin
+        { units: 1, unit_price_cents: 80_000, talent_cost_cents: 60_000 }, // 800 sub, 200 margin
       ],
     }));
-    assert.equal(result.gross_cents, 180_000); // 1800
-    assert.equal(result.workspace_fee_cents, 40_000); // 400
-    assert.equal(result.platform_fee_cents, 9_000); // 5% of 1800 = 90
-    assert.equal(result.talent_net_cents, 131_000); // 1310
+    assert.equal(result.gross_cents, 180_000);        // 1800 subtotal
+    assert.equal(result.platform_fee_cents, 9_000);   // 5% of 1800 = 90
+    assert.equal(result.client_surcharge_cents, 4_500);
+    assert.equal(result.seller_deduction_cents, 4_500);
+    assert.equal(result.workspace_fee_cents, 35_500); // 400 margin − 45
+    assert.equal(result.talent_net_cents, 140_000);   // 1400 full talent quote
+    assert.equal(result.gross_charged_cents, 184_500);
   });
+});
 
-  it("returns zero workspace fee when talent_cost == unit_price (Free plan friend-link case)", () => {
+describe("the canonical example (6% = 3% client + 3% seller)", () => {
+  it("2 talent @ MX$1,500 + MX$500 markup each → client 4,120 / talent 3,000 / workspace 880 / platform 240", () => {
+    // The product owner's worked example. 6% total, 3% client surcharge.
+    const result = resolveBookingCommissions(baseInput({
+      currencyCode: "MXN",
+      platformConfig: defaultPlatformConfig({
+        default_take_bps: 600,        // 6% total
+        client_surcharge_bps: 300,    // 3% from the client; the other 3% from the seller
+      }),
+      offerLineItems: [
+        { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 }, // girl 1
+        { units: 1, unit_price_cents: 200_000, talent_cost_cents: 150_000 }, // girl 2
+      ],
+    }));
+    assert.equal(result.gross_cents, 400_000);          // MX$4,000 service subtotal
+    assert.equal(result.client_surcharge_cents, 12_000); // +MX$120 (3%)
+    assert.equal(result.gross_charged_cents, 412_000);   // client pays MX$4,120
+    assert.equal(result.talent_net_cents, 300_000);      // talent get MX$3,000 (full)
+    assert.equal(result.workspace_fee_cents, 88_000);    // workspace MX$880 (1,000 − 120)
+    assert.equal(result.platform_fee_cents, 24_000);     // platform MX$240 (6%)
+    assert.equal(result.seller_of_record, "workspace");
+    assert.equal(result.seller_shortfall_cents, 0);
+    // Everything the client pays is accounted for across the three lanes.
+    assert.equal(
+      result.talent_net_cents + result.workspace_fee_cents + result.platform_fee_cents,
+      result.gross_charged_cents,
+    );
+  });
+});
+
+describe("independent talent bears the seller-side fee", () => {
+  it("no workspace margin → talent is the seller of record (3% client + 3% off talent)", () => {
+    const result = resolveBookingCommissions(baseInput({
+      sellerOfRecord: "talent",
+      workspacePlan: "free",
+      platformConfig: defaultPlatformConfig({
+        default_take_bps: 600,
+        client_surcharge_bps: 300,
+      }),
+      offerLineItems: [
+        // Independent talent sells direct — quote == price, no markup.
+        { units: 1, unit_price_cents: 100_000, talent_cost_cents: 100_000 },
+      ],
+    }));
+    assert.equal(result.gross_cents, 100_000);
+    assert.equal(result.client_surcharge_cents, 3_000);  // 3% on top
+    assert.equal(result.seller_deduction_cents, 3_000);  // 3% off the talent
+    assert.equal(result.talent_net_cents, 97_000);       // talent bears their half
+    assert.equal(result.workspace_fee_cents, 0);
+    assert.equal(result.platform_fee_cents, 6_000);
+    assert.equal(result.gross_charged_cents, 103_000);
+    assert.equal(result.seller_of_record, "talent");
+  });
+});
+
+describe("thin / zero-margin workspace — platform absorbs, talent stays whole", () => {
+  it("Free friend-link (talent_cost == unit_price): talent gets 100%, only the client surcharge is collected", () => {
     const result = resolveBookingCommissions(baseInput({
       workspacePlan: "free",
       offerLineItems: [
@@ -116,8 +172,12 @@ describe("resolveBookingCommissions — happy path", () => {
       ],
     }));
     assert.equal(result.workspace_fee_cents, 0);
-    assert.equal(result.platform_fee_cents, 5_000);
-    assert.equal(result.talent_net_cents, 95_000);
+    assert.equal(result.talent_net_cents, 100_000);     // full — never touched
+    assert.equal(result.seller_deduction_cents, 0);     // no margin to take from
+    assert.equal(result.seller_shortfall_cents, 2_500); // surfaced for the composer
+    assert.equal(result.client_surcharge_cents, 2_500);
+    assert.equal(result.platform_fee_cents, 2_500);     // client side only
+    assert.equal(result.gross_charged_cents, 102_500);
   });
 });
 
@@ -133,6 +193,7 @@ describe("override hierarchy", () => {
     assert.equal(result.platform_take_bps, 250);
     assert.equal(result.platform_fee_cents, 2_500); // 2.5% of 1000 = 25
     assert.equal(result.resolved_from, "plan_tier");
+    assert.equal(result.talent_net_cents, 80_000);  // still protected
   });
 
   it("tenant override beats plan-tier", () => {
@@ -175,7 +236,7 @@ describe("override hierarchy", () => {
   });
 });
 
-describe("floor enforcement", () => {
+describe("floor enforcement (topped up via the client surcharge)", () => {
   it("applies platform floor when % take would be smaller", () => {
     // 1% on a small 1000-cent booking = 10 cents; floor = 50 cents → floor wins
     const result = resolveBookingCommissions(baseInput({
@@ -188,6 +249,7 @@ describe("floor enforcement", () => {
       }),
     }));
     assert.equal(result.platform_fee_cents, 50);
+    assert.equal(result.talent_net_cents, 500); // talent quote untouched
   });
 
   it("% take wins when greater than floor", () => {
@@ -216,6 +278,24 @@ describe("floor enforcement", () => {
       },
     }));
     assert.equal(result.platform_fee_cents, 100);
+  });
+
+  it("a floor larger than the take is covered by the client — talent stays whole", () => {
+    // Tiny 100-cent service, floor 200. Old model threw (talent went
+    // negative). Talent-protected: the client covers the floor instead.
+    const result = resolveBookingCommissions(baseInput({
+      offerLineItems: [
+        { units: 1, unit_price_cents: 100, talent_cost_cents: 100 },
+      ],
+      platformConfig: defaultPlatformConfig({
+        default_take_floor_cents: 200,
+      }),
+    }));
+    assert.equal(result.talent_net_cents, 100);        // never touched
+    assert.equal(result.workspace_fee_cents, 0);
+    assert.equal(result.platform_fee_cents, 200);      // floor met
+    assert.equal(result.client_surcharge_cents, 200);  // client covers it
+    assert.equal(result.gross_charged_cents, 300);
   });
 });
 
@@ -285,26 +365,10 @@ describe("input validation", () => {
       "platform_take_out_of_range",
     );
   });
-
-  it("throws lanes_do_not_sum when platform fee + workspace fee would exceed gross", () => {
-    // Workspace eats 100% of margin (cost == price means workspace fee = 0),
-    // BUT the floor pushes platform_fee above gross → talent_net would go negative.
-    expectCode(
-      () => resolveBookingCommissions(baseInput({
-        offerLineItems: [
-          { units: 1, unit_price_cents: 100, talent_cost_cents: 100 },
-        ],
-        platformConfig: defaultPlatformConfig({
-          default_take_floor_cents: 200, // floor > gross
-        }),
-      })),
-      "lanes_do_not_sum",
-    );
-  });
 });
 
 describe("lane-sum invariant", () => {
-  it("always holds for non-trivial inputs", () => {
+  it("lanes always sum to what the client is charged", () => {
     const cases: ResolveBookingCommissionsInput[] = [
       baseInput(),
       baseInput({
@@ -320,13 +384,21 @@ describe("lane-sum invariant", () => {
         offerLineItems: [{ units: 1, unit_price_cents: 1, talent_cost_cents: 0 }],
         platformConfig: defaultPlatformConfig({ default_take_floor_cents: 0 }),
       }),
+      baseInput({
+        sellerOfRecord: "talent",
+        offerLineItems: [{ units: 4, unit_price_cents: 25_000, talent_cost_cents: 25_000 }],
+      }),
     ];
     for (const input of cases) {
       const r = resolveBookingCommissions(input);
       assert.equal(
-        r.platform_fee_cents + r.workspace_fee_cents + r.talent_net_cents,
-        r.gross_cents,
+        r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+        r.gross_charged_cents,
       );
+      // No lane ever goes negative.
+      assert.ok(r.talent_net_cents >= 0);
+      assert.ok(r.workspace_fee_cents >= 0);
+      assert.ok(r.platform_fee_cents >= 0);
     }
   });
 });

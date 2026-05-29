@@ -86,9 +86,11 @@ describe("lane math", () => {
   it("single line, card, platform default 5% — pins the canonical split", () => {
     const r = resolveBookingCommissions(input());
     assert.equal(r.gross_cents, 100_000);
-    assert.equal(r.workspace_fee_cents, 20_000); // (100000-80000)*1
-    assert.equal(r.platform_fee_cents, 5_000); // round(100000*500/10000)
-    assert.equal(r.talent_net_cents, 75_000); // residual
+    assert.equal(r.workspace_fee_cents, 17_500); // margin 20000 − seller deduction 2500
+    assert.equal(r.platform_fee_cents, 5_000); // 2500 client surcharge + 2500 seller deduction
+    assert.equal(r.talent_net_cents, 80_000); // FULL talent quote — protected
+    assert.equal(r.client_surcharge_cents, 2_500);
+    assert.equal(r.gross_charged_cents, 102_500);
     assert.equal(r.platform_take_bps, 500);
     assert.equal(r.platform_take_floor_cents, 0);
     assert.equal(r.resolved_from, "platform_default");
@@ -102,9 +104,9 @@ describe("lane math", () => {
       offerLineItems: [{ units: 8, unit_price_cents: 40_000, talent_cost_cents: 20_000 }],
     }));
     assert.equal(r.gross_cents, 320_000);
-    assert.equal(r.workspace_fee_cents, 160_000);
-    assert.equal(r.platform_fee_cents, 16_000);
-    assert.equal(r.talent_net_cents, 144_000);
+    assert.equal(r.workspace_fee_cents, 152_000); // 160000 margin − 8000 seller deduction
+    assert.equal(r.platform_fee_cents, 16_000);   // 8000 client + 8000 seller
+    assert.equal(r.talent_net_cents, 160_000);    // 8 × 20000 full quote — protected
   });
 
   it("sums independent line items (gross and workspace fee summed per-line)", () => {
@@ -115,19 +117,20 @@ describe("lane math", () => {
       ],
     }));
     assert.equal(r.gross_cents, 180_000);
-    assert.equal(r.workspace_fee_cents, 40_000);
-    assert.equal(r.platform_fee_cents, 9_000); // round(180000*500/10000)
-    assert.equal(r.talent_net_cents, 131_000);
+    assert.equal(r.workspace_fee_cents, 35_500); // 40000 margin − 4500 seller deduction
+    assert.equal(r.platform_fee_cents, 9_000);   // 4500 client + 4500 seller
+    assert.equal(r.talent_net_cents, 140_000);   // full talent quote — protected
   });
 
-  it("friend-link: talent_cost == unit_price → workspace fee 0, platform still takes its slice", () => {
+  it("friend-link: talent_cost == unit_price → workspace fee 0, talent FULL, only client surcharge collected", () => {
     const r = resolveBookingCommissions(input({
       workspacePlan: "free",
       offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 100_000 }],
     }));
     assert.equal(r.workspace_fee_cents, 0);
-    assert.equal(r.platform_fee_cents, 5_000);
-    assert.equal(r.talent_net_cents, 95_000);
+    assert.equal(r.platform_fee_cents, 2_500);   // zero margin → seller side absorbed by platform
+    assert.equal(r.talent_net_cents, 100_000);   // talent never pays — full quote
+    assert.equal(r.seller_shortfall_cents, 2_500);
   });
 
   it("off_platform_reason coalescing: undefined→null, null→null, ''→'' (kept), 'x'→'x'", () => {
@@ -501,41 +504,58 @@ describe("Math.round / fractional units", () => {
     assert.equal(r.talent_net_cents, 0);
   });
 
-  it("platform-fee bps rounding is half-up: gross 100010 @ 5% = 5000.5 → 5001", () => {
+  it("the take is split into two halves, each rounded independently", () => {
+    // subtotal 100010, 5% total → 2.5% client + 2.5% seller. Each half =
+    // round(100010*250/10000) = round(2500.25) = 2500 → platform fee 5000.
+    // (Rounding the *whole* take in one go would give round(5000.5)=5001;
+    // the split rounds each side, so 5000.)
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
-      // cost == price so workspace fee is 0 and talent_net can absorb it.
-      offerLineItems: [{ units: 1, unit_price_cents: 100_010, talent_cost_cents: 100_010 }],
+      offerLineItems: [{ units: 1, unit_price_cents: 100_010, talent_cost_cents: 50_000 }],
     }));
     assert.equal(r.gross_cents, 100_010);
-    assert.equal(r.platform_fee_cents, 5_001); // round(5000.5) = 5001
-    assert.equal(r.workspace_fee_cents, 0);
-    assert.equal(r.talent_net_cents, 95_009);
+    assert.equal(r.client_surcharge_cents, 2_500);
+    assert.equal(r.seller_deduction_cents, 2_500);
+    assert.equal(r.platform_fee_cents, 5_000);
+    assert.equal(r.talent_net_cents, 50_000);    // full quote — protected
+    assert.equal(r.workspace_fee_cents, 47_510); // margin 50010 − 2500
   });
 
-  it("platform-fee bps rounding rounds DOWN below .5: gross 100008 @ 5% = 5000.4 → 5000", () => {
+  it("the client surcharge rounds half-up: round(2500.5) = 2501", () => {
+    // subtotal 100020 @ 2.5% = 2500.5 → 2501 (half rounds toward +∞).
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
-      offerLineItems: [{ units: 1, unit_price_cents: 100_008, talent_cost_cents: 100_008 }],
+      offerLineItems: [{ units: 1, unit_price_cents: 100_020, talent_cost_cents: 50_000 }],
     }));
-    assert.equal(r.platform_fee_cents, 5_000); // round(5000.4) = 5000
+    assert.equal(r.client_surcharge_cents, 2_501);
+    assert.equal(r.seller_deduction_cents, 2_501);
   });
 
-  it("talent_net is the RESIDUAL so rounding drift never breaks the lane-sum invariant", () => {
-    // gross and workspace fee are rounded independently per line; talent_net
-    // is computed as gross - platformFee - workspaceFee, so it silently
-    // absorbs every rounding remainder. Pin: sum is exact even with drift.
+  it("the client surcharge rounds down below .5: round(2500.2) = 2500", () => {
+    const r = resolveBookingCommissions(input({
+      platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 0 }),
+      offerLineItems: [{ units: 1, unit_price_cents: 100_008, talent_cost_cents: 50_000 }],
+    }));
+    assert.equal(r.client_surcharge_cents, 2_500); // round(2500.2)
+  });
+
+  it("talent quote is exact; the workspace fee absorbs rounding drift; the invariant holds", () => {
+    // talent_net is now the talent's FULL quote (not a residual). The client
+    // surcharge + workspace fee carry any rounding remainder, and the three
+    // lanes still sum to gross_charged exactly.
     const r = resolveBookingCommissions(input({
       platformConfig: cfg({ default_take_bps: 500 }),
       offerLineItems: [{ units: 1, unit_price_cents: 100_001, talent_cost_cents: 79_999 }],
     }));
     assert.equal(r.gross_cents, 100_001);
-    assert.equal(r.workspace_fee_cents, 20_002);
-    assert.equal(r.platform_fee_cents, 5_000); // round(100001*500/10000)=round(5000.05)
-    assert.equal(r.talent_net_cents, 74_999); // residual
+    assert.equal(r.talent_net_cents, 79_999);      // exact full quote
+    assert.equal(r.client_surcharge_cents, 2_500); // round(2500.025)
+    assert.equal(r.seller_deduction_cents, 2_500);
+    assert.equal(r.workspace_fee_cents, 17_502);   // margin 20002 − 2500
+    assert.equal(r.platform_fee_cents, 5_000);
     assert.equal(
-      r.platform_fee_cents + r.workspace_fee_cents + r.talent_net_cents,
-      r.gross_cents,
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      r.gross_charged_cents,
     );
   });
 });
@@ -565,19 +585,22 @@ describe("units === 0 (boundary — not negative, so allowed)", () => {
       ],
     }));
     assert.equal(r.gross_cents, 100_000);
-    assert.equal(r.workspace_fee_cents, 20_000);
+    assert.equal(r.workspace_fee_cents, 17_500); // margin 20000 − seller deduction 2500
   });
 
-  it("QUIRK: units:0 + a platform FLOOR → gross 0 but fee = floor → talent_net < 0 → lanes_do_not_sum", () => {
-    // A pure-floor charge on a zero-gross booking is rejected (the floor
-    // alone cannot be financed). Pins that the floor is unconditional.
-    expectCode(
-      () => resolveBookingCommissions(input({
-        platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 50 }),
-        offerLineItems: [{ units: 0, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
-      })),
-      "lanes_do_not_sum",
-    );
+  it("units:0 + a platform FLOOR → the client covers the floor; talent stays whole (no throw)", () => {
+    // Old model threw (talent went negative). Talent-protected: a zero-gross
+    // booking with a floor charges the client the floor and leaves talent at 0.
+    const r = resolveBookingCommissions(input({
+      platformConfig: cfg({ default_take_bps: 500, default_take_floor_cents: 50 }),
+      offerLineItems: [{ units: 0, unit_price_cents: 100_000, talent_cost_cents: 80_000 }],
+    }));
+    assert.equal(r.gross_cents, 0);
+    assert.equal(r.talent_net_cents, 0);
+    assert.equal(r.workspace_fee_cents, 0);
+    assert.equal(r.platform_fee_cents, 50);      // floor, all client-side
+    assert.equal(r.client_surcharge_cents, 50);
+    assert.equal(r.gross_charged_cents, 50);
   });
 });
 
@@ -586,72 +609,61 @@ describe("units === 0 (boundary — not negative, so allowed)", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("lanes_do_not_sum (talent_net would go negative)", () => {
-  it("floor > gross → platform fee exceeds gross → throws (NOT clamp-to-0)", () => {
-    // SPEC DIVERGENCE (intentional, documented in commission.ts:188-194):
-    // commission-model-2026-05-13.md §6 says "clamp talentNetCents to 0 and
-    // log a warning". The code instead THROWS lanes_do_not_sum so the offer
-    // can't be accepted into a booking. We pin the CODE behavior; the spec
-    // line is the stale one. Not flagged as a bug — the in-code comment
-    // explicitly overrides the spec here.
-    expectCode(
-      () => resolveBookingCommissions(input({
-        offerLineItems: [{ units: 1, unit_price_cents: 100, talent_cost_cents: 100 }],
-        platformConfig: cfg({ default_take_floor_cents: 200 }), // floor > gross(100)
-      })),
-      "lanes_do_not_sum",
-    );
+  it("floor > gross → the client covers the floor; talent stays whole (no throw)", () => {
+    // Talent-protected amendment (2026-05-29): the platform fee is never
+    // carved out of the talent. A floor larger than the take is added to the
+    // client surcharge instead, so no lane goes negative — the old model's
+    // lanes_do_not_sum throw is now unreachable for valid inputs.
+    const r = resolveBookingCommissions(input({
+      offerLineItems: [{ units: 1, unit_price_cents: 100, talent_cost_cents: 100 }],
+      platformConfig: cfg({ default_take_floor_cents: 200 }),
+    }));
+    assert.equal(r.talent_net_cents, 100);
+    assert.equal(r.workspace_fee_cents, 0);
+    assert.equal(r.platform_fee_cents, 200);
+    assert.equal(r.client_surcharge_cents, 200);
+    assert.equal(r.gross_charged_cents, 300);
   });
 
-  it("CONTRACT PIN: the second sanity check (sum !== gross) is unreachable for finite inputs", () => {
-    // talentNet := gross - platformFee - workspaceFee, all integers, so
-    // platformFee + workspaceFee + talentNet === gross is an algebraic
-    // identity. The `if (sum !== gross) throw` line is dead code for any
-    // finite input — the ONLY way to trip it is the NaN-override path
-    // (section 3). This brute net proves the identity holds across a wide
-    // grid, so a refactor that breaks the residual definition gets caught.
+  it("CONTRACT PIN: the three lanes sum to gross_charged across a wide grid; no lane negative", () => {
+    // Talent-protected model: talent_net + workspace_fee + platform_fee
+    // === gross_charged for every finite input, platform_fee decomposes into
+    // client_surcharge + seller_deduction, and no lane goes negative — for
+    // BOTH seller-of-record paths. Talent protection makes the old
+    // lanes_do_not_sum throw unreachable, so nothing in the grid throws.
     let checked = 0;
-    let rejected = 0;
     for (const units of [1, 2, 3.5, 8]) {
       for (const price of [1, 999, 100_000, 100_001]) {
         for (const cost of [0, 1, 500]) {
           if (cost > price) continue;
           for (const bps of [0, 250, 500, 5000]) {
             for (const floor of [0, 25]) {
-              let r;
-              try {
-                r = resolveBookingCommissions(input({
+              for (const seller of ["workspace", "talent"] as const) {
+                const r = resolveBookingCommissions(input({
+                  sellerOfRecord: seller,
                   offerLineItems: [{ units, unit_price_cents: price, talent_cost_cents: cost }],
                   platformConfig: cfg({ default_take_bps: bps, default_take_floor_cents: floor }),
                 }));
-              } catch (e) {
-                // The ONLY expected throw in this grid is the legitimate
-                // floor>gross rejection (talent_net would go negative). Any
-                // other code here would be a genuine regression.
-                assert.ok(e instanceof CommissionResolutionError);
-                assert.equal((e as CommissionResolutionError).code, "lanes_do_not_sum");
-                rejected++;
-                continue;
+                assert.equal(
+                  r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+                  r.gross_charged_cents,
+                );
+                assert.equal(
+                  r.platform_fee_cents,
+                  r.client_surcharge_cents + r.seller_deduction_cents,
+                );
+                assert.equal(r.gross_charged_cents, r.gross_cents + r.client_surcharge_cents);
+                assert.ok(r.platform_fee_cents >= 0);
+                assert.ok(r.workspace_fee_cents >= 0);
+                assert.ok(r.talent_net_cents >= 0);
+                checked++;
               }
-              // For every input that DID resolve, the identity holds exactly.
-              assert.equal(
-                r.platform_fee_cents + r.workspace_fee_cents + r.talent_net_cents,
-                r.gross_cents,
-              );
-              assert.ok(r.platform_fee_cents >= 0);
-              assert.ok(r.workspace_fee_cents >= 0);
-              assert.ok(r.talent_net_cents >= 0);
-              assert.equal(
-                r.platform_fee_cents,
-                Math.max(Math.round((r.gross_cents * bps) / 10000), floor),
-              );
-              checked++;
             }
           }
         }
       }
     }
-    assert.ok(checked >= 100, `expected a broad grid, only checked ${checked}`);
-    assert.ok(rejected > 0, "expected some floor>gross rejections in the grid");
+    assert.ok(checked >= 200, `expected a broad grid, only checked ${checked}`);
   });
 });
 
@@ -756,8 +768,13 @@ const snap = (
   platform_take_floor_cents: 0,
   gross_cents: 100_000,
   platform_fee_cents: 5_000,
-  workspace_fee_cents: 20_000,
-  talent_net_cents: 75_000,
+  workspace_fee_cents: 17_500,
+  talent_net_cents: 80_000,
+  client_surcharge_cents: 2_500,
+  seller_deduction_cents: 2_500,
+  gross_charged_cents: 102_500,
+  seller_shortfall_cents: 0,
+  seller_of_record: "workspace",
   currency_code: "MXN",
   payment_method: "card",
   off_platform_reason: null,
@@ -766,11 +783,13 @@ const snap = (
 });
 
 describe("formatCommissionSnapshot — custom formatter contract", () => {
-  it("calls the formatter once per money lane with (cents, currency) and maps the 4 keys correctly", () => {
+  it("calls the formatter once per money lane with (cents, currency) and maps the keys correctly", () => {
     const calls: Array<[number, string]> = [];
     const out = formatCommissionSnapshot(
       snap({
         gross_cents: 111,
+        gross_charged_cents: 666,
+        client_surcharge_cents: 555,
         platform_fee_cents: 222,
         workspace_fee_cents: 333,
         talent_net_cents: 444,
@@ -784,11 +803,15 @@ describe("formatCommissionSnapshot — custom formatter contract", () => {
     // Exact arg contract (order + currency passthrough), locale-independent.
     assert.deepEqual(calls, [
       [111, "USD"], // gross
+      [666, "USD"], // grossCharged
+      [555, "USD"], // clientSurcharge
       [222, "USD"], // platformFee
       [333, "USD"], // workspaceFee
       [444, "USD"], // talentNet
     ]);
     assert.equal(out.gross, "USD:111");
+    assert.equal(out.grossCharged, "USD:666");
+    assert.equal(out.clientSurcharge, "USD:555");
     assert.equal(out.platformFee, "USD:222");
     assert.equal(out.workspaceFee, "USD:333");
     assert.equal(out.talentNet, "USD:444");
