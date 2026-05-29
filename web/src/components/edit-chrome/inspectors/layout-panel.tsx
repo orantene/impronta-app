@@ -64,7 +64,7 @@ const SECTION_TITLE =
 const FIELD_LABEL =
   "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
 const HINT = "text-[10.5px] leading-tight text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-400";
+const INHERIT_HINT = "text-[10.5px] text-zinc-500";
 
 interface LayoutPanelProps {
   presentation: Record<string, unknown>;
@@ -2363,7 +2363,7 @@ export function LayoutPanel({
               outline: "none",
             }}
           />
-          <span className="text-[10.5px] text-zinc-400">
+          <span className="text-[10.5px] text-zinc-500">
             Section sticks at this offset while you scroll past it.
           </span>
         </div>

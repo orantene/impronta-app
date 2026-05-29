@@ -921,7 +921,7 @@ function WorkspaceTemplateApplyReviewDialog({
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white text-zinc-950 shadow-2xl ring-1 ring-black/10">
         <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
               Review saved template
             </div>
             <h4
@@ -977,7 +977,7 @@ function WorkspaceTemplateApplyReviewDialog({
                   className="rounded-lg border border-zinc-200 bg-white px-3 py-2"
                 >
                   <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
-                    <span className="text-[10px] font-semibold tabular-nums text-zinc-400">
+                    <span className="text-[10px] font-semibold tabular-nums text-zinc-500">
                       {index + 1}
                     </span>
                     <span className="min-w-0 truncate">{section.name}</span>
@@ -1068,7 +1068,7 @@ function WorkspaceTemplateArchiveDialog({
     >
       <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white text-zinc-950 shadow-2xl ring-1 ring-black/10">
         <div className="border-b border-zinc-200 px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
             Archive template
           </div>
           <h4

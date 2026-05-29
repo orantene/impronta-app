@@ -97,7 +97,7 @@ export function InspectorRowDelete({
       onClick={onClick}
       aria-label={ariaLabel}
       title={ariaLabel}
-      className="inline-flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+      className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
     >
       <svg
         width="13"

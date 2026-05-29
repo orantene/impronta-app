@@ -590,7 +590,7 @@ function ToggleRow({
         className={`relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md border outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${
           checked
             ? "border-indigo-400 bg-indigo-500 text-white"
-            : "border-stone-300 bg-white text-stone-400"
+            : "border-stone-300 bg-white text-stone-500"
         }`}
         onClick={(e) => {
           e.preventDefault();

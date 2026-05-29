@@ -7496,7 +7496,7 @@ export function StylePanel({
             }}
             className="w-full cursor-pointer"
           />
-          <span className="text-[10.5px] text-zinc-400">
+          <span className="text-[10.5px] text-zinc-500">
             For text legibility over busy footage.
           </span>
         </div>

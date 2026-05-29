@@ -116,7 +116,7 @@ function DebouncedRangeInput({
     />
   );
 }
-const INHERIT_HINT = "text-[10.5px] text-zinc-400";
+const INHERIT_HINT = "text-[10.5px] text-zinc-500";
 
 type AnimationKey = "entry" | "scroll" | "hover" | "reducedMotion";
 

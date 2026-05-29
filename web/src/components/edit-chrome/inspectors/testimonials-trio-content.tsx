@@ -201,8 +201,8 @@ function QuoteGuidance({ len }: { len: number }) {
   if (len <= 120) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-zinc-400">Ideal length for three columns</span>
-        <span className="text-[10px] tabular-nums text-zinc-400">{len}</span>
+        <span className="text-[10px] text-zinc-500">Ideal length for three columns</span>
+        <span className="text-[10px] tabular-nums text-zinc-500">{len}</span>
       </div>
     );
   }
@@ -251,7 +251,7 @@ function VoiceSlot({
             {label}
           </span>
           {isEmpty && (
-            <span className="text-[10px] text-zinc-400">
+            <span className="text-[10px] text-zinc-500">
               Empty — won&apos;t appear on page
             </span>
           )}
@@ -490,7 +490,7 @@ export function TestimonialsTrioContentInspector({
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className={KIT.sectionTitle}>Three voices</span>
-          <span className="text-[10px] tabular-nums text-zinc-400">
+          <span className="text-[10px] tabular-nums text-zinc-500">
             {filledCount} / 3
           </span>
         </div>

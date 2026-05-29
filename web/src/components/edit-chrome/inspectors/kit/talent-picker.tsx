@@ -194,7 +194,7 @@ export function TalentPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by name or code…"
-                className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-8 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+                className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-8 pr-3 text-[13px] text-stone-800 placeholder:text-stone-500 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
               />
             </div>
           </div>
@@ -267,7 +267,7 @@ export function TalentPicker({
                 <button
                   type="button"
                   onClick={() => setSelected([])}
-                  className="text-[10px] font-medium text-zinc-400 transition hover:text-rose-600"
+                  className="text-[10px] font-medium text-zinc-500 transition hover:text-rose-600"
                 >
                   Clear all
                 </button>
@@ -420,7 +420,7 @@ function SearchIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"
+      className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
     >
       <circle cx="11" cy="11" r="7" />
       <path d="m21 21-4.3-4.3" />

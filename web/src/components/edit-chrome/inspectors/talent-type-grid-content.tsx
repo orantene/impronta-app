@@ -495,7 +495,7 @@ export function TalentTypeGridContentInspector({
                     <p className="truncate text-sm font-semibold text-stone-800">
                       {item.label || `Card ${index + 1}`}
                     </p>
-                    <p className="text-[11px] text-stone-400">
+                    <p className="text-[11px] text-stone-500">
                       Card {index + 1}
                     </p>
                   </div>

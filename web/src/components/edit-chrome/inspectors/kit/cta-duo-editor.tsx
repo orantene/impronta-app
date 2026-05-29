@@ -96,7 +96,7 @@ export function CtaDuoEditor({
           <button
             type="button"
             onClick={() => setAdvancedPrimary((v) => !v)}
-            className="text-[10px] font-medium text-zinc-400 hover:text-zinc-700"
+            className="text-[10px] font-medium text-zinc-500 hover:text-zinc-700"
           >
             {advancedPrimary ? "Hide link" : "Edit link"}
           </button>
@@ -132,7 +132,7 @@ export function CtaDuoEditor({
               <button
                 type="button"
                 onClick={() => setAdvancedSecondary((v) => !v)}
-                className="text-[10px] font-medium text-zinc-400 hover:text-zinc-700"
+                className="text-[10px] font-medium text-zinc-500 hover:text-zinc-700"
               >
                 {advancedSecondary ? "Hide link" : "Edit link"}
               </button>
@@ -142,7 +142,7 @@ export function CtaDuoEditor({
                   setShowSecondary(false);
                   onChangeSecondary(null);
                 }}
-                className="text-[10px] font-medium text-zinc-400 hover:text-rose-600"
+                className="text-[10px] font-medium text-zinc-500 hover:text-rose-600"
                 title="Remove secondary button"
               >
                 Remove

@@ -516,7 +516,7 @@ export function EmptyCanvasStarter({
       className="mx-auto my-16 w-full max-w-3xl px-6"
     >
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.25),0_2px_0_rgba(0,0,0,0.04)]">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
           Start here
         </div>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
@@ -814,7 +814,7 @@ export function StarterTemplateGalleryModal({
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
               Template gallery
             </div>
             <h3
@@ -865,7 +865,7 @@ export function StarterTemplateGalleryModal({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
               >
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4.3-4.3" />
@@ -876,7 +876,7 @@ export function StarterTemplateGalleryModal({
                 value={query}
                 onChange={(event) => onQueryChange(event.target.value)}
                 placeholder="Search templates, industries, sections..."
-                className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/10"
+                className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-500 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/10"
               />
             </div>
             <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -894,7 +894,7 @@ export function StarterTemplateGalleryModal({
                     }
                   >
                     {category.label}
-                    <span className={active ? "ml-1 text-white/70" : "ml-1 text-zinc-400"}>
+                    <span className={active ? "ml-1 text-white/70" : "ml-1 text-zinc-500"}>
                       {countFor(category.key)}
                     </span>
                   </button>
@@ -1010,7 +1010,7 @@ export function StarterTemplateGalleryModal({
                           </span>
                         ))}
                         {tile.sequence.length > 6 ? (
-                          <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                          <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-500">
                             +{tile.sequence.length - 6}
                           </span>
                         ) : null}
@@ -1134,7 +1134,7 @@ function TemplatePreviewPanel({
       </div>
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
             Preview
           </p>
           <h4 className="mt-1 text-lg font-semibold leading-tight tracking-tight text-zinc-950">
@@ -1179,7 +1179,7 @@ function TemplatePreviewPanel({
         ) : null}
       </div>
       <div className="mt-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
           Section order
         </div>
         <ol
@@ -1345,7 +1345,7 @@ function TemplateApplyReviewDialog({
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
         <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
               Review draft replacement
             </div>
             <h4
@@ -1401,7 +1401,7 @@ function TemplateApplyReviewDialog({
                   className="rounded-lg border border-zinc-200 bg-white px-3 py-2"
                 >
                   <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
-                    <span className="text-[10px] font-semibold tabular-nums text-zinc-400">
+                    <span className="text-[10px] font-semibold tabular-nums text-zinc-500">
                       {index + 1}
                     </span>
                     <span className="min-w-0 truncate">{section.name}</span>

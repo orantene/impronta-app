@@ -83,7 +83,7 @@ export function MediaPickerButton({
           <input
             type="url"
             placeholder="https://…"
-            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2.5 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2.5 py-1.5 text-xs text-stone-800 placeholder:text-stone-500 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
             onBlur={(e) => {
               const v = e.target.value.trim();
               if (v) onChange(v);

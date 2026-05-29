@@ -142,7 +142,7 @@ export function RichEditor({
                 aria-label={ariaLabel ?? "Rich text editor"}
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="pointer-events-none absolute left-3 top-2 text-[13px] text-stone-400">
+                  <div className="pointer-events-none absolute left-3 top-2 text-[13px] text-stone-500">
                     {placeholder}
                   </div>
                 }

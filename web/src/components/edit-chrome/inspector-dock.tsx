@@ -823,7 +823,7 @@ export function InspectorDock() {
                   <span className="truncate px-1">{crumb.label}</span>
                 )}
                 {index < inspectorBreadcrumbCrumbs.length - 1 ? (
-                  <span className="px-0.5 text-zinc-400" aria-hidden>
+                  <span className="px-0.5 text-zinc-500" aria-hidden>
                     &gt;
                   </span>
                 ) : null}

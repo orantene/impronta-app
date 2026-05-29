@@ -78,7 +78,7 @@ export function AiRewriteButton({
         onClick={() => setOpen((v) => !v)}
         title="Rewrite with AI"
         aria-label={`Rewrite ${fieldName} with AI`}
-        className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400 hover:bg-white hover:border-stone-300 transition-colors"
+        className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-white hover:border-stone-300 transition-colors"
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z" />
@@ -91,7 +91,7 @@ export function AiRewriteButton({
           className="absolute right-0 top-full z-50 mt-1 w-[300px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
             Rewrite {fieldName}
           </div>
           <div className="mb-2 flex flex-wrap gap-1">
@@ -108,7 +108,7 @@ export function AiRewriteButton({
             ))}
           </div>
           <textarea
-            className="mb-2 w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+            className="mb-2 w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2 text-[12px] text-stone-800 placeholder:text-stone-500 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
             rows={2}
             placeholder='Or your own instruction (e.g. "translate to Spanish")'
             value={instruction}
@@ -119,7 +119,7 @@ export function AiRewriteButton({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-md px-2 py-1 text-[10px] text-stone-400 hover:bg-[#faf9f6]"
+              className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
             >
               Close
             </button>
@@ -148,7 +148,7 @@ export function AiRewriteButton({
                   onClick={() => {
                     setProposed(null);
                   }}
-                  className="rounded-md px-2 py-1 text-[10px] text-stone-400 hover:bg-[#faf9f6]"
+                  className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
                 >
                   Discard
                 </button>

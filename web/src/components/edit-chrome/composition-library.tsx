@@ -1258,7 +1258,7 @@ export function CompositionLibraryOverlay() {
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
           >
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.3-4.3" />
@@ -1392,7 +1392,7 @@ export function CompositionLibraryOverlay() {
             ) : (
               <>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                     Kit & starter filters
                   </span>
                   <button
@@ -1929,7 +1929,7 @@ function DrawerBodyInner({
             ? `No kits, templates, or section types match "${query.trim()}".`
             : "No section templates or types available for this area of the page."}
         </p>
-        {recovery ? <p className="m-0 text-xs leading-relaxed text-zinc-400">{recovery}</p> : null}
+        {recovery ? <p className="m-0 text-xs leading-relaxed text-zinc-500">{recovery}</p> : null}
       </div>
     );
   }
@@ -2008,11 +2008,11 @@ function DrawerBodyInner({
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 Homepage kits
               </h3>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
                 Multi-section sequences that stay individually editable.
               </p>
             </div>
-            <span className="text-[10px] text-zinc-400 tabular-nums">
+            <span className="text-[10px] text-zinc-500 tabular-nums">
               {availableTemplateKitCount}/{templateKits.length} available
             </span>
           </div>
@@ -2045,11 +2045,11 @@ function DrawerBodyInner({
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 Starter section templates
               </h3>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
                 Designed presets that insert real editable sections.
               </p>
             </div>
-            <span className="text-[10px] text-zinc-400 tabular-nums">
+            <span className="text-[10px] text-zinc-500 tabular-nums">
               {availableTemplateStarterCount}/{templateStarters.length} available
             </span>
           </div>
@@ -2086,7 +2086,7 @@ function DrawerBodyInner({
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 {CATEGORY_LABEL[cat] ?? cat}
               </h3>
-              <span className="text-[10px] text-zinc-400 tabular-nums">
+              <span className="text-[10px] text-zinc-500 tabular-nums">
                 {entries.length}
               </span>
             </div>
@@ -2200,7 +2200,7 @@ function KitReviewOverlay({
       >
         <div className="flex items-start justify-between gap-4 border-b border-[#eee9dd] px-5 py-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Review kit
             </p>
             <h3
@@ -2339,7 +2339,7 @@ function KitReviewOverlay({
                     </span>
                     {stylePresets.length > 0 ? (
                       <span className="mt-3 block">
-                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
                           Starting style
                         </span>
                         <span className="grid gap-1.5 sm:grid-cols-2">
@@ -2475,7 +2475,7 @@ function StarterReviewOverlay({
         <div className="min-h-0 overflow-y-auto border-t border-[#eee9dd] px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                 Review section
               </p>
               <h3
@@ -2516,7 +2516,7 @@ function StarterReviewOverlay({
           </div>
           {stylePresets.length > 0 ? (
             <div className="mt-3 rounded-xl border border-[#eee9dd] bg-white p-3">
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
                 Starting style
               </span>
               <div className="mt-2 grid gap-2">
@@ -2540,7 +2540,7 @@ function StarterReviewOverlay({
           ) : null}
           <div className="mt-3 rounded-xl border border-[#eee9dd] bg-[#fbfaf7] p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
                 Data connection
               </span>
               {starter.dataBindingKey ? (
@@ -2552,7 +2552,7 @@ function StarterReviewOverlay({
             </span>
           </div>
           <div className="mt-3 rounded-xl border border-[#eee9dd] bg-white p-3">
-            <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+            <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
               What&apos;s included
             </span>
             <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-700">
@@ -2562,7 +2562,7 @@ function StarterReviewOverlay({
               <span className="font-medium text-zinc-600">What you can change: </span>
               {starter.editScope}
             </span>
-            <span className="mt-2 block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+            <span className="mt-2 block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
               Fine-tune in inspector
             </span>
             <span className="mt-1 flex">
@@ -2610,7 +2610,7 @@ function StarterReviewFact({
 }) {
   return (
     <div className="rounded-xl border border-[#eee9dd] bg-[#fbfaf7] p-3">
-      <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+      <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
         {label}
       </span>
       <span className="mt-1 block text-xs font-medium leading-snug text-zinc-700">
@@ -3117,7 +3117,7 @@ function TemplateKitCard({
         </p>
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-[10px] text-zinc-400">
+        <span className="text-[10px] text-zinc-500">
           {compatibility.ok
             ? "Review or drag into the canvas"
             : (compatibility.reason ?? "Not available for this part of the page")}
@@ -3195,7 +3195,7 @@ function TemplateStarterCard({
           <span className="block text-sm font-semibold text-zinc-950">
             {starter.label}
           </span>
-          <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+          <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">
             {starter.sectionTypeKey.replace(/_/g, " ")}
           </span>
         </div>
@@ -3228,7 +3228,7 @@ function TemplateStarterCard({
         {starter.description}
       </p>
       <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-2 py-1.5">
-        <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
           What&apos;s included
         </span>
         <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
@@ -3236,7 +3236,7 @@ function TemplateStarterCard({
         </p>
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 px-0.5 pt-1">
-        <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400">
+        <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500">
           {compatibility.ok
             ? `${editModelHeadline(starter.editModel)} · ${starter.editScope}`
             : (compatibility.reason ?? "Not available for this part of the page")}
@@ -3364,7 +3364,7 @@ function Tab({ active, onClick, label, count, mobile }: TabProps) {
         className={
           active
             ? "tabular-nums text-white/70"
-            : "tabular-nums text-zinc-400"
+            : "tabular-nums text-zinc-500"
         }
       >
         {count}

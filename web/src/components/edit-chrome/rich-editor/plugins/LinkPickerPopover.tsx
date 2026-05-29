@@ -97,14 +97,14 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
       <div className="flex items-center justify-between pb-2">
         <span
           id="rich-link-popover-title"
-          className="text-xs font-medium uppercase tracking-wide text-stone-400"
+          className="text-xs font-medium uppercase tracking-wide text-stone-500"
         >
           Link target
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="text-stone-400 hover:text-stone-700"
+          className="text-stone-500 hover:text-stone-700"
           aria-label="Close"
         >
           ✕
@@ -118,7 +118,7 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
       <div className="mt-3 flex items-center justify-between gap-2">
         <button
           type="button"
-          className="rounded-lg border border-[#e5e0d5] px-2 py-1 text-xs text-stone-400 hover:text-stone-700 transition-colors"
+          className="rounded-lg border border-[#e5e0d5] px-2 py-1 text-xs text-stone-500 hover:text-stone-700 transition-colors"
           onClick={() => apply("")}
           title="Remove the link"
         >

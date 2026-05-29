@@ -155,7 +155,7 @@ export function StyleTab({ config, patch }: Props) {
       >
         <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color] duration-150 hover:border-[#e5e0d5]">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10.5px] uppercase tracking-wider text-stone-400">
+            <span className="text-[10.5px] uppercase tracking-wider text-stone-500">
               Current preset
             </span>
             <span className="text-[13px] font-semibold text-stone-800">
@@ -261,7 +261,7 @@ function ColorRow({
               setDraft("");
               onChange("");
             }}
-            className="text-[10.5px] font-medium text-stone-400 transition hover:text-rose-600"
+            className="text-[10.5px] font-medium text-stone-500 transition hover:text-rose-600"
           >
             Clear
           </button>

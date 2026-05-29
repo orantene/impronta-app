@@ -88,7 +88,7 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
         </label>
         <input
           type="text"
-          className="flex-1 bg-transparent font-mono text-[12px] text-stone-700 placeholder:text-stone-400 focus:outline-none"
+          className="flex-1 bg-transparent font-mono text-[12px] text-stone-700 placeholder:text-stone-500 focus:outline-none"
           placeholder="#— or rgba()"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -111,7 +111,7 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
               setDraft("");
               onChange("");
             }}
-            className="text-[10.5px] font-medium text-stone-400 transition hover:text-rose-600"
+            className="text-[10.5px] font-medium text-stone-500 transition hover:text-rose-600"
           >
             Clear
           </button>

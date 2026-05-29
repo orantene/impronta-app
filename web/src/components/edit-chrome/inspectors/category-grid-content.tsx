@@ -336,7 +336,7 @@ function CategoryRow({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex size-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+              className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
               aria-label={expanded ? "Hide details" : "Show details"}
               title={expanded ? "Hide details" : "Show details"}
             >
@@ -362,7 +362,7 @@ function CategoryRow({
         <div className="flex flex-col gap-0.5">
           <input
             type="text"
-            className="w-full rounded-sm bg-transparent px-0 py-0.5 text-[13px] font-medium text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
+            className="w-full rounded-sm bg-transparent px-0 py-0.5 text-[13px] font-medium text-zinc-900 placeholder:text-zinc-500 focus:outline-none"
             value={item.label}
             placeholder="Category name"
             maxLength={60}
@@ -370,7 +370,7 @@ function CategoryRow({
           />
           <input
             type="text"
-            className="w-full rounded-sm bg-transparent px-0 py-0 text-[11px] text-zinc-500 placeholder:text-zinc-400 focus:outline-none"
+            className="w-full rounded-sm bg-transparent px-0 py-0 text-[11px] text-zinc-500 placeholder:text-zinc-500 focus:outline-none"
             value={item.href ?? ""}
             placeholder="/path or https://… (optional)"
             maxLength={500}
@@ -441,7 +441,7 @@ function IconPicker({
         className={`flex aspect-square items-center justify-center rounded-lg border text-[10px] font-medium transition ${
           value === null
             ? "border-indigo-200 bg-indigo-50 text-indigo-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-            : "border-[#e5e0d5] bg-[#faf9f6] text-stone-400 hover:border-stone-300"
+            : "border-[#e5e0d5] bg-[#faf9f6] text-stone-500 hover:border-stone-300"
         }`}
         title="No icon"
       >

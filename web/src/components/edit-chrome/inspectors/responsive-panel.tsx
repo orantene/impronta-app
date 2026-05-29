@@ -58,7 +58,7 @@ const SECTION_TITLE =
 const FIELD_LABEL =
   "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
 const HINT = "text-[10.5px] leading-snug text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-400";
+const INHERIT_HINT = "text-[10.5px] text-zinc-500";
 
 // Mirror Style panel swatches so background overrides are visually
 // consistent across tabs.

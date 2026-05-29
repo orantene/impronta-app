@@ -105,7 +105,7 @@ function GalleryTileRow({
             }}
           />
         ) : (
-          <div className="text-[9px] font-medium text-zinc-400">No src</div>
+          <div className="text-[9px] font-medium text-zinc-500">No src</div>
         )
       }
       trailing={<InspectorRowDelete onClick={onRemove} />}
@@ -139,7 +139,7 @@ function GalleryTileRow({
             {item.alt ? (
               <span className="text-zinc-700">{item.alt}</span>
             ) : (
-              <span className="italic text-zinc-400">Add alt text</span>
+              <span className="italic text-zinc-500">Add alt text</span>
             )}
           </button>
         )}
@@ -238,7 +238,7 @@ function EmptyTray() {
         <path d="M21 15l-5-5-11 11" />
       </svg>
       <div className="text-[11px] font-medium text-zinc-500">No photos yet</div>
-      <div className="text-[10px] text-zinc-400">
+      <div className="text-[10px] text-zinc-500">
         Add at least 3 to publish this section.
       </div>
     </div>
@@ -375,7 +375,7 @@ export function GalleryStripContentInspector({
           <span className={KIT.sectionTitle}>
             Photos
             {rawItems.length > 0 && (
-              <span className="ml-1.5 tabular-nums text-zinc-400">
+              <span className="ml-1.5 tabular-nums text-zinc-500">
                 ({rawItems.length})
               </span>
             )}

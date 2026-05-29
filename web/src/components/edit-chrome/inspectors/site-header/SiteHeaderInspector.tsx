@@ -933,7 +933,7 @@ function SaveBanner({
     return (
       <div
         className={`mb-3 flex items-center gap-2 text-[10.5px] transition-opacity duration-200 ${
-          saving ? "text-stone-400" : "text-emerald-700/70"
+          saving ? "text-stone-500" : "text-emerald-700/70"
         }`}
       >
         <span

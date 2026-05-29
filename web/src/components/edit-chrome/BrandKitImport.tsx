@@ -136,7 +136,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
       {open ? (
         <div className="flex flex-col gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/40 p-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
               Or extract from a website URL
             </label>
             <div className="flex items-center gap-1">
