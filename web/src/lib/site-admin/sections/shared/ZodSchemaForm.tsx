@@ -9,22 +9,30 @@
  * object / array-of-objects / array-of-strings.
  *
  * The form is a "fallback by default" surface — sections that need
- * custom UX (e.g. featured_talent's roster source toggles, hero's
- * slider) keep their hand-written Editor.tsx. New simple sections can
- * skip Editor.tsx entirely and rely on this. The schema is the source
+ * custom UX keep their hand-written Editor.tsx. The schema is the source
  * of truth either way.
  *
- * Hint-based primitive swaps (no per-section configuration):
- *   - hint: "image_url"  → MediaPicker + URL input
- *   - hint: "alt_text"   → AltTextField (sibling URL field needed on parent)
- *   - hint: "href"       → LinkPicker
- *   - hint: "rich_text"  → larger textarea (we don't render the inline
- *                          markers preview here — same trade-off as the
- *                          existing hand-written editors).
+ * Information architecture (2026-05-29 unification pass) — this one
+ * component renders ~36 section drawers. It used to flat-map every field
+ * with ad-hoc class constants (the "million options" walls, e.g. Magazine
+ * Layout). It now:
+ *   1. Uses the shared inspector KIT tokens, so auto-bound drawers read
+ *      identically to the hand-curated `*-content.tsx` inspectors.
+ *   2. Groups by structure: top-level scalars in a "Content" block; each
+ *      object / array-of-objects becomes its own collapsible
+ *      `InspectorGroup` (persisted per section type). Advanced groups
+ *      (nodePresentation, seo, …) collapse by default.
+ *   3. Collapses array-repeater items to a one-line summary — a
+ *      4-card × 6-field wall becomes four tappable rows.
+ * Hierarchy is derived from the introspected `kind` — no schema changes.
  *
- * The `presentation` field is rendered separately by the parent (calls
- * PresentationPanel directly). This component skips it.
+ * Hint-based primitive swaps (no per-section config): image_url →
+ * MediaPicker; alt_text → AltTextField; href → LinkPicker; rich_text →
+ * RichEditor. The `presentation` field is rendered separately by the
+ * parent (PresentationPanel) and skipped here.
  */
+
+import { useState } from "react";
 
 import type { IntrospectedField } from "./zod-introspect";
 import { introspectSectionSchema } from "./zod-introspect";
@@ -38,14 +46,22 @@ import { LocalizedTextInput } from "./LocalizedTextInput";
 import type { I18nString } from "./i18n-text";
 import { AiRewriteButton } from "@/components/edit-chrome/inspectors/AiRewriteButton";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import {
+  InspectorGroup,
+  InspectorRowDelete,
+  KIT,
+} from "@/components/edit-chrome/inspectors/kit";
+import {
+  ADVANCED_GROUP_NAMES,
+  AI_REWRITABLE_FIELD_NAMES,
+  GROUP_LABEL_OVERRIDES,
+  deriveItemSummary,
+  humanizeEnumValue,
+  isGroupKind,
+  pickStringSiblings,
+} from "./zod-form-helpers";
 
 import type { z } from "zod";
-
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL =
-  "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
 
 interface ZodSchemaFormProps<T> {
   schema: z.ZodType<T>;
@@ -66,23 +82,23 @@ export function ZodSchemaForm<T>({
   excludeKeys,
   sectionTypeKey,
 }: ZodSchemaFormProps<T>) {
-  const fields = introspectSectionSchema(schema);
+  const fields = introspectSectionSchema(schema).filter(
+    (f) => !excludeKeys?.includes(f.name),
+  );
   const props = (value ?? {}) as Record<string, unknown>;
   const set = (next: Record<string, unknown>) =>
     onChange({ ...props, ...next } as Partial<T>);
 
-  return (
-    <div className="flex flex-col gap-4">
-      {sectionTypeKey ? (
-        <BlueprintPicker
-          sectionTypeKey={sectionTypeKey}
-          current={props}
-          onApply={(next) => onChange(next as Partial<T>)}
-        />
-      ) : null}
-      {fields
-        .filter((f) => !excludeKeys?.includes(f.name))
-        .map((f) => (
+  const primary = fields.filter((f) => !isGroupKind(f));
+  const groups = fields.filter(isGroupKind);
+
+  // When the form is all scalars there's no value in a header — render them
+  // bare. Once there are structured groups below, a "Content" header gives
+  // the top-level fields a peer label so the hierarchy reads cleanly.
+  const primaryBlock =
+    primary.length > 0 ? (
+      <div className="flex flex-col gap-4">
+        {primary.map((f) => (
           <FieldNode
             key={f.name}
             field={f}
@@ -93,7 +109,99 @@ export function ZodSchemaForm<T>({
             sectionTypeKey={sectionTypeKey}
           />
         ))}
+      </div>
+    ) : null;
+
+  return (
+    <div className="flex flex-col gap-5">
+      {sectionTypeKey ? (
+        <BlueprintPicker
+          sectionTypeKey={sectionTypeKey}
+          current={props}
+          onApply={(next) => onChange(next as Partial<T>)}
+        />
+      ) : null}
+
+      {primaryBlock && groups.length > 0 ? (
+        <InspectorGroup title="Content">{primaryBlock}</InspectorGroup>
+      ) : (
+        primaryBlock
+      )}
+
+      {groups.map((f) => {
+        const advanced = ADVANCED_GROUP_NAMES.has(f.name);
+        const base = GROUP_LABEL_OVERRIDES[f.name] ?? f.label;
+        const count =
+          f.kind === "array_of_objects" && Array.isArray(props[f.name])
+            ? (props[f.name] as unknown[]).length
+            : null;
+        const title = count !== null ? `${base} · ${count}` : base;
+        return (
+          <InspectorGroup
+            key={f.name}
+            title={title}
+            collapsible
+            advanced={advanced}
+            storageKey={
+              sectionTypeKey ? `zf:${sectionTypeKey}:${f.name}` : undefined
+            }
+          >
+            <GroupBody
+              field={f}
+              value={props[f.name]}
+              onChange={(v) => set({ [f.name]: v })}
+              tenantId={tenantId}
+            />
+          </InspectorGroup>
+        );
+      })}
     </div>
+  );
+}
+
+/**
+ * Renders the *inner* content of a top-level object / array group. The
+ * surrounding `InspectorGroup` already supplies the title + collapse, so
+ * this never draws its own border or header (that's what made nested
+ * objects double-chrome before).
+ */
+function GroupBody({
+  field,
+  value,
+  onChange,
+  tenantId,
+}: {
+  field: IntrospectedField;
+  value: unknown;
+  onChange: (next: unknown) => void;
+  tenantId?: string;
+}) {
+  if (field.kind === "object") {
+    const obj = (value as Record<string, unknown>) ?? {};
+    return (
+      <div className="flex flex-col gap-3">
+        {field.children?.map((child) => (
+          <FieldNode
+            key={child.name}
+            field={child}
+            value={obj[child.name]}
+            siblings={obj}
+            onChange={(v) => onChange({ ...obj, [child.name]: v })}
+            tenantId={tenantId}
+          />
+        ))}
+      </div>
+    );
+  }
+  // array_of_objects
+  return (
+    <ArrayOfObjectsField
+      field={field}
+      value={Array.isArray(value) ? (value as Array<Record<string, unknown>>) : []}
+      onChange={onChange}
+      tenantId={tenantId}
+      headerless
+    />
   );
 }
 
@@ -119,8 +227,8 @@ function FieldNode({
   // structured picker while plain z.string() href fields keep LinkPicker.
   if (field.kind === "link_ref") {
     return (
-      <div className={FIELD}>
-        <span className={LABEL}>
+      <div className={KIT.field}>
+        <span className={KIT.label}>
           {field.label}
           {field.optional ? "" : " *"}
         </span>
@@ -130,9 +238,7 @@ function FieldNode({
           tenantId={tenantId}
         />
         {field.description ? (
-          <span className="text-[11px] text-muted-foreground">
-            {field.description}
-          </span>
+          <span className={KIT.hint}>{field.description}</span>
         ) : null}
       </div>
     );
@@ -141,8 +247,8 @@ function FieldNode({
   // ---- Hint-based primitive swaps -------------------------------------
   if (field.hint === "href") {
     return (
-      <div className={FIELD}>
-        <span className={LABEL}>
+      <div className={KIT.field}>
+        <span className={KIT.label}>
           {field.label}
           {field.optional ? "" : " *"}
         </span>
@@ -170,14 +276,14 @@ function FieldNode({
 
   if (field.hint === "image_url") {
     return (
-      <div className={FIELD}>
-        <span className={LABEL}>
+      <div className={KIT.field}>
+        <span className={KIT.label}>
           {field.label}
           {field.optional ? "" : " *"}
         </span>
         <div className="flex items-center gap-2">
           <input
-            className={`${INPUT} flex-1`}
+            className={`${KIT.input} flex-1`}
             placeholder="https://…"
             value={(value as string) ?? ""}
             onChange={(e) => onChange(e.target.value || undefined)}
@@ -227,9 +333,9 @@ function FieldNode({
     case "url":
     case "email":
       return (
-        <label className={FIELD}>
+        <label className={KIT.field}>
           <div className="flex items-center justify-between gap-2">
-            <span className={LABEL}>
+            <span className={KIT.label}>
               {field.label}
               {field.optional ? "" : " *"}
             </span>
@@ -256,7 +362,7 @@ function FieldNode({
           ) : (
             <input
               type={field.kind === "text" ? "text" : field.kind}
-              className={INPUT}
+              className={KIT.input}
               maxLength={field.max}
               value={(value as string) ?? ""}
               onChange={(e) =>
@@ -265,18 +371,16 @@ function FieldNode({
             />
           )}
           {field.description ? (
-            <span className="text-[11px] text-muted-foreground">
-              {field.description}
-            </span>
+            <span className={KIT.hint}>{field.description}</span>
           ) : null}
         </label>
       );
 
     case "textarea":
       return (
-        <label className={FIELD}>
+        <label className={KIT.field}>
           <div className="flex items-center justify-between gap-2">
-            <span className={LABEL}>
+            <span className={KIT.label}>
               {field.label}
               {field.optional ? "" : " *"}
             </span>
@@ -302,7 +406,7 @@ function FieldNode({
             />
           ) : (
             <textarea
-              className={INPUT}
+              className={KIT.textarea}
               rows={3}
               maxLength={field.max}
               value={(value as string) ?? ""}
@@ -311,19 +415,22 @@ function FieldNode({
               }
             />
           )}
+          {field.description ? (
+            <span className={KIT.hint}>{field.description}</span>
+          ) : null}
         </label>
       );
 
     case "number":
       return (
-        <label className={FIELD}>
-          <span className={LABEL}>
+        <label className={KIT.field}>
+          <span className={KIT.label}>
             {field.label}
             {field.optional ? "" : " *"}
           </span>
           <input
             type="number"
-            className={INPUT}
+            className={KIT.input}
             min={field.min}
             max={field.max}
             value={
@@ -339,13 +446,14 @@ function FieldNode({
 
     case "boolean":
       return (
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2.5">
           <input
             type="checkbox"
+            className="size-4 accent-[#3d4f7c]"
             checked={Boolean(value ?? field.defaultValue ?? false)}
             onChange={(e) => onChange(e.target.checked)}
           />
-          <span className={LABEL}>{field.label}</span>
+          <span className={KIT.label}>{field.label}</span>
         </label>
       );
 
@@ -357,12 +465,12 @@ function FieldNode({
       const current = (value as string) ?? (field.defaultValue as string) ?? "";
       if (optCount > 0 && optCount <= 5) {
         return (
-          <div className={FIELD}>
-            <span className={LABEL}>
+          <div className={KIT.field}>
+            <span className={KIT.label}>
               {field.label}
               {field.optional ? "" : " *"}
             </span>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {field.options?.map((o) => {
                 const active = o === current;
                 return (
@@ -370,22 +478,7 @@ function FieldNode({
                     key={o}
                     type="button"
                     onClick={() => onChange(o)}
-                    /*
-                     * Sprint 3.2.1 — operator-neutral active state.
-                     * Was `border-zinc-900 bg-zinc-900 text-white` — every
-                     * Speed/Direction/Separator/Variant enum chip rendered
-                     * as a solid black pill, stacking ~4 black pills per
-                     * panel and clashing with the cream/white-pill active
-                     * treatment used by LinkPicker tabs and DrawerTabs in
-                     * the same drawer. Now: soft white pill + hairline +
-                     * subtle shadow to match the prototype's selected-chip
-                     * pattern across the whole inspector.
-                     */
-                    className={
-                      active
-                        ? "rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-                        : "rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-500 transition hover:bg-white hover:text-zinc-700"
-                    }
+                    className={active ? KIT.enumChipOn : KIT.enumChipOff}
                   >
                     {humanizeEnumValue(o)}
                   </button>
@@ -396,13 +489,13 @@ function FieldNode({
         );
       }
       return (
-        <label className={FIELD}>
-          <span className={LABEL}>
+        <label className={KIT.field}>
+          <span className={KIT.label}>
             {field.label}
             {field.optional ? "" : " *"}
           </span>
           <select
-            className={INPUT}
+            className={KIT.select}
             value={current}
             onChange={(e) => onChange(e.target.value)}
           >
@@ -419,13 +512,13 @@ function FieldNode({
 
     case "array_of_strings":
       return (
-        <label className={FIELD}>
-          <span className={LABEL}>
+        <label className={KIT.field}>
+          <span className={KIT.label}>
             {field.label} (one per line)
             {field.optional ? "" : " *"}
           </span>
           <textarea
-            className={INPUT}
+            className={KIT.textarea}
             rows={4}
             value={
               Array.isArray(value)
@@ -455,11 +548,12 @@ function FieldNode({
       );
 
     case "object":
+      // Nested object (inside an array item or another object). Top-level
+      // objects are rendered by GroupBody inside an InspectorGroup; this
+      // path is the nested case only, so it keeps a light bordered card.
       return (
-        <fieldset className="rounded-md border border-border/60 p-3">
-          <legend className="px-1 text-xs uppercase tracking-wide text-muted-foreground">
-            {field.label}
-          </legend>
+        <div className="flex flex-col gap-2.5 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/60 p-3">
+          <span className={KIT.groupTitle}>{field.label}</span>
           <div className="flex flex-col gap-3">
             {field.children?.map((child) => {
               const obj = (value as Record<string, unknown>) ?? {};
@@ -475,57 +569,16 @@ function FieldNode({
               );
             })}
           </div>
-        </fieldset>
+        </div>
       );
 
     default:
       return (
-        <div className="text-[11px] italic text-muted-foreground">
+        <div className="text-[11px] italic text-stone-500">
           (unsupported field {field.name})
         </div>
       );
   }
-}
-
-/**
- * Mirrors the server-side rewrite allow-list (see ai-rewrite-action.ts).
- * Kept inlined to avoid a server-only import in this client file.
- */
-const AI_REWRITABLE_FIELD_NAMES = new Set([
-  "headline",
-  "subheadline",
-  "eyebrow",
-  "copy",
-  "body",
-  "intro",
-  "caption",
-  "footnote",
-  "reassurance",
-  "successMessage",
-  "title",
-  "category",
-  "byline",
-  "pullQuote",
-]);
-
-/** Strip non-string siblings + the field itself for the AI context block. */
-function pickStringSiblings(
-  siblings: Record<string, unknown>,
-  excludeKey: string,
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(siblings)) {
-    if (k === excludeKey) continue;
-    if (typeof v === "string" && v.trim().length > 0) out[k] = v;
-  }
-  return out;
-}
-
-function humanizeEnumValue(value: string): string {
-  // "fade-up" → "Fade up"; "5/6" → "5/6"; "edge-to-edge" → "Edge to edge"
-  return value
-    .replace(/[-_]/g, " ")
-    .replace(/^(.)/, (c) => c.toUpperCase());
 }
 
 interface ArrayOfObjectsFieldProps {
@@ -533,6 +586,8 @@ interface ArrayOfObjectsFieldProps {
   value: Array<Record<string, unknown>>;
   onChange: (next: unknown) => void;
   tenantId?: string;
+  /** When the parent InspectorGroup already supplies the title + count. */
+  headerless?: boolean;
 }
 
 function ArrayOfObjectsField({
@@ -540,6 +595,7 @@ function ArrayOfObjectsField({
   value,
   onChange,
   tenantId,
+  headerless = false,
 }: ArrayOfObjectsFieldProps) {
   const min = field.min ?? 0;
   const max = field.max ?? 50;
@@ -557,53 +613,116 @@ function ArrayOfObjectsField({
       blank[child.name] = "";
     }
   }
+  const atMax = max ? value.length >= max : false;
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className={LABEL}>
-          {field.label} ({value.length}
-          {max ? ` / ${max}` : ""})
-        </span>
+    <div className="flex flex-col gap-2.5">
+      {!headerless ? (
+        <div className="flex items-center justify-between">
+          <span className={KIT.label}>
+            {field.label} ({value.length}
+            {max ? ` / ${max}` : ""})
+          </span>
+        </div>
+      ) : null}
+
+      {value.map((item, i) => (
+        <ArrayItemCard
+          key={i}
+          field={field}
+          item={item}
+          index={i}
+          canRemove={value.length > min}
+          tenantId={tenantId}
+          onChange={(next) => {
+            const arr = [...value];
+            arr[i] = next;
+            onChange(arr);
+          }}
+          onRemove={() => onChange(value.filter((_, j) => j !== i))}
+        />
+      ))}
+
+      <button
+        type="button"
+        disabled={atMax}
+        onClick={() => onChange([...value, { ...blank }])}
+        className={`${KIT.ghostButton} self-start disabled:cursor-not-allowed disabled:opacity-50`}
+      >
+        + Add
+      </button>
+    </div>
+  );
+}
+
+/**
+ * A single repeater item. Collapsed by default — shows a one-line summary
+ * + remove control. Expand to edit the item's fields. This is the core
+ * wall-reduction: an N-card list reads as N tappable rows, not N×M fields.
+ */
+function ArrayItemCard({
+  field,
+  item,
+  index,
+  canRemove,
+  onChange,
+  onRemove,
+  tenantId,
+}: {
+  field: IntrospectedField;
+  item: Record<string, unknown>;
+  index: number;
+  canRemove: boolean;
+  onChange: (next: Record<string, unknown>) => void;
+  onRemove: () => void;
+  tenantId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const summary = deriveItemSummary(field.children, item, index);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6]">
+      <div className="flex items-center gap-2 px-2 py-1.5">
         <button
           type="button"
-          disabled={max ? value.length >= max : false}
-          onClick={() => onChange([...value, { ...blank }])}
-          className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50"
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"
+          aria-expanded={open}
         >
-          + Add
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`shrink-0 text-stone-500 transition ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+          <span className="truncate text-[13px] font-medium text-stone-700">
+            {summary}
+          </span>
         </button>
+        {canRemove ? <InspectorRowDelete onClick={onRemove} /> : null}
       </div>
-      {value.map((item, i) => (
-        <div
-          key={i}
-          className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-3"
-        >
+      {open ? (
+        <div className="flex flex-col gap-3 border-t border-[#e5e0d5] px-3 py-3">
           {field.children?.map((child) => (
             <FieldNode
               key={child.name}
               field={child}
               value={item[child.name]}
               siblings={item}
-              onChange={(v) => {
-                const next = [...value];
-                next[i] = { ...item, [child.name]: v };
-                onChange(next);
-              }}
+              onChange={(v) => onChange({ ...item, [child.name]: v })}
               tenantId={tenantId}
             />
           ))}
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={value.length <= min}
-              onClick={() => onChange(value.filter((_, j) => j !== i))}
-              className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30"
-            >
-              × Remove
-            </button>
-          </div>
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }
