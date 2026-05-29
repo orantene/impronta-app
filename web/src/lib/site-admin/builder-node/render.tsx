@@ -141,6 +141,17 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-fit]{object-fit:var(--bn-tablet-fit)!important}
   .site-builder-node[data-builder-style-tablet-ratio]{aspect-ratio:var(--bn-tablet-ratio)!important}
   .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
+  .site-builder-node[data-builder-style-tablet-font-family]{font-family:var(--bn-tablet-font-family)!important}
+  .site-builder-node[data-builder-style-tablet-font-size]{font-size:var(--bn-tablet-font-size)!important}
+  .site-builder-node[data-builder-style-tablet-font-weight]{font-weight:var(--bn-tablet-font-weight)!important}
+  .site-builder-node[data-builder-style-tablet-line-height]{line-height:var(--bn-tablet-line-height)!important}
+  .site-builder-node[data-builder-style-tablet-letter-spacing]{letter-spacing:var(--bn-tablet-letter-spacing)!important}
+  .site-builder-node[data-builder-style-tablet-text-transform]{text-transform:var(--bn-tablet-text-transform)!important}
+  .site-builder-node[data-builder-style-tablet-text-color]{color:var(--bn-tablet-text-color)!important}
+  .site-builder-node[data-builder-style-tablet-bg-color]{background-color:var(--bn-tablet-bg-color)!important}
+  .site-builder-node[data-builder-style-tablet-border-color]{border-color:var(--bn-tablet-border-color)!important}
+  .site-builder-node[data-builder-style-tablet-border-width]{border-width:var(--bn-tablet-border-width)!important}
+  .site-builder-node[data-builder-style-tablet-border-style]{border-style:var(--bn-tablet-border-style)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -167,6 +178,17 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-fit]{object-fit:var(--bn-mobile-fit)!important}
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
   .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
+  .site-builder-node[data-builder-style-mobile-font-family]{font-family:var(--bn-mobile-font-family)!important}
+  .site-builder-node[data-builder-style-mobile-font-size]{font-size:var(--bn-mobile-font-size)!important}
+  .site-builder-node[data-builder-style-mobile-font-weight]{font-weight:var(--bn-mobile-font-weight)!important}
+  .site-builder-node[data-builder-style-mobile-line-height]{line-height:var(--bn-mobile-line-height)!important}
+  .site-builder-node[data-builder-style-mobile-letter-spacing]{letter-spacing:var(--bn-mobile-letter-spacing)!important}
+  .site-builder-node[data-builder-style-mobile-text-transform]{text-transform:var(--bn-mobile-text-transform)!important}
+  .site-builder-node[data-builder-style-mobile-text-color]{color:var(--bn-mobile-text-color)!important}
+  .site-builder-node[data-builder-style-mobile-bg-color]{background-color:var(--bn-mobile-bg-color)!important}
+  .site-builder-node[data-builder-style-mobile-border-color]{border-color:var(--bn-mobile-border-color)!important}
+  .site-builder-node[data-builder-style-mobile-border-width]{border-width:var(--bn-mobile-border-width)!important}
+  .site-builder-node[data-builder-style-mobile-border-style]{border-style:var(--bn-mobile-border-style)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -214,6 +236,20 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-fit": tablet?.objectFit,
     "data-builder-style-tablet-ratio": tablet?.aspectRatio,
     "data-builder-style-tablet-hidden": tablet?.visibility === "hidden" ? "" : undefined,
+    "data-builder-style-tablet-font-family": tablet?.fontFamily ? "" : undefined,
+    "data-builder-style-tablet-font-size": tablet?.fontSize ? "" : undefined,
+    "data-builder-style-tablet-font-weight":
+      typeof tablet?.fontWeight === "number" ? "" : undefined,
+    "data-builder-style-tablet-line-height": tablet?.lineHeight ? "" : undefined,
+    "data-builder-style-tablet-letter-spacing": tablet?.letterSpacing ? "" : undefined,
+    "data-builder-style-tablet-text-transform": tablet?.textTransform ? "" : undefined,
+    "data-builder-style-tablet-text-color": tablet?.textColor ? "" : undefined,
+    "data-builder-style-tablet-bg-color": tablet?.backgroundColor ? "" : undefined,
+    "data-builder-style-tablet-border-color": tablet?.borderColor ? "" : undefined,
+    "data-builder-style-tablet-border-width":
+      tablet?.borderColor || tablet?.borderWidth || tablet?.borderStyle ? "" : undefined,
+    "data-builder-style-tablet-border-style":
+      tablet?.borderColor || tablet?.borderWidth || tablet?.borderStyle ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -227,6 +263,20 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-fit": mobile?.objectFit,
     "data-builder-style-mobile-ratio": mobile?.aspectRatio,
     "data-builder-style-mobile-hidden": mobile?.visibility === "hidden" ? "" : undefined,
+    "data-builder-style-mobile-font-family": mobile?.fontFamily ? "" : undefined,
+    "data-builder-style-mobile-font-size": mobile?.fontSize ? "" : undefined,
+    "data-builder-style-mobile-font-weight":
+      typeof mobile?.fontWeight === "number" ? "" : undefined,
+    "data-builder-style-mobile-line-height": mobile?.lineHeight ? "" : undefined,
+    "data-builder-style-mobile-letter-spacing": mobile?.letterSpacing ? "" : undefined,
+    "data-builder-style-mobile-text-transform": mobile?.textTransform ? "" : undefined,
+    "data-builder-style-mobile-text-color": mobile?.textColor ? "" : undefined,
+    "data-builder-style-mobile-bg-color": mobile?.backgroundColor ? "" : undefined,
+    "data-builder-style-mobile-border-color": mobile?.borderColor ? "" : undefined,
+    "data-builder-style-mobile-border-width":
+      mobile?.borderColor || mobile?.borderWidth || mobile?.borderStyle ? "" : undefined,
+    "data-builder-style-mobile-border-style":
+      mobile?.borderColor || mobile?.borderWidth || mobile?.borderStyle ? "" : undefined,
   };
 }
 
@@ -299,6 +349,52 @@ function responsiveStyleVars(
     "--bn-mobile-ratio": style?.responsive?.mobile?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.mobile.aspectRatio]
       : undefined,
+    // Free-value escapes — per-breakpoint overrides. Desktop applies these inline
+    // in sharedNodeStyle; these vars only render when the breakpoint value is set,
+    // gated by the matching data-attr so an unset var never clobbers the desktop
+    // value (an ungated !important rule would reset inherited props to the parent).
+    "--bn-tablet-font-family": style?.responsive?.tablet?.fontFamily,
+    "--bn-tablet-font-size": style?.responsive?.tablet?.fontSize,
+    "--bn-tablet-font-weight": style?.responsive?.tablet?.fontWeight,
+    "--bn-tablet-line-height": style?.responsive?.tablet?.lineHeight,
+    "--bn-tablet-letter-spacing": style?.responsive?.tablet?.letterSpacing,
+    "--bn-tablet-text-transform": style?.responsive?.tablet?.textTransform,
+    "--bn-tablet-text-color": style?.responsive?.tablet?.textColor,
+    "--bn-tablet-bg-color": style?.responsive?.tablet?.backgroundColor,
+    "--bn-tablet-border-color": style?.responsive?.tablet?.borderColor,
+    "--bn-tablet-border-width":
+      style?.responsive?.tablet?.borderColor ||
+      style?.responsive?.tablet?.borderWidth ||
+      style?.responsive?.tablet?.borderStyle
+        ? style?.responsive?.tablet?.borderWidth ?? style?.borderWidth ?? "1px"
+        : undefined,
+    "--bn-tablet-border-style":
+      style?.responsive?.tablet?.borderColor ||
+      style?.responsive?.tablet?.borderWidth ||
+      style?.responsive?.tablet?.borderStyle
+        ? style?.responsive?.tablet?.borderStyle ?? style?.borderStyle ?? "solid"
+        : undefined,
+    "--bn-mobile-font-family": style?.responsive?.mobile?.fontFamily,
+    "--bn-mobile-font-size": style?.responsive?.mobile?.fontSize,
+    "--bn-mobile-font-weight": style?.responsive?.mobile?.fontWeight,
+    "--bn-mobile-line-height": style?.responsive?.mobile?.lineHeight,
+    "--bn-mobile-letter-spacing": style?.responsive?.mobile?.letterSpacing,
+    "--bn-mobile-text-transform": style?.responsive?.mobile?.textTransform,
+    "--bn-mobile-text-color": style?.responsive?.mobile?.textColor,
+    "--bn-mobile-bg-color": style?.responsive?.mobile?.backgroundColor,
+    "--bn-mobile-border-color": style?.responsive?.mobile?.borderColor,
+    "--bn-mobile-border-width":
+      style?.responsive?.mobile?.borderColor ||
+      style?.responsive?.mobile?.borderWidth ||
+      style?.responsive?.mobile?.borderStyle
+        ? style?.responsive?.mobile?.borderWidth ?? style?.borderWidth ?? "1px"
+        : undefined,
+    "--bn-mobile-border-style":
+      style?.responsive?.mobile?.borderColor ||
+      style?.responsive?.mobile?.borderWidth ||
+      style?.responsive?.mobile?.borderStyle
+        ? style?.responsive?.mobile?.borderStyle ?? style?.borderStyle ?? "solid"
+        : undefined,
   });
 }
 
