@@ -265,6 +265,12 @@ const TALENT_PLANS = [
   { key: "talent_portfolio", label: "Portfolio" },
 ] as const;
 
+const GRANT_KINDS = [
+  { key: "comp", label: "Comp" },
+  { key: "trial", label: "Trial" },
+  { key: "promo", label: "Promo" },
+] as const;
+
 function TalentOverridePanel({
   talentProfileId,
   activeOverride,
@@ -276,6 +282,7 @@ function TalentOverridePanel({
 }) {
   const [mode, setMode] = useState<"idle" | "apply" | "revoking">("idle");
   const [selectedPlan, setSelectedPlan] = useState<string>("talent_pro");
+  const [grantKind, setGrantKind] = useState<"comp" | "trial" | "promo">("comp");
   const [selectedDuration, setSelectedDuration] = useState<OverrideDurationKey>("1m");
   const [customDate, setCustomDate] = useState("");
   const [reason, setReason] = useState("");
@@ -295,6 +302,7 @@ function TalentOverridePanel({
         durationKey: selectedDuration,
         customExpiresAt: customDate || null,
         reason: reason || null,
+        grantKind,
       });
       if (res.ok) {
         setResult({ ok: true, msg: `Override applied. Expires: ${res.data.expiresAt ? formatDate(res.data.expiresAt) : "never"}` });
@@ -427,30 +435,80 @@ function TalentOverridePanel({
             </div>
           </div>
 
-          {/* Duration picker */}
+          {/* Grant type picker */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>Duration</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {OVERRIDE_DURATIONS.map((d) => (
+            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>Grant type</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {GRANT_KINDS.map((g) => (
                 <button
-                  key={d.key}
+                  key={g.key}
                   type="button"
-                  onClick={() => setSelectedDuration(d.key)}
+                  onClick={() => {
+                    setGrantKind(g.key);
+                    // A trial must be time-boxed — drop an open-ended duration.
+                    if (g.key === "trial" && selectedDuration === "indefinite") {
+                      setSelectedDuration("1m");
+                    }
+                  }}
                   style={{
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                    border: `1px solid ${selectedDuration === d.key ? HQ.ink : HQ.borderSoft}`,
+                    padding: "5px 10px",
+                    borderRadius: 7,
+                    border: `1px solid ${grantKind === g.key ? HQ.ink : HQ.borderSoft}`,
                     background: "transparent",
-                    color: selectedDuration === d.key ? HQ.ink : HQ.inkMuted,
-                    fontWeight: selectedDuration === d.key ? 600 : undefined,
-                    fontSize: 11.5,
+                    color: grantKind === g.key ? HQ.ink : HQ.inkMuted,
+                    fontWeight: grantKind === g.key ? 600 : undefined,
+                    fontSize: 12,
                     fontFamily: HQ_F,
                     cursor: "pointer",
                   }}
                 >
-                  {d.label}
+                  {g.label}
                 </button>
               ))}
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11, color: HQ.inkDim, lineHeight: 1.45 }}>
+              {grantKind === "trial"
+                ? "Drives a live countdown + post-expiry upgrade nudge on the talent page. Needs an end date."
+                : grantKind === "promo"
+                  ? "A silent promotional grant — no countdown shown to the talent."
+                  : "A silent courtesy grant — no countdown shown to the talent."}
+            </div>
+          </div>
+
+          {/* Duration picker */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: HQ.inkDim, marginBottom: 6 }}>Duration</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {OVERRIDE_DURATIONS.map((d) => {
+                const disabled = grantKind === "trial" && d.key === "indefinite";
+                return (
+                  <button
+                    key={d.key}
+                    type="button"
+                    disabled={disabled}
+                    title={disabled ? "A trial needs an end date" : undefined}
+                    onClick={() => setSelectedDuration(d.key)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      border: `1px solid ${selectedDuration === d.key ? HQ.ink : HQ.borderSoft}`,
+                      background: "transparent",
+                      color: disabled
+                        ? HQ.inkDim
+                        : selectedDuration === d.key
+                          ? HQ.ink
+                          : HQ.inkMuted,
+                      fontWeight: selectedDuration === d.key ? 600 : undefined,
+                      fontSize: 11.5,
+                      fontFamily: HQ_F,
+                      cursor: disabled ? "not-allowed" : "pointer",
+                      opacity: disabled ? 0.4 : 1,
+                    }}
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
             </div>
             {selectedDuration === "custom" && (
               <input

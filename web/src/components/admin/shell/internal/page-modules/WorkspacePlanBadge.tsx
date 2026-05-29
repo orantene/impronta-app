@@ -60,6 +60,222 @@ function humanizeStatus(s: string): string {
   }
 }
 
+/** Small filled CTA used inside the trial / promo blocks. */
+function BlockCta({
+  label,
+  tone,
+  onClick,
+}: {
+  label: string;
+  tone: "ink" | "accent";
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        marginTop: 9,
+        width: "100%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        background: tone === "ink" ? COLORS.ink : COLORS.accent,
+        color: "#fff",
+        border: "none",
+        borderRadius: RADIUS.md,
+        padding: "8px 12px",
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+        fontWeight: 600,
+        cursor: "pointer",
+        transition: `opacity ${TRANSITION.micro}`,
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+    >
+      {label}
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path
+          d="M6 4l4 4-4 4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * Live / just-ended free-trial block. Three visually distinct states so the
+ * owner *feels* the shift: green while comfortably active, amber slate when
+ * expiring, premium-purple once it has ended (the "you lost something, bring
+ * it back" nudge). Never deletes anything — the workspace just dropped to its
+ * base plan.
+ */
+function TrialStateBlock({
+  trial,
+  copy,
+  onUpgrade,
+}: {
+  trial: NonNullable<WorkspacePlanSummary["trial"]>;
+  copy: ReturnType<typeof useDashboardText>;
+  onUpgrade: () => void;
+}) {
+  const { phase } = trial;
+  if (phase !== "active" && phase !== "expiring" && phase !== "expired") {
+    return null;
+  }
+  const expired = phase === "expired";
+  const expiring = phase === "expiring";
+  const bg = expired ? COLORS.royalSoft : expiring ? COLORS.amberSoft : COLORS.successSoft;
+  const fg = expired ? COLORS.royalDeep : expiring ? COLORS.amberDeep : COLORS.successDeep;
+  const accent = expired ? COLORS.royal : expiring ? COLORS.amber : COLORS.success;
+  const pct = Math.max(0, Math.min(100, Math.round(trial.pct * 100)));
+  const baseLabel = resolveTier(trial.basePlanTier).label;
+
+  const heading = expired
+    ? `${trial.grantedPlanLabel} ${copy.t("trial ended")}`
+    : `${copy.t("Free trial")} · ${trial.grantedPlanLabel}`;
+
+  const countdown = expired
+    ? trial.daysSinceExpiry <= 0
+      ? copy.t("Ended today")
+      : trial.daysSinceExpiry === 1
+        ? copy.t("Ended yesterday")
+        : `${copy.t("Ended")} ${trial.daysSinceExpiry} ${copy.t("days ago")}`
+    : trial.daysLeft <= 0
+      ? copy.t("Ends today")
+      : trial.daysLeft === 1
+        ? copy.t("1 day left")
+        : `${trial.daysLeft} ${copy.t("days left")}`;
+
+  const blurb = expired
+    ? `${copy.t("Back on")} ${baseLabel}. ${copy.t("Your data is safe — upgrade to bring back")} ${trial.grantedPlanLabel}.`
+    : expiring
+      ? `${copy.t("Upgrade to keep")} ${trial.grantedPlanLabel} ${copy.t("when your trial ends.")}`
+      : `${copy.t("Enjoying")} ${trial.grantedPlanLabel}? ${copy.t("Upgrade anytime to keep it.")}`;
+
+  const ctaLabel = expired
+    ? `${copy.t("Restore")} ${trial.grantedPlanLabel}`
+    : `${copy.t("Keep")} ${trial.grantedPlanLabel}`;
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: "11px 12px",
+        background: bg,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: fg }}>{heading}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: fg, whiteSpace: "nowrap" }}>
+          {countdown}
+        </div>
+      </div>
+      {!expired && (
+        <div
+          style={{
+            marginTop: 8,
+            height: 5,
+            borderRadius: 999,
+            background: "rgba(11,11,13,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${pct}%`,
+              height: "100%",
+              background: accent,
+              borderRadius: 999,
+            }}
+          />
+        </div>
+      )}
+      <div
+        style={{
+          fontSize: 11.5,
+          color: COLORS.inkMuted,
+          marginTop: expired ? 4 : 7,
+          lineHeight: 1.45,
+        }}
+      >
+        {blurb}
+      </div>
+      <BlockCta label={ctaLabel} tone="ink" onClick={onUpgrade} />
+    </div>
+  );
+}
+
+/**
+ * Engagement CTA — invites the owner to try the next tier free. Shown when the
+ * workspace is at its plain baseline (no live trial / comp) and the platform
+ * has an enabled trial offer for the target plan.
+ */
+function TrialPromoBlock({
+  offer,
+  copy,
+  onUpgrade,
+}: {
+  offer: NonNullable<WorkspacePlanSummary["upgradeOffer"]>;
+  copy: ReturnType<typeof useDashboardText>;
+  onUpgrade: () => void;
+}) {
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: "11px 12px",
+        background: COLORS.royalSoft,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 10,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: COLORS.royalDeep,
+          lineHeight: 1.3,
+        }}
+      >
+        {offer.ctaHeadline ?? `${copy.t("Try")} ${offer.planLabel} ${copy.t("free")}`}
+      </div>
+      {offer.ctaSubtext && (
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            marginTop: 3,
+            lineHeight: 1.45,
+          }}
+        >
+          {offer.ctaSubtext}
+        </div>
+      )}
+      <BlockCta
+        label={`${copy.t("Start")} ${offer.planLabel} ${copy.t("trial")}`}
+        tone="accent"
+        onClick={onUpgrade}
+      />
+    </div>
+  );
+}
+
 /** One label/value line in the popover body. */
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
@@ -347,9 +563,24 @@ export function WorkspacePlanBadge() {
                   <MetaRow label={copy.t("Billing")} value={copy.t("No billing on Free")} />
                 )}
 
+                {/* Live / just-ended free trial — rich countdown. A trial IS an
+                    active override, so this stands in for the generic override
+                    block below while a trial is active or freshly expired. */}
+                {data.trial &&
+                  (data.trial.phase === "active" ||
+                    data.trial.phase === "expiring" ||
+                    data.trial.phase === "expired") && (
+                    <TrialStateBlock
+                      trial={data.trial}
+                      copy={copy}
+                      onUpgrade={goToPlanSettings}
+                    />
+                  )}
+
                 {/* Platform-granted plan override — the genuine comp / "important
-                    info". Cool indigo treatment, never gold. */}
-                {data.override && (
+                    info". Cool indigo treatment, never gold. Hidden while a
+                    trial block (above) is showing for the same grant. */}
+                {data.override && (!data.trial || data.trial.phase === "comp") && (
                   <div
                     style={{
                       marginTop: 10,
@@ -382,6 +613,18 @@ export function WorkspacePlanBadge() {
                     )}
                   </div>
                 )}
+
+                {/* Engagement CTA — invite to a free trial of the next tier when
+                    the workspace is at its plain baseline and an offer exists. */}
+                {data.upgradeOffer &&
+                  data.upgradeOffer.isTrialEnabled &&
+                  !data.trial && (
+                    <TrialPromoBlock
+                      offer={data.upgradeOffer}
+                      copy={copy}
+                      onUpgrade={goToPlanSettings}
+                    />
+                  )}
               </>
             )}
           </div>

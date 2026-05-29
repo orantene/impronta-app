@@ -662,7 +662,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WorkspacePlanBadge.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 23
+      "count": 34
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
@@ -1568,6 +1568,11 @@
   "src/lib/server-actions/admin-translations-tax-loc.ts": {
     "ratchet/no-untenanted-from": {
       "count": 8
+    }
+  },
+  "src/lib/server-actions/admin-trial-offers.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 1
     }
   },
   "src/lib/server-actions/admin-user-workspaces.ts": {

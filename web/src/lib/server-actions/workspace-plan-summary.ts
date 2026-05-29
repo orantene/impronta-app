@@ -21,9 +21,23 @@ import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadWorkspaceAgencySummary } from "@/app/(workspace)/[tenantSlug]/_data-bridge/workspace-config";
 import { loadWorkspaceBillingState } from "@/app/(workspace)/[tenantSlug]/_data-bridge/billing";
-import { loadWorkspaceOverrideBanner } from "@/app/(workspace)/platform/workspace-override-banner-data";
+import { loadWorkspacePlanGrants } from "@/app/(workspace)/platform/workspace-override-banner-data";
 import { loadTierRenewLabels } from "@/lib/admin/plan-tiers-live";
 import { resolveTier } from "@/lib/admin/plan-tiers";
+import {
+  deriveTrialView,
+  type GrantKind,
+  type PlanGrantInput,
+  type TrialPhase,
+} from "@/lib/plan-trials";
+import { loadTrialOffers } from "@/lib/plan-trials/offers";
+import {
+  isWorkspacePlanTier,
+  PLAN_TIER_LABEL,
+  PLAN_TIER_RANK,
+  WORKSPACE_PLAN_TIERS,
+  type WorkspacePlanTier,
+} from "@/lib/platform/plan-override";
 
 export type WorkspacePlanSummary = {
   planTier: string;
@@ -56,7 +70,40 @@ export type WorkspacePlanSummary = {
     startedAt: string;
     reason: string | null;
   } | null;
+  /**
+   * Derived trial presentation state (countdown / expiring / post-expiry
+   * nudge). Null when there is nothing trial-related to surface.
+   */
+  trial: {
+    phase: TrialPhase;
+    grantKind: GrantKind | null;
+    grantedPlanTier: string;
+    grantedPlanLabel: string;
+    basePlanTier: string;
+    daysLeft: number;
+    daysSinceExpiry: number;
+    pct: number;
+  } | null;
+  /**
+   * The plan to advertise in the in-popover engagement CTA — either the trialed
+   * tier (keep/restore) or the next tier up. Null when already at the top.
+   */
+  upgradeOffer: {
+    planKey: string;
+    planLabel: string;
+    trialDays: number;
+    isTrialEnabled: boolean;
+    ctaHeadline: string | null;
+    ctaSubtext: string | null;
+  } | null;
 };
+
+/** The next workspace tier above `tier`, or null at the top / unknown. */
+function nextWorkspaceTierUp(tier: string): WorkspacePlanTier | null {
+  const rank = PLAN_TIER_RANK[tier as WorkspacePlanTier];
+  if (rank === undefined) return null;
+  return WORKSPACE_PLAN_TIERS.find((t) => PLAN_TIER_RANK[t] === rank + 1) ?? null;
+}
 
 export type WorkspacePlanSummaryResult =
   | { ok: true; summary: WorkspacePlanSummary }
@@ -85,16 +132,45 @@ export async function loadWorkspacePlanSummary(params: {
   }
 
   try {
-    const [summary, billingState, override, canManageBilling] = await Promise.all([
-      loadWorkspaceAgencySummary(tenantId),
-      loadWorkspaceBillingState(tenantId),
-      loadWorkspaceOverrideBanner(tenantId),
-      userHasCapability("manage_billing", tenantId),
-    ]);
+    const [summary, billingState, grants, canManageBilling, offers] =
+      await Promise.all([
+        loadWorkspaceAgencySummary(tenantId),
+        loadWorkspaceBillingState(tenantId),
+        loadWorkspacePlanGrants(tenantId),
+        userHasCapability("manage_billing", tenantId),
+        loadTrialOffers("workspace"),
+      ]);
 
     if (!summary) {
       return { ok: false, error: "Could not load this workspace's plan." };
     }
+
+    // ── Derive the trial view ────────────────────────────────────────────────
+    // Prefer the active grant; fall back to a just-ended trial so the
+    // post-expiry upgrade nudge can still show.
+    const grantForTrial = grants.active ?? grants.endedTrial;
+    const grantInput: PlanGrantInput | null = grantForTrial
+      ? {
+          status: grantForTrial.status,
+          grantKind: grantForTrial.grantKind,
+          grantedPlan: grantForTrial.overridePlanTier,
+          basePlan: grantForTrial.basePlanTier,
+          startsAt: grantForTrial.startsAt,
+          expiresAt: grantForTrial.expiresAt,
+          endedAt: grantForTrial.endedAt,
+        }
+      : null;
+    const trialView = deriveTrialView(grantInput);
+
+    // Pick the plan to advertise: keep/restore the trialed tier, else promote
+    // from the effective plan to the next tier up.
+    const targetTier: WorkspacePlanTier | null =
+      trialView.phase !== "none" && isWorkspacePlanTier(trialView.grantedPlan)
+        ? trialView.grantedPlan
+        : nextWorkspaceTierUp(summary.plan);
+    const offer = targetTier
+      ? offers.find((o) => o.planKey === targetTier) ?? null
+      : null;
 
     // Live, currency-localized renewal line (falls back to the static catalog
     // copy if the price read fails — never an empty line).
@@ -128,13 +204,40 @@ export async function loadWorkspacePlanSummary(params: {
               trialEnd: billingState.trialEnd,
             }
           : null,
-        override: override
+        override: grants.active
           ? {
-              overridePlanTier: override.overridePlanTier,
-              basePlanTier: override.basePlanTier,
-              expiresAt: override.expiresAt,
-              startedAt: override.startedAt,
-              reason: override.reason,
+              overridePlanTier: grants.active.overridePlanTier,
+              basePlanTier: grants.active.basePlanTier,
+              expiresAt: grants.active.expiresAt,
+              startedAt: grants.active.startsAt,
+              reason: grants.active.reason,
+            }
+          : null,
+        trial:
+          trialView.phase === "none"
+            ? null
+            : {
+                phase: trialView.phase,
+                grantKind: trialView.grantKind,
+                grantedPlanTier: trialView.grantedPlan,
+                grantedPlanLabel:
+                  PLAN_TIER_LABEL[trialView.grantedPlan as WorkspacePlanTier] ??
+                  trialView.grantedPlan,
+                basePlanTier: trialView.basePlan,
+                daysLeft: trialView.daysLeft,
+                daysSinceExpiry: trialView.daysSinceExpiry,
+                pct: trialView.pct,
+              },
+        upgradeOffer: offer
+          ? {
+              planKey: offer.planKey,
+              planLabel:
+                PLAN_TIER_LABEL[offer.planKey as WorkspacePlanTier] ??
+                offer.planKey,
+              trialDays: offer.trialDays,
+              isTrialEnabled: offer.isEnabled,
+              ctaHeadline: offer.ctaHeadline,
+              ctaSubtext: offer.ctaSubtext,
             }
           : null,
       },

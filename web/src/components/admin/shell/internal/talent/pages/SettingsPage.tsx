@@ -2,6 +2,7 @@
 
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
+import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { PasskeysCard } from "../../modern-features";
 import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_AGENCIES, MY_TALENT_PROFILE, useAdminShell } from "../../state";
@@ -178,17 +179,27 @@ export function SettingsPage() {
         />
       </Grid>
 
-      {/* Personal page — subscription tier not yet in bridge; show
-          Demo label so real tenants never see Marta's "Pro" plan (task 0.7). */}
+      {/* Personal page — LIVE plan / free-trial block (replaces the old Demo
+          card). Trials are granted from the platform-admin dashboard and sync
+          here automatically via the shared trial engine. Gated on a real
+          bridged profile (the mock prototype has no talent_profiles row, so the
+          self-scoped summary loader would fail) — same idiom as the cards above. */}
       <Divider label="Personal page" />
-      <Grid cols="2">
+      {bridgeTalentSelfProfile ? (
+        <TalentPlanCard
+          onCompare={() => openDrawer("talent-tier-compare")}
+          onUpgrade={() => openDrawer("talent-tier-compare")}
+        />
+      ) : (
         <SecondaryCard
-          title="Plan · coming soon"
-          description="Talent subscription tiers (Free / Pro / Max) will appear here once billing is live."
-          meta={<><StatDot tone="dim" /> Demo · coming soon</>}
+          title="Plan"
+          description="Talent subscription tiers (Free / Pro / Max). Sign in as a talent to see your live plan and any active trial."
+          meta={<><StatDot tone="dim" /> Preview</>}
           affordance="Compare plans"
           onClick={() => openDrawer("talent-tier-compare")}
         />
+      )}
+      <Grid cols="2">
         <SecondaryCard
           title="Personal page builder"
           description="Templates, sections, embeds and a Max custom domain. Coexists with all your agency rosters."

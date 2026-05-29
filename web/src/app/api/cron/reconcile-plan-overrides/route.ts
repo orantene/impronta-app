@@ -62,10 +62,27 @@ export async function GET(request: Request) {
       );
     }
 
+    // Talent overrides have their own reconcile (reverts talent_plan_key);
+    // sweep both in the same daily job so a dormant talent page also degrades
+    // on time when a Pro/Max trial lapses.
+    const { data: talentData, error: talentError } = await supabase.rpc(
+      "reconcile_expired_talent_plan_overrides",
+      { p_talent_profile_id: null },
+    );
+    if (talentError) {
+      logServerError("cron/reconcile-plan-overrides.talent-rpc", talentError);
+      return NextResponse.json(
+        { ok: false, error: talentError.message },
+        { status: 500 },
+      );
+    }
+
     const reconciled = typeof data === "number" ? data : 0;
+    const talentReconciled = typeof talentData === "number" ? talentData : 0;
     return NextResponse.json({
       ok: true,
       reconciled,
+      talentReconciled,
       durationMs: Date.now() - startedAt,
     });
   } catch (error) {
