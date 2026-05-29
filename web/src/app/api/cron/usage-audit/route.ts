@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
+import * as Sentry from "@sentry/nextjs";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { sendEmail } from "@/lib/email";
@@ -259,106 +260,117 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not configured" }, { status: 500 });
   }
 
-  try {
-    const startedAt = Date.now();
-
-    // 1) Fetch raw metrics in one RPC round trip.
-    const { data: rawMetrics, error: metricsError } = await supabase.rpc(
-      "usage_audit_metrics",
-    );
-    if (metricsError) {
-      logServerError("cron/usage-audit.metrics", metricsError);
-      return NextResponse.json(
-        { ok: false, error: metricsError.message },
-        { status: 500 },
-      );
-    }
-    const metrics = rawMetrics as Metrics;
-
-    // 2) Classify each check.
-    const findings = evaluate(metrics);
-    const alerts = findings.filter((f) => f.severity !== "ok");
-
-    // 3) All green → nothing to log or send.
-    if (alerts.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        summary: "all green",
-        durationMs: Date.now() - startedAt,
-        metrics,
-      });
-    }
-
-    // 4) Build report + persist alerts.
-    const report = buildReport(findings, metrics);
-    const auditDate = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
-    const rows = alerts.map((f) => ({
-      audit_date: auditDate,
-      severity: f.severity,
-      category: f.category,
-      content_hash: contentHashFor(f),
-      payload: f.details,
-      message: f.message,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("platform_alerts")
-      .upsert(rows, {
-        onConflict: "audit_date,category,content_hash",
-        ignoreDuplicates: true,
-      });
-    if (insertError) {
-      // Don't bail — at minimum we still want to return the report.
-      logServerError("cron/usage-audit.insert", insertError);
-    }
-
-    // 5) Best-effort email. Silent no-op when RESEND_API_KEY unset.
-    const recipient =
-      process.env.USAGE_AUDIT_EMAIL_TO?.trim() ||
-      process.env.EMAIL_REPLY_TO?.trim() ||
-      null;
-    const critCount = alerts.filter((a) => a.severity === "critical").length;
-    const warnCount = alerts.filter((a) => a.severity === "warn").length;
-
-    if (recipient) {
-      const subject = `[Tulala] Usage audit: ${critCount} CRITICAL, ${warnCount} WARN`;
-      // Wrap plain-text report in <pre> so monospace formatting survives.
-      const html = `<pre style="font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(report)}</pre>`;
+  return await Sentry.withMonitor(
+    "usage-audit",
+    async () => {
       try {
-        await sendEmail({ to: recipient, subject, html });
-      } catch (emailError) {
-        // sendEmail() already log-and-no-ops on missing key, but a real
-        // delivery failure can still throw. Don't bail — alert is in DB.
-        logServerError("cron/usage-audit.email", emailError);
-      }
-    } else {
-      // No recipient — alert is still durably in platform_alerts + the
-      // JSON response. Route the breadcrumb through the sanctioned server
-      // logger (the project lint rule forbids bare console.*).
-      logServerError(
-        "cron/usage-audit.no-recipient",
-        "USAGE_AUDIT_EMAIL_TO / EMAIL_REPLY_TO not set; email skipped",
-      );
-    }
+        const startedAt = Date.now();
 
-    return NextResponse.json({
-      ok: true,
-      summary: `${critCount} critical, ${warnCount} warn`,
-      durationMs: Date.now() - startedAt,
-      report,
-      alerts,
-      metrics,
-    });
-  } catch (error) {
-    logServerError("cron/usage-audit", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
-  }
+        // 1) Fetch raw metrics in one RPC round trip.
+        const { data: rawMetrics, error: metricsError } = await supabase.rpc(
+          "usage_audit_metrics",
+        );
+        if (metricsError) {
+          logServerError("cron/usage-audit.metrics", metricsError);
+          return NextResponse.json(
+            { ok: false, error: metricsError.message },
+            { status: 500 },
+          );
+        }
+        const metrics = rawMetrics as Metrics;
+
+        // 2) Classify each check.
+        const findings = evaluate(metrics);
+        const alerts = findings.filter((f) => f.severity !== "ok");
+
+        // 3) All green → nothing to log or send.
+        if (alerts.length === 0) {
+          return NextResponse.json({
+            ok: true,
+            summary: "all green",
+            durationMs: Date.now() - startedAt,
+            metrics,
+          });
+        }
+
+        // 4) Build report + persist alerts.
+        const report = buildReport(findings, metrics);
+        const auditDate = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
+        const rows = alerts.map((f) => ({
+          audit_date: auditDate,
+          severity: f.severity,
+          category: f.category,
+          content_hash: contentHashFor(f),
+          payload: f.details,
+          message: f.message,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("platform_alerts")
+          .upsert(rows, {
+            onConflict: "audit_date,category,content_hash",
+            ignoreDuplicates: true,
+          });
+        if (insertError) {
+          // Don't bail — at minimum we still want to return the report.
+          logServerError("cron/usage-audit.insert", insertError);
+        }
+
+        // 5) Best-effort email. Silent no-op when RESEND_API_KEY unset.
+        const recipient =
+          process.env.USAGE_AUDIT_EMAIL_TO?.trim() ||
+          process.env.EMAIL_REPLY_TO?.trim() ||
+          null;
+        const critCount = alerts.filter((a) => a.severity === "critical").length;
+        const warnCount = alerts.filter((a) => a.severity === "warn").length;
+
+        if (recipient) {
+          const subject = `[Tulala] Usage audit: ${critCount} CRITICAL, ${warnCount} WARN`;
+          // Wrap plain-text report in <pre> so monospace formatting survives.
+          const html = `<pre style="font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(report)}</pre>`;
+          try {
+            await sendEmail({ to: recipient, subject, html });
+          } catch (emailError) {
+            // sendEmail() already log-and-no-ops on missing key, but a real
+            // delivery failure can still throw. Don't bail — alert is in DB.
+            logServerError("cron/usage-audit.email", emailError);
+          }
+        } else {
+          // No recipient — alert is still durably in platform_alerts + the
+          // JSON response. Route the breadcrumb through the sanctioned server
+          // logger (the project lint rule forbids bare console.*).
+          logServerError(
+            "cron/usage-audit.no-recipient",
+            "USAGE_AUDIT_EMAIL_TO / EMAIL_REPLY_TO not set; email skipped",
+          );
+        }
+
+        return NextResponse.json({
+          ok: true,
+          summary: `${critCount} critical, ${warnCount} warn`,
+          durationMs: Date.now() - startedAt,
+          report,
+          alerts,
+          metrics,
+        });
+      } catch (error) {
+        logServerError("cron/usage-audit", error);
+        return NextResponse.json(
+          {
+            ok: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+          { status: 500 },
+        );
+      }
+    },
+    {
+      schedule: { type: "crontab", value: "0 9 * * 1" },
+      checkinMargin: 5,
+      maxRuntime: 25,
+      timezone: "UTC",
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
