@@ -456,6 +456,56 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-mobile-text-shadow=""/);
   });
 
+  it("renders free background-paint overrides and keeps cover/center defaults", () => {
+    const html = render([
+      {
+        id: "free:bg-default",
+        kind: "heading",
+        props: {
+          text: "Default paint",
+          level: 2,
+          style: { backgroundImage: "url(/a.jpg)" },
+        },
+      },
+      {
+        id: "free:bg-override",
+        kind: "heading",
+        props: {
+          text: "Custom paint",
+          level: 2,
+          style: {
+            backgroundImage: "url(/b.jpg)",
+            backgroundSize: "contain",
+            backgroundPosition: "top left",
+            backgroundRepeat: "repeat",
+            // A mobile-only image swap must NOT reset the desktop paint axes.
+            responsive: { mobile: { backgroundImage: "url(/b-mobile.jpg)" } },
+          },
+        },
+      },
+    ]);
+
+    // The default node still paints cover/center/no-repeat inline (these
+    // literals no longer live in the static sheet, so a match proves inline).
+    assert.match(html, /background-size:cover/);
+    assert.match(html, /background-position:center/);
+    assert.match(html, /background-repeat:no-repeat/);
+    // The override node paints the free values inline instead.
+    assert.match(html, /background-size:contain/);
+    assert.match(html, /background-position:top left/);
+    assert.match(html, /background-repeat:repeat/);
+    // Regression guard: the responsive bg-image rule only swaps the image now —
+    // it must not re-force background-size, or a desktop override would reset.
+    assert.match(
+      html,
+      /data-builder-style-mobile-bg-image\]\{background-image:var\(--bn-mobile-bg-image\)!important\}/,
+    );
+    assert.doesNotMatch(
+      html,
+      /data-builder-style-mobile-bg-image\]\{background-image:var\(--bn-mobile-bg-image\)!important;background-size/,
+    );
+  });
+
   it("renders the free border-radius escape over the radius token", () => {
     const html = render([
       {

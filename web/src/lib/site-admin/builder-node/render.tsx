@@ -173,7 +173,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-margin-left-free]{margin-left:var(--bn-tablet-margin-left-free)!important}
   .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
   .site-builder-node[data-builder-style-tablet-text-shadow]{text-shadow:var(--bn-tablet-text-shadow)!important}
-  .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
+  .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important}
   .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
   .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
   .site-builder-node[data-builder-style-tablet-gap-free]{--bn-gap:var(--bn-tablet-gap-free)!important}
@@ -256,7 +256,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-margin-left-free]{margin-left:var(--bn-mobile-margin-left-free)!important}
   .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
   .site-builder-node[data-builder-style-mobile-text-shadow]{text-shadow:var(--bn-mobile-text-shadow)!important}
-  .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}
+  .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important}
   .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
   .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
   .site-builder-node[data-builder-style-mobile-gap-free]{--bn-gap:var(--bn-mobile-gap-free)!important}
@@ -756,11 +756,21 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // background image/gradient is painted cover/center/no-repeat; opacity 0–1.
   if (style.boxShadow) out.boxShadow = style.boxShadow;
   if (style.textShadow) out.textShadow = style.textShadow;
-  if (style.backgroundImage) {
-    out.backgroundImage = style.backgroundImage;
-    out.backgroundSize = "cover";
-    out.backgroundPosition = "center";
-    out.backgroundRepeat = "no-repeat";
+  // Paint a background image at the desktop level AND whenever any breakpoint
+  // sets one, so the paint axes (cover/center/no-repeat defaults, or the free
+  // backgroundSize / backgroundPosition / backgroundRepeat overrides) ride the
+  // inline style across every breakpoint. The responsive bg-image CSS rule only
+  // swaps the image via its var — it never re-forces the paint axes — so a
+  // desktop override (e.g. "contain") is never reset at tablet / mobile.
+  const hasAnyBackgroundImage =
+    style.backgroundImage ||
+    style.responsive?.tablet?.backgroundImage ||
+    style.responsive?.mobile?.backgroundImage;
+  if (style.backgroundImage) out.backgroundImage = style.backgroundImage;
+  if (hasAnyBackgroundImage) {
+    out.backgroundSize = style.backgroundSize ?? "cover";
+    out.backgroundPosition = style.backgroundPosition ?? "center";
+    out.backgroundRepeat = style.backgroundRepeat ?? "no-repeat";
   }
   if (typeof style.opacity === "number") out.opacity = style.opacity;
   // Free gap escape — reassign the --bn-gap variable that every layout consumer

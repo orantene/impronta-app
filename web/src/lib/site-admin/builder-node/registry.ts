@@ -119,6 +119,11 @@ const builderNodeStyleValueSchema = z.object({
   boxShadow: z.string().max(200).optional(),
   textShadow: z.string().max(200).optional(),
   backgroundImage: z.string().max(500).optional(),
+  backgroundSize: z.string().max(40).optional(),
+  backgroundPosition: z.string().max(40).optional(),
+  backgroundRepeat: z
+    .enum(["no-repeat", "repeat", "repeat-x", "repeat-y"])
+    .optional(),
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
   gap: z.string().max(16).optional(),

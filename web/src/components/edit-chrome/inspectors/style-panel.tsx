@@ -387,6 +387,13 @@ const BUILDER_NODE_SHADOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "0 12px 24px rgba(18,18,18,0.10), 0 20px 48px rgba(18,18,18,0.16)", label: "L" },
 ];
 
+const BUILDER_NODE_BG_REPEAT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "no-repeat", label: "None" },
+  { value: "repeat", label: "Tile" },
+  { value: "repeat-x", label: "X" },
+  { value: "repeat-y", label: "Y" },
+];
+
 /**
  * Parse a stored CSS length string ("48px", "1.5rem") back into the
  * structured {value, unit} the NumberUnit control expects. Returns null for
@@ -907,6 +914,9 @@ function cleanBuilderNodeStyle(
   if (value.boxShadow) out.boxShadow = value.boxShadow;
   if (value.textShadow) out.textShadow = value.textShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
+  if (value.backgroundSize) out.backgroundSize = value.backgroundSize;
+  if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
+  if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.position) out.position = value.position;
@@ -992,6 +1002,9 @@ function cleanBuilderNodeStyleValue(
   if (value.boxShadow) out.boxShadow = value.boxShadow;
   if (value.textShadow) out.textShadow = value.textShadow;
   if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
+  if (value.backgroundSize) out.backgroundSize = value.backgroundSize;
+  if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
+  if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
   if (value.position) out.position = value.position;
@@ -6232,6 +6245,79 @@ export function StylePanel({
                       backgroundImage: e.target.value.trim() || undefined,
                     })
                   }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="backgroundSize"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background size
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="cover · contain · 100% auto"
+                  value={selectedStandaloneViewportStyle?.backgroundSize ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundSize: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="backgroundPosition"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background position
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="center · top left · 50% 20%"
+                  value={selectedStandaloneViewportStyle?.backgroundPosition ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundPosition: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backgroundRepeat"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background repeat
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.backgroundRepeat ?? ""}
+                  onChange={(next) =>
+                    setOrToggleStandaloneStyle("backgroundRepeat", next)
+                  }
+                  options={BUILDER_NODE_BG_REPEAT_OPTIONS}
                 />
               </div>
               <div
