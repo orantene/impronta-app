@@ -16,7 +16,16 @@ import Link from "next/link";
 import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadTalentSelfProfile } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
-import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+
+// Design tokens inlined as literals. This is a Server Component — importing
+// COLORS/FONTS from the admin-shell `state` barrel pulls the barrel's
+// client-only modules (field-catalog.ts → useState/useEffect) into the server
+// bundle and fails `next build`. Values mirror admin/shell/internal/state.
+const ACCENT = "#0F4F3E";
+const ACCENT_SOFT = "rgba(15,79,62,0.10)";
+const FONT_DISPLAY =
+  'var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif';
+const FONT_BODY = '"Inter", system-ui, sans-serif';
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +79,7 @@ export default async function WorkspaceTalentIndexPage({
         justifyContent: "center",
         padding: "32px 20px",
         background: "#FAFAF7",
-        fontFamily: FONTS.body,
+        fontFamily: FONT_BODY,
       }}
     >
       <div
@@ -92,8 +101,8 @@ export default async function WorkspaceTalentIndexPage({
             width: 48,
             height: 48,
             borderRadius: 14,
-            background: COLORS.accentSoft,
-            color: COLORS.accent,
+            background: ACCENT_SOFT,
+            color: ACCENT,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -108,7 +117,7 @@ export default async function WorkspaceTalentIndexPage({
 
         <h1
           style={{
-            fontFamily: FONTS.display,
+            fontFamily: FONT_DISPLAY,
             fontSize: 20,
             fontWeight: 700,
             margin: "0 0 8px",
@@ -130,7 +139,7 @@ export default async function WorkspaceTalentIndexPage({
               display: "block",
               padding: "11px 20px",
               borderRadius: 10,
-              background: COLORS.accent,
+              background: ACCENT,
               color: "#fff",
               fontWeight: 700,
               fontSize: 14,
