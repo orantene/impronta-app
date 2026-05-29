@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { MarketingContainer } from "@/components/marketing/container";
@@ -58,7 +58,10 @@ export function MarketingDirectoryShell({
   const [items, setItems] = useState(initialItems);
   const [total, setTotal] = useState(initialTotal);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const sheetCloseRef = useRef<HTMLButtonElement>(null);
 
   // Re-seed local list whenever the server hands back a fresh page (any
   // filter / sort / search navigation produces a new initialItems array).
@@ -67,17 +70,43 @@ export function MarketingDirectoryShell({
     setTotal(initialTotal);
   }, [initialItems, initialTotal]);
 
+  // Mobile filter sheet as a real dialog: lock body scroll, move focus into
+  // the sheet, trap Tab within it, Esc closes, and focus returns to whatever
+  // opened it. (Closed-state tab-out is handled by `inert` on the wrapper.)
   useEffect(() => {
     if (!sheetOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const lastFocused = document.activeElement as HTMLElement | null;
+    sheetCloseRef.current?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSheetOpen(false);
+      if (e.key === "Escape") {
+        setSheetOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const root = sheetRef.current;
+      if (!root) return;
+      const nodes = root.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      );
+      if (nodes.length === 0) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
+      lastFocused?.focus();
     };
   }, [sheetOpen]);
 
@@ -105,6 +134,7 @@ export function MarketingDirectoryShell({
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
     setLoadingMore(true);
+    setLoadMoreError(false);
     try {
       const { items: more, total: freshTotal } = await loadMoreDirectoryTalents(
         { ...activeFilters, sort },
@@ -115,6 +145,8 @@ export function MarketingDirectoryShell({
         return [...prev, ...more.filter((t) => !seen.has(t.id))];
       });
       setTotal(freshTotal);
+    } catch {
+      setLoadMoreError(true);
     } finally {
       setLoadingMore(false);
     }
@@ -153,6 +185,13 @@ export function MarketingDirectoryShell({
         </aside>
 
         <div className="min-w-0 flex-1">
+          <h2 className="sr-only">Directory results</h2>
+          {/* Announce result-count / loading changes to screen readers. */}
+          <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {isPending
+              ? "Updating results…"
+              : `${total.toLocaleString()} ${total === 1 ? "profile" : "profiles"}`}
+          </p>
           <DirectoryToolbar
             total={total}
             view={view}
@@ -163,7 +202,7 @@ export function MarketingDirectoryShell({
             onOpenFilters={() => setSheetOpen(true)}
           />
 
-          <div className="mt-6">
+          <div className="mt-6" aria-busy={isPending}>
             {view === "map" ? (
               <MarketingDirectoryMap
                 points={mapPoints}
@@ -199,7 +238,7 @@ export function MarketingDirectoryShell({
             )}
 
             {hasMore && !isPending ? (
-              <div className="mt-10 flex justify-center">
+              <div className="mt-10 flex flex-col items-center gap-2.5">
                 <button
                   type="button"
                   onClick={handleLoadMore}
@@ -213,6 +252,11 @@ export function MarketingDirectoryShell({
                 >
                   {loadingMore ? "Loading…" : `Show more (${total - items.length} left)`}
                 </button>
+                {loadMoreError ? (
+                  <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }} role="alert">
+                    Couldn&apos;t load more — tap to try again.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -220,7 +264,12 @@ export function MarketingDirectoryShell({
       </div>
 
       {/* Mobile filter sheet — same DirectoryFilters body as the desktop rail. */}
-      <div className={`fixed inset-0 z-[60] lg:hidden ${sheetOpen ? "" : "pointer-events-none"}`} aria-hidden={!sheetOpen}>
+      <div
+        ref={sheetRef}
+        inert={!sheetOpen}
+        className={`fixed inset-0 z-[60] lg:hidden ${sheetOpen ? "" : "pointer-events-none"}`}
+        aria-hidden={!sheetOpen}
+      >
         <div
           className="absolute inset-0 transition-opacity duration-300"
           style={{ background: "rgba(15,23,20,0.4)", opacity: sheetOpen ? 1 : 0 }}
@@ -228,6 +277,7 @@ export function MarketingDirectoryShell({
         />
         <div
           role="dialog"
+          aria-modal="true"
           aria-label="Filters"
           className="absolute left-0 top-0 flex h-full w-[86%] max-w-sm flex-col transition-transform duration-300"
           style={{
@@ -244,6 +294,7 @@ export function MarketingDirectoryShell({
               Filters
             </span>
             <button
+              ref={sheetCloseRef}
               type="button"
               onClick={() => setSheetOpen(false)}
               aria-label="Close filters"

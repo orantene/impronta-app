@@ -9,7 +9,7 @@ import {
   useApiIsLoaded,
 } from "@vis.gl/react-google-maps";
 import type { DiscoverMapPoint } from "./shared";
-import { initialsOf, agencyLine, locationLine } from "./shared";
+import { FOCUS_RING, initialsOf, agencyLine, locationLine } from "./shared";
 
 // Forest palette hexes (canonical --tl-* values). Inline literals because the
 // Google Maps canvas + Symbol markers live outside the token cascade. Cool
@@ -140,7 +140,7 @@ export function MarketingDirectoryMapClient({
                   setViewMode(mode);
                   setSelectedId(null);
                 }}
-                className="h-8 rounded-full px-3 text-[0.75rem] font-medium leading-none transition-colors"
+                className={`h-8 rounded-full px-3 text-[0.75rem] font-medium leading-none transition-colors ${FOCUS_RING}`}
                 style={{
                   background: activeTab ? "var(--plt-bg-raised)" : "transparent",
                   color: activeTab ? "var(--plt-forest)" : "var(--plt-muted)",
@@ -225,7 +225,7 @@ export function MarketingDirectoryMapClient({
               {selected.profileCode ? (
                 <Link
                   href={`/t/${selected.profileCode}`}
-                  className="inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[0.75rem] font-semibold"
+                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[0.75rem] font-semibold ${FOCUS_RING}`}
                   style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
                 >
                   View
@@ -235,7 +235,7 @@ export function MarketingDirectoryMapClient({
                 type="button"
                 onClick={() => setSelectedId(null)}
                 aria-label="Close"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[1rem]"
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[1rem] ${FOCUS_RING}`}
                 style={{ color: "var(--plt-muted)" }}
               >
                 ×
@@ -338,7 +338,7 @@ function MapNotice({
       <button
         type="button"
         onClick={onBackToGrid}
-        className="mt-2 text-[0.8125rem] font-semibold transition-colors hover:underline"
+        className={`mt-2 rounded text-[0.8125rem] font-semibold transition-colors hover:underline ${FOCUS_RING}`}
         style={{ color: "var(--plt-forest)" }}
       >
         Back to grid →
