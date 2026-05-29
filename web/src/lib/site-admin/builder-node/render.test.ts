@@ -686,6 +686,30 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-mobile-grid-column=""/);
   });
 
+  it("renders filter effects (filter + backdrop-filter)", () => {
+    const html = render([
+      {
+        id: "free:fx",
+        kind: "paragraph",
+        props: {
+          text: "Frosted",
+          style: {
+            filter: "blur(8px)",
+            backdropFilter: "blur(12px)",
+            responsive: { mobile: { filter: "grayscale(1)" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop filter + backdrop-filter land inline with distinct literal values.
+    assert.match(html, /filter:blur\(8px\)/);
+    assert.match(html, /backdrop-filter:blur\(12px\)/);
+    // The mobile filter override is attr-gated; no tablet override set.
+    assert.match(html, /data-builder-style-mobile-filter=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-filter=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

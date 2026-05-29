@@ -138,6 +138,9 @@ const builderNodeStyleValueSchema = z.object({
   // Grid child placement — grid-column / grid-row span/line specs.
   gridColumn: z.string().max(24).optional(),
   gridRow: z.string().max(24).optional(),
+  // Filter effects — CSS filter (self) + backdrop-filter (behind, glassmorphism).
+  filter: z.string().max(120).optional(),
+  backdropFilter: z.string().max(120).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

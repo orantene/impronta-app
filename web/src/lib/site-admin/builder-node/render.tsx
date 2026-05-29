@@ -188,6 +188,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-flex-basis]{flex-basis:var(--bn-tablet-flex-basis)!important}
   .site-builder-node[data-builder-style-tablet-grid-column]{grid-column:var(--bn-tablet-grid-column)!important}
   .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
+  .site-builder-node[data-builder-style-tablet-filter]{filter:var(--bn-tablet-filter)!important}
+  .site-builder-node[data-builder-style-tablet-backdrop-filter]{backdrop-filter:var(--bn-tablet-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-backdrop-filter)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -261,6 +263,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-flex-basis]{flex-basis:var(--bn-mobile-flex-basis)!important}
   .site-builder-node[data-builder-style-mobile-grid-column]{grid-column:var(--bn-mobile-grid-column)!important}
   .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
+  .site-builder-node[data-builder-style-mobile-filter]{filter:var(--bn-mobile-filter)!important}
+  .site-builder-node[data-builder-style-mobile-backdrop-filter]{backdrop-filter:var(--bn-mobile-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-backdrop-filter)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -362,6 +366,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-flex-basis": tablet?.flexBasis ? "" : undefined,
     "data-builder-style-tablet-grid-column": tablet?.gridColumn ? "" : undefined,
     "data-builder-style-tablet-grid-row": tablet?.gridRow ? "" : undefined,
+    "data-builder-style-tablet-filter": tablet?.filter ? "" : undefined,
+    "data-builder-style-tablet-backdrop-filter":
+      tablet?.backdropFilter ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -429,6 +436,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-flex-basis": mobile?.flexBasis ? "" : undefined,
     "data-builder-style-mobile-grid-column": mobile?.gridColumn ? "" : undefined,
     "data-builder-style-mobile-grid-row": mobile?.gridRow ? "" : undefined,
+    "data-builder-style-mobile-filter": mobile?.filter ? "" : undefined,
+    "data-builder-style-mobile-backdrop-filter":
+      mobile?.backdropFilter ? "" : undefined,
   };
 }
 
@@ -619,6 +629,10 @@ function responsiveStyleVars(
     "--bn-tablet-grid-row": style?.responsive?.tablet?.gridRow,
     "--bn-mobile-grid-column": style?.responsive?.mobile?.gridColumn,
     "--bn-mobile-grid-row": style?.responsive?.mobile?.gridRow,
+    "--bn-tablet-filter": style?.responsive?.tablet?.filter,
+    "--bn-tablet-backdrop-filter": style?.responsive?.tablet?.backdropFilter,
+    "--bn-mobile-filter": style?.responsive?.mobile?.filter,
+    "--bn-mobile-backdrop-filter": style?.responsive?.mobile?.backdropFilter,
   });
 }
 
@@ -725,6 +739,13 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // Grid child placement — span/line position in a grid parent. No-op elsewhere.
   if (style.gridColumn) out.gridColumn = style.gridColumn;
   if (style.gridRow) out.gridRow = style.gridRow;
+  // Filter effects — self filter + backdrop frost (with the -webkit- prefix so
+  // backdrop-filter works on Safari).
+  if (style.filter) out.filter = style.filter;
+  if (style.backdropFilter) {
+    out.backdropFilter = style.backdropFilter;
+    out.WebkitBackdropFilter = style.backdropFilter;
+  }
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

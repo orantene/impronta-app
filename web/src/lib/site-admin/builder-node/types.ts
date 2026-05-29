@@ -119,6 +119,11 @@ export interface BuilderNodeStyleValue {
   // (e.g. "span 2", "1 / 3"). No-op outside a grid container.
   gridColumn?: string;
   gridRow?: string;
+  // Filter effects — free CSS filter strings. filter applies to the node itself
+  // (blur/grayscale/brightness/…); backdropFilter frosts whatever sits behind it
+  // (glassmorphism). e.g. "blur(8px)", "grayscale(1) contrast(1.2)".
+  filter?: string;
+  backdropFilter?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {
