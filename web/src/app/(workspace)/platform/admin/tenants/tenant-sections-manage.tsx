@@ -450,6 +450,7 @@ export function PlanOverrideSection({
 }: SectionProps) {
   const { override } = detail;
   const [tier, setTier] = useState<WorkspacePlanTier>("studio");
+  const [grantKind, setGrantKind] = useState<"comp" | "trial" | "promo">("comp");
   const [duration, setDuration] = useState("6m");
   const [customDate, setCustomDate] = useState("");
   const [reason, setReason] = useState("");
@@ -467,6 +468,7 @@ export function PlanOverrideSection({
       const res = await actionApplyPlanOverride({
         tenantId: detail.id,
         overridePlanTier: tier,
+        grantKind,
         durationKey: duration,
         customExpiresAt: duration === "custom" ? customDate : null,
         reason,
@@ -558,6 +560,41 @@ export function PlanOverrideSection({
                 ))}
               </select>
             </label>
+            <label style={{ fontSize: 11, color: HQ.inkMuted }}>
+              Grant type
+              <select
+                value={grantKind}
+                disabled={pending}
+                onChange={(e) => {
+                  const next = e.target.value as "comp" | "trial" | "promo";
+                  setGrantKind(next);
+                  // A trial must be time-boxed; nudge an indefinite pick to 1mo.
+                  if (next === "trial" && duration === "indefinite") {
+                    setDuration("1m");
+                  }
+                }}
+                style={{ ...inputStyle, marginTop: 3 }}
+              >
+                <option value="comp">Comp — silent courtesy grant</option>
+                <option value="trial">Trial — countdown + upgrade nudge</option>
+                <option value="promo">Promo — silent promotional grant</option>
+              </select>
+            </label>
+            {grantKind === "trial" && (
+              <p
+                style={{
+                  fontSize: 10.5,
+                  lineHeight: 1.5,
+                  color: HQ.inkDim,
+                  margin: "-2px 0 0",
+                }}
+              >
+                The workspace sees a live countdown in its plan badge, an
+                &ldquo;expiring soon&rdquo; warning in the final week, and a
+                restore-this-plan nudge for two weeks after it ends. Choose a
+                bounded duration below — a trial can&rsquo;t be indefinite.
+              </p>
+            )}
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
               Duration
               <select

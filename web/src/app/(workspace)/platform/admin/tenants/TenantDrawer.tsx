@@ -19,9 +19,12 @@ import type { TenantManagementDetail } from "../../tenant-management-data";
 export function TenantDrawer({
   tenantId,
   onClose,
+  onChanged,
 }: {
   tenantId: string | null;
   onClose: () => void;
+  /** Fires after an in-drawer mutation, so the list can reconcile its row optimistically. */
+  onChanged?: (tenantId: string) => void;
 }) {
   const router = useRouter();
   const [detail, setDetail] = useState<TenantManagementDetail | null>(null);
@@ -62,9 +65,11 @@ export function TenantDrawer({
     if (!tenantId) return;
     const res = await actionGetTenantManagementDetail(tenantId);
     if (res.ok) setDetail(res.data);
+    // Let the list reconcile its row immediately; the refresh below confirms it.
+    onChanged?.(tenantId);
     // Refresh the table behind the drawer so the row reflects the change.
     router.refresh();
-  }, [tenantId, router]);
+  }, [tenantId, router, onChanged]);
 
   if (!tenantId) return null;
 

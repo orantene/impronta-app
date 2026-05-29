@@ -12,11 +12,12 @@ import { WorkspaceLifecycleDialog } from "@/components/admin/workspace-lifecycle
 import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
-import { Avatar, Icon, PlanChip, ShortcutsModal } from "../primitives";
+import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, PLAN_META, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
+import { WorkspacePlanBadge } from "./WorkspacePlanBadge";
 
 
 export function TulalaIdentityBar() {
@@ -40,7 +41,7 @@ export function TulalaIdentityBar() {
     effectiveTenant,
   } = useAdminShell();
   const copy = useDashboardText();
-  const { surface, alsoTalent, role, plan, entityType } = state;
+  const { surface, alsoTalent, role, entityType } = state;
 
   // Hooks must be called unconditionally (Rules of Hooks). These drive the
   // "Start a workspace" dialog that only renders on non-platform surfaces, but
@@ -347,21 +348,9 @@ export function TulalaIdentityBar() {
             }}
           >
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.15 }} className="text-admin-ink">
+              {/* Plan tier moved to its own clickable <WorkspacePlanBadge> in the
+                  right utility cluster — opens a summary popover. */}
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{actingLabel}</span>
-              {inWorkspace && (
-                <span
-                  data-tulala-plan-tier-badge
-                  data-plan={plan}
-                  style={{ flexShrink: 0, display: "inline-flex" }}
-                >
-                  <PlanChip
-                    plan={
-                      (bridgeTenantIdentity?.planTier as typeof plan) ?? plan
-                    }
-                    variant="outline"
-                  />
-                </span>
-              )}
             </span>
             <span data-tulala-acting-detail style={{
               fontFamily: FONTS.body,
@@ -389,6 +378,11 @@ export function TulalaIdentityBar() {
         </button>
 
         <div style={{ flex: 1 }} />
+
+        {/* Workspace plan badge — clickable tier chip + summary popover
+            (registration, renewal, seats, subscription, plan override).
+            Workspace surface only: talent + client have no workspace plan. */}
+        {inWorkspace && <WorkspacePlanBadge />}
 
         {/* Mode toggle — only for hybrid users (talent who also have a
             workspace). Hidden on the client surface — clients are

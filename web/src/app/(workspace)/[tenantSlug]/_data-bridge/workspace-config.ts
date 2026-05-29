@@ -42,6 +42,8 @@ export type WorkspaceAgencySummary = {
   addressCountry: string | null;
   /** Preferred Stripe presentment currency (lowercase ISO 4217). Null = Adaptive Pricing auto-detect. */
   preferredCurrency: string | null;
+  /** agencies.created_at — workspace registration date (ISO). Null if unreadable. */
+  registeredAt: string | null;
 };
 
 /**
@@ -72,7 +74,7 @@ export async function loadWorkspaceAgencySummary(
     const [agencyRes, identityRes, rosterCountRes] = await Promise.all([
       supabase
         .from("agencies")
-        .select("slug, display_name, plan_tier, talent_seat_limit, preferred_currency")
+        .select("slug, display_name, plan_tier, talent_seat_limit, preferred_currency, created_at")
         .eq("id", tenantId)
         .maybeSingle(),
       supabase
@@ -99,6 +101,7 @@ export async function loadWorkspaceAgencySummary(
       plan_tier: string | null;
       talent_seat_limit: number | null;
       preferred_currency: string | null;
+      created_at: string | null;
     };
     const identity = identityRes.data as {
       contact_email: string | null;
@@ -118,6 +121,7 @@ export async function loadWorkspaceAgencySummary(
       addressCity: identity?.address_city ?? null,
       addressCountry: identity?.address_country ?? null,
       preferredCurrency: row.preferred_currency ?? null,
+      registeredAt: row.created_at ?? null,
     };
   } catch (err) {
     logServerError("workspace.loadAgencySummary", err);

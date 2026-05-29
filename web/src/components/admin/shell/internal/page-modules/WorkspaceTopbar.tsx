@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { FloatingFab, Icon, Popover, useRovingTabindex } from "../primitives";
-import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, NOTIFICATIONS, PAGE_META, PENDING_TALENT, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
+import { COLORS, type DrawerId, ENTITY_TYPE_META, FONTS, PAGE_META, TALENT_NOTIFICATION_COUNT, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, meetsRole, useAdminShell } from "../state";
 import { ControlBar } from "./ControlBar";
 import { WebsiteNavItem } from "./WebsiteNavDropdown";
 
@@ -13,16 +13,20 @@ import { WebsiteNavItem } from "./WebsiteNavDropdown";
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
-  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics, tenantSlug } = useAdminShell();
+  const { state, setPage, setWorkspaceLayout, effectiveRoster, verificationRequests, overviewMetrics, tenantSlug } = useAdminShell();
   const copy = useDashboardText();
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
   ).length;
-  // When bridge data is available use its authoritative pending count so the nav
-  // badge doesn't echo the mock PENDING_TALENT array (which has 3 fake items).
+  // Derive pending count from the real roster so the badge matches the page body.
+  // When bridge analytics are available they're authoritative; otherwise count
+  // submitted/under_review profiles from effectiveRoster (real or fixture).
+  const livePendingCount = effectiveRoster.filter(
+    (p) => p.state === "awaiting-approval"
+  ).length;
   const effectivePendingTalentCount = overviewMetrics !== null
     ? (overviewMetrics.pendingApprovals ?? 0)
-    : pendingTalent.length;
+    : livePendingCount;
   // WS-3.2 — "workspace" is now "settings"; check both for backward compat
   const isSettingsActive = state.page === "settings" || state.page === "workspace";
   const canCreate = meetsRole(state.role, "editor");

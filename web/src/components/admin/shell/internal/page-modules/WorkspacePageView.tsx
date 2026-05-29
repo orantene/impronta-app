@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import type { Locale } from "@/i18n/config";
@@ -10,6 +10,11 @@ import type { Plan, Role } from "../state";
 import { AutoAckSettingsRow, LockedPill, SETTINGS_SECTIONS } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { PageHeader } from "./pages-shared";
+import {
+  SETTINGS_SECTION_EVENT,
+  consumePendingSettingsSection,
+  type SettingsSectionTarget,
+} from "./settings-deeplink";
 
 
 /** Settings list row — white card with flex-row layout + hover lift.
@@ -190,6 +195,40 @@ export function WorkspacePageView() {
     const t = setTimeout(() => setSavedAt(new Date()), 1200);
     return () => clearTimeout(t);
   }, []);
+
+  // Deep-link: another surface (e.g. the top-bar plan badge) can ask Settings
+  // to open a specific tab + accordion section. Switch to the tab so the
+  // section actually renders, expand it, then scroll it into view.
+  const applySettingsTarget = useCallback((target: SettingsSectionTarget) => {
+    setActiveTab(target.tab);
+    setOpenSet((prev) => {
+      const next = new Set(prev);
+      next.add(target.section);
+      return next;
+    });
+    // Wait for the tab switch + accordion expand to commit, then scroll.
+    // Two rAFs ≈ one full render+paint cycle, so the node exists by then.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-settings-section="${target.section}"]`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }, []);
+
+  // Resolve a deep-link two ways: (1) consume a target parked right before
+  // navigation (covers the setPage → remount path), and (2) listen for live
+  // requests fired while we're already on Settings (no remount).
+  useEffect(() => {
+    const pending = consumePendingSettingsSection();
+    if (pending) applySettingsTarget(pending);
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<SettingsSectionTarget>).detail;
+      if (detail) applySettingsTarget(detail);
+    };
+    window.addEventListener(SETTINGS_SECTION_EVENT, handler);
+    return () => window.removeEventListener(SETTINGS_SECTION_EVENT, handler);
+  }, [applySettingsTarget]);
 
   return (
     <>

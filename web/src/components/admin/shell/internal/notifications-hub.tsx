@@ -165,11 +165,13 @@ export function NotificationsBell({
 
   const closePopover = () => popoverRef.current?.hidePopover?.();
 
-  // A9 — when real notifications are passed in, prefer them and skip the
-  // fixture sections (MOCK_CONVERSATIONS / RICH_INQUIRIES "new inquiry"
-  // items + the "Booking confirmed · Bvlgari" demo item). When absent,
-  // fall back to the legacy mock items so dev dashboards still demo.
-  const useRealData = Array.isArray(realNotifications) && realNotifications.length > 0;
+  // A9 / Phase B de-fixture — when the bridge provides a notifications array
+  // (even empty), use the real path and suppress all fixture items. An empty
+  // real array = "no notifications yet", not "show demo data". Only fall back
+  // to fixtures when `realNotifications` is null (bridge absent, standalone
+  // dev/demo mode). Previously guarded by `length > 0` which made new
+  // workspaces show "Booking confirmed · Bvlgari" and a phantom "7" badge.
+  const useRealData = Array.isArray(realNotifications);
 
   const items: HubItem[] = useMemo(() => {
     const out: HubItem[] = [];

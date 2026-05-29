@@ -37,6 +37,25 @@ test("draft preview is owner-only via user_id match", () => {
   assert.match(RESOLVE_SRC, /loadTalentPublicSiteDraftForOwner/);
 });
 
+test("public resolver plan-gates the published site (read-time degradation)", () => {
+  // A lapsed Pro/Max trial must stop serving the premium page. The resolver
+  // reads the talent's CURRENT plan and falls back when it no longer permits
+  // the published composition — without mutating the stored snapshot.
+  assert.match(RESOLVE_SRC, /planPermitsPublishedTalentSite/);
+  assert.match(RESOLVE_SRC, /loadCurrentTalentPlanKey/);
+  assert.match(RESOLVE_SRC, /talent_plan_key/);
+  // The gate must fail OPEN (null plan → render) so a DB hiccup never
+  // downgrades a paying talent's site.
+  assert.match(RESOLVE_SRC, /planKey && !planPermitsPublishedTalentSite/);
+
+  const GATE_SRC = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/plan-permits-snapshot.ts"),
+    "utf8",
+  );
+  assert.match(GATE_SRC, /compositionMode === "custom" && tier !== "max"/);
+  assert.match(GATE_SRC, /isTemplateAllowedForTier/);
+});
+
 test("dashboard public URL is canonical /t/code without /site", () => {
   const dashState = readFileSync(
     join(process.cwd(), "src/lib/talent-site/server/dashboard-state.ts"),

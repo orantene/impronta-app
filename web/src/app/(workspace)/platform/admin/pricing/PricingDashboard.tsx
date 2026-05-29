@@ -32,26 +32,30 @@ import type {
   StripeAccountInfo,
   FxPreview,
 } from "@/lib/pricing/pricing-types";
+import type { TrialOffer } from "@/lib/plan-trials/offers";
 import { HQ, F } from "./_tokens";
 import { PageHeader } from "./PageHeader";
 import { PackagesView } from "./PackagesView";
 import { TierDrawer } from "./TierDrawer";
 import { DiscountsTab } from "./DiscountsTab";
+import { TrialsTab } from "./TrialsTab";
+
+type PricingTab = "packages" | "discounts" | "trials";
 
 export function PricingDashboard({
   catalog,
   stripeAccount,
   fx,
   discounts,
+  trialOffers,
 }: {
   catalog: PricingCatalog;
   stripeAccount: StripeAccountInfo;
   fx: FxPreview;
   discounts: PricingDiscountRow[];
+  trialOffers: TrialOffer[];
 }) {
-  const [activeTab, setActiveTab] = useState<"packages" | "discounts">(
-    "packages",
-  );
+  const [activeTab, setActiveTab] = useState<PricingTab>("packages");
   const [openTierId, setOpenTierId] = useState<string | null>(null);
 
   // Re-derive the open tier from the *fresh* catalog on every render.
@@ -82,14 +86,14 @@ export function PricingDashboard({
 
       <TabStrip activeTab={activeTab} onChange={setActiveTab} />
 
-      {activeTab === "packages" ? (
+      {activeTab === "packages" && (
         <PackagesView
           catalog={catalog}
           onCardClick={(tier) => setOpenTierId(tier.id)}
         />
-      ) : (
-        <DiscountsTab discounts={discounts} />
       )}
+      {activeTab === "discounts" && <DiscountsTab discounts={discounts} />}
+      {activeTab === "trials" && <TrialsTab offers={trialOffers} />}
 
       {openTier && (
         <TierDrawer
@@ -110,8 +114,8 @@ function TabStrip({
   activeTab,
   onChange,
 }: {
-  activeTab: "packages" | "discounts";
-  onChange: (t: "packages" | "discounts") => void;
+  activeTab: PricingTab;
+  onChange: (t: PricingTab) => void;
 }) {
   return (
     <div
@@ -132,6 +136,11 @@ function TabStrip({
         active={activeTab === "discounts"}
         onClick={() => onChange("discounts")}
         label="Discounts"
+      />
+      <TabBtn
+        active={activeTab === "trials"}
+        onClick={() => onChange("trials")}
+        label="Trials"
       />
     </div>
   );

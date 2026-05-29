@@ -25,6 +25,7 @@ import {
   PLAN_TIER_SEAT_LIMIT,
   type WorkspacePlanTier,
 } from "@/lib/platform/plan-override";
+import { isGrantKind, type GrantKind } from "@/lib/plan-trials";
 import {
   loadTenantManagementDetail,
   type TenantManagementDetail,
@@ -177,6 +178,12 @@ export async function actionApplyPlanOverride(input: {
   customExpiresAt?: string | null;
   reason?: string | null;
   note?: string | null;
+  /**
+   * How the grant should behave for the workspace. `trial` drives the live
+   * countdown + post-expiry upgrade nudge in the plan badge; `comp`/`promo`
+   * are silent courtesy grants. Defaults to `comp` for backward compatibility.
+   */
+  grantKind?: string;
 }): Promise<TenantActionResult<{ expiresAt: string | null }>> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
@@ -188,6 +195,14 @@ export async function actionApplyPlanOverride(input: {
   }
   if (!isOverrideDurationKey(input.durationKey)) {
     return { ok: false, error: "Invalid duration." };
+  }
+  const grantKind: GrantKind = isGrantKind(input.grantKind)
+    ? input.grantKind
+    : "comp";
+  // A trial without an end date can never expire or nudge — it would silently
+  // behave like a comp. Force a bounded window so the countdown is meaningful.
+  if (grantKind === "trial" && input.durationKey === "indefinite") {
+    return { ok: false, error: "A trial needs an end date — pick a duration." };
   }
   const overrideTier = input.overridePlanTier;
 
@@ -250,6 +265,7 @@ export async function actionApplyPlanOverride(input: {
       base_talent_seat_limit: baseSeat,
       override_plan_tier: overrideTier,
       override_talent_seat_limit: overrideSeat,
+      grant_kind: grantKind,
       starts_at: NOW(),
       expires_at: expiresAt,
       reason: input.reason?.trim() || null,
@@ -291,6 +307,7 @@ export async function actionApplyPlanOverride(input: {
       override_id: inserted.id,
       base_plan_tier: basePlanTier,
       override_plan_tier: overrideTier,
+      grant_kind: grantKind,
       expires_at: expiresAt,
       duration_key: input.durationKey,
       reason: input.reason?.trim() || null,
