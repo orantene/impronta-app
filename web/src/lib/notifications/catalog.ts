@@ -10,6 +10,7 @@ import TalentProfileApproved from "../../../emails/talent/ProfileApproved";
 import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
 import WorkspaceWelcome from "../../../emails/workspace/Welcome";
 import BookingCanceled from "../../../emails/workspace/BookingCanceled";
+import DayOfReminder from "../../../emails/notifications/DayOfReminder";
 import type { CatalogEntry } from "./types";
 import {
   allRosterTalent,
@@ -433,6 +434,94 @@ const BOOKING_CANCELLED_COORDINATOR: CatalogEntry = {
   },
 };
 
+// ─── Day-of booking reminder (spec §6.4, Slice 15.6, direct dispatch) ─────────
+//
+// The `booking-reminders` cron (24h before `event_date`) dispatches
+// `booking.day_of_reminder` once per booking with the agency `tenantId`, the
+// source `inquiryId` (so `loadInquiryView` hydrates schedule + roster), and a
+// stable `eventId` (`booking-reminder:<bookingId>`) so a re-run is a dedupe
+// no-op. Like booking.cancelled this is direct-dispatch (no engine `notifyUsers`
+// upstream), so each entry owns BOTH channels. The client + every booked talent
+// get the same "your event is tomorrow" message; the two surface-scoped entries
+// exist only so the in-app bell routes to the right dashboard and the CTA points
+// at each role's own inquiry view. No `contactName` is passed to the template —
+// the heading is the neutral "Your event is tomorrow", not the client's name.
+
+/**
+ * booking.day_of_reminder → the client (or guest). Surface-scoped to `client`
+ * so the in-app bell lands on the client dashboard; the link points at the
+ * client's own inquiry view.
+ */
+const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
+  id: "booking.day_of_reminder.client",
+  category: "bookings",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["booking.day_of_reminder"],
+  hydrate: loadInquiryView,
+  resolveAudience: clientOrGuest,
+  in_app: {
+    kind: "booking",
+    surface: "client",
+    title: () => "Your event is tomorrow",
+    body: (event) => {
+      const date = str(event.payload.eventDate);
+      return date ? `Your booking on ${date} is tomorrow.` : "Your booking is tomorrow.";
+    },
+  },
+  email: {
+    templateId: "client.booking_day_of_reminder",
+    subject: () => "Reminder: your event is tomorrow",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(DayOfReminder, {
+        recipientName: recipient.displayName ?? str(event.payload.contactName),
+        eventDate: formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventLocation: str(event.payload.eventLocation),
+        inquiryUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "booking",
+      }),
+  },
+};
+
+/**
+ * booking.day_of_reminder → every talent on the booking. Surface-scoped to
+ * `talent`; the link points at the talent inquiry view.
+ */
+const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
+  id: "booking.day_of_reminder.talent",
+  category: "bookings",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["booking.day_of_reminder"],
+  hydrate: loadInquiryView,
+  resolveAudience: allRosterTalent,
+  in_app: {
+    kind: "booking",
+    surface: "talent",
+    title: () => "Your event is tomorrow",
+    body: (event) => {
+      const date = str(event.payload.eventDate);
+      return date ? `Your booking on ${date} is tomorrow.` : "Your booking is tomorrow.";
+    },
+  },
+  email: {
+    templateId: "talent.booking_day_of_reminder",
+    subject: () => "Reminder: your event is tomorrow",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(DayOfReminder, {
+        recipientName: recipient.displayName,
+        eventDate: formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventLocation: str(event.payload.eventLocation),
+        inquiryUrl: pageUrl(brand, `/talent/inquiries/${event.inquiryId}`),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "booking",
+      }),
+  },
+};
+
 // ─── Self-test (Phase 2) ──────────────────────────────────────────────────────
 //
 // Exercises the full pipeline (audience → prefs → dedupe log → channel
@@ -487,6 +576,8 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   BOOKING_CANCELLED_CLIENT,
   BOOKING_CANCELLED_TALENT,
   BOOKING_CANCELLED_COORDINATOR,
+  BOOKING_DAY_OF_REMINDER_CLIENT,
+  BOOKING_DAY_OF_REMINDER_TALENT,
   SELF_TEST,
 ];
 

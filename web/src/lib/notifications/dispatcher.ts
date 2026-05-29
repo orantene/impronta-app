@@ -39,7 +39,7 @@ import type {
 export async function dispatchEventNotifications(
   event: NotificationEvent,
 ): Promise<DispatchResult> {
-  const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0 };
+  const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0 };
 
   const entries = findCatalogEntries(event.type);
   if (entries.length === 0) return result;
@@ -67,7 +67,7 @@ export async function dispatchEventNotifications(
   }> = [];
 
   for (const entry of entries) {
-    const entryResult = { dispatched: 0, suppressed: 0, failed: 0 };
+    const entryResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0 };
     // Entry-specific hydration: enrich the event payload with whatever this
     // entry's audience resolver + templates need (inquiry context, offer
     // total, …). Runs once per entry; a failure degrades to the bare event
@@ -105,8 +105,16 @@ export async function dispatchEventNotifications(
         if (!handler) continue;
 
         const dedupeKey = `${enriched.eventId}:${recipient.dedupeId}:${channel}`;
+        // §7 digest: an email entry that opts into batching is logged `queued`
+        // with `payload.digest = true` and NOT sent now — the digest cron sweeps
+        // and collapses it. The flag must be on the persisted payload (the sweep
+        // filters `payload->>digest`), so log a payload-augmented event.
+        const isDigest = channel === "email" && entry.email?.digest === true;
+        const logEvent: NotificationEvent = isDigest
+          ? { ...enriched, payload: { ...enriched.payload, digest: true } }
+          : enriched;
         const logId = await tryInsertDispatchLog(ctx.admin, {
-          event: enriched,
+          event: logEvent,
           recipient,
           channel,
           entry,
@@ -115,6 +123,20 @@ export async function dispatchEventNotifications(
         if (!logId) {
           // Duplicate (already attempted) or could not be logged — skip the send.
           entryResult.suppressed++;
+          continue;
+        }
+
+        if (isDigest) {
+          // Leave the row `queued` for the digest sweep (§7). No send now.
+          entryResult.queued++;
+          void improntaLog("notif.queue.digest", {
+            eventType: enriched.type,
+            eventId: enriched.eventId,
+            entryId: entry.id,
+            tenantId: enriched.tenantId,
+            recipient: recipient.userId ?? `guest:${recipient.email ?? ""}`,
+            category: entry.category,
+          });
           continue;
         }
 
@@ -157,6 +179,7 @@ export async function dispatchEventNotifications(
     result.dispatched += entryResult.dispatched;
     result.suppressed += entryResult.suppressed;
     result.failed += entryResult.failed;
+    result.queued += entryResult.queued;
     perEntry.push({ id: entry.id, ...entryResult });
   }
 
@@ -169,6 +192,7 @@ export async function dispatchEventNotifications(
     dispatched: result.dispatched,
     suppressed: result.suppressed,
     failed: result.failed,
+    queued: result.queued,
   });
 
   return result;

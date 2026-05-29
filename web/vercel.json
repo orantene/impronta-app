@@ -30,6 +30,9 @@
     "src/app/api/cron/retry-failed-emails/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/booking-reminders/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
     }
@@ -41,6 +44,7 @@
     { "path": "/api/cron/usage-audit", "schedule": "0 9 * * 1" },
     { "path": "/api/cron/reconcile-plan-overrides", "schedule": "0 3 * * *" },
     { "path": "/api/cron/send-digest-emails", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/retry-failed-emails", "schedule": "0 * * * *" }
+    { "path": "/api/cron/retry-failed-emails", "schedule": "0 * * * *" },
+    { "path": "/api/cron/booking-reminders", "schedule": "0 8 * * *" }
   ]
 }

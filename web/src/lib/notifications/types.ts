@@ -120,6 +120,16 @@ export type EmailConfig = {
   templateId: string;
   subject: (event: NotificationEvent, recipient: ResolvedRecipient) => string;
   render: (args: EmailTemplateArgs) => ReactElement;
+  /**
+   * High-frequency entries (messages) opt into the digest path (spec §7).
+   * When true, the dispatcher writes the dispatch_log row as `queued` with
+   * `payload.digest = true` and SKIPS the immediate send — the digest cron
+   * (`/api/cron/send-digest-emails`) batches queued rows per
+   * `(recipient, category)` window into one summary email. `subject` + `render`
+   * are then vestigial for the normal path (only the retry cron would invoke
+   * them, if a digest flush fails) but stay required by the contract.
+   */
+  digest?: boolean;
 };
 
 export type CatalogEntry = {
@@ -151,4 +161,6 @@ export type DispatchResult = {
   dispatched: number;
   suppressed: number;
   failed: number;
+  /** Rows written `queued` for the digest sweep instead of sent now (§7). */
+  queued: number;
 };

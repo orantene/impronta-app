@@ -12,6 +12,7 @@ import WorkspaceOfferDeclined from "../../../emails/workspace/OfferDeclined";
 import WorkspaceAssignmentTimedOut from "../../../emails/workspace/AssignmentTimedOut";
 import WorkspaceTalentDeclined from "../../../emails/workspace/TalentDeclined";
 import InquiryCancelledEmail from "../../../emails/notifications/InquiryCancelled";
+import DigestEmail from "../../../emails/notifications/Digest";
 import type { CatalogEntry } from "./types";
 import {
   allRosterTalent,
@@ -21,6 +22,8 @@ import {
   coordinatorAndAdmins,
   invitedTalent,
   loadInquiryView,
+  loadMessagePreview,
+  messageThreadAudience,
   str,
   workspaceAdmins,
 } from "./catalog-audiences";
@@ -37,6 +40,12 @@ import { pageUrl } from "./catalog-render";
  * Every entry here is EMAIL-ONLY. In-app bell notifications for these events
  * are already emitted by the engine's `notifyUsers` path (listener[1]); routing
  * in_app here too would double-notify.
+ *
+ * `message.new` is the same shape with two twists (spec §6.2 / §7): its in-app
+ * bell is fanned out directly by `sendMessage` (not `notifyUsers`), so it stays
+ * email-only here for the same no-double-notify reason; and its email is
+ * `digest`-batched, so the dispatcher logs it `queued` and the digest cron
+ * collapses a window of messages into one summary.
  */
 
 /** inquiry.submitted → client confirmation. */
@@ -391,7 +400,50 @@ const INQUIRY_CANCELLED: CatalogEntry = {
   },
 };
 
-/** The 13 inquiry-engine entries, in catalog order. */
+/**
+ * message.new (spec §6.2) — notify every thread participant except the sender
+ * that a new message landed. EMAIL-ONLY + digest-batched: the in-app bell is
+ * already fanned out by `sendMessage`, and the email is collapsed by the digest
+ * cron (`payload.preview`, hydrated here, becomes the digest line). The
+ * subject + single-item render below are the rare fallback the retry cron uses
+ * if a digest flush fails; the dispatcher itself never calls them (digest rows
+ * are logged `queued` and skipped). CTA routes to the recipient's own surface.
+ */
+const MESSAGE_NEW: CatalogEntry = {
+  id: "message.new",
+  category: "messages",
+  defaultChannels: ["email"],
+  required: false,
+  triggers: ["inquiry.message_sent"],
+  hydrate: loadMessagePreview,
+  resolveAudience: messageThreadAudience,
+  email: {
+    templateId: "message.new",
+    digest: true,
+    subject: () => "You have a new message",
+    render: ({ event, recipient, brand, unsubscribeUrl }) => {
+      const surface =
+        recipient.role === "client" ? "client" : recipient.role === "talent" ? "talent" : "admin";
+      const path =
+        surface === "admin"
+          ? `/admin/work/${event.inquiryId}`
+          : `/${surface}/inquiries/${event.inquiryId}`;
+      return React.createElement(DigestEmail, {
+        recipientName: recipient.displayName,
+        heading: "You have a new message",
+        intro: "here's your latest message:",
+        items: [{ summary: str(event.payload.preview) ?? "You have a new message" }],
+        ctaUrl: pageUrl(brand, path),
+        ctaLabel: `Open ${brand.accountName} →`,
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "messages",
+      });
+    },
+  },
+};
+
+/** The 14 inquiry-engine entries, in catalog order. */
 export const INQUIRY_CATALOG_ENTRIES: CatalogEntry[] = [
   INQUIRY_SUBMITTED_CLIENT,
   INQUIRY_SUBMITTED_COORDINATOR,
@@ -406,4 +458,5 @@ export const INQUIRY_CATALOG_ENTRIES: CatalogEntry[] = [
   COORDINATOR_ASSIGNMENT_TIMED_OUT,
   ROSTER_TALENT_DECLINED,
   INQUIRY_CANCELLED,
+  MESSAGE_NEW,
 ];

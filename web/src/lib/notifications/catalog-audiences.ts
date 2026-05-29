@@ -247,3 +247,63 @@ export const eventUser =
     if (!userId) return [];
     return [{ kind: "user", userId, role }];
   };
+
+/**
+ * Hydrate a one-line preview of the message behind a `message.new` event so the
+ * digest summary reads as the actual message, not a generic "you have a new
+ * message". The engine event only carries `{ threadType, messageId }`; we look
+ * up the body and truncate it. A miss degrades to no preview (the digest falls
+ * back to its category default line).
+ */
+export async function loadMessagePreview(
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<Record<string, unknown>> {
+  const messageId = str(event.payload.messageId);
+  if (!messageId) return {};
+  const { data } = await ctx.admin
+    .from("inquiry_messages")
+    .select("body")
+    .eq("id", messageId)
+    .maybeSingle();
+  const body = (data as { body: string | null } | null)?.body ?? null;
+  if (!body) return {};
+  const trimmed = body.trim();
+  if (!trimmed) return {};
+  return { preview: trimmed.length > 140 ? `${trimmed.slice(0, 139)}…` : trimmed };
+}
+
+/**
+ * `message.new` audience (spec §6.2) — every thread participant except the
+ * sender. Workspace staff are always notified (the private staff thread is
+ * theirs); talent + the client are added only on the `group` thread (the
+ * private thread is staff-internal). The sender (`event.userId`) is filtered
+ * out so a message never notifies its author. Email-only / digest-batched — the
+ * in-app bell for messages is fanned out separately by `sendMessage`, so this
+ * entry deliberately carries no `in_app` config (no double-notify).
+ */
+export const messageThreadAudience = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  if (!event.inquiryId || !event.tenantId) return [];
+  const threadType = str(event.payload.threadType);
+  const sender = str(event.userId);
+  const r = await resolveInquiryRecipients(ctx.admin, event.inquiryId, event.tenantId);
+
+  const members: AudienceMember[] = r.workspaceUserIds.map((userId) => ({
+    kind: "user",
+    userId,
+    role: "workspace_member",
+  }));
+  if (threadType === "group") {
+    for (const userId of r.talentUserIds) {
+      members.push({ kind: "user", userId, role: "talent" });
+    }
+    if (r.clientUserId) {
+      members.push({ kind: "user", userId: r.clientUserId, role: "client" });
+    }
+  }
+  if (!sender) return members;
+  return members.filter((m) => m.kind !== "user" || m.userId !== sender);
+};
