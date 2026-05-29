@@ -12,6 +12,7 @@ import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 // Step 13 — post-submit notifications + auto-ack
 import { logServerError } from "@/lib/server/safe-error";
 import { insertSystemMessage } from "./inquiry-system-messages";
+import { buildInquiryBells } from "./inquiry-notifications";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. All reads/writes against
 // inquiries and inquiry_participants filter on tenant_id. Inserts include
@@ -490,6 +491,30 @@ export async function submitInquiry(
 
     await assertConsistencyAfterWrite(supabase, inquiryId);
 
+    // In-app bells: workspace admins ("new inquiry") + invited talent ("you're
+    // invited"), with audience-appropriate copy. Deliberately NO coordinator —
+    // when one is auto-assigned the COORDINATOR_ASSIGNED event bells them, so
+    // adding them here would double-notify. Talent get no ROSTER_TALENT_INVITED
+    // event on the submit path, so this is their only invite bell.
+    const submitBells = [
+      ...(await buildInquiryBells({
+        inquiryId,
+        tenantId: input.tenant_id,
+        audiences: ["workspaceAdmins"],
+        title: "New inquiry received",
+        body: "A new inquiry just came in and needs coordination.",
+        excludeUserId: input.actorUserId ?? null,
+      })),
+      ...(await buildInquiryBells({
+        inquiryId,
+        tenantId: input.tenant_id,
+        audiences: ["talent"],
+        title: "You've been invited to an inquiry",
+        body: "A client requested you for a new inquiry. Review the details to respond.",
+        excludeUserId: input.actorUserId ?? null,
+      })),
+    ];
+
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.INQUIRY_SUBMITTED,
       inquiryId,
@@ -501,6 +526,7 @@ export async function submitInquiry(
         initiatorRole: input.initiator_role,
         isGuest: !input.actorUserId,
       },
+      notifications: submitBells,
     });
 
     // Step 13 — post-submit side-effects: emails + workspace auto-ack.
