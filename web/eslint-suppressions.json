@@ -564,6 +564,16 @@
       "count": 12
     }
   },
+  "src/components/admin/shell/internal/page-modules/CardDesignStudio-2.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 29
+    }
+  },
+  "src/components/admin/shell/internal/page-modules/CardDesignStudio.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 48
+    }
+  },
   "src/components/admin/shell/internal/page-modules/ClientsPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 8
@@ -634,9 +644,14 @@
       "count": 40
     }
   },
+  "src/components/admin/shell/internal/page-modules/WebsiteNavDropdown.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 7
+    }
+  },
   "src/components/admin/shell/internal/page-modules/WebsitePage-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 82
+      "count": 84
     }
   },
   "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
