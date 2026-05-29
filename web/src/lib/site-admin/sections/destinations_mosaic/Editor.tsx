@@ -6,15 +6,15 @@ import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkPicker } from "../shared/LinkPicker";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 import type {
   DestinationsMosaicV1,
   DestinationsMosaicItem,
 } from "./schema";
 
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const FIELD = KIT.field;
+const LABEL = KIT.label;
+const INPUT = KIT.input;
 
 export function DestinationsMosaicEditor({
   initial,
@@ -82,14 +82,14 @@ export function DestinationsMosaicEditor({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className={LABEL}>Tiles ({value.items.length} / 5 · first tile renders hero)</span>
-          <button type="button" onClick={addItem} disabled={value.items.length >= 5} className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50">+ Add</button>
+          <button type="button" onClick={addItem} disabled={value.items.length >= 5} className={`${KIT.ghostButton} disabled:opacity-50`}>+ Add</button>
         </div>
         {value.items.map((item, i) => (
-          <div key={i} className="grid grid-cols-1 gap-2 rounded-md border border-border/60 bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+          <div key={i} className="grid grid-cols-1 gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
             <input className={INPUT} placeholder="Label (e.g. Tulum)" maxLength={80} value={item.label} onChange={(e) => patchItem(i, { label: e.target.value })} />
             <input className={INPUT} placeholder="Region" maxLength={80} value={item.region ?? ""} onChange={(e) => patchItem(i, { region: e.target.value })} />
             <input className={INPUT} placeholder="Tagline" maxLength={180} value={item.tagline ?? ""} onChange={(e) => patchItem(i, { tagline: e.target.value })} />
-            <button type="button" onClick={() => removeItem(i)} disabled={value.items.length <= 2} className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30">×</button>
+            <button type="button" onClick={() => removeItem(i)} disabled={value.items.length <= 2} className={`${KIT.ghostButton} disabled:opacity-30`}>×</button>
             <div className="flex items-center gap-2 md:col-span-4">
               <input
                 className={`${INPUT} flex-1`}

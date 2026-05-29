@@ -1,5 +1,6 @@
 "use client";
 
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { coerceLegacyHref } from "../../links/link-ref";
@@ -7,10 +8,9 @@ import type { LinkRef } from "../../links/link-ref";
 import type { SectionEditorProps } from "../types";
 import type { HeroSearchV1 } from "./schema";
 
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const FIELD = KIT.field;
+const LABEL = KIT.label;
+const INPUT = KIT.input;
 
 export function HeroSearchEditor({
   initial,
@@ -131,7 +131,7 @@ export function HeroSearchEditor({
         />
       </label>
 
-      <fieldset className="flex flex-col gap-2 rounded-md border border-border/50 p-2">
+      <fieldset className="flex flex-col gap-2 rounded-lg border border-[#e5e0d5] p-2">
         <span className={LABEL}>Search</span>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -189,7 +189,7 @@ export function HeroSearchEditor({
           />
         </div>
         {search.mode === "ai-interpret" ? (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-stone-500">
             AI mode only functions if the action href points to a real,
             tenant-safe interpret endpoint. Otherwise it behaves as a plain
             directory query — AI is never faked.
@@ -216,7 +216,7 @@ export function HeroSearchEditor({
           <option value="roster_cities">Roster cities (follow-on)</option>
         </select>
         {value.chipsSource !== "manual" ? (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-stone-500">
             Roster-derived chip sources are a documented follow-on; the
             manual list below renders as the safe interim.
           </p>
@@ -237,7 +237,7 @@ export function HeroSearchEditor({
         ))}
         <button
           type="button"
-          className="self-start rounded-md border border-border/60 px-2 py-1 text-xs"
+          className={`${KIT.ghostButton} self-start`}
           onClick={() =>
             patch({ chips: [...chips, { label: "City" }].slice(0, 12) })
           }

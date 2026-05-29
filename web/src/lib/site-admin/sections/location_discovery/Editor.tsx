@@ -2,13 +2,13 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 import type { SectionEditorProps } from "../types";
 import type { LocationDiscoveryV1, LocationDiscoveryItem } from "./schema";
 
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const FIELD = KIT.field;
+const LABEL = KIT.label;
+const INPUT = KIT.input;
 
 export function LocationDiscoveryEditor({
   initial,
@@ -123,7 +123,7 @@ export function LocationDiscoveryEditor({
       </div>
 
       {value.source === "service_areas" ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[11px] text-stone-500">
           Service-area derivation is a documented follow-on; the manual list
           below renders as the safe interim. Roster-cities mode is
           tenant-scoped and live now.
@@ -155,7 +155,7 @@ export function LocationDiscoveryEditor({
           {items.map((it, i) => (
             <div
               key={i}
-              className="grid grid-cols-1 gap-2 rounded-md border border-border/50 p-2 md:grid-cols-2"
+              className="grid grid-cols-1 gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2 md:grid-cols-2"
             >
               <input
                 className={INPUT}
@@ -227,7 +227,7 @@ export function LocationDiscoveryEditor({
           ))}
           <button
             type="button"
-            className="self-start rounded-md border border-border/60 px-2 py-1 text-xs"
+            className={`${KIT.ghostButton} self-start`}
             onClick={() =>
               patch({
                 items: [...items, { label: "New city" }].slice(0, 24),
