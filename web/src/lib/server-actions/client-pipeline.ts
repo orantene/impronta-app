@@ -18,6 +18,8 @@ import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment-intent";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
   getConnectedAccountSnapshotById,
   canRouteCheckoutsToAgency,
@@ -269,6 +271,76 @@ export async function startInquiryCheckout(
     return { ok: true, url: result.url, mock: result.mock };
   } catch (err) {
     logServerError("client-pipeline.startInquiryCheckout", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Embedded checkout: create a PaymentIntent for the inquiry's outstanding
+ * invoice and return its client secret. The client confirms ON-PAGE via the
+ * Stripe Payment Element drawer (no redirect, auto-updating). The
+ * `payment_intent.succeeded` webhook flips the transaction to `paid`.
+ *
+ * Charges the full transaction amount on the PLATFORM account (separate
+ * charges + transfers model). The 3-way split — talent paid in full, the
+ * platform's seller share deducted from the workspace margin — is fanned out
+ * post-payment via transfers (Phase 3).
+ *
+ * Mock mode (no STRIPE_SECRET_KEY): returns a synthetic client secret + `mock`
+ * flag so the drawer simulates the confirm step and the prototype still demos.
+ */
+export async function createInquiryPaymentIntent(
+  inquiryId: string,
+): Promise<ClientActionResult & {
+  clientSecret?: string;
+  amountCents?: number;
+  currency?: string;
+  mock?: boolean;
+}> {
+  try {
+    const ctx = await loadClientInquiryContext(inquiryId);
+    if (!ctx.ok) return ctx;
+
+    const { data: booking } = await tenantScopedQuery(ctx.supabase, "agency_bookings", ctx.tenantId)
+      .select("id, currency_code, contact_email")
+      .eq("source_inquiry_id", inquiryId)
+      .maybeSingle() as {
+        data: { id: string; currency_code: string | null; contact_email: string | null } | null;
+      };
+    if (!booking) return { ok: false, error: "No booking yet for this inquiry." };
+
+    const txn = await loadActiveBookingTransaction(booking.id as string, ctx.supabase);
+    if (!txn) return { ok: false, error: "No active transaction — ask the agency to request payment first." };
+    if (txn.status === "paid" || txn.status === "payout_pending" || txn.status === "payout_sent") {
+      return { ok: false, error: "This invoice is already paid." };
+    }
+
+    const currency = txn.currency || (booking.currency_code as string | null) || "USD";
+
+    const result = await createPaymentIntentForTransaction({
+      transactionId: txn.id,
+      // The transaction gross is what the agency requested. Once the offer
+      // composer bakes the client surcharge into the offer total (Phase 0.5)
+      // this already includes it; until then it is the service subtotal.
+      amountCents: txn.grossAmountCents,
+      currency,
+      payerEmail: txn.payerEmail ?? (booking.contact_email as string | null) ?? null,
+      inquiryId,
+      bookingId: booking.id as string,
+      description: "Booking payment",
+    });
+
+    if (!result.ok) return { ok: false, error: result.error };
+
+    return {
+      ok: true,
+      clientSecret: result.clientSecret,
+      amountCents: result.amountCents,
+      currency: result.currency,
+      mock: result.mock,
+    };
+  } catch (err) {
+    logServerError("client-pipeline.createInquiryPaymentIntent", err);
     return { ok: false, error: "Unexpected error." };
   }
 }
