@@ -124,6 +124,13 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-builder-style-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)}
 .site-builder-node--paragraph[data-builder-style-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)}
 .site-builder-node--paragraph[data-builder-style-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)}
+.site-builder-node[data-builder-style-hover-bg]:hover,.site-builder-node[data-builder-style-hover-bg]:focus-visible{background-color:var(--bn-hover-bg)!important}
+.site-builder-node[data-builder-style-hover-color]:hover,.site-builder-node[data-builder-style-hover-color]:focus-visible{color:var(--bn-hover-color)!important}
+.site-builder-node[data-builder-style-hover-border-color]:hover,.site-builder-node[data-builder-style-hover-border-color]:focus-visible{border-color:var(--bn-hover-border-color)!important}
+.site-builder-node[data-builder-style-hover-shadow]:hover,.site-builder-node[data-builder-style-hover-shadow]:focus-visible{box-shadow:var(--bn-hover-shadow)!important}
+.site-builder-node[data-builder-style-hover-scale]:hover,.site-builder-node[data-builder-style-hover-scale]:focus-visible{scale:var(--bn-hover-scale)!important}
+.site-builder-node[data-builder-style-hover-translate]:hover,.site-builder-node[data-builder-style-hover-translate]:focus-visible{translate:var(--bn-hover-translate)!important}
+.site-builder-node[data-builder-style-hover-opacity]:hover,.site-builder-node[data-builder-style-hover-opacity]:focus-visible{opacity:var(--bn-hover-opacity)!important}
 @media (max-width:900px){
   .site-builder-node[data-builder-style-tablet-align]{text-align:var(--bn-tablet-align)!important}
   .site-builder-node[data-builder-style-tablet-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)!important}
@@ -496,6 +503,17 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-grid-template-columns": mobile?.gridTemplateColumns ? "" : undefined,
     "data-builder-style-mobile-grid-template-rows": mobile?.gridTemplateRows ? "" : undefined,
     "data-builder-style-mobile-grid-auto-flow": mobile?.gridAutoFlow ? "" : undefined,
+    // Hover-state gates — each presence attr arms the matching :hover rule in the
+    // static sheet (which reads the --bn-hover-* var). No attr ⇒ no rule ⇒ resting
+    // value is untouched.
+    "data-builder-style-hover-bg": style?.hover?.backgroundColor ? "" : undefined,
+    "data-builder-style-hover-color": style?.hover?.color ? "" : undefined,
+    "data-builder-style-hover-border-color": style?.hover?.borderColor ? "" : undefined,
+    "data-builder-style-hover-shadow": style?.hover?.boxShadow ? "" : undefined,
+    "data-builder-style-hover-scale": style?.hover?.scale ? "" : undefined,
+    "data-builder-style-hover-translate": style?.hover?.translate ? "" : undefined,
+    "data-builder-style-hover-opacity":
+      typeof style?.hover?.opacity === "number" ? "" : undefined,
   };
 }
 
@@ -714,6 +732,17 @@ function responsiveStyleVars(
     "--bn-mobile-grid-template-columns": style?.responsive?.mobile?.gridTemplateColumns,
     "--bn-mobile-grid-template-rows": style?.responsive?.mobile?.gridTemplateRows,
     "--bn-mobile-grid-auto-flow": style?.responsive?.mobile?.gridAutoFlow,
+    // Hover-state overrides — a single (non-viewport) layer. Each var only renders
+    // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
+    // the static sheet so the override applies only while hovered/focused, and an
+    // unset var never clobbers the resting value.
+    "--bn-hover-bg": style?.hover?.backgroundColor,
+    "--bn-hover-color": style?.hover?.color,
+    "--bn-hover-border-color": style?.hover?.borderColor,
+    "--bn-hover-shadow": style?.hover?.boxShadow,
+    "--bn-hover-scale": style?.hover?.scale,
+    "--bn-hover-translate": style?.hover?.translate,
+    "--bn-hover-opacity": style?.hover?.opacity,
   });
 }
 
@@ -837,6 +866,11 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.scale) out.scale = style.scale;
   if (style.translate) out.translate = style.translate;
   if (style.transformOrigin) out.transformOrigin = style.transformOrigin;
+  // Transition escape — smooths animatable changes (hover/responsive/state). An
+  // explicit value wins; otherwise auto-default to a gentle ease whenever a hover
+  // layer exists so the :hover overrides animate instead of snapping.
+  if (style.transition) out.transition = style.transition;
+  else if (style.hover) out.transition = "all .2s ease";
   // Flex/grid child placement — how this node sizes/aligns inside its parent
   // (0 is meaningful for grow/shrink, so test the type). No-op outside flex/grid.
   if (style.alignSelf) out.alignSelf = style.alignSelf;

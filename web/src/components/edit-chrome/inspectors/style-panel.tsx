@@ -29,6 +29,7 @@ import {
   resolveBuilderNodeRole,
   type BuilderNode,
   type BuilderNodeRole,
+  type BuilderNodeHoverStyle,
   type BuilderNodeStyle,
   type BuilderNodeStyleValue,
 } from "@/lib/site-admin/builder-node";
@@ -878,6 +879,21 @@ function standaloneNodeLabel(node: StandaloneStyleNode): string {
     .join(" ");
 }
 
+function cleanHoverStyle(
+  value: BuilderNodeHoverStyle | undefined,
+): BuilderNodeHoverStyle | undefined {
+  if (!value) return undefined;
+  const out: BuilderNodeHoverStyle = {};
+  if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
+  if (value.color) out.color = value.color;
+  if (value.borderColor) out.borderColor = value.borderColor;
+  if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.scale) out.scale = value.scale;
+  if (value.translate) out.translate = value.translate;
+  if (typeof value.opacity === "number") out.opacity = value.opacity;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function cleanBuilderNodeStyle(
   value: BuilderNodeStyle | undefined,
 ): BuilderNodeStyle | undefined {
@@ -946,6 +962,7 @@ function cleanBuilderNodeStyle(
   if (value.scale) out.scale = value.scale;
   if (value.translate) out.translate = value.translate;
   if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
+  if (value.transition) out.transition = value.transition;
   if (value.alignSelf) out.alignSelf = value.alignSelf;
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
   if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
@@ -968,6 +985,8 @@ function cleanBuilderNodeStyle(
     if (tablet) out.responsive.tablet = tablet;
     if (mobile) out.responsive.mobile = mobile;
   }
+  const hover = cleanHoverStyle(value.hover);
+  if (hover) out.hover = hover;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -1039,6 +1058,7 @@ function cleanBuilderNodeStyleValue(
   if (value.scale) out.scale = value.scale;
   if (value.translate) out.translate = value.translate;
   if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
+  if (value.transition) out.transition = value.transition;
   if (value.alignSelf) out.alignSelf = value.alignSelf;
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
   if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
@@ -2878,6 +2898,41 @@ export function StylePanel({
       style: nextStyle ? { ...nextStyle } : undefined,
     };
     patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  // Patch top-level (non-viewport) style keys regardless of the active viewport.
+  // Used for layers that aren't breakpoint-scoped — hover + the transition escape.
+  function patchSelectedBaseStyle(patch: Partial<BuilderNodeStyle>) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const nextStyle = cleanBuilderNodeStyle({
+      ...currentStyle,
+      ...patch,
+    });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  // Merge a partial hover override into the single hover layer (base, not nested
+  // under a viewport — hover is a pointer interaction, not a breakpoint).
+  function patchSelectedHoverStyle(patch: Partial<BuilderNodeHoverStyle>) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    patchSelectedBaseStyle({
+      hover: {
+        ...(currentStyle?.hover ?? {}),
+        ...patch,
+      },
+    });
   }
 
   function setOrToggleStandaloneStyle(
@@ -6558,6 +6613,260 @@ export function StylePanel({
                   }
                   options={BUILDER_NODE_BLEND_OPTIONS}
                 />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="hover"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Hover state</span>
+              <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                Applies on the live site while hovered or keyboard-focused.
+                Colors accept a token (var(--token-color-primary)), hex, or rgb.
+              </span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="transition"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Transition
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="all .2s ease (auto when hover set)"
+                  value={selectedStandaloneFullStyle?.transition ?? ""}
+                  onChange={(e) =>
+                    patchSelectedBaseStyle({
+                      transition: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverBackgroundColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="var(--token-color-primary) / #111"
+                  value={selectedStandaloneFullStyle?.hover?.backgroundColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      backgroundColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text color
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="var(--token-color-surface) / #fff"
+                  value={selectedStandaloneFullStyle?.hover?.color ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      color: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverBorderColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Border color
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="var(--token-color-primary) / #111"
+                  value={selectedStandaloneFullStyle?.hover?.borderColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      borderColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverBoxShadow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Shadow
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: "#faf9f6",
+                    border: "1px solid #e5e0d5",
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="0 12px 32px rgba(0,0,0,.18)"
+                  value={selectedStandaloneFullStyle?.hover?.boxShadow ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      boxShadow: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex gap-2">
+                <div
+                  className="flex flex-1 flex-col gap-1.5"
+                  data-builder-node-style-control="hoverScale"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Scale
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1.04"
+                    value={selectedStandaloneFullStyle?.hover?.scale ?? ""}
+                    onChange={(e) =>
+                      patchSelectedHoverStyle({
+                        scale: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-1 flex-col gap-1.5"
+                  data-builder-node-style-control="hoverTranslate"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Translate
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0 -4px"
+                    value={selectedStandaloneFullStyle?.hover?.translate ?? ""}
+                    onChange={(e) =>
+                      patchSelectedHoverStyle({
+                        translate: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-1 flex-col gap-1.5"
+                  data-builder-node-style-control="hoverOpacity"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Opacity
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0.85"
+                    value={
+                      typeof selectedStandaloneFullStyle?.hover?.opacity ===
+                      "number"
+                        ? String(selectedStandaloneFullStyle.hover.opacity)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value.trim();
+                      const parsed = Number.parseFloat(raw);
+                      patchSelectedHoverStyle({
+                        opacity:
+                          raw && Number.isFinite(parsed) ? parsed : undefined,
+                      });
+                    }}
+                  />
+                </div>
               </div>
             </div>
 

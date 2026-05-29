@@ -837,6 +837,81 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /background-clip:text/);
   });
 
+  it("renders the hover-state layer (vars + gates) with an explicit transition", () => {
+    const html = render([
+      {
+        id: "free:hover",
+        kind: "paragraph",
+        props: {
+          text: "Hover me",
+          style: {
+            transition: "color .3s linear",
+            hover: {
+              backgroundColor: "#abc123",
+              scale: "1.37",
+              translate: "0 -7px",
+              opacity: 0.85,
+            },
+          },
+        },
+      },
+    ]);
+
+    // Each set hover prop rides on its own --bn-hover-* var (literal values that
+    // never appear in the static sheet, which only references the vars).
+    assert.match(html, /--bn-hover-bg:#abc123/);
+    assert.match(html, /--bn-hover-scale:1\.37/);
+    assert.match(html, /--bn-hover-translate:0 -7px/);
+    assert.match(html, /--bn-hover-opacity:0\.85/);
+    // Each set prop arms its presence gate so the :hover rule applies.
+    assert.match(html, /data-builder-style-hover-bg=""/);
+    assert.match(html, /data-builder-style-hover-scale=""/);
+    assert.match(html, /data-builder-style-hover-translate=""/);
+    assert.match(html, /data-builder-style-hover-opacity=""/);
+    // Unset hover props emit neither a var nor a gate.
+    assert.doesNotMatch(html, /data-builder-style-hover-color=""/);
+    assert.doesNotMatch(html, /data-builder-style-hover-border-color=""/);
+    assert.doesNotMatch(html, /data-builder-style-hover-shadow=""/);
+    // An explicit transition wins over the auto-default.
+    assert.match(html, /transition:color \.3s linear/);
+    // The :hover rule shipped in the embedded sheet (reads the var).
+    assert.match(html, /scale:var\(--bn-hover-scale\)/);
+  });
+
+  it("auto-defaults the transition when a hover layer is set without one", () => {
+    const html = render([
+      {
+        id: "free:hover-auto",
+        kind: "paragraph",
+        props: {
+          text: "Auto eased",
+          style: { hover: { backgroundColor: "#abc123" } },
+        },
+      },
+    ]);
+
+    // No explicit transition + a hover layer ⇒ gentle auto-ease so hover animates.
+    assert.match(html, /transition:all \.2s ease/);
+    assert.match(html, /data-builder-style-hover-bg=""/);
+  });
+
+  it("emits no hover gate or auto-transition when there is no hover layer", () => {
+    const html = render([
+      {
+        id: "free:no-hover",
+        kind: "paragraph",
+        props: {
+          text: "Resting only",
+          style: { scale: "1.1" },
+        },
+      },
+    ]);
+
+    // A base (non-hover) scale must not arm any hover gate or auto-transition.
+    assert.doesNotMatch(html, /data-builder-style-hover-scale=""/);
+    assert.doesNotMatch(html, /transition:all \.2s ease/);
+  });
+
   it("renders flex child placement escapes (align-self + flex sizing)", () => {
     const html = render([
       {

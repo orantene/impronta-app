@@ -146,6 +146,10 @@ const builderNodeStyleValueSchema = z.object({
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),
   transformOrigin: z.string().max(32).optional(),
+  // Transition escape — free CSS transition string that smooths animatable
+  // changes (hover/responsive/state). Auto-defaults to "all .2s ease" at render
+  // when a hover layer exists.
+  transition: z.string().max(120).optional(),
   // Flex/grid child placement — self-alignment + flex sizing inside a parent.
   alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),
   flexGrow: z.number().min(0).max(999).optional(),
@@ -187,6 +191,18 @@ const builderNodeStyleValueSchema = z.object({
     .optional(),
 });
 
+// Hover-state overrides — a curated subset of animatable props re-applied while
+// hovered/focused. Single layer (hover is a pointer interaction, not a viewport).
+const builderNodeHoverStyleSchema = z.object({
+  backgroundColor: z.string().max(80).optional(),
+  color: z.string().max(80).optional(),
+  borderColor: z.string().max(80).optional(),
+  boxShadow: z.string().max(200).optional(),
+  scale: z.string().max(16).optional(),
+  translate: z.string().max(24).optional(),
+  opacity: z.number().min(0).max(1).optional(),
+});
+
 const builderNodeStyleSchema = builderNodeStyleValueSchema
   .extend({
     responsive: z
@@ -195,6 +211,7 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
         mobile: builderNodeStyleValueSchema.optional(),
       })
       .optional(),
+    hover: builderNodeHoverStyleSchema.optional(),
   })
   .optional();
 

@@ -130,6 +130,11 @@ export interface BuilderNodeStyleValue {
   scale?: string;
   translate?: string;
   transformOrigin?: string;
+  // Transition escape — free CSS transition string that smooths any animatable
+  // property change (hover, responsive, state). e.g. "all .2s ease",
+  // "transform .3s cubic-bezier(.2,.8,.2,1)". When a hover layer is present the
+  // renderer auto-defaults this to "all .2s ease" so hover changes ease in.
+  transition?: string;
   // Flex/grid child placement — how this node sizes & aligns inside a row/grid
   // parent. alignSelf overrides the parent's cross-axis alignment for just this
   // child; flexGrow/Shrink tune flex sizing (0 is meaningful — don't grow/shrink);
@@ -174,11 +179,28 @@ export interface BuilderNodeStyleValue {
   gridAutoFlow?: "row" | "column" | "row dense" | "column dense";
 }
 
+// Hover-state overrides — a curated subset of style props that re-apply only
+// while the node is hovered (or keyboard-focused). A single layer (NOT
+// per-viewport: hover is a desktop/pointer interaction). Paired with the
+// `transition` escape to ease the change. Colors accept tokens/hex/rgb; scale
+// is a unitless factor ("1.04"); translate is 1-2 lengths ("0 -4px"); opacity
+// is 0–1.
+export interface BuilderNodeHoverStyle {
+  backgroundColor?: string;
+  color?: string;
+  borderColor?: string;
+  boxShadow?: string;
+  scale?: string;
+  translate?: string;
+  opacity?: number;
+}
+
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {
   responsive?: {
     tablet?: BuilderNodeStyleValue;
     mobile?: BuilderNodeStyleValue;
   };
+  hover?: BuilderNodeHoverStyle;
 }
 
 export interface BuilderSectionNode extends BuilderNodeBase {
