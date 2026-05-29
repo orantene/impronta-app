@@ -102,6 +102,11 @@ export interface BuilderNodeStyleValue {
   // content is clipped or scrolls within the node's box.
   zIndex?: number;
   overflow?: "visible" | "hidden" | "auto" | "scroll";
+  // Transform escapes — standalone CSS rotate/scale properties (compose
+  // independently of layout/position). rotate takes an angle ("-3deg"); scale
+  // takes a unitless factor ("1.05" = 105%). Negatives / sub-1 allowed.
+  rotate?: string;
+  scale?: string;
 }
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {

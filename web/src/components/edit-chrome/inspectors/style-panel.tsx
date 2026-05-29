@@ -857,6 +857,8 @@ function cleanBuilderNodeStyle(
   if (value.left) out.left = value.left;
   if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
   if (value.overflow) out.overflow = value.overflow;
+  if (value.rotate) out.rotate = value.rotate;
+  if (value.scale) out.scale = value.scale;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -924,6 +926,8 @@ function cleanBuilderNodeStyleValue(
   if (value.left) out.left = value.left;
   if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
   if (value.overflow) out.overflow = value.overflow;
+  if (value.rotate) out.rotate = value.rotate;
+  if (value.scale) out.scale = value.scale;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -5635,6 +5639,94 @@ export function StylePanel({
                       })
                     }
                     options={BUILDER_NODE_OVERFLOW_OPTIONS}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="transform"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Transform</span>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="rotate"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Rotate °
+                  </span>
+                  <input
+                    type="number"
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0"
+                    value={
+                      Number.isFinite(
+                        Number.parseFloat(selectedStandaloneViewportStyle?.rotate ?? ""),
+                      )
+                        ? Number.parseFloat(selectedStandaloneViewportStyle?.rotate ?? "")
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        rotate:
+                          raw === "" || !Number.isFinite(n) ? undefined : `${n}deg`,
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="scale"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Scale %
+                  </span>
+                  <input
+                    type="number"
+                    step={5}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: "#faf9f6",
+                      border: "1px solid #e5e0d5",
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="100"
+                    value={
+                      Number.isFinite(Number(selectedStandaloneViewportStyle?.scale))
+                        ? Math.round(Number(selectedStandaloneViewportStyle?.scale) * 100)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        scale:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : String(n / 100),
+                      });
+                    }}
                   />
                 </div>
               </div>

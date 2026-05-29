@@ -607,6 +607,32 @@ describe("renderBuilderNodes", () => {
     assert.doesNotMatch(html, /data-builder-style-mobile-z-index=""/);
   });
 
+  it("renders transform escapes (rotate + scale)", () => {
+    const html = render([
+      {
+        id: "free:xform",
+        kind: "paragraph",
+        props: {
+          text: "Tilted",
+          style: {
+            rotate: "-3deg",
+            scale: "1.05",
+            responsive: { mobile: { rotate: "0deg" } },
+          },
+        },
+      },
+    ]);
+
+    // Standalone rotate/scale land inline at desktop with literal values
+    // (these compose independently of any transform the layout might set).
+    assert.match(html, /rotate:-3deg/);
+    assert.match(html, /scale:1\.05/);
+    // The mobile rotate override is attr-gated; no mobile scale / tablet set.
+    assert.match(html, /data-builder-style-mobile-rotate=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-scale=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-rotate=""/);
+  });
+
   it("renders carousel affordances from layout props", () => {
     const html = render([
       {

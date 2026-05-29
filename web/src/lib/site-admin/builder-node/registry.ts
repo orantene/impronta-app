@@ -127,6 +127,9 @@ const builderNodeStyleValueSchema = z.object({
   // overflow control.
   zIndex: z.number().int().min(-999).max(999).optional(),
   overflow: z.enum(["visible", "hidden", "auto", "scroll"]).optional(),
+  // Transform escapes — standalone rotate (angle) + scale (factor).
+  rotate: z.string().max(16).optional(),
+  scale: z.string().max(16).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema

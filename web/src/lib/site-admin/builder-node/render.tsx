@@ -180,6 +180,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-inset-left]{left:var(--bn-tablet-inset-left)!important}
   .site-builder-node[data-builder-style-tablet-z-index]{z-index:var(--bn-tablet-z-index)!important}
   .site-builder-node[data-builder-style-tablet-overflow]{overflow:var(--bn-tablet-overflow)!important}
+  .site-builder-node[data-builder-style-tablet-rotate]{rotate:var(--bn-tablet-rotate)!important}
+  .site-builder-node[data-builder-style-tablet-scale]{scale:var(--bn-tablet-scale)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -245,6 +247,8 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-inset-left]{left:var(--bn-mobile-inset-left)!important}
   .site-builder-node[data-builder-style-mobile-z-index]{z-index:var(--bn-mobile-z-index)!important}
   .site-builder-node[data-builder-style-mobile-overflow]{overflow:var(--bn-mobile-overflow)!important}
+  .site-builder-node[data-builder-style-mobile-rotate]{rotate:var(--bn-mobile-rotate)!important}
+  .site-builder-node[data-builder-style-mobile-scale]{scale:var(--bn-mobile-scale)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -336,6 +340,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-z-index":
       typeof tablet?.zIndex === "number" ? "" : undefined,
     "data-builder-style-tablet-overflow": tablet?.overflow ? "" : undefined,
+    "data-builder-style-tablet-rotate": tablet?.rotate ? "" : undefined,
+    "data-builder-style-tablet-scale": tablet?.scale ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -393,6 +399,8 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-z-index":
       typeof mobile?.zIndex === "number" ? "" : undefined,
     "data-builder-style-mobile-overflow": mobile?.overflow ? "" : undefined,
+    "data-builder-style-mobile-rotate": mobile?.rotate ? "" : undefined,
+    "data-builder-style-mobile-scale": mobile?.scale ? "" : undefined,
   };
 }
 
@@ -567,6 +575,10 @@ function responsiveStyleVars(
     "--bn-tablet-overflow": style?.responsive?.tablet?.overflow,
     "--bn-mobile-z-index": style?.responsive?.mobile?.zIndex,
     "--bn-mobile-overflow": style?.responsive?.mobile?.overflow,
+    "--bn-tablet-rotate": style?.responsive?.tablet?.rotate,
+    "--bn-tablet-scale": style?.responsive?.tablet?.scale,
+    "--bn-mobile-rotate": style?.responsive?.mobile?.rotate,
+    "--bn-mobile-scale": style?.responsive?.mobile?.scale,
   });
 }
 
@@ -660,6 +672,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   // valid value, so test the type); overflow clips/scrolls the node's box.
   if (typeof style.zIndex === "number") out.zIndex = style.zIndex;
   if (style.overflow) out.overflow = style.overflow;
+  // Transform escapes — standalone rotate/scale (compose independently of any
+  // position/layout). Applied after positioning so they layer on top.
+  if (style.rotate) out.rotate = style.rotate;
+  if (style.scale) out.scale = style.scale;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
