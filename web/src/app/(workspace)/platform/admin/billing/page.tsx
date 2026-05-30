@@ -7,6 +7,18 @@ import {
   loadPlatformPlanDistribution,
   loadPlatformStats,
 } from "../../platform-data";
+import {
+  loadPlatformBookingRevenue,
+  type PlatformRevenueByCurrency,
+} from "@/lib/billing/platform-revenue";
+
+function fmtMoney(cents: number, currency: string): string {
+  return (cents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 0,
+  });
+}
 
 export const dynamic = "force-dynamic";
 
@@ -144,10 +156,14 @@ const PLAN_PALETTE: Record<string, string> = {
 };
 
 export default async function PlatformBillingPage() {
-  const [planDist, stats] = await Promise.all([
+  const [planDist, stats, revenue] = await Promise.all([
     loadPlatformPlanDistribution(),
     loadPlatformStats(),
+    loadPlatformBookingRevenue(),
   ]);
+
+  // Primary currency = the one with the most platform-fee revenue.
+  const primary: PlatformRevenueByCurrency | null = revenue.byCurrency[0] ?? null;
 
   const totalActiveTenants = planDist.reduce((sum, r) => sum + r.activeCount, 0);
   const paidTenants = planDist
@@ -187,8 +203,8 @@ export default async function PlatformBillingPage() {
             margin: "5px 0 0",
           }}
         >
-          MRR by plan, invoice ledger, and refund tools. Billing integration ships in
-          Phase 8.
+          Booking revenue from the commission engine, plan MRR, and commission
+          controls. Subscription invoicing/dunning is still estimated.
         </p>
         <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link
@@ -366,22 +382,148 @@ export default async function PlatformBillingPage() {
 
       <div style={{ height: 12 }} />
 
-      {/* Invoice table — placeholder until Phase 8 */}
-      <HqCard title="Invoice ledger" subtitle="Stripe integration ships in Phase 8">
-        <div
-          style={{
-            padding: "32px 0",
-            textAlign: "center",
-            color: HQ.inkMuted,
-            fontSize: 13,
-            fontFamily: F,
-          }}
-        >
-          <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3 }}>₿</div>
-          When billing is live, invoices, dunning, and plan overrides will appear here.
-          <br />
-          MRR above is estimated from plan_tier × catalog price.
-        </div>
+      {/* Booking revenue — real money from the commission engine */}
+      <HqCard
+        title="Booking revenue"
+        subtitle={
+          revenue.hasData
+            ? `Realized across ${revenue.totalBookings} paid booking${revenue.totalBookings === 1 ? "" : "s"}${
+                revenue.totalRefundedBookings > 0
+                  ? ` · ${revenue.totalRefundedBookings} refunded`
+                  : ""
+              }${revenue.truncated ? " · showing a partial total (volume cap hit)" : ""}`
+            : "Platform commission from paid bookings will appear here"
+        }
+      >
+        {!revenue.hasData || !primary ? (
+          <div
+            style={{
+              padding: "28px 0",
+              textAlign: "center",
+              color: HQ.inkMuted,
+              fontSize: 13,
+              fontFamily: F,
+            }}
+          >
+            No paid bookings yet. Once a client pays an offer, the platform fee,
+            talent payout, and workspace margin land here — split by the
+            talent-protected commission model.
+          </div>
+        ) : (
+          <>
+            {/* Headline stat row for the primary currency */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 12,
+                marginBottom: primary ? 14 : 0,
+              }}
+            >
+              <StatCard
+                label={`Platform fees (${primary.currency.toUpperCase()})`}
+                value={fmtMoney(primary.platformFeeCents, primary.currency)}
+                caption="our take — surcharge + seller share"
+                tone="green"
+              />
+              <StatCard
+                label="Gross processed"
+                value={fmtMoney(primary.grossChargedCents, primary.currency)}
+                caption="total charged to clients"
+              />
+              <StatCard
+                label="Paid to talent"
+                value={fmtMoney(primary.talentNetCents, primary.currency)}
+                caption="full quotes — never reduced"
+              />
+              <StatCard
+                label="Workspace margins"
+                value={fmtMoney(primary.workspaceFeeCents, primary.currency)}
+                caption="agency margin + base fees"
+              />
+            </div>
+
+            {/* Per-currency breakdown (incl. non-primary currencies + refunds) */}
+            <div
+              style={{
+                border: `1px solid ${HQ.borderSoft}`,
+                borderRadius: 10,
+                overflow: "hidden",
+                marginTop: 6,
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "0.7fr 1fr 1fr 1fr 1fr",
+                  gap: 0,
+                  padding: "8px 14px",
+                  background: HQ.cardSoft,
+                  borderBottom: `1px solid ${HQ.borderSoft}`,
+                }}
+              >
+                {["Currency", "Platform fee", "Gross", "Talent", "Workspace"].map((h, i) => (
+                  <span
+                    key={h}
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      color: HQ.inkDim,
+                      letterSpacing: 0.4,
+                      textAlign: i === 0 ? "left" : "right",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {h}
+                  </span>
+                ))}
+              </div>
+              {revenue.byCurrency.map((row, idx) => (
+                <div
+                  key={row.currency}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "0.7fr 1fr 1fr 1fr 1fr",
+                    gap: 0,
+                    padding: "10px 14px",
+                    borderTop: idx === 0 ? "none" : `1px solid ${HQ.borderSoft}`,
+                    alignItems: "center",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: HQ.ink, fontWeight: 600 }}>
+                    {row.currency.toUpperCase()}
+                    <span style={{ color: HQ.inkDim, fontWeight: 400, fontSize: 11 }}>
+                      {" "}· {row.bookings}
+                    </span>
+                  </span>
+                  <span style={{ fontSize: 12.5, color: HQ.green, textAlign: "right" }}>
+                    {fmtMoney(row.platformFeeCents, row.currency)}
+                    {row.refundedPlatformFeeCents > 0 && (
+                      <span style={{ color: HQ.red, fontSize: 10.5 }}>
+                        {" "}−{fmtMoney(row.refundedPlatformFeeCents, row.currency)}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: HQ.inkMuted, textAlign: "right" }}>
+                    {fmtMoney(row.grossChargedCents, row.currency)}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: HQ.inkMuted, textAlign: "right" }}>
+                    {fmtMoney(row.talentNetCents, row.currency)}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: HQ.inkMuted, textAlign: "right" }}>
+                    {fmtMoney(row.workspaceFeeCents, row.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: HQ.inkDim, margin: "10px 0 0", fontFamily: F }}>
+              Realized from paid bookings via the commission snapshots. Refunded
+              platform fees are shown as a deduction. MRR above is separate —
+              estimated from subscription plan × catalog price.
+            </p>
+          </>
+        )}
       </HqCard>
     </>
   );
