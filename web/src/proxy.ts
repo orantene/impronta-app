@@ -102,6 +102,12 @@ export async function proxy(request: NextRequest) {
   // internal rewrite below doesn't recurse back through host resolution.
   if (
     pathname.startsWith("/api/stripe/") ||
+    // Legacy webhook alias — /api/webhooks/stripe delegates to the same
+    // unified handler as /api/stripe/webhook. Whichever URL Stripe is pointed
+    // at must reach the handler regardless of Host, so it needs the same
+    // host-gating bypass; otherwise this path rewrites to the unregistered-host
+    // page and the webhook silently 404s.
+    pathname.startsWith("/api/webhooks/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/analytics/events" ||
     // Branded 404 page for unregistered hosts — must bypass host gating to

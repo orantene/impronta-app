@@ -63,6 +63,7 @@ import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talen
 import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
+import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -265,16 +266,29 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
     }
 
-    case "charge_refunded":
-      ensureSyncOk(
-        "client_balance_refund",
-        await syncClientBalanceRefundToDb({
-          paymentIntentId: action.paymentIntentId,
-          refundedAmountCents: action.refundedCents,
-          chargeId: action.chargeId,
-        }),
-      );
+    case "charge_refunded": {
+      // Booking refund? Mark it refunded + reverse the talent/workspace payouts
+      // (full refunds only; partials are logged for manual handling). If the
+      // refund isn't for a booking, fall through to the tracked balance-top-up
+      // refund path. Best-effort — never throws — so a refund settled at Stripe
+      // can't 5xx the webhook into a retry storm.
+      const wasBookingRefund = await handleBookingRefund(stripe, {
+        paymentIntentId: action.paymentIntentId,
+        chargeId: action.chargeId,
+        refundedCents: action.refundedCents,
+      });
+      if (!wasBookingRefund) {
+        ensureSyncOk(
+          "client_balance_refund",
+          await syncClientBalanceRefundToDb({
+            paymentIntentId: action.paymentIntentId,
+            refundedAmountCents: action.refundedCents,
+            chargeId: action.chargeId,
+          }),
+        );
+      }
       return;
+    }
 
     case "booking_deposit":
       await markBookingDepositPaid(action);
@@ -288,14 +302,25 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       await persistConnectAccount(action.accountId, event.id);
       return;
 
-    case "charge_dispute":
-      // Log only today. B3 will route this to the notification engine + pause
-      // trust elevation. Kept here so the event is acknowledged (no retry storm).
-      logServerError(
-        "stripe-webhook.dispute.created",
-        `dispute ${action.disputeId} amount=${action.amount} reason=${action.reason} status=${action.status} (event ${event.id})`,
-      );
+    case "charge_dispute": {
+      // Booking dispute? Mark the transaction disputed + raise an ops alert.
+      // Transfers are NOT reversed — a dispute may be won and Stripe debits the
+      // platform on its own. If it's not a booking charge, just log it.
+      const wasBookingDispute = await handleBookingDispute(stripe, {
+        paymentIntentId: action.paymentIntentId,
+        disputeId: action.disputeId,
+        amount: action.amount,
+        reason: action.reason,
+        status: action.status,
+      });
+      if (!wasBookingDispute) {
+        logServerError(
+          "stripe-webhook.dispute.created",
+          `dispute ${action.disputeId} amount=${action.amount} reason=${action.reason} status=${action.status} (event ${event.id})`,
+        );
+      }
       return;
+    }
 
     case "trial_will_end":
       // Log only today. B3 will notify the talent / workspace owner.
