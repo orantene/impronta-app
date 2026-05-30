@@ -267,7 +267,7 @@
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-coach.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 47
+      "count": 46
     }
   },
   "src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-data-editors.tsx": {

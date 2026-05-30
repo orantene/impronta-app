@@ -84,9 +84,17 @@ export function HeaderPublishCoach({ missing, onJump }: {
           cursor: "pointer", whiteSpace: "nowrap",
         }}
       >
-        <span aria-hidden style={{
-          width: 6, height: 6, borderRadius: "50%", background: COLORS.indigoDeep,
-        }} />
+        {/* A checklist icon, not a bare dot — the old 6px circle was the same
+            indigo as the pill and read as meaningless noise. This says, at a
+            glance, "there's a list of things to finish before publishing"
+            (which is exactly what the dropdown shows). */}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m3 17 2 2 4-4" />
+          <path d="m3 7 2 2 4-4" />
+          <path d="M13 6h8" />
+          <path d="M13 12h8" />
+          <path d="M13 18h8" />
+        </svg>
         {copy.addToPublish(missing.length)}
         <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▴" : "▾"}</span>
       </button>
