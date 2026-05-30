@@ -10,10 +10,13 @@ export function RegisterForm({
   nextPath,
   submitLabel,
   locale = "en",
+  defaultEmail,
 }: {
   nextPath?: string;
   submitLabel?: string;
   locale?: string;
+  /** Pre-fills the email field (e.g. from the get-started lead) — editable. */
+  defaultEmail?: string;
 }) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
@@ -47,6 +50,7 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
+          defaultValue={defaultEmail}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>

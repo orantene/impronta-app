@@ -311,7 +311,7 @@ export function GetStartedForm({
             style={{ background: "var(--plt-forest)" }}
             aria-hidden
           />
-          You&rsquo;re on the list
+          {state.workspaceSignupUrl ? "Link reserved · one step left" : "You’re on the list"}
         </span>
         <h3
           className="plt-display mt-4 text-[1.75rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2rem]"
