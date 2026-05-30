@@ -135,6 +135,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
   const snap = await getConnectedAccountSnapshot(tenantSlug);
   if (!snap.ok) {
     return (
+      <div style={{ minHeight: "100vh", background: "#FAFAF7" }}>
       <main style={{ padding: "32px 24px", fontFamily: FONT, maxWidth: 720, margin: "0 auto" }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: C.ink, margin: "0 0 8px" }}>
           {t("admin.payouts.title")}
@@ -143,11 +144,13 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
           {t("admin.payouts.loadError")}: {snap.error}
         </p>
       </main>
+      </div>
     );
   }
   const { stripeAccountId, status, chargesEnabled, payoutsEnabled, detailsSubmitted, syncedAt } = snap.data;
 
   return (
+    <div style={{ minHeight: "100vh", background: "#FAFAF7" }}>
     <main style={{
       padding: "32px 24px 64px",
       fontFamily: FONT,
@@ -245,5 +248,6 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
         </ul>
       </section>
     </main>
+    </div>
   );
 }
