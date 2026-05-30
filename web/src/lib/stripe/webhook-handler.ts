@@ -62,6 +62,7 @@ import {
 import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talent-subscription";
 import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
+import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -213,6 +214,10 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       // Best-effort + idempotent; never throws, so a confirmation hiccup
       // cannot fail the webhook and force a needless Stripe retry.
       await emitBookingConfirmation(action.transactionId);
+      // Fan out the 3-way payout — talent (full quote) + workspace (margin
+      // net of the seller share); platform keeps its fee. Best-effort +
+      // idempotent; runs in skip/mock mode until Connect accounts exist.
+      await executeBookingTransfers(action.transactionId);
       return;
     }
 
