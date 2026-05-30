@@ -98,12 +98,22 @@ export interface PlatformCommissionConfig {
    *  omitted, defaults to an even split of the resolved total take. Talent
    *  pay is never touched when a workspace is the seller of record. */
   client_surcharge_bps?: number | null;
+  /** Platform cap on a workspace's flat base reservation fee, in cents
+   *  (null = uncapped). Bounds what any workspace can charge per booking. */
+  max_base_fee_cents?: number | null;
+  /** Platform cap on a workspace's % base reservation fee, in bps (null = uncapped). */
+  max_base_fee_bps?: number | null;
 }
 
 /** Subset of `workspace_commission_overrides` the resolver reads. */
 export interface WorkspaceCommissionOverride {
   platform_take_bps: number | null;
   platform_take_floor_cents: number | null;
+  /** Workspace's automatic base reservation fee on every booking — a flat
+   *  amount (cents) and/or a % of subtotal (bps). Workspace revenue, added on
+   *  top of the client total, clamped to the platform caps. */
+  base_reservation_fee_cents?: number | null;
+  base_reservation_fee_bps?: number | null;
 }
 
 /** Input to the resolver. */
@@ -159,6 +169,10 @@ export interface BookingCommissionSnapshot {
    *  half. > 0 means the platform absorbed the gap to keep the talent whole;
    *  the offer composer should prompt the admin to raise the price. */
   seller_shortfall_cents: number;
+  /** The workspace's base reservation fee on this booking (flat + %), clamped
+   *  to platform caps. Workspace revenue — included in workspace_fee_cents and
+   *  added to gross_charged_cents. 0 / absent for an independent-talent sale. */
+  base_reservation_fee_cents?: number;
   /** Who bore the seller-side fee on this row. */
   seller_of_record: SellerOfRecord;
   currency_code: string;
@@ -290,6 +304,24 @@ export function resolveBookingCommissions(
     sellerShortfallCents = sellerTargetCents - sellerDeductionCents;
   }
 
+  // 3b. Workspace base reservation fee — an automatic flat + % fee the
+  //     workspace charges on every booking. Workspace REVENUE, added on top
+  //     of the client total + clamped to the platform caps. Workspace seller
+  //     only (an independent-talent sale has no workspace, so no base fee).
+  let baseReservationFeeCents = 0;
+  if (sellerOfRecord !== "talent" && input.tenantOverride) {
+    const flat = Math.max(0, Math.round(input.tenantOverride.base_reservation_fee_cents ?? 0));
+    const pctBps = Math.max(0, Math.round(input.tenantOverride.base_reservation_fee_bps ?? 0));
+    const pct = Math.round((subtotalCents * pctBps) / 10000);
+    const maxFlat = input.platformConfig.max_base_fee_cents;
+    const maxBps = input.platformConfig.max_base_fee_bps;
+    const cappedFlat = maxFlat != null ? Math.min(flat, Math.max(0, maxFlat)) : flat;
+    const cappedPct = maxBps != null
+      ? Math.min(pct, Math.round((subtotalCents * Math.max(0, maxBps)) / 10000))
+      : pct;
+    baseReservationFeeCents = cappedFlat + cappedPct;
+  }
+
   // 4. Floor = minimum TOTAL take, topped up via the client surcharge so
   //    that talent + workspace stay whole.
   let clientSurchargeCents = clientSurchargeBase;
@@ -299,7 +331,9 @@ export function resolveBookingCommissions(
   }
 
   const platformFeeCents = clientSurchargeCents + sellerDeductionCents;
-  const grossChargedCents = subtotalCents + clientSurchargeCents;
+  // The client pays: subtotal + the platform's client surcharge + the
+  // workspace's base reservation fee.
+  const grossChargedCents = subtotalCents + clientSurchargeCents + baseReservationFeeCents;
 
   // 5. Lane destinations.
   let talentNetCents: number;
@@ -309,7 +343,8 @@ export function resolveBookingCommissions(
     workspaceFeeCents = 0;
   } else {
     talentNetCents = talentFullCents;                       // protected, 100%
-    workspaceFeeCents = marginCents - sellerDeductionCents; // net of deduction
+    // Workspace nets its margin (less the seller deduction) PLUS its base fee.
+    workspaceFeeCents = marginCents - sellerDeductionCents + baseReservationFeeCents;
   }
 
   // 6. Sanity — no lane negative; the three lanes sum to what the client is
@@ -329,6 +364,7 @@ export function resolveBookingCommissions(
     platform_fee_cents: platformFeeCents,
     workspace_fee_cents: workspaceFeeCents,
     talent_net_cents: talentNetCents,
+    base_reservation_fee_cents: baseReservationFeeCents,
     client_surcharge_cents: clientSurchargeCents,
     seller_deduction_cents: sellerDeductionCents,
     gross_charged_cents: grossChargedCents,
