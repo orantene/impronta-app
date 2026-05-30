@@ -21,6 +21,26 @@ export type {
   DiscoverSort,
 };
 
+/**
+ * Exact field set the directory card renders. A structural subset shared by the
+ * paginated grid items (`DiscoverTalentListItem`) and the map points
+ * (`DiscoverMapPoint`, enriched with trust + availability), so both can feed the
+ * same `DirectoryTalentCard` with no conversion step.
+ */
+export type DirectoryCardData = Pick<
+  DiscoverTalentListItem,
+  | "displayName"
+  | "profileCode"
+  | "primaryTypeLabel"
+  | "homeCity"
+  | "homeCountry"
+  | "agencyName"
+  | "isExclusive"
+  | "headshotUrl"
+  | "trustTier"
+  | "availableDaysInNext30"
+>;
+
 /** Page size for the grid/list incremental load. Shared by page + action. */
 export const DIRECTORY_PAGE_SIZE = 24;
 

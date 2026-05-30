@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { DiscoverTalentListItem } from "./shared";
+import type { DirectoryCardData } from "./shared";
 import { agencyLine, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
 
@@ -8,7 +8,7 @@ import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
  * to the canonical talent profile `/t/<code>`. No pricing, no cart/favorite,
  * no "hire" — discovery only.
  */
-export function DirectoryTalentCard({ talent }: { talent: DiscoverTalentListItem }) {
+export function DirectoryTalentCard({ talent }: { talent: DirectoryCardData }) {
   const loc = locationLine(talent.homeCity, talent.homeCountry);
   const typeAndLoc = [talent.primaryTypeLabel, loc].filter(Boolean).join(" · ");
   const href = talent.profileCode ? `/t/${talent.profileCode}` : null;

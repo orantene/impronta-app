@@ -11,7 +11,7 @@ const MapClient = dynamic(
       <div
         className="rounded-[22px]"
         style={{
-          height: "clamp(480px, calc(100vh - 320px), 760px)",
+          height: "clamp(240px, 38vh, 420px)",
           background: "var(--plt-bg-deep)",
           border: "1px solid var(--plt-hairline)",
         }}
