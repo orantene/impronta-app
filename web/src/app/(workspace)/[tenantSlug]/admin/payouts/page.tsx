@@ -3,7 +3,7 @@
  * Server Component — see `payouts-actions-client.tsx` for the interactive
  * Connect / Refresh / Manage / Disconnect buttons.
  *
- * Capability gate: agency.workspace.edit (admin-only). Reads its own snapshot
+ * Capability gate: agency.payout_account.manage (owner-level). Reads its own snapshot
  * via the persisted columns (no Stripe round-trip on render). Hits Stripe
  * only when the user clicks an action.
  */
@@ -121,7 +121,11 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const canEdit = await userHasCapability(scope.tenantId, "agency.workspace.edit");
+  // Capability gate: managing payout settings is owner-level (same capability
+  // the Connect onboarding action uses). NOTE: signature is
+  // userHasCapability(capability, tenantId) — passing them in the wrong order,
+  // or using an unregistered key, silently denies everyone.
+  const canEdit = await userHasCapability("agency.payout_account.manage", scope.tenantId);
   if (!canEdit) notFound();
 
   const locale = await getRequestLocale();

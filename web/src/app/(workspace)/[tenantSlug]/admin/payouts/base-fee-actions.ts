@@ -9,7 +9,7 @@
  * max_base_fee_cents / max_base_fee_bps). The fee is never taken from the
  * talent — it's added on top of the quote and flows into workspace_fee.
  *
- * Capability-gated to `agency.workspace.edit` (workspace admins), then writes
+ * Capability-gated to `agency.payout_account.manage` (owner-level), then writes
  * via the service-role client because workspace_commission_overrides is under
  * admin-only RLS — the same pattern the platform commission actions use.
  */
@@ -39,7 +39,7 @@ export type WorkspaceBaseFeeState = {
 async function requireWorkspaceEditor(tenantSlug: string) {
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) return { ok: false as const, error: "Workspace not found." };
-  const canEdit = await userHasCapability(scope.tenantId, "agency.workspace.edit");
+  const canEdit = await userHasCapability("agency.payout_account.manage", scope.tenantId);
   if (!canEdit) return { ok: false as const, error: "Forbidden — workspace admin only." };
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false as const, error: "You must be signed in." };
