@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
+  getAppUrl,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -72,9 +73,15 @@ export async function GET(request: Request) {
         ? await loadAccessProfile(supabase, user.id)
         : null;
       const destination = resolvePostAuthDestination(ensuredProfile, next);
+      // Always redirect post-auth destinations to the app host.
+      // The auth callback runs on whatever host the OAuth provider returns to
+      // (could be tulala.digital — the marketing host) but /onboarding/role,
+      // /admin, /talent, /client are only allowed on the app host. Using
+      // `origin` (the request host) caused a 404 when origin was the apex.
+      const appUrl = getAppUrl();
       const successResponse = popup
         ? createPopupResponse(origin, { success: true, destination })
-        : NextResponse.redirect(`${origin}${destination}`);
+        : NextResponse.redirect(`${appUrl}${destination}`);
       response.cookies.getAll().forEach((cookie) => {
         successResponse.cookies.set(cookie);
       });
