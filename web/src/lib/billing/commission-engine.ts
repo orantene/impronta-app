@@ -141,6 +141,23 @@ export async function persistBookingCommissionSnapshot(
     return { ok: false, reason: "context_load_failed", detail: "no_participants" };
   }
 
+  // P4: the context RPC doesn't carry the client/seller split ratio; fetch it
+  // so the resolver applies the admin-set split instead of the even-split
+  // default. Non-fatal — on any error the resolver falls back to even split.
+  try {
+    const splitRes = (await supabase.rpc(
+      "engine_platform_commission_split" as never,
+    )) as { data: number | null };
+    if (typeof splitRes.data === "number") {
+      ctx.platform_config = {
+        ...ctx.platform_config,
+        client_surcharge_bps: splitRes.data,
+      };
+    }
+  } catch {
+    /* even-split default applies */
+  }
+
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
   try {

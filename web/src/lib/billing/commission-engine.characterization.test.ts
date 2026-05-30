@@ -180,7 +180,10 @@ describe("persistBookingCommissionSnapshot — resolver_failed", () => {
     });
     const res = await persistBookingCommissionSnapshot(supabase, BOOKING);
     assert.deepEqual(res, { ok: false, reason: "resolver_failed", detail: "no_line_items" });
-    assert.deepEqual(rpcNames(calls), ["engine_load_commission_context"]);
+    assert.deepEqual(rpcNames(calls), [
+      "engine_load_commission_context",
+      "engine_platform_commission_split",
+    ]);
   });
 
   it("CommissionResolutionError code is surfaced verbatim as `detail` (talent_cost_exceeds_price)", async () => {
@@ -222,6 +225,7 @@ describe("persistBookingCommissionSnapshot — persist_failed", () => {
     assert.deepEqual(res, { ok: false, reason: "persist_failed", detail: "persist boom" });
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
+      "engine_platform_commission_split",
       "engine_persist_booking_commission_snapshot",
     ]);
     assert.deepEqual(calls.from, []); // returned before the audit-inquiry lookup
@@ -320,6 +324,7 @@ describe("persistBookingCommissionSnapshot — success", () => {
     assert.equal(res.ok, true);
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
+      "engine_platform_commission_split",
       "engine_persist_booking_commission_snapshot",
       "inquiry_audit_emit",
     ]);
