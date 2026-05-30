@@ -283,7 +283,7 @@ export function HeroContentInspector({
                   className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/60 p-2.5 text-xs"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="font-semibold text-zinc-600">
+                    <span className="font-semibold text-stone-600">
                       Slide {i + 1}
                     </span>
                     <div className="flex items-center gap-1">

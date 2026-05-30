@@ -75,7 +75,7 @@ interface CategoryIconGlyphProps {
 export function CategoryIconGlyph({
   icon,
   size = 18,
-  className = "text-zinc-700",
+  className = "text-stone-700",
 }: CategoryIconGlyphProps) {
   const s = { width: size, height: size };
   const common = {

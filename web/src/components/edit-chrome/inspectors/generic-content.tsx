@@ -33,9 +33,9 @@ export function GenericContent({
   const entry = SECTION_EDITOR_REGISTRY[sectionTypeKey];
   if (!entry) {
     return (
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-stone-500">
         No editor registered for section type{" "}
-        <code className="rounded bg-zinc-100 px-1 py-0.5 text-[11px]">
+        <code className="rounded bg-stone-100 px-1 py-0.5 text-[11px]">
           {sectionTypeKey}
         </code>
         .

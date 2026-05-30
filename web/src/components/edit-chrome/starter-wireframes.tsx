@@ -28,7 +28,7 @@ function WireFrame({
       role="img"
       aria-label={title}
       preserveAspectRatio="xMidYMid meet"
-      className={className ?? "h-20 w-full text-zinc-400"}
+      className={className ?? "h-20 w-full text-stone-400"}
     >
       <rect
         x="1"

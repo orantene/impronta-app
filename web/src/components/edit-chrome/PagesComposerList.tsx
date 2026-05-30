@@ -91,7 +91,7 @@ export function PagesComposerList(): ReactElement {
                         Homepage
                       </span>
                     ) : null}
-                    <span className="rounded-full bg-zinc-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
+                    <span className="rounded-full bg-stone-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-stone-700 dark:text-stone-300">
                       {p.status}
                     </span>
                     {p.hasSnapshot ? (

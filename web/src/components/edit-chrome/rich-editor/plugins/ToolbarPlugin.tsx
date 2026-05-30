@@ -465,7 +465,7 @@ function ToolbarButton({ active, title, onClick, children }: ToolbarButtonProps)
       onClick={onClick}
       className={[
         "inline-flex h-7 w-7 items-center justify-center rounded-full transition",
-        active ? "bg-white text-zinc-900" : "text-white hover:bg-white/10",
+        active ? "bg-white text-stone-900" : "text-white hover:bg-white/10",
       ].join(" ")}
     >
       {children}

@@ -49,7 +49,7 @@ export function InspectorItemRow({
           aria-label="Drag to reorder"
           title="Drag to reorder"
           {...handleProps}
-          className="flex size-6 shrink-0 cursor-grab items-center justify-center text-zinc-500 transition hover:text-zinc-600 active:cursor-grabbing"
+          className="flex size-6 shrink-0 cursor-grab items-center justify-center text-stone-500 transition hover:text-stone-600 active:cursor-grabbing"
         >
           <svg
             width="12"
@@ -97,7 +97,7 @@ export function InspectorRowDelete({
       onClick={onClick}
       aria-label={ariaLabel}
       title={ariaLabel}
-      className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
+      className="inline-flex size-7 items-center justify-center rounded-md text-stone-500 transition hover:bg-rose-50 hover:text-rose-600"
     >
       <svg
         width="13"
