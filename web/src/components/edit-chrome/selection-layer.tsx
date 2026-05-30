@@ -1784,14 +1784,11 @@ export function SelectionLayer() {
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
               position: "fixed",
-              // Pin just above the section, but always clear of the breadcrumb
-              // above it. The breadcrumb sits at max(top-68, 56); near the top
-              // of the page both used to clamp to 56 and stack on top of each
-              // other (the "pile-up"). Keep the chip ≥28px below it.
-              top: Math.max(
-                renderSelectedRect.top - 38,
-                Math.max(renderSelectedRect.top - 68, 56) + 28,
-              ),
+              // Sit just above the element, clamped below the top bar. The old
+              // +28 breadcrumb-clearance is gone now that the breadcrumb bar is
+              // removed, so the toolbar floats closer to the element and covers
+              // less of the content above it.
+              top: Math.max(renderSelectedRect.top - 38, 58),
               left: renderSelectedRect.left,
               height: 34,
               display: "inline-flex",
