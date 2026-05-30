@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 
 import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
+import { getAppUrl } from "@/lib/auth-flow";
 import { createClient } from "@/lib/supabase/client";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 
@@ -188,14 +189,14 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
             style={{ color: "var(--plt-muted)" }}
           >
             Already have an account?{" "}
-            <Link
-              href="/login"
+            <a
+              href={`${getAppUrl()}/login`}
               onClick={onClose}
               className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
               style={{ color: "var(--plt-ink-soft)" }}
             >
               Sign in
-            </Link>
+            </a>
           </p>
         </div>
       </div>
@@ -356,7 +357,10 @@ function GoogleButton() {
     }
     popupRef.current = popup;
     setPending(true);
-    const cb = new URL("/auth/callback", window.location.origin);
+    // Must use the app host for the callback — /auth/callback is not
+    // allowed on the marketing host (tulala.digital); using window.location.origin
+    // here caused a 404 when the modal was opened from the marketing site.
+    const cb = new URL("/auth/callback", getAppUrl());
     cb.searchParams.set("popup", "1");
     cb.searchParams.set("next", DEFAULT_NEXT_PATH);
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
