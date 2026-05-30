@@ -54,6 +54,10 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
   const [floorDollars, setFloorDollars] = React.useState(
     centsToDollars(initial.defaultTakeFloorCents),
   );
+  // Client-side share of the total take (blank = even split of the total).
+  const [clientSurchargePct, setClientSurchargePct] = React.useState(
+    initial.clientSurchargeBps != null ? bpsToPercent(initial.clientSurchargeBps) : "",
+  );
 
   // Per-tier overrides: empty string = inherit default (omit from payload)
   const [tierPcts, setTierPcts] = React.useState<Record<PlanTier, string>>({
@@ -81,6 +85,17 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
       return;
     }
 
+    let clientSurchargeBps: number | null = null;
+    const csbRaw = clientSurchargePct.trim();
+    if (csbRaw !== "") {
+      const csb = percentToBps(csbRaw);
+      if (csb === null) {
+        setMsg({ tone: "err", text: "Client surcharge must be between 0% and 50%, or blank for an even split." });
+        return;
+      }
+      clientSurchargeBps = csb;
+    }
+
     const planTierBps: Record<string, number> = {};
     for (const tier of PLAN_TIERS) {
       const raw = tierPcts[tier].trim();
@@ -97,6 +112,7 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
       const res = await updatePlatformCommissionConfig({
         defaultTakeBps: defaultBps,
         defaultTakeFloorCents: floorCents,
+        clientSurchargeBps,
         planTierBps,
       });
       if (res.ok) {
@@ -192,6 +208,29 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
             </div>
             <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
               Platform fee = max(% take, floor). 0 = no floor.
+            </span>
+          </Field>
+          <Field label="Client surcharge (% of subtotal)">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                step={0.01}
+                placeholder="even split"
+                value={clientSurchargePct}
+                disabled={pending}
+                onChange={(e) => setClientSurchargePct(e.target.value)}
+                style={inputStyle()}
+              />
+              <span style={{ fontSize: 12, color: HQ.inkMuted, whiteSpace: "nowrap" }}>
+                {clientSurchargePct !== "" ? `${clientSurchargePct}%` : "even"}
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
+              The client-side half, added on top of the subtotal. Blank = even
+              split. With a 6% take, 3% here = 3% client + 3% seller. The talent
+              is never charged.
             </span>
           </Field>
         </div>
