@@ -222,6 +222,28 @@ export async function getTalentConnectedAccountSnapshot(
   };
 }
 
+/** Pull the latest account state from Stripe and persist it. Used by the
+ *  post-onboarding return route so the talent sees fresh status immediately
+ *  rather than waiting on the async account.updated webhook. */
+export async function refreshTalentAccountStatus(
+  talentProfileId: string,
+): Promise<TalentConnectResult<TalentConnectedAccountSnapshot>> {
+  const stripe = getStripe();
+  if (!stripe) return { ok: false, error: "Stripe is not configured." };
+
+  const snap = await getTalentConnectedAccountSnapshot(talentProfileId);
+  if (!snap.ok) return snap;
+  if (!snap.data.stripeAccountId) return snap; // nothing to refresh yet
+
+  try {
+    const account = await stripe.accounts.retrieve(snap.data.stripeAccountId);
+    return persistTalentAccountSnapshot(talentProfileId, account);
+  } catch (err) {
+    logServerError("payments.stripe-connect-talent.refresh", err);
+    return { ok: false, error: "Could not refresh status from Stripe." };
+  }
+}
+
 /** Resolve a Stripe Connect account id back to a talent profile —
  *  used by the webhook handler when a talent-bound account.updated
  *  event arrives. Returns null when no talent owns the account. */
