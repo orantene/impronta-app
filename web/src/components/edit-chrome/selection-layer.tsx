@@ -168,8 +168,13 @@ const CHIP_SHADOW =
   "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
 const RAIL_SHADOW =
   "0 8px 22px -8px rgba(0,0,0,0.32), 0 1px 3px rgba(0,0,0,0.16), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.10)";
-const CANVAS_SELECTION_RADIUS = 0;
-const CANVAS_CHROME_RADIUS = 0;
+// Rounded to match the rest of the editor chrome (topbar popovers + drawers
+// are 8–10px). Were both 0, which left every canvas surface — selection
+// chip, context menu, breadcrumb, insert menu, children panel — hard-square
+// and visually detached from everything else. Selection ring gets a gentle
+// round; floating cards get the standard popover radius.
+const CANVAS_SELECTION_RADIUS = 6;
+const CANVAS_CHROME_RADIUS = 8;
 
 interface DropTarget {
   slotKey: string;
