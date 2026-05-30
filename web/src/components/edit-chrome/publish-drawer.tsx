@@ -189,8 +189,8 @@ function ChangeBadge({ kind }: { kind: SectionChangeKind }) {
 function miniInputStyle(): React.CSSProperties {
   return {
     width: "100%",
-    background: "#faf9f6",
-    border: "1px solid #e5e0d5",
+    background: CHROME.surface2,
+    border: `1px solid ${CHROME.controlBorder}`,
     borderRadius: 7,
     padding: "8px 10px",
     fontSize: 13,
