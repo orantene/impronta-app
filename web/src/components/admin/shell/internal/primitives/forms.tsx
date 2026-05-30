@@ -11,8 +11,8 @@ import { COLORS, FONTS, TRANSITION } from "../state";
 import {
   FIELD_CATALOG,
   applyWorkspaceFieldOverride,
-  useWorkspaceFieldOverrideSubscription,
 } from "../field-catalog";
+import { useWorkspaceFieldOverrideSubscription } from "../field-catalog-client";
 import { useDashboardText } from "../dashboard-i18n";
 
 // ─── Field group / row helpers (shared by drawers) ───────────────────

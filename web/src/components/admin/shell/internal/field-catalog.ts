@@ -36,7 +36,6 @@
  * shipped with the app, a Supabase config table, or both. The tier
  * model and field ids stay stable.
  */
-import { useEffect, useState } from "react";
 import type { TaxonomyParentId, RegFieldChannel, MyTalentProfile, RegFieldKind, RegField } from "./state";
 import { TAXONOMY_FIELDS } from "./state";
 
@@ -752,16 +751,6 @@ export function getWorkspaceFieldOverrides(tenantId: string): TenantOverrides {
 export function subscribeWorkspaceFieldOverride(fn: () => void): () => void {
   __workspaceOverrideSubscribers.add(fn);
   return () => { __workspaceOverrideSubscribers.delete(fn); };
-}
-
-/** React hook — components reading the merged catalog call this to
- *  re-render whenever any override changes. */
-export function useWorkspaceFieldOverrideSubscription(): void {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const unsub = subscribeWorkspaceFieldOverride(() => force(n => n + 1));
-    return unsub;
-  }, []);
 }
 
 /** Resolved field — catalog default merged with any workspace override.
