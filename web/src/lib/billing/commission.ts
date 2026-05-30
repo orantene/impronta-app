@@ -244,8 +244,10 @@ export function resolveBookingCommissions(
     resolvedFrom = "booking_override";
   }
 
-  if (platformTakeBps < 0 || platformTakeBps > 5000) {
-    // Schema constraint mirror: 0–50%.
+  if (!Number.isFinite(platformTakeBps) || platformTakeBps < 0 || platformTakeBps > 5000) {
+    // Schema constraint mirror: 0–50%. The Number.isFinite guard rejects
+    // NaN / ±Infinity (e.g. a malformed booking-override) up front, rather
+    // than letting it slip through to a misleading lanes_do_not_sum failure.
     throw new CommissionResolutionError("platform_take_out_of_range");
   }
 
@@ -370,7 +372,8 @@ function defaultFormatCents(cents: number, currency: string): string {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(cents / 100);
   } catch {
     return `${currency} ${(cents / 100).toFixed(2)}`;

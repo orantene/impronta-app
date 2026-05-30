@@ -372,26 +372,11 @@ describe("platform_take_out_of_range — boundary + every source", () => {
     );
   });
 
-  it("CHARACTERIZATION: NaN booking override BYPASSES the range guard and surfaces as 'lanes_do_not_sum'", () => {
-    // typeof NaN === 'number' → the override is applied.
-    // Range guard: `NaN < 0` is false and `NaN > 5000` is false → it passes.
-    // Then platformByBps = round(gross*NaN/10000) = NaN, platformFee = NaN,
-    // talentNet = NaN; `NaN < 0` is false so the first sanity check is
-    // skipped; the paranoia check `NaN !== gross` is true → throws
-    // lanes_do_not_sum. Current behavior pinned (passing) — see the it.skip
-    // below for why this code is wrong.
-    expectCode(
-      () => resolveBookingCommissions(input({ bookingPlatformTakeBpsOverride: NaN })),
-      "lanes_do_not_sum",
-    );
-  });
-
-  it.skip("CHARACTERIZATION: a NaN platform-take override should be rejected as out-of-range / invalid, not mislabelled 'lanes_do_not_sum' — looks wrong, reported", () => {
-    // The range guard is `platformTakeBps < 0 || platformTakeBps > 5000`.
-    // NaN fails both comparisons so a NaN take silently passes validation
-    // and only blows up later with a misleading error code that points the
+  it("a NaN platform-take override is rejected as out-of-range (B4 fix)", () => {
+    // The resolver's range guard now includes a Number.isFinite check, so a
+    // NaN override is rejected up front with the correct code — rather than
+    // slipping through to a misleading lanes_do_not_sum failure that points the
     // operator at line-item pricing instead of the bad override input.
-    // Expected-correct behavior:
     expectCode(
       () => resolveBookingCommissions(input({ bookingPlatformTakeBpsOverride: NaN })),
       "platform_take_out_of_range",
@@ -848,35 +833,33 @@ describe("formatCommissionSnapshot — default formatter (defaultFormatCents, ex
     assert.equal(out.talentNet, "ZZ 750.54");
   });
 
-  it("QUIRK: well-formed currency uses maximumFractionDigits:0 → sub-major-unit precision is DROPPED", () => {
-    // $7.50 and $7.99 both render identically (whole-unit rounding), while
-    // $6.50 and $7.50 differ. Asserted as string EQUALITY/INEQUALITY so it
-    // holds regardless of the runtime's default locale/currency symbol.
+  it("well-formed currency now preserves cents (B4 fix — 2 fraction digits)", () => {
+    // After the B4 fix the Intl branch uses 2 fraction digits, so $7.50 and
+    // $7.99 are DISTINCT (previously both collapsed to a whole unit). Asserted
+    // as string (in)equality so it holds regardless of locale/currency symbol.
     const g = (cents: number) =>
       formatCommissionSnapshot(snap({ currency_code: "USD", gross_cents: cents })).gross;
-    assert.equal(g(750) === g(799), true); // 7.50 and 7.99 collide
+    assert.equal(g(750) === g(799), false); // 7.50 and 7.99 are now distinct
     assert.equal(g(650) === g(750), false); // 6.50 vs 7.50 differ
   });
 
-  it("CONTRAST: the fallback branch (.toFixed(2)) PRESERVES the cents the Intl branch drops", () => {
-    // Same amounts, only the currency-code well-formedness differs, yet the
-    // displayed precision differs — an internal inconsistency between the
-    // two branches of the same function. Pinned, not fixed.
+  it("both formatter branches preserve cents consistently (B4 fix)", () => {
+    // After the B4 fix both the Intl branch and the catch-fallback show 2
+    // fraction digits — the prior inconsistency between them is gone.
     const intlPath = (c: number) =>
       formatCommissionSnapshot(snap({ currency_code: "USD", gross_cents: c })).gross;
     const fallbackPath = (c: number) =>
       formatCommissionSnapshot(snap({ currency_code: "ZZ", gross_cents: c })).gross;
-    assert.equal(intlPath(750) === intlPath(799), true); // collapsed
+    assert.equal(intlPath(750) === intlPath(799), false); // both now distinct
     assert.equal(fallbackPath(750) === fallbackPath(799), false); // distinct
     assert.equal(fallbackPath(750), "ZZ 7.50");
     assert.equal(fallbackPath(799), "ZZ 7.99");
   });
 
-  it.skip("CHARACTERIZATION: a money breakdown should not round $50.01 to '$50' — maximumFractionDigits:0 loses real cents — looks wrong, reported", () => {
-    // platform_fee_cents = 5001 ($50.01). The talent/coordinator breakdown
-    // is a money document; dropping the .01 misrepresents the split and the
-    // four displayed lanes will not visibly reconcile to the gross. Expected
-    // behavior: 2 fraction digits (or the currency's minor-unit count).
+  it("a money breakdown preserves cents — $50.01 is not rounded to $50 (B4 fix)", () => {
+    // platform_fee_cents = 5001 ($50.01). The breakdown is a money document;
+    // the cents must survive so the displayed lanes visibly reconcile to the
+    // gross. Fixed: the formatter now uses 2 fraction digits.
     const out = formatCommissionSnapshot(snap({ currency_code: "USD", platform_fee_cents: 5_001 }));
     assert.ok(
       /50\.01/.test(out.platformFee),
