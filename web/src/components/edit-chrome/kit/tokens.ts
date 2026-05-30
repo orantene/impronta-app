@@ -160,13 +160,18 @@ export const CHROME_SHADOWS = {
     " 0 0 16px 4px rgba(58, 123, 255, 0.40)",
 } as const;
 
-/** Standard radii — match the mockup `--r-*` scale. */
+/**
+ * Standard radii — match the mockup `--r-*` scale. These were stubbed to 0,
+ * which silently left every consumer (color-picker popover + preview, the
+ * navigator footer shortcuts, drawers, …) hard-square while the rest of the
+ * editor rounds 6–10px. Filled in to the real scale.
+ */
 export const CHROME_RADII = {
-  xs: 0,
-  sm: 0,
-  md: 0,
-  lg: 0,
-  xl: 0,
+  xs: 4,
+  sm: 6,
+  md: 8,
+  lg: 10,
+  xl: 14,
 } as const;
 
 /** Drawer widths by kind, taken from the mockup's `.dw-*` classes. */
