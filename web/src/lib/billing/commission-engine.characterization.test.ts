@@ -183,6 +183,7 @@ describe("persistBookingCommissionSnapshot — resolver_failed", () => {
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
       "engine_platform_commission_split",
+      "engine_workspace_base_fee_inputs",
     ]);
   });
 
@@ -226,6 +227,7 @@ describe("persistBookingCommissionSnapshot — persist_failed", () => {
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
       "engine_platform_commission_split",
+      "engine_workspace_base_fee_inputs",
       "engine_persist_booking_commission_snapshot",
     ]);
     assert.deepEqual(calls.from, []); // returned before the audit-inquiry lookup
@@ -325,6 +327,7 @@ describe("persistBookingCommissionSnapshot — success", () => {
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
       "engine_platform_commission_split",
+      "engine_workspace_base_fee_inputs",
       "engine_persist_booking_commission_snapshot",
       "inquiry_audit_emit",
     ]);

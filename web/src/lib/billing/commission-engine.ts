@@ -162,6 +162,41 @@ export async function persistBookingCommissionSnapshot(
   const snapshots: ParticipantSnapshot[] = [];
   try {
     for (const p of ctx.participants) {
+      // P4c: surface this workspace's base reservation fee + the platform caps
+      // (the context RPC doesn't carry them). Workspace sellers only; non-fatal.
+      let platformConfig = ctx.platform_config;
+      let tenantOverride = p.tenant_override;
+      if (p.owning_party_type !== "talent" && p.tenant_id) {
+        try {
+          const feeRes = (await supabase.rpc(
+            "engine_workspace_base_fee_inputs" as never,
+            { p_tenant_id: p.tenant_id } as never,
+          )) as {
+            data: {
+              base_reservation_fee_cents: number | null;
+              base_reservation_fee_bps: number | null;
+              max_base_fee_cents: number | null;
+              max_base_fee_bps: number | null;
+            } | null;
+          };
+          const f = feeRes.data;
+          if (f) {
+            platformConfig = {
+              ...ctx.platform_config,
+              max_base_fee_cents: f.max_base_fee_cents,
+              max_base_fee_bps: f.max_base_fee_bps,
+            };
+            tenantOverride = {
+              ...(p.tenant_override ?? { platform_take_bps: null, platform_take_floor_cents: null }),
+              base_reservation_fee_cents: f.base_reservation_fee_cents,
+              base_reservation_fee_bps: f.base_reservation_fee_bps,
+            };
+          }
+        } catch {
+          /* base fee non-fatal — resolver defaults it to 0 */
+        }
+      }
+
       const base = resolveBookingCommissions({
         // tenantId is an input field but isn't consumed by the math.
         // For independents we pass the owning_party_id (the talent's id)
@@ -177,8 +212,8 @@ export async function persistBookingCommissionSnapshot(
         currencyCode: ctx.currency_code,
         paymentMethod,
         offPlatformReason,
-        platformConfig: ctx.platform_config,
-        tenantOverride: p.tenant_override,
+        platformConfig,
+        tenantOverride,
         bookingPlatformTakeBpsOverride,
       });
       snapshots.push({
@@ -312,4 +347,17 @@ export async function sumBookingClientSurchargeCents(
 ): Promise<number> {
   const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
   return rows.reduce((sum, r) => sum + (r.client_surcharge_cents ?? 0), 0);
+}
+
+/** Sum gross_charged_cents across the booking's snapshots — the FULL amount
+ *  the client is charged: subtotal + client surcharge + workspace base fee.
+ *  This is what the booking transaction should bill so everything the
+ *  workspace/platform is paid was actually collected. Returns 0 when no
+ *  snapshot exists yet (the caller falls back to the bare booking revenue). */
+export async function sumBookingGrossChargedCents(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<number> {
+  const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
+  return rows.reduce((sum, r) => sum + (r.gross_charged_cents ?? 0), 0);
 }
