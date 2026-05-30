@@ -72,6 +72,8 @@ export function CanvasMoveHandle({
     y: number;
     natCx: number;
     natCy: number;
+    halfW: number;
+    halfH: number;
     parent: Box | null;
   } | null>(null);
   const latestRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -85,19 +87,43 @@ export function CanvasMoveHandle({
         e.shiftKey ? Math.round(v) : Math.round(v / GRID) * GRID;
       let x = snap(start.x + (e.clientX - start.px));
       let y = snap(start.y + (e.clientY - start.py));
-      // Centre-to-parent-centre alignment snap (Shift bypasses).
+      // Align the block to its parent — left/centre/right on X, top/middle/
+      // bottom on Y — snapping the matching block edge to the parent edge and
+      // drawing a guide there. Closest target within ALIGN wins (Shift skips).
       let gv: number | null = null;
       let gh: number | null = null;
       if (!e.shiftKey && start.parent) {
-        const pcx = start.parent.left + start.parent.width / 2;
-        const pcy = start.parent.top + start.parent.height / 2;
-        if (Math.abs(start.natCx + x - pcx) <= ALIGN) {
-          x = Math.round(pcx - start.natCx);
-          gv = pcx;
+        const p = start.parent;
+        // X targets: [parent coord to draw the guide, block anchor centre-x].
+        const xTargets = [
+          { guide: p.left, anchor: start.natCx - start.halfW },
+          { guide: p.left + p.width / 2, anchor: start.natCx },
+          { guide: p.left + p.width, anchor: start.natCx + start.halfW },
+        ];
+        let bestX: { guide: number; tx: number; d: number } | null = null;
+        for (const t of xTargets) {
+          const tx = t.guide - t.anchor;
+          const d = Math.abs(tx - x);
+          if (d <= ALIGN && (!bestX || d < bestX.d)) bestX = { guide: t.guide, tx, d };
         }
-        if (Math.abs(start.natCy + y - pcy) <= ALIGN) {
-          y = Math.round(pcy - start.natCy);
-          gh = pcy;
+        if (bestX) {
+          x = Math.round(bestX.tx);
+          gv = bestX.guide;
+        }
+        const yTargets = [
+          { guide: p.top, anchor: start.natCy - start.halfH },
+          { guide: p.top + p.height / 2, anchor: start.natCy },
+          { guide: p.top + p.height, anchor: start.natCy + start.halfH },
+        ];
+        let bestY: { guide: number; ty: number; d: number } | null = null;
+        for (const t of yTargets) {
+          const ty = t.guide - t.anchor;
+          const d = Math.abs(ty - y);
+          if (d <= ALIGN && (!bestY || d < bestY.d)) bestY = { guide: t.guide, ty, d };
+        }
+        if (bestY) {
+          y = Math.round(bestY.ty);
+          gh = bestY.guide;
         }
       }
       latestRef.current = { x, y };
@@ -131,6 +157,8 @@ export function CanvasMoveHandle({
     const er = liveEl?.getBoundingClientRect();
     const natCx = er ? er.left + er.width / 2 - current.x : 0;
     const natCy = er ? er.top + er.height / 2 - current.y : 0;
+    const halfW = er ? er.width / 2 : 0;
+    const halfH = er ? er.height / 2 : 0;
     const pr = liveEl?.parentElement?.getBoundingClientRect();
     const parent: Box | null = pr
       ? { top: pr.top, left: pr.left, width: pr.width, height: pr.height }
@@ -142,6 +170,8 @@ export function CanvasMoveHandle({
       y: current.y,
       natCx,
       natCy,
+      halfW,
+      halfH,
       parent,
     };
     latestRef.current = current;
