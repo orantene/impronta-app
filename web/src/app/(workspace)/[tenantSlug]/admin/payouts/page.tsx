@@ -13,6 +13,8 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getConnectedAccountSnapshot, type ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { PayoutsActionsClient } from "./payouts-actions-client";
+import { BaseFeeClient } from "./base-fee-client";
+import { loadWorkspaceBaseFee } from "./base-fee-actions";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 
@@ -125,6 +127,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
 
+  const baseFee = await loadWorkspaceBaseFee(tenantSlug);
   const snap = await getConnectedAccountSnapshot(tenantSlug);
   if (!snap.ok) {
     return (
@@ -213,6 +216,10 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
           locale={locale}
         />
       </section>
+
+      {baseFee.ok && (
+        <BaseFeeClient tenantSlug={tenantSlug} initial={baseFee.data} />
+      )}
 
       <section style={{
         background: C.surface,

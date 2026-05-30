@@ -58,6 +58,13 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
   const [clientSurchargePct, setClientSurchargePct] = React.useState(
     initial.clientSurchargeBps != null ? bpsToPercent(initial.clientSurchargeBps) : "",
   );
+  // Platform caps on a workspace base reservation fee (blank = uncapped).
+  const [maxBaseFeeDollars, setMaxBaseFeeDollars] = React.useState(
+    initial.maxBaseFeeCents != null ? centsToDollars(initial.maxBaseFeeCents) : "",
+  );
+  const [maxBaseFeePct, setMaxBaseFeePct] = React.useState(
+    initial.maxBaseFeeBps != null ? bpsToPercent(initial.maxBaseFeeBps) : "",
+  );
 
   // Per-tier overrides: empty string = inherit default (omit from payload)
   const [tierPcts, setTierPcts] = React.useState<Record<PlanTier, string>>({
@@ -96,6 +103,28 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
       clientSurchargeBps = csb;
     }
 
+    let maxBaseFeeCents: number | null = null;
+    const mfdRaw = maxBaseFeeDollars.trim();
+    if (mfdRaw !== "") {
+      const mfc = dollarsToCents(mfdRaw);
+      if (mfc === null) {
+        setMsg({ tone: "err", text: "Max base fee ($) must be 0 or a positive dollar amount, or blank for uncapped." });
+        return;
+      }
+      maxBaseFeeCents = mfc;
+    }
+
+    let maxBaseFeeBps: number | null = null;
+    const mfpRaw = maxBaseFeePct.trim();
+    if (mfpRaw !== "") {
+      const mfp = percentToBps(mfpRaw);
+      if (mfp === null) {
+        setMsg({ tone: "err", text: "Max base fee (%) must be between 0% and 50%, or blank for uncapped." });
+        return;
+      }
+      maxBaseFeeBps = mfp;
+    }
+
     const planTierBps: Record<string, number> = {};
     for (const tier of PLAN_TIERS) {
       const raw = tierPcts[tier].trim();
@@ -113,6 +142,8 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
         defaultTakeBps: defaultBps,
         defaultTakeFloorCents: floorCents,
         clientSurchargeBps,
+        maxBaseFeeCents,
+        maxBaseFeeBps,
         planTierBps,
       });
       if (res.ok) {
@@ -231,6 +262,75 @@ export function CommissionConfigShell({ initial }: { initial: CommissionConfig }
               The client-side half, added on top of the subtotal. Blank = even
               split. With a 6% take, 3% here = 3% client + 3% seller. The talent
               is never charged.
+            </span>
+          </Field>
+        </div>
+      </section>
+
+      {/* Base reservation fee caps */}
+      <section
+        style={{
+          background: HQ.card,
+          border: `1px solid ${HQ.borderSoft}`,
+          borderRadius: 12,
+          padding: 18,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.9,
+            textTransform: "uppercase",
+            color: HQ.inkDim,
+            marginBottom: 4,
+          }}
+        >
+          Base reservation fee — platform caps
+        </div>
+        <p style={{ fontSize: 12, color: HQ.inkMuted, margin: "0 0 14px" }}>
+          A workspace may add an automatic base reservation fee (flat and/or % of
+          subtotal) on every booking. These are the upper bounds it can set. Blank =
+          uncapped. The fee is workspace revenue and is never taken from the talent.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Max flat base fee ($ USD)">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, color: HQ.inkMuted }}>$</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="uncapped"
+                value={maxBaseFeeDollars}
+                disabled={pending}
+                onChange={(e) => setMaxBaseFeeDollars(e.target.value)}
+                style={inputStyle()}
+              />
+            </div>
+            <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
+              Workspaces can&apos;t set a flat fee above this. Blank = no limit.
+            </span>
+          </Field>
+          <Field label="Max % base fee (% of subtotal)">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                step={0.01}
+                placeholder="uncapped"
+                value={maxBaseFeePct}
+                disabled={pending}
+                onChange={(e) => setMaxBaseFeePct(e.target.value)}
+                style={inputStyle()}
+              />
+              <span style={{ fontSize: 12, color: HQ.inkMuted, whiteSpace: "nowrap" }}>
+                {maxBaseFeePct !== "" ? `${maxBaseFeePct}%` : "—"}
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
+              Workspaces can&apos;t set a % fee above this. Blank = no limit.
             </span>
           </Field>
         </div>
