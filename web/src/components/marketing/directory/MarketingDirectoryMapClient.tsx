@@ -60,8 +60,9 @@ export function MarketingDirectoryMapClient({
     return { lat: sum.lat / points.length, lng: sum.lng / points.length };
   }, [points]);
 
-  // The cards below mirror the visible map rectangle. Before the first `onIdle`
-  // (bounds === null) the whole mapped set shows; after, only what's in view.
+  // The cards below mirror the visible map rectangle. Before the first
+  // bounds-changed event (bounds === null) the whole mapped set shows; after,
+  // only what's currently in view.
   const visible = useMemo(() => {
     if (!bounds) return points;
     return points.filter((p) => withinBounds(p.homeLat, p.homeLng, bounds));
@@ -144,10 +145,7 @@ export function MarketingDirectoryMapClient({
               zoomControl
               clickableIcons={false}
               style={{ width: "100%", height: "100%" }}
-              onIdle={(ev) => {
-                const b = ev.map.getBounds()?.toJSON();
-                if (b) setBounds(b);
-              }}
+              onBoundsChanged={(ev) => setBounds(ev.detail.bounds)}
             >
               <DirectoryMarkers
                 points={points}
