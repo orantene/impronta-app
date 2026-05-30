@@ -1697,6 +1697,8 @@ function MoreMenu({
                 type="button"
                 onClick={() => setShareOpen(false)}
                 className="cursor-pointer"
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1708,6 +1710,7 @@ function MoreMenu({
                   border: "none",
                   marginBottom: 8,
                   padding: 0,
+                  transition: "background 110ms ease",
                 }}
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1780,6 +1783,8 @@ function MoreMenu({
                       aria-checked={active}
                       onClick={() => setShareTtl(c.id)}
                       className="cursor-pointer"
+                      onMouseEnter={active ? undefined : (e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+                      onMouseLeave={active ? undefined : (e) => { e.currentTarget.style.background = CHROME.paper; }}
                       style={{
                         padding: "7px 0",
                         fontSize: 12,
@@ -1792,6 +1797,7 @@ function MoreMenu({
                         border: `1px solid ${active ? CHROME.accent : CHROME.line}`,
                         borderRadius: 6,
                         letterSpacing: "-0.005em",
+                        transition: "background 110ms ease",
                       }}
                     >
                       {c.label}

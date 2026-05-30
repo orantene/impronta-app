@@ -440,6 +440,8 @@ export function CommentsDrawer() {
               <button
                 type="button"
                 onClick={() => ctx.openComments()}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 style={{
                   fontSize: 11,
                   color: CHROME.muted,
@@ -448,6 +450,7 @@ export function CommentsDrawer() {
                   borderRadius: 6,
                   padding: "4px 8px",
                   cursor: "pointer",
+                  transition: "background 110ms ease",
                 }}
               >
                 Show all threads
@@ -457,11 +460,24 @@ export function CommentsDrawer() {
                 Pick a section to thread a comment.
               </span>
             )}
-            <label style={{ fontSize: 11, color: CHROME.muted, display: "flex", gap: 6, alignItems: "center" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                color: CHROME.muted,
+                cursor: "pointer",
+                padding: "3px 6px",
+                borderRadius: 6,
+              }}
+            >
               <input
                 type="checkbox"
                 checked={includeResolved}
                 onChange={(e) => setIncludeResolved(e.target.checked)}
+                style={{ accentColor: "#3d4f7c", width: 13, height: 13, cursor: "pointer" }}
               />
               Show resolved
             </label>
@@ -786,6 +802,8 @@ function ThreadCard({
         <button
           type="button"
           onClick={() => setReplyOpen((v) => !v)}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           style={{
             fontSize: 11,
             fontWeight: 500,
@@ -794,6 +812,7 @@ function ThreadCard({
             border: "none",
             cursor: "pointer",
             padding: "2px 4px",
+            transition: "background 110ms ease",
           }}
         >
           {replyOpen ? "Cancel reply" : "Reply"}
@@ -801,6 +820,8 @@ function ThreadCard({
         <button
           type="button"
           onClick={() => onResolve(parent.id, isResolved)}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           style={{
             fontSize: 11,
             fontWeight: 500,
@@ -810,6 +831,7 @@ function ThreadCard({
             borderRadius: 6,
             padding: "3px 8px",
             cursor: "pointer",
+            transition: "background 110ms ease",
           }}
         >
           {isResolved ? "Reopen" : "Resolve"}
@@ -1057,13 +1079,17 @@ function CommentBubble({
             <button
               type="button"
               onClick={() => setEditing(true)}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               style={{
                 fontSize: 10,
                 color: CHROME.muted,
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
-                padding: 0,
+                padding: "2px 4px",
+                borderRadius: 4,
+                transition: "background 110ms ease",
               }}
             >
               Edit
@@ -1072,13 +1098,17 @@ function CommentBubble({
           <button
             type="button"
             onClick={() => onDelete(comment.id)}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             style={{
               fontSize: 10,
               color: CHROME.muted,
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              padding: 0,
+              padding: "2px 4px",
+              borderRadius: 4,
+              transition: "background 110ms ease",
             }}
           >
             Delete

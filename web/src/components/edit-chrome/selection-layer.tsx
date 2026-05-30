@@ -1626,7 +1626,10 @@ export function SelectionLayer() {
                     fontSize: 11,
                     fontWeight: 600,
                     letterSpacing: "0.01em",
+                    transition: "background 110ms ease",
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg
                     width="13"
@@ -1677,7 +1680,10 @@ export function SelectionLayer() {
                     fontSize: 11,
                     fontWeight: 600,
                     letterSpacing: "0.01em",
+                    transition: "background 110ms ease",
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(196,61,61,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <span>Remove</span>
                 </button>
@@ -2743,7 +2749,10 @@ function CanvasNodeInsertMenu({
             cursor: "pointer",
             padding: 0,
             flexShrink: 0,
+            transition: "background 110ms ease",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
           ×
         </button>
@@ -2954,7 +2963,10 @@ function CanvasNodeChildrenPanel({
               padding: 0,
               fontSize: 14,
               lineHeight: 1,
+              transition: "background 110ms ease",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             ×
           </button>
