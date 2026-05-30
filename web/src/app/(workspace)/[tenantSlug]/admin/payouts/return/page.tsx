@@ -29,7 +29,7 @@ export default async function StripeOnboardingReturnPage({
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const canEdit = await userHasCapability(scope.tenantId, "agency.workspace.edit");
+  const canEdit = await userHasCapability("agency.payout_account.manage", scope.tenantId);
   if (!canEdit) notFound();
 
   // Best-effort refresh. If Stripe is unreachable, the redirect still goes
