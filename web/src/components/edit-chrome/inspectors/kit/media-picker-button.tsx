@@ -43,10 +43,10 @@ export function MediaPickerButton({
     return (
       <div className="flex flex-col gap-2">
         <div
-          className="flex items-center justify-center rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-2"
+          className="flex items-center justify-center rounded-md border border-dashed border-stone-300 bg-stone-50 p-2"
           style={{ aspectRatio: aspect }}
         >
-          <div className="flex flex-col items-center gap-2 text-zinc-500">
+          <div className="flex flex-col items-center gap-2 text-stone-500">
             <svg
               width="20"
               height="20"
@@ -97,7 +97,7 @@ export function MediaPickerButton({
   return (
     <div className="flex flex-col gap-2">
       <div
-        className="relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-100"
+        className="relative overflow-hidden rounded-md border border-stone-200 bg-stone-100"
         style={{ aspectRatio: aspect }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -119,7 +119,7 @@ export function MediaPickerButton({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-medium text-zinc-800 transition hover:bg-white"
+            className="rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-medium text-stone-800 transition hover:bg-white"
             title="Clear image"
           >
             Clear

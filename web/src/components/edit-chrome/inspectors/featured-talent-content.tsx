@@ -519,7 +519,7 @@ export function FeaturedTalentContentInspector({
             step={1}
             value={limit}
             onChange={(e) => update({ limit: Number(e.target.value) })}
-            className="w-full accent-zinc-900"
+            className="w-full accent-stone-900"
           />
         </div>
         <div className={KIT.field}>
@@ -535,7 +535,7 @@ export function FeaturedTalentContentInspector({
             onChange={(e) =>
               update({ columnsDesktop: Number(e.target.value) })
             }
-            className="w-full accent-zinc-900"
+            className="w-full accent-stone-900"
           />
         </div>
         <div className={KIT.field}>
@@ -615,7 +615,7 @@ function ManualPickPanel({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-zinc-600">
+        <span className="text-[11px] text-stone-600">
           {codes.length === 0
             ? "No one picked yet."
             : `${codes.length} of ${max} picked`}
@@ -645,7 +645,7 @@ function ManualPickPanel({
           {Array.from({ length: Math.min(codes.length, 3) }).map((_, i) => (
             <div
               key={i}
-              className="h-12 animate-pulse rounded-lg border border-zinc-100 bg-zinc-50"
+              className="h-12 animate-pulse rounded-lg border border-stone-100 bg-stone-50"
             />
           ))}
         </div>
@@ -681,10 +681,10 @@ function ManualPickPanel({
               }
             >
               <div className="min-w-0">
-                <div className="truncate text-[13px] font-medium text-zinc-900">
+                <div className="truncate text-[13px] font-medium text-stone-900">
                   {hit.displayName}
                 </div>
-                <div className="truncate text-[11px] text-zinc-500">
+                <div className="truncate text-[11px] text-stone-500">
                   {hit.roleLabel ?? hit.profileCode}
                 </div>
               </div>
@@ -744,7 +744,7 @@ function AutoFilterInput({
 
 function SteadyStateNote({ text }: { text: string }) {
   return (
-    <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2 text-[11px] leading-relaxed text-zinc-600">
+    <div className="rounded-md border border-stone-100 bg-stone-50/60 px-3 py-2 text-[11px] leading-relaxed text-stone-600">
       {text}
     </div>
   );
@@ -760,7 +760,7 @@ function ToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-[12px] font-medium text-zinc-700">
+    <label className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-2.5 py-2 text-[12px] font-medium text-stone-700">
       <input
         type="checkbox"
         checked={checked}
@@ -779,8 +779,8 @@ function ShowcasePreview() {
       <rect x="8" y="3" width="52" height="4" rx="1" className="fill-amber-500" />
       {[0, 1, 2, 3].map((col) => (
         <g key={col} transform={`translate(${4 + col * 16} 11)`}>
-          <rect width="13" height="20" rx="1.5" className="fill-zinc-900" />
-          <rect x="2" y="14" width="9" height="1.5" rx=".5" className="fill-zinc-100" />
+          <rect width="13" height="20" rx="1.5" className="fill-stone-900" />
+          <rect x="2" y="14" width="9" height="1.5" rx=".5" className="fill-stone-100" />
           <rect x="2" y="17" width="6" height="1" rx=".5" className="fill-amber-500" />
         </g>
       ))}
@@ -793,22 +793,22 @@ function ModePreview({ value }: { value: SourceMode }) {
   if (value === "manual_pick") {
     return (
       <svg viewBox="0 0 68 36" className={common} aria-hidden>
-        <rect x="3" y="6" width="13" height="24" rx="2" className="fill-zinc-400" />
-        <rect x="19" y="6" width="13" height="24" rx="2" className="fill-zinc-900" />
-        <rect x="35" y="6" width="13" height="24" rx="2" className="fill-zinc-400" />
-        <rect x="51" y="6" width="13" height="24" rx="2" className="fill-zinc-900" />
-        <circle cx="25.5" cy="33.5" r="1.5" className="fill-zinc-900" />
-        <circle cx="57.5" cy="33.5" r="1.5" className="fill-zinc-900" />
+        <rect x="3" y="6" width="13" height="24" rx="2" className="fill-stone-400" />
+        <rect x="19" y="6" width="13" height="24" rx="2" className="fill-stone-900" />
+        <rect x="35" y="6" width="13" height="24" rx="2" className="fill-stone-400" />
+        <rect x="51" y="6" width="13" height="24" rx="2" className="fill-stone-900" />
+        <circle cx="25.5" cy="33.5" r="1.5" className="fill-stone-900" />
+        <circle cx="57.5" cy="33.5" r="1.5" className="fill-stone-900" />
       </svg>
     );
   }
   if (value === "auto_featured_flag") {
     return (
       <svg viewBox="0 0 68 36" className={common} aria-hidden>
-        <rect x="3" y="6" width="13" height="24" rx="2" className="fill-zinc-300" />
-        <rect x="19" y="6" width="13" height="24" rx="2" className="fill-zinc-300" />
-        <rect x="35" y="6" width="13" height="24" rx="2" className="fill-zinc-300" />
-        <rect x="51" y="6" width="13" height="24" rx="2" className="fill-zinc-300" />
+        <rect x="3" y="6" width="13" height="24" rx="2" className="fill-stone-300" />
+        <rect x="19" y="6" width="13" height="24" rx="2" className="fill-stone-300" />
+        <rect x="35" y="6" width="13" height="24" rx="2" className="fill-stone-300" />
+        <rect x="51" y="6" width="13" height="24" rx="2" className="fill-stone-300" />
         <path
           d="M6 12 l2 0 l1-2 l1 2 l2 0 l-1.5 1.5 l.5 2 l-2-1 l-2 1 l.5-2z"
           className="fill-amber-500"
@@ -819,36 +819,36 @@ function ModePreview({ value }: { value: SourceMode }) {
   if (value === "auto_by_service") {
     return (
       <svg viewBox="0 0 68 36" className={common} aria-hidden>
-        <rect x="3" y="3" width="62" height="5" rx="2" className="fill-zinc-900/80" />
-        <rect x="3" y="12" width="13" height="20" rx="2" className="fill-zinc-300" />
-        <rect x="19" y="12" width="13" height="20" rx="2" className="fill-zinc-300" />
-        <rect x="35" y="12" width="13" height="20" rx="2" className="fill-zinc-300" />
-        <rect x="51" y="12" width="13" height="20" rx="2" className="fill-zinc-300" />
+        <rect x="3" y="3" width="62" height="5" rx="2" className="fill-stone-900/80" />
+        <rect x="3" y="12" width="13" height="20" rx="2" className="fill-stone-300" />
+        <rect x="19" y="12" width="13" height="20" rx="2" className="fill-stone-300" />
+        <rect x="35" y="12" width="13" height="20" rx="2" className="fill-stone-300" />
+        <rect x="51" y="12" width="13" height="20" rx="2" className="fill-stone-300" />
       </svg>
     );
   }
   if (value === "auto_by_destination") {
     return (
       <svg viewBox="0 0 68 36" className={common} aria-hidden>
-        <circle cx="20" cy="18" r="10" className="fill-none stroke-zinc-500" strokeWidth="1" />
+        <circle cx="20" cy="18" r="10" className="fill-none stroke-stone-500" strokeWidth="1" />
         <path
           d="M20 10 v16 M12 18 h16"
-          className="stroke-zinc-500"
+          className="stroke-stone-500"
           strokeWidth="1"
           fill="none"
         />
-        <rect x="36" y="10" width="28" height="4" rx="1" className="fill-zinc-400" />
-        <rect x="36" y="17" width="22" height="4" rx="1" className="fill-zinc-400" />
-        <rect x="36" y="24" width="26" height="4" rx="1" className="fill-zinc-400" />
+        <rect x="36" y="10" width="28" height="4" rx="1" className="fill-stone-400" />
+        <rect x="36" y="17" width="22" height="4" rx="1" className="fill-stone-400" />
+        <rect x="36" y="24" width="26" height="4" rx="1" className="fill-stone-400" />
       </svg>
     );
   }
   return (
     <svg viewBox="0 0 68 36" className={common} aria-hidden>
-      <rect x="3" y="6" width="13" height="24" rx="2" className="fill-zinc-500" />
-      <rect x="19" y="6" width="13" height="24" rx="2" className="fill-zinc-400" />
-      <rect x="35" y="6" width="13" height="24" rx="2" className="fill-zinc-300" />
-      <rect x="51" y="6" width="13" height="24" rx="2" className="fill-zinc-200" />
+      <rect x="3" y="6" width="13" height="24" rx="2" className="fill-stone-500" />
+      <rect x="19" y="6" width="13" height="24" rx="2" className="fill-stone-400" />
+      <rect x="35" y="6" width="13" height="24" rx="2" className="fill-stone-300" />
+      <rect x="51" y="6" width="13" height="24" rx="2" className="fill-stone-200" />
     </svg>
   );
 }
@@ -865,7 +865,7 @@ function GridPreview() {
             width={18}
             height={14}
             rx={2}
-            className="fill-zinc-400"
+            className="fill-stone-400"
           />
         )),
       )}
@@ -876,10 +876,10 @@ function GridPreview() {
 function CarouselPreview() {
   return (
     <svg viewBox="0 0 68 36" className="w-[68px] h-[36px]" aria-hidden>
-      <rect x="3" y="6" width="18" height="24" rx="2" className="fill-zinc-400" />
-      <rect x="24" y="6" width="18" height="24" rx="2" className="fill-zinc-400" />
-      <rect x="45" y="6" width="18" height="24" rx="2" className="fill-zinc-400" />
-      <rect x="65" y="6" width="4" height="24" rx="1" className="fill-zinc-300" />
+      <rect x="3" y="6" width="18" height="24" rx="2" className="fill-stone-400" />
+      <rect x="24" y="6" width="18" height="24" rx="2" className="fill-stone-400" />
+      <rect x="45" y="6" width="18" height="24" rx="2" className="fill-stone-400" />
+      <rect x="65" y="6" width="4" height="24" rx="1" className="fill-stone-300" />
     </svg>
   );
 }

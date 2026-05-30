@@ -801,19 +801,19 @@ export function InspectorDock() {
     return (
       <div className="flex min-w-0 flex-col gap-0.5">
         {sectionMeta ? (
-          <span className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-500">
+          <span className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-stone-500">
             {sectionMeta}
           </span>
         ) : null}
         {inspectorBreadcrumbCrumbs.length > 0 ? (
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px] text-zinc-600">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px] text-stone-600">
             {inspectorBreadcrumbCrumbs.map((crumb, index) => (
               <span key={`${crumb.id}:${index}`} className="inline-flex min-w-0 items-center">
                 {crumb.selectable ? (
                   <button
                     type="button"
                     onClick={() => handleInspectorCrumbSelect(crumb)}
-                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-1 text-left transition hover:bg-zinc-100 hover:text-zinc-800"
+                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-1 text-left transition hover:bg-stone-100 hover:text-stone-800"
                     title={crumb.label}
                     aria-label={`Select ${crumb.label}`}
                   >
@@ -823,7 +823,7 @@ export function InspectorDock() {
                   <span className="truncate px-1">{crumb.label}</span>
                 )}
                 {index < inspectorBreadcrumbCrumbs.length - 1 ? (
-                  <span className="px-0.5 text-zinc-500" aria-hidden>
+                  <span className="px-0.5 text-stone-500" aria-hidden>
                     &gt;
                   </span>
                 ) : null}

@@ -281,7 +281,7 @@ export function CategoryGridContentInspector({
             onChange={(e) =>
               update({ columnsDesktop: Number(e.target.value) })
             }
-            className="w-full accent-zinc-900"
+            className="w-full accent-stone-900"
           />
         </div>
       </InspectorGroup>
@@ -336,7 +336,7 @@ function CategoryRow({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
+              className="inline-flex size-7 items-center justify-center rounded-md text-stone-500 transition hover:bg-stone-100 hover:text-stone-700"
               aria-label={expanded ? "Hide details" : "Show details"}
               title={expanded ? "Hide details" : "Show details"}
             >
@@ -362,7 +362,7 @@ function CategoryRow({
         <div className="flex flex-col gap-0.5">
           <input
             type="text"
-            className="w-full rounded-sm bg-transparent px-0 py-0.5 text-[13px] font-medium text-zinc-900 placeholder:text-zinc-500 focus:outline-none"
+            className="w-full rounded-sm bg-transparent px-0 py-0.5 text-[13px] font-medium text-stone-900 placeholder:text-stone-500 focus:outline-none"
             value={item.label}
             placeholder="Category name"
             maxLength={60}
@@ -370,7 +370,7 @@ function CategoryRow({
           />
           <input
             type="text"
-            className="w-full rounded-sm bg-transparent px-0 py-0 text-[11px] text-zinc-500 placeholder:text-zinc-500 focus:outline-none"
+            className="w-full rounded-sm bg-transparent px-0 py-0 text-[11px] text-stone-500 placeholder:text-stone-500 focus:outline-none"
             value={item.href ?? ""}
             placeholder="/path or https://… (optional)"
             maxLength={500}
@@ -464,7 +464,7 @@ function IconPicker({
             <CategoryIconGlyph
               icon={key}
               size={14}
-              className={active ? "text-zinc-900" : "text-zinc-600"}
+              className={active ? "text-stone-900" : "text-stone-600"}
             />
           </button>
         );
@@ -476,8 +476,8 @@ function IconPicker({
 // ── variant preview glyphs ────────────────────────────────────────────────
 
 function VariantPreview({ value }: { value: Variant }) {
-  const inkStroke = "stroke-zinc-500";
-  const inkFill = "fill-zinc-400";
+  const inkStroke = "stroke-stone-500";
+  const inkFill = "fill-stone-400";
   const common = "w-[68px] h-[36px]";
   if (value === "portrait-masonry") {
     return (

@@ -171,7 +171,7 @@ const VARIANT_CHIPS: ReadonlyArray<ChipOption<VariantKey>> = [
 function AccentSwatch({ value }: { value: AccentKey }) {
   const sw = ACCENT_SWATCHES.find((s) => s.key === value) ?? ACCENT_SWATCHES[0]!;
   return (
-    <div className="size-6 rounded-full border border-zinc-200" style={sw.style} />
+    <div className="size-6 rounded-full border border-stone-200" style={sw.style} />
   );
 }
 
@@ -201,8 +201,8 @@ function QuoteGuidance({ len }: { len: number }) {
   if (len <= 120) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-zinc-500">Ideal length for three columns</span>
-        <span className="text-[10px] tabular-nums text-zinc-500">{len}</span>
+        <span className="text-[10px] text-stone-500">Ideal length for three columns</span>
+        <span className="text-[10px] tabular-nums text-stone-500">{len}</span>
       </div>
     );
   }
@@ -247,11 +247,11 @@ function VoiceSlot({
       {/* Slot header: label badge + accent swatch row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex size-5 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-500">
+          <span className="flex size-5 items-center justify-center rounded-full bg-stone-100 text-[10px] font-bold text-stone-500">
             {label}
           </span>
           {isEmpty && (
-            <span className="text-[10px] text-zinc-500">
+            <span className="text-[10px] text-stone-500">
               Empty — won&apos;t appear on page
             </span>
           )}
@@ -273,7 +273,7 @@ function VoiceSlot({
                 className={`size-5 rounded-full border-2 transition hover:scale-110 ${
                   active
                     ? "border-indigo-400 scale-110"
-                    : "border-zinc-200 hover:border-zinc-400"
+                    : "border-stone-200 hover:border-stone-400"
                 }`}
                 style={style}
               />
@@ -490,7 +490,7 @@ export function TestimonialsTrioContentInspector({
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className={KIT.sectionTitle}>Three voices</span>
-          <span className="text-[10px] tabular-nums text-zinc-500">
+          <span className="text-[10px] tabular-nums text-stone-500">
             {filledCount} / 3
           </span>
         </div>

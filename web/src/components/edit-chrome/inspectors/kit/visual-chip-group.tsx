@@ -78,13 +78,13 @@ export function VisualChipGroup<T extends string>({
             className={`group flex cursor-pointer flex-col items-stretch gap-1.5 rounded-lg border bg-white p-2 text-left transition ${
               active
                 ? "border-indigo-400 shadow-[0_0_0_1px_rgba(61,79,124,0.4)]"
-                : "border-zinc-200 hover:border-zinc-400"
+                : "border-stone-200 hover:border-stone-400"
             }`}
           >
             {opt.preview ? (
               <div
                 className={`flex h-14 items-center justify-center overflow-hidden rounded-md ${
-                  active ? "bg-zinc-100" : "bg-zinc-50"
+                  active ? "bg-stone-100" : "bg-stone-50"
                 }`}
               >
                 {opt.preview}
@@ -93,7 +93,7 @@ export function VisualChipGroup<T extends string>({
             <div className="flex items-center gap-1 px-0.5">
               <span
                 className={`text-[11px] font-semibold ${
-                  active ? "text-zinc-900" : "text-zinc-700"
+                  active ? "text-stone-900" : "text-stone-700"
                 }`}
               >
                 {opt.label}
