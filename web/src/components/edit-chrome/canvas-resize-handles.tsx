@@ -33,8 +33,10 @@ interface Rect {
 }
 
 export interface ResizeCommit {
-  width?: number;
-  height?: number;
+  // A number sets the dimension (px); null clears it back to auto. Omitted =
+  // leave unchanged.
+  width?: number | null;
+  height?: number | null;
 }
 
 type Axis = "x" | "y" | "both";
@@ -176,6 +178,19 @@ export function CanvasResizeHandles({
     setActiveAxis(axis);
   }
 
+  // Double-click a handle to clear its fixed dimension(s) back to auto — the
+  // standard "un-fix a size" gesture. Clears the inline preview immediately so
+  // the element snaps to content-driven size, then persists the cleared prop.
+  function reset(axis: Axis) {
+    const dims: ResizeCommit = {};
+    if (axis === "x" || axis === "both") dims.width = null;
+    if (axis === "y" || axis === "both") dims.height = null;
+    // The inline preview style is cleared by the commit handler (which owns a
+    // non-prop reference to the element), keeping this render-scope function
+    // free of prop mutation.
+    onCommit(dims);
+  }
+
   const pill = (extra: React.CSSProperties): React.CSSProperties => ({
     position: "absolute",
     background: accent,
@@ -207,10 +222,15 @@ export function CanvasResizeHandles({
       {/* Right edge → width */}
       <button
         type="button"
-        aria-label="Drag to resize width"
-        title="Drag to resize width"
+        aria-label="Drag to resize width (double-click to reset)"
+        title="Drag to resize width · double-click to reset"
         data-canvas-resize-handle="right"
         onPointerDown={(e) => begin("x", e)}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          reset("x");
+        }}
         style={pill({
           top: "50%",
           right: -6,
@@ -225,10 +245,15 @@ export function CanvasResizeHandles({
       {/* Bottom edge → height */}
       <button
         type="button"
-        aria-label="Drag to resize height"
-        title="Drag to resize height"
+        aria-label="Drag to resize height (double-click to reset)"
+        title="Drag to resize height · double-click to reset"
         data-canvas-resize-handle="bottom"
         onPointerDown={(e) => begin("y", e)}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          reset("y");
+        }}
         style={pill({
           left: "50%",
           bottom: -6,
@@ -243,10 +268,15 @@ export function CanvasResizeHandles({
       {/* SE corner → width + height */}
       <button
         type="button"
-        aria-label="Drag to resize width and height"
-        title="Drag to resize"
+        aria-label="Drag to resize width and height (double-click to reset)"
+        title="Drag to resize · double-click to reset"
         data-canvas-resize-handle="corner"
         onPointerDown={(e) => begin("both", e)}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          reset("both");
+        }}
         style={pill({
           right: -7,
           bottom: -7,

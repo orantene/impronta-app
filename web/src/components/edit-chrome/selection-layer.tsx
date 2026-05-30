@@ -1063,7 +1063,7 @@ export function SelectionLayer() {
   const canResizeSelectedNode =
     selectedNodeIsEditableBlock && device === "desktop";
   const commitSelectedNodeSize = useCallback(
-    (dims: { width?: number; height?: number }) => {
+    (dims: { width?: number | null; height?: number | null }) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || node.kind === "section") return;
@@ -1071,15 +1071,31 @@ export function SelectionLayer() {
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
       const nextStyle: Record<string, unknown> = { ...currentStyle };
+      // Clear any leftover inline preview written during a drag, so a reset
+      // (null) visibly returns the element to content-driven size instead of
+      // being masked by the stale inline style until the next refresh.
+      const liveEl = getSelectedBuilderNodeEl();
+      // number → set px · null → clear back to auto · undefined → leave as-is
       if (typeof dims.width === "number") {
         nextStyle.width = `${Math.round(dims.width)}px`;
+      } else if (dims.width === null) {
+        delete nextStyle.width;
+        if (liveEl) liveEl.style.width = "";
       }
       if (typeof dims.height === "number") {
         nextStyle.height = `${Math.round(dims.height)}px`;
+      } else if (dims.height === null) {
+        delete nextStyle.height;
+        if (liveEl) liveEl.style.height = "";
       }
       void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },
-    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
   );
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
