@@ -69,6 +69,7 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import { CanvasMoveHandle } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
   CanvasSpacingHandles,
@@ -1123,6 +1124,25 @@ export function SelectionLayer() {
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
   );
+  const commitSelectedNodeTranslate = useCallback(
+    (x: number, y: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      // 0,0 → drop the escape entirely (back to natural position).
+      if (Math.round(x) === 0 && Math.round(y) === 0) {
+        delete nextStyle.translate;
+      } else {
+        nextStyle.translate = `${Math.round(x)}px ${Math.round(y)}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+  );
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
@@ -1616,6 +1636,15 @@ export function SelectionLayer() {
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommitPadding={commitSelectedNodePadding}
+            />
+          ) : null}
+
+          {/* Direct manipulation — drag the centre grip to move (translate). */}
+          {canResizeSelectedNode && !isDragging ? (
+            <CanvasMoveHandle
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitTranslate={commitSelectedNodeTranslate}
             />
           ) : null}
 
