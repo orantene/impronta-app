@@ -69,6 +69,7 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import { CanvasResizeHandles } from "./canvas-resize-handles";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
@@ -315,6 +316,7 @@ export function SelectionLayer() {
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
+    patchBuilderNodeProps,
     reportMutationError,
     advancedElementLibraryEnabled,
   } = useEditContext();
@@ -1050,6 +1052,30 @@ export function SelectionLayer() {
     chipPrimaryType.trim().length > 0 &&
     chipPrimaryType.trim().toLowerCase() !==
       chipPrimaryLabel.trim().toLowerCase();
+  // ── Direct manipulation: canvas width-resize handle ──────────────────
+  // First slice. Show a drag handle on a freeform block's right edge that
+  // writes the free `style.width` escape — the same prop the inspector's
+  // width field sets — so a designer can size a block by dragging instead
+  // of typing a number. Desktop only for now (tablet/mobile would need the
+  // responsive-style nesting); editable freeform blocks only (curated-role
+  // nodes own their width). Commits once on release through the normal
+  // patch flow, so undo/redo and persistence come for free.
+  const canResizeSelectedNode =
+    selectedNodeIsEditableBlock && device === "desktop";
+  const commitSelectedNodeWidth = useCallback(
+    (px: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      void patchBuilderNodeProps(selectedBuilderNodeId, {
+        style: { ...currentStyle, width: `${Math.round(px)}px` },
+      });
+    },
+    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+  );
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
@@ -1527,6 +1553,15 @@ export function SelectionLayer() {
               floating row that duplicated the toolbar's context, and its only
               unique job — jumping to a parent — is covered by the navigator
               panel. One bar is clearer. */}
+
+          {/* Direct manipulation — drag the right edge to set width. */}
+          {canResizeSelectedNode && !isDragging ? (
+            <CanvasResizeHandles
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitWidth={commitSelectedNodeWidth}
+            />
+          ) : null}
 
           {drag.phase === "idle" && (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
