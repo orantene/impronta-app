@@ -64,7 +64,7 @@ export type StripeAction =
       refundedCents: number;
       chargeId: string;
     }
-  | { kind: "charge_dispute"; disputeId: string; amount: number; reason: string; status: string }
+  | { kind: "charge_dispute"; disputeId: string; paymentIntentId: string | null; amount: number; reason: string; status: string }
   | { kind: "trial_will_end"; subscriptionId: string; trialEnd: number | null }
   | {
       kind: "booking_deposit";
@@ -237,6 +237,7 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       return {
         kind: "charge_dispute",
         disputeId: dispute.id,
+        paymentIntentId: refId(dispute.payment_intent),
         amount: dispute.amount ?? 0,
         reason: dispute.reason ?? "unknown",
         status: dispute.status ?? "unknown",

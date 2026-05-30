@@ -357,6 +357,7 @@ test("charge.dispute.created → charge_dispute", () => {
   const a = classifyStripeEvent(
     evt("charge.dispute.created", {
       id: "dp_1",
+      payment_intent: "pi_dispute",
       amount: 9900,
       reason: "fraudulent",
       status: "warning_needs_response",
@@ -364,6 +365,7 @@ test("charge.dispute.created → charge_dispute", () => {
   );
   const action = expectKind(a, "charge_dispute");
   assert.equal(action.disputeId, "dp_1");
+  assert.equal(action.paymentIntentId, "pi_dispute");
   assert.equal(action.amount, 9900);
   assert.equal(action.reason, "fraudulent");
   assert.equal(action.status, "warning_needs_response");
