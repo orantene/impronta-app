@@ -1062,17 +1062,22 @@ export function SelectionLayer() {
   // patch flow, so undo/redo and persistence come for free.
   const canResizeSelectedNode =
     selectedNodeIsEditableBlock && device === "desktop";
-  const commitSelectedNodeWidth = useCallback(
-    (px: number) => {
+  const commitSelectedNodeSize = useCallback(
+    (dims: { width?: number; height?: number }) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || node.kind === "section") return;
       const currentStyle =
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
-      void patchBuilderNodeProps(selectedBuilderNodeId, {
-        style: { ...currentStyle, width: `${Math.round(px)}px` },
-      });
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      if (typeof dims.width === "number") {
+        nextStyle.width = `${Math.round(dims.width)}px`;
+      }
+      if (typeof dims.height === "number") {
+        nextStyle.height = `${Math.round(dims.height)}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
   );
@@ -1559,7 +1564,7 @@ export function SelectionLayer() {
             <CanvasResizeHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
-              onCommitWidth={commitSelectedNodeWidth}
+              onCommit={commitSelectedNodeSize}
             />
           ) : null}
 
