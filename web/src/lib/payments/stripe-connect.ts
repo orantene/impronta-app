@@ -69,7 +69,7 @@ async function loadAgencyConnectFields(tenantSlug: string): Promise<{
   const { data, error } = await admin
     .from("agencies")
     .select(
-      "id, name, preferred_currency, stripe_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, stripe_account_synced_at",
+      "id, display_name, preferred_currency, stripe_account_id, stripe_account_status, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, stripe_account_synced_at",
     )
     .eq("slug", tenantSlug)
     .maybeSingle();
@@ -78,7 +78,7 @@ async function loadAgencyConnectFields(tenantSlug: string): Promise<{
 
   return {
     agencyId: data.id as string,
-    agencyName: (data.name as string) ?? "Workspace",
+    agencyName: (data.display_name as string) ?? "Workspace",
     preferredCurrency: (data.preferred_currency as string | null) ?? null,
     stripeAccountId: (data.stripe_account_id as string | null) ?? null,
     status: ((data.stripe_account_status as string) ?? "none") as ConnectAccountStatus,
