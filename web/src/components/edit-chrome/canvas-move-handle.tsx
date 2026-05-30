@@ -75,6 +75,11 @@ export function CanvasMoveHandle({
     halfW: number;
     halfH: number;
     parent: Box | null;
+    // Snap coordinates (viewport px) gathered from the parent + every sibling:
+    // each is a left/centre/right (X) or top/middle/bottom (Y) the block can
+    // align an edge to.
+    snapX: number[];
+    snapY: number[];
   } | null>(null);
   const latestRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -87,39 +92,44 @@ export function CanvasMoveHandle({
         e.shiftKey ? Math.round(v) : Math.round(v / GRID) * GRID;
       let x = snap(start.x + (e.clientX - start.px));
       let y = snap(start.y + (e.clientY - start.py));
-      // Align the block to its parent — left/centre/right on X, top/middle/
-      // bottom on Y — snapping the matching block edge to the parent edge and
-      // drawing a guide there. Closest target within ALIGN wins (Shift skips).
+      // Align any of the block's three edges (left/centre/right on X,
+      // top/middle/bottom on Y) to any parent- or sibling-derived snap
+      // coordinate, drawing a guide at the match. Closest wins (Shift skips).
       let gv: number | null = null;
       let gh: number | null = null;
-      if (!e.shiftKey && start.parent) {
-        const p = start.parent;
-        // X targets: [parent coord to draw the guide, block anchor centre-x].
-        const xTargets = [
-          { guide: p.left, anchor: start.natCx - start.halfW },
-          { guide: p.left + p.width / 2, anchor: start.natCx },
-          { guide: p.left + p.width, anchor: start.natCx + start.halfW },
+      if (!e.shiftKey) {
+        // The block's edge anchor positions as a function of translate 0.
+        const xAnchors = [
+          start.natCx - start.halfW,
+          start.natCx,
+          start.natCx + start.halfW,
+        ];
+        const yAnchors = [
+          start.natCy - start.halfH,
+          start.natCy,
+          start.natCy + start.halfH,
         ];
         let bestX: { guide: number; tx: number; d: number } | null = null;
-        for (const t of xTargets) {
-          const tx = t.guide - t.anchor;
-          const d = Math.abs(tx - x);
-          if (d <= ALIGN && (!bestX || d < bestX.d)) bestX = { guide: t.guide, tx, d };
+        for (const coord of start.snapX) {
+          for (const anchor of xAnchors) {
+            const tx = coord - anchor;
+            const d = Math.abs(tx - x);
+            if (d <= ALIGN && (!bestX || d < bestX.d))
+              bestX = { guide: coord, tx, d };
+          }
         }
         if (bestX) {
           x = Math.round(bestX.tx);
           gv = bestX.guide;
         }
-        const yTargets = [
-          { guide: p.top, anchor: start.natCy - start.halfH },
-          { guide: p.top + p.height / 2, anchor: start.natCy },
-          { guide: p.top + p.height, anchor: start.natCy + start.halfH },
-        ];
         let bestY: { guide: number; ty: number; d: number } | null = null;
-        for (const t of yTargets) {
-          const ty = t.guide - t.anchor;
-          const d = Math.abs(ty - y);
-          if (d <= ALIGN && (!bestY || d < bestY.d)) bestY = { guide: t.guide, ty, d };
+        for (const coord of start.snapY) {
+          for (const anchor of yAnchors) {
+            const ty = coord - anchor;
+            const d = Math.abs(ty - y);
+            if (d <= ALIGN && (!bestY || d < bestY.d))
+              bestY = { guide: coord, ty, d };
+          }
         }
         if (bestY) {
           y = Math.round(bestY.ty);
@@ -163,6 +173,25 @@ export function CanvasMoveHandle({
     const parent: Box | null = pr
       ? { top: pr.top, left: pr.left, width: pr.width, height: pr.height }
       : null;
+    // Gather snap coordinates: the parent's left/centre/right + top/middle/
+    // bottom, plus the same three edges of every sibling element. Siblings
+    // don't move during the drag, so capturing once on grab is sufficient.
+    const snapX: number[] = [];
+    const snapY: number[] = [];
+    if (pr) {
+      snapX.push(pr.left, pr.left + pr.width / 2, pr.left + pr.width);
+      snapY.push(pr.top, pr.top + pr.height / 2, pr.top + pr.height);
+    }
+    const parentNode = liveEl?.parentElement;
+    if (parentNode) {
+      for (const sib of Array.from(parentNode.children)) {
+        if (sib === liveEl || !(sib instanceof HTMLElement)) continue;
+        const sr = sib.getBoundingClientRect();
+        if (sr.width === 0 && sr.height === 0) continue;
+        snapX.push(sr.left, sr.left + sr.width / 2, sr.left + sr.width);
+        snapY.push(sr.top, sr.top + sr.height / 2, sr.top + sr.height);
+      }
+    }
     startRef.current = {
       px: e.clientX,
       py: e.clientY,
@@ -173,6 +202,8 @@ export function CanvasMoveHandle({
       halfW,
       halfH,
       parent,
+      snapX,
+      snapY,
     };
     latestRef.current = current;
     setLive({ x: Math.round(current.x), y: Math.round(current.y) });
