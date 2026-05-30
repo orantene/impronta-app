@@ -40,6 +40,30 @@ export interface ResizeCommit {
 type Axis = "x" | "y" | "both";
 
 const MIN_SIZE = 24;
+// Snap-to-grid step (Webflow-style). Hold Shift while dragging for free 1px.
+const GRID = 8;
+// Pointer distance (px) within which a drag snaps to a parent-derived target.
+const SNAP_THRESHOLD = 14;
+
+/**
+ * Snap a raw dragged length to (a) the nearest grid step, and (b) any of the
+ * supplied parent-derived targets (full width, halves, thirds) when close.
+ * Returns the snapped value plus a short label when a parent target won — used
+ * to surface a "Full" / "½" hint in the readout. Shift bypasses all snapping.
+ */
+function snapLength(
+  raw: number,
+  free: boolean,
+  targets: ReadonlyArray<{ value: number; label: string }>,
+): { value: number; label: string | null } {
+  if (free) return { value: Math.round(raw), label: null };
+  for (const t of targets) {
+    if (Math.abs(raw - t.value) <= SNAP_THRESHOLD) {
+      return { value: Math.round(t.value), label: t.label };
+    }
+  }
+  return { value: Math.round(raw / GRID) * GRID, label: null };
+}
 
 export function CanvasResizeHandles({
   rect,
@@ -60,6 +84,8 @@ export function CanvasResizeHandles({
   const [activeAxis, setActiveAxis] = useState<Axis | null>(null);
   const [liveW, setLiveW] = useState<number>(Math.round(rect.width));
   const [liveH, setLiveH] = useState<number>(Math.round(rect.height));
+  // Non-null while the current drag is snapped to a parent target (e.g. "Full").
+  const [snapHint, setSnapHint] = useState<string | null>(null);
   const startRef = useRef<{
     axis: Axis;
     x: number;
@@ -79,8 +105,23 @@ export function CanvasResizeHandles({
       if (!start) return;
       let w = latestRef.current.w;
       let h = latestRef.current.h;
+      const free = e.shiftKey;
+      const parent = liveEl?.parentElement ?? null;
+      let snapLabel: string | null = null;
       if (start.axis === "x" || start.axis === "both") {
-        w = Math.max(MIN_SIZE, Math.round(start.w + (e.clientX - start.x)));
+        const raw = start.w + (e.clientX - start.x);
+        const parentW = parent?.getBoundingClientRect().width ?? 0;
+        const targets = parentW
+          ? [
+              { value: parentW, label: "Full" },
+              { value: parentW / 2, label: "½" },
+              { value: (parentW * 2) / 3, label: "⅔" },
+              { value: parentW / 3, label: "⅓" },
+            ]
+          : [];
+        const snapped = snapLength(raw, free, targets);
+        w = Math.max(MIN_SIZE, snapped.value);
+        if (snapped.label) snapLabel = snapped.label;
         latestRef.current.w = w;
         setLiveW(w);
         // Instant preview — the committed prop re-applies the same value on
@@ -88,11 +129,14 @@ export function CanvasResizeHandles({
         if (liveEl) liveEl.style.width = `${w}px`;
       }
       if (start.axis === "y" || start.axis === "both") {
-        h = Math.max(MIN_SIZE, Math.round(start.h + (e.clientY - start.y)));
+        const raw = start.h + (e.clientY - start.y);
+        const snapped = snapLength(raw, free, []);
+        h = Math.max(MIN_SIZE, snapped.value);
         latestRef.current.h = h;
         setLiveH(h);
         if (liveEl) liveEl.style.height = `${h}px`;
       }
+      setSnapHint(snapLabel);
     };
     const onUp = () => {
       const start = startRef.current;
@@ -105,6 +149,7 @@ export function CanvasResizeHandles({
       }
       onCommit(dims);
       setActiveAxis(null);
+      setSnapHint(null);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -127,6 +172,7 @@ export function CanvasResizeHandles({
     latestRef.current = { w: rect.width, h: rect.height };
     setLiveW(Math.round(rect.width));
     setLiveH(Math.round(rect.height));
+    setSnapHint(null);
     setActiveAxis(axis);
   }
 
@@ -231,11 +277,11 @@ export function CanvasResizeHandles({
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
           }}
         >
-          {activeAxis === "x"
+          {(activeAxis === "x"
             ? `${liveW}px`
             : activeAxis === "y"
               ? `${liveH}px`
-              : `${liveW} × ${liveH}`}
+              : `${liveW} × ${liveH}`) + (snapHint ? `  ·  ${snapHint}` : "")}
         </span>
       ) : null}
     </div>
