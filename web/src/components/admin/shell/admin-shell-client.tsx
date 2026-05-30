@@ -252,6 +252,11 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/financials — Business Financials page (L46).
   (s) => s[0] === "admin" && s[1] === "financials",
+  // /<tenant>/admin/payouts(/return) — Stripe Connect payout onboarding +
+  // base reservation fee. Canonical standalone server page like financials;
+  // NOT a SPA tab. Without this the shell renders Overview behind a detached
+  // payouts <main> (floating on the bare <body>).
+  (s) => s[0] === "admin" && s[1] === "payouts",
   // /<tenant>/admin/roster/applications — apply-flow inbox (L48).
   (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "applications",
   // /talent/discover-agencies — apply-flow discovery page (L48). Talent-scoped
