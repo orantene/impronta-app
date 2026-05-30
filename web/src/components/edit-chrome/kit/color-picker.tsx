@@ -393,6 +393,8 @@ export function ColorPickerPopover({
               ? "Pick a color from anywhere on the page"
               : "Eyedropper requires Chromium-based browsers"
           }
+          onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = CHROME.surface; }}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -405,6 +407,7 @@ export function ColorPickerPopover({
             color: supportsEyedropper ? CHROME.text2 : CHROME.muted2,
             cursor: supportsEyedropper && !eyedropperBusy ? "pointer" : "not-allowed",
             flexShrink: 0,
+            transition: "background 120ms ease",
           }}
         >
           {/* Eyedropper glyph */}
@@ -528,6 +531,8 @@ export function ColorPickerPopover({
         <button
           type="button"
           onClick={onClose}
+          onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.accent2; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = CHROME.accent; }}
           style={{
             height: 26,
             padding: "0 10px",
@@ -540,6 +545,7 @@ export function ColorPickerPopover({
             border: "none",
             borderRadius: 6,
             cursor: "pointer",
+            transition: "background 120ms ease",
           }}
         >
           Done

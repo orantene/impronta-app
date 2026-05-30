@@ -3302,12 +3302,14 @@ export function StylePanel({
                     ) : null}
                     <button
                       type="button"
+                      title="Undo"
+                      aria-label="Undo"
                       onClick={() => {
                         void undo();
                         recordNodeAction("Undo");
                       }}
                       disabled={!canUndo}
-                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] transition-colors hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
                       style={{
                         background: "transparent",
                         border: "none",
@@ -3319,12 +3321,14 @@ export function StylePanel({
                     </button>
                     <button
                       type="button"
+                      title="Redo"
+                      aria-label="Redo"
                       onClick={() => {
                         void redo();
                         recordNodeAction("Redo");
                       }}
                       disabled={!canRedo}
-                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] transition-colors hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
                       style={{
                         background: "transparent",
                         border: "none",
@@ -4799,18 +4803,26 @@ export function StylePanel({
                       type="button"
                       data-builder-node-style-preset={preset.id}
                       onClick={() => applyStandaloneStylePreset(preset)}
-                      className="cursor-pointer text-left"
+                      className="cursor-pointer rounded-md text-left transition-colors hover:bg-stone-100"
                       style={{
                         background: CHROME.surface,
                         border: `1px solid ${CHROME.lineMid}`,
                         color: CHROME.ink,
                         padding: "8px 10px",
                       }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background =
+                          "rgba(42,49,71,0.06)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background =
+                          CHROME.surface;
+                      }}
                     >
                       <span className="block text-[11px] font-semibold">
                         {preset.label}
                       </span>
-                      <span className="mt-0.5 block text-[10.5px] leading-tight text-zinc-500">
+                      <span className="mt-0.5 block text-[10.5px] leading-tight text-stone-500">
                         {preset.hint}
                       </span>
                     </button>
@@ -7496,7 +7508,7 @@ export function StylePanel({
             }}
             className="w-full cursor-pointer"
           />
-          <span className="text-[10.5px] text-zinc-500">
+          <span className="text-[10.5px] text-stone-500">
             For text legibility over busy footage.
           </span>
         </div>

@@ -312,7 +312,7 @@ export function ResponsivePanel({
               type="button"
               onClick={clearBreakpointOverrides}
               disabled={!hasAnyOverride}
-              className="text-[10.5px] font-semibold"
+              className="text-[10.5px] font-semibold hover:text-stone-800 transition-colors"
               style={{
                 color: hasAnyOverride ? CHROME.muted : CHROME.muted2,
                 opacity: hasAnyOverride ? 1 : 0.55,
@@ -593,7 +593,7 @@ function ResponsiveDiagnosticsCard({
             </p>
           ) : null}
           {diagnostics.length > 0 ? (
-            <div className="mt-1 rounded-md border border-zinc-200 bg-white/70 px-2.5 py-2 text-[10px] leading-snug text-stone-700">
+            <div className="mt-1 rounded-md border border-stone-200 bg-white/70 px-2.5 py-2 text-[10px] leading-snug text-stone-700">
               {diagnostics.map((item) => {
                 const quickFix = item.quickFix;
                 return (
@@ -607,7 +607,7 @@ function ResponsiveDiagnosticsCard({
                         <button
                           type="button"
                           onClick={() => onApplyBreakpointPatch(quickFix.patch)}
-                          className="mt-1 rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-zinc-50"
+                          className="mt-1 rounded-[4px] border border-stone-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-stone-100"
                         >
                           {quickFix.label}
                         </button>
@@ -618,7 +618,7 @@ function ResponsiveDiagnosticsCard({
                         <button
                           type="button"
                           onClick={() => onJumpToBreakpoint(item.breakpoint ?? "desktop")}
-                          className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-zinc-50"
+                          className="rounded-[4px] border border-stone-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-stone-100"
                         >
                           {item.breakpoint}
                         </button>
@@ -675,7 +675,7 @@ function FieldHeader({
           <button
             type="button"
             onClick={onClear}
-            className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-zinc-50"
+            className="rounded-[4px] border border-stone-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-stone-600 hover:bg-stone-100"
           >
             Reset
           </button>
