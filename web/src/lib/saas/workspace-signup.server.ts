@@ -570,12 +570,26 @@ export async function provisionWorkspaceFromLead(params: {
 
   const leadEmail = lead.email.trim().toLowerCase();
   const actorEmail = (params.userEmail ?? "").trim().toLowerCase();
-  if (!leadEmail || !actorEmail || leadEmail !== actorEmail) {
+  if (!actorEmail) {
     return {
       ok: false,
       error: "email_mismatch",
       message: "Finish signup with the same email you used on Get Started so we can attach the workspace correctly.",
     };
+  }
+  // OAuth signup (e.g. Google) may use a different email than what was typed
+  // in get-started. The workspace goes to the *authenticated* user regardless,
+  // so blocking on mismatch breaks the funnel unnecessarily — the
+  // claimed_by_profile_id gate below is the real anti-theft check.
+  // Update the lead email to the auth address so welcome emails deliver.
+  if (leadEmail && actorEmail && leadEmail !== actorEmail) {
+    const adminForUpdate = createServiceRoleClient();
+    if (adminForUpdate) {
+      await adminForUpdate
+        .from("saas_marketing_signups")
+        .update({ email: params.userEmail })
+        .eq("id", params.leadId);
+    }
   }
 
   if (lead.claimed_by_profile_id && lead.claimed_by_profile_id !== params.userId) {

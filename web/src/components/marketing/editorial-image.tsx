@@ -71,7 +71,7 @@ export function EditorialFrame({
       ? "linear-gradient(180deg, rgba(15,23,20,0.12) 0%, rgba(15,23,20,0.36) 100%)"
       : tone === "forest"
         ? "linear-gradient(180deg, rgba(31,74,58,0.14) 0%, rgba(31,74,58,0.32) 100%)"
-        : "linear-gradient(180deg, rgba(245,242,234,0.00) 45%, rgba(15,23,20,0.08) 100%)";
+        : "linear-gradient(180deg, rgba(245,242,234,0.00) 40%, rgba(15,23,20,0.52) 100%)";
 
   const shadow =
     tone === "ink"
