@@ -69,7 +69,7 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
-import { CanvasMoveHandle } from "./canvas-move-handle";
+import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import {
   CanvasSpacingHandles,
@@ -1143,6 +1143,49 @@ export function SelectionLayer() {
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
   );
+  // Keyboard nudge — arrow keys move the selected freeform block by translate
+  // (1px, or 10px with Shift). Complements the centre move grip for precise
+  // positioning. Gated so it never hijacks typing or panel/tree navigation:
+  // only fires when focus is on the canvas itself (or nothing).
+  useEffect(() => {
+    if (!canResizeSelectedNode) return;
+    const DELTAS: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    function onNudge(e: KeyboardEvent) {
+      const delta = DELTAS[e.key];
+      if (!delta) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const ae = document.activeElement as HTMLElement | null;
+      // Only act when focus is on the page body / canvas — never while an
+      // input, the navigator tree, or the inspector panel has focus.
+      const onCanvas =
+        !ae ||
+        ae === document.body ||
+        !!ae.closest("[data-cms-section], [data-builder-node-id]");
+      if (!onCanvas) return;
+      const el = getSelectedBuilderNodeEl();
+      if (!el) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const cur = parseTranslate(getComputedStyle(el).translate);
+      const nx = cur.x + delta[0] * step;
+      const ny = cur.y + delta[1] * step;
+      // Immediate inline preview so rapid presses accumulate without waiting
+      // for the round-trip; the commit then persists it.
+      el.style.translate = `${nx}px ${ny}px`;
+      commitSelectedNodeTranslate(nx, ny);
+    }
+    window.addEventListener("keydown", onNudge);
+    return () => window.removeEventListener("keydown", onNudge);
+  }, [
+    canResizeSelectedNode,
+    getSelectedBuilderNodeEl,
+    commitSelectedNodeTranslate,
+  ]);
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],

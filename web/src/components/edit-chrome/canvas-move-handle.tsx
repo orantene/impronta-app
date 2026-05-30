@@ -28,7 +28,7 @@ const GRID = 8;
 // swamp the content or fight the resize/spacing handles.
 const MIN_BOX = 64;
 
-function parseTranslate(value: string): { x: number; y: number } {
+export function parseTranslate(value: string): { x: number; y: number } {
   if (!value || value === "none") return { x: 0, y: 0 };
   const parts = value.trim().split(/\s+/);
   const x = parseFloat(parts[0] ?? "0") || 0;
