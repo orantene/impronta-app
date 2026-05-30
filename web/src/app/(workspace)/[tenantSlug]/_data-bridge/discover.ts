@@ -461,6 +461,8 @@ export type DiscoverMapPoint = {
   agencyName: string | null;
   isExclusive: boolean;
   headshotUrl: string | null;
+  trustTier: string | null;
+  availableDaysInNext30: number | null;
   homeLat: number;
   homeLng: number;
 };
@@ -476,7 +478,8 @@ export async function loadDiscoverMapPoints(
     .select(
       `id, display_name, first_name, last_name, profile_code,
        home_country_text, home_city_text, residence_city_id,
-       agency_name, is_exclusive, category_label`,
+       agency_name, is_exclusive, category_label,
+       trust_tier, available_days_in_next_30`,
     )
     .order("display_name", { ascending: true, nullsFirst: false })
     .limit(500);
@@ -506,6 +509,8 @@ export async function loadDiscoverMapPoints(
     agency_name: string | null;
     is_exclusive: boolean;
     category_label: string | null;
+    trust_tier: string | null;
+    available_days_in_next_30: number | null;
   };
   const rows = (data ?? []) as unknown as Row[];
   const ids = rows.map((r) => r.id);
@@ -578,6 +583,8 @@ export async function loadDiscoverMapPoints(
       agencyName: row.agency_name,
       isExclusive: row.is_exclusive,
       headshotUrl: photoByTalent.get(row.id) ?? null,
+      trustTier: row.trust_tier,
+      availableDaysInNext30: row.available_days_in_next_30,
       homeLat: coords.lat,
       homeLng: coords.lng,
     });

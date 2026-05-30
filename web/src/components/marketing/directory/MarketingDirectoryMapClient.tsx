@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   APIProvider,
   Map as GoogleMap,
@@ -9,24 +8,35 @@ import {
   useApiIsLoaded,
 } from "@vis.gl/react-google-maps";
 import type { DiscoverMapPoint } from "./shared";
-import { FOCUS_RING, initialsOf, agencyLine, locationLine, smartTitleCase } from "./shared";
+import { FOCUS_RING } from "./shared";
+import { DirectoryTalentCard } from "./DirectoryTalentCard";
 
-// Forest palette hexes (canonical --tl-* values). Inline literals because the
+// Forest marker hexes (canonical --tl-* values). Inline literals because the
 // Google Maps canvas + Symbol markers live outside the token cascade. Cool
 // only — never the default red pin, never gold/rust.
 const FOREST = "#1e3a2d";
 const FOREST_DEEP = "#132419";
 const CREAM = "#f7f3ea";
 
-type ViewMode = "talents" | "countries";
+/** Current map viewport, in the LatLngBoundsLiteral shape the Maps camera
+ *  reports. `null` until the map first settles — until then, show everything. */
+type ViewBounds = { north: number; south: number; east: number; west: number };
 
-type CountryCluster = {
-  country: string;
-  count: number;
-  lat: number;
-  lng: number;
-};
+function withinBounds(lat: number, lng: number, b: ViewBounds): boolean {
+  if (lat > b.north || lat < b.south) return false;
+  // Normal viewport: west <= east. A viewport that crosses the antimeridian
+  // flips them, so the longitude test becomes a union of the two wrapped halves.
+  return b.west <= b.east
+    ? lng >= b.west && lng <= b.east
+    : lng >= b.west || lng <= b.east;
+}
 
+/**
+ * Map browse view for the public directory: a sticky, half-height map on top of
+ * the talent-card grid. The grid mirrors the map's current viewport — panning
+ * or zooming re-filters the cards to only the talent the map currently covers,
+ * hiding the rest. Browse-only; each card links to `/t/<code>`.
+ */
 export function MarketingDirectoryMapClient({
   points,
   apiKey,
@@ -38,54 +48,33 @@ export function MarketingDirectoryMapClient({
   unmappedCount: number;
   onBackToGrid: () => void;
 }) {
+  const [bounds, setBounds] = useState<ViewBounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>(points.length > 12 ? "countries" : "talents");
 
   const center = useMemo(() => {
     if (points.length === 0) return { lat: 25, lng: 5 };
-    const sum = points.reduce((a, p) => ({ lat: a.lat + p.homeLat, lng: a.lng + p.homeLng }), {
-      lat: 0,
-      lng: 0,
-    });
+    const sum = points.reduce(
+      (a, p) => ({ lat: a.lat + p.homeLat, lng: a.lng + p.homeLng }),
+      { lat: 0, lng: 0 },
+    );
     return { lat: sum.lat / points.length, lng: sum.lng / points.length };
   }, [points]);
 
-  const countryClusters = useMemo<CountryCluster[]>(() => {
-    // Fold case so "Mexico"/"mexico" cluster together; keep a cased display
-    // label (prefer a variant that carries case over an all-lowercase one).
-    const buckets = new Map<string, { display: string; list: DiscoverMapPoint[] }>();
-    for (const p of points) {
-      const display = (p.homeCountry ?? "").trim() || "Unknown";
-      const key = display.toLowerCase();
-      const cur = buckets.get(key);
-      if (cur) {
-        cur.list.push(p);
-        if (cur.display.toLowerCase() === cur.display && display.toLowerCase() !== display) {
-          cur.display = display;
-        }
-      } else {
-        buckets.set(key, { display, list: [p] });
-      }
-    }
-    return Array.from(buckets.values())
-      .map(({ display, list }) => {
-        const sum = list.reduce((a, p) => ({ lat: a.lat + p.homeLat, lng: a.lng + p.homeLng }), {
-          lat: 0,
-          lng: 0,
-        });
-        return { country: smartTitleCase(display), count: list.length, lat: sum.lat / list.length, lng: sum.lng / list.length };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [points]);
+  // The cards below mirror the visible map rectangle. Before the first
+  // bounds-changed event (bounds === null) the whole mapped set shows; after,
+  // only what's currently in view.
+  const visible = useMemo(() => {
+    if (!bounds) return points;
+    return points.filter((p) => withinBounds(p.homeLat, p.homeLng, bounds));
+  }, [points, bounds]);
 
-  const selected = useMemo(
-    () => points.find((p) => p.id === selectedId) ?? null,
-    [points, selectedId],
-  );
-
-  const onMarkerClick = useCallback((id: string) => {
-    setSelectedId((cur) => (cur === id ? null : id));
-  }, []);
+  // Clicking a pin scrolls its card into view beneath the sticky map.
+  useEffect(() => {
+    if (!selectedId) return;
+    document
+      .getElementById(`dir-map-card-${selectedId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectedId]);
 
   if (!apiKey) {
     return (
@@ -111,171 +100,114 @@ export function MarketingDirectoryMapClient({
     );
   }
 
+  const filteredByView = !!bounds && visible.length !== points.length;
+
   return (
-    <div>
-      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-          {viewMode === "countries" ? (
-            <>
-              <strong style={{ color: "var(--plt-ink)" }}>{countryClusters.length}</strong>{" "}
-              {countryClusters.length === 1 ? "country" : "countries"} · {points.length} on the map
-            </>
-          ) : (
-            <>
-              <strong style={{ color: "var(--plt-ink)" }}>{points.length}</strong>{" "}
-              {points.length === 1 ? "profile" : "profiles"} on the map
-            </>
-          )}
-          {unmappedCount > 0 ? (
-            <span style={{ color: "var(--plt-muted-soft)" }}> · {unmappedCount} without a geocoded city</span>
-          ) : null}
-        </p>
+    <div className="flex flex-col gap-5">
+      {/* Sticky half-height map — stays in view while the cards scroll under it,
+          so every pan / zoom keeps re-filtering the visible card set. */}
+      <div className="sticky top-24 z-[2] pb-3" style={{ background: "var(--plt-bg)" }}>
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
+            <strong style={{ color: "var(--plt-ink)" }}>{visible.length}</strong>{" "}
+            {visible.length === 1 ? "profile" : "profiles"} in view
+            {filteredByView ? (
+              <span style={{ color: "var(--plt-muted-soft)" }}> · {points.length} mapped</span>
+            ) : null}
+            {unmappedCount > 0 ? (
+              <span style={{ color: "var(--plt-muted-soft)" }}>
+                {" "}
+                · {unmappedCount} without a map location
+              </span>
+            ) : null}
+          </p>
+          <span className="text-[0.6875rem]" style={{ color: "var(--plt-muted-soft)" }}>
+            Zoom or drag the map to filter
+          </span>
+        </div>
 
         <div
-          role="tablist"
-          aria-label="Map grouping"
-          className="inline-flex items-center gap-0.5 rounded-full p-0.5"
-          style={{ background: "var(--plt-bg-deep)", border: "1px solid var(--plt-hairline)" }}
+          className="relative overflow-hidden rounded-[22px]"
+          style={{
+            height: "clamp(240px, 38vh, 420px)",
+            border: "1px solid var(--plt-hairline)",
+            background: "var(--plt-bg-deep)",
+          }}
         >
-          {(["talents", "countries"] as const).map((mode) => {
-            const activeTab = mode === viewMode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="tab"
-                aria-selected={activeTab}
-                onClick={() => {
-                  setViewMode(mode);
-                  setSelectedId(null);
-                }}
-                className={`h-8 rounded-full px-3 text-[0.75rem] font-medium leading-none transition-colors ${FOCUS_RING}`}
-                style={{
-                  background: activeTab ? "var(--plt-bg-raised)" : "transparent",
-                  color: activeTab ? "var(--plt-forest)" : "var(--plt-muted)",
-                  boxShadow: activeTab ? "var(--plt-shadow-sm)" : "none",
-                }}
-              >
-                {mode === "talents" ? "Pins" : "Countries"}
-              </button>
-            );
-          })}
+          <APIProvider apiKey={apiKey}>
+            <GoogleMap
+              defaultCenter={center}
+              defaultZoom={points.length > 12 ? 2 : 4}
+              gestureHandling="cooperative"
+              mapTypeControl={false}
+              streetViewControl={false}
+              fullscreenControl={false}
+              zoomControl
+              clickableIcons={false}
+              style={{ width: "100%", height: "100%" }}
+              onBoundsChanged={(ev) => setBounds(ev.detail.bounds)}
+            >
+              <DirectoryMarkers
+                points={points}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            </GoogleMap>
+          </APIProvider>
         </div>
       </div>
 
-      <div
-        className="relative overflow-hidden rounded-[22px]"
-        style={{
-          height: "clamp(480px, calc(100vh - 320px), 760px)",
-          border: "1px solid var(--plt-hairline)",
-          background: "var(--plt-bg-deep)",
-        }}
-      >
-        <APIProvider apiKey={apiKey}>
-          <GoogleMap
-            defaultCenter={center}
-            defaultZoom={points.length > 12 ? 2 : 4}
-            gestureHandling="cooperative"
-            mapTypeControl={false}
-            streetViewControl={false}
-            fullscreenControl={false}
-            zoomControl
-            clickableIcons={false}
-            style={{ width: "100%", height: "100%" }}
-          >
-            <DirectoryMarkers
-              viewMode={viewMode}
-              points={points}
-              clusters={countryClusters}
-              onMarkerClick={onMarkerClick}
-              onClusterClick={() => {
-                setViewMode("talents");
-                setSelectedId(null);
-              }}
-            />
-          </GoogleMap>
-
-          {selected ? (
+      {/* Cards for talent currently inside the map viewport. */}
+      {visible.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center gap-1.5 rounded-[22px] px-6 py-12 text-center"
+          style={{ background: "var(--plt-bg-raised)", border: "1px dashed var(--plt-hairline-strong)" }}
+        >
+          <p className="plt-display text-[1rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
+            No talent in this area
+          </p>
+          <p className="text-[0.875rem]" style={{ color: "var(--plt-muted)" }}>
+            Zoom out or drag the map to bring profiles back into view.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
+          {visible.map((p) => (
             <div
-              className="absolute bottom-4 left-4 right-4 flex max-w-[380px] items-center gap-3 rounded-[16px] p-3"
-              style={{
-                background: "var(--plt-bg-raised)",
-                border: "1px solid var(--plt-hairline-strong)",
-                boxShadow: "var(--plt-shadow-lg)",
-              }}
+              key={p.id}
+              id={`dir-map-card-${p.id}`}
+              className="rounded-[22px] transition-shadow"
+              style={
+                selectedId === p.id
+                  ? { boxShadow: "0 0 0 3px var(--plt-forest-ring)" }
+                  : undefined
+              }
             >
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[12px]"
-                style={{
-                  background: selected.headshotUrl
-                    ? `center/cover no-repeat url(${selected.headshotUrl})`
-                    : "color-mix(in srgb, var(--plt-forest) 9%, var(--plt-bg-raised))",
-                  color: "var(--plt-forest)",
-                }}
-              >
-                {!selected.headshotUrl ? (
-                  <span className="plt-display text-[0.95rem] font-semibold">{initialsOf(selected.displayName)}</span>
-                ) : null}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="plt-display truncate text-[0.9375rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-                  {selected.displayName}
-                </div>
-                <div className="truncate text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-                  {[
-                    selected.primaryTypeLabel,
-                    agencyLine(selected.agencyName, selected.isExclusive),
-                    locationLine(selected.homeCity, selected.homeCountry),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </div>
-              </div>
-              {selected.profileCode ? (
-                <Link
-                  href={`/t/${selected.profileCode}`}
-                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[0.75rem] font-semibold ${FOCUS_RING}`}
-                  style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
-                >
-                  View
-                </Link>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setSelectedId(null)}
-                aria-label="Close"
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[1rem] ${FOCUS_RING}`}
-                style={{ color: "var(--plt-muted)" }}
-              >
-                ×
-              </button>
+              <DirectoryTalentCard talent={p} />
             </div>
-          ) : null}
-        </APIProvider>
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-/** Markers rendered only after the Maps JS API is ready, so we can build
- *  forest-toned `google.maps.Symbol` icons (default markers are red). */
+/** Markers render only once the Maps JS API is ready, so we can build
+ *  forest-toned `google.maps.Symbol` icons (default markers are red). The
+ *  selected pin grows + deepens so it reads against the others. */
 function DirectoryMarkers({
-  viewMode,
   points,
-  clusters,
-  onMarkerClick,
-  onClusterClick,
+  selectedId,
+  onSelect,
 }: {
-  viewMode: ViewMode;
   points: DiscoverMapPoint[];
-  clusters: CountryCluster[];
-  onMarkerClick: (id: string) => void;
-  onClusterClick: () => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
   const loaded = useApiIsLoaded();
   if (!loaded) return null;
 
-  const talentIcon: google.maps.Symbol = {
+  const baseIcon: google.maps.Symbol = {
     path: google.maps.SymbolPath.CIRCLE,
     scale: 6.5,
     fillColor: FOREST,
@@ -283,43 +215,30 @@ function DirectoryMarkers({
     strokeColor: CREAM,
     strokeWeight: 2,
   };
-  const clusterIcon: google.maps.Symbol = {
+  const selectedIcon: google.maps.Symbol = {
     path: google.maps.SymbolPath.CIRCLE,
-    scale: 13,
+    scale: 9.5,
     fillColor: FOREST_DEEP,
-    fillOpacity: 0.92,
+    fillOpacity: 1,
     strokeColor: CREAM,
-    strokeWeight: 2,
+    strokeWeight: 3,
   };
 
-  if (viewMode === "talents") {
-    return (
-      <>
-        {points.map((p) => (
+  return (
+    <>
+      {points.map((p) => {
+        const isSelected = selectedId === p.id;
+        return (
           <Marker
             key={p.id}
             position={{ lat: p.homeLat, lng: p.homeLng }}
             title={p.displayName}
-            icon={talentIcon}
-            onClick={() => onMarkerClick(p.id)}
+            icon={isSelected ? selectedIcon : baseIcon}
+            zIndex={isSelected ? 10 : undefined}
+            onClick={() => onSelect(p.id)}
           />
-        ))}
-      </>
-    );
-  }
-
-  return (
-    <>
-      {clusters.map((c) => (
-        <Marker
-          key={c.country}
-          position={{ lat: c.lat, lng: c.lng }}
-          title={`${c.country} · ${c.count} ${c.count === 1 ? "profile" : "profiles"}`}
-          icon={clusterIcon}
-          label={{ text: String(c.count), color: CREAM, fontSize: "12px", fontWeight: "700" }}
-          onClick={onClusterClick}
-        />
-      ))}
+        );
+      })}
     </>
   );
 }
