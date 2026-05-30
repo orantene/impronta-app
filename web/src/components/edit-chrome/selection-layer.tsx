@@ -227,12 +227,6 @@ interface NodeInsertTarget {
   index?: number;
 }
 
-interface SelectionBreadcrumbCrumb {
-  id: string | null;
-  sectionId?: string | null;
-  kind: BuilderNodeKind | "page";
-  label: string;
-}
 
 interface SelectionContextMenuState {
   x: number;
@@ -1094,30 +1088,6 @@ export function SelectionLayer() {
     selectedNodePath,
     advancedElementLibraryEnabled,
   ]);
-  const selectionBreadcrumb = useMemo<SelectionBreadcrumbCrumb[]>(() => {
-    if (!selectedSectionId) return [];
-    const crumbs: SelectionBreadcrumbCrumb[] = [
-      { id: null, kind: "page", label: "Page" },
-    ];
-    if (selectedNodePath.length === 0) {
-      crumbs.push({
-        id: null,
-        sectionId: selectedSectionId,
-        kind: "section",
-        label: chipLabel,
-      });
-      return crumbs;
-    }
-    for (const node of selectedNodePath) {
-      crumbs.push({
-        id: node.id,
-        sectionId: node.kind === "section" ? selectedSectionId : null,
-        kind: node.kind,
-        label: builderNodeCrumbLabel(node, chipLabel),
-      });
-    }
-    return crumbs;
-  }, [chipLabel, selectedNodePath, selectedSectionId]);
   const canInsertIntoSelectedNode =
     !!selectedCanvasNodeId && selectedNodeAllowedKinds.length > 0;
   const canRemoveSelectedNode =
@@ -1553,17 +1523,10 @@ export function SelectionLayer() {
             }}
           />
 
-          <SelectionBreadcrumb
-            crumbs={selectionBreadcrumb}
-            selectedRect={renderSelectedRect}
-            isScrolling={isScrollingRef.current}
-            isDragging={isDragging}
-            onSelectNode={selectBuilderNode}
-            onSelectSection={(sectionId) => {
-              if (sectionId === null) setSelectedSectionId(null);
-              else focusSectionForEdit(sectionId);
-            }}
-          />
+          {/* Breadcrumb bar removed (2026-05-30): it was a confusing second
+              floating row that duplicated the toolbar's context, and its only
+              unique job — jumping to a parent — is covered by the navigator
+              panel. One bar is clearer. */}
 
           {drag.phase === "idle" && (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
@@ -2507,155 +2470,6 @@ function ContextMenuButton({
   );
 }
 
-function SelectionBreadcrumb({
-  crumbs,
-  selectedRect,
-  isScrolling,
-  isDragging,
-  onSelectNode,
-  onSelectSection,
-}: {
-  crumbs: SelectionBreadcrumbCrumb[];
-  selectedRect: Rect;
-  isScrolling: boolean;
-  isDragging: boolean;
-  onSelectNode: (nodeId: string) => void;
-  onSelectSection: (sectionId: string | null) => void;
-}) {
-  if (crumbs.length <= 1) return null;
-  const visibleCrumbs =
-    crumbs.length > 5
-      ? [
-          crumbs[0],
-          { id: null, kind: "page" as const, label: "..." },
-          ...crumbs.slice(-3),
-        ]
-      : crumbs;
-  return (
-    <nav
-      aria-label="Selection breadcrumb"
-      data-edit-overlay="selection-breadcrumb"
-      data-selection-breadcrumb=""
-      style={{
-        position: "fixed",
-        top: Math.max(selectedRect.top - 68, 56),
-        left: selectedRect.left,
-        maxWidth: Math.min(selectedRect.width, 520),
-        minHeight: 24,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "3px 5px",
-        borderRadius: CANVAS_CHROME_RADIUS,
-        border: "1px solid rgba(255,255,255,0.10)",
-        background: "rgba(36,41,66,0.92)",
-        color: "white",
-        boxShadow: RAIL_SHADOW,
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        zIndex: 96,
-        pointerEvents: "auto",
-        opacity: isDragging ? 0 : 1,
-        transition: isScrolling
-          ? "opacity 120ms linear"
-          : "top 80ms linear, left 80ms linear, opacity 120ms linear",
-        overflow: "hidden",
-        fontFamily:
-          'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
-        userSelect: "none",
-      }}
-    >
-      {visibleCrumbs.map((crumb, index) => {
-        const isPage = crumb.kind === "page" && crumb.label !== "...";
-        const isEllipsis = crumb.label === "...";
-        const isLast = index === visibleCrumbs.length - 1;
-        const title = isPage
-          ? "Page root"
-          : isEllipsis
-            ? "Collapsed parents"
-            : `Select ${crumb.label}`;
-        return (
-          <span
-            key={`${crumb.id ?? crumb.label}-${index}`}
-            style={{
-              minWidth: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {index > 0 ? (
-              <span
-                aria-hidden
-                style={{
-                  color: "rgba(255,255,255,0.34)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
-                /
-              </span>
-            ) : null}
-            {isPage || isEllipsis ? (
-              <span
-                title={title}
-                data-selection-breadcrumb-item={crumb.kind}
-                style={{
-                  maxWidth: 150,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  padding: "2px 6px",
-                  borderRadius: CANVAS_CHROME_RADIUS,
-                  color: isEllipsis
-                    ? "rgba(255,255,255,0.50)"
-                    : "rgba(255,255,255,0.62)",
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {crumb.label}
-              </span>
-            ) : (
-              <button
-                type="button"
-                title={title}
-                aria-current={isLast ? "page" : undefined}
-                data-selection-breadcrumb-item={crumb.kind}
-                onClick={() => {
-                  if (crumb.id) {
-                    onSelectNode(crumb.id);
-                    return;
-                  }
-                  if (crumb.sectionId) onSelectSection(crumb.sectionId);
-                }}
-                style={{
-                  maxWidth: isLast ? 220 : 150,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  padding: "2px 7px",
-                  borderRadius: CANVAS_CHROME_RADIUS,
-                  border: "none",
-                  background: isLast
-                    ? "rgba(255,255,255,0.14)"
-                    : "transparent",
-                  color: isLast ? "white" : "rgba(255,255,255,0.76)",
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {crumb.label}
-              </button>
-            )}
-          </span>
-        );
-      })}
-    </nav>
-  );
-}
 
 function CanvasNodeInsertMenu({
   selectedRect,
