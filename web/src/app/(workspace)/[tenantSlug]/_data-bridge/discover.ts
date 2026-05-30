@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { deterministicSeedPhoto } from "@/lib/discover/seed-photo";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -327,7 +328,7 @@ export async function loadDiscoverTalents(
       agencyName: row.agency_name,
       agencyTenantId: row.agency_tenant_id,
       isExclusive: row.is_exclusive,
-      headshotUrl: photoByTalent.get(row.id) ?? null,
+      headshotUrl: photoByTalent.get(row.id) ?? deterministicSeedPhoto(row.id),
       nextAvailableDate: row.next_available_date,
       availableDaysInNext30: row.available_days_in_next_30,
       availabilityDots14d: row.availability_dots_14d,
@@ -582,7 +583,7 @@ export async function loadDiscoverMapPoints(
       homeCountry: row.home_country_text,
       agencyName: row.agency_name,
       isExclusive: row.is_exclusive,
-      headshotUrl: photoByTalent.get(row.id) ?? null,
+      headshotUrl: photoByTalent.get(row.id) ?? deterministicSeedPhoto(row.id),
       trustTier: row.trust_tier,
       availableDaysInNext30: row.available_days_in_next_30,
       homeLat: coords.lat,
