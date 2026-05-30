@@ -181,6 +181,55 @@ describe("thin / zero-margin workspace — platform absorbs, talent stays whole"
   });
 });
 
+describe("workspace base reservation fee", () => {
+  const overrideWith = (
+    o: { base_reservation_fee_cents?: number | null; base_reservation_fee_bps?: number | null },
+  ) => ({ platform_take_bps: null, platform_take_floor_cents: null, ...o });
+
+  it("a flat base fee adds to the client total AND the workspace take; talent + platform unchanged", () => {
+    // base 100000 subtotal, 5% take (2500 client + 2500 seller), +MX$20 flat.
+    const r = resolveBookingCommissions(baseInput({
+      tenantOverride: overrideWith({ base_reservation_fee_cents: 2_000 }),
+    }));
+    assert.equal(r.base_reservation_fee_cents, 2_000);
+    assert.equal(r.gross_charged_cents, 104_500); // 100000 + 2500 surcharge + 2000 base
+    assert.equal(r.workspace_fee_cents, 19_500);  // 20000 margin − 2500 + 2000 base
+    assert.equal(r.talent_net_cents, 80_000);     // protected — never touched
+    assert.equal(r.platform_fee_cents, 5_000);    // platform does NOT take the base fee
+    assert.equal(
+      r.talent_net_cents + r.workspace_fee_cents + r.platform_fee_cents,
+      r.gross_charged_cents,
+    );
+  });
+
+  it("a % base fee is computed off the subtotal", () => {
+    const r = resolveBookingCommissions(baseInput({
+      tenantOverride: overrideWith({ base_reservation_fee_bps: 500 }), // 5% of subtotal
+    }));
+    assert.equal(r.base_reservation_fee_cents, 5_000); // 5% of 100000
+    assert.equal(r.gross_charged_cents, 107_500);      // 100000 + 2500 + 5000
+    assert.equal(r.workspace_fee_cents, 22_500);       // 20000 − 2500 + 5000
+  });
+
+  it("the base fee is clamped to the platform caps", () => {
+    const r = resolveBookingCommissions(baseInput({
+      platformConfig: defaultPlatformConfig({ max_base_fee_cents: 1_000 }),
+      tenantOverride: overrideWith({ base_reservation_fee_cents: 9_999 }),
+    }));
+    assert.equal(r.base_reservation_fee_cents, 1_000); // capped at the platform max
+  });
+
+  it("an independent-talent sale has no base fee (workspace-only)", () => {
+    const r = resolveBookingCommissions(baseInput({
+      sellerOfRecord: "talent",
+      offerLineItems: [{ units: 1, unit_price_cents: 100_000, talent_cost_cents: 100_000 }],
+      tenantOverride: overrideWith({ base_reservation_fee_cents: 2_000 }),
+    }));
+    assert.equal(r.base_reservation_fee_cents, 0);
+    assert.equal(r.workspace_fee_cents, 0);
+  });
+});
+
 describe("override hierarchy", () => {
   it("plan-tier overrides platform default", () => {
     const result = resolveBookingCommissions(baseInput({
