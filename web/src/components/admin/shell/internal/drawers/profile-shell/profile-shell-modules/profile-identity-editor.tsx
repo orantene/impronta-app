@@ -4,7 +4,7 @@
 // CollapsibleIdentityField + CountryAutocompleteInput (./profile-identity-fields)
 // and LockedHint inline.
 "use client";
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   COLORS,
   ChannelVisibilityStrip,
@@ -34,11 +34,11 @@ export function StatusPillDropdown({ status, onChange, role, canPublish }: {
 }) {
   const copy = useDashboardText();
   type Status = "draft" | "pending" | "published" | "hidden";
-  const meta: Record<Status, { label: string; bg: string; fg: string }> = {
-    draft:     { label: "Draft",     bg: "rgba(11,11,13,0.06)",    fg: COLORS.inkMuted },
-    pending:   { label: "Pending",   bg: COLORS.amberSoft,         fg: COLORS.amberDeep },
-    published: { label: "Published", bg: COLORS.successSoft,       fg: COLORS.successDeep },
-    hidden:    { label: "Hidden",    bg: "rgba(91,107,160,0.10)",  fg: COLORS.indigoDeep },
+  const meta: Record<Status, { label: string; bg: string; fg: string; bd: string }> = {
+    draft:     { label: "Draft",     bg: "rgba(11,11,13,0.05)",    fg: COLORS.inkMuted,    bd: "rgba(11,11,13,0.20)" },
+    pending:   { label: "Pending",   bg: COLORS.amberSoft,         fg: COLORS.amberDeep,   bd: "rgba(176,128,30,0.32)" },
+    published: { label: "Published", bg: COLORS.successSoft,       fg: COLORS.successDeep, bd: "rgba(15,79,62,0.30)" },
+    hidden:    { label: "Hidden",    bg: "rgba(91,107,160,0.10)",  fg: COLORS.indigoDeep,  bd: "rgba(91,107,160,0.34)" },
   };
   const cur = meta[status];
   const allowed = getAllowedProfileStatusOptions({
@@ -49,20 +49,47 @@ export function StatusPillDropdown({ status, onChange, role, canPublish }: {
   // Stable popover id (one per render — fine since only one is open at a time)
   const popoverId = React.useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  // Native [popover] elements live in the top layer, so `position: absolute`
+  // relative to the trigger does NOT anchor it — the menu renders at the
+  // viewport's top-left corner instead (the "dropdown on the other side of
+  // the screen" bug). Mirror ProfileShellMobileMenu: on the toggle event,
+  // measure the trigger and pin the menu under it with position: fixed.
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  useEffect(() => {
+    const el = popoverRef.current;
+    if (!el) return;
+    const onToggle = (e: Event) => {
+      if ((e as ToggleEvent).newState !== "open" || !triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    el.addEventListener("toggle", onToggle);
+    return () => el.removeEventListener("toggle", onToggle);
+  }, []);
   return (
     <div className="relative">
       <button type="button"
+        ref={triggerRef}
         // Native popover trigger — browser handles open/close
         {...({ popoverTarget: popoverId } as Record<string, string>)}
+        title={copy.t("Change status")}
+        // #3 redesign — a border + clearer chevron + hover make this read as
+        // a dropdown control, not a static status label. The old borderless
+        // pill looked un-clickable, so admins didn't realise they could flip
+        // status here.
+        onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(0.96)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
         style={{
-          padding: "5px 12px", borderRadius: 999, border: "none",
+          padding: "5px 10px", borderRadius: 999,
+          border: `1px solid ${cur.bd}`,
           background: cur.bg, color: cur.fg,
           fontSize: 11, fontWeight: 600, cursor: "pointer",
           display: "inline-flex", alignItems: "center", gap: 5,
           fontFamily: FONTS.body,
         }}>
         {copy.t(cur.label)}
-        <span className="text-admin-10">▾</span>
+        <span className="text-admin-10 opacity-70">▾</span>
       </button>
       <div
         ref={popoverRef}
@@ -70,12 +97,14 @@ export function StatusPillDropdown({ status, onChange, role, canPublish }: {
         // Native popover; auto-dismisses on outside click + Escape
         {...({ popover: "auto" } as Record<string, string>)}
         style={{
-          position: "absolute", top: "calc(100% + 4px)", right: 0,
+          // Top-layer popover — pinned to the trigger via measured coords
+          // (see the toggle effect above). left/bottom auto so right wins.
+          position: "fixed", top: pos.top, right: pos.right, left: "auto", bottom: "auto",
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
           boxShadow: "0 10px 30px -8px rgba(11,11,13,0.18)",
           minWidth: 160, padding: 4, fontFamily: FONTS.body,
           // popover="auto" sets `display: none` until shown
-          margin: 0, inset: "auto",
+          margin: 0,
         }}>
         {allowed.map(s => (
           <button key={s} type="button" onClick={() => {

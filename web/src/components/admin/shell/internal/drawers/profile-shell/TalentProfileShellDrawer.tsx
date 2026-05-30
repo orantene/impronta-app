@@ -72,7 +72,6 @@ import {
   Section,
   ServiceArea,
   ShellLimitsEntry,
-  SizeIcon,
   SkillFreshnessBanner,
   SkillHintsBanner,
   SkillOverridesPanel,
@@ -2123,56 +2122,57 @@ export function TalentProfileShellDrawer() {
           [data-tulala-pshell] [data-pshell-tinted]:hover {
             background: color-mix(in oklch, ${COLORS.accent} 8%, white);
           }
-          /* Container query — fires when the shell's container is < 720px
-             (tighter threshold now that the desktop drawer is half-width).
-             Mobile bottom-sheet retained: at narrow widths the drawer
-             slides from the bottom with a rounded top + safe-area pad. */
-          @container pshell (max-width: 720px) {
-            [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
-            [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
+          /* #3 redesign — the toolbar no longer collapses by width. Every
+             secondary action now lives in the always-present ⋯ menu, so there
+             is no [data-pshell-header-extras] to hide and no "mobile menu"
+             that pops in at the 720px default width (the bug: the default
+             drawer width sat exactly on the old max-width:720px breakpoint).
+             Two width rules remain:
+
+             (a) Bottom-sheet — a true MOBILE pattern, so keyed to the
+                 VIEWPORT, not the drawer's own width. A narrow drawer dragged
+                 thin on a desktop stays a right-side panel; only an actual
+                 small screen docks it to the bottom. */
+          @media (max-width: 640px) {
+            [data-tulala-pshell] {
+              border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh;
+              align-self: flex-end; max-width: none;
+            }
           }
-          /* Hide mobile-only chrome when the container is wider */
-          @container pshell (min-width: 721px) {
-            [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
-          }
-          /* Narrow drawer / phone — rail doesn't fit, fall back to the
-             horizontal pill row so the nav stays one-tap. Body returns
-             to column flow so pills sit above form. */
+          /* (b) Narrow drawer OR phone — the 176px rail doesn't fit, so fall
+                 back to the horizontal pill row. Keyed to the CONTAINER so it
+                 adapts whether the drawer is dragged thin on a desktop or it's
+                 an actual small screen. */
           @container pshell (max-width: 480px) {
             [data-tulala-pshell] [data-pshell-rail] { display: none; }
             [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
             [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
           }
           /* Fallback for browsers without container-query support
-             (Safari < 16, Firefox < 110). Same rules, viewport-keyed.
-             Modern browsers ignore these because @container wins. */
+             (Safari < 16, Firefox < 110): mirror the rail→pills rule on the
+             viewport. The bottom-sheet rule above is already viewport-keyed
+             so it needs no fallback. */
           @supports not (container-type: inline-size) {
-            @media (max-width: 720px) {
-              [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; max-width: none; }
-              [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
-            }
             @media (max-width: 480px) {
               [data-tulala-pshell] [data-pshell-rail] { display: none; }
               [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
               [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
             }
-            @media (min-width: 721px) {
-              [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
-            }
-          }
-          /* Mobile: collapse the desktop toolbar into the overflow menu */
-          @media (max-width: 720px) {
-            [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
           }
         `}</style>
 
-        {/* Header — desktop shows full toolbar; mobile collapses
-            secondary actions into the overflow ••• menu and pushes the
-            status + smart CTA down to the bottom save bar.
-            (See @media (max-width: 880px) css block above for visibility) */}
+        {/* Header toolbar — one consistent row at every width:
+            ✕ · title + save-status · [status chip] · [undo/redo] · [Save] ·
+            [smart publish] · [⋯ overflow]. All secondary actions live in the
+            ⋯ menu, so nothing collapses or duplicates as the drawer resizes. */}
         <div style={{
           padding: "12px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+          // #3 redesign — wrap to a second row at very narrow (phone) widths
+          // instead of overflowing horizontally. No effect at normal widths
+          // (everything fits on one line); only kicks in when the controls
+          // alone can't fit, dropping them below the title.
+          flexWrap: "wrap",
         }}>
           <button type="button" onClick={closeDrawer} aria-label={copy.t("Close")} style={{
             width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer",
@@ -2210,15 +2210,11 @@ export function TalentProfileShellDrawer() {
             </div>
           </div>
 
-          {/* Compact "Add N to publish" coach — replaces the bulky in-form
-              banner. Click opens a popover with the missing items + jump
-              actions. Hidden when nothing is missing. */}
-          <HeaderPublishCoach missing={missing} onJump={onJumpToMissing} />
-
-          {/* Workflow status — moved here from the bottom mobile-save bar so
-              it's always one click away. Lets the admin flip the talent
-              between Draft / Pending / Published / Archived without scrolling
-              to the footer. */}
+          {/* Workflow status chip — sits to the LEFT of the smart publish
+              control. The old borderless pill looked un-clickable, so admins
+              didn't realise they could flip status here; it now has a border +
+              chevron + hover. Lets them move the talent between Draft /
+              Pending / Published / Hidden without scrolling. */}
           <StatusPillDropdown
             status={state.profileStatus}
             onChange={handleProfileStatusChange}
@@ -2260,7 +2256,10 @@ export function TalentProfileShellDrawer() {
                 justifyContent: "center",
               }}
             >
-              ↶
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H10" />
+              </svg>
             </button>
             <div style={{ width: 1, height: 18, background: COLORS.borderSoft, flexShrink: 0 }} />
             <button
@@ -2284,7 +2283,10 @@ export function TalentProfileShellDrawer() {
                 justifyContent: "center",
               }}
             >
-              ↷
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 14 5-5-5-5" />
+                <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H15" />
+              </svg>
             </button>
           </div>
 
@@ -2327,143 +2329,40 @@ export function TalentProfileShellDrawer() {
             </button>
           )}
 
-          {/* Desktop-only toolbar — every secondary action lives here. */}
-          <div data-pshell-header-extras style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            {/* Drawer size presets — compact / half / full (same control
-                as DrawerShell). Drag the left edge to fine-tune. */}
-            <div style={{ display: "inline-flex", background: "rgba(11,11,13,0.04)", borderRadius: 8, padding: 2 }}>
-              {(["compact", "half", "full"] as DrawerSize[]).map((sz) => {
-                const active = pshellCustomWidth === null && pshellSize === sz;
-                return (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => { setPshellCustomWidth(null); setPshellSize(sz); }}
-                    aria-label={`${sz} size`}
-                    title={sz === "compact" ? copy.t("Side drawer") : sz === "half" ? copy.t("Half-page") : copy.t("Full-page")}
-                    style={{
-                      background: active ? "#fff" : "transparent",
-                      boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
-                      border: "none", padding: "5px 8px", borderRadius: 6,
-                      cursor: "pointer", color: active ? COLORS.ink : COLORS.inkMuted,
-                      display: "inline-flex", alignItems: "center",
-                    }}
-                  >
-                    <SizeIcon variant={sz} />
-                  </button>
-                );
-              })}
-            </div>
-            <button type="button" onClick={() => setViewAsClient(true)} title={copy.t("View as client")} aria-label={copy.t("View as client")} style={{
-              padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
-              background: "#fff", color: COLORS.ink,
-              fontSize: 11, fontWeight: 500, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", gap: 5,
-            }}>👁 {copy.t("View as client")}</button>
-            {/* #15 — Admin "Review changes" → opens the diff modal so
-                admin sees what changed since the last published version
-                before approving / rejecting. Always available; the modal
-                shows "no changes" if there's nothing pending. */}
-            {adminVisible && (
-              <button type="button" onClick={() => setDiffOpen(true)} title={copy.t("Review changes")} style={{
-                padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
-                background: "#fff", color: COLORS.ink,
-                fontSize: 11, fontWeight: 500, cursor: "pointer",
-                display: "inline-flex", alignItems: "center", gap: 5,
-              }}>⇆ {copy.t("Review changes")}</button>
-            )}
-
-            {/* Phase 3 (deep QA fix) — escape hatch to the canonical full
-                editor at /admin/roster/[id], which has the complete talent
-                CRUD wired (taxonomy, languages, service areas, gallery,
-                photo upload, all real DB writes). The prototype drawer is
-                in the middle of a tab-by-tab autosave migration; until it
-                catches up, this link gives operators the path to all
-                edit functionality without UI-only stubs. */}
-            {adminVisible && payload.talentId && (
-              <a
-                href={`/${tenantSlug}/admin/roster/${payload.talentId}`}
-                title={copy.isSpanish ? "Abrir el editor completo del talento" : "Open the full talent editor (canonical CRUD page)"}
-                style={{
-                  padding: "5px 12px", borderRadius: 999,
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  background: "#fff", color: COLORS.ink,
-                  fontSize: 11, fontWeight: 600, textDecoration: "none",
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  fontFamily: FONTS.body,
-                }}
-              >
-                ↗ {copy.t("Full editor")}
-              </a>
-            )}
-
-            {/* Phase 3 (deep QA fix) — Remove from roster.
-                Critical business rule: this severs the agency relationship
-                ONLY. The talent keeps their Tulala account (auth.users
-                untouched), keeps their talent_profiles row (untouched),
-                and can be added to another agency. Confirm-first to
-                guard against accidental clicks. */}
-            {adminVisible && payload.talentId && (
-              <button
-                type="button"
-                title="Remove this talent from your agency's roster. They keep their Tulala account."
-                onClick={async () => {
-                  const tid = payload.talentId;
-                  if (!tid) return;
-                  const name = state.identity.stageName || "this talent";
-                  const ok = window.confirm(
-                    `Remove ${name} from your roster?\n\n` +
-                    `They'll keep their Tulala account and any work history. ` +
-                    `You can re-add them later. This only ends the agency ` +
-                    `relationship — it does NOT delete the talent's account.`,
-                  );
-                  if (!ok) return;
-                  const result = await removeFromRoster({ talent_profile_id: tid });
-                  if (!result.ok) {
-                    toast(result.error);
-                    return;
-                  }
-                  toast(
-                    result.keptUserAccount
-                      ? `${name} removed. Their Tulala account is still active.`
-                      : `${name} removed from your roster.`,
-                  );
-                  closeDrawer();
-                }}
-                style={{
-                  padding: "5px 12px", borderRadius: 999,
-                  border: `1px solid rgba(200,40,40,0.20)`,
-                  background: "#fff", color: "#C82828",
-                  fontSize: 11, fontWeight: 600, cursor: "pointer",
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  fontFamily: FONTS.body,
-                }}
-              >
-                ✕ {copy.t("Remove")}
-              </button>
-            )}
-
-            <button type="button" onClick={saveAndExit} style={{
-              padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
-              background: "#fff", color: COLORS.ink,
-              fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
-            }}>{copy.t("Save & exit")}</button>
+          {/* #3 redesign — ONE smart publish control replaces the old trio
+              (the "Add N to publish" coach pill + the status-dropdown
+              "Published" option + a separate greyed-out "Publish" button).
+              While the profile isn't live yet AND required fields are missing,
+              this renders the coach: an "Add N to publish" pill that opens a
+              checklist with jump-to-field links. The moment nothing's missing
+              it flips to the action button (Publish / Update / Submit for
+              review). Every OTHER secondary action moved into the ⋯ menu, so
+              the toolbar now fits at every width and never collapses into a
+              "mobile menu" at the default size. */}
+          {state.profileStatus !== "published" && state.profileStatus !== "hidden" && missing.length > 0 ? (
+            <HeaderPublishCoach missing={missing} onJump={onJumpToMissing} />
+          ) : (
             <SmartFooterCTA
               status={state.profileStatus}
               mode={mode}
               canPublish={canPublishProfile}
               onAction={submit}
             />
-          </div>
+          )}
 
-          {/* Mobile-only overflow menu — collapses every secondary
-              action into one ••• button. Status + autosave + smart
-              CTA already live in the sticky bottom bar on mobile. */}
+          {/* Overflow menu — the single home for every secondary action, at
+              EVERY drawer width now (the old desktop-only strip is gone, so
+              there's no duplication and nothing to collapse into a "mobile
+              menu" at the 720px default width). */}
           <ProfileShellMobileMenu
             adminVisible={adminVisible}
             isSelf={isSelf}
             primaryTypeSet={!!state.primaryType}
             onViewAsClient={() => setViewAsClient(true)}
+            onReviewChanges={adminVisible ? () => setDiffOpen(true) : undefined}
+            drawerSize={pshellSize}
+            customWidth={pshellCustomWidth}
+            onSetDrawerSize={(sz) => { setPshellCustomWidth(null); setPshellSize(sz); }}
             onSaveAndExit={saveAndExit}
             onOpenFullEditor={
               tenantSlug && payload.talentId
