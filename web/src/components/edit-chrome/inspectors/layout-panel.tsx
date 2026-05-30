@@ -57,6 +57,7 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useEditContext } from "../edit-context";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
+import { Toggle } from "../kit/toggle";
 import { CHROME } from "../kit/tokens";
 
 const SECTION_TITLE =
@@ -839,12 +840,7 @@ function ToggleRow({
         <span className="text-[11.5px] font-semibold text-stone-700">{label}</span>
         <span className="text-[10.5px] text-stone-500">{hint}</span>
       </span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 cursor-pointer"
-      />
+      <Toggle on={checked} onChange={onChange} />
     </label>
   );
 }
@@ -1305,19 +1301,17 @@ function AdvancedNodeLayoutEditor({
                   }}
                 >
                   <span className="text-[11.5px] text-stone-700">{item.props.title}</span>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
+                  <Toggle
+                    on={checked}
+                    onChange={(isOn) => {
                       const next = new Set(defaultOpenItemIds);
-                      if (e.target.checked) next.add(item.id);
+                      if (isOn) next.add(item.id);
                       else next.delete(item.id);
                       onPatch({
                         defaultOpenItemIds:
                           next.size > 0 ? Array.from(next) : undefined,
                       });
                     }}
-                    className="h-4 w-4 cursor-pointer"
                   />
                 </label>
               );
@@ -2302,11 +2296,9 @@ export function LayoutPanel({
               Escape the page container — touch viewport edges.
             </span>
           </span>
-          <input
-            type="checkbox"
-            checked={Boolean(presentation.fullBleed)}
-            onChange={(e) => onPatch({ fullBleed: e.target.checked || undefined })}
-            className="h-4 w-4 cursor-pointer"
+          <Toggle
+            on={Boolean(presentation.fullBleed)}
+            onChange={(isOn) => onPatch({ fullBleed: isOn || undefined })}
           />
         </label>
         <div className="grid grid-cols-2 gap-2">
