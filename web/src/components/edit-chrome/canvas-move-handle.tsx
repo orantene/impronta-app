@@ -24,9 +24,19 @@ interface Rect {
 }
 
 const GRID = 8;
+// Pointer distance within which the dragged block snaps its centre to the
+// parent's centre (and shows an alignment guide), Figma/Webflow-style.
+const ALIGN = 6;
 // Only show the grip when the box is roomy enough that a centre control won't
 // swamp the content or fight the resize/spacing handles.
 const MIN_BOX = 64;
+
+interface Box {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
 
 export function parseTranslate(value: string): { x: number; y: number } {
   if (!value || value === "none") return { x: 0, y: 0 };
@@ -49,11 +59,20 @@ export function CanvasMoveHandle({
 }) {
   const [dragging, setDragging] = useState(false);
   const [live, setLive] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Alignment-guide lines (viewport coords) shown while the centre is snapped.
+  const [guides, setGuides] = useState<{
+    v: number | null;
+    h: number | null;
+    parent: Box | null;
+  }>({ v: null, h: null, parent: null });
   const startRef = useRef<{
     px: number;
     py: number;
     x: number;
     y: number;
+    natCx: number;
+    natCy: number;
+    parent: Box | null;
   } | null>(null);
   const latestRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -64,15 +83,32 @@ export function CanvasMoveHandle({
       if (!start) return;
       const snap = (v: number) =>
         e.shiftKey ? Math.round(v) : Math.round(v / GRID) * GRID;
-      const x = snap(start.x + (e.clientX - start.px));
-      const y = snap(start.y + (e.clientY - start.py));
+      let x = snap(start.x + (e.clientX - start.px));
+      let y = snap(start.y + (e.clientY - start.py));
+      // Centre-to-parent-centre alignment snap (Shift bypasses).
+      let gv: number | null = null;
+      let gh: number | null = null;
+      if (!e.shiftKey && start.parent) {
+        const pcx = start.parent.left + start.parent.width / 2;
+        const pcy = start.parent.top + start.parent.height / 2;
+        if (Math.abs(start.natCx + x - pcx) <= ALIGN) {
+          x = Math.round(pcx - start.natCx);
+          gv = pcx;
+        }
+        if (Math.abs(start.natCy + y - pcy) <= ALIGN) {
+          y = Math.round(pcy - start.natCy);
+          gh = pcy;
+        }
+      }
       latestRef.current = { x, y };
       setLive({ x, y });
+      setGuides({ v: gv, h: gh, parent: start.parent });
       if (liveEl) liveEl.style.translate = `${x}px ${y}px`;
     };
     const onUp = () => {
       onCommitTranslate(latestRef.current.x, latestRef.current.y);
       setDragging(false);
+      setGuides({ v: null, h: null, parent: null });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -90,18 +126,65 @@ export function CanvasMoveHandle({
     const current = liveEl
       ? parseTranslate(getComputedStyle(liveEl).translate)
       : { x: 0, y: 0 };
+    // Natural (untranslated) centre = current centre minus the applied
+    // translate — the fixed anchor the alignment maths references.
+    const er = liveEl?.getBoundingClientRect();
+    const natCx = er ? er.left + er.width / 2 - current.x : 0;
+    const natCy = er ? er.top + er.height / 2 - current.y : 0;
+    const pr = liveEl?.parentElement?.getBoundingClientRect();
+    const parent: Box | null = pr
+      ? { top: pr.top, left: pr.left, width: pr.width, height: pr.height }
+      : null;
     startRef.current = {
       px: e.clientX,
       py: e.clientY,
       x: current.x,
       y: current.y,
+      natCx,
+      natCy,
+      parent,
     };
     latestRef.current = current;
     setLive({ x: Math.round(current.x), y: Math.round(current.y) });
+    setGuides({ v: null, h: null, parent: null });
     setDragging(true);
   }
 
   return (
+    <>
+    {/* Alignment guides — drawn across the parent when the centre snaps. */}
+    {guides.parent && guides.v !== null ? (
+      <div
+        aria-hidden
+        data-canvas-align-guide="v"
+        style={{
+          position: "fixed",
+          left: guides.v,
+          top: guides.parent.top,
+          width: 0,
+          height: guides.parent.height,
+          borderLeft: `1px dashed ${accent}`,
+          pointerEvents: "none",
+          zIndex: 97,
+        }}
+      />
+    ) : null}
+    {guides.parent && guides.h !== null ? (
+      <div
+        aria-hidden
+        data-canvas-align-guide="h"
+        style={{
+          position: "fixed",
+          top: guides.h,
+          left: guides.parent.left,
+          height: 0,
+          width: guides.parent.width,
+          borderTop: `1px dashed ${accent}`,
+          pointerEvents: "none",
+          zIndex: 97,
+        }}
+      />
+    ) : null}
     <div
       aria-hidden
       data-canvas-move-overlay=""
@@ -176,5 +259,6 @@ export function CanvasMoveHandle({
         </span>
       ) : null}
     </div>
+    </>
   );
 }
