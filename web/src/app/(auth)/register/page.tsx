@@ -7,6 +7,7 @@ import {
   buildWorkspaceOnboardingPath,
   WORKSPACE_SIGNUP_INTENT,
 } from "@/lib/saas/workspace-signup";
+import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { RegisterForm } from "./register-form";
@@ -47,6 +48,15 @@ export default async function RegisterPage({
   const nextPath = workspaceIntent
     ? buildWorkspaceOnboardingPath(workspaceLeadId)
     : normalizeOptionalNextPath(next);
+
+  // Pre-fill the email the operator already typed in the get-started funnel
+  // so the email/password path doesn't make them retype it. Resolved
+  // server-side from the lead id (never passed through the URL — it's PII).
+  // Null on any miss; the field just renders empty, never blocks signup.
+  const leadEmail =
+    workspaceIntent && workspaceLeadId
+      ? await loadWorkspaceLeadEmail(workspaceLeadId)
+      : null;
 
   // E.5 — Surface inviter context when the visitor came from /invite/[token].
   const isInviteFlow = !workspaceIntent && nextPath?.startsWith("/invite/");
@@ -99,7 +109,12 @@ export default async function RegisterPage({
           <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
         </div>
       </div>
-      <RegisterForm nextPath={nextPath} submitLabel={emailLabel} locale={locale} />
+      <RegisterForm
+        nextPath={nextPath}
+        submitLabel={emailLabel}
+        locale={locale}
+        defaultEmail={leadEmail ?? undefined}
+      />
     </div>
   );
 }
