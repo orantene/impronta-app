@@ -70,6 +70,10 @@ import {
   type BuilderNodePastePreview,
 } from "./edit-context";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
+import {
+  CanvasSpacingHandles,
+  type PaddingSide,
+} from "./canvas-spacing-handles";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
@@ -1097,6 +1101,28 @@ export function SelectionLayer() {
       getSelectedBuilderNodeEl,
     ],
   );
+  const commitSelectedNodePadding = useCallback(
+    (side: PaddingSide, px: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const key =
+        side === "top"
+          ? "paddingTop"
+          : side === "right"
+            ? "paddingRight"
+            : side === "bottom"
+              ? "paddingBottom"
+              : "paddingLeft";
+      void patchBuilderNodeProps(selectedBuilderNodeId, {
+        style: { ...currentStyle, [key]: `${Math.round(px)}px` },
+      });
+    },
+    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+  );
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
@@ -1581,6 +1607,15 @@ export function SelectionLayer() {
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
               onCommit={commitSelectedNodeSize}
+            />
+          ) : null}
+
+          {/* Direct manipulation — drag the inner bars to set padding. */}
+          {canResizeSelectedNode && !isDragging ? (
+            <CanvasSpacingHandles
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitPadding={commitSelectedNodePadding}
             />
           ) : null}
 
