@@ -875,8 +875,8 @@ function LayoutHealthCard({
         data-builder-node-layout-health="ok"
         className="rounded-md px-3 py-2"
         style={{
-          background: "rgba(16, 185, 129, 0.08)",
-          border: "1px solid rgba(16, 185, 129, 0.22)",
+          background: CHROME.greenBg,
+          border: `1px solid ${CHROME.greenLine}`,
         }}
       >
         <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
@@ -917,8 +917,8 @@ function LayoutHealthCard({
           data-builder-node-layout-blockers={blockingCount}
           className="rounded-md px-2.5 py-2"
           style={{
-            background: "rgba(239, 68, 68, 0.08)",
-            border: "1px solid rgba(239, 68, 68, 0.28)",
+            background: CHROME.roseBg,
+            border: `1px solid ${CHROME.roseLine}`,
           }}
         >
           <div className="text-[10px] font-semibold uppercase tracking-[0.11em] text-red-700">
@@ -937,15 +937,15 @@ function LayoutHealthCard({
           className="rounded-md px-2.5 py-2"
           style={{
             background: isBlockingLayoutFindingId(finding.id)
-              ? "rgba(239, 68, 68, 0.08)"
+              ? CHROME.roseBg
               : finding.level === "warning"
-                ? "rgba(245, 158, 11, 0.10)"
-                : "rgba(59, 130, 246, 0.08)",
+                ? CHROME.amberBg
+                : CHROME.blueBg,
             border: isBlockingLayoutFindingId(finding.id)
-              ? "1px solid rgba(239, 68, 68, 0.26)"
+              ? `1px solid ${CHROME.roseLine}`
               : finding.level === "warning"
-                ? "1px solid rgba(245, 158, 11, 0.28)"
-                : "1px solid rgba(59, 130, 246, 0.18)",
+                ? `1px solid ${CHROME.amberLine}`
+                : `1px solid ${CHROME.blueLine}`,
           }}
         >
           <div className="flex items-start justify-between gap-2">
@@ -954,10 +954,10 @@ function LayoutHealthCard({
                 className="text-[9.5px] font-semibold uppercase tracking-[0.11em]"
                 style={{
                   color: isBlockingLayoutFindingId(finding.id)
-                    ? "rgb(185, 28, 28)"
+                    ? CHROME.rose
                     : finding.level === "warning"
-                      ? "rgb(161, 98, 7)"
-                      : "rgb(30, 64, 175)",
+                      ? CHROME.amber
+                      : CHROME.blue,
                 }}
               >
                 {isBlockingLayoutFindingId(finding.id)

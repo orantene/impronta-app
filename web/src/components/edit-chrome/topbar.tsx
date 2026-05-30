@@ -1158,11 +1158,11 @@ function PreviewToggle({
       className="ml-2 inline-flex shrink-0 items-center gap-[6px] rounded-full border-none px-[12px] py-[5px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
       style={{
         background: previewing
-          ? "rgba(99, 102, 241, 0.12)"
+          ? "rgba(61, 79, 124, 0.12)"
           : "rgba(0,0,0,0.05)",
-        color: previewing ? "#3d4f7c" : CHROME.muted,
+        color: previewing ? CHROME.accent : CHROME.muted,
         boxShadow: previewing
-          ? "inset 0 0 0 1px rgba(99,102,241,0.28)"
+          ? "inset 0 0 0 1px rgba(61, 79, 124, 0.28)"
           : "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
