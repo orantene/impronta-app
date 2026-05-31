@@ -99,7 +99,20 @@ export async function dispatchEventNotifications(
     }
 
     for (const recipient of recipients) {
-      const channels = await channelsForRecipient(entry, recipient, ctx);
+      // Defense-in-depth: a rejection from channelsForRecipient must not abort the
+      // whole dispatch. The Supabase client returns {error} rather than rejecting
+      // today, so this is belt-and-suspenders — the engine shouldn't rely on every
+      // caller wrapping it. On a throw we log and skip just this recipient.
+      let channels: NotificationChannel[];
+      try {
+        channels = await channelsForRecipient(entry, recipient, ctx);
+      } catch (err) {
+        logServerError(
+          `notifications.channels:${entry.id}`,
+          err instanceof Error ? err : new Error(String(err)),
+        );
+        continue;
+      }
       for (const channel of channels) {
         const handler = handlers[channel];
         if (!handler) continue;
