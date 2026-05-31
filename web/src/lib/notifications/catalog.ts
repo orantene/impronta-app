@@ -38,7 +38,7 @@ import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
  * `catalog-render.ts`; `str` + the audience resolvers + inquiry hydrator live
  * in `catalog-audiences.ts`. All were extracted to keep this file under the
  * 800-line cap. This module assembles the full `NOTIFICATION_CATALOG` and owns
- * the platform-alert, workspace-invite, account-welcome, and self-test entries.
+ * the platform-alert, workspace-invite, workspace/talent welcome, and self-test entries.
  */
 
 // ─── Platform admin entries (Phase 10) ────────────────────────────────────────

@@ -22,6 +22,7 @@ import {
   notifyPaymentReceived,
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
+import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -444,6 +445,19 @@ export async function markPaid(
       currency: result.data.currency,
       paidAt: result.data.paidAt,
     });
+    // Payment-time booking confirmation (restores pre-engine behavior): the
+    // conversion-time booking.created no longer emails, so the client + booked
+    // talent get "Booking confirmed" HERE, when money is actually collected.
+    // DISTINCT eventId from the receipt above, so the two never collide on the
+    // dispatch_log dedupe key. Requires the source inquiry for client/talent
+    // audience + schedule hydration.
+    if (result.data.sourceInquiryId) {
+      notifyBookingConfirmed({
+        tenantId: result.data.sourceTenantId,
+        inquiryId: result.data.sourceInquiryId,
+        bookingId: result.data.bookingId,
+      });
+    }
   }
   return result;
 }

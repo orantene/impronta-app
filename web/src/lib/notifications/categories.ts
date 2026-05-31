@@ -26,6 +26,11 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationCategory, CategoryDefin
   account_security: {
     id: "account_security",
     label: "Account & security",
+    // These emails (sign-in links, email confirmation, password resets) are sent
+    // by SUPABASE AUTH (SMTP → Resend), NOT this engine. The engine intentionally
+    // carries ZERO account_security catalog entries and defers all credential mail
+    // to Supabase; this category is kept (required) so the prefs model stays
+    // complete and the "always on" promise is accurate.
     description: "Sign-in links, email confirmation, password resets. Always on.",
     required: true,
     defaultChannels: ["email"],
