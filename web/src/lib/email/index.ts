@@ -30,21 +30,33 @@ export type SendEmailInput = {
 };
 
 /**
- * Send a transactional email.
- *
- * Returns the Resend message id on success — the dispatcher stores it on the
- * `notification_dispatch_log` row (`provider_reference`) so the Resend webhook
- * (Phase 8) can correlate delivery/bounce/complaint events back to the exact
- * dispatch. Returns `null` when the send is skipped (no API key) or errored.
+ * Outcome of a send attempt. Lets callers that care (the notification engine's
+ * email channel) distinguish a real provider FAILURE from a skipped send, so a
+ * Resend error is recorded as `failed` rather than masked as `sent`.
+ *  - `sent`    — Resend accepted the message (`id` is the message id, may be null).
+ *  - `skipped` — no RESEND_API_KEY configured (dev / test); nothing was sent.
+ *  - `failed`  — Resend returned an error (already logged); the send did not land.
  */
-export async function sendEmail(input: SendEmailInput): Promise<string | null> {
+export type SendEmailResult =
+  | { status: "sent"; id: string | null }
+  | { status: "skipped" }
+  | { status: "failed"; error: string };
+
+/**
+ * Send a transactional email and report the outcome. NEVER throws — a provider
+ * error returns `{ status: "failed" }` (after logging) and a missing API key
+ * returns `{ status: "skipped" }`. Use this when the caller must record or react
+ * to delivery failure (the notification dispatcher). Most call sites can use the
+ * simpler `sendEmail` wrapper below.
+ */
+export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailResult> {
   const client = getClient();
   if (!client) {
     void improntaLog("email.warn", {
       message: "[email] RESEND_API_KEY not set — skipping email:",
       input: input.subject,
     });
-    return null;
+    return { status: "skipped" };
   }
 
   const { data, error } = await client.emails.send({
@@ -58,7 +70,22 @@ export async function sendEmail(input: SendEmailInput): Promise<string | null> {
 
   if (error) {
     logServerError("email/send", error);
-    return null;
+    return {
+      status: "failed",
+      error: String((error as { message?: unknown })?.message ?? error),
+    };
   }
-  return data?.id ?? null;
+  return { status: "sent", id: data?.id ?? null };
+}
+
+/**
+ * Send a transactional email, returning the Resend message id on success or
+ * `null` when the send is skipped (no API key) OR errored. Errors are logged,
+ * never thrown — this is the fire-and-forget contract the direct call sites
+ * rely on. Callers that must distinguish a failure from a skip (the notification
+ * engine's email channel) use `sendEmailResult` instead.
+ */
+export async function sendEmail(input: SendEmailInput): Promise<string | null> {
+  const result = await sendEmailResult(input);
+  return result.status === "sent" ? result.id : null;
 }
