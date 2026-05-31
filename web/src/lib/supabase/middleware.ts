@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   buildAuthDebugHeaders,
@@ -108,6 +109,13 @@ export async function updateSession(
     return supabaseResponse;
   }
 
+  // Scope auth cookies to the shared parent domain (".tulala.digital") so a
+  // session rotated/created on any first-party subdomain is visible across all
+  // of them. `undefined` for hosts we don't share across → host-only as before.
+  const authCookieDomain = cookieDomainForHost(
+    request.headers.get("x-impronta-host-name") ?? request.headers.get("host"),
+  );
+
   const supabase = createServerClient(url, anon, {
     cookies: {
       getAll() {
@@ -119,7 +127,12 @@ export async function updateSession(
         );
         supabaseResponse = attachGuestCookie(nextPreservingUrl());
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options),
+          supabaseResponse.cookies.set(name, value, {
+            ...options,
+            ...(authCookieDomain && isSupabaseAuthCookie(name)
+              ? { domain: authCookieDomain }
+              : {}),
+          }),
         );
       },
     },
@@ -233,7 +246,18 @@ export async function updateSession(
     return res;
   };
 
-  if (decision.redirectTo) {
+  // Server Actions POST to the page's current path with a `Next-Action`
+  // header and expect a Server-Action-shaped response back. An auth-routing
+  // *redirect* here (e.g. nudging a just-authenticated, still-onboarding user
+  // off `/`) would replace that response and surface as "An unexpected
+  // response was received from the server", aborting the action mid-flight.
+  // Actions enforce their own auth (requireSession/requireStaff), so it's safe
+  // — and necessary — to let them run and return their own result. Only GET
+  // navigations get the routing redirect.
+  const isServerActionRequest =
+    request.method === "POST" && request.headers.has("next-action");
+
+  if (decision.redirectTo && !isServerActionRequest) {
     const redirectUrl = request.nextUrl.clone();
     // decision.redirectTo may include a query string when honoring `?next=`
     // (e.g. "/onboarding/workspace?lead=abc"). Parse it so pathname and

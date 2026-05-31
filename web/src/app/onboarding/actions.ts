@@ -5,7 +5,7 @@ import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { logServerError } from "@/lib/server/safe-error";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { requireSession } from "@/lib/server/action-guards";
-import { normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -323,4 +323,111 @@ export async function completeTalentLocationOnboarding(
   }
 
   redirect(rosterResult.destination ?? "/talent");
+}
+
+/**
+ * In-place talent profile completion for the marketing-site registration
+ * modal. Mirrors {@link completeTalentLocationOnboarding} but NEVER redirects —
+ * it returns the dashboard URL so the modal can show a success view with a
+ * "Go to your dashboard" handoff (the session cookie is shared across the
+ * parent domain, so the app host recognises them). Independent self-registered
+ * talent from the marketing funnel have no agency next-path, so there is no
+ * roster step here.
+ */
+export type TalentProfileInPlaceState =
+  | { ok: true; dashboardUrl: string }
+  | { error: string }
+  | void;
+
+export async function completeTalentProfileInPlace(
+  _prev: TalentProfileInPlaceState,
+  formData: FormData,
+): Promise<TalentProfileInPlaceState> {
+  const auth = await requireSession();
+  if (!auth.ok) {
+    return {
+      error: auth.error === "Not configured." ? SUPABASE_ENV_HELP : auth.error,
+    };
+  }
+  const { supabase, user } = auth;
+
+  const display_name = String(formData.get("display_name") ?? "").trim();
+  const first_name = String(formData.get("first_name") ?? "").trim();
+  const last_name = String(formData.get("last_name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const gender = String(formData.get("gender") ?? "").trim();
+  const date_of_birth = String(formData.get("date_of_birth") ?? "").trim();
+  if (!display_name) return { error: "Display name is required." };
+  if (!first_name) return { error: "First name is required." };
+  if (!last_name) return { error: "Last name is required." };
+  if (!phone) return { error: "Phone number is required." };
+  if (!gender) return { error: "Gender is required." };
+  if (!date_of_birth) return { error: "Date of birth is required." };
+
+  const { data, error } = await supabase.rpc(
+    "complete_talent_onboarding_with_locations",
+    {
+      p_residence_country_iso2: null,
+      p_residence_country_name_en: null,
+      p_residence_country_name_es: null,
+      p_residence_city_slug: null,
+      p_residence_city_name_en: null,
+      p_residence_city_name_es: null,
+      p_residence_lat: null,
+      p_residence_lng: null,
+      p_display_name: display_name,
+      p_first_name: first_name,
+      p_last_name: last_name,
+      p_phone: phone,
+      p_gender: gender,
+      p_date_of_birth: date_of_birth || null,
+      p_nationality: null,
+    },
+  );
+
+  if (error) {
+    logServerError("onboarding/completeTalentProfileInPlace", error);
+    return { error: "We couldn't save your profile. Please try again." };
+  }
+  if (!data) {
+    return { error: "We couldn't finish onboarding. Please try again." };
+  }
+
+  const { data: tp } = await supabase
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (tp?.id) {
+    await scheduleRebuildAiSearchDocument(supabase, tp.id);
+  }
+
+  revalidatePath("/", "layout");
+
+  if (user.email) {
+    // Welcome email via the notification dispatcher (spec §12), matching
+    // completeTalentLocationOnboarding. Platform-scoped (tenantId: null →
+    // Tulala brand); fire-and-forget; stable eventId dedupes if both onboarding
+    // paths ever run for the same user.
+    const talentName = display_name;
+    const talentUserId = user.id;
+    void (async () => {
+      try {
+        const { dispatchEventNotifications } = await import(
+          "@/lib/notifications/dispatcher"
+        );
+        await dispatchEventNotifications({
+          type: "account.talent_onboarded",
+          tenantId: null,
+          userId: talentUserId,
+          eventId: `talent-welcome:${talentUserId}`,
+          payload: { talentName },
+        });
+      } catch (err) {
+        logServerError("onboarding/talent-welcome", err);
+      }
+    })();
+  }
+
+  return { ok: true, dashboardUrl: `${getAppUrl()}/talent` };
 }

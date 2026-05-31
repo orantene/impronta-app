@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingCta } from "./cta-link";
+import { OpenTalentModalButton } from "./open-talent-modal-button";
 
 type NavItem = { label: string; href: string; description?: string };
 
@@ -22,8 +23,6 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const APP_LOGIN_URL = `${getAppUrl()}/login`;
-// Must be absolute — /talent/register is not allowed on the marketing host.
-const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
 
 export function MarketingHeader() {
   const pathname = usePathname();
@@ -118,13 +117,13 @@ export function MarketingHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <a
-            href={TALENT_REGISTER_HREF}
+          <OpenTalentModalButton
+            eventSource="header"
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Join as talent
-          </a>
+          </OpenTalentModalButton>
           <a
             href={APP_LOGIN_URL}
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
@@ -193,14 +192,14 @@ export function MarketingHeader() {
               className="mt-3 flex flex-col gap-2 border-t pt-4"
               style={{ borderColor: "var(--plt-hairline)" }}
             >
-              <a
-                href={TALENT_REGISTER_HREF}
+              <OpenTalentModalButton
+                eventSource="mobile-header"
                 className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
                 Join as talent
                 <ChevronGlyph />
-              </a>
+              </OpenTalentModalButton>
               <a
                 href={APP_LOGIN_URL}
                 className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"

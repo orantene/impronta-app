@@ -1,9 +1,6 @@
-import { getAppUrl } from "@/lib/auth-flow";
 import { MarketingContainer, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
-
-// Must be absolute — /talent/register is not allowed on the marketing host.
-const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
+import { OpenTalentModalButton } from "./open-talent-modal-button";
 
 export function FinalCtaSection() {
   return (
@@ -70,8 +67,8 @@ export function FinalCtaSection() {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-              <a
-                href={TALENT_REGISTER_HREF}
+              <OpenTalentModalButton
+                eventSource="home-final-cta"
                 className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-[background,transform] duration-200 hover:-translate-y-[1px]"
                 style={{
                   background: "var(--plt-on-inverse)",
@@ -79,7 +76,7 @@ export function FinalCtaSection() {
                 }}
               >
                 Join as talent free
-              </a>
+              </OpenTalentModalButton>
               <MarketingCta
                 href="/get-started"
                 variant="secondary"
