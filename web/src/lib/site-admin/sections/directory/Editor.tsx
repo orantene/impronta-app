@@ -15,6 +15,7 @@ import {
   type DirectoryLiveCatalogSnapshot,
 } from "@/lib/site-admin/server/directory-catalogs";
 import { DirectorySidebarItemOrderEditor } from "./DirectorySidebarItemOrderEditor";
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 
 /**
  * The 7-tab control drawer (plan §4). Every section-payload knob the
@@ -29,11 +30,14 @@ import { DirectorySidebarItemOrderEditor } from "./DirectorySidebarItemOrderEdit
  * payload already carries the intent.
  */
 
-const INPUT =
-  "mt-1 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30";
-const LABEL =
-  "block text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)]";
-const HELP = "text-[11px] leading-relaxed text-[var(--impronta-muted)]";
+// Aligned to the shared inspector KIT (2026-05-29 drawer-unification pass)
+// so the directory control drawer reads identically to every other section
+// inspector. The drawer is builder chrome (warm); the directory *surface*
+// keeps its own cool tokens — the one intentional cool-faint preview block
+// below is left untouched.
+const INPUT = KIT.input;
+const LABEL = KIT.label;
+const HELP = KIT.hint;
 
 type Opt = { value: string; label: string; disabled?: boolean };
 

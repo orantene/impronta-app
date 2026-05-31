@@ -9,7 +9,18 @@ export interface BuilderNodeValidationIssue {
 
 export type BuilderNodeValidationResult =
   | { ok: true; tree: BuilderNodeTree }
-  | { ok: false; issues: ReadonlyArray<BuilderNodeValidationIssue> };
+  | {
+      ok: false;
+      issues: ReadonlyArray<BuilderNodeValidationIssue>;
+      /**
+       * Best-effort repaired tree: the input with every node that failed
+       * validation (and its subtree) dropped. Guaranteed to itself pass
+       * `validateBuilderNodeTree`. Resilience boundaries (e.g. structural
+       * operations) use this so a few corrupt nodes don't make the whole tree
+       * unusable; strict boundaries (publish) keep gating on `issues`.
+       */
+      tree: BuilderNodeTree;
+    };
 
 interface ValidateOptions {
   maxDepth?: number;
@@ -42,7 +53,11 @@ export function validateBuilderNodeTree(
   const seenIds = new Set<string>();
 
   if (!Array.isArray(input)) {
-    return { ok: false, issues: [{ path: "root", message: "Node tree must be an array." }] };
+    return {
+      ok: false,
+      issues: [{ path: "root", message: "Node tree must be an array." }],
+      tree: [],
+    };
   }
 
   function walk(
@@ -154,6 +169,9 @@ export function validateBuilderNodeTree(
     if (parsed) out.push(parsed);
   });
 
-  if (issues.length > 0) return { ok: false, issues };
+  // `out` already excludes every node that failed validation (and its
+  // subtree), so it is a valid tree even on the failure path — expose it as
+  // the best-effort repaired tree for resilience boundaries.
+  if (issues.length > 0) return { ok: false, issues, tree: out };
   return { ok: true, tree: out };
 }

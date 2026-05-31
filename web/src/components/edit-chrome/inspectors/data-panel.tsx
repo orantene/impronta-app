@@ -133,7 +133,7 @@ export function DataPanel({
             <Field flush>
               <FieldLabel>Source</FieldLabel>
               <select
-                className={KIT.input}
+                className={KIT.select}
                 value={binding?.sourceKey ?? ""}
                 onChange={(event: ChangeEvent<HTMLSelectElement>) => {
                   const nextSource = event.currentTarget.value;

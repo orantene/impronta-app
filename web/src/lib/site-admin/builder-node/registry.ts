@@ -71,7 +71,194 @@ const builderNodeStyleValueSchema = z.object({
   background: z.enum(["none", "surface", "contrast"]).optional(),
   radius: z.enum(["none", "sm", "md", "lg", "pill"]).optional(),
   objectFit: z.enum(["cover", "contain"]).optional(),
+  objectPosition: z.string().max(40).optional(),
+  aspectRatioFree: z.string().max(24).optional(),
   aspectRatio: z.enum(["auto", "1:1", "4:3", "3:4", "16:9", "21:9"]).optional(),
+  visibility: z.enum(["visible", "hidden"]).optional(),
+  // Free-value escapes (mirror of BuilderNodeStyleValue). Length-capped so a
+  // hand-crafted tree can't smuggle an oversized declaration; values land in
+  // React inline styles, which the CSSOM validates (no injection surface).
+  fontFamily: z.string().max(160).optional(),
+  fontSize: z.string().max(32).optional(),
+  fontWeight: z.number().int().min(100).max(900).optional(),
+  lineHeight: z.string().max(16).optional(),
+  letterSpacing: z.string().max(16).optional(),
+  textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
+  fontStyle: z.enum(["normal", "italic"]).optional(),
+  textDecoration: z.enum(["none", "underline", "line-through"]).optional(),
+  // Advanced text controls — modern wrapping, whitespace, and line-clamp truncation.
+  textWrap: z.enum(["wrap", "nowrap", "balance", "pretty"]).optional(),
+  whiteSpace: z.enum(["normal", "nowrap", "pre", "pre-wrap", "pre-line"]).optional(),
+  lineClamp: z.number().int().min(1).max(20).optional(),
+  // max 64 (not 32) so a theme-token binding like
+  // `var(--token-color-surface-raised, #ffffff)` (and rgba()/hsl() free values)
+  // survives the schema instead of being silently stripped on save.
+  textColor: z.string().max(64).optional(),
+  backgroundColor: z.string().max(64).optional(),
+  borderColor: z.string().max(64).optional(),
+  borderWidth: z.string().max(16).optional(),
+  borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
+  // Free border-radius escape — raw CSS (supports per-corner shorthand). Layers
+  // after the radius token so an exact value wins.
+  borderRadius: z.string().max(64).optional(),
+  // Free dimension escapes — exact width / height / min-height (length-capped).
+  // Coexist with the maxWidth token above (max-width clamps the free width).
+  width: z.string().max(16).optional(),
+  height: z.string().max(16).optional(),
+  minHeight: z.string().max(16).optional(),
+  minWidth: z.string().max(16).optional(),
+  maxWidthFree: z.string().max(16).optional(),
+  maxHeight: z.string().max(16).optional(),
+  // Free per-side padding escapes — layer after the paddingX/paddingY token.
+  paddingTop: z.string().max(16).optional(),
+  paddingRight: z.string().max(16).optional(),
+  paddingBottom: z.string().max(16).optional(),
+  paddingLeft: z.string().max(16).optional(),
+  // Free per-side margin escapes (collision-safe *Free keys; the margin tokens
+  // are enums). Layer after every margin token so the exact value wins.
+  marginTopFree: z.string().max(16).optional(),
+  marginRightFree: z.string().max(16).optional(),
+  marginBottomFree: z.string().max(16).optional(),
+  marginLeftFree: z.string().max(16).optional(),
+  // Surface & depth escapes (length/string-capped; opacity normalized 0–1).
+  boxShadow: z.string().max(200).optional(),
+  textShadow: z.string().max(200).optional(),
+  backgroundImage: z.string().max(500).optional(),
+  backgroundSize: z.string().max(40).optional(),
+  backgroundPosition: z.string().max(40).optional(),
+  backgroundRepeat: z
+    .enum(["no-repeat", "repeat", "repeat-x", "repeat-y"])
+    .optional(),
+  // Gradient/clipped text — clip the background paint to the glyphs.
+  backgroundClip: z.enum(["text"]).optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  // Free gap escape — overrides the layout gap token via the --bn-gap variable.
+  gap: z.string().max(16).optional(),
+  // Positioning escapes — context + inset offsets (negatives allowed).
+  position: z.enum(["relative", "absolute", "sticky"]).optional(),
+  top: z.string().max(16).optional(),
+  right: z.string().max(16).optional(),
+  bottom: z.string().max(16).optional(),
+  left: z.string().max(16).optional(),
+  // Stacking & clipping escapes — z-index (integer, negatives allowed) +
+  // overflow control.
+  zIndex: z.number().int().min(-999).max(999).optional(),
+  overflow: z.enum(["visible", "hidden", "auto", "scroll"]).optional(),
+  // Transform escapes — standalone rotate (angle) + scale (factor) +
+  // translate (1-2 lengths) + transform-origin (pivot).
+  rotate: z.string().max(16).optional(),
+  scale: z.string().max(16).optional(),
+  translate: z.string().max(24).optional(),
+  transformOrigin: z.string().max(32).optional(),
+  // Transition escape — free CSS transition string that smooths animatable
+  // changes (hover/responsive/state). Auto-defaults to "all .2s ease" at render
+  // when a hover layer exists.
+  transition: z.string().max(120).optional(),
+  // Flex/grid child placement — self-alignment + flex sizing inside a parent.
+  alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),
+  flexGrow: z.number().min(0).max(999).optional(),
+  flexShrink: z.number().min(0).max(999).optional(),
+  flexBasis: z.string().max(16).optional(),
+  // Grid child placement — grid-column / grid-row span/line specs.
+  gridColumn: z.string().max(24).optional(),
+  gridRow: z.string().max(24).optional(),
+  // Filter effects — CSS filter (self) + backdrop-filter (behind, glassmorphism).
+  filter: z.string().max(120).optional(),
+  backdropFilter: z.string().max(120).optional(),
+  // Compositing — blend this node against the backdrop (overlays/duotone).
+  mixBlendMode: z
+    .enum(["multiply", "screen", "overlay", "darken", "lighten"])
+    .optional(),
+  // Flex/grid container layout — main-axis distribution + cross-axis alignment
+  // of children, plus row-wrap control. Complements the structured layout/align.
+  justifyContent: z
+    .enum([
+      "flex-start",
+      "center",
+      "flex-end",
+      "space-between",
+      "space-around",
+      "space-evenly",
+    ])
+    .optional(),
+  alignItems: z
+    .enum(["flex-start", "center", "flex-end", "stretch", "baseline"])
+    .optional(),
+  flexWrap: z.enum(["nowrap", "wrap", "wrap-reverse"]).optional(),
+  // Free grid-template tracks — raw CSS so asymmetric / auto-responsive grids work
+  // ("2fr 1fr", "repeat(auto-fit, minmax(200px, 1fr))"). Capped at 120 to fit a
+  // multi-track definition; gridAutoFlow is a small enum.
+  gridTemplateColumns: z.string().max(120).optional(),
+  gridTemplateRows: z.string().max(120).optional(),
+  gridAutoFlow: z
+    .enum(["row", "column", "row dense", "column dense"])
+    .optional(),
+  // Premium-2026 effect & interaction escapes. Raw-CSS fields length-capped;
+  // the rest are small enums. Land in inline styles, validated by the CSSOM.
+  clipPath: z.string().max(200).optional(),
+  maskImage: z.string().max(300).optional(),
+  textStroke: z.string().max(40).optional(),
+  cursor: z
+    .enum([
+      "auto",
+      "default",
+      "pointer",
+      "grab",
+      "grabbing",
+      "crosshair",
+      "zoom-in",
+      "zoom-out",
+      "not-allowed",
+      "text",
+      "wait",
+      "help",
+      "move",
+      "none",
+    ])
+    .optional(),
+  userSelect: z.enum(["auto", "none", "text", "all"]).optional(),
+  pointerEvents: z.enum(["auto", "none"]).optional(),
+  scrollSnapType: z.string().max(40).optional(),
+  scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
+  // Focus / form theming.
+  outline: z.string().max(60).optional(),
+  outlineOffset: z.string().max(16).optional(),
+  accentColor: z.string().max(64).optional(),
+  caretColor: z.string().max(64).optional(),
+  // Entrance animation — preset maps to a baked @keyframe; duration/delay are
+  // CSS time strings (short-capped).
+  animationPreset: z
+    .enum([
+      "none",
+      "fade-in",
+      "rise",
+      "fall",
+      "zoom-in",
+      "slide-left",
+      "slide-right",
+      "blur-in",
+      "flip-in",
+      "bounce-in",
+    ])
+    .optional(),
+  animationDuration: z.string().max(16).optional(),
+  animationDelay: z.string().max(16).optional(),
+  animationTrigger: z.enum(["load", "scroll"]).optional(),
+  animationEasing: z
+    .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
+    .optional(),
+});
+
+// Hover-state overrides — a curated subset of animatable props re-applied while
+// hovered/focused. Single layer (hover is a pointer interaction, not a viewport).
+const builderNodeHoverStyleSchema = z.object({
+  backgroundColor: z.string().max(80).optional(),
+  color: z.string().max(80).optional(),
+  borderColor: z.string().max(80).optional(),
+  boxShadow: z.string().max(200).optional(),
+  scale: z.string().max(16).optional(),
+  translate: z.string().max(24).optional(),
+  opacity: z.number().min(0).max(1).optional(),
 });
 
 const builderNodeStyleSchema = builderNodeStyleValueSchema
@@ -82,6 +269,7 @@ const builderNodeStyleSchema = builderNodeStyleValueSchema
         mobile: builderNodeStyleValueSchema.optional(),
       })
       .optional(),
+    hover: builderNodeHoverStyleSchema.optional(),
   })
   .optional();
 
@@ -150,6 +338,7 @@ const containerPropsSchema = z
       .optional(),
     dataBinding: dataBindingPropsSchema.optional(),
     style: builderNodeStyleSchema,
+    instanceOf: z.string().max(120).optional(),
   })
   .superRefine((value, ctx) => {
     const baseLayout = value.layout;

@@ -121,9 +121,9 @@ function freshNodeId(kind: BuilderNode["kind"]): string {
   return `${kind}-${crypto.randomUUID()}`;
 }
 
-function cloneNodeWithFreshIds(
+export function cloneNodeWithFreshIds(
   node: BuilderNode,
-  idMap: Map<string, string>,
+  idMap: Map<string, string> = new Map(),
 ): BuilderNode {
   const nextId = freshNodeId(node.kind);
   idMap.set(node.id, nextId);
@@ -298,17 +298,57 @@ function removingWouldEmptyRequiredGroup(
   );
 }
 
-function validateTreeOrFail(tree: BuilderNodeTree): BuilderNodeOpResult {
-  const validation = validateBuilderNodeTree(tree);
-  if (!validation.ok) {
+/**
+ * Finalize a structural mutation. Validates the resulting tree, but judges the
+ * operation by whether IT introduced new corruption — not by damage that was
+ * already present in the input.
+ *
+ * Why this isn't a plain "reject if any node is invalid": validation fails the
+ * whole tree if a SINGLE node is bad. A lone pre-existing corrupt node
+ * (classically a legacy `section` whose `sectionId` is not a UUID, from old
+ * seed data) would otherwise make every insert / move / remove / patch fail —
+ * trapping the editor, who can't even delete the offending node because the
+ * delete re-validates the whole tree and trips on the same corruption.
+ *
+ * Rule — compare the issue count before vs. after the mutation:
+ *   - The op added net-new issues → reject (its own output is unsound).
+ *   - No net-new issues           → accept the REPAIRED tree (corrupt nodes
+ *     dropped). Repairing rather than preserving matters: the snapshot loader
+ *     discards an invalid `builderTree` wholesale back to legacy slots, so
+ *     returning a valid tree is what keeps the editor's freeform work alive.
+ *
+ * Soundness of the count rule for these five operations: none can fix a
+ * pre-existing issue while introducing a different one in the same call
+ * (patch touches one node; insert/duplicate add a pre-validated node; remove
+ * only drops; move is target-policy-checked before this runs). So
+ * `afterCount === beforeCount` ⟹ the same nodes are corrupt ⟹ the repair drops
+ * only pre-existing-corrupt nodes, never the user's just-edited one.
+ *
+ * When the input is already clean (the common case) `beforeCount` is 0, so any
+ * new issue rejects — identical to the previous strict behavior.
+ */
+function finalizeMutatedTree(
+  originalTree: BuilderNodeTree,
+  nextTree: BuilderNodeTree,
+): BuilderNodeOpResult {
+  const after = validateBuilderNodeTree(nextTree);
+  if (after.ok) {
+    return { ok: true, tree: after.tree };
+  }
+  const before = validateBuilderNodeTree(originalTree);
+  const preExistingCount = before.ok ? 0 : before.issues.length;
+  if (after.issues.length > preExistingCount) {
     return {
       ok: false,
       code: "VALIDATION_FAILED",
       message: "Builder node tree failed validation after operation.",
-      issues: validation.issues,
+      issues: after.issues,
     };
   }
-  return { ok: true, tree: validation.tree };
+  // Only pre-existing corruption remains — heal instead of trapping the
+  // editor. `after.tree` is the repaired tree (corrupt nodes dropped) and is
+  // guaranteed to pass validation.
+  return { ok: true, tree: after.tree };
 }
 
 function missingNodeIssue(nodeId: string): ReadonlyArray<{ path: string; message: string }> {
@@ -418,7 +458,7 @@ export function insertBuilderNode(input: {
   const rawIndex = input.index ?? targetChildren.length;
   const nextIndex = Math.max(0, Math.min(rawIndex, targetChildren.length));
   targetChildren.splice(nextIndex, 0, cloneNode(input.node));
-  return validateTreeOrFail(nextTree);
+  return finalizeMutatedTree(input.tree, nextTree);
 }
 
 export function removeBuilderNode(input: {
@@ -464,7 +504,7 @@ export function removeBuilderNode(input: {
     };
   }
   parentChildren.splice(location.index, 1);
-  return validateTreeOrFail(nextTree);
+  return finalizeMutatedTree(input.tree, nextTree);
 }
 
 export function duplicateBuilderNode(input: {
@@ -520,16 +560,13 @@ export function duplicateBuilderNode(input: {
   const duplicate = cloneNodeWithFreshIds(location.node, idMap);
   parentChildren.splice(location.index + 1, 0, duplicate);
 
-  const validation = validateBuilderNodeTree(nextTree);
-  if (!validation.ok) {
-    return {
-      ok: false,
-      code: "VALIDATION_FAILED",
-      message: "Builder node tree failed validation after operation.",
-      issues: validation.issues,
-    };
-  }
-  return { ok: true, tree: validation.tree, nodeId: duplicate.id };
+  // Same resilience contract as the other mutators: a pre-existing corrupt
+  // sibling must not block duplication, and the result must be a valid
+  // (repaired) tree. `duplicate` carries fresh ids and clones a node that was
+  // already in the tree, so it always survives the repair.
+  const result = finalizeMutatedTree(input.tree, nextTree);
+  if (!result.ok) return result;
+  return { ok: true, tree: result.tree, nodeId: duplicate.id };
 }
 
 export function pasteBuilderNode(input: {
@@ -760,7 +797,7 @@ export function moveBuilderNode(input: {
 
   const nextIndex = Math.max(0, Math.min(input.index, targetChildren.length));
   targetChildren.splice(nextIndex, 0, removed);
-  return validateTreeOrFail(nextTree);
+  return finalizeMutatedTree(input.tree, nextTree);
 }
 
 export function patchBuilderNodeProps(input: {
@@ -809,7 +846,7 @@ export function patchBuilderNodeProps(input: {
     ...input.patch,
   };
   (target as unknown as { props: unknown }).props = mergedProps;
-  return validateTreeOrFail(nextTree);
+  return finalizeMutatedTree(input.tree, nextTree);
 }
 
 /**

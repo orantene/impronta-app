@@ -2325,14 +2325,18 @@ export function NavigatorPanel() {
                       alignItems: "center",
                       flexWrap: "nowrap",
                       justifyContent: "flex-end",
-                      gap: 3,
+                      gap: 2,
                       marginLeft: 0,
-                      padding: "2px",
-                      borderTop: "none",
-                      background: selected ? "rgba(247,248,250,0.98)" : CHROME.surface,
-                      boxShadow: selected
-                        ? "0 2px 8px rgba(15,23,42,0.10)"
-                        : "0 2px 8px rgba(15,23,42,0.10)",
+                      padding: "3px 4px",
+                      borderRadius: 9,
+                      border: `1px solid ${CHROME.line}`,
+                      // Opaque so the floating toolbar cleanly covers the row
+                      // beneath it instead of bleeding into the label/badge —
+                      // reads as one deliberate chip, not scattered icons.
+                      background: selected
+                        ? "rgba(247,248,250,0.99)"
+                        : CHROME.paper,
+                      boxShadow: "0 4px 12px rgba(15,23,42,0.12)",
                       pointerEvents: "auto",
                       zIndex: 2,
                     }}
@@ -2787,17 +2791,16 @@ export function NavigatorPanel() {
                                 alignItems: "center",
                                 flexWrap: "nowrap",
                                 justifyContent: "flex-end",
-                                gap: 3,
+                                gap: 2,
                                 marginLeft: 0,
-                                padding: "2px",
+                                padding: "3px 4px",
                                 marginTop: 0,
-                                borderTop: "none",
+                                borderRadius: 9,
+                                border: `1px solid ${CHROME.line}`,
                                 background: childSelected
-                                  ? "rgba(247,248,250,0.98)"
-                                  : CHROME.surface,
-                                boxShadow: childSelected
-                                  ? "0 2px 8px rgba(15,23,42,0.10)"
-                                  : "0 2px 8px rgba(15,23,42,0.10)",
+                                  ? "rgba(247,248,250,0.99)"
+                                  : CHROME.paper,
+                                boxShadow: "0 4px 12px rgba(15,23,42,0.12)",
                                 pointerEvents: "auto",
                                 zIndex: 2,
                               }}
@@ -3067,6 +3070,15 @@ function VisibilityEye({
     : partial
       ? `Visible on ${visibility === "desktop-only" ? "desktop" : "mobile"} only`
       : "Visible everywhere — click to hide";
+  // Match NodeInlineActionButton exactly so the eye reads as the same kind of
+  // button as its neighbours. (Earlier bug: a white icon for `selected` rows —
+  // invisible now that the eye sits in a light action chip. Never white.)
+  const [hover, setHover] = useState(false);
+  const baseColor = hidden
+    ? CHROME.amber
+    : hover || selected
+      ? CHROME.accent
+      : CHROME.muted2;
   return (
     <button
       type="button"
@@ -3074,25 +3086,35 @@ function VisibilityEye({
         e.stopPropagation();
         onToggle();
       }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
       title={titleText}
       aria-label={titleText}
       aria-pressed={hidden}
       tabIndex={tabIndex}
       style={{
-        width: 18,
-        height: 18,
+        width: 22,
+        height: 22,
+        boxSizing: "border-box",
         padding: 0,
-        border: "none",
-        background: "transparent",
-        color: selected
-          ? hidden
-            ? "rgba(255,255,255,0.85)"
-            : "rgba(255,255,255,0.65)"
-          : hidden
-            ? CHROME.amber
-            : CHROME.muted2,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 6,
+        border: `1px solid ${
+          hover ? "rgba(42,49,71,0.22)" : "rgba(42,49,71,0.12)"
+        }`,
+        background: hover ? "rgba(42,49,71,0.13)" : "rgba(42,49,71,0.06)",
+        color: baseColor,
         cursor: "pointer",
-        opacity: hidden ? 1 : 0.7,
+        opacity: 1,
+        transition:
+          "background 110ms ease, color 110ms ease, border-color 110ms ease",
+        flexShrink: 0,
       }}
     >
       {hidden ? (
@@ -3176,19 +3198,19 @@ function BuilderNodeKindPill({
       title={role ? `${label} / ${formatBuilderNodeRole(role)}` : label}
       aria-hidden
       style={{
-        width: 26,
-        height: 25,
+        width: 24,
+        height: 22,
         alignSelf: "center",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 0,
+        borderRadius: 5,
         border: selected
           ? "1px solid rgba(42,49,71,0.22)"
           : `1px solid ${CHROME.line}`,
         background: selected ? "rgba(42,49,71,0.10)" : CHROME.paper,
         color: selected ? CHROME.accent : CHROME.muted,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 800,
         letterSpacing: "0.02em",
         textTransform: "uppercase",
@@ -3222,6 +3244,37 @@ function NodeInlineActionButton({
   tabIndex?: number;
 }) {
   const dataProps = dataAttr ? { [dataAttr]: "true" } : {};
+  // Affordance states: ghost at rest (so a cluster of these reads as clean
+  // icons, not a wall of gray squares), soft indigo tint on hover/focus,
+  // a deeper tint + slight press-scale on active. Gives unmistakable
+  // "this is a button and I just clicked it" feedback the panel was missing.
+  const [hover, setHover] = useState(false);
+  const [active, setActive] = useState(false);
+  const interactive = !disabled;
+  const lit = interactive && (hover || active);
+  // Reads as a real button at rest (subtle fill + hairline), strengthens on
+  // hover, presses on active. Consistent whether it sits bare on the row or
+  // inside the hover toolbar.
+  const background = disabled
+    ? "transparent"
+    : active
+      ? "rgba(42,49,71,0.20)"
+      : hover
+        ? "rgba(42,49,71,0.13)"
+        : inverted
+          ? "rgba(42,49,71,0.12)"
+          : "rgba(42,49,71,0.06)";
+  const borderColor = disabled
+    ? "transparent"
+    : lit
+      ? "rgba(42,49,71,0.22)"
+      : "rgba(42,49,71,0.12)";
+  const color = disabled
+    ? CHROME.muted2
+    : lit || inverted
+      ? CHROME.accent
+      : CHROME.muted2;
+  const dim = compact ? 22 : 22;
   return (
     <button
       type="button"
@@ -3236,7 +3289,16 @@ function NodeInlineActionButton({
       }}
       onMouseDown={(event) => {
         event.stopPropagation();
+        if (interactive) setActive(true);
       }}
+      onMouseUp={() => setActive(false)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => {
+        setHover(false);
+        setActive(false);
+      }}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
       onDragStart={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -3244,20 +3306,24 @@ function NodeInlineActionButton({
       onClick={onClick}
       {...dataProps}
       style={{
-        width: compact ? 22 : 21,
-        height: compact ? 22 : 21,
+        width: dim,
+        height: dim,
+        boxSizing: "border-box",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 0,
-        border: "none",
-        background: inverted ? "rgba(42,49,71,0.10)" : "rgba(24,24,27,0.08)",
-        color: inverted ? CHROME.accent : CHROME.muted2,
+        borderRadius: 6,
+        border: `1px solid ${borderColor}`,
+        background,
+        color,
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.45 : 1,
+        opacity: disabled ? 0.4 : 1,
         padding: 0,
         flexShrink: 0,
         fontSize: compact ? 11 : 12,
+        transition:
+          "background 110ms ease, color 110ms ease, border-color 110ms ease, transform 90ms ease",
+        transform: active ? "scale(0.9)" : "scale(1)",
       }}
     >
       {children}

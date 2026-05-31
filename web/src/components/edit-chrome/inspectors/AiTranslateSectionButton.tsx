@@ -74,7 +74,7 @@ export function AiTranslateSectionButton({
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Translate this section's copy"
-        className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400 hover:bg-white hover:border-stone-300 transition-colors"
+        className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-white hover:border-stone-300 transition-colors"
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M5 8h14" />
@@ -91,12 +91,12 @@ export function AiTranslateSectionButton({
           className="absolute right-0 top-full z-50 mt-1 w-[340px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
             Translate section copy
           </div>
           <div className="mb-2 flex items-center gap-2">
             <select
-              className="flex-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5 text-[12px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+              className="flex-1 cursor-pointer rounded-lg border border-[#cfc7b6] bg-white px-2 py-1.5 text-[12px] text-stone-800 [color-scheme:light] hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
               value={target}
               onChange={(e) => {
                 setTarget(e.target.value);
@@ -127,7 +127,7 @@ export function AiTranslateSectionButton({
           ) : null}
           {proposed ? (
             <div className="mt-1 flex flex-col gap-2">
-              <div className="text-[10px] uppercase tracking-wide text-stone-400">
+              <div className="text-[10px] uppercase tracking-wide text-stone-500">
                 Preview ({Object.keys(proposed).length} field{Object.keys(proposed).length === 1 ? "" : "s"})
               </div>
               <div className="max-h-[260px] overflow-y-auto flex flex-col gap-1.5">
@@ -137,7 +137,7 @@ export function AiTranslateSectionButton({
                     className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/40 p-2"
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-[10px] uppercase tracking-wide text-stone-400">
+                      <span className="text-[10px] uppercase tracking-wide text-stone-500">
                         {k}
                       </span>
                     </div>
@@ -149,7 +149,7 @@ export function AiTranslateSectionButton({
                 <button
                   type="button"
                   onClick={() => setProposed(null)}
-                  className="rounded-md px-2 py-1 text-[10px] text-stone-400 hover:bg-[#faf9f6]"
+                  className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
                 >
                   Discard
                 </button>
@@ -172,7 +172,7 @@ export function AiTranslateSectionButton({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md px-2 py-1 text-[10px] text-stone-400 hover:bg-[#faf9f6]"
+                className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
               >
                 Close
               </button>

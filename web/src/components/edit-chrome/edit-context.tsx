@@ -58,6 +58,13 @@ import type {
   EditorMutation,
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
+import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-components-action";
+import {
+  syncComponentInstances as syncComponentInstancesInTree,
+  detachComponentInstance as detachComponentInstanceInTree,
+  countComponentInstances,
+  tagAsInstance,
+} from "@/lib/site-admin/builder-node/component-instances";
 import {
   applyBuilderNodeOperation,
   builderSectionNodeAddressKey,
@@ -65,6 +72,7 @@ import {
   BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
   builderNodeKindAllowedAtRoot,
+  cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
   createBuilderNode,
@@ -383,6 +391,52 @@ export interface EditContextValue {
     presetId: BuilderNodeCompositionPresetId,
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Living components — insert a saved block subtree (ids re-minted to copies)
+   * at the target. The subtree is passed as a JSON string (a primitive param,
+   * so the React Compiler can't read it as a mutable captured object and bail
+   * memoization for the whole context). Mirrors the composition-preset insert.
+   */
+  insertBuilderComponent: (
+    parentId: string | null,
+    subtreeJson: string,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Living components Phase 2 — insert a LINKED instance of a saved component.
+   * Identical to insertBuilderComponent but tags the (container) root with
+   * instanceOf=componentId so syncComponentInstances can refresh it later.
+   */
+  insertLinkedComponent: (
+    parentId: string | null,
+    subtreeJson: string,
+    componentId: string,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Re-sync every linked instance of a component on the current page: each
+   * tagged container's children are replaced with a fresh clone of the master
+   * component subtree's children. Returns how many instances were synced.
+   */
+  syncComponentInstances: (
+    componentId: string,
+    masterSubtreeJson: string,
+  ) => Promise<{ ok: boolean; error?: string; synced?: number }>;
+  /**
+   * Detach a single linked instance (by node id) — severs its component link
+   * while keeping its current content, so future syncs skip it.
+   */
+  detachComponentInstance: (
+    nodeId: string,
+  ) => Promise<{ ok: boolean; error?: string; detached?: boolean }>;
+  /**
+   * Living components — snapshot the currently selected freeform block as a
+   * reusable saved component (persisted to cms_builder_components).
+   */
+  saveSelectedNodeAsComponent: (
+    name: string,
+    description?: string,
+  ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
   duplicateBuilderNode: (
     nodeId: string,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
@@ -3430,6 +3484,194 @@ export function EditProvider({
       markNavigatorAddition,
     ],
   );
+  const insertBuilderComponent = useCallback<
+    EditContextValue["insertBuilderComponent"]
+  >(
+    async (parentId, subtreeJson, index) => {
+      // subtreeJson is a primitive string param → parsing yields a fresh local
+      // the compiler never tracks as a mutable captured object.
+      let parsed: BuilderNode;
+      try {
+        parsed = JSON.parse(subtreeJson) as BuilderNode;
+      } catch {
+        return { ok: false, error: "That block could not be read." };
+      }
+      const node = cloneNodeWithFreshIds(parsed);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
+  // Living Components Phase 2 — insert a LINKED instance: same proven insert
+  // path as insertBuilderComponent, but the (container) root is tagged
+  // instanceOf=componentId so "Sync instances" can later refresh it.
+  const insertLinkedComponent = useCallback<
+    EditContextValue["insertLinkedComponent"]
+  >(
+    async (parentId, subtreeJson, componentId, index) => {
+      let parsed: BuilderNode;
+      try {
+        parsed = JSON.parse(subtreeJson) as BuilderNode;
+      } catch {
+        return { ok: false, error: "That block could not be read." };
+      }
+      const node = tagAsInstance(cloneNodeWithFreshIds(parsed), componentId);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
+  // Re-sync every instance of a component: replace each tagged container's
+  // children with a fresh-id clone of the master subtree's children. The tree
+  // transform is pure + unit-tested (component-instances.test.ts); persistence
+  // rides the same commit path as every other builder mutation.
+  const syncComponentInstances = useCallback<
+    EditContextValue["syncComponentInstances"]
+  >(
+    async (componentId, masterSubtreeJson) => {
+      let parsed: BuilderNode;
+      try {
+        parsed = JSON.parse(masterSubtreeJson) as BuilderNode;
+      } catch {
+        return { ok: false, error: "That component could not be read." };
+      }
+      const masterChildren =
+        "children" in parsed && Array.isArray(parsed.children)
+          ? parsed.children
+          : [];
+      if (countComponentInstances(builderTreeRef.current, componentId) === 0) {
+        return { ok: true, synced: 0 };
+      }
+      let syncedCount = 0;
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        run: (tree) => {
+          const out = syncComponentInstancesInTree(
+            tree,
+            componentId,
+            masterChildren,
+          );
+          syncedCount = out.synced;
+          return { ok: true, tree: out.tree };
+        },
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true, synced: syncedCount };
+    },
+    [executeBuilderNodeOperation],
+  );
+  // Detach a single linked instance — strip its instanceOf tag so it becomes an
+  // independent container (keeps its current content). Pure transform + the
+  // shared commit path.
+  const detachComponentInstance = useCallback<
+    EditContextValue["detachComponentInstance"]
+  >(
+    async (nodeId) => {
+      let didDetach = false;
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => {
+          const out = detachComponentInstanceInTree(tree, nodeId);
+          didDetach = out.detached;
+          return { ok: true, tree: out.tree };
+        },
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true, detached: didDetach };
+    },
+    [executeBuilderNodeOperation],
+  );
+  const saveSelectedNodeAsComponent = useCallback<
+    EditContextValue["saveSelectedNodeAsComponent"]
+  >(
+    async (name, description) => {
+      if (!selectedBuilderNodeId) {
+        return { ok: false, error: "Select a block on the canvas first." };
+      }
+      const location = findBuilderNodeLocation(
+        builderTreeRef.current,
+        selectedBuilderNodeId,
+      );
+      if (!location || location.node.kind === "section") {
+        return {
+          ok: false,
+          error: "Pick a block inside a section, not the whole section.",
+        };
+      }
+      const result = await saveBuilderComponent({
+        name,
+        description,
+        subtree: location.node,
+      });
+      return result;
+    },
+    [selectedBuilderNodeId],
+  );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
   >(
@@ -4310,6 +4552,11 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderComponent,
+      insertLinkedComponent,
+      syncComponentInstances,
+      detachComponentInstance,
+      saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
       patchBuilderNodeProps,
@@ -4451,6 +4698,11 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderComponent,
+      insertLinkedComponent,
+      syncComponentInstances,
+      detachComponentInstance,
+      saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,
       saveCopiedBuilderNodeAsPreset,

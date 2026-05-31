@@ -51,7 +51,7 @@ export function Segmented<T extends string>({
       className={`inline-flex p-[3px] ${className ?? ""}`}
       style={{
         background: CHROME.paper,
-        border: `1px solid ${CHROME.line}`,
+        border: `1px solid ${CHROME.controlBorder}`,
         borderRadius: 7,
         display: fullWidth ? "grid" : "inline-flex",
         // QA 2026-05-13 — Page background field has 11 chips; the old
@@ -90,7 +90,10 @@ export function Segmented<T extends string>({
               fontWeight: 600,
               letterSpacing: "-0.005em",
               background: active ? CHROME.surface : "transparent",
-              color: active ? CHROME.ink : CHROME.muted,
+              // Inactive options use stone-600 (warm, ~7:1) rather than the
+              // lighter `muted` so every choice stays clearly legible — the
+              // white active pill + shadow remains the "selected" signal.
+              color: active ? CHROME.ink : "#57534e",
               border: "none",
               boxShadow: active
                 ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"

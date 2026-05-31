@@ -248,7 +248,7 @@ export function CtaBannerContentInspector({
                 onChange={(e) =>
                   update({ overlayOpacity: Number(e.target.value) })
                 }
-                className="w-full accent-zinc-900"
+                className="w-full accent-stone-900"
               />
             </div>
           ) : null}
@@ -266,7 +266,7 @@ export function CtaBannerContentInspector({
                   className={`flex flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition ${
                     active
                       ? "border-indigo-400 shadow-[0_0_0_1px_rgba(61,79,124,0.4)]"
-                      : "border-zinc-200 hover:border-zinc-400"
+                      : "border-stone-200 hover:border-stone-400"
                   }`}
                 >
                   <span
@@ -274,7 +274,7 @@ export function CtaBannerContentInspector({
                     className="block h-10 rounded-md"
                     style={{ background: t.hex }}
                   />
-                  <span className="px-0.5 text-[11px] font-semibold text-zinc-700">
+                  <span className="px-0.5 text-[11px] font-semibold text-stone-700">
                     {t.label}
                   </span>
                 </button>
@@ -290,12 +290,12 @@ export function CtaBannerContentInspector({
         collapsible
         storageKey="cta_banner:advanced"
       >
-        <label className="flex items-center gap-2 text-[12px] text-zinc-700">
+        <label className="flex items-center gap-2 text-[12px] text-stone-700">
           <input
             type="checkbox"
             checked={insetCard}
             onChange={(e) => update({ insetCard: e.target.checked })}
-            className="size-3.5 accent-zinc-900"
+            className="size-3.5 accent-stone-900"
           />
           Inset card — wraps the banner in a bordered card
         </label>
@@ -333,8 +333,8 @@ function VariantPreview({ value }: { value: Variant }) {
   if (value === "centered-overlay") {
     return (
       <svg viewBox="0 0 72 38" className={common} aria-hidden>
-        <rect x="1" y="1" width="70" height="36" rx="4" className="fill-zinc-300" />
-        <rect x="1" y="1" width="70" height="36" rx="4" className="fill-zinc-900/30" />
+        <rect x="1" y="1" width="70" height="36" rx="4" className="fill-stone-300" />
+        <rect x="1" y="1" width="70" height="36" rx="4" className="fill-stone-900/30" />
         <rect x="18" y="14" width="36" height="3" rx="1" className="fill-white/80" />
         <rect x="24" y="21" width="24" height="2" rx="1" className="fill-white/60" />
         <rect x="26" y="27" width="20" height="4" rx="2" className="fill-white" />
@@ -344,19 +344,19 @@ function VariantPreview({ value }: { value: Variant }) {
   if (value === "split-image") {
     return (
       <svg viewBox="0 0 72 38" className={common} aria-hidden>
-        <rect x="1" y="1" width="36" height="36" rx="3" className="fill-zinc-400/70" />
-        <rect x="40" y="10" width="26" height="3" rx="1" className="fill-zinc-600" />
-        <rect x="40" y="17" width="22" height="2" rx="1" className="fill-zinc-400" />
-        <rect x="40" y="24" width="14" height="4" rx="2" className="fill-zinc-900" />
+        <rect x="1" y="1" width="36" height="36" rx="3" className="fill-stone-400/70" />
+        <rect x="40" y="10" width="26" height="3" rx="1" className="fill-stone-600" />
+        <rect x="40" y="17" width="22" height="2" rx="1" className="fill-stone-400" />
+        <rect x="40" y="24" width="14" height="4" rx="2" className="fill-stone-900" />
       </svg>
     );
   }
   return (
     <svg viewBox="0 0 72 38" className={common} aria-hidden>
-      <rect x="1" y="1" width="70" height="36" rx="4" className="fill-zinc-100" />
-      <rect x="18" y="12" width="36" height="3" rx="1" className="fill-zinc-700" />
-      <rect x="22" y="19" width="28" height="2" rx="1" className="fill-zinc-400" />
-      <rect x="28" y="26" width="16" height="4" rx="2" className="fill-zinc-900" />
+      <rect x="1" y="1" width="70" height="36" rx="4" className="fill-stone-100" />
+      <rect x="18" y="12" width="36" height="3" rx="1" className="fill-stone-700" />
+      <rect x="22" y="19" width="28" height="2" rx="1" className="fill-stone-400" />
+      <rect x="28" y="26" width="16" height="4" rx="2" className="fill-stone-900" />
     </svg>
   );
 }
@@ -366,17 +366,17 @@ function SplitSidePreview({ side }: { side: "left" | "right" }) {
     <svg viewBox="0 0 72 38" className="w-[72px] h-[38px]" aria-hidden>
       {side === "left" ? (
         <>
-          <rect x="1" y="1" width="32" height="36" rx="3" className="fill-zinc-400" />
-          <rect x="38" y="12" width="28" height="3" rx="1" className="fill-zinc-600" />
-          <rect x="38" y="19" width="24" height="2" rx="1" className="fill-zinc-400" />
-          <rect x="38" y="26" width="16" height="4" rx="2" className="fill-zinc-900" />
+          <rect x="1" y="1" width="32" height="36" rx="3" className="fill-stone-400" />
+          <rect x="38" y="12" width="28" height="3" rx="1" className="fill-stone-600" />
+          <rect x="38" y="19" width="24" height="2" rx="1" className="fill-stone-400" />
+          <rect x="38" y="26" width="16" height="4" rx="2" className="fill-stone-900" />
         </>
       ) : (
         <>
-          <rect x="39" y="1" width="32" height="36" rx="3" className="fill-zinc-400" />
-          <rect x="6" y="12" width="28" height="3" rx="1" className="fill-zinc-600" />
-          <rect x="6" y="19" width="24" height="2" rx="1" className="fill-zinc-400" />
-          <rect x="6" y="26" width="16" height="4" rx="2" className="fill-zinc-900" />
+          <rect x="39" y="1" width="32" height="36" rx="3" className="fill-stone-400" />
+          <rect x="6" y="12" width="28" height="3" rx="1" className="fill-stone-600" />
+          <rect x="6" y="19" width="24" height="2" rx="1" className="fill-stone-400" />
+          <rect x="6" y="26" width="16" height="4" rx="2" className="fill-stone-900" />
         </>
       )}
     </svg>

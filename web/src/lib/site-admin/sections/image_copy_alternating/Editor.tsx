@@ -9,11 +9,11 @@ import type {
   ImageCopyAlternatingV1,
   ImageCopyAlternatingItem,
 } from "./schema";
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const FIELD = KIT.field;
+const LABEL = KIT.label;
+const INPUT = KIT.input;
 
 export function ImageCopyAlternatingEditor({
   initial,
@@ -111,7 +111,7 @@ export function ImageCopyAlternatingEditor({
                 items: [...value.items, { title: "New row", side: "auto" }],
               })
             }
-            className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50"
+            className={`${KIT.ghostButton} disabled:opacity-50`}
           >
             + Add row
           </button>
@@ -119,9 +119,9 @@ export function ImageCopyAlternatingEditor({
         {value.items.map((item, i) => (
           <details
             key={i}
-            className="rounded-md border border-border/60 bg-muted/30 p-3"
+            className="overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3"
           >
-            <summary className="cursor-pointer select-none text-sm font-medium">
+            <summary className="cursor-pointer select-none text-[13px] font-medium text-stone-700">
               Row {i + 1}: {item.title || "(untitled)"}
             </summary>
             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -212,7 +212,7 @@ export function ImageCopyAlternatingEditor({
               onClick={() =>
                 patch({ items: value.items.filter((_, j) => j !== i) })
               }
-              className="mt-3 rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30"
+              className={`${KIT.ghostButton} mt-3 disabled:opacity-30`}
             >
               Remove row
             </button>

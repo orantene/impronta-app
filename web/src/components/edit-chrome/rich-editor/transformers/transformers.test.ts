@@ -72,6 +72,17 @@ test("tokenize splits on each marker independently", () => {
   ]);
 });
 
+test("color tokenization captures hex + text and round-trips", () => {
+  const input = "A {color:#dc2626}red{/color} word.";
+  const tokens = tokenize(input);
+  assert.deepEqual(tokens, [
+    { kind: "text", text: "A " },
+    { kind: "color", color: "#dc2626", text: "red" },
+    { kind: "text", text: " word." },
+  ]);
+  assert.equal(serialize(tokens), input);
+});
+
 test("link tokenization preserves URL exactly", () => {
   const input = "Click [here](https://example.com/path?q=1&r=2) please.";
   const tokens = tokenize(input);

@@ -104,14 +104,14 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
           Google Fonts — {slot}
         </span>
         {current ? (
           <button
             type="button"
             onClick={() => onChange("")}
-            className="rounded-lg px-2 py-0.5 text-[10px] text-stone-400 hover:bg-[#faf9f6] hover:text-stone-600 transition-colors"
+            className="rounded-lg px-2 py-0.5 text-[10px] text-stone-500 hover:bg-[#faf9f6] hover:text-stone-600 transition-colors"
           >
             Reset
           </button>
@@ -135,7 +135,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
         <input
           type="text"
           placeholder="Search…"
-          className="ml-auto w-32 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+          className="ml-auto w-32 rounded-lg border border-[#cfc7b6] bg-white px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -146,7 +146,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
         {[...grouped.entries()].flatMap(([cat, items]) => [
           <div
             key={`h-${cat}`}
-            className="col-span-2 px-1 pt-1 text-[10px] uppercase tracking-wide text-stone-400"
+            className="col-span-2 px-1 pt-1 text-[10px] uppercase tracking-wide text-stone-500"
           >
             {CATEGORY_LABEL[cat]}
           </div>,
@@ -163,7 +163,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
           )),
         ])}
         {grouped.size === 0 ? (
-          <div className="col-span-2 p-4 text-center text-[11px] text-stone-400">
+          <div className="col-span-2 p-4 text-center text-[11px] text-stone-500">
             No fonts match.
           </div>
         ) : null}
@@ -193,7 +193,7 @@ function FontTile({
       }`}
     >
       <span className="text-[14px] leading-tight text-stone-800">{font.family}</span>
-      <span className="text-[9px] uppercase tracking-wide text-stone-400">
+      <span className="text-[9px] uppercase tracking-wide text-stone-500">
         Aa Bb 0123
       </span>
     </button>

@@ -80,6 +80,16 @@ const CONTAINER_STYLE: CSSProperties = {
 };
 
 const BUILDER_NODE_RENDERER_CSS = `
+@keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes bn-anim-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-fall{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-zoom-in{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+@keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
+@keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:perspective(800px) rotateX(0)}}
+@keyframes bn-anim-bounce-in{0%{opacity:0;transform:scale(0.8)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
 .site-builder-node{box-sizing:border-box}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
@@ -110,18 +120,27 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--live-search-shell{display:flex;width:min(100%,680px);align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(18,18,18,0.16);background:#fff;padding:0.75rem 0.75rem 0.75rem 1rem}
 .site-builder-node--live-search-shell span{color:rgba(18,18,18,0.58)}
 .site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid rgba(18,18,18,0.18);border-radius:999px;padding:0.8rem 1.2rem;font-weight:700;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
-.site-builder-node--button[data-builder-button-tone="primary"]{background:#111;color:#fff}
-.site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:#111}
-.site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:#111!important;color:#fff!important;border-color:#111!important}
-.site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:#111!important;border-color:rgba(18,18,18,0.28)!important}
+.site-builder-node--button[data-builder-button-tone="primary"]{background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff)}
+.site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:var(--token-color-primary,#111)}
+.site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:var(--token-color-primary,#111)!important;color:var(--token-color-surface-raised,#fff)!important;border-color:var(--token-color-primary,#111)!important}
+.site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:var(--token-color-primary,#111)!important;border-color:rgba(18,18,18,0.28)!important}
 .site-builder-node--button[data-builder-button-disabled-tone="secondary"][aria-disabled="true"]{background:transparent;color:rgba(18,18,18,0.42);border-color:rgba(18,18,18,0.16);pointer-events:none}
 .site-builder-node--button[data-builder-button-disabled-tone="primary"][aria-disabled="true"]{background:rgba(18,18,18,0.35);color:#fff;border-color:rgba(18,18,18,0.08);pointer-events:none}
+.site-builder-node--heading{font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
+.site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
 .site-builder-node[data-builder-style-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)}
 .site-builder-node--paragraph[data-builder-style-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)}
 .site-builder-node--paragraph[data-builder-style-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)}
+.site-builder-node[data-builder-style-hover-bg]:hover,.site-builder-node[data-builder-style-hover-bg]:focus-visible{background-color:var(--bn-hover-bg)!important}
+.site-builder-node[data-builder-style-hover-color]:hover,.site-builder-node[data-builder-style-hover-color]:focus-visible{color:var(--bn-hover-color)!important}
+.site-builder-node[data-builder-style-hover-border-color]:hover,.site-builder-node[data-builder-style-hover-border-color]:focus-visible{border-color:var(--bn-hover-border-color)!important}
+.site-builder-node[data-builder-style-hover-shadow]:hover,.site-builder-node[data-builder-style-hover-shadow]:focus-visible{box-shadow:var(--bn-hover-shadow)!important}
+.site-builder-node[data-builder-style-hover-scale]:hover,.site-builder-node[data-builder-style-hover-scale]:focus-visible{scale:var(--bn-hover-scale)!important}
+.site-builder-node[data-builder-style-hover-translate]:hover,.site-builder-node[data-builder-style-hover-translate]:focus-visible{translate:var(--bn-hover-translate)!important}
+.site-builder-node[data-builder-style-hover-opacity]:hover,.site-builder-node[data-builder-style-hover-opacity]:focus-visible{opacity:var(--bn-hover-opacity)!important}
 @media (max-width:900px){
   .site-builder-node[data-builder-style-tablet-align]{text-align:var(--bn-tablet-align)!important}
   .site-builder-node[data-builder-style-tablet-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)!important}
@@ -139,7 +158,69 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-background]{background:var(--bn-tablet-background)!important}
   .site-builder-node[data-builder-style-tablet-radius]{border-radius:var(--bn-tablet-radius)!important}
   .site-builder-node[data-builder-style-tablet-fit]{object-fit:var(--bn-tablet-fit)!important}
+  .site-builder-node[data-builder-style-tablet-object-position]{object-position:var(--bn-tablet-object-position)!important}
   .site-builder-node[data-builder-style-tablet-ratio]{aspect-ratio:var(--bn-tablet-ratio)!important}
+  .site-builder-node[data-builder-style-tablet-aspect-free]{aspect-ratio:var(--bn-tablet-aspect-free)!important}
+  .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
+  .site-builder-node[data-builder-style-tablet-font-family]{font-family:var(--bn-tablet-font-family)!important}
+  .site-builder-node[data-builder-style-tablet-font-size]{font-size:var(--bn-tablet-font-size)!important}
+  .site-builder-node[data-builder-style-tablet-font-weight]{font-weight:var(--bn-tablet-font-weight)!important}
+  .site-builder-node[data-builder-style-tablet-line-height]{line-height:var(--bn-tablet-line-height)!important}
+  .site-builder-node[data-builder-style-tablet-letter-spacing]{letter-spacing:var(--bn-tablet-letter-spacing)!important}
+  .site-builder-node[data-builder-style-tablet-text-transform]{text-transform:var(--bn-tablet-text-transform)!important}
+  .site-builder-node[data-builder-style-tablet-font-style]{font-style:var(--bn-tablet-font-style)!important}
+  .site-builder-node[data-builder-style-tablet-text-decoration]{text-decoration:var(--bn-tablet-text-decoration)!important}
+  .site-builder-node[data-builder-style-tablet-text-color]{color:var(--bn-tablet-text-color)!important}
+  .site-builder-node[data-builder-style-tablet-bg-color]{background-color:var(--bn-tablet-bg-color)!important}
+  .site-builder-node[data-builder-style-tablet-border-color]{border-color:var(--bn-tablet-border-color)!important}
+  .site-builder-node[data-builder-style-tablet-border-width]{border-width:var(--bn-tablet-border-width)!important}
+  .site-builder-node[data-builder-style-tablet-border-style]{border-style:var(--bn-tablet-border-style)!important}
+  .site-builder-node[data-builder-style-tablet-free-width]{width:var(--bn-tablet-free-width)!important}
+  .site-builder-node[data-builder-style-tablet-height]{height:var(--bn-tablet-height)!important}
+  .site-builder-node[data-builder-style-tablet-min-height]{min-height:var(--bn-tablet-min-height)!important}
+  .site-builder-node[data-builder-style-tablet-min-width]{min-width:var(--bn-tablet-min-width)!important}
+  .site-builder-node[data-builder-style-tablet-max-width-free]{max-width:var(--bn-tablet-max-width-free)!important}
+  .site-builder-node[data-builder-style-tablet-max-height]{max-height:var(--bn-tablet-max-height)!important}
+  .site-builder-node[data-builder-style-tablet-padding-top]{padding-top:var(--bn-tablet-padding-top)!important}
+  .site-builder-node[data-builder-style-tablet-padding-right]{padding-right:var(--bn-tablet-padding-right)!important}
+  .site-builder-node[data-builder-style-tablet-padding-bottom]{padding-bottom:var(--bn-tablet-padding-bottom)!important}
+  .site-builder-node[data-builder-style-tablet-padding-left]{padding-left:var(--bn-tablet-padding-left)!important}
+  .site-builder-node[data-builder-style-tablet-margin-top-free]{margin-top:var(--bn-tablet-margin-top-free)!important}
+  .site-builder-node[data-builder-style-tablet-margin-right-free]{margin-right:var(--bn-tablet-margin-right-free)!important}
+  .site-builder-node[data-builder-style-tablet-margin-bottom-free]{margin-bottom:var(--bn-tablet-margin-bottom-free)!important}
+  .site-builder-node[data-builder-style-tablet-margin-left-free]{margin-left:var(--bn-tablet-margin-left-free)!important}
+  .site-builder-node[data-builder-style-tablet-shadow]{box-shadow:var(--bn-tablet-shadow)!important}
+  .site-builder-node[data-builder-style-tablet-text-shadow]{text-shadow:var(--bn-tablet-text-shadow)!important}
+  .site-builder-node[data-builder-style-tablet-bg-image]{background-image:var(--bn-tablet-bg-image)!important}
+  .site-builder-node[data-builder-style-tablet-opacity]{opacity:var(--bn-tablet-opacity)!important}
+  .site-builder-node[data-builder-style-tablet-radius-free]{border-radius:var(--bn-tablet-radius-free)!important}
+  .site-builder-node[data-builder-style-tablet-gap-free]{--bn-gap:var(--bn-tablet-gap-free)!important}
+  .site-builder-node[data-builder-style-tablet-position]{position:var(--bn-tablet-position)!important}
+  .site-builder-node[data-builder-style-tablet-inset-top]{top:var(--bn-tablet-inset-top)!important}
+  .site-builder-node[data-builder-style-tablet-inset-right]{right:var(--bn-tablet-inset-right)!important}
+  .site-builder-node[data-builder-style-tablet-inset-bottom]{bottom:var(--bn-tablet-inset-bottom)!important}
+  .site-builder-node[data-builder-style-tablet-inset-left]{left:var(--bn-tablet-inset-left)!important}
+  .site-builder-node[data-builder-style-tablet-z-index]{z-index:var(--bn-tablet-z-index)!important}
+  .site-builder-node[data-builder-style-tablet-overflow]{overflow:var(--bn-tablet-overflow)!important}
+  .site-builder-node[data-builder-style-tablet-rotate]{rotate:var(--bn-tablet-rotate)!important}
+  .site-builder-node[data-builder-style-tablet-scale]{scale:var(--bn-tablet-scale)!important}
+  .site-builder-node[data-builder-style-tablet-translate]{translate:var(--bn-tablet-translate)!important}
+  .site-builder-node[data-builder-style-tablet-transform-origin]{transform-origin:var(--bn-tablet-transform-origin)!important}
+  .site-builder-node[data-builder-style-tablet-align-self]{align-self:var(--bn-tablet-align-self)!important}
+  .site-builder-node[data-builder-style-tablet-flex-grow]{flex-grow:var(--bn-tablet-flex-grow)!important}
+  .site-builder-node[data-builder-style-tablet-flex-shrink]{flex-shrink:var(--bn-tablet-flex-shrink)!important}
+  .site-builder-node[data-builder-style-tablet-flex-basis]{flex-basis:var(--bn-tablet-flex-basis)!important}
+  .site-builder-node[data-builder-style-tablet-grid-column]{grid-column:var(--bn-tablet-grid-column)!important}
+  .site-builder-node[data-builder-style-tablet-grid-row]{grid-row:var(--bn-tablet-grid-row)!important}
+  .site-builder-node[data-builder-style-tablet-filter]{filter:var(--bn-tablet-filter)!important}
+  .site-builder-node[data-builder-style-tablet-backdrop-filter]{backdrop-filter:var(--bn-tablet-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-tablet-backdrop-filter)!important}
+  .site-builder-node[data-builder-style-tablet-mix-blend-mode]{mix-blend-mode:var(--bn-tablet-mix-blend-mode)!important}
+  .site-builder-node[data-builder-style-tablet-justify-content]{justify-content:var(--bn-tablet-justify-content)!important}
+  .site-builder-node[data-builder-style-tablet-align-items]{align-items:var(--bn-tablet-align-items)!important}
+  .site-builder-node[data-builder-style-tablet-flex-wrap]{flex-wrap:var(--bn-tablet-flex-wrap)!important}
+  .site-builder-node[data-builder-style-tablet-grid-template-columns]{grid-template-columns:var(--bn-tablet-grid-template-columns)!important}
+  .site-builder-node[data-builder-style-tablet-grid-template-rows]{grid-template-rows:var(--bn-tablet-grid-template-rows)!important}
+  .site-builder-node[data-builder-style-tablet-grid-auto-flow]{grid-auto-flow:var(--bn-tablet-grid-auto-flow)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -164,7 +245,69 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-background]{background:var(--bn-mobile-background)!important}
   .site-builder-node[data-builder-style-mobile-radius]{border-radius:var(--bn-mobile-radius)!important}
   .site-builder-node[data-builder-style-mobile-fit]{object-fit:var(--bn-mobile-fit)!important}
+  .site-builder-node[data-builder-style-mobile-object-position]{object-position:var(--bn-mobile-object-position)!important}
   .site-builder-node[data-builder-style-mobile-ratio]{aspect-ratio:var(--bn-mobile-ratio)!important}
+  .site-builder-node[data-builder-style-mobile-aspect-free]{aspect-ratio:var(--bn-mobile-aspect-free)!important}
+  .site-builder-node[data-builder-style-mobile-hidden]{display:none!important}
+  .site-builder-node[data-builder-style-mobile-font-family]{font-family:var(--bn-mobile-font-family)!important}
+  .site-builder-node[data-builder-style-mobile-font-size]{font-size:var(--bn-mobile-font-size)!important}
+  .site-builder-node[data-builder-style-mobile-font-weight]{font-weight:var(--bn-mobile-font-weight)!important}
+  .site-builder-node[data-builder-style-mobile-line-height]{line-height:var(--bn-mobile-line-height)!important}
+  .site-builder-node[data-builder-style-mobile-letter-spacing]{letter-spacing:var(--bn-mobile-letter-spacing)!important}
+  .site-builder-node[data-builder-style-mobile-text-transform]{text-transform:var(--bn-mobile-text-transform)!important}
+  .site-builder-node[data-builder-style-mobile-font-style]{font-style:var(--bn-mobile-font-style)!important}
+  .site-builder-node[data-builder-style-mobile-text-decoration]{text-decoration:var(--bn-mobile-text-decoration)!important}
+  .site-builder-node[data-builder-style-mobile-text-color]{color:var(--bn-mobile-text-color)!important}
+  .site-builder-node[data-builder-style-mobile-bg-color]{background-color:var(--bn-mobile-bg-color)!important}
+  .site-builder-node[data-builder-style-mobile-border-color]{border-color:var(--bn-mobile-border-color)!important}
+  .site-builder-node[data-builder-style-mobile-border-width]{border-width:var(--bn-mobile-border-width)!important}
+  .site-builder-node[data-builder-style-mobile-border-style]{border-style:var(--bn-mobile-border-style)!important}
+  .site-builder-node[data-builder-style-mobile-free-width]{width:var(--bn-mobile-free-width)!important}
+  .site-builder-node[data-builder-style-mobile-height]{height:var(--bn-mobile-height)!important}
+  .site-builder-node[data-builder-style-mobile-min-height]{min-height:var(--bn-mobile-min-height)!important}
+  .site-builder-node[data-builder-style-mobile-min-width]{min-width:var(--bn-mobile-min-width)!important}
+  .site-builder-node[data-builder-style-mobile-max-width-free]{max-width:var(--bn-mobile-max-width-free)!important}
+  .site-builder-node[data-builder-style-mobile-max-height]{max-height:var(--bn-mobile-max-height)!important}
+  .site-builder-node[data-builder-style-mobile-padding-top]{padding-top:var(--bn-mobile-padding-top)!important}
+  .site-builder-node[data-builder-style-mobile-padding-right]{padding-right:var(--bn-mobile-padding-right)!important}
+  .site-builder-node[data-builder-style-mobile-padding-bottom]{padding-bottom:var(--bn-mobile-padding-bottom)!important}
+  .site-builder-node[data-builder-style-mobile-padding-left]{padding-left:var(--bn-mobile-padding-left)!important}
+  .site-builder-node[data-builder-style-mobile-margin-top-free]{margin-top:var(--bn-mobile-margin-top-free)!important}
+  .site-builder-node[data-builder-style-mobile-margin-right-free]{margin-right:var(--bn-mobile-margin-right-free)!important}
+  .site-builder-node[data-builder-style-mobile-margin-bottom-free]{margin-bottom:var(--bn-mobile-margin-bottom-free)!important}
+  .site-builder-node[data-builder-style-mobile-margin-left-free]{margin-left:var(--bn-mobile-margin-left-free)!important}
+  .site-builder-node[data-builder-style-mobile-shadow]{box-shadow:var(--bn-mobile-shadow)!important}
+  .site-builder-node[data-builder-style-mobile-text-shadow]{text-shadow:var(--bn-mobile-text-shadow)!important}
+  .site-builder-node[data-builder-style-mobile-bg-image]{background-image:var(--bn-mobile-bg-image)!important}
+  .site-builder-node[data-builder-style-mobile-opacity]{opacity:var(--bn-mobile-opacity)!important}
+  .site-builder-node[data-builder-style-mobile-radius-free]{border-radius:var(--bn-mobile-radius-free)!important}
+  .site-builder-node[data-builder-style-mobile-gap-free]{--bn-gap:var(--bn-mobile-gap-free)!important}
+  .site-builder-node[data-builder-style-mobile-position]{position:var(--bn-mobile-position)!important}
+  .site-builder-node[data-builder-style-mobile-inset-top]{top:var(--bn-mobile-inset-top)!important}
+  .site-builder-node[data-builder-style-mobile-inset-right]{right:var(--bn-mobile-inset-right)!important}
+  .site-builder-node[data-builder-style-mobile-inset-bottom]{bottom:var(--bn-mobile-inset-bottom)!important}
+  .site-builder-node[data-builder-style-mobile-inset-left]{left:var(--bn-mobile-inset-left)!important}
+  .site-builder-node[data-builder-style-mobile-z-index]{z-index:var(--bn-mobile-z-index)!important}
+  .site-builder-node[data-builder-style-mobile-overflow]{overflow:var(--bn-mobile-overflow)!important}
+  .site-builder-node[data-builder-style-mobile-rotate]{rotate:var(--bn-mobile-rotate)!important}
+  .site-builder-node[data-builder-style-mobile-scale]{scale:var(--bn-mobile-scale)!important}
+  .site-builder-node[data-builder-style-mobile-translate]{translate:var(--bn-mobile-translate)!important}
+  .site-builder-node[data-builder-style-mobile-transform-origin]{transform-origin:var(--bn-mobile-transform-origin)!important}
+  .site-builder-node[data-builder-style-mobile-align-self]{align-self:var(--bn-mobile-align-self)!important}
+  .site-builder-node[data-builder-style-mobile-flex-grow]{flex-grow:var(--bn-mobile-flex-grow)!important}
+  .site-builder-node[data-builder-style-mobile-flex-shrink]{flex-shrink:var(--bn-mobile-flex-shrink)!important}
+  .site-builder-node[data-builder-style-mobile-flex-basis]{flex-basis:var(--bn-mobile-flex-basis)!important}
+  .site-builder-node[data-builder-style-mobile-grid-column]{grid-column:var(--bn-mobile-grid-column)!important}
+  .site-builder-node[data-builder-style-mobile-grid-row]{grid-row:var(--bn-mobile-grid-row)!important}
+  .site-builder-node[data-builder-style-mobile-filter]{filter:var(--bn-mobile-filter)!important}
+  .site-builder-node[data-builder-style-mobile-backdrop-filter]{backdrop-filter:var(--bn-mobile-backdrop-filter)!important;-webkit-backdrop-filter:var(--bn-mobile-backdrop-filter)!important}
+  .site-builder-node[data-builder-style-mobile-mix-blend-mode]{mix-blend-mode:var(--bn-mobile-mix-blend-mode)!important}
+  .site-builder-node[data-builder-style-mobile-justify-content]{justify-content:var(--bn-mobile-justify-content)!important}
+  .site-builder-node[data-builder-style-mobile-align-items]{align-items:var(--bn-mobile-align-items)!important}
+  .site-builder-node[data-builder-style-mobile-flex-wrap]{flex-wrap:var(--bn-mobile-flex-wrap)!important}
+  .site-builder-node[data-builder-style-mobile-grid-template-columns]{grid-template-columns:var(--bn-mobile-grid-template-columns)!important}
+  .site-builder-node[data-builder-style-mobile-grid-template-rows]{grid-template-rows:var(--bn-mobile-grid-template-rows)!important}
+  .site-builder-node[data-builder-style-mobile-grid-auto-flow]{grid-auto-flow:var(--bn-mobile-grid-auto-flow)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -198,6 +341,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-background": style?.background,
     "data-builder-style-radius": style?.radius,
     "data-builder-style-fit": style?.objectFit,
+    "data-builder-style-object-position": style?.objectPosition,
     "data-builder-style-ratio": style?.aspectRatio,
     "data-builder-style-tablet-align": tablet?.align,
     "data-builder-style-tablet-size": tablet?.size,
@@ -210,7 +354,80 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-background": tablet?.background,
     "data-builder-style-tablet-radius": tablet?.radius,
     "data-builder-style-tablet-fit": tablet?.objectFit,
+    "data-builder-style-tablet-object-position": tablet?.objectPosition,
     "data-builder-style-tablet-ratio": tablet?.aspectRatio,
+    "data-builder-style-tablet-aspect-free": tablet?.aspectRatioFree ? "" : undefined,
+    "data-builder-style-tablet-hidden": tablet?.visibility === "hidden" ? "" : undefined,
+    "data-builder-style-tablet-font-family": tablet?.fontFamily ? "" : undefined,
+    "data-builder-style-tablet-font-size": tablet?.fontSize ? "" : undefined,
+    "data-builder-style-tablet-font-weight":
+      typeof tablet?.fontWeight === "number" ? "" : undefined,
+    "data-builder-style-tablet-line-height": tablet?.lineHeight ? "" : undefined,
+    "data-builder-style-tablet-letter-spacing": tablet?.letterSpacing ? "" : undefined,
+    "data-builder-style-tablet-text-transform": tablet?.textTransform ? "" : undefined,
+    "data-builder-style-tablet-font-style": tablet?.fontStyle ? "" : undefined,
+    "data-builder-style-tablet-text-decoration": tablet?.textDecoration ? "" : undefined,
+    "data-builder-style-tablet-text-color": tablet?.textColor ? "" : undefined,
+    "data-builder-style-tablet-bg-color": tablet?.backgroundColor ? "" : undefined,
+    "data-builder-style-tablet-border-color": tablet?.borderColor ? "" : undefined,
+    "data-builder-style-tablet-border-width":
+      tablet?.borderColor || tablet?.borderWidth || tablet?.borderStyle ? "" : undefined,
+    "data-builder-style-tablet-border-style":
+      tablet?.borderColor || tablet?.borderWidth || tablet?.borderStyle ? "" : undefined,
+    "data-builder-style-tablet-free-width": tablet?.width ? "" : undefined,
+    "data-builder-style-tablet-height": tablet?.height ? "" : undefined,
+    "data-builder-style-tablet-min-height": tablet?.minHeight ? "" : undefined,
+    "data-builder-style-tablet-min-width": tablet?.minWidth ? "" : undefined,
+    "data-builder-style-tablet-max-width-free": tablet?.maxWidthFree ? "" : undefined,
+    "data-builder-style-tablet-max-height": tablet?.maxHeight ? "" : undefined,
+    "data-builder-style-tablet-padding-top": tablet?.paddingTop ? "" : undefined,
+    "data-builder-style-tablet-padding-right": tablet?.paddingRight ? "" : undefined,
+    "data-builder-style-tablet-padding-bottom": tablet?.paddingBottom ? "" : undefined,
+    "data-builder-style-tablet-padding-left": tablet?.paddingLeft ? "" : undefined,
+    "data-builder-style-tablet-margin-top-free": tablet?.marginTopFree ? "" : undefined,
+    "data-builder-style-tablet-margin-right-free": tablet?.marginRightFree ? "" : undefined,
+    "data-builder-style-tablet-margin-bottom-free": tablet?.marginBottomFree ? "" : undefined,
+    "data-builder-style-tablet-margin-left-free": tablet?.marginLeftFree ? "" : undefined,
+    "data-builder-style-tablet-shadow": tablet?.boxShadow ? "" : undefined,
+    "data-builder-style-tablet-text-shadow": tablet?.textShadow ? "" : undefined,
+    "data-builder-style-tablet-bg-image": tablet?.backgroundImage ? "" : undefined,
+    "data-builder-style-tablet-opacity":
+      typeof tablet?.opacity === "number" ? "" : undefined,
+    "data-builder-style-tablet-radius-free": tablet?.borderRadius ? "" : undefined,
+    "data-builder-style-tablet-gap-free": tablet?.gap ? "" : undefined,
+    "data-builder-style-tablet-position": tablet?.position ? "" : undefined,
+    "data-builder-style-tablet-inset-top": tablet?.top ? "" : undefined,
+    "data-builder-style-tablet-inset-right": tablet?.right ? "" : undefined,
+    "data-builder-style-tablet-inset-bottom": tablet?.bottom ? "" : undefined,
+    "data-builder-style-tablet-inset-left": tablet?.left ? "" : undefined,
+    "data-builder-style-tablet-z-index":
+      typeof tablet?.zIndex === "number" ? "" : undefined,
+    "data-builder-style-tablet-overflow": tablet?.overflow ? "" : undefined,
+    "data-builder-style-tablet-rotate": tablet?.rotate ? "" : undefined,
+    "data-builder-style-tablet-scale": tablet?.scale ? "" : undefined,
+    "data-builder-style-tablet-translate": tablet?.translate ? "" : undefined,
+    "data-builder-style-tablet-transform-origin": tablet?.transformOrigin
+      ? ""
+      : undefined,
+    "data-builder-style-tablet-align-self": tablet?.alignSelf ? "" : undefined,
+    "data-builder-style-tablet-flex-grow":
+      typeof tablet?.flexGrow === "number" ? "" : undefined,
+    "data-builder-style-tablet-flex-shrink":
+      typeof tablet?.flexShrink === "number" ? "" : undefined,
+    "data-builder-style-tablet-flex-basis": tablet?.flexBasis ? "" : undefined,
+    "data-builder-style-tablet-grid-column": tablet?.gridColumn ? "" : undefined,
+    "data-builder-style-tablet-grid-row": tablet?.gridRow ? "" : undefined,
+    "data-builder-style-tablet-filter": tablet?.filter ? "" : undefined,
+    "data-builder-style-tablet-backdrop-filter":
+      tablet?.backdropFilter ? "" : undefined,
+    "data-builder-style-tablet-mix-blend-mode":
+      tablet?.mixBlendMode ? "" : undefined,
+    "data-builder-style-tablet-justify-content": tablet?.justifyContent ? "" : undefined,
+    "data-builder-style-tablet-align-items": tablet?.alignItems ? "" : undefined,
+    "data-builder-style-tablet-flex-wrap": tablet?.flexWrap ? "" : undefined,
+    "data-builder-style-tablet-grid-template-columns": tablet?.gridTemplateColumns ? "" : undefined,
+    "data-builder-style-tablet-grid-template-rows": tablet?.gridTemplateRows ? "" : undefined,
+    "data-builder-style-tablet-grid-auto-flow": tablet?.gridAutoFlow ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -222,7 +439,91 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-background": mobile?.background,
     "data-builder-style-mobile-radius": mobile?.radius,
     "data-builder-style-mobile-fit": mobile?.objectFit,
+    "data-builder-style-mobile-object-position": mobile?.objectPosition,
     "data-builder-style-mobile-ratio": mobile?.aspectRatio,
+    "data-builder-style-mobile-aspect-free": mobile?.aspectRatioFree ? "" : undefined,
+    "data-builder-style-mobile-hidden": mobile?.visibility === "hidden" ? "" : undefined,
+    "data-builder-style-mobile-font-family": mobile?.fontFamily ? "" : undefined,
+    "data-builder-style-mobile-font-size": mobile?.fontSize ? "" : undefined,
+    "data-builder-style-mobile-font-weight":
+      typeof mobile?.fontWeight === "number" ? "" : undefined,
+    "data-builder-style-mobile-line-height": mobile?.lineHeight ? "" : undefined,
+    "data-builder-style-mobile-letter-spacing": mobile?.letterSpacing ? "" : undefined,
+    "data-builder-style-mobile-text-transform": mobile?.textTransform ? "" : undefined,
+    "data-builder-style-mobile-font-style": mobile?.fontStyle ? "" : undefined,
+    "data-builder-style-mobile-text-decoration": mobile?.textDecoration ? "" : undefined,
+    "data-builder-style-mobile-text-color": mobile?.textColor ? "" : undefined,
+    "data-builder-style-mobile-bg-color": mobile?.backgroundColor ? "" : undefined,
+    "data-builder-style-mobile-border-color": mobile?.borderColor ? "" : undefined,
+    "data-builder-style-mobile-border-width":
+      mobile?.borderColor || mobile?.borderWidth || mobile?.borderStyle ? "" : undefined,
+    "data-builder-style-mobile-border-style":
+      mobile?.borderColor || mobile?.borderWidth || mobile?.borderStyle ? "" : undefined,
+    "data-builder-style-mobile-free-width": mobile?.width ? "" : undefined,
+    "data-builder-style-mobile-height": mobile?.height ? "" : undefined,
+    "data-builder-style-mobile-min-height": mobile?.minHeight ? "" : undefined,
+    "data-builder-style-mobile-min-width": mobile?.minWidth ? "" : undefined,
+    "data-builder-style-mobile-max-width-free": mobile?.maxWidthFree ? "" : undefined,
+    "data-builder-style-mobile-max-height": mobile?.maxHeight ? "" : undefined,
+    "data-builder-style-mobile-padding-top": mobile?.paddingTop ? "" : undefined,
+    "data-builder-style-mobile-padding-right": mobile?.paddingRight ? "" : undefined,
+    "data-builder-style-mobile-padding-bottom": mobile?.paddingBottom ? "" : undefined,
+    "data-builder-style-mobile-padding-left": mobile?.paddingLeft ? "" : undefined,
+    "data-builder-style-mobile-margin-top-free": mobile?.marginTopFree ? "" : undefined,
+    "data-builder-style-mobile-margin-right-free": mobile?.marginRightFree ? "" : undefined,
+    "data-builder-style-mobile-margin-bottom-free": mobile?.marginBottomFree ? "" : undefined,
+    "data-builder-style-mobile-margin-left-free": mobile?.marginLeftFree ? "" : undefined,
+    "data-builder-style-mobile-shadow": mobile?.boxShadow ? "" : undefined,
+    "data-builder-style-mobile-text-shadow": mobile?.textShadow ? "" : undefined,
+    "data-builder-style-mobile-bg-image": mobile?.backgroundImage ? "" : undefined,
+    "data-builder-style-mobile-opacity":
+      typeof mobile?.opacity === "number" ? "" : undefined,
+    "data-builder-style-mobile-radius-free": mobile?.borderRadius ? "" : undefined,
+    "data-builder-style-mobile-gap-free": mobile?.gap ? "" : undefined,
+    "data-builder-style-mobile-position": mobile?.position ? "" : undefined,
+    "data-builder-style-mobile-inset-top": mobile?.top ? "" : undefined,
+    "data-builder-style-mobile-inset-right": mobile?.right ? "" : undefined,
+    "data-builder-style-mobile-inset-bottom": mobile?.bottom ? "" : undefined,
+    "data-builder-style-mobile-inset-left": mobile?.left ? "" : undefined,
+    "data-builder-style-mobile-z-index":
+      typeof mobile?.zIndex === "number" ? "" : undefined,
+    "data-builder-style-mobile-overflow": mobile?.overflow ? "" : undefined,
+    "data-builder-style-mobile-rotate": mobile?.rotate ? "" : undefined,
+    "data-builder-style-mobile-scale": mobile?.scale ? "" : undefined,
+    "data-builder-style-mobile-translate": mobile?.translate ? "" : undefined,
+    "data-builder-style-mobile-transform-origin": mobile?.transformOrigin
+      ? ""
+      : undefined,
+    "data-builder-style-mobile-align-self": mobile?.alignSelf ? "" : undefined,
+    "data-builder-style-mobile-flex-grow":
+      typeof mobile?.flexGrow === "number" ? "" : undefined,
+    "data-builder-style-mobile-flex-shrink":
+      typeof mobile?.flexShrink === "number" ? "" : undefined,
+    "data-builder-style-mobile-flex-basis": mobile?.flexBasis ? "" : undefined,
+    "data-builder-style-mobile-grid-column": mobile?.gridColumn ? "" : undefined,
+    "data-builder-style-mobile-grid-row": mobile?.gridRow ? "" : undefined,
+    "data-builder-style-mobile-filter": mobile?.filter ? "" : undefined,
+    "data-builder-style-mobile-backdrop-filter":
+      mobile?.backdropFilter ? "" : undefined,
+    "data-builder-style-mobile-mix-blend-mode":
+      mobile?.mixBlendMode ? "" : undefined,
+    "data-builder-style-mobile-justify-content": mobile?.justifyContent ? "" : undefined,
+    "data-builder-style-mobile-align-items": mobile?.alignItems ? "" : undefined,
+    "data-builder-style-mobile-flex-wrap": mobile?.flexWrap ? "" : undefined,
+    "data-builder-style-mobile-grid-template-columns": mobile?.gridTemplateColumns ? "" : undefined,
+    "data-builder-style-mobile-grid-template-rows": mobile?.gridTemplateRows ? "" : undefined,
+    "data-builder-style-mobile-grid-auto-flow": mobile?.gridAutoFlow ? "" : undefined,
+    // Hover-state gates — each presence attr arms the matching :hover rule in the
+    // static sheet (which reads the --bn-hover-* var). No attr ⇒ no rule ⇒ resting
+    // value is untouched.
+    "data-builder-style-hover-bg": style?.hover?.backgroundColor ? "" : undefined,
+    "data-builder-style-hover-color": style?.hover?.color ? "" : undefined,
+    "data-builder-style-hover-border-color": style?.hover?.borderColor ? "" : undefined,
+    "data-builder-style-hover-shadow": style?.hover?.boxShadow ? "" : undefined,
+    "data-builder-style-hover-scale": style?.hover?.scale ? "" : undefined,
+    "data-builder-style-hover-translate": style?.hover?.translate ? "" : undefined,
+    "data-builder-style-hover-opacity":
+      typeof style?.hover?.opacity === "number" ? "" : undefined,
   };
 }
 
@@ -267,9 +568,11 @@ function responsiveStyleVars(
       ? NODE_RADIUS[style.responsive.tablet.radius]
       : undefined,
     "--bn-tablet-fit": style?.responsive?.tablet?.objectFit,
+    "--bn-tablet-object-position": style?.responsive?.tablet?.objectPosition,
     "--bn-tablet-ratio": style?.responsive?.tablet?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.tablet.aspectRatio]
       : undefined,
+    "--bn-tablet-aspect-free": style?.responsive?.tablet?.aspectRatioFree,
     "--bn-mobile-align": style?.responsive?.mobile?.align,
     "--bn-mobile-color": styleColor(style?.responsive?.mobile?.tone),
     "--bn-mobile-max-width": style?.responsive?.mobile?.maxWidth
@@ -292,10 +595,186 @@ function responsiveStyleVars(
       ? NODE_RADIUS[style.responsive.mobile.radius]
       : undefined,
     "--bn-mobile-fit": style?.responsive?.mobile?.objectFit,
+    "--bn-mobile-object-position": style?.responsive?.mobile?.objectPosition,
     "--bn-mobile-ratio": style?.responsive?.mobile?.aspectRatio
       ? NODE_ASPECT_RATIO[style.responsive.mobile.aspectRatio]
       : undefined,
+    "--bn-mobile-aspect-free": style?.responsive?.mobile?.aspectRatioFree,
+    // Free-value escapes — per-breakpoint overrides. Desktop applies these inline
+    // in sharedNodeStyle; these vars only render when the breakpoint value is set,
+    // gated by the matching data-attr so an unset var never clobbers the desktop
+    // value (an ungated !important rule would reset inherited props to the parent).
+    "--bn-tablet-font-family": style?.responsive?.tablet?.fontFamily,
+    "--bn-tablet-font-size": style?.responsive?.tablet?.fontSize,
+    "--bn-tablet-font-weight": style?.responsive?.tablet?.fontWeight,
+    "--bn-tablet-line-height": style?.responsive?.tablet?.lineHeight,
+    "--bn-tablet-letter-spacing": style?.responsive?.tablet?.letterSpacing,
+    "--bn-tablet-text-transform": style?.responsive?.tablet?.textTransform,
+    "--bn-tablet-font-style": style?.responsive?.tablet?.fontStyle,
+    "--bn-tablet-text-decoration": style?.responsive?.tablet?.textDecoration,
+    "--bn-tablet-text-color": style?.responsive?.tablet?.textColor,
+    "--bn-tablet-bg-color": style?.responsive?.tablet?.backgroundColor,
+    "--bn-tablet-border-color": style?.responsive?.tablet?.borderColor,
+    "--bn-tablet-border-width":
+      style?.responsive?.tablet?.borderColor ||
+      style?.responsive?.tablet?.borderWidth ||
+      style?.responsive?.tablet?.borderStyle
+        ? style?.responsive?.tablet?.borderWidth ?? style?.borderWidth ?? "1px"
+        : undefined,
+    "--bn-tablet-border-style":
+      style?.responsive?.tablet?.borderColor ||
+      style?.responsive?.tablet?.borderWidth ||
+      style?.responsive?.tablet?.borderStyle
+        ? style?.responsive?.tablet?.borderStyle ?? style?.borderStyle ?? "solid"
+        : undefined,
+    "--bn-mobile-font-family": style?.responsive?.mobile?.fontFamily,
+    "--bn-mobile-font-size": style?.responsive?.mobile?.fontSize,
+    "--bn-mobile-font-weight": style?.responsive?.mobile?.fontWeight,
+    "--bn-mobile-line-height": style?.responsive?.mobile?.lineHeight,
+    "--bn-mobile-letter-spacing": style?.responsive?.mobile?.letterSpacing,
+    "--bn-mobile-text-transform": style?.responsive?.mobile?.textTransform,
+    "--bn-mobile-font-style": style?.responsive?.mobile?.fontStyle,
+    "--bn-mobile-text-decoration": style?.responsive?.mobile?.textDecoration,
+    "--bn-mobile-text-color": style?.responsive?.mobile?.textColor,
+    "--bn-mobile-bg-color": style?.responsive?.mobile?.backgroundColor,
+    "--bn-mobile-border-color": style?.responsive?.mobile?.borderColor,
+    "--bn-mobile-border-width":
+      style?.responsive?.mobile?.borderColor ||
+      style?.responsive?.mobile?.borderWidth ||
+      style?.responsive?.mobile?.borderStyle
+        ? style?.responsive?.mobile?.borderWidth ?? style?.borderWidth ?? "1px"
+        : undefined,
+    "--bn-mobile-border-style":
+      style?.responsive?.mobile?.borderColor ||
+      style?.responsive?.mobile?.borderWidth ||
+      style?.responsive?.mobile?.borderStyle
+        ? style?.responsive?.mobile?.borderStyle ?? style?.borderStyle ?? "solid"
+        : undefined,
+    "--bn-tablet-free-width": style?.responsive?.tablet?.width,
+    "--bn-tablet-height": style?.responsive?.tablet?.height,
+    "--bn-tablet-min-height": style?.responsive?.tablet?.minHeight,
+    "--bn-tablet-min-width": style?.responsive?.tablet?.minWidth,
+    "--bn-tablet-max-width-free": style?.responsive?.tablet?.maxWidthFree,
+    "--bn-tablet-max-height": style?.responsive?.tablet?.maxHeight,
+    "--bn-mobile-free-width": style?.responsive?.mobile?.width,
+    "--bn-mobile-height": style?.responsive?.mobile?.height,
+    "--bn-mobile-min-height": style?.responsive?.mobile?.minHeight,
+    "--bn-mobile-min-width": style?.responsive?.mobile?.minWidth,
+    "--bn-mobile-max-width-free": style?.responsive?.mobile?.maxWidthFree,
+    "--bn-mobile-max-height": style?.responsive?.mobile?.maxHeight,
+    "--bn-tablet-padding-top": style?.responsive?.tablet?.paddingTop,
+    "--bn-tablet-padding-right": style?.responsive?.tablet?.paddingRight,
+    "--bn-tablet-padding-bottom": style?.responsive?.tablet?.paddingBottom,
+    "--bn-tablet-padding-left": style?.responsive?.tablet?.paddingLeft,
+    "--bn-mobile-padding-top": style?.responsive?.mobile?.paddingTop,
+    "--bn-mobile-padding-right": style?.responsive?.mobile?.paddingRight,
+    "--bn-mobile-padding-bottom": style?.responsive?.mobile?.paddingBottom,
+    "--bn-mobile-padding-left": style?.responsive?.mobile?.paddingLeft,
+    "--bn-tablet-margin-top-free": style?.responsive?.tablet?.marginTopFree,
+    "--bn-tablet-margin-right-free": style?.responsive?.tablet?.marginRightFree,
+    "--bn-tablet-margin-bottom-free": style?.responsive?.tablet?.marginBottomFree,
+    "--bn-tablet-margin-left-free": style?.responsive?.tablet?.marginLeftFree,
+    "--bn-mobile-margin-top-free": style?.responsive?.mobile?.marginTopFree,
+    "--bn-mobile-margin-right-free": style?.responsive?.mobile?.marginRightFree,
+    "--bn-mobile-margin-bottom-free": style?.responsive?.mobile?.marginBottomFree,
+    "--bn-mobile-margin-left-free": style?.responsive?.mobile?.marginLeftFree,
+    "--bn-tablet-shadow": style?.responsive?.tablet?.boxShadow,
+    "--bn-tablet-text-shadow": style?.responsive?.tablet?.textShadow,
+    "--bn-tablet-bg-image": style?.responsive?.tablet?.backgroundImage,
+    "--bn-tablet-opacity": style?.responsive?.tablet?.opacity,
+    "--bn-mobile-shadow": style?.responsive?.mobile?.boxShadow,
+    "--bn-mobile-text-shadow": style?.responsive?.mobile?.textShadow,
+    "--bn-mobile-bg-image": style?.responsive?.mobile?.backgroundImage,
+    "--bn-mobile-opacity": style?.responsive?.mobile?.opacity,
+    "--bn-tablet-radius-free": style?.responsive?.tablet?.borderRadius,
+    "--bn-mobile-radius-free": style?.responsive?.mobile?.borderRadius,
+    "--bn-tablet-gap-free": style?.responsive?.tablet?.gap,
+    "--bn-mobile-gap-free": style?.responsive?.mobile?.gap,
+    "--bn-tablet-position": style?.responsive?.tablet?.position,
+    "--bn-tablet-inset-top": style?.responsive?.tablet?.top,
+    "--bn-tablet-inset-right": style?.responsive?.tablet?.right,
+    "--bn-tablet-inset-bottom": style?.responsive?.tablet?.bottom,
+    "--bn-tablet-inset-left": style?.responsive?.tablet?.left,
+    "--bn-mobile-position": style?.responsive?.mobile?.position,
+    "--bn-mobile-inset-top": style?.responsive?.mobile?.top,
+    "--bn-mobile-inset-right": style?.responsive?.mobile?.right,
+    "--bn-mobile-inset-bottom": style?.responsive?.mobile?.bottom,
+    "--bn-mobile-inset-left": style?.responsive?.mobile?.left,
+    "--bn-tablet-z-index": style?.responsive?.tablet?.zIndex,
+    "--bn-tablet-overflow": style?.responsive?.tablet?.overflow,
+    "--bn-mobile-z-index": style?.responsive?.mobile?.zIndex,
+    "--bn-mobile-overflow": style?.responsive?.mobile?.overflow,
+    "--bn-tablet-rotate": style?.responsive?.tablet?.rotate,
+    "--bn-tablet-scale": style?.responsive?.tablet?.scale,
+    "--bn-tablet-translate": style?.responsive?.tablet?.translate,
+    "--bn-tablet-transform-origin": style?.responsive?.tablet?.transformOrigin,
+    "--bn-mobile-rotate": style?.responsive?.mobile?.rotate,
+    "--bn-mobile-scale": style?.responsive?.mobile?.scale,
+    "--bn-mobile-translate": style?.responsive?.mobile?.translate,
+    "--bn-mobile-transform-origin": style?.responsive?.mobile?.transformOrigin,
+    "--bn-tablet-align-self": style?.responsive?.tablet?.alignSelf,
+    "--bn-tablet-flex-grow": style?.responsive?.tablet?.flexGrow,
+    "--bn-tablet-flex-shrink": style?.responsive?.tablet?.flexShrink,
+    "--bn-tablet-flex-basis": style?.responsive?.tablet?.flexBasis,
+    "--bn-mobile-align-self": style?.responsive?.mobile?.alignSelf,
+    "--bn-mobile-flex-grow": style?.responsive?.mobile?.flexGrow,
+    "--bn-mobile-flex-shrink": style?.responsive?.mobile?.flexShrink,
+    "--bn-mobile-flex-basis": style?.responsive?.mobile?.flexBasis,
+    "--bn-tablet-grid-column": style?.responsive?.tablet?.gridColumn,
+    "--bn-tablet-grid-row": style?.responsive?.tablet?.gridRow,
+    "--bn-mobile-grid-column": style?.responsive?.mobile?.gridColumn,
+    "--bn-mobile-grid-row": style?.responsive?.mobile?.gridRow,
+    "--bn-tablet-filter": style?.responsive?.tablet?.filter,
+    "--bn-tablet-backdrop-filter": style?.responsive?.tablet?.backdropFilter,
+    "--bn-tablet-mix-blend-mode": style?.responsive?.tablet?.mixBlendMode,
+    "--bn-mobile-filter": style?.responsive?.mobile?.filter,
+    "--bn-mobile-backdrop-filter": style?.responsive?.mobile?.backdropFilter,
+    "--bn-mobile-mix-blend-mode": style?.responsive?.mobile?.mixBlendMode,
+    "--bn-tablet-justify-content": style?.responsive?.tablet?.justifyContent,
+    "--bn-tablet-align-items": style?.responsive?.tablet?.alignItems,
+    "--bn-tablet-flex-wrap": style?.responsive?.tablet?.flexWrap,
+    "--bn-mobile-justify-content": style?.responsive?.mobile?.justifyContent,
+    "--bn-mobile-align-items": style?.responsive?.mobile?.alignItems,
+    "--bn-mobile-flex-wrap": style?.responsive?.mobile?.flexWrap,
+    "--bn-tablet-grid-template-columns": style?.responsive?.tablet?.gridTemplateColumns,
+    "--bn-tablet-grid-template-rows": style?.responsive?.tablet?.gridTemplateRows,
+    "--bn-tablet-grid-auto-flow": style?.responsive?.tablet?.gridAutoFlow,
+    "--bn-mobile-grid-template-columns": style?.responsive?.mobile?.gridTemplateColumns,
+    "--bn-mobile-grid-template-rows": style?.responsive?.mobile?.gridTemplateRows,
+    "--bn-mobile-grid-auto-flow": style?.responsive?.mobile?.gridAutoFlow,
+    // Hover-state overrides — a single (non-viewport) layer. Each var only renders
+    // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
+    // the static sheet so the override applies only while hovered/focused, and an
+    // unset var never clobbers the resting value.
+    "--bn-hover-bg": style?.hover?.backgroundColor,
+    "--bn-hover-color": style?.hover?.color,
+    "--bn-hover-border-color": style?.hover?.borderColor,
+    "--bn-hover-shadow": style?.hover?.boxShadow,
+    "--bn-hover-scale": style?.hover?.scale,
+    "--bn-hover-translate": style?.hover?.translate,
+    "--bn-hover-opacity": style?.hover?.opacity,
   });
+}
+
+// Map a friendly easing key to a CSS timing-function. "back" overshoots
+// slightly (a tasteful spring feel); "smooth" is the Material standard curve.
+function resolveAnimationEasing(
+  easing: BuilderNodeStyle["animationEasing"],
+): string {
+  switch (easing) {
+    case "linear":
+    case "ease-in":
+    case "ease-out":
+    case "ease-in-out":
+      return easing;
+    case "back":
+      return "cubic-bezier(0.34, 1.56, 0.64, 1)";
+    case "smooth":
+      return "cubic-bezier(0.4, 0, 0.2, 1)";
+    case "ease":
+    default:
+      return "ease";
+  }
 }
 
 function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
@@ -318,11 +797,203 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.radius) out.borderRadius = NODE_RADIUS[style.radius];
   if (style.background === "surface") out.background = "rgba(246, 241, 232, 0.92)";
   if (style.background === "contrast") {
-    out.background = "#111";
+    out.background = "var(--token-color-ink,#111)";
     out.color = "#fff";
   }
   if (style.tone === "muted") out.color = "rgba(18, 18, 18, 0.62)";
-  if (style.tone === "strong") out.color = "#111";
+  if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
+  // Free-value escapes — applied last so they override the token presets above.
+  if (style.fontFamily) out.fontFamily = style.fontFamily;
+  if (style.fontSize) out.fontSize = style.fontSize;
+  if (typeof style.fontWeight === "number") out.fontWeight = style.fontWeight;
+  if (style.lineHeight) out.lineHeight = style.lineHeight;
+  if (style.letterSpacing) out.letterSpacing = style.letterSpacing;
+  if (style.textTransform) out.textTransform = style.textTransform;
+  if (style.fontStyle) out.fontStyle = style.fontStyle;
+  if (style.textDecoration) out.textDecoration = style.textDecoration;
+  // Advanced text controls.
+  if (style.textWrap) {
+    (out as Record<string, unknown>).textWrap = style.textWrap;
+  }
+  if (style.whiteSpace) out.whiteSpace = style.whiteSpace;
+  // Line-clamp truncates to N lines with an ellipsis — needs the -webkit-box
+  // display + vertical orient + hidden overflow together.
+  if (typeof style.lineClamp === "number" && style.lineClamp > 0) {
+    out.display = "-webkit-box";
+    out.WebkitLineClamp = style.lineClamp;
+    out.WebkitBoxOrient = "vertical";
+    out.overflow = "hidden";
+  }
+  if (style.textColor) out.color = style.textColor;
+  if (style.backgroundColor) out.backgroundColor = style.backgroundColor;
+  if (style.borderColor || style.borderWidth || style.borderStyle) {
+    out.borderStyle = style.borderStyle ?? "solid";
+    out.borderWidth = style.borderWidth ?? "1px";
+    if (style.borderColor) out.borderColor = style.borderColor;
+  }
+  // Free border-radius escape — applied after the radius token so an exact value
+  // (or per-corner shorthand) wins over the preset.
+  if (style.borderRadius) out.borderRadius = style.borderRadius;
+  // Free dimension escapes — exact width/height + min/max clamps. width coexists
+  // with the maxWidth token above; maxWidthFree is applied after it so an exact
+  // clamp wins over the preset.
+  if (style.width) out.width = style.width;
+  if (style.height) out.height = style.height;
+  if (style.minHeight) out.minHeight = style.minHeight;
+  if (style.minWidth) out.minWidth = style.minWidth;
+  if (style.maxWidthFree) out.maxWidth = style.maxWidthFree;
+  if (style.maxHeight) out.maxHeight = style.maxHeight;
+  // Free per-side padding — applied after the paddingX/paddingY token so an
+  // exact side overrides the preset.
+  if (style.paddingTop) out.paddingTop = style.paddingTop;
+  if (style.paddingRight) out.paddingRight = style.paddingRight;
+  if (style.paddingBottom) out.paddingBottom = style.paddingBottom;
+  if (style.paddingLeft) out.paddingLeft = style.paddingLeft;
+  // Free per-side margin — applied after the marginTop/marginBottom token so an
+  // exact side overrides the preset (and adds left/right, which have no token).
+  if (style.marginTopFree) out.marginTop = style.marginTopFree;
+  if (style.marginRightFree) out.marginRight = style.marginRightFree;
+  if (style.marginBottomFree) out.marginBottom = style.marginBottomFree;
+  if (style.marginLeftFree) out.marginLeft = style.marginLeftFree;
+  // Surface & depth escapes. A box-shadow layers over the token background; a
+  // background image/gradient is painted cover/center/no-repeat; opacity 0–1.
+  if (style.boxShadow) out.boxShadow = style.boxShadow;
+  if (style.textShadow) out.textShadow = style.textShadow;
+  // Paint a background image at the desktop level AND whenever any breakpoint
+  // sets one, so the paint axes (cover/center/no-repeat defaults, or the free
+  // backgroundSize / backgroundPosition / backgroundRepeat overrides) ride the
+  // inline style across every breakpoint. The responsive bg-image CSS rule only
+  // swaps the image via its var — it never re-forces the paint axes — so a
+  // desktop override (e.g. "contain") is never reset at tablet / mobile.
+  const hasAnyBackgroundImage =
+    style.backgroundImage ||
+    style.responsive?.tablet?.backgroundImage ||
+    style.responsive?.mobile?.backgroundImage;
+  if (style.backgroundImage) out.backgroundImage = style.backgroundImage;
+  if (hasAnyBackgroundImage) {
+    out.backgroundSize = style.backgroundSize ?? "cover";
+    out.backgroundPosition = style.backgroundPosition ?? "center";
+    out.backgroundRepeat = style.backgroundRepeat ?? "no-repeat";
+  }
+  // Gradient/clipped text — paint the background through the text glyphs. Gated
+  // on an actual background paint so we never blank the text, and bundled with
+  // the -webkit- prefix + transparent text fill the technique requires. Set at
+  // the base layer so it cascades to every breakpoint.
+  if (
+    style.backgroundClip === "text" &&
+    (style.backgroundImage || style.backgroundColor)
+  ) {
+    out.backgroundClip = "text";
+    out.WebkitBackgroundClip = "text";
+    out.WebkitTextFillColor = "transparent";
+  }
+  if (typeof style.opacity === "number") out.opacity = style.opacity;
+  // Free gap escape — reassign the --bn-gap variable that every layout consumer
+  // reads. Spread after the node's own --bn-gap (see containerStyle etc.) so the
+  // exact value wins, and inherited by child tracks (carousel) automatically.
+  if (style.gap) out["--bn-gap" as keyof CSSProperties] = style.gap as never;
+  // Positioning escapes — a position context plus inset offsets. Applied after
+  // layout so an explicit position/offset wins; negatives enable overlaps.
+  if (style.position) out.position = style.position;
+  if (style.top) out.top = style.top;
+  if (style.right) out.right = style.right;
+  if (style.bottom) out.bottom = style.bottom;
+  if (style.left) out.left = style.left;
+  // Stacking & clipping escapes — z-index orders overlapping nodes (0 is a
+  // valid value, so test the type); overflow clips/scrolls the node's box.
+  if (typeof style.zIndex === "number") out.zIndex = style.zIndex;
+  if (style.overflow) out.overflow = style.overflow;
+  // Transform escapes — standalone rotate/scale/translate (compose
+  // independently of any position/layout). Applied after positioning so they
+  // layer on top. transformOrigin sets the pivot for rotate/scale.
+  if (style.rotate) out.rotate = style.rotate;
+  if (style.scale) out.scale = style.scale;
+  if (style.translate) out.translate = style.translate;
+  if (style.transformOrigin) out.transformOrigin = style.transformOrigin;
+  // Transition escape — smooths animatable changes (hover/responsive/state). An
+  // explicit value wins; otherwise auto-default to a gentle ease whenever a hover
+  // layer exists so the :hover overrides animate instead of snapping.
+  if (style.transition) out.transition = style.transition;
+  else if (style.hover) out.transition = "all .2s ease";
+  // Flex/grid child placement — how this node sizes/aligns inside its parent
+  // (0 is meaningful for grow/shrink, so test the type). No-op outside flex/grid.
+  if (style.alignSelf) out.alignSelf = style.alignSelf;
+  if (typeof style.flexGrow === "number") out.flexGrow = style.flexGrow;
+  if (typeof style.flexShrink === "number") out.flexShrink = style.flexShrink;
+  if (style.flexBasis) out.flexBasis = style.flexBasis;
+  // Grid child placement — span/line position in a grid parent. No-op elsewhere.
+  if (style.gridColumn) out.gridColumn = style.gridColumn;
+  if (style.gridRow) out.gridRow = style.gridRow;
+  // Flex/grid container layout — distribute this node's OWN children on the main
+  // axis (justifyContent) / cross axis (alignItems) and control row wrapping.
+  // Applied inline so a free value wins over the container's structured align /
+  // hardcoded wrap. No-op on non-flex/grid nodes.
+  if (style.justifyContent) out.justifyContent = style.justifyContent;
+  if (style.alignItems) out.alignItems = style.alignItems;
+  if (style.flexWrap) out.flexWrap = style.flexWrap;
+  // Grid container tracks — free column/row templates + implicit-flow direction.
+  // Applied inline so an exact track definition wins over the container's
+  // structured repeat(columns) grid. No-op on non-grid nodes.
+  if (style.gridTemplateColumns) out.gridTemplateColumns = style.gridTemplateColumns;
+  if (style.gridTemplateRows) out.gridTemplateRows = style.gridTemplateRows;
+  if (style.gridAutoFlow) out.gridAutoFlow = style.gridAutoFlow;
+  // Filter effects — self filter + backdrop frost (with the -webkit- prefix so
+  // backdrop-filter works on Safari).
+  if (style.filter) out.filter = style.filter;
+  if (style.backdropFilter) {
+    out.backdropFilter = style.backdropFilter;
+    out.WebkitBackdropFilter = style.backdropFilter;
+  }
+  // Compositing — blend this node against the backdrop (overlays/duotone).
+  if (style.mixBlendMode) out.mixBlendMode = style.mixBlendMode;
+  // Premium-2026 effect & interaction escapes — applied last so they layer over
+  // everything. clipPath/maskImage carry the -webkit- prefix for Safari;
+  // textStroke maps to -webkit-text-stroke (outlined/hollow glyphs).
+  if (style.clipPath) {
+    out.clipPath = style.clipPath;
+    (out as Record<string, unknown>).WebkitClipPath = style.clipPath;
+  }
+  if (style.maskImage) {
+    (out as Record<string, unknown>).maskImage = style.maskImage;
+    out.WebkitMaskImage = style.maskImage;
+  }
+  if (style.textStroke) {
+    (out as Record<string, unknown>).WebkitTextStroke = style.textStroke;
+  }
+  if (style.cursor) out.cursor = style.cursor;
+  if (style.userSelect) {
+    out.userSelect = style.userSelect;
+    out.WebkitUserSelect = style.userSelect;
+  }
+  if (style.pointerEvents) out.pointerEvents = style.pointerEvents;
+  if (style.scrollSnapType) out.scrollSnapType = style.scrollSnapType;
+  if (style.scrollSnapAlign) out.scrollSnapAlign = style.scrollSnapAlign;
+  if (style.outline) out.outline = style.outline;
+  if (style.outlineOffset) out.outlineOffset = style.outlineOffset;
+  if (style.accentColor) out.accentColor = style.accentColor;
+  if (style.caretColor) out.caretColor = style.caretColor;
+  // Entrance animation — fires on the PUBLISHED page only (the edit canvas uses
+  // a separate renderer, so the inspector won't re-animate on every keystroke).
+  // Maps a friendly preset to a named @keyframe in the static sheet; `both`
+  // fill keeps the end state. Honours prefers-reduced-motion via the sheet.
+  if (style.animationPreset && style.animationPreset !== "none") {
+    const duration = style.animationDuration || "0.6s";
+    const delay = style.animationDelay || "0s";
+    const easing = resolveAnimationEasing(style.animationEasing);
+    out.animation = `bn-anim-${style.animationPreset} ${duration} ${easing} ${delay} both`;
+    if (style.animationTrigger === "scroll") {
+      // CSS scroll-driven animation — progress maps to the node entering the
+      // viewport. Pure CSS; unsupported browsers ignore the timeline and just
+      // play it on load. The view-timeline ignores the duration above.
+      const record = out as Record<string, unknown>;
+      record.animationTimeline = "view()";
+      record.animationRange = "entry 0% cover 35%";
+    }
+  }
+  // Visibility — a desktop-level "hidden" removes the node everywhere (the
+  // breakpoint layers inherit it). Per-breakpoint hides are handled by the
+  // data-attr + media rules in builderNodeStyleAttrs / the static sheet.
+  if (style.visibility === "hidden") out.display = "none";
   return out;
 }
 
@@ -538,22 +1209,22 @@ function ctaGroupStyle(node: Extract<BuilderNode, { kind: "cta_group" }>): CSSPr
   } as const;
   const layout = node.props.layout ?? "row";
   const align = node.props.align ?? "center";
-  const base = {
+  // Structured justify/align come first; sharedNodeStyle is spread LAST so a free
+  // justifyContent / alignItems / flexWrap escape wins over the cta_group preset
+  // (matching the "free always wins" rule the container/split/card paths follow).
+  const structured: CSSProperties =
+    layout === "stack"
+      ? { alignItems: align === "stretch" ? "stretch" : alignMap[align] }
+      : {
+          justifyContent: alignMap[align === "stretch" ? "center" : align],
+          alignItems: "center",
+        };
+  return {
     ...builderNodeStyleVars({
       "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
     }),
+    ...structured,
     ...sharedNodeStyle(node.props.style),
-  };
-  if (layout === "stack") {
-    return {
-      ...base,
-      alignItems: align === "stretch" ? "stretch" : alignMap[align],
-    };
-  }
-  return {
-    ...base,
-    justifyContent: alignMap[align === "stretch" ? "center" : align],
-    alignItems: "center",
   };
 }
 
@@ -862,7 +1533,10 @@ function renderBuilderNode(
             width: "100%",
             maxWidth: "100%",
             objectFit: node.props.style?.objectFit ?? "cover",
-            aspectRatio: NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
+            objectPosition: node.props.style?.objectPosition ?? "center",
+            aspectRatio:
+              node.props.style?.aspectRatioFree ??
+              NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
             ...sharedNodeStyle(node.props.style),
             ...alignSelfStyle(node.props.style),
           }}

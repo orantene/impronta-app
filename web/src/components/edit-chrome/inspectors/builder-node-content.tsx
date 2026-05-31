@@ -29,6 +29,7 @@ import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
+import { MyBlocksPanel } from "./my-blocks-panel";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -1086,7 +1087,7 @@ function NestedBlocksCard({
                         <span className="mt-0.5 block text-[10.5px] leading-snug text-stone-500">
                           {preset.description}
                         </span>
-                        <span className="mt-1 inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-400">
+                        <span className="mt-1 inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
                           {formatPresetLabel(preset.category)} · {preset.sectionCount} blocks
                         </span>
                         <span className="mt-2 flex flex-wrap gap-1">
@@ -1135,6 +1136,7 @@ function NestedBlocksCard({
               </div>
             </details>
           ) : null}
+          <MyBlocksPanel parentNodeId={parentNodeId} />
           {presets.length > 0 ? (
             <details className="rounded-lg border border-stone-200 bg-white px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
@@ -1254,7 +1256,7 @@ function NestedBlocksCard({
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div
                         aria-hidden
-                        className="mt-0.5 inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded-md text-[13px] font-semibold text-stone-400 active:cursor-grabbing"
+                        className="mt-0.5 inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded-md text-[13px] font-semibold text-stone-500 active:cursor-grabbing"
                         title="Drag to reorder"
                       >
                         ⋮⋮

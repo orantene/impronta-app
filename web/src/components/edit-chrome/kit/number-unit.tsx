@@ -157,8 +157,8 @@ export function NumberUnit({
       className={`relative inline-flex items-stretch overflow-visible ${className ?? ""}`}
       style={{
         height: 30,
-        background: CHROME.surface2,
-        border: `1px solid ${CHROME.lineMid}`,
+        background: CHROME.controlFill,
+        border: `1px solid ${CHROME.controlBorder}`,
         borderRadius: 6,
         boxShadow: CHROME_SHADOWS.inputInset,
         width,
@@ -170,7 +170,7 @@ export function NumberUnit({
         e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputFocus;
       }}
       onBlurCapture={(e) => {
-        e.currentTarget.style.borderColor = CHROME.lineMid;
+        e.currentTarget.style.borderColor = CHROME.controlBorder;
         e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputInset;
       }}
     >
@@ -228,7 +228,7 @@ export function NumberUnit({
           outline: "none",
           fontFamily: "inherit",
           fontSize: 12.5,
-          color: value ? CHROME.ink : CHROME.muted2,
+          color: value ? CHROME.ink : CHROME.muted,
           fontVariantNumeric: "tabular-nums",
           padding: 0,
         }}
@@ -272,8 +272,8 @@ export function NumberUnit({
         style={{
           background: "transparent",
           border: "none",
-          borderLeft: `1px solid ${CHROME.line}`,
-          color: CHROME.muted2,
+          borderLeft: `1px solid ${CHROME.controlBorder}`,
+          color: CHROME.muted,
           fontSize: 10,
           fontWeight: 600,
           letterSpacing: "0.04em",

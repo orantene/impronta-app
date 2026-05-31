@@ -33,9 +33,9 @@ export function GenericContent({
   const entry = SECTION_EDITOR_REGISTRY[sectionTypeKey];
   if (!entry) {
     return (
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-stone-500">
         No editor registered for section type{" "}
-        <code className="rounded bg-zinc-100 px-1 py-0.5 text-[11px]">
+        <code className="rounded bg-stone-100 px-1 py-0.5 text-[11px]">
           {sectionTypeKey}
         </code>
         .
@@ -44,12 +44,13 @@ export function GenericContent({
   }
   const Editor = entry.Editor;
   return (
-    <div className="text-sm [&_details]:hidden">
+    <div className="text-sm [&_[data-presentation-panel]]:hidden">
       {/*
-        The registry Editor carries a collapsed <details>Presentation</details>
-        panel for the composer route. We hide it in the inspector (Layout +
-        Style tabs are canonical) via the utility selector above so the
-        generic fallback stays tidy without editing every per-type form.
+        The registry Editor carries a collapsed Presentation panel for the
+        composer route (PresentationPanel, marked data-presentation-panel).
+        We hide ONLY that panel in the inspector (Layout + Style tabs are
+        canonical) — NOT every <details>, so editors are free to use
+        <details> for their own content rows without vanishing here.
       */}
       <Editor
         initial={draftProps as never}

@@ -5,14 +5,13 @@ import { VariantPicker } from "../shared/VariantPicker";
 import { LinkPicker } from "../shared/LinkPicker";
 import { AltTextField } from "../shared/AltTextField";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 import type { SectionEditorProps } from "../types";
 import type { SplitScreenV1 } from "./schema";
 
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL =
-  "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const FIELD = KIT.field;
+const LABEL = KIT.label;
+const INPUT = KIT.input;
 
 export function SplitScreenEditor({
   initial,
@@ -157,8 +156,8 @@ export function SplitScreenEditor({
         </label>
       </div>
 
-      <fieldset className="rounded-md border border-border/60 p-3">
-        <legend className="px-1 text-xs uppercase tracking-wide text-muted-foreground">
+      <fieldset className="rounded-lg border border-[#e5e0d5] p-3">
+        <legend className={`px-1 ${KIT.groupTitle}`}>
           Primary CTA
         </legend>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -192,8 +191,8 @@ export function SplitScreenEditor({
         </div>
       </fieldset>
 
-      <fieldset className="rounded-md border border-border/60 p-3">
-        <legend className="px-1 text-xs uppercase tracking-wide text-muted-foreground">
+      <fieldset className="rounded-lg border border-[#e5e0d5] p-3">
+        <legend className={`px-1 ${KIT.groupTitle}`}>
           Secondary CTA
         </legend>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">

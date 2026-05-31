@@ -49,6 +49,7 @@ export function PresentationPanel({ value, onChange, hideAlign }: Props) {
 
   return (
     <details
+      data-presentation-panel
       className="rounded-md border border-border/60 bg-muted/30 p-3"
       open={false}
     >

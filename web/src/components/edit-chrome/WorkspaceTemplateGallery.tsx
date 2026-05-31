@@ -571,7 +571,7 @@ export function WorkspaceTemplateGallery({
                             className={
                               template.mode === "data-ready"
                                 ? "rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300"
-                                : "rounded-full bg-zinc-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300"
+                                : "rounded-full bg-stone-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-stone-600 dark:text-stone-300"
                             }
                           >
                             {template.mode === "data-ready" ? "Data ready" : "Starter"}
@@ -910,7 +910,7 @@ function WorkspaceTemplateApplyReviewDialog({
   return (
     <div
       data-workspace-template-apply-review={template.id}
-      className="fixed inset-0 z-[135] flex items-center justify-center bg-zinc-950/45 px-4 py-6"
+      className="fixed inset-0 z-[135] flex items-center justify-center bg-stone-950/45 px-4 py-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby={`workspace-template-apply-title-${template.id}`}
@@ -918,10 +918,10 @@ function WorkspaceTemplateApplyReviewDialog({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white text-zinc-950 shadow-2xl ring-1 ring-black/10">
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4">
+      <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white text-stone-950 shadow-2xl ring-1 ring-black/10">
+        <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
               Review saved template
             </div>
             <h4
@@ -930,7 +930,7 @@ function WorkspaceTemplateApplyReviewDialog({
             >
               Apply {template.name}
             </h4>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">
               Applying a saved template clones its sections into this workspace
               and replaces the homepage draft composition. Existing sections are
               kept in the section library.
@@ -939,7 +939,7 @@ function WorkspaceTemplateApplyReviewDialog({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 transition hover:bg-stone-50 hover:text-stone-900"
             aria-label="Close saved template review"
           >
             <svg
@@ -960,10 +960,10 @@ function WorkspaceTemplateApplyReviewDialog({
         </div>
 
         <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold">Current draft</div>
-              <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">
+              <span className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-500">
                 {currentDraftSections.length} sections
               </span>
             </div>
@@ -974,15 +974,15 @@ function WorkspaceTemplateApplyReviewDialog({
               {currentDraftSections.slice(0, 12).map((section, index) => (
                 <li
                   key={section.id}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2"
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2"
                 >
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
-                    <span className="text-[10px] font-semibold tabular-nums text-zinc-400">
+                  <div className="flex items-center gap-2 text-sm font-medium text-stone-800">
+                    <span className="text-[10px] font-semibold tabular-nums text-stone-500">
                       {index + 1}
                     </span>
                     <span className="min-w-0 truncate">{section.name}</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-500">
+                  <div className="mt-1 text-[11px] text-stone-500">
                     {section.slotLabel} · {section.typeLabel}
                   </div>
                 </li>
@@ -1006,13 +1006,13 @@ function WorkspaceTemplateApplyReviewDialog({
                   key={`${template.id}-review-${section.slotKey}-${section.sortOrder}-${index}`}
                   className="rounded-lg border border-indigo-100 bg-white px-3 py-2"
                 >
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
+                  <div className="flex items-center gap-2 text-sm font-medium text-stone-800">
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[10px] font-semibold tabular-nums text-indigo-700">
                       {index + 1}
                     </span>
                     <span className="min-w-0 truncate">{section.name}</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-500">
+                  <div className="mt-1 text-[11px] text-stone-500">
                     {section.slotKey} · {section.label}
                   </div>
                 </li>
@@ -1021,12 +1021,12 @@ function WorkspaceTemplateApplyReviewDialog({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-zinc-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
           >
             Keep current draft
           </button>
@@ -1058,7 +1058,7 @@ function WorkspaceTemplateArchiveDialog({
   return (
     <div
       data-workspace-template-archive-review={template.id}
-      className="fixed inset-0 z-[135] flex items-center justify-center bg-zinc-950/45 px-4 py-6"
+      className="fixed inset-0 z-[135] flex items-center justify-center bg-stone-950/45 px-4 py-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby={`workspace-template-archive-title-${template.id}`}
@@ -1066,9 +1066,9 @@ function WorkspaceTemplateArchiveDialog({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white text-zinc-950 shadow-2xl ring-1 ring-black/10">
-        <div className="border-b border-zinc-200 px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white text-stone-950 shadow-2xl ring-1 ring-black/10">
+        <div className="border-b border-stone-200 px-5 py-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Archive template
           </div>
           <h4
@@ -1077,7 +1077,7 @@ function WorkspaceTemplateArchiveDialog({
           >
             Archive {template.name}
           </h4>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+          <p className="mt-2 text-sm leading-relaxed text-stone-500">
             This removes the template from the gallery without deleting the
             saved row. Published pages and existing section library entries are
             not changed.
@@ -1085,18 +1085,18 @@ function WorkspaceTemplateArchiveDialog({
         </div>
 
         <div className="px-5 py-5">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-zinc-950">
+                <div className="text-sm font-semibold text-stone-950">
                   {template.name}
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                <p className="mt-1 text-xs leading-relaxed text-stone-500">
                   {template.description ||
                     "Saved from a real draft composition."}
                 </p>
               </div>
-              <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">
+              <span className="shrink-0 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-500">
                 {template.sectionCount} sections
               </span>
             </div>
@@ -1105,7 +1105,7 @@ function WorkspaceTemplateArchiveDialog({
                 {template.typeSummary.slice(0, 5).map((label) => (
                   <span
                     key={`${template.id}-archive-${label}`}
-                    className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-500"
+                    className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-500"
                   >
                     {label}
                   </span>
@@ -1115,12 +1115,12 @@ function WorkspaceTemplateArchiveDialog({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-zinc-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:opacity-50"
           >
             Keep template
           </button>

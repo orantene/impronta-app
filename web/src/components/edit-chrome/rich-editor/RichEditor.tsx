@@ -33,6 +33,7 @@ import {
 } from "lexical";
 
 import { AccentNode } from "./nodes/AccentNode";
+import { ColorNode } from "./nodes/ColorNode";
 import { markerStringToNodes } from "./transformers/markerToLexical";
 import { richEditorTheme } from "./theme";
 import { ToolbarPlugin } from "./plugins/ToolbarPlugin";
@@ -113,7 +114,7 @@ export function RichEditor({
   const initialConfig = {
     namespace: "phase-c-rich-editor",
     theme: richEditorTheme,
-    nodes: [AccentNode, LinkNode],
+    nodes: [AccentNode, ColorNode, LinkNode],
     editable: !readOnly,
     onError: (error: Error) => {
       logServerError("inline_editor", error);
@@ -142,7 +143,7 @@ export function RichEditor({
                 aria-label={ariaLabel ?? "Rich text editor"}
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="pointer-events-none absolute left-3 top-2 text-[13px] text-stone-400">
+                  <div className="pointer-events-none absolute left-3 top-2 text-[13px] text-stone-500">
                     {placeholder}
                   </div>
                 }

@@ -105,7 +105,7 @@ function GalleryTileRow({
             }}
           />
         ) : (
-          <div className="text-[9px] font-medium text-zinc-400">No src</div>
+          <div className="text-[9px] font-medium text-stone-500">No src</div>
         )
       }
       trailing={<InspectorRowDelete onClick={onRemove} />}
@@ -117,7 +117,7 @@ function GalleryTileRow({
              
             autoFocus
             type="text"
-            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+            className="w-full rounded-lg border border-[#cfc7b6] bg-white px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
             value={item.alt ?? ""}
             maxLength={160}
             placeholder="Describe this image…"
@@ -132,14 +132,14 @@ function GalleryTileRow({
         ) : (
           <button
             type="button"
-            className="text-left text-[11px] truncate transition hover:text-zinc-800"
+            className="text-left text-[11px] truncate transition hover:text-stone-800"
             onClick={() => setEditingAlt(true)}
             title="Click to add alt text"
           >
             {item.alt ? (
-              <span className="text-zinc-700">{item.alt}</span>
+              <span className="text-stone-700">{item.alt}</span>
             ) : (
-              <span className="italic text-zinc-400">Add alt text</span>
+              <span className="italic text-stone-500">Add alt text</span>
             )}
           </button>
         )}
@@ -148,7 +148,7 @@ function GalleryTileRow({
         <button
           type="button"
           onClick={cycleAspect}
-          className="w-fit rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 transition hover:bg-zinc-200"
+          className="w-fit rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 transition hover:bg-stone-200"
           title="Click to change aspect ratio"
           aria-label={`Aspect: ${ASPECT_LABEL[aspect]}. Click to cycle.`}
         >
@@ -230,15 +230,15 @@ function EmptyTray() {
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-zinc-400"
+        className="text-stone-400"
         aria-hidden
       >
         <rect x="3" y="3" width="18" height="18" rx="2" />
         <circle cx="9" cy="9" r="1.5" />
         <path d="M21 15l-5-5-11 11" />
       </svg>
-      <div className="text-[11px] font-medium text-zinc-500">No photos yet</div>
-      <div className="text-[10px] text-zinc-400">
+      <div className="text-[11px] font-medium text-stone-500">No photos yet</div>
+      <div className="text-[10px] text-stone-500">
         Add at least 3 to publish this section.
       </div>
     </div>
@@ -375,7 +375,7 @@ export function GalleryStripContentInspector({
           <span className={KIT.sectionTitle}>
             Photos
             {rawItems.length > 0 && (
-              <span className="ml-1.5 tabular-nums text-zinc-400">
+              <span className="ml-1.5 tabular-nums text-stone-500">
                 ({rawItems.length})
               </span>
             )}

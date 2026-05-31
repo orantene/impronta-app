@@ -69,6 +69,12 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
+import { CanvasResizeHandles } from "./canvas-resize-handles";
+import {
+  CanvasSpacingHandles,
+  type PaddingSide,
+} from "./canvas-spacing-handles";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
@@ -168,8 +174,13 @@ const CHIP_SHADOW =
   "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
 const RAIL_SHADOW =
   "0 8px 22px -8px rgba(0,0,0,0.32), 0 1px 3px rgba(0,0,0,0.16), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.10)";
-const CANVAS_SELECTION_RADIUS = 0;
-const CANVAS_CHROME_RADIUS = 0;
+// Rounded to match the rest of the editor chrome (topbar popovers + drawers
+// are 8–10px). Were both 0, which left every canvas surface — selection
+// chip, context menu, breadcrumb, insert menu, children panel — hard-square
+// and visually detached from everything else. Selection ring gets a gentle
+// round; floating cards get the standard popover radius.
+const CANVAS_SELECTION_RADIUS = 6;
+const CANVAS_CHROME_RADIUS = 8;
 
 interface DropTarget {
   slotKey: string;
@@ -222,12 +233,6 @@ interface NodeInsertTarget {
   index?: number;
 }
 
-interface SelectionBreadcrumbCrumb {
-  id: string | null;
-  sectionId?: string | null;
-  kind: BuilderNodeKind | "page";
-  label: string;
-}
 
 interface SelectionContextMenuState {
   x: number;
@@ -316,6 +321,7 @@ export function SelectionLayer() {
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
+    patchBuilderNodeProps,
     reportMutationError,
     advancedElementLibraryEnabled,
   } = useEditContext();
@@ -1043,6 +1049,148 @@ export function SelectionLayer() {
   const chipPrimaryType = selectedNodeIsEditableBlock
     ? "Block"
     : chipType;
+  // Show the type label only when it adds information — most sections derive
+  // a name equal to their humanized type ("Featured Talent"), which made the
+  // chip print the same words twice. Hoisted (not inline in JSX) to keep the
+  // React Compiler's memoization analysis of the breadcrumb useMemo stable.
+  const showChipType =
+    chipPrimaryType.trim().length > 0 &&
+    chipPrimaryType.trim().toLowerCase() !==
+      chipPrimaryLabel.trim().toLowerCase();
+  // ── Direct manipulation: canvas width-resize handle ──────────────────
+  // First slice. Show a drag handle on a freeform block's right edge that
+  // writes the free `style.width` escape — the same prop the inspector's
+  // width field sets — so a designer can size a block by dragging instead
+  // of typing a number. Desktop only for now (tablet/mobile would need the
+  // responsive-style nesting); editable freeform blocks only (curated-role
+  // nodes own their width). Commits once on release through the normal
+  // patch flow, so undo/redo and persistence come for free.
+  const canResizeSelectedNode =
+    selectedNodeIsEditableBlock && device === "desktop";
+  const commitSelectedNodeSize = useCallback(
+    (dims: { width?: number | null; height?: number | null }) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      // Clear any leftover inline preview written during a drag, so a reset
+      // (null) visibly returns the element to content-driven size instead of
+      // being masked by the stale inline style until the next refresh.
+      const liveEl = getSelectedBuilderNodeEl();
+      // number → set px · null → clear back to auto · undefined → leave as-is
+      if (typeof dims.width === "number") {
+        nextStyle.width = `${Math.round(dims.width)}px`;
+      } else if (dims.width === null) {
+        delete nextStyle.width;
+        if (liveEl) liveEl.style.width = "";
+      }
+      if (typeof dims.height === "number") {
+        nextStyle.height = `${Math.round(dims.height)}px`;
+      } else if (dims.height === null) {
+        delete nextStyle.height;
+        if (liveEl) liveEl.style.height = "";
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
+  );
+  const commitSelectedNodePadding = useCallback(
+    (side: PaddingSide, px: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const key =
+        side === "top"
+          ? "paddingTop"
+          : side === "right"
+            ? "paddingRight"
+            : side === "bottom"
+              ? "paddingBottom"
+              : "paddingLeft";
+      void patchBuilderNodeProps(selectedBuilderNodeId, {
+        style: { ...currentStyle, [key]: `${Math.round(px)}px` },
+      });
+    },
+    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+  );
+  const commitSelectedNodeTranslate = useCallback(
+    (x: number, y: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      // 0,0 → drop the escape entirely (back to natural position).
+      if (Math.round(x) === 0 && Math.round(y) === 0) {
+        delete nextStyle.translate;
+      } else {
+        nextStyle.translate = `${Math.round(x)}px ${Math.round(y)}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
+  );
+  // Keyboard nudge — arrow keys move the selected freeform block by translate
+  // (1px, or 10px with Shift). Complements the centre move grip for precise
+  // positioning. Gated so it never hijacks typing or panel/tree navigation:
+  // only fires when focus is on the canvas itself (or nothing).
+  useEffect(() => {
+    if (!canResizeSelectedNode) return;
+    const DELTAS: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    };
+    function onNudge(e: KeyboardEvent) {
+      const delta = DELTAS[e.key];
+      if (!delta) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const ae = document.activeElement;
+      // Only act when focus is on the page body / canvas — never while an
+      // input, the navigator tree, or the inspector panel has focus.
+      // Guard `closest` — activeElement is usually an Element but can be a
+      // non-Element (e.g. an SVG/foreign node) where closest is absent.
+      const onCanvas =
+        !ae ||
+        ae === document.body ||
+        (typeof (ae as Element).closest === "function" &&
+          !!(ae as Element).closest(
+            "[data-cms-section], [data-builder-node-id]",
+          ));
+      if (!onCanvas) return;
+      const el = getSelectedBuilderNodeEl();
+      if (!el) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const cur = parseTranslate(getComputedStyle(el).translate);
+      const nx = cur.x + delta[0] * step;
+      const ny = cur.y + delta[1] * step;
+      // Immediate inline preview so rapid presses accumulate without waiting
+      // for the round-trip; the commit then persists it.
+      el.style.translate = `${nx}px ${ny}px`;
+      commitSelectedNodeTranslate(nx, ny);
+    }
+    window.addEventListener("keydown", onNudge);
+    return () => window.removeEventListener("keydown", onNudge);
+  }, [
+    canResizeSelectedNode,
+    getSelectedBuilderNodeEl,
+    commitSelectedNodeTranslate,
+  ]);
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
@@ -1081,30 +1229,6 @@ export function SelectionLayer() {
     selectedNodePath,
     advancedElementLibraryEnabled,
   ]);
-  const selectionBreadcrumb = useMemo<SelectionBreadcrumbCrumb[]>(() => {
-    if (!selectedSectionId) return [];
-    const crumbs: SelectionBreadcrumbCrumb[] = [
-      { id: null, kind: "page", label: "Page" },
-    ];
-    if (selectedNodePath.length === 0) {
-      crumbs.push({
-        id: null,
-        sectionId: selectedSectionId,
-        kind: "section",
-        label: chipLabel,
-      });
-      return crumbs;
-    }
-    for (const node of selectedNodePath) {
-      crumbs.push({
-        id: node.id,
-        sectionId: node.kind === "section" ? selectedSectionId : null,
-        kind: node.kind,
-        label: builderNodeCrumbLabel(node, chipLabel),
-      });
-    }
-    return crumbs;
-  }, [chipLabel, selectedNodePath, selectedSectionId]);
   const canInsertIntoSelectedNode =
     !!selectedCanvasNodeId && selectedNodeAllowedKinds.length > 0;
   const canRemoveSelectedNode =
@@ -1540,17 +1664,37 @@ export function SelectionLayer() {
             }}
           />
 
-          <SelectionBreadcrumb
-            crumbs={selectionBreadcrumb}
-            selectedRect={renderSelectedRect}
-            isScrolling={isScrollingRef.current}
-            isDragging={isDragging}
-            onSelectNode={selectBuilderNode}
-            onSelectSection={(sectionId) => {
-              if (sectionId === null) setSelectedSectionId(null);
-              else focusSectionForEdit(sectionId);
-            }}
-          />
+          {/* Breadcrumb bar removed (2026-05-30): it was a confusing second
+              floating row that duplicated the toolbar's context, and its only
+              unique job — jumping to a parent — is covered by the navigator
+              panel. One bar is clearer. */}
+
+          {/* Direct manipulation — drag the right edge to set width. */}
+          {canResizeSelectedNode && !isDragging ? (
+            <CanvasResizeHandles
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommit={commitSelectedNodeSize}
+            />
+          ) : null}
+
+          {/* Direct manipulation — drag the inner bars to set padding. */}
+          {canResizeSelectedNode && !isDragging ? (
+            <CanvasSpacingHandles
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitPadding={commitSelectedNodePadding}
+            />
+          ) : null}
+
+          {/* Direct manipulation — drag the centre grip to move (translate). */}
+          {canResizeSelectedNode && !isDragging ? (
+            <CanvasMoveHandle
+              rect={renderSelectedRect}
+              liveEl={getSelectedBuilderNodeEl()}
+              onCommitTranslate={commitSelectedNodeTranslate}
+            />
+          ) : null}
 
           {drag.phase === "idle" && (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
@@ -1613,7 +1757,10 @@ export function SelectionLayer() {
                     fontSize: 11,
                     fontWeight: 600,
                     letterSpacing: "0.01em",
+                    transition: "background 110ms ease",
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg
                     width="13"
@@ -1664,7 +1811,10 @@ export function SelectionLayer() {
                     fontSize: 11,
                     fontWeight: 600,
                     letterSpacing: "0.01em",
+                    transition: "background 110ms ease",
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(196,61,61,0.22)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <span>Remove</span>
                 </button>
@@ -1802,8 +1952,11 @@ export function SelectionLayer() {
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
               position: "fixed",
-              // Pin just above the section (within top-bar boundary).
-              top: Math.max(renderSelectedRect.top - 38, 56),
+              // Sit just above the element, clamped below the top bar. The old
+              // +28 breadcrumb-clearance is gone now that the breadcrumb bar is
+              // removed, so the toolbar floats closer to the element and covers
+              // less of the content above it.
+              top: Math.max(renderSelectedRect.top - 38, 58),
               left: renderSelectedRect.left,
               height: 34,
               display: "inline-flex",
@@ -1918,35 +2071,41 @@ export function SelectionLayer() {
                 </span>
               ) : null}
 
-              {/* Divider + type label */}
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 0,
-                }}
-              >
+              {/* Divider + type label — only when the type adds information.
+               *  For most sections the auto-derived name equals the humanized
+               *  type (e.g. "Featured Talent"), which made the chip read the
+               *  same words twice ("FEATURED TALENT  FEATURED TALENT"). Skip
+               *  the type when it just echoes the name. */}
+              {showChipType ? (
                 <span
                   style={{
-                    width: 1,
-                    height: 16,
-                    background: "rgba(255,255,255,0.16)",
-                    margin: "0 4px",
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: "0.10em",
-                    textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.55)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0,
                   }}
                 >
-                  {chipPrimaryType}
+                  <span
+                    style={{
+                      width: 1,
+                      height: 16,
+                      background: "rgba(255,255,255,0.16)",
+                      margin: "0 4px",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: "0.10em",
+                      textTransform: "uppercase",
+                      color: "rgba(255,255,255,0.55)",
+                    }}
+                  >
+                    {chipPrimaryType}
+                  </span>
                 </span>
-              </span>
+              ) : null}
             </div>
 
             {/* Toolbar buttons.
@@ -2476,155 +2635,6 @@ function ContextMenuButton({
   );
 }
 
-function SelectionBreadcrumb({
-  crumbs,
-  selectedRect,
-  isScrolling,
-  isDragging,
-  onSelectNode,
-  onSelectSection,
-}: {
-  crumbs: SelectionBreadcrumbCrumb[];
-  selectedRect: Rect;
-  isScrolling: boolean;
-  isDragging: boolean;
-  onSelectNode: (nodeId: string) => void;
-  onSelectSection: (sectionId: string | null) => void;
-}) {
-  if (crumbs.length <= 1) return null;
-  const visibleCrumbs =
-    crumbs.length > 5
-      ? [
-          crumbs[0],
-          { id: null, kind: "page" as const, label: "..." },
-          ...crumbs.slice(-3),
-        ]
-      : crumbs;
-  return (
-    <nav
-      aria-label="Selection breadcrumb"
-      data-edit-overlay="selection-breadcrumb"
-      data-selection-breadcrumb=""
-      style={{
-        position: "fixed",
-        top: Math.max(selectedRect.top - 68, 56),
-        left: selectedRect.left,
-        maxWidth: Math.min(selectedRect.width, 520),
-        minHeight: 24,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "3px 5px",
-        borderRadius: CANVAS_CHROME_RADIUS,
-        border: "1px solid rgba(255,255,255,0.10)",
-        background: "rgba(36,41,66,0.92)",
-        color: "white",
-        boxShadow: RAIL_SHADOW,
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        zIndex: 96,
-        pointerEvents: "auto",
-        opacity: isDragging ? 0 : 1,
-        transition: isScrolling
-          ? "opacity 120ms linear"
-          : "top 80ms linear, left 80ms linear, opacity 120ms linear",
-        overflow: "hidden",
-        fontFamily:
-          'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
-        userSelect: "none",
-      }}
-    >
-      {visibleCrumbs.map((crumb, index) => {
-        const isPage = crumb.kind === "page" && crumb.label !== "...";
-        const isEllipsis = crumb.label === "...";
-        const isLast = index === visibleCrumbs.length - 1;
-        const title = isPage
-          ? "Page root"
-          : isEllipsis
-            ? "Collapsed parents"
-            : `Select ${crumb.label}`;
-        return (
-          <span
-            key={`${crumb.id ?? crumb.label}-${index}`}
-            style={{
-              minWidth: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {index > 0 ? (
-              <span
-                aria-hidden
-                style={{
-                  color: "rgba(255,255,255,0.34)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
-                /
-              </span>
-            ) : null}
-            {isPage || isEllipsis ? (
-              <span
-                title={title}
-                data-selection-breadcrumb-item={crumb.kind}
-                style={{
-                  maxWidth: 150,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  padding: "2px 6px",
-                  borderRadius: CANVAS_CHROME_RADIUS,
-                  color: isEllipsis
-                    ? "rgba(255,255,255,0.50)"
-                    : "rgba(255,255,255,0.62)",
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {crumb.label}
-              </span>
-            ) : (
-              <button
-                type="button"
-                title={title}
-                aria-current={isLast ? "page" : undefined}
-                data-selection-breadcrumb-item={crumb.kind}
-                onClick={() => {
-                  if (crumb.id) {
-                    onSelectNode(crumb.id);
-                    return;
-                  }
-                  if (crumb.sectionId) onSelectSection(crumb.sectionId);
-                }}
-                style={{
-                  maxWidth: isLast ? 220 : 150,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  padding: "2px 7px",
-                  borderRadius: CANVAS_CHROME_RADIUS,
-                  border: "none",
-                  background: isLast
-                    ? "rgba(255,255,255,0.14)"
-                    : "transparent",
-                  color: isLast ? "white" : "rgba(255,255,255,0.76)",
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {crumb.label}
-              </button>
-            )}
-          </span>
-        );
-      })}
-    </nav>
-  );
-}
 
 function CanvasNodeInsertMenu({
   selectedRect,
@@ -2718,7 +2728,10 @@ function CanvasNodeInsertMenu({
             cursor: "pointer",
             padding: 0,
             flexShrink: 0,
+            transition: "background 110ms ease",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
           ×
         </button>
@@ -2929,7 +2942,10 @@ function CanvasNodeChildrenPanel({
               padding: 0,
               fontSize: 14,
               lineHeight: 1,
+              transition: "background 110ms ease",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             ×
           </button>

@@ -255,7 +255,7 @@ export function PublishPreflight({
           <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
             Advisory — non-blocking ({warningIssues.length})
           </div>
-          <ul className="flex flex-col gap-1.5 text-zinc-800">
+          <ul className="flex flex-col gap-1.5 text-stone-800">
             {warningIssues.map((issue, index) =>
               renderIssue(issue, blockingIssues.length + index),
             )}

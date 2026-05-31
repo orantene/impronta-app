@@ -31,18 +31,28 @@
  */
 export const KIT = {
   sectionTitle:
-    "text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-400",
+    "text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500",
   groupTitle:
     "text-[11px] font-semibold uppercase tracking-[0.10em] text-stone-500",
   label:
     "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-600",
-  hint: "text-[11.5px] leading-snug text-stone-400",
+  hint: "text-[11.5px] leading-snug text-stone-500",
+  // 2026-05-29 affordance pass: idle fields now carry a clearly visible
+  // warm border (#cfc7b6) + a white "well" fill that separates the control
+  // from the warm paper/white-card ground. Hover deepens the border,
+  // focus snaps to indigo + a confident ring. Reverses the 2026-04-30
+  // borderless "restraint" pass, which left fields reading as flat text.
   input:
-    "w-full rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2 text-[13px] text-stone-800 placeholder:text-stone-400 hover:border-[#e5e0d5] focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/25 transition-[border-color,box-shadow,background-color] duration-150",
+    "w-full rounded-lg border border-[#cfc7b6] bg-white px-3 py-2 text-[13px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow,background-color] duration-150",
   inputLg:
-    "w-full rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 text-[15px] leading-snug text-stone-800 placeholder:text-stone-400 hover:border-[#e5e0d5] focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/25 transition-[border-color,box-shadow,background-color] duration-150",
+    "w-full rounded-lg border border-[#cfc7b6] bg-white px-3 py-2.5 text-[15px] leading-snug text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow,background-color] duration-150",
   textarea:
-    "w-full resize-y rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2 text-[13px] leading-snug text-stone-800 placeholder:text-stone-400 hover:border-[#e5e0d5] focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/25 transition-[border-color,box-shadow,background-color] duration-150",
+    "w-full resize-y rounded-lg border border-[#cfc7b6] bg-white px-3 py-2 text-[13px] leading-snug text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow,background-color] duration-150",
+  // Native-arrow select. `appearance` is left native so the dropdown
+  // affordance (chevron) is universally recognised; `[color-scheme:light]`
+  // keeps the OS option popup light + legible regardless of system theme.
+  select:
+    "w-full cursor-pointer rounded-lg border border-[#cfc7b6] bg-white px-3 py-2 pr-8 text-[13px] text-stone-800 [color-scheme:light] hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow] duration-150",
   field: "flex flex-col gap-1.5",
   row: "flex items-center gap-2",
 
@@ -73,5 +83,5 @@ export const KIT = {
   enumChipOn:
     "rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition active:scale-[0.98]",
   enumChipOff:
-    "rounded-lg border border-transparent bg-[#faf9f6] px-2.5 py-1 text-xs font-medium text-stone-500 transition active:scale-[0.98] hover:bg-white hover:border-[#e5e0d5] hover:text-stone-700",
+    "rounded-lg border border-[#dcd5c7] bg-white px-2.5 py-1 text-xs font-medium text-stone-600 transition active:scale-[0.98] hover:border-[#b3a892] hover:text-stone-800",
 } as const;

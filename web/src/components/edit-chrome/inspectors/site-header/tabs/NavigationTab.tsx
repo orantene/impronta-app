@@ -195,7 +195,7 @@ function NavRow({
       <div className="flex min-w-0 flex-1 flex-col gap-0">
         <input
           type="text"
-          className="w-full cursor-text rounded-sm border-0 bg-transparent px-1.5 py-0.5 text-[13px] font-medium text-stone-800 placeholder:text-stone-400 transition-colors duration-150 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none"
+          className="w-full cursor-text rounded-sm border-0 bg-transparent px-1.5 py-0.5 text-[13px] font-medium text-stone-800 placeholder:text-stone-500 transition-colors duration-150 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none"
           placeholder="Link label"
           value={labelDraft}
           maxLength={60}
@@ -217,7 +217,7 @@ function NavRow({
         <input
           type="text"
           className={`w-full cursor-text rounded-sm border-0 bg-transparent px-1.5 py-0 font-mono text-[10.5px] transition-colors duration-150 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none ${
-            hrefWarn ? "text-amber-700" : "text-stone-400"
+            hrefWarn ? "text-amber-700" : "text-stone-500"
           }`}
           placeholder="/path or https://…"
           value={hrefDraft}
@@ -250,7 +250,7 @@ function NavRow({
           onClick={() => onChange({ visible: !row.visible })}
           aria-label={row.visible ? "Hide link" : "Show link"}
           title={row.visible ? "Hide" : "Show"}
-          className="inline-flex size-6 items-center justify-center rounded text-stone-400 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700"
+          className="inline-flex size-6 items-center justify-center rounded text-stone-500 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700"
         >
           {row.visible ? <EyeGlyph /> : <EyeOffGlyph />}
         </button>
@@ -259,7 +259,7 @@ function NavRow({
           onClick={onRemove}
           aria-label="Remove link"
           title="Remove"
-          className="inline-flex size-6 items-center justify-center rounded text-stone-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600"
+          className="inline-flex size-6 items-center justify-center rounded text-stone-500 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600"
         >
           <TrashGlyph />
         </button>
@@ -271,7 +271,7 @@ function NavRow({
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#e5e0d5] bg-[#faf9f6]/60 px-4 py-10 text-center">
-      <span className="inline-flex size-9 items-center justify-center rounded-full bg-white text-stone-400">
+      <span className="inline-flex size-9 items-center justify-center rounded-full bg-white text-stone-500">
         <LinksGlyph />
       </span>
       <div className="flex flex-col gap-1">

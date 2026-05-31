@@ -136,7 +136,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
       {open ? (
         <div className="flex flex-col gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/40 p-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
               Or extract from a website URL
             </label>
             <div className="flex items-center gap-1">
@@ -145,7 +145,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="flex-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+                className="flex-1 rounded-lg border border-[#cfc7b6] bg-white px-2 py-1.5 text-[12px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
                 disabled={extractPending}
               />
               <button
@@ -171,7 +171,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
               setError(null);
             }}
             placeholder={SUGGESTED_FORMAT}
-            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2 font-mono text-[11px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+            className="w-full rounded-lg border border-[#cfc7b6] bg-white px-3 py-2 font-mono text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
             spellCheck={false}
           />
           <div className="flex items-center justify-between">

@@ -13,6 +13,7 @@ import {
 import { $createLinkNode } from "@lexical/link";
 
 import { $createAccentNode } from "../nodes/AccentNode";
+import { $createColorNode } from "../nodes/ColorNode";
 import { tokenize } from "./tokens";
 
 /** Marker string → flat list of Lexical leaf nodes. */
@@ -29,6 +30,9 @@ export function markerStringToNodes(input: string): LexicalNode[] {
         break;
       case "accent":
         out.push($createAccentNode(t.text));
+        break;
+      case "color":
+        out.push($createColorNode(t.text, t.color));
         break;
       case "bold": {
         const n = $createTextNode(t.text);

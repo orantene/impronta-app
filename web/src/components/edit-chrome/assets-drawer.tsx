@@ -581,6 +581,10 @@ export function AssetsDrawer(): ReactElement | null {
               style={ghostBtnStyle(
                 busy === "loading" || (items?.length ?? 0) === 0,
               )}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(42,49,71,0.06)";
+              }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = CHROME.surface; }}
             >
               Select
             </button>
@@ -632,6 +636,12 @@ export function AssetsDrawer(): ReactElement | null {
                 onClick={handleUploadClick}
                 disabled={uploading}
                 style={primaryBtnStyle(uploading)}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) e.currentTarget.style.background = "#344569";
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.disabled) e.currentTarget.style.background = CHROME.accent;
+                }}
               >
                 <span className="inline-flex items-center gap-1.5">
                   <UploadIcon />
@@ -693,7 +703,10 @@ function SearchInput({
           style={{
             background: "transparent",
             color: CHROME.muted,
+            transition: "background 110ms ease",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(42,49,71,0.06)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           aria-label="Clear search"
           title="Clear"
         >

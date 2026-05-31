@@ -29,6 +29,7 @@ import {
   resolveBuilderNodeRole,
   type BuilderNode,
   type BuilderNodeRole,
+  type BuilderNodeHoverStyle,
   type BuilderNodeStyle,
   type BuilderNodeStyleValue,
 } from "@/lib/site-admin/builder-node";
@@ -42,16 +43,28 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ColorPickerPopover } from "../kit/color-picker";
 import { useEditContext } from "../edit-context";
+import { GoogleFontPicker } from "../GoogleFontPicker";
+import {
+  NumberUnit,
+  formatLength,
+  type LengthUnit,
+  type LengthValue,
+} from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
+import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
+import { StylePresetsBar } from "./style-presets-bar";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
+// 2026-05-29 readability pass: warm stone (matches the kit) instead of cold
+// zinc, and INHERIT_HINT lifted off the AA-failing zinc-400 (~2.5:1) to a
+// legible stone-500 (~4.9:1). Labels nudged +0.5px for clarity.
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
 const FIELD_LABEL =
-  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
-const HINT = "text-[10.5px] leading-tight text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-400";
+  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
+const HINT = "text-[11px] leading-tight text-stone-500";
+const INHERIT_HINT = "text-[11px] text-stone-500";
 
 // Approximate hex for each background palette token. Real tenant rendering
 // uses CSS variables from token-presets.css — these swatches are inspector
@@ -272,6 +285,240 @@ const BUILDER_BUTTON_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "secondary", label: "Secondary" },
 ];
 
+const BUILDER_NODE_FONT_WEIGHT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Auto" },
+  { value: "300", label: "Light" },
+  { value: "400", label: "Reg" },
+  { value: "500", label: "Med" },
+  { value: "600", label: "Semi" },
+  { value: "700", label: "Bold" },
+];
+
+const BUILDER_NODE_TEXT_TRANSFORM_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "none", label: "None" },
+  { value: "uppercase", label: "AA" },
+  { value: "lowercase", label: "aa" },
+  { value: "capitalize", label: "Aa" },
+];
+
+const BUILDER_NODE_FONT_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "normal", label: "Normal" },
+  { value: "italic", label: "Italic" },
+];
+
+const BUILDER_NODE_TEXT_DECORATION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "none", label: "None" },
+  { value: "underline", label: "Under" },
+  { value: "line-through", label: "Strike" },
+];
+
+const BUILDER_NODE_TEXT_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "balance", label: "Balance" },
+  { value: "pretty", label: "Pretty" },
+  { value: "nowrap", label: "No wrap" },
+];
+
+const BUILDER_NODE_WHITE_SPACE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "normal", label: "Normal" },
+  { value: "nowrap", label: "No wrap" },
+  { value: "pre-wrap", label: "Pre-wrap" },
+];
+
+const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "relative", label: "Relative" },
+  { value: "absolute", label: "Absolute" },
+  { value: "sticky", label: "Sticky" },
+];
+
+const BUILDER_NODE_OVERFLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "visible", label: "Visible" },
+  { value: "hidden", label: "Hidden" },
+  { value: "auto", label: "Auto" },
+  { value: "scroll", label: "Scroll" },
+];
+
+const BUILDER_NODE_ALIGN_SELF_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Auto" },
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+];
+
+// Container layout (children) — how a flex/grid node distributes its OWN children
+// on the main axis (justify), cross axis (align), and whether rows wrap.
+const BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "flex-start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "flex-end", label: "End" },
+  { value: "space-between", label: "Between" },
+  { value: "space-around", label: "Around" },
+  { value: "space-evenly", label: "Evenly" },
+];
+
+const BUILDER_NODE_ALIGN_ITEMS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "flex-start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "flex-end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+  { value: "baseline", label: "Baseline" },
+];
+
+const BUILDER_NODE_FLEX_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "nowrap", label: "No wrap" },
+  { value: "wrap", label: "Wrap" },
+  { value: "wrap-reverse", label: "Reverse" },
+];
+
+const BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "row", label: "Row" },
+  { value: "column", label: "Column" },
+  { value: "row dense", label: "Row dense" },
+  { value: "column dense", label: "Col dense" },
+];
+
+const BUILDER_NODE_CURSOR_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "pointer", label: "Pointer" },
+  { value: "grab", label: "Grab" },
+  { value: "move", label: "Move" },
+  { value: "zoom-in", label: "Zoom" },
+  { value: "not-allowed", label: "Blocked" },
+  { value: "text", label: "Text" },
+  { value: "none", label: "Hide" },
+];
+
+const BUILDER_NODE_USER_SELECT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "auto", label: "Auto" },
+  { value: "text", label: "Text" },
+  { value: "all", label: "All" },
+  { value: "none", label: "None" },
+];
+
+const BUILDER_NODE_POINTER_EVENTS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "auto", label: "Auto" },
+  { value: "none", label: "Pass-through" },
+];
+
+const BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "none", label: "None" },
+];
+
+const BUILDER_NODE_ANIMATION_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "fade-in", label: "Fade" },
+  { value: "rise", label: "Rise" },
+  { value: "fall", label: "Fall" },
+  { value: "zoom-in", label: "Zoom" },
+  { value: "slide-left", label: "Slide ←" },
+  { value: "slide-right", label: "Slide →" },
+  { value: "blur-in", label: "Blur" },
+  { value: "flip-in", label: "Flip" },
+  { value: "bounce-in", label: "Bounce" },
+];
+
+const BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "On load" },
+  { value: "scroll", label: "On scroll" },
+];
+
+const BUILDER_NODE_ANIMATION_EASING_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Ease" },
+  { value: "linear", label: "Linear" },
+  { value: "ease-in", label: "In" },
+  { value: "ease-out", label: "Out" },
+  { value: "ease-in-out", label: "In-out" },
+  { value: "back", label: "Back" },
+  { value: "smooth", label: "Smooth" },
+];
+
+const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "solid", label: "Solid" },
+  { value: "dashed", label: "Dash" },
+  { value: "dotted", label: "Dot" },
+];
+
+const BUILDER_NODE_VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Shown" },
+  { value: "hidden", label: "Hidden" },
+];
+
+const BUILDER_NODE_SHADOW_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "0 1px 2px rgba(18,18,18,0.06), 0 1px 3px rgba(18,18,18,0.10)", label: "S" },
+  { value: "0 4px 8px rgba(18,18,18,0.06), 0 6px 16px rgba(18,18,18,0.12)", label: "M" },
+  { value: "0 12px 24px rgba(18,18,18,0.10), 0 20px 48px rgba(18,18,18,0.16)", label: "L" },
+];
+
+const BUILDER_NODE_BG_REPEAT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "no-repeat", label: "None" },
+  { value: "repeat", label: "Tile" },
+  { value: "repeat-x", label: "X" },
+  { value: "repeat-y", label: "Y" },
+];
+
+const BUILDER_NODE_BLEND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Normal" },
+  { value: "multiply", label: "Multiply" },
+  { value: "screen", label: "Screen" },
+  { value: "overlay", label: "Overlay" },
+  { value: "darken", label: "Darken" },
+  { value: "lighten", label: "Lighten" },
+];
+
+const BUILDER_NODE_BG_CLIP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "text", label: "Through text" },
+];
+
+/**
+ * Parse a stored CSS length string ("48px", "1.5rem") back into the
+ * structured {value, unit} the NumberUnit control expects. Returns null for
+ * unset / unparseable values so the control falls back to its placeholder.
+ */
+function parseCssLength(input?: string): LengthValue | null {
+  if (!input) return null;
+  const match = /^(-?\d*\.?\d+)(px|rem|em|%|vw|vh)$/.exec(input.trim());
+  if (!match) return null;
+  const parsed = Number.parseFloat(match[1]);
+  if (Number.isNaN(parsed)) return null;
+  return { value: parsed, unit: match[2] as LengthUnit };
+}
+
+/**
+ * Curated NodePresentation stores plain numbers (px / %), while the NumberUnit
+ * control speaks LengthValue. These adapters bridge the two without leaking the
+ * unit into storage (the unit is fixed per field).
+ */
+function pxLength(value: number | undefined): LengthValue | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? { value, unit: "px" }
+    : null;
+}
+function pctLength(value: number | undefined): LengthValue | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? { value, unit: "%" }
+    : null;
+}
+
 const VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
   { value: "visible", label: "Show" },
@@ -343,6 +590,30 @@ const VIEWPORT_TRACKED_KEYS: ReadonlyArray<keyof NodePresentationValue> = [
   "size",
   "tone",
   "visibility",
+  "fontFamily",
+  "fontSizePx",
+  "fontWeight",
+  "letterSpacingPx",
+  "lineHeightPct",
+  "textTransform",
+  "textColor",
+  "backgroundColor",
+  "borderColor",
+  "borderWidthPx",
+  "borderStyle",
+];
+// Theme-token swatches offered in the freeform node color pickers so a node's
+// text / fill / border can bind to the global theme (emits `var(--token-…)`)
+// instead of freezing a one-off hex. Fallbacks mirror token-presets.css defaults.
+const BUILDER_NODE_THEME_COLOR_TOKENS = [
+  { label: "Primary", cssVar: "--token-color-primary", fallback: "#111111" },
+  { label: "Secondary", cssVar: "--token-color-secondary", fallback: "#6b7280" },
+  { label: "Accent", cssVar: "--token-color-accent", fallback: "#0ea5e9" },
+  { label: "Neutral", cssVar: "--token-color-neutral", fallback: "#737373" },
+  { label: "Ink", cssVar: "--token-color-ink", fallback: "#111111" },
+  { label: "Muted", cssVar: "--token-color-muted", fallback: "#737373" },
+  { label: "Line", cssVar: "--token-color-line", fallback: "#e5e5e5" },
+  { label: "Surface", cssVar: "--token-color-surface-raised", fallback: "#ffffff" },
 ];
 const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
   "headline",
@@ -688,6 +959,21 @@ function standaloneNodeLabel(node: StandaloneStyleNode): string {
     .join(" ");
 }
 
+function cleanHoverStyle(
+  value: BuilderNodeHoverStyle | undefined,
+): BuilderNodeHoverStyle | undefined {
+  if (!value) return undefined;
+  const out: BuilderNodeHoverStyle = {};
+  if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
+  if (value.color) out.color = value.color;
+  if (value.borderColor) out.borderColor = value.borderColor;
+  if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.scale) out.scale = value.scale;
+  if (value.translate) out.translate = value.translate;
+  if (typeof value.opacity === "number") out.opacity = value.opacity;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function cleanBuilderNodeStyle(
   value: BuilderNodeStyle | undefined,
 ): BuilderNodeStyle | undefined {
@@ -704,7 +990,94 @@ function cleanBuilderNodeStyle(
   if (value.background) out.background = value.background;
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
+  if (value.objectPosition) out.objectPosition = value.objectPosition;
+  if (value.aspectRatioFree) out.aspectRatioFree = value.aspectRatioFree;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
+  if (value.visibility) out.visibility = value.visibility;
+  if (value.fontFamily) out.fontFamily = value.fontFamily;
+  if (value.fontSize) out.fontSize = value.fontSize;
+  if (typeof value.fontWeight === "number") out.fontWeight = value.fontWeight;
+  if (value.lineHeight) out.lineHeight = value.lineHeight;
+  if (value.letterSpacing) out.letterSpacing = value.letterSpacing;
+  if (value.textTransform) out.textTransform = value.textTransform;
+  if (value.fontStyle) out.fontStyle = value.fontStyle;
+  if (value.textDecoration) out.textDecoration = value.textDecoration;
+  if (value.textWrap) out.textWrap = value.textWrap;
+  if (value.whiteSpace) out.whiteSpace = value.whiteSpace;
+  if (typeof value.lineClamp === "number") out.lineClamp = value.lineClamp;
+  if (value.textColor) out.textColor = value.textColor;
+  if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
+  if (value.borderColor) out.borderColor = value.borderColor;
+  if (value.borderWidth) out.borderWidth = value.borderWidth;
+  if (value.borderStyle) out.borderStyle = value.borderStyle;
+  if (value.borderRadius) out.borderRadius = value.borderRadius;
+  if (value.width) out.width = value.width;
+  if (value.height) out.height = value.height;
+  if (value.minHeight) out.minHeight = value.minHeight;
+  if (value.minWidth) out.minWidth = value.minWidth;
+  if (value.maxWidthFree) out.maxWidthFree = value.maxWidthFree;
+  if (value.maxHeight) out.maxHeight = value.maxHeight;
+  if (value.paddingTop) out.paddingTop = value.paddingTop;
+  if (value.paddingRight) out.paddingRight = value.paddingRight;
+  if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
+  if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
+  if (value.marginTopFree) out.marginTopFree = value.marginTopFree;
+  if (value.marginRightFree) out.marginRightFree = value.marginRightFree;
+  if (value.marginBottomFree) out.marginBottomFree = value.marginBottomFree;
+  if (value.marginLeftFree) out.marginLeftFree = value.marginLeftFree;
+  if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.textShadow) out.textShadow = value.textShadow;
+  if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
+  if (value.backgroundSize) out.backgroundSize = value.backgroundSize;
+  if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
+  if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
+  if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
+  if (typeof value.opacity === "number") out.opacity = value.opacity;
+  if (value.gap) out.gap = value.gap;
+  if (value.position) out.position = value.position;
+  if (value.top) out.top = value.top;
+  if (value.right) out.right = value.right;
+  if (value.bottom) out.bottom = value.bottom;
+  if (value.left) out.left = value.left;
+  if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
+  if (value.overflow) out.overflow = value.overflow;
+  if (value.rotate) out.rotate = value.rotate;
+  if (value.scale) out.scale = value.scale;
+  if (value.translate) out.translate = value.translate;
+  if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
+  if (value.transition) out.transition = value.transition;
+  if (value.alignSelf) out.alignSelf = value.alignSelf;
+  if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
+  if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
+  if (value.flexBasis) out.flexBasis = value.flexBasis;
+  if (value.gridColumn) out.gridColumn = value.gridColumn;
+  if (value.gridRow) out.gridRow = value.gridRow;
+  if (value.filter) out.filter = value.filter;
+  if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
+  if (value.justifyContent) out.justifyContent = value.justifyContent;
+  if (value.alignItems) out.alignItems = value.alignItems;
+  if (value.flexWrap) out.flexWrap = value.flexWrap;
+  if (value.gridTemplateColumns) out.gridTemplateColumns = value.gridTemplateColumns;
+  if (value.gridTemplateRows) out.gridTemplateRows = value.gridTemplateRows;
+  if (value.gridAutoFlow) out.gridAutoFlow = value.gridAutoFlow;
+  if (value.clipPath) out.clipPath = value.clipPath;
+  if (value.maskImage) out.maskImage = value.maskImage;
+  if (value.textStroke) out.textStroke = value.textStroke;
+  if (value.cursor) out.cursor = value.cursor;
+  if (value.userSelect) out.userSelect = value.userSelect;
+  if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
+  if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
+  if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
+  if (value.outline) out.outline = value.outline;
+  if (value.outlineOffset) out.outlineOffset = value.outlineOffset;
+  if (value.accentColor) out.accentColor = value.accentColor;
+  if (value.caretColor) out.caretColor = value.caretColor;
+  if (value.animationPreset) out.animationPreset = value.animationPreset;
+  if (value.animationDuration) out.animationDuration = value.animationDuration;
+  if (value.animationDelay) out.animationDelay = value.animationDelay;
+  if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
+  if (value.animationEasing) out.animationEasing = value.animationEasing;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -712,6 +1085,8 @@ function cleanBuilderNodeStyle(
     if (tablet) out.responsive.tablet = tablet;
     if (mobile) out.responsive.mobile = mobile;
   }
+  const hover = cleanHoverStyle(value.hover);
+  if (hover) out.hover = hover;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -731,7 +1106,94 @@ function cleanBuilderNodeStyleValue(
   if (value.background) out.background = value.background;
   if (value.radius) out.radius = value.radius;
   if (value.objectFit) out.objectFit = value.objectFit;
+  if (value.objectPosition) out.objectPosition = value.objectPosition;
+  if (value.aspectRatioFree) out.aspectRatioFree = value.aspectRatioFree;
   if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
+  if (value.visibility) out.visibility = value.visibility;
+  if (value.fontFamily) out.fontFamily = value.fontFamily;
+  if (value.fontSize) out.fontSize = value.fontSize;
+  if (typeof value.fontWeight === "number") out.fontWeight = value.fontWeight;
+  if (value.lineHeight) out.lineHeight = value.lineHeight;
+  if (value.letterSpacing) out.letterSpacing = value.letterSpacing;
+  if (value.textTransform) out.textTransform = value.textTransform;
+  if (value.fontStyle) out.fontStyle = value.fontStyle;
+  if (value.textDecoration) out.textDecoration = value.textDecoration;
+  if (value.textWrap) out.textWrap = value.textWrap;
+  if (value.whiteSpace) out.whiteSpace = value.whiteSpace;
+  if (typeof value.lineClamp === "number") out.lineClamp = value.lineClamp;
+  if (value.textColor) out.textColor = value.textColor;
+  if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
+  if (value.borderColor) out.borderColor = value.borderColor;
+  if (value.borderWidth) out.borderWidth = value.borderWidth;
+  if (value.borderStyle) out.borderStyle = value.borderStyle;
+  if (value.borderRadius) out.borderRadius = value.borderRadius;
+  if (value.width) out.width = value.width;
+  if (value.height) out.height = value.height;
+  if (value.minHeight) out.minHeight = value.minHeight;
+  if (value.minWidth) out.minWidth = value.minWidth;
+  if (value.maxWidthFree) out.maxWidthFree = value.maxWidthFree;
+  if (value.maxHeight) out.maxHeight = value.maxHeight;
+  if (value.paddingTop) out.paddingTop = value.paddingTop;
+  if (value.paddingRight) out.paddingRight = value.paddingRight;
+  if (value.paddingBottom) out.paddingBottom = value.paddingBottom;
+  if (value.paddingLeft) out.paddingLeft = value.paddingLeft;
+  if (value.marginTopFree) out.marginTopFree = value.marginTopFree;
+  if (value.marginRightFree) out.marginRightFree = value.marginRightFree;
+  if (value.marginBottomFree) out.marginBottomFree = value.marginBottomFree;
+  if (value.marginLeftFree) out.marginLeftFree = value.marginLeftFree;
+  if (value.boxShadow) out.boxShadow = value.boxShadow;
+  if (value.textShadow) out.textShadow = value.textShadow;
+  if (value.backgroundImage) out.backgroundImage = value.backgroundImage;
+  if (value.backgroundSize) out.backgroundSize = value.backgroundSize;
+  if (value.backgroundPosition) out.backgroundPosition = value.backgroundPosition;
+  if (value.backgroundRepeat) out.backgroundRepeat = value.backgroundRepeat;
+  if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
+  if (typeof value.opacity === "number") out.opacity = value.opacity;
+  if (value.gap) out.gap = value.gap;
+  if (value.position) out.position = value.position;
+  if (value.top) out.top = value.top;
+  if (value.right) out.right = value.right;
+  if (value.bottom) out.bottom = value.bottom;
+  if (value.left) out.left = value.left;
+  if (typeof value.zIndex === "number") out.zIndex = value.zIndex;
+  if (value.overflow) out.overflow = value.overflow;
+  if (value.rotate) out.rotate = value.rotate;
+  if (value.scale) out.scale = value.scale;
+  if (value.translate) out.translate = value.translate;
+  if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
+  if (value.transition) out.transition = value.transition;
+  if (value.alignSelf) out.alignSelf = value.alignSelf;
+  if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
+  if (typeof value.flexShrink === "number") out.flexShrink = value.flexShrink;
+  if (value.flexBasis) out.flexBasis = value.flexBasis;
+  if (value.gridColumn) out.gridColumn = value.gridColumn;
+  if (value.gridRow) out.gridRow = value.gridRow;
+  if (value.filter) out.filter = value.filter;
+  if (value.backdropFilter) out.backdropFilter = value.backdropFilter;
+  if (value.mixBlendMode) out.mixBlendMode = value.mixBlendMode;
+  if (value.justifyContent) out.justifyContent = value.justifyContent;
+  if (value.alignItems) out.alignItems = value.alignItems;
+  if (value.flexWrap) out.flexWrap = value.flexWrap;
+  if (value.gridTemplateColumns) out.gridTemplateColumns = value.gridTemplateColumns;
+  if (value.gridTemplateRows) out.gridTemplateRows = value.gridTemplateRows;
+  if (value.gridAutoFlow) out.gridAutoFlow = value.gridAutoFlow;
+  if (value.clipPath) out.clipPath = value.clipPath;
+  if (value.maskImage) out.maskImage = value.maskImage;
+  if (value.textStroke) out.textStroke = value.textStroke;
+  if (value.cursor) out.cursor = value.cursor;
+  if (value.userSelect) out.userSelect = value.userSelect;
+  if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
+  if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
+  if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
+  if (value.outline) out.outline = value.outline;
+  if (value.outlineOffset) out.outlineOffset = value.outlineOffset;
+  if (value.accentColor) out.accentColor = value.accentColor;
+  if (value.caretColor) out.caretColor = value.caretColor;
+  if (value.animationPreset) out.animationPreset = value.animationPreset;
+  if (value.animationDuration) out.animationDuration = value.animationDuration;
+  if (value.animationDelay) out.animationDelay = value.animationDelay;
+  if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
+  if (value.animationEasing) out.animationEasing = value.animationEasing;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -1055,6 +1517,7 @@ export function StylePanel({
     canUndo,
     canRedo,
     patchBuilderNodeProps,
+    detachComponentInstance,
     undo,
     redo,
   } = useEditContext();
@@ -1115,6 +1578,12 @@ export function StylePanel({
     () => resolveStandaloneBuilderNodeForContent(builderTree, selectedBuilderNodeId),
     [builderTree, selectedBuilderNodeId],
   );
+  // Linked-component instance marker (Living Components Phase 2) — present only
+  // on a container tagged instanceOf. Drives the Detach affordance.
+  const selectedInstanceComponentId =
+    selectedStandaloneStyleNode?.kind === "container"
+      ? (selectedStandaloneStyleNode.props.instanceOf ?? null)
+      : null;
   const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
   const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
   const selectedNodeIsButton =
@@ -1345,6 +1814,39 @@ export function StylePanel({
     if (value.size) cleaned.size = value.size;
     if (value.tone) cleaned.tone = value.tone;
     if (value.visibility) cleaned.visibility = value.visibility;
+    if (value.fontFamily) cleaned.fontFamily = value.fontFamily;
+    if (typeof value.fontSizePx === "number" && Number.isFinite(value.fontSizePx)) {
+      cleaned.fontSizePx = value.fontSizePx;
+    }
+    if (typeof value.fontWeight === "number" && Number.isFinite(value.fontWeight)) {
+      cleaned.fontWeight = value.fontWeight;
+    }
+    if (
+      typeof value.letterSpacingPx === "number" &&
+      Number.isFinite(value.letterSpacingPx)
+    ) {
+      cleaned.letterSpacingPx = value.letterSpacingPx;
+    }
+    if (
+      typeof value.lineHeightPct === "number" &&
+      Number.isFinite(value.lineHeightPct)
+    ) {
+      cleaned.lineHeightPct = value.lineHeightPct;
+    }
+    if (value.textTransform) cleaned.textTransform = value.textTransform;
+    if (value.textWrap) cleaned.textWrap = value.textWrap;
+    if (value.whiteSpace) cleaned.whiteSpace = value.whiteSpace;
+    if (typeof value.lineClamp === "number") cleaned.lineClamp = value.lineClamp;
+    if (value.textColor) cleaned.textColor = value.textColor;
+    if (value.backgroundColor) cleaned.backgroundColor = value.backgroundColor;
+    if (value.borderColor) cleaned.borderColor = value.borderColor;
+    if (
+      typeof value.borderWidthPx === "number" &&
+      Number.isFinite(value.borderWidthPx)
+    ) {
+      cleaned.borderWidthPx = value.borderWidthPx;
+    }
+    if (value.borderStyle) cleaned.borderStyle = value.borderStyle;
     const cleanBreakpoint = (
       breakpoint: NodePresentationValue | undefined,
     ): NodePresentationValue | undefined => {
@@ -1420,6 +1922,49 @@ export function StylePanel({
       if (breakpoint.size) out.size = breakpoint.size;
       if (breakpoint.tone) out.tone = breakpoint.tone;
       if (breakpoint.visibility) out.visibility = breakpoint.visibility;
+      if (breakpoint.fontFamily) out.fontFamily = breakpoint.fontFamily;
+      if (
+        typeof breakpoint.fontSizePx === "number" &&
+        Number.isFinite(breakpoint.fontSizePx)
+      ) {
+        out.fontSizePx = breakpoint.fontSizePx;
+      }
+      if (
+        typeof breakpoint.fontWeight === "number" &&
+        Number.isFinite(breakpoint.fontWeight)
+      ) {
+        out.fontWeight = breakpoint.fontWeight;
+      }
+      if (
+        typeof breakpoint.letterSpacingPx === "number" &&
+        Number.isFinite(breakpoint.letterSpacingPx)
+      ) {
+        out.letterSpacingPx = breakpoint.letterSpacingPx;
+      }
+      if (
+        typeof breakpoint.lineHeightPct === "number" &&
+        Number.isFinite(breakpoint.lineHeightPct)
+      ) {
+        out.lineHeightPct = breakpoint.lineHeightPct;
+      }
+      if (breakpoint.textTransform) out.textTransform = breakpoint.textTransform;
+      if (breakpoint.textWrap) out.textWrap = breakpoint.textWrap;
+      if (breakpoint.whiteSpace) out.whiteSpace = breakpoint.whiteSpace;
+      if (typeof breakpoint.lineClamp === "number") {
+        out.lineClamp = breakpoint.lineClamp;
+      }
+      if (breakpoint.textColor) out.textColor = breakpoint.textColor;
+      if (breakpoint.backgroundColor) {
+        out.backgroundColor = breakpoint.backgroundColor;
+      }
+      if (breakpoint.borderColor) out.borderColor = breakpoint.borderColor;
+      if (
+        typeof breakpoint.borderWidthPx === "number" &&
+        Number.isFinite(breakpoint.borderWidthPx)
+      ) {
+        out.borderWidthPx = breakpoint.borderWidthPx;
+      }
+      if (breakpoint.borderStyle) out.borderStyle = breakpoint.borderStyle;
       return Object.keys(out).length > 0 ? out : undefined;
     };
     const tablet = cleanBreakpoint(value.breakpoints?.tablet);
@@ -1470,6 +2015,27 @@ export function StylePanel({
       if ("size" in patch) nextForRole.size = patch.size;
       if ("tone" in patch) nextForRole.tone = patch.tone;
       if ("visibility" in patch) nextForRole.visibility = patch.visibility;
+      if ("fontFamily" in patch) nextForRole.fontFamily = patch.fontFamily;
+      if ("fontSizePx" in patch) nextForRole.fontSizePx = patch.fontSizePx;
+      if ("fontWeight" in patch) nextForRole.fontWeight = patch.fontWeight;
+      if ("letterSpacingPx" in patch) {
+        nextForRole.letterSpacingPx = patch.letterSpacingPx;
+      }
+      if ("lineHeightPct" in patch) {
+        nextForRole.lineHeightPct = patch.lineHeightPct;
+      }
+      if ("textTransform" in patch) {
+        nextForRole.textTransform = patch.textTransform;
+      }
+      if ("textColor" in patch) nextForRole.textColor = patch.textColor;
+      if ("backgroundColor" in patch) {
+        nextForRole.backgroundColor = patch.backgroundColor;
+      }
+      if ("borderColor" in patch) nextForRole.borderColor = patch.borderColor;
+      if ("borderWidthPx" in patch) {
+        nextForRole.borderWidthPx = patch.borderWidthPx;
+      }
+      if ("borderStyle" in patch) nextForRole.borderStyle = patch.borderStyle;
     } else {
       const currentViewport = nextForRole.breakpoints?.[selectedViewport] ?? {};
       const nextViewport: NodePresentationValue = {
@@ -2396,6 +2962,21 @@ export function StylePanel({
 
   const [colorAnchor, setColorAnchor] = useState<HTMLButtonElement | null>(null);
   const [colorOpen, setColorOpen] = useState(false);
+  // Freeform-node free-color popover: one shared instance keyed by which field
+  // is being edited, so the three swatches (text / fill / border) never stack
+  // overlapping popovers.
+  const [nodeColorField, setNodeColorField] = useState<{
+    field: "textColor" | "backgroundColor" | "borderColor";
+    anchor: HTMLButtonElement;
+  } | null>(null);
+  const [nodeFontPickerOpen, setNodeFontPickerOpen] = useState(false);
+  // Curated-role free-color popover: same single-instance-keyed-by-field pattern
+  // as the freeform nodeColorField, so the role's three swatches never stack.
+  const [roleColorField, setRoleColorField] = useState<{
+    field: "textColor" | "backgroundColor" | "borderColor";
+    anchor: HTMLButtonElement;
+  } | null>(null);
+  const [roleFontPickerOpen, setRoleFontPickerOpen] = useState(false);
   function recordNodeAction(label: string) {
     const nextId = nodeActionIdRef.current;
     nodeActionIdRef.current += 1;
@@ -2452,6 +3033,41 @@ export function StylePanel({
       style: nextStyle ? { ...nextStyle } : undefined,
     };
     patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  // Patch top-level (non-viewport) style keys regardless of the active viewport.
+  // Used for layers that aren't breakpoint-scoped — hover + the transition escape.
+  function patchSelectedBaseStyle(patch: Partial<BuilderNodeStyle>) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const nextStyle = cleanBuilderNodeStyle({
+      ...currentStyle,
+      ...patch,
+    });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  // Merge a partial hover override into the single hover layer (base, not nested
+  // under a viewport — hover is a pointer interaction, not a breakpoint).
+  function patchSelectedHoverStyle(patch: Partial<BuilderNodeHoverStyle>) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    patchSelectedBaseStyle({
+      hover: {
+        ...(currentStyle?.hover ?? {}),
+        ...patch,
+      },
+    });
   }
 
   function setOrToggleStandaloneStyle(
@@ -2818,12 +3434,14 @@ export function StylePanel({
                     ) : null}
                     <button
                       type="button"
+                      title="Undo"
+                      aria-label="Undo"
                       onClick={() => {
                         void undo();
                         recordNodeAction("Undo");
                       }}
                       disabled={!canUndo}
-                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] transition-colors hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
                       style={{
                         background: "transparent",
                         border: "none",
@@ -2835,12 +3453,14 @@ export function StylePanel({
                     </button>
                     <button
                       type="button"
+                      title="Redo"
+                      aria-label="Redo"
                       onClick={() => {
                         void redo();
                         recordNodeAction("Redo");
                       }}
                       disabled={!canRedo}
-                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] transition-colors hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
                       style={{
                         background: "transparent",
                         border: "none",
@@ -3844,6 +4464,466 @@ export function StylePanel({
                   />
                 </div>
               ) : null}
+
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-node-presentation-control="typography"
+                style={{ borderColor: CHROME.line }}
+              >
+                <div className="flex items-end justify-between gap-2">
+                  <span className={FIELD_LABEL}>Font</span>
+                  <button
+                    type="button"
+                    data-node-presentation-control="fontFamily-toggle"
+                    onClick={() => setRoleFontPickerOpen((v) => !v)}
+                    className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: CHROME.muted,
+                      padding: 0,
+                    }}
+                  >
+                    {roleFontPickerOpen ? "Close" : "Change"}
+                  </button>
+                </div>
+                <span
+                  className="truncate text-[11px]"
+                  style={{
+                    color: selectedNodeViewportPresentation?.fontFamily
+                      ? CHROME.ink
+                      : CHROME.muted2,
+                    fontFamily:
+                      selectedNodeViewportPresentation?.fontFamily || undefined,
+                  }}
+                >
+                  {selectedNodeViewportPresentation?.fontFamily
+                    ? selectedNodeViewportPresentation.fontFamily
+                        .split(",")[0]
+                        .replace(/["']/g, "")
+                    : "Theme default"}
+                </span>
+                {roleFontPickerOpen ? (
+                  <GoogleFontPicker
+                    slot={selectedNodeRole === "copy" ? "body" : "heading"}
+                    value={selectedNodeViewportPresentation?.fontFamily ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        fontFamily: next || undefined,
+                      })
+                    }
+                  />
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-node-presentation-control="fontSizePx"
+                  >
+                    <span className={FIELD_LABEL}>Size</span>
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
+                      min={8}
+                      max={240}
+                      placeholder="Theme"
+                      value={pxLength(selectedNodeViewportPresentation?.fontSizePx)}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          fontSizePx: next ? Math.round(next.value) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-node-presentation-control="lineHeightPct"
+                  >
+                    <span className={FIELD_LABEL}>Line height</span>
+                    <NumberUnit
+                      units={["%"]}
+                      defaultUnit="%"
+                      min={80}
+                      max={300}
+                      step={10}
+                      placeholder="Theme"
+                      value={pctLength(
+                        selectedNodeViewportPresentation?.lineHeightPct,
+                      )}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          lineHeightPct: next
+                            ? Math.round(next.value)
+                            : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="letterSpacingPx"
+                >
+                  <span className={FIELD_LABEL}>Letter spacing</span>
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
+                    step={0.5}
+                    min={-5}
+                    max={30}
+                    placeholder="Theme"
+                    value={pxLength(
+                      selectedNodeViewportPresentation?.letterSpacingPx,
+                    )}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        letterSpacingPx: next ? next.value : undefined,
+                      })
+                    }
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="fontWeight"
+                >
+                  <span className={FIELD_LABEL}>Weight</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={
+                      selectedNodeViewportPresentation?.fontWeight
+                        ? String(selectedNodeViewportPresentation.fontWeight)
+                        : ""
+                    }
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        fontWeight: next ? Number(next) : undefined,
+                      })
+                    }
+                    options={BUILDER_NODE_FONT_WEIGHT_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="textTransform"
+                >
+                  <span className={FIELD_LABEL}>Transform</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedNodeViewportPresentation?.textTransform ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        textTransform:
+                          (next || undefined) as NodePresentationValue["textTransform"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="textWrap"
+                >
+                  <span className={FIELD_LABEL}>Text wrap</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedNodeViewportPresentation?.textWrap ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        textWrap:
+                          (next || undefined) as NodePresentationValue["textWrap"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_WRAP_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="whiteSpace"
+                >
+                  <span className={FIELD_LABEL}>Whitespace</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedNodeViewportPresentation?.whiteSpace ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        whiteSpace:
+                          (next || undefined) as NodePresentationValue["whiteSpace"],
+                      })
+                    }
+                    options={BUILDER_NODE_WHITE_SPACE_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="lineClamp"
+                >
+                  <span className={FIELD_LABEL}>Truncate to lines</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={1}
+                    placeholder="Off"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    value={
+                      typeof selectedNodeViewportPresentation?.lineClamp ===
+                      "number"
+                        ? selectedNodeViewportPresentation.lineClamp
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.currentTarget.value.trim();
+                      const n = raw ? Math.round(Number(raw)) : NaN;
+                      patchSelectedNodePresentation({
+                        lineClamp:
+                          Number.isFinite(n) && n >= 1 ? n : undefined,
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-node-presentation-control="color"
+                style={{ borderColor: CHROME.line }}
+              >
+                <span className={FIELD_LABEL}>Color &amp; border</span>
+
+                <div
+                  className="flex items-center justify-between gap-2"
+                  data-node-presentation-control="textColor"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Text
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedNodeViewportPresentation?.textColor ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchSelectedNodePresentation({ textColor: undefined })
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label="Pick text color"
+                      onClick={(e) => {
+                        const btn = e.currentTarget;
+                        setRoleColorField((prev) =>
+                          prev?.field === "textColor"
+                            ? null
+                            : { field: "textColor", anchor: btn },
+                        );
+                      }}
+                      className="cursor-pointer"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        background:
+                          selectedNodeViewportPresentation?.textColor ||
+                          "transparent",
+                        backgroundImage: selectedNodeViewportPresentation?.textColor
+                          ? undefined
+                          : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex items-center justify-between gap-2"
+                  data-node-presentation-control="backgroundColor"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Fill
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedNodeViewportPresentation?.backgroundColor ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchSelectedNodePresentation({
+                            backgroundColor: undefined,
+                          })
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label="Pick fill color"
+                      onClick={(e) => {
+                        const btn = e.currentTarget;
+                        setRoleColorField((prev) =>
+                          prev?.field === "backgroundColor"
+                            ? null
+                            : { field: "backgroundColor", anchor: btn },
+                        );
+                      }}
+                      className="cursor-pointer"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        background:
+                          selectedNodeViewportPresentation?.backgroundColor ||
+                          "transparent",
+                        backgroundImage: selectedNodeViewportPresentation?.backgroundColor
+                          ? undefined
+                          : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="border"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Border
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {selectedNodeViewportPresentation?.borderColor ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchSelectedNodePresentation({
+                              borderColor: undefined,
+                            })
+                          }
+                          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: CHROME.muted,
+                            padding: 0,
+                          }}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Pick border color"
+                        onClick={(e) => {
+                          const btn = e.currentTarget;
+                          setRoleColorField((prev) =>
+                            prev?.field === "borderColor"
+                              ? null
+                              : { field: "borderColor", anchor: btn },
+                          );
+                        }}
+                        className="cursor-pointer"
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 6,
+                          border: `1px solid ${CHROME.lineMid}`,
+                          background:
+                            selectedNodeViewportPresentation?.borderColor ||
+                            "transparent",
+                          backgroundImage: selectedNodeViewportPresentation?.borderColor
+                            ? undefined
+                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumberUnit
+                      units={["px"]}
+                      defaultUnit="px"
+                      placeholder="Width"
+                      min={0}
+                      max={24}
+                      value={pxLength(
+                        selectedNodeViewportPresentation?.borderWidthPx,
+                      )}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          borderWidthPx: next
+                            ? Math.round(next.value)
+                            : undefined,
+                        })
+                      }
+                    />
+                    <Segmented
+                      fullWidth
+                      compact
+                      value={selectedNodeViewportPresentation?.borderStyle ?? ""}
+                      onChange={(next) =>
+                        patchSelectedNodePresentation({
+                          borderStyle:
+                            (next || undefined) as NodePresentationValue["borderStyle"],
+                        })
+                      }
+                      options={BUILDER_NODE_BORDER_STYLE_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                <ColorPickerPopover
+                  open={roleColorField !== null}
+                  anchor={roleColorField?.anchor ?? null}
+                  themeTokens={BUILDER_NODE_THEME_COLOR_TOKENS}
+                  value={
+                    (roleColorField
+                      ? selectedNodeViewportPresentation?.[roleColorField.field]
+                      : undefined) || "#111111"
+                  }
+                  onChange={(next) => {
+                    if (!roleColorField) return;
+                    patchSelectedNodePresentation({
+                      [roleColorField.field]: next,
+                    } as Partial<NodePresentationValue>);
+                  }}
+                  onClose={() => setRoleColorField(null)}
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -3914,6 +4994,45 @@ export function StylePanel({
               ) : null}
             </div>
 
+            {selectedInstanceComponentId && selectedBuilderNodeId ? (
+              <div
+                className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5"
+                data-builder-node-linked-instance=""
+                style={{
+                  background: CHROME.surface,
+                  border: `1px solid ${CHROME.line}`,
+                }}
+              >
+                <span
+                  className="text-[10.5px] font-semibold"
+                  style={{ color: CHROME.muted }}
+                >
+                  ⟳ Linked instance
+                </span>
+                <button
+                  type="button"
+                  data-builder-node-detach-instance=""
+                  className="cursor-pointer text-[10.5px] font-semibold"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: CHROME.ink,
+                    padding: 0,
+                  }}
+                  onClick={() => {
+                    void detachComponentInstance(selectedBuilderNodeId);
+                  }}
+                >
+                  Detach
+                </button>
+              </div>
+            ) : null}
+
+            <StylePresetsBar
+              currentStyle={selectedStandaloneFullStyle ?? undefined}
+              onApply={(style) => patchSelectedBaseStyle(style)}
+            />
+
             {selectedStandaloneStylePresets.length > 0 ? (
               <div
                 className="flex flex-col gap-2"
@@ -3932,18 +5051,26 @@ export function StylePanel({
                       type="button"
                       data-builder-node-style-preset={preset.id}
                       onClick={() => applyStandaloneStylePreset(preset)}
-                      className="cursor-pointer text-left"
+                      className="cursor-pointer rounded-md text-left transition-colors hover:bg-stone-100"
                       style={{
                         background: CHROME.surface,
                         border: `1px solid ${CHROME.lineMid}`,
                         color: CHROME.ink,
                         padding: "8px 10px",
                       }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background =
+                          "rgba(42,49,71,0.06)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background =
+                          CHROME.surface;
+                      }}
                     >
                       <span className="block text-[11px] font-semibold">
                         {preset.label}
                       </span>
-                      <span className="mt-0.5 block text-[10.5px] leading-tight text-zinc-500">
+                      <span className="mt-0.5 block text-[10.5px] leading-tight text-stone-500">
                         {preset.hint}
                       </span>
                     </button>
@@ -3991,8 +5118,295 @@ export function StylePanel({
               </div>
             ) : null}
 
+            {["heading", "paragraph", "button"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-builder-node-style-control="typography"
+                style={{ borderColor: CHROME.line }}
+              >
+                <div className="flex items-end justify-between gap-2">
+                  <span className={FIELD_LABEL}>Font</span>
+                  <button
+                    type="button"
+                    data-builder-node-style-control="fontFamily-toggle"
+                    onClick={() => setNodeFontPickerOpen((v) => !v)}
+                    className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: CHROME.muted,
+                      padding: 0,
+                    }}
+                  >
+                    {nodeFontPickerOpen ? "Close" : "Change"}
+                  </button>
+                </div>
+                <span
+                  className="truncate text-[11px]"
+                  style={{
+                    color: selectedStandaloneViewportStyle?.fontFamily
+                      ? CHROME.ink
+                      : CHROME.muted2,
+                    fontFamily:
+                      selectedStandaloneViewportStyle?.fontFamily || undefined,
+                  }}
+                >
+                  {selectedStandaloneViewportStyle?.fontFamily
+                    ? selectedStandaloneViewportStyle.fontFamily
+                        .split(",")[0]
+                        .replace(/["']/g, "")
+                    : "Theme default"}
+                </span>
+                {nodeFontPickerOpen ? (
+                  <GoogleFontPicker
+                    slot={
+                      selectedStandaloneStyleNode.kind === "heading"
+                        ? "heading"
+                        : "body"
+                    }
+                    value={selectedStandaloneViewportStyle?.fontFamily ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        fontFamily: next || undefined,
+                      })
+                    }
+                  />
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-builder-node-style-control="fontSize"
+                  >
+                    <span className={FIELD_LABEL}>Size</span>
+                    <NumberUnit
+                      units={["px", "rem", "em"]}
+                      defaultUnit="px"
+                      placeholder="Theme"
+                      value={parseCssLength(
+                        selectedStandaloneViewportStyle?.fontSize,
+                      )}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          fontSize: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-builder-node-style-control="lineHeight"
+                  >
+                    <span className={FIELD_LABEL}>Line height</span>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      inputMode="decimal"
+                      placeholder="Theme"
+                      value={selectedStandaloneViewportStyle?.lineHeight ?? ""}
+                      onChange={(e) =>
+                        patchSelectedStandaloneStyle({
+                          lineHeight: e.target.value.trim() || undefined,
+                        })
+                      }
+                      className="px-2"
+                      style={{
+                        height: 30,
+                        fontSize: 12,
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.controlBorder}`,
+                        borderRadius: 7,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="letterSpacing"
+                >
+                  <span className={FIELD_LABEL}>Letter spacing</span>
+                  <NumberUnit
+                    units={["em", "px"]}
+                    defaultUnit="em"
+                    step={0.01}
+                    placeholder="Theme"
+                    value={parseCssLength(
+                      selectedStandaloneViewportStyle?.letterSpacing,
+                    )}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        letterSpacing: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="fontWeight"
+                >
+                  <span className={FIELD_LABEL}>Weight</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={
+                      selectedStandaloneViewportStyle?.fontWeight
+                        ? String(selectedStandaloneViewportStyle.fontWeight)
+                        : ""
+                    }
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        fontWeight: next ? Number(next) : undefined,
+                      })
+                    }
+                    options={BUILDER_NODE_FONT_WEIGHT_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="textTransform"
+                >
+                  <span className={FIELD_LABEL}>Transform</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.textTransform ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        textTransform:
+                          (next || undefined) as BuilderNodeStyleValue["textTransform"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="fontStyle"
+                >
+                  <span className={FIELD_LABEL}>Style</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.fontStyle ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        fontStyle:
+                          (next || undefined) as BuilderNodeStyleValue["fontStyle"],
+                      })
+                    }
+                    options={BUILDER_NODE_FONT_STYLE_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="textDecoration"
+                >
+                  <span className={FIELD_LABEL}>Decoration</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.textDecoration ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        textDecoration:
+                          (next || undefined) as BuilderNodeStyleValue["textDecoration"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_DECORATION_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="textWrap"
+                >
+                  <span className={FIELD_LABEL}>Text wrap</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.textWrap ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        textWrap:
+                          (next || undefined) as BuilderNodeStyleValue["textWrap"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_WRAP_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="whiteSpace"
+                >
+                  <span className={FIELD_LABEL}>Whitespace</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.whiteSpace ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        whiteSpace:
+                          (next || undefined) as BuilderNodeStyleValue["whiteSpace"],
+                      })
+                    }
+                    options={BUILDER_NODE_WHITE_SPACE_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="lineClamp"
+                >
+                  <span className={FIELD_LABEL}>Truncate to lines</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={1}
+                    placeholder="Off"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    value={
+                      typeof selectedStandaloneViewportStyle?.lineClamp ===
+                      "number"
+                        ? selectedStandaloneViewportStyle.lineClamp
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.currentTarget.value.trim();
+                      const n = raw ? Math.round(Number(raw)) : NaN;
+                      patchSelectedStandaloneStyle({
+                        lineClamp:
+                          Number.isFinite(n) && n >= 1 ? n : undefined,
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
-              <span className={FIELD_LABEL}>Width</span>
+              <span className={FIELD_LABEL}>Max width (preset)</span>
               <Segmented
                 fullWidth
                 compact
@@ -4000,6 +5414,102 @@ export function StylePanel({
                 onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
                 options={BUILDER_NODE_WIDTH_OPTIONS}
               />
+            </div>
+
+            <div
+              className="flex flex-col gap-2"
+              data-builder-node-style-control="dimensions"
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Exact width</span>
+                  <NumberUnit
+                    units={["px", "%", "vw", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.width)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        width: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Height</span>
+                  <NumberUnit
+                    units={["px", "vh", "%", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.height)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        height: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Min height</span>
+                  <NumberUnit
+                    units={["px", "vh", "%", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.minHeight)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        minHeight: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Min width</span>
+                  <NumberUnit
+                    units={["px", "%", "vw", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.minWidth)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        minWidth: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Max width</span>
+                  <NumberUnit
+                    units={["px", "%", "vw", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.maxWidthFree)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        maxWidthFree: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Max height</span>
+                  <NumberUnit
+                    units={["px", "vh", "%", "rem"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.maxHeight)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        maxHeight: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
             </div>
 
             {["container", "split", "card", "cta_group"].includes(
@@ -4028,6 +5538,260 @@ export function StylePanel({
                   value={selectedStandaloneViewportStyle?.radius ?? ""}
                   onChange={(next) => setOrToggleStandaloneStyle("radius", next)}
                   options={BUILDER_NODE_RADIUS_OPTIONS}
+                />
+                <div
+                  className="flex items-center justify-between gap-2"
+                  data-builder-node-style-control="radiusFree"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Exact
+                  </span>
+                  <NumberUnit
+                    units={["px", "rem", "%"]}
+                    defaultUnit="px"
+                    placeholder="Token"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.borderRadius)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        borderRadius: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {!["divider", "spacer"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-builder-node-style-control="color"
+                style={{ borderColor: CHROME.line }}
+              >
+                <span className={FIELD_LABEL}>Color &amp; border</span>
+
+                {["heading", "paragraph", "button"].includes(
+                  selectedStandaloneStyleNode.kind,
+                ) ? (
+                  <div
+                    className="flex items-center justify-between gap-2"
+                    data-builder-node-style-control="textColor"
+                  >
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Text
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {selectedStandaloneViewportStyle?.textColor ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchSelectedStandaloneStyle({ textColor: undefined })
+                          }
+                          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: CHROME.muted,
+                            padding: 0,
+                          }}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Pick text color"
+                        onClick={(e) => {
+                          const btn = e.currentTarget;
+                          setNodeColorField((prev) =>
+                            prev?.field === "textColor"
+                              ? null
+                              : { field: "textColor", anchor: btn },
+                          );
+                        }}
+                        className="cursor-pointer"
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 6,
+                          border: `1px solid ${CHROME.lineMid}`,
+                          background:
+                            selectedStandaloneViewportStyle?.textColor ||
+                            "transparent",
+                          backgroundImage: selectedStandaloneViewportStyle?.textColor
+                            ? undefined
+                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {["container", "split", "card", "cta_group", "button"].includes(
+                  selectedStandaloneStyleNode.kind,
+                ) ? (
+                  <div
+                    className="flex items-center justify-between gap-2"
+                    data-builder-node-style-control="backgroundColor"
+                  >
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Fill
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {selectedStandaloneViewportStyle?.backgroundColor ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchSelectedStandaloneStyle({
+                              backgroundColor: undefined,
+                            })
+                          }
+                          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: CHROME.muted,
+                            padding: 0,
+                          }}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Pick fill color"
+                        onClick={(e) => {
+                          const btn = e.currentTarget;
+                          setNodeColorField((prev) =>
+                            prev?.field === "backgroundColor"
+                              ? null
+                              : { field: "backgroundColor", anchor: btn },
+                          );
+                        }}
+                        className="cursor-pointer"
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 6,
+                          border: `1px solid ${CHROME.lineMid}`,
+                          background:
+                            selectedStandaloneViewportStyle?.backgroundColor ||
+                            "transparent",
+                          backgroundImage: selectedStandaloneViewportStyle?.backgroundColor
+                            ? undefined
+                            : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {["container", "split", "card", "cta_group", "button", "image"].includes(
+                  selectedStandaloneStyleNode.kind,
+                ) ? (
+                  <div
+                    className="flex flex-col gap-1.5"
+                    data-builder-node-style-control="border"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                        Border
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {selectedStandaloneViewportStyle?.borderColor ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              patchSelectedStandaloneStyle({
+                                borderColor: undefined,
+                              })
+                            }
+                            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: CHROME.muted,
+                              padding: 0,
+                            }}
+                          >
+                            Clear
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          aria-label="Pick border color"
+                          onClick={(e) => {
+                            const btn = e.currentTarget;
+                            setNodeColorField((prev) =>
+                              prev?.field === "borderColor"
+                                ? null
+                                : { field: "borderColor", anchor: btn },
+                            );
+                          }}
+                          className="cursor-pointer"
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 6,
+                            border: `1px solid ${CHROME.lineMid}`,
+                            background:
+                              selectedStandaloneViewportStyle?.borderColor ||
+                              "transparent",
+                            backgroundImage: selectedStandaloneViewportStyle?.borderColor
+                              ? undefined
+                              : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <NumberUnit
+                        units={["px"]}
+                        defaultUnit="px"
+                        placeholder="Width"
+                        min={0}
+                        value={parseCssLength(
+                          selectedStandaloneViewportStyle?.borderWidth,
+                        )}
+                        onChange={(next) =>
+                          patchSelectedStandaloneStyle({
+                            borderWidth: next ? formatLength(next) : undefined,
+                          })
+                        }
+                      />
+                      <Segmented
+                        fullWidth
+                        compact
+                        value={selectedStandaloneViewportStyle?.borderStyle ?? ""}
+                        onChange={(next) =>
+                          patchSelectedStandaloneStyle({
+                            borderStyle:
+                              (next || undefined) as BuilderNodeStyleValue["borderStyle"],
+                          })
+                        }
+                        options={BUILDER_NODE_BORDER_STYLE_OPTIONS}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <ColorPickerPopover
+                  open={nodeColorField !== null}
+                  anchor={nodeColorField?.anchor ?? null}
+                  value={
+                    (nodeColorField
+                      ? selectedStandaloneViewportStyle?.[nodeColorField.field]
+                      : undefined) || "#111111"
+                  }
+                  onChange={(next) => {
+                    if (!nodeColorField) return;
+                    patchSelectedStandaloneStyle({
+                      [nodeColorField.field]: next,
+                    } as Partial<BuilderNodeStyleValue>);
+                  }}
+                  themeTokens={BUILDER_NODE_THEME_COLOR_TOKENS}
+                  onClose={() => setNodeColorField(null)}
                 />
               </div>
             ) : null}
@@ -4082,6 +5846,1821 @@ export function StylePanel({
               </div>
             ) : null}
 
+            {!["divider", "spacer"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2"
+                data-builder-node-style-control="exactPadding"
+              >
+                <span className={FIELD_LABEL}>Exact padding</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Top
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingTop)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingTop: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Right
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingRight)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingRight: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Bottom
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingBottom)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingBottom: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Left
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.paddingLeft)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          paddingLeft: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {!["divider", "spacer"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2"
+                data-builder-node-style-control="exactMargin"
+              >
+                <span className={FIELD_LABEL}>Exact margin</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Top
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginTopFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginTopFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Right
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginRightFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginRightFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Bottom
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginBottomFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginBottomFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                      Left
+                    </span>
+                    <NumberUnit
+                      units={["px", "%", "rem"]}
+                      defaultUnit="px"
+                      placeholder="Auto"
+                      value={parseCssLength(selectedStandaloneViewportStyle?.marginLeftFree)}
+                      onChange={(next) =>
+                        patchSelectedStandaloneStyle({
+                          marginLeftFree: next ? formatLength(next) : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {["container", "split", "card", "cta_group", "carousel", "masonry"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex items-center justify-between gap-2"
+                data-builder-node-style-control="gap"
+              >
+                <span className={FIELD_LABEL}>Gap</span>
+                <NumberUnit
+                  units={["px", "rem", "%"]}
+                  defaultUnit="px"
+                  placeholder="Token"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.gap)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      gap: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
+              </div>
+            ) : null}
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="position"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Position</span>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedStandaloneViewportStyle?.position ?? ""}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({
+                    position: (next || undefined) as BuilderNodeStyleValue["position"],
+                  })
+                }
+                options={BUILDER_NODE_POSITION_OPTIONS}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Top
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.top)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        top: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Right
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.right)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        right: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Bottom
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.bottom)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        bottom: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Left
+                  </span>
+                  <NumberUnit
+                    units={["px", "%", "rem", "vh", "vw"]}
+                    defaultUnit="px"
+                    placeholder="Auto"
+                    value={parseCssLength(selectedStandaloneViewportStyle?.left)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        left: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="zIndex"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Z-index
+                  </span>
+                  <input
+                    type="number"
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="Auto"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.zIndex === "number"
+                        ? selectedStandaloneViewportStyle.zIndex
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        zIndex:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : Math.max(-999, Math.min(999, Math.trunc(n))),
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="overflow"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Overflow
+                  </span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.overflow ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        overflow: (next || undefined) as BuilderNodeStyleValue["overflow"],
+                      })
+                    }
+                    options={BUILDER_NODE_OVERFLOW_OPTIONS}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="transform"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Transform</span>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="rotate"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Rotate °
+                  </span>
+                  <input
+                    type="number"
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0"
+                    value={
+                      Number.isFinite(
+                        Number.parseFloat(selectedStandaloneViewportStyle?.rotate ?? ""),
+                      )
+                        ? Number.parseFloat(selectedStandaloneViewportStyle?.rotate ?? "")
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        rotate:
+                          raw === "" || !Number.isFinite(n) ? undefined : `${n}deg`,
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="scale"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Scale %
+                  </span>
+                  <input
+                    type="number"
+                    step={5}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="100"
+                    value={
+                      Number.isFinite(Number(selectedStandaloneViewportStyle?.scale))
+                        ? Math.round(Number(selectedStandaloneViewportStyle?.scale) * 100)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        scale:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : String(n / 100),
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="translate"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Move X Y
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="10px -8px"
+                    value={selectedStandaloneViewportStyle?.translate ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        translate: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="transformOrigin"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Pivot
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="center"
+                    value={selectedStandaloneViewportStyle?.transformOrigin ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        transformOrigin: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="selfLayout"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Layout in parent</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="alignSelf"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Self-align
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.alignSelf ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      alignSelf: (next || undefined) as BuilderNodeStyleValue["alignSelf"],
+                    })
+                  }
+                  options={BUILDER_NODE_ALIGN_SELF_OPTIONS}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="flexGrow"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Grow
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.flexGrow === "number"
+                        ? selectedStandaloneViewportStyle.flexGrow
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        flexGrow:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : Math.max(0, Math.min(999, n)),
+                      });
+                    }}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="flexShrink"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Shrink
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.flexShrink === "number"
+                        ? selectedStandaloneViewportStyle.flexShrink
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const n = Number(raw);
+                      patchSelectedStandaloneStyle({
+                        flexShrink:
+                          raw === "" || !Number.isFinite(n)
+                            ? undefined
+                            : Math.max(0, Math.min(999, n)),
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="flexBasis"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Basis
+                </span>
+                <NumberUnit
+                  units={["px", "%", "rem", "vw", "vh"]}
+                  defaultUnit="px"
+                  placeholder="Auto"
+                  value={parseCssLength(selectedStandaloneViewportStyle?.flexBasis)}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      flexBasis: next ? formatLength(next) : undefined,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="gridColumn"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Grid col
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="span 2"
+                    value={selectedStandaloneViewportStyle?.gridColumn ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        gridColumn: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1"
+                  data-builder-node-style-control="gridRow"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Grid row
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1 / 3"
+                    value={selectedStandaloneViewportStyle?.gridRow ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        gridRow: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="childLayout"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Layout (children)</span>
+              <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                Distributes this box&apos;s own children — works on row / grid
+                containers (container, split, card, CTA group).
+              </span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="justifyContent"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Main axis (justify)
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.justifyContent ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      justifyContent: (next || undefined) as BuilderNodeStyleValue["justifyContent"],
+                    })
+                  }
+                  options={BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="alignItems"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Cross axis (align)
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.alignItems ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      alignItems: (next || undefined) as BuilderNodeStyleValue["alignItems"],
+                    })
+                  }
+                  options={BUILDER_NODE_ALIGN_ITEMS_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="flexWrap"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Wrap
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.flexWrap ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      flexWrap: (next || undefined) as BuilderNodeStyleValue["flexWrap"],
+                    })
+                  }
+                  options={BUILDER_NODE_FLEX_WRAP_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="gridTemplateColumns"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Grid columns (grid layout)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="2fr 1fr · repeat(auto-fit,minmax(200px,1fr))"
+                  value={selectedStandaloneViewportStyle?.gridTemplateColumns ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      gridTemplateColumns: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="gridTemplateRows"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Grid rows
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="auto 1fr"
+                  value={selectedStandaloneViewportStyle?.gridTemplateRows ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      gridTemplateRows: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="gridAutoFlow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Auto-flow
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.gridAutoFlow ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      gridAutoFlow: (next || undefined) as BuilderNodeStyleValue["gridAutoFlow"],
+                    })
+                  }
+                  options={BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="effects-interaction"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Effects &amp; interaction</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="clipPath"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Clip path
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="circle(50%) · polygon(0 0,100% 0,100% 80%,0 100%)"
+                  value={selectedStandaloneViewportStyle?.clipPath ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      clipPath: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="maskImage"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Mask image
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="linear-gradient(#000,transparent) · url(mask.svg)"
+                  value={selectedStandaloneViewportStyle?.maskImage ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      maskImage: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="textStroke"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text stroke (outline glyphs)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="1px #111 · 2px var(--token-color-text)"
+                  value={selectedStandaloneViewportStyle?.textStroke ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      textStroke: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="outline"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Outline (layout-neutral ring)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="2px solid #6366f1"
+                  value={selectedStandaloneViewportStyle?.outline ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      outline: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="outlineOffset"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Outline offset
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="2px · -1px"
+                  value={selectedStandaloneViewportStyle?.outlineOffset ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      outlineOffset: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="accentColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Accent (checkbox / radio / range)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="#6366f1 · var(--token-color-primary)"
+                  value={selectedStandaloneViewportStyle?.accentColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      accentColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="caretColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Caret (text-input cursor)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="#6366f1"
+                  value={selectedStandaloneViewportStyle?.caretColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      caretColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="cursor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Cursor
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.cursor ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      cursor: (next || undefined) as BuilderNodeStyleValue["cursor"],
+                    })
+                  }
+                  options={BUILDER_NODE_CURSOR_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="userSelect"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text selection
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.userSelect ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      userSelect: (next || undefined) as BuilderNodeStyleValue["userSelect"],
+                    })
+                  }
+                  options={BUILDER_NODE_USER_SELECT_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="pointerEvents"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Pointer events
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.pointerEvents ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      pointerEvents: (next || undefined) as BuilderNodeStyleValue["pointerEvents"],
+                    })
+                  }
+                  options={BUILDER_NODE_POINTER_EVENTS_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="scrollSnapType"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Scroll-snap track
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="x mandatory · y proximity"
+                  value={selectedStandaloneViewportStyle?.scrollSnapType ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      scrollSnapType: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="scrollSnapAlign"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Snap align (child)
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.scrollSnapAlign ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      scrollSnapAlign: (next || undefined) as BuilderNodeStyleValue["scrollSnapAlign"],
+                    })
+                  }
+                  options={BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="entrance-animation"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Entrance animation</span>
+              <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                Plays once when the published page loads (not previewed in the
+                editor). Respects reduced-motion.
+              </p>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationPreset"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Effect
+                </span>
+                <Segmented
+                  value={selectedStandaloneViewportStyle?.animationPreset ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      animationPreset: (next || undefined) as BuilderNodeStyleValue["animationPreset"],
+                    })
+                  }
+                  options={BUILDER_NODE_ANIMATION_PRESET_OPTIONS}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="animationDuration"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Duration
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0.6s"
+                    value={selectedStandaloneViewportStyle?.animationDuration ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        animationDuration: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="animationDelay"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Delay
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0s"
+                    value={selectedStandaloneViewportStyle?.animationDelay ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        animationDelay: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationTrigger"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Trigger
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.animationTrigger ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      animationTrigger: (next || undefined) as BuilderNodeStyleValue["animationTrigger"],
+                    })
+                  }
+                  options={BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationEasing"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Easing
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.animationEasing ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      animationEasing: (next || undefined) as BuilderNodeStyleValue["animationEasing"],
+                    })
+                  }
+                  options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="surface"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Surface &amp; depth</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="boxShadow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Shadow
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
+                  options={BUILDER_NODE_SHADOW_OPTIONS}
+                />
+                <ShadowBuilder
+                  value={selectedStandaloneViewportStyle?.boxShadow}
+                  onChange={(next) => patchSelectedStandaloneStyle({ boxShadow: next })}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="textShadow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text shadow
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="0 2px 8px rgba(0,0,0,.4)"
+                  value={selectedStandaloneViewportStyle?.textShadow ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      textShadow: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="backgroundImage"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background image / gradient
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="url(…) or linear-gradient(…)"
+                  value={selectedStandaloneViewportStyle?.backgroundImage ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundImage: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+                <GradientBuilder
+                  value={selectedStandaloneViewportStyle?.backgroundImage}
+                  onChange={(next) => patchSelectedStandaloneStyle({ backgroundImage: next })}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="backgroundSize"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background size
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="cover · contain · 100% auto"
+                  value={selectedStandaloneViewportStyle?.backgroundSize ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundSize: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="backgroundPosition"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background position
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="center · top left · 50% 20%"
+                  value={selectedStandaloneViewportStyle?.backgroundPosition ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundPosition: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backgroundRepeat"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background repeat
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.backgroundRepeat ?? ""}
+                  onChange={(next) =>
+                    setOrToggleStandaloneStyle("backgroundRepeat", next)
+                  }
+                  options={BUILDER_NODE_BG_REPEAT_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backgroundClip"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background clip
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.backgroundClip ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      backgroundClip: (next ||
+                        undefined) as BuilderNodeStyleValue["backgroundClip"],
+                    })
+                  }
+                  options={BUILDER_NODE_BG_CLIP_OPTIONS}
+                />
+                <span
+                  className="text-[10px] leading-tight"
+                  style={{ color: CHROME.muted }}
+                >
+                  Set a gradient or color background to show it through the text.
+                </span>
+              </div>
+              <div
+                className="flex flex-col gap-1"
+                data-builder-node-style-control="opacity"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Opacity
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={5}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: 72,
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="100"
+                    value={
+                      typeof selectedStandaloneViewportStyle?.opacity === "number"
+                        ? Math.round(selectedStandaloneViewportStyle.opacity * 100)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      patchSelectedStandaloneStyle({
+                        opacity:
+                          raw === ""
+                            ? undefined
+                            : Math.max(0, Math.min(100, Number(raw))) / 100,
+                      });
+                    }}
+                  />
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="effects"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Effects</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="filter"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Filter
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="blur(8px) grayscale(1)"
+                  value={selectedStandaloneViewportStyle?.filter ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      filter: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="backdropFilter"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Backdrop
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="blur(12px)"
+                  value={selectedStandaloneViewportStyle?.backdropFilter ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      backdropFilter: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="mixBlendMode"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Blend
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.mixBlendMode ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      mixBlendMode: (next ||
+                        undefined) as BuilderNodeStyleValue["mixBlendMode"],
+                    })
+                  }
+                  options={BUILDER_NODE_BLEND_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="hover"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Hover state</span>
+              <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                Applies on the live site while hovered or keyboard-focused.
+                Colors accept a token (var(--token-color-primary)), hex, or rgb.
+              </span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="transition"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Transition
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="all .2s ease (auto when hover set)"
+                  value={selectedStandaloneFullStyle?.transition ?? ""}
+                  onChange={(e) =>
+                    patchSelectedBaseStyle({
+                      transition: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverBackgroundColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Background
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="var(--token-color-primary) / #111"
+                  value={selectedStandaloneFullStyle?.hover?.backgroundColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      backgroundColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text color
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="var(--token-color-surface) / #fff"
+                  value={selectedStandaloneFullStyle?.hover?.color ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      color: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverBorderColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Border color
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="var(--token-color-primary) / #111"
+                  value={selectedStandaloneFullStyle?.hover?.borderColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      borderColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="hoverBoxShadow"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Shadow
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="0 12px 32px rgba(0,0,0,.18)"
+                  value={selectedStandaloneFullStyle?.hover?.boxShadow ?? ""}
+                  onChange={(e) =>
+                    patchSelectedHoverStyle({
+                      boxShadow: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex gap-2">
+                <div
+                  className="flex flex-1 flex-col gap-1.5"
+                  data-builder-node-style-control="hoverScale"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Scale
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1.04"
+                    value={selectedStandaloneFullStyle?.hover?.scale ?? ""}
+                    onChange={(e) =>
+                      patchSelectedHoverStyle({
+                        scale: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-1 flex-col gap-1.5"
+                  data-builder-node-style-control="hoverTranslate"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Translate
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0 -4px"
+                    value={selectedStandaloneFullStyle?.hover?.translate ?? ""}
+                    onChange={(e) =>
+                      patchSelectedHoverStyle({
+                        translate: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-1 flex-col gap-1.5"
+                  data-builder-node-style-control="hoverOpacity"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Opacity
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0.85"
+                    value={
+                      typeof selectedStandaloneFullStyle?.hover?.opacity ===
+                      "number"
+                        ? String(selectedStandaloneFullStyle.hover.opacity)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value.trim();
+                      const parsed = Number.parseFloat(raw);
+                      patchSelectedHoverStyle({
+                        opacity:
+                          raw && Number.isFinite(parsed) ? parsed : undefined,
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
             {selectedStandaloneStyleNode.kind === "image" ? (
               <>
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="objectFit">
@@ -4094,6 +7673,29 @@ export function StylePanel({
                     options={BUILDER_NODE_FIT_OPTIONS}
                   />
                 </div>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="objectPosition">
+                  <span className={FIELD_LABEL}>Focal point</span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="center · top · 50% 20%"
+                    value={selectedStandaloneViewportStyle?.objectPosition ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        objectPosition: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
                 <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatio">
                   <span className={FIELD_LABEL}>Ratio</span>
                   <Segmented
@@ -4102,6 +7704,29 @@ export function StylePanel({
                     value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
                     onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
                     options={BUILDER_NODE_RATIO_OPTIONS}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatioFree">
+                  <span className={FIELD_LABEL}>Custom ratio</span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="1.85 · 16 / 9 · 2 / 3"
+                    value={selectedStandaloneViewportStyle?.aspectRatioFree ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        aspectRatioFree: e.target.value.trim() || undefined,
+                      })
+                    }
                   />
                 </div>
               </>
@@ -4137,6 +7762,39 @@ export function StylePanel({
                 ))}
               </div>
             ) : null}
+
+            <div
+              className="flex flex-col gap-1.5 border-t pt-3"
+              data-builder-node-style-control="visibility"
+              style={{ borderColor: CHROME.line }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className={FIELD_LABEL}>Visibility</span>
+                {selectedStandaloneViewportStyle?.visibility === "hidden" ? (
+                  <span className={INHERIT_HINT}>
+                    {selectedViewport === "desktop"
+                      ? "Hidden everywhere"
+                      : `Hidden on ${selectedViewport}`}
+                  </span>
+                ) : null}
+              </div>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedStandaloneViewportStyle?.visibility ?? ""}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({
+                    visibility: next === "hidden" ? "hidden" : undefined,
+                  })
+                }
+                options={BUILDER_NODE_VISIBILITY_OPTIONS}
+              />
+              <span className={INHERIT_HINT}>
+                {selectedViewport === "desktop"
+                  ? "Hides on every screen. Switch to tablet/mobile to hide only there."
+                  : `Hides only on ${selectedViewport}; desktop stays shown.`}
+              </span>
+            </div>
 
             <div
               className="flex flex-col gap-2 border-t pt-3"
@@ -4334,8 +7992,8 @@ export function StylePanel({
                 height: 30,
                 fontSize: 12,
                 fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                background: "#faf9f6",
-                border: "1px solid #e5e0d5",
+                background: CHROME.surface2,
+                border: `1px solid ${CHROME.controlBorder}`,
                 borderRadius: 7,
                 color: CHROME.ink,
                 outline: "none",
@@ -4433,8 +8091,8 @@ export function StylePanel({
               fontSize: 11.5,
               lineHeight: 1.45,
               fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: "#faf9f6",
-              border: "1px solid #e5e0d5",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.controlBorder}`,
               borderRadius: 7,
               color: CHROME.ink,
               outline: "none",
@@ -4576,8 +8234,8 @@ export function StylePanel({
               height: 30,
               fontSize: 12,
               fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: "#faf9f6",
-              border: "1px solid #e5e0d5",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.controlBorder}`,
               borderRadius: 7,
               color: CHROME.ink,
               outline: "none",
@@ -4601,8 +8259,8 @@ export function StylePanel({
               height: 30,
               fontSize: 12,
               fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: "#faf9f6",
-              border: "1px solid #e5e0d5",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.controlBorder}`,
               borderRadius: 7,
               color: CHROME.ink,
               outline: "none",
@@ -4626,7 +8284,7 @@ export function StylePanel({
             }}
             className="w-full cursor-pointer"
           />
-          <span className="text-[10.5px] text-zinc-400">
+          <span className="text-[10.5px] text-stone-500">
             For text legibility over busy footage.
           </span>
         </div>

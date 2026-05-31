@@ -108,7 +108,7 @@ export function InspectorGroup({
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`text-zinc-400 transition ${open ? "rotate-180" : ""}`}
+              className={`text-stone-500 transition ${open ? "rotate-180" : ""}`}
               aria-hidden
             >
               <polyline points="6 9 12 15 18 9" />

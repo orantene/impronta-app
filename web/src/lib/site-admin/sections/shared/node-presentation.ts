@@ -17,6 +17,30 @@ export const nodePresentationValueSchema = z.object({
   size: z.enum(["sm", "md", "lg", "xl"]).optional(),
   tone: z.enum(["default", "muted", "strong"]).optional(),
   visibility: z.enum(["visible", "hidden"]).optional(),
+  // Free typography + color escapes — override the theme tokens (size/tone)
+  // above with raw values so a curated section sub-element can match any
+  // design. Numeric fields stay in the px/int convention of this schema;
+  // colors are stored as CSS color strings (validated by the CSSOM at render).
+  fontFamily: z.string().max(160).optional(),
+  fontSizePx: z.number().int().min(8).max(240).optional(),
+  fontWeight: z.number().int().min(100).max(900).optional(),
+  letterSpacingPx: z.number().min(-5).max(30).optional(),
+  lineHeightPct: z.number().int().min(80).max(300).optional(),
+  textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
+  // Advanced text controls — modern wrapping, whitespace, and line-clamp.
+  textWrap: z.enum(["wrap", "nowrap", "balance", "pretty"]).optional(),
+  whiteSpace: z.enum(["normal", "nowrap", "pre", "pre-wrap", "pre-line"]).optional(),
+  lineClamp: z.number().int().min(1).max(20).optional(),
+  // Colors hold either a literal CSS color OR a theme-token binding such as
+  // `var(--token-color-surface-raised, #ffffff)` (~42 chars). Capped at 64 so a
+  // token binding survives the parse — a too-long KNOWN key makes Zod THROW
+  // (it does not silently strip), which would fail the save. Mirrors the
+  // builder-node registry color fields (registry.ts).
+  textColor: z.string().max(64).optional(),
+  backgroundColor: z.string().max(64).optional(),
+  borderColor: z.string().max(64).optional(),
+  borderWidthPx: z.number().int().min(0).max(24).optional(),
+  borderStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
 });
 
 export const nodePresentationSchema = nodePresentationValueSchema
@@ -139,6 +163,38 @@ export function nodePresentationInlineStyle(
   if (size) style.fontSize = size;
   const color = toneColor(value.tone);
   if (color) style.color = color;
+  // Free escapes — applied after the size/tone tokens so a raw value wins.
+  if (value.fontFamily) style.fontFamily = value.fontFamily;
+  if (value.fontSizePx !== undefined) style.fontSize = `${value.fontSizePx}px`;
+  if (value.fontWeight !== undefined) style.fontWeight = value.fontWeight;
+  if (value.letterSpacingPx !== undefined) {
+    style.letterSpacing = `${value.letterSpacingPx}px`;
+  }
+  if (value.lineHeightPct !== undefined) style.lineHeight = value.lineHeightPct / 100;
+  if (value.textTransform) style.textTransform = value.textTransform;
+  // Advanced text controls.
+  if (value.textWrap) {
+    (style as Record<string, unknown>).textWrap = value.textWrap;
+  }
+  if (value.whiteSpace) style.whiteSpace = value.whiteSpace;
+  if (value.lineClamp !== undefined && value.lineClamp > 0) {
+    style.display = "-webkit-box";
+    style.WebkitLineClamp = value.lineClamp;
+    style.WebkitBoxOrient = "vertical";
+    style.overflow = "hidden";
+  }
+  if (value.textColor) style.color = value.textColor;
+  if (value.backgroundColor) style.backgroundColor = value.backgroundColor;
+  if (
+    value.borderColor ||
+    value.borderWidthPx !== undefined ||
+    value.borderStyle
+  ) {
+    style.borderStyle = value.borderStyle ?? "solid";
+    style.borderWidth =
+      value.borderWidthPx !== undefined ? `${value.borderWidthPx}px` : "1px";
+    if (value.borderColor) style.borderColor = value.borderColor;
+  }
   if (value.visibility === "hidden") style.display = "none";
   return Object.keys(style).length > 0 ? style : undefined;
 }

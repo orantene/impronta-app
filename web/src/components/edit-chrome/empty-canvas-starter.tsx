@@ -77,7 +77,7 @@ function sectionSourceBadgeClass(typeKey: SectionTypeKey): string {
   if (source === "navigation") {
     return "border-indigo-200 bg-indigo-50 text-indigo-700";
   }
-  return "border-zinc-200 bg-zinc-50 text-zinc-600";
+  return "border-stone-200 bg-stone-50 text-stone-600";
 }
 
 function summarizeTemplateSourceKinds(tile: RecipeTile): {
@@ -515,14 +515,14 @@ export function EmptyCanvasStarter({
       data-builder-selector-surface
       className="mx-auto my-16 w-full max-w-3xl px-6"
     >
-      <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.25),0_2px_0_rgba(0,0,0,0.04)]">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+      <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.25),0_2px_0_rgba(0,0,0,0.04)]">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
           Start here
         </div>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
           Your homepage is a blank canvas.
         </h2>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600">
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-600">
           Pick a starter to seed real sections you can rewrite, reorder, and
           restyle inline. Nothing goes live until you click Publish — you&apos;re
           only ever editing a draft.
@@ -539,13 +539,13 @@ export function EmptyCanvasStarter({
           </div>
         ) : null}
 
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/70 p-4">
+        <div className="mt-6 rounded-xl border border-stone-200 bg-stone-50/70 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="max-w-xl">
-              <h3 className="text-sm font-semibold text-zinc-900">
+              <h3 className="text-sm font-semibold text-stone-900">
                 Build from scratch
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              <p className="mt-1 text-xs leading-relaxed text-stone-600">
                 For Impronta QA, start empty and add one real section at a time.
                 Add the hero first, then use the live canvas and navigator to
                 test deeper parent/child flows one by one.
@@ -559,17 +559,17 @@ export function EmptyCanvasStarter({
               data-empty-canvas-quick-add="hero"
               disabled={pending || quickInsertPending}
               onClick={handleQuickHeroInsert}
-              className="flex min-h-[92px] w-full flex-col items-start justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-indigo-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex min-h-[92px] w-full flex-col items-start justify-between rounded-xl border border-stone-200 bg-white px-4 py-3 text-left transition hover:border-indigo-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div className="flex w-full items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-zinc-900">
+                <span className="text-sm font-semibold text-stone-900">
                   Add hero first
                 </span>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-500">
                   Required first
                 </span>
               </div>
-              <span className="mt-2 text-xs leading-relaxed text-zinc-500">
+              <span className="mt-2 text-xs leading-relaxed text-stone-500">
                 {quickInsertPending
                   ? "Adding section…"
                   : "Seeds the required homepage hero so the blank state disappears and the normal section-by-section builder flow takes over."}
@@ -577,7 +577,7 @@ export function EmptyCanvasStarter({
             </button>
           </div>
 
-          <ol className="mt-4 list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-zinc-500">
+          <ol className="mt-4 list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-stone-500">
             <li>Add the hero and confirm the blank state disappears.</li>
             <li>Use the navigator Add section button to insert the next body section.</li>
             <li>
@@ -594,23 +594,23 @@ export function EmptyCanvasStarter({
             return (
               <div
                 key={tile.slug}
-                className="group flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:shadow-md"
+                className="group flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:shadow-md"
               >
-                <div className="overflow-hidden rounded-md bg-zinc-50 p-2">
-                  <Wire className="h-20 w-full text-zinc-400" />
+                <div className="overflow-hidden rounded-md bg-stone-50 p-2">
+                  <Wire className="h-20 w-full text-stone-400" />
                 </div>
                 <div className="flex items-start justify-between gap-2 px-1 pt-1">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold text-zinc-900">
+                    <h3 className="text-sm font-semibold text-stone-900">
                       {tile.label}
                     </h3>
                     <InfoTip label={tile.info} />
                   </div>
-                  <span className="rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-zinc-500">
+                  <span className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-stone-500">
                     {tile.sections} sections
                   </span>
                 </div>
-                <p className="line-clamp-3 px-1 text-xs leading-relaxed text-zinc-500">
+                <p className="line-clamp-3 px-1 text-xs leading-relaxed text-stone-500">
                   {tile.summary}
                 </p>
                 <button
@@ -628,39 +628,39 @@ export function EmptyCanvasStarter({
           })}
         </div>
         {!availabilityLoaded ? (
-          <p className="mt-3 text-[11px] text-zinc-500">Loading starters…</p>
+          <p className="mt-3 text-[11px] text-stone-500">Loading starters…</p>
         ) : null}
         {availabilityError ? (
-          <p className="mt-3 text-[11px] text-zinc-500">
+          <p className="mt-3 text-[11px] text-stone-500">
             Couldn&apos;t load full template access. Showing available starters
             only.
           </p>
         ) : null}
         {freePlan ? (
-          <p className="mt-3 text-[11px] text-zinc-500">
+          <p className="mt-3 text-[11px] text-stone-500">
             Free includes one single-page starter with featured roster profiles
             (up to five on Free). Upgrade to Studio to unlock additional starter
             templates.
           </p>
         ) : null}
 
-        <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
+        <p className="mt-6 text-[11px] leading-relaxed text-stone-500">
           Every starter creates a draft composition with real-looking default
           copy. You can change anything — including the starter&apos;s brand
           preset — after it&apos;s applied.
         </p>
 
         {showTemplateGallery ? (
-          <div className="mt-6 border-t border-zinc-100 pt-4">
-            <p className="text-[11px] leading-relaxed text-zinc-600">
+          <div className="mt-6 border-t border-stone-100 pt-4">
+            <p className="text-[11px] leading-relaxed text-stone-600">
               Saved workspace layouts are listed under{" "}
-              <strong className="font-semibold text-zinc-800">Templates</strong>
+              <strong className="font-semibold text-stone-800">Templates</strong>
               {" "}in the editor top bar. Use the button below if that drawer isn&apos;t
               open yet.
             </p>
             <button
               type="button"
-              className="mt-3 inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm transition hover:bg-zinc-50"
+              className="mt-3 inline-flex items-center justify-center rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-900 shadow-sm transition hover:bg-stone-50"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT));
               }}
@@ -801,7 +801,7 @@ export function StarterTemplateGalleryModal({
   return (
     <div
       data-empty-canvas-template-gallery
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-zinc-950/45 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-stone-950/45 px-4 py-6 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="empty-canvas-starter-gallery-title"
@@ -812,18 +812,18 @@ export function StarterTemplateGalleryModal({
       }}
     >
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
               Template gallery
             </div>
             <h3
               id="empty-canvas-starter-gallery-title"
-              className="mt-1 text-xl font-semibold tracking-tight text-zinc-950"
+              className="mt-1 text-xl font-semibold tracking-tight text-stone-950"
             >
               Start from a flexible composition
             </h3>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">
               Wireframe starters for the future template marketplace. Today
               they use the existing section seeding action; later each card can
               become a full saved-template preview with reusable blocks.
@@ -832,7 +832,7 @@ export function StarterTemplateGalleryModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 transition hover:bg-stone-50 hover:text-stone-900"
             aria-label="Close template gallery"
           >
             <svg
@@ -852,7 +852,7 @@ export function StarterTemplateGalleryModal({
           </button>
         </div>
 
-        <div className="border-b border-zinc-200 px-5 py-3">
+        <div className="border-b border-stone-200 px-5 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <svg
@@ -865,7 +865,7 @@ export function StarterTemplateGalleryModal({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
               >
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4.3-4.3" />
@@ -876,7 +876,7 @@ export function StarterTemplateGalleryModal({
                 value={query}
                 onChange={(event) => onQueryChange(event.target.value)}
                 placeholder="Search templates, industries, sections..."
-                className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/10"
+                className="h-10 w-full rounded-lg border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-500 focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/10"
               />
             </div>
             <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -890,11 +890,11 @@ export function StarterTemplateGalleryModal({
                     className={
                       active
                         ? "shrink-0 rounded-full bg-[#3d4f7c] px-3 py-1.5 text-xs font-semibold text-white"
-                        : "shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:border-indigo-200 hover:text-zinc-950"
+                        : "shrink-0 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 transition hover:border-indigo-200 hover:text-stone-950"
                     }
                   >
                     {category.label}
-                    <span className={active ? "ml-1 text-white/70" : "ml-1 text-zinc-400"}>
+                    <span className={active ? "ml-1 text-white/70" : "ml-1 text-stone-500"}>
                       {countFor(category.key)}
                     </span>
                   </button>
@@ -929,7 +929,7 @@ export function StarterTemplateGalleryModal({
             </div>
           ) : null}
           {visibleTiles.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500">
+            <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 px-4 py-10 text-center text-sm text-stone-500">
               {homeCoreOnly
                 ? "No home-core templates match this search yet."
                 : "No templates match this search yet."}
@@ -958,8 +958,8 @@ export function StarterTemplateGalleryModal({
                         highlighted
                           ? "flex flex-col gap-3 rounded-xl border border-indigo-300 bg-white p-3 text-left shadow-[0_0_0_3px_rgba(99,102,241,0.14)]"
                           : selected
-                            ? "flex flex-col gap-3 rounded-xl border border-zinc-400 bg-white p-3 text-left shadow-sm"
-                            : "flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-indigo-200 hover:shadow-md"
+                            ? "flex flex-col gap-3 rounded-xl border border-stone-400 bg-white p-3 text-left shadow-sm"
+                            : "flex flex-col gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left transition hover:border-indigo-200 hover:shadow-md"
                       }
                     >
                       <input type="hidden" name="recipeSlug" value={tile.slug} />
@@ -967,32 +967,32 @@ export function StarterTemplateGalleryModal({
                         type="button"
                         data-template-preview-open={tile.slug}
                         onClick={() => setPreviewSlug(tile.slug)}
-                        className="overflow-hidden rounded-lg bg-zinc-50 p-2 text-left transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        className="overflow-hidden rounded-lg bg-stone-50 p-2 text-left transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         aria-label={`Preview ${tile.label} starter`}
                       >
-                        <Wire className="h-24 w-full text-zinc-400" />
+                        <Wire className="h-24 w-full text-stone-400" />
                       </button>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
                           {tile.bestFor}
                         </span>
-                        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                        <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium text-stone-500">
                           {tile.category}
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <h4 className="text-base font-semibold leading-tight tracking-tight text-zinc-950">
+                            <h4 className="text-base font-semibold leading-tight tracking-tight text-stone-950">
                               {tile.label}
                             </h4>
                             <InfoTip label={tile.info} />
                           </div>
-                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-zinc-500">
+                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-stone-500">
                             {tile.summary}
                           </p>
                         </div>
-                        <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-500">
+                        <span className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-medium text-stone-500">
                           {tile.sections} sections
                         </span>
                       </div>
@@ -1004,13 +1004,13 @@ export function StarterTemplateGalleryModal({
                         {tile.sequence.slice(0, 6).map((item) => (
                           <span
                             key={item}
-                            className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-500"
+                            className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-500"
                           >
                             {item}
                           </span>
                         ))}
                         {tile.sequence.length > 6 ? (
-                          <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                          <span className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-500">
                             +{tile.sequence.length - 6}
                           </span>
                         ) : null}
@@ -1032,7 +1032,7 @@ export function StarterTemplateGalleryModal({
                           </span>
                         ) : null}
                         {sources.starterContent > 0 ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                          <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium text-stone-600">
                             Starter {sources.starterContent}
                           </span>
                         ) : null}
@@ -1041,7 +1041,7 @@ export function StarterTemplateGalleryModal({
                         <button
                           type="button"
                           onClick={() => setPreviewSlug(tile.slug)}
-                          className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:border-indigo-200 hover:text-zinc-950"
+                          className="inline-flex h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-700 transition hover:border-indigo-200 hover:text-stone-950"
                         >
                           Preview details
                         </button>
@@ -1091,7 +1091,7 @@ export function StarterTemplateGalleryModal({
             </div>
           )}
           {savedTemplatesSlot ? (
-            <div className="mt-5 border-t border-zinc-200 pt-4">
+            <div className="mt-5 border-t border-stone-200 pt-4">
               {savedTemplatesSlot}
             </div>
           ) : null}
@@ -1126,34 +1126,34 @@ function TemplatePreviewPanel({
   return (
     <aside
       data-template-preview-panel={tile.slug}
-      className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 xl:sticky xl:top-0"
+      className="rounded-xl border border-stone-200 bg-stone-50 p-4 xl:sticky xl:top-0"
       aria-label={`${tile.label} template preview`}
     >
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white p-3">
-        <Wire className="h-36 w-full text-zinc-400" />
+      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white p-3">
+        <Wire className="h-36 w-full text-stone-400" />
       </div>
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
             Preview
           </p>
-          <h4 className="mt-1 text-lg font-semibold leading-tight tracking-tight text-zinc-950">
+          <h4 className="mt-1 text-lg font-semibold leading-tight tracking-tight text-stone-950">
             {tile.label}
           </h4>
         </div>
-        <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-500">
+        <span className="shrink-0 rounded-full border border-stone-200 bg-white px-2 py-1 text-xs font-medium text-stone-500">
           {tile.sections} sections
         </span>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-zinc-600">{tile.info}</p>
+      <p className="mt-3 text-sm leading-relaxed text-stone-600">{tile.info}</p>
       <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-lg border border-zinc-200 bg-white p-3">
-          <div className="font-semibold text-zinc-900">Best for</div>
-          <div className="mt-1 text-zinc-500">{tile.bestFor}</div>
+        <div className="rounded-lg border border-stone-200 bg-white p-3">
+          <div className="font-semibold text-stone-900">Best for</div>
+          <div className="mt-1 text-stone-500">{tile.bestFor}</div>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-3">
-          <div className="font-semibold text-zinc-900">Category</div>
-          <div className="mt-1 capitalize text-zinc-500">{tile.category}</div>
+        <div className="rounded-lg border border-stone-200 bg-white p-3">
+          <div className="font-semibold text-stone-900">Category</div>
+          <div className="mt-1 capitalize text-stone-500">{tile.category}</div>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1173,13 +1173,13 @@ function TemplatePreviewPanel({
           </span>
         ) : null}
         {sources.starterContent > 0 ? (
-          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+          <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-medium text-stone-600">
             Starter sections: {sources.starterContent}
           </span>
         ) : null}
       </div>
       <div className="mt-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">
+        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
           Section order
         </div>
         <ol
@@ -1189,9 +1189,9 @@ function TemplatePreviewPanel({
           {tile.sequence.map((item, index) => (
             <li
               key={`${tile.slug}-${item}-${index}`}
-              className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-700"
+              className="flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-sm text-stone-700"
             >
-              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-semibold tabular-nums text-zinc-500">
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-100 text-[10px] font-semibold tabular-nums text-stone-500">
                 {index + 1}
               </span>
               <span>{item}</span>
@@ -1334,7 +1334,7 @@ function TemplateApplyReviewDialog({
   return (
     <div
       data-template-apply-review={tile.slug}
-      className="fixed inset-0 z-[130] flex items-center justify-center bg-zinc-950/45 px-4 py-6"
+      className="fixed inset-0 z-[130] flex items-center justify-center bg-stone-950/45 px-4 py-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby={`starter-apply-review-title-${tile.slug}`}
@@ -1343,18 +1343,18 @@ function TemplateApplyReviewDialog({
       }}
     >
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
               Review draft replacement
             </div>
             <h4
               id={`starter-apply-review-title-${tile.slug}`}
-              className="mt-1 text-xl font-semibold tracking-tight text-zinc-950"
+              className="mt-1 text-xl font-semibold tracking-tight text-stone-950"
             >
               Apply {tile.label}
             </h4>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-500">
               The existing sections are not deleted. They remain available in
               the section library, while the homepage draft changes to this
               starter composition.
@@ -1363,7 +1363,7 @@ function TemplateApplyReviewDialog({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 text-stone-500 transition hover:bg-stone-50 hover:text-stone-900"
             aria-label="Close replacement review"
           >
             <svg
@@ -1384,10 +1384,10 @@ function TemplateApplyReviewDialog({
         </div>
 
         <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-zinc-950">Current draft</div>
-              <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-500">
+              <div className="text-sm font-semibold text-stone-950">Current draft</div>
+              <span className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-xs font-medium text-stone-500">
                 {currentDraftSections.length} sections
               </span>
             </div>
@@ -1398,21 +1398,21 @@ function TemplateApplyReviewDialog({
               {currentDraftSections.slice(0, 12).map((section, index) => (
                 <li
                   key={section.id}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2"
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2"
                 >
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
-                    <span className="text-[10px] font-semibold tabular-nums text-zinc-400">
+                  <div className="flex items-center gap-2 text-sm font-medium text-stone-800">
+                    <span className="text-[10px] font-semibold tabular-nums text-stone-500">
                       {index + 1}
                     </span>
                     <span className="min-w-0 truncate">{section.name}</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-500">
+                  <div className="mt-1 text-[11px] text-stone-500">
                     {section.slotLabel} · {section.typeLabel}
                   </div>
                 </li>
               ))}
               {currentDraftSections.length > 12 ? (
-                <li className="rounded-lg border border-dashed border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-500">
+                <li className="rounded-lg border border-dashed border-stone-200 bg-white px-3 py-2 text-xs text-stone-500">
                   +{currentDraftSections.length - 12} more sections
                 </li>
               ) : null}
@@ -1421,7 +1421,7 @@ function TemplateApplyReviewDialog({
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-zinc-950">Starter draft</div>
+              <div className="text-sm font-semibold text-stone-950">Starter draft</div>
               <span className="rounded-full border border-indigo-100 bg-white px-2 py-0.5 text-xs font-medium text-indigo-700">
                 {selectedCount} of {tile.sections} sections
               </span>
@@ -1478,8 +1478,8 @@ function TemplateApplyReviewDialog({
                     key={`${tile.slug}-review-${item}-${index}`}
                     className={`rounded-lg border px-3 py-2 text-sm ${
                       normalizedSelectedIndexes.has(index)
-                        ? "border-indigo-200 bg-white text-zinc-800"
-                        : "border-zinc-200 bg-zinc-50 text-zinc-500"
+                        ? "border-indigo-200 bg-white text-stone-800"
+                        : "border-stone-200 bg-stone-50 text-stone-500"
                     }`}
                   >
                     <div className="mb-1.5 pl-7">
@@ -1503,7 +1503,7 @@ function TemplateApplyReviewDialog({
                       onChange={() => toggleIndex(index)}
                       disabled={lockHomeCore && homeCoreSection}
                       aria-label={`Include ${item}`}
-                      className="h-4 w-4 shrink-0 border-zinc-300 text-indigo-600"
+                      className="h-4 w-4 shrink-0 border-stone-300 text-indigo-600"
                     />
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[10px] font-semibold tabular-nums text-indigo-700">
                       {index + 1}
@@ -1513,12 +1513,12 @@ function TemplateApplyReviewDialog({
                     {normalizedSelectedIndexes.has(index) &&
                     STARTER_STYLE_OPTIONS_BY_TYPE[sectionType] ? (
                     <div className="mt-2 pl-7">
-                      <label className="text-[11px] font-medium text-zinc-500">
+                      <label className="text-[11px] font-medium text-stone-500">
                         Layout style
                         <select
                           value={styleByIndex.get(index) ?? ""}
                           onChange={(event) => setStyle(index, event.target.value)}
-                          className="mt-1 block h-8 w-full rounded-lg border border-indigo-100 bg-white px-2 text-xs text-zinc-700"
+                          className="mt-1 block h-8 w-full cursor-pointer rounded-lg border border-[#cfc7b6] bg-white px-2 text-xs text-stone-700 [color-scheme:light] transition-[border-color,box-shadow] hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
                         >
                           <option value="">Default style</option>
                           {(STARTER_STYLE_OPTIONS_BY_TYPE[sectionType] ?? []).map((option) => (
@@ -1542,12 +1542,12 @@ function TemplateApplyReviewDialog({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-zinc-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Keep current draft
           </button>

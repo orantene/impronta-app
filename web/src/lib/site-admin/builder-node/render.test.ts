@@ -4,6 +4,7 @@ import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { hasRenderableBuilderNodes, renderBuilderNodes } from "./render";
+import { BUILDER_NODE_REGISTRY } from "./registry";
 import type { BuilderNode } from "./types";
 
 function render(nodes: ReadonlyArray<BuilderNode>): string {
@@ -348,6 +349,7 @@ describe("renderBuilderNodes", () => {
           style: {
             radius: "none",
             objectFit: "contain",
+            objectPosition: "left top",
             aspectRatio: "4:3",
             responsive: {
               tablet: {
@@ -358,6 +360,7 @@ describe("renderBuilderNodes", () => {
                 maxWidth: "full",
                 aspectRatio: "1:1",
                 objectFit: "cover",
+                objectPosition: "50% 20%",
               },
             },
           },
@@ -371,12 +374,708 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /data-builder-style-radius="none"/);
     assert.match(html, /data-builder-style-fit="contain"/);
     assert.match(html, /data-builder-style-ratio="4:3"/);
+    // Desktop object-position lands inline (literal absent from the static
+    // sheet, which only carries the `object-position:var(--bn-…)` gated rules).
+    assert.match(html, /object-position:left top/);
+    assert.match(html, /data-builder-style-object-position="left top"/);
     assert.match(html, /data-builder-style-tablet-width="wide"/);
     assert.match(html, /data-builder-style-tablet-ratio="16:9"/);
     assert.match(html, /data-builder-style-mobile-width="full"/);
     assert.match(html, /data-builder-style-mobile-ratio="1:1"/);
     assert.match(html, /data-builder-style-mobile-fit="cover"/);
+    // Mobile focal-point override is gated by its own value-carrying data-attr.
+    assert.match(html, /data-builder-style-mobile-object-position="50% 20%"/);
     assert.doesNotMatch(html, /border-radius:8px/);
+  });
+
+  it("renders a free aspect-ratio that overrides the ratio enum", () => {
+    const html = render([
+      {
+        id: "free:aspect",
+        kind: "image",
+        props: {
+          src: "https://example.com/a.jpg",
+          alt: "Cinematic",
+          style: {
+            // Enum and free are both set — free must win at the desktop level.
+            aspectRatio: "1:1",
+            aspectRatioFree: "1.85",
+            responsive: {
+              tablet: { aspectRatioFree: "2 / 3" },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop inline carries the free ratio (literal absent from the static
+    // sheet, which only has `aspect-ratio:var(--bn-…)` rules).
+    assert.match(html, /aspect-ratio:1\.85/);
+    // The enum value never makes it to the inline style — free won.
+    assert.doesNotMatch(html, /aspect-ratio:1 \/ 1/);
+    // Tablet free override is gated by its own empty-string data-attr.
+    assert.match(html, /data-builder-style-tablet-aspect-free=""/);
+    // No mobile override, so that gate attr stays absent.
+    assert.doesNotMatch(html, /data-builder-style-mobile-aspect-free=""/);
+  });
+
+  it("renders freeform surface escapes (shadow, background image, opacity)", () => {
+    const html = render([
+      {
+        id: "free:surface",
+        kind: "heading",
+        props: {
+          text: "Surface styled",
+          level: 2,
+          style: {
+            boxShadow: "0 4px 8px rgba(18,18,18,0.06)",
+            backgroundImage: "linear-gradient(180deg,#fff,#000)",
+            opacity: 0.5,
+            responsive: {
+              mobile: {
+                boxShadow: "none",
+                backgroundImage: "url(/m.jpg)",
+                opacity: 1,
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop free values land inline on the element (match the specific value
+    // so we don't accidentally hit the static stylesheet's var() rules).
+    assert.match(html, /box-shadow:0 4px 8px/);
+    assert.match(html, /background-image:linear-gradient/);
+    assert.match(html, /opacity:0\.5/);
+    // Per-breakpoint overrides are gated by their own data-attr so an unset
+    // breakpoint never clobbers the desktop value at computed-value time. The
+    // gate renders as an empty-string attribute (`=""`), which distinguishes it
+    // from the bare `[data-...]` selectors that always appear in the CSS sheet.
+    assert.match(html, /data-builder-style-mobile-shadow=""/);
+    assert.match(html, /data-builder-style-mobile-bg-image=""/);
+    assert.match(html, /data-builder-style-mobile-opacity=""/);
+    // No tablet override was set, so the tablet gate attrs stay absent.
+    assert.doesNotMatch(html, /data-builder-style-tablet-shadow=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-opacity=""/);
+  });
+
+  it("renders the free text-shadow escape (desktop inline + tablet gate)", () => {
+    const html = render([
+      {
+        id: "free:text-shadow",
+        kind: "heading",
+        props: {
+          text: "Glow",
+          level: 2,
+          style: {
+            textShadow: "0 2px 8px rgba(0,0,0,.4)",
+            responsive: {
+              tablet: { textShadow: "none" },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop value lands inline (the literal is absent from the static sheet,
+    // which only carries the `text-shadow:var(--bn-…)` gated rules).
+    assert.match(html, /text-shadow:0 2px 8px/);
+    // Tablet override is gated by its own empty-string data-attr.
+    assert.match(html, /data-builder-style-tablet-text-shadow=""/);
+    // No mobile override, so that gate attr stays absent.
+    assert.doesNotMatch(html, /data-builder-style-mobile-text-shadow=""/);
+  });
+
+  it("renders free background-paint overrides and keeps cover/center defaults", () => {
+    const html = render([
+      {
+        id: "free:bg-default",
+        kind: "heading",
+        props: {
+          text: "Default paint",
+          level: 2,
+          style: { backgroundImage: "url(/a.jpg)" },
+        },
+      },
+      {
+        id: "free:bg-override",
+        kind: "heading",
+        props: {
+          text: "Custom paint",
+          level: 2,
+          style: {
+            backgroundImage: "url(/b.jpg)",
+            backgroundSize: "contain",
+            backgroundPosition: "top left",
+            backgroundRepeat: "repeat",
+            // A mobile-only image swap must NOT reset the desktop paint axes.
+            responsive: { mobile: { backgroundImage: "url(/b-mobile.jpg)" } },
+          },
+        },
+      },
+    ]);
+
+    // The default node still paints cover/center/no-repeat inline (these
+    // literals no longer live in the static sheet, so a match proves inline).
+    assert.match(html, /background-size:cover/);
+    assert.match(html, /background-position:center/);
+    assert.match(html, /background-repeat:no-repeat/);
+    // The override node paints the free values inline instead.
+    assert.match(html, /background-size:contain/);
+    assert.match(html, /background-position:top left/);
+    assert.match(html, /background-repeat:repeat/);
+    // Regression guard: the responsive bg-image rule only swaps the image now —
+    // it must not re-force background-size, or a desktop override would reset.
+    assert.match(
+      html,
+      /data-builder-style-mobile-bg-image\]\{background-image:var\(--bn-mobile-bg-image\)!important\}/,
+    );
+    assert.doesNotMatch(
+      html,
+      /data-builder-style-mobile-bg-image\]\{background-image:var\(--bn-mobile-bg-image\)!important;background-size/,
+    );
+  });
+
+  it("renders the free border-radius escape over the radius token", () => {
+    const html = render([
+      {
+        id: "free:rounded",
+        kind: "heading",
+        props: {
+          text: "Rounded",
+          level: 2,
+          style: {
+            radius: "sm",
+            borderRadius: "20px 20px 0 0",
+            responsive: { mobile: { borderRadius: "8px" } },
+          },
+        },
+      },
+    ]);
+
+    // The free value lands inline with its shorthand preserved and beats the
+    // radius token (which would otherwise resolve to the "sm" preset).
+    assert.match(html, /border-radius:20px 20px 0 0/);
+    // The mobile override is gated by its own attr; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-radius-free=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-radius-free=""/);
+  });
+
+  it("renders the free gap escape over the layout gap token", () => {
+    const html = render([
+      {
+        id: "free:gap",
+        kind: "container",
+        props: {
+          layout: "stack",
+          gap: "m",
+          style: {
+            gap: "30px",
+            responsive: { mobile: { gap: "10px" } },
+          },
+        },
+        children: [
+          { id: "free:gap:p", kind: "paragraph", props: { text: "Spaced" } },
+        ],
+      },
+    ]);
+
+    // The free gap reassigns the --bn-gap variable inline, beating the token
+    // ("m" → 1.25rem) that the container would otherwise resolve to.
+    assert.match(html, /--bn-gap:30px/);
+    // The mobile override is gated by its own attr; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-gap-free=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-gap-free=""/);
+  });
+
+  it("renders the free per-side margin escapes over the margin token", () => {
+    const html = render([
+      {
+        id: "free:margin",
+        kind: "paragraph",
+        props: {
+          text: "Spaced",
+          style: {
+            marginTop: "s",
+            marginTopFree: "44px",
+            marginLeftFree: "12px",
+            responsive: { mobile: { marginBottomFree: "8px" } },
+          },
+        },
+      },
+    ]);
+
+    // The free top margin beats the marginTop token; left margin has no token at
+    // all and lands inline. Both serialize to their exact values.
+    assert.match(html, /margin-top:44px/);
+    assert.match(html, /margin-left:12px/);
+    // The mobile override is gated by its own attr; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-margin-bottom-free=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-margin-top-free=""/);
+  });
+
+  it("renders the free min/max dimension clamps over the width token", () => {
+    const html = render([
+      {
+        id: "free:clamps",
+        kind: "paragraph",
+        props: {
+          text: "Clamped",
+          style: {
+            maxWidth: "narrow",
+            maxWidthFree: "1280px",
+            minWidth: "320px",
+            maxHeight: "480px",
+            responsive: { mobile: { maxHeight: "200px" } },
+          },
+        },
+      },
+    ]);
+
+    // The free max-width clamp beats the maxWidth token; min-width / max-height
+    // have no token and land inline at their exact values.
+    assert.match(html, /max-width:1280px/);
+    assert.match(html, /min-width:320px/);
+    assert.match(html, /max-height:480px/);
+    // The mobile max-height override is gated by its own attr; no tablet was set.
+    assert.match(html, /data-builder-style-mobile-max-height=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-max-width-free=""/);
+  });
+
+  it("renders italic + text-decoration escapes", () => {
+    const html = render([
+      {
+        id: "free:type-style",
+        kind: "paragraph",
+        props: {
+          text: "Styled",
+          style: {
+            fontStyle: "italic",
+            textDecoration: "underline",
+            responsive: { mobile: { textDecoration: "line-through" } },
+          },
+        },
+      },
+    ]);
+
+    // Both land inline at desktop with their literal CSS values.
+    assert.match(html, /font-style:italic/);
+    assert.match(html, /text-decoration:underline/);
+    // The mobile decoration override is gated by its own attr; no tablet was set.
+    assert.match(html, /data-builder-style-mobile-text-decoration=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-font-style=""/);
+  });
+
+  it("renders positioning escapes (position + inset offsets)", () => {
+    const html = render([
+      {
+        id: "free:pos",
+        kind: "paragraph",
+        props: {
+          text: "Pinned",
+          style: {
+            position: "absolute",
+            top: "12px",
+            left: "-8px",
+            responsive: { mobile: { position: "relative" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop position + offsets land inline with their literal CSS values
+    // (negatives survive for overlap designs).
+    assert.match(html, /position:absolute/);
+    assert.match(html, /top:12px/);
+    assert.match(html, /left:-8px/);
+    // The mobile position override is attr-gated; no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-position=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-position=""/);
+  });
+
+  it("renders stacking + clipping escapes (z-index + overflow)", () => {
+    const html = render([
+      {
+        id: "free:stack",
+        kind: "paragraph",
+        props: {
+          text: "Layered",
+          style: {
+            zIndex: 5,
+            overflow: "hidden",
+            responsive: {
+              tablet: { zIndex: 0 },
+              mobile: { overflow: "scroll" },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Desktop z-index + overflow land inline with their literal values.
+    assert.match(html, /z-index:5/);
+    assert.match(html, /overflow:hidden/);
+    // The tablet z-index override of 0 is still emitted — the gate is a
+    // typeof-number check, so a valid 0 stacking level isn't dropped as falsy.
+    assert.match(html, /data-builder-style-tablet-z-index=""/);
+    // The mobile overflow override is attr-gated; no mobile z-index was set.
+    assert.match(html, /data-builder-style-mobile-overflow=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-z-index=""/);
+  });
+
+  it("renders transform escapes (rotate + scale)", () => {
+    const html = render([
+      {
+        id: "free:xform",
+        kind: "paragraph",
+        props: {
+          text: "Tilted",
+          style: {
+            rotate: "-3deg",
+            scale: "1.05",
+            responsive: { mobile: { rotate: "0deg" } },
+          },
+        },
+      },
+    ]);
+
+    // Standalone rotate/scale land inline at desktop with literal values
+    // (these compose independently of any transform the layout might set).
+    assert.match(html, /rotate:-3deg/);
+    assert.match(html, /scale:1\.05/);
+    // The mobile rotate override is attr-gated; no mobile scale / tablet set.
+    assert.match(html, /data-builder-style-mobile-rotate=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-scale=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-rotate=""/);
+  });
+
+  it("renders transform translate + transform-origin escapes", () => {
+    const html = render([
+      {
+        id: "free:xlate",
+        kind: "paragraph",
+        props: {
+          text: "Nudged",
+          style: {
+            translate: "10px -8px",
+            transformOrigin: "top left",
+            responsive: { mobile: { translate: "4px 0" } },
+          },
+        },
+      },
+    ]);
+
+    // Standalone translate + transform-origin land inline at desktop with
+    // literal values (compose independently of rotate/scale and layout).
+    assert.match(html, /translate:10px -8px/);
+    assert.match(html, /transform-origin:top left/);
+    // The mobile translate override is attr-gated; no tablet, no mobile origin.
+    assert.match(html, /data-builder-style-mobile-translate=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-translate=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-transform-origin=""/);
+  });
+
+  it("renders the mix-blend-mode compositing escape", () => {
+    const html = render([
+      {
+        id: "free:blend",
+        kind: "paragraph",
+        props: {
+          text: "Overlaid",
+          style: {
+            mixBlendMode: "multiply",
+            responsive: { tablet: { mixBlendMode: "screen" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop blend mode lands inline with a literal value.
+    assert.match(html, /mix-blend-mode:multiply/);
+    // The tablet override is attr-gated; no mobile set.
+    assert.match(html, /data-builder-style-tablet-mix-blend-mode=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-mix-blend-mode=""/);
+  });
+
+  it("renders gradient-clipped text when a background is present", () => {
+    const html = render([
+      {
+        id: "free:gradtext",
+        kind: "paragraph",
+        props: {
+          text: "Gradient",
+          style: {
+            backgroundImage: "linear-gradient(90deg, #f0f, #0ff)",
+            backgroundClip: "text",
+          },
+        },
+      },
+    ]);
+
+    // The clip bundle lands inline: clip the background to the glyphs + make the
+    // text fill transparent so the gradient shows through.
+    assert.match(html, /-webkit-background-clip:text/);
+    assert.match(html, /-webkit-text-fill-color:transparent/);
+  });
+
+  it("ignores background clip-to-text when no background paint is set", () => {
+    const html = render([
+      {
+        id: "free:gradtext-bare",
+        kind: "paragraph",
+        props: {
+          text: "Plain",
+          style: { backgroundClip: "text" },
+        },
+      },
+    ]);
+
+    // No background → the clip bundle is suppressed, so the text never goes
+    // invisible (the footgun guard).
+    assert.doesNotMatch(html, /-webkit-text-fill-color:transparent/);
+    assert.doesNotMatch(html, /background-clip:text/);
+  });
+
+  it("renders the hover-state layer (vars + gates) with an explicit transition", () => {
+    const html = render([
+      {
+        id: "free:hover",
+        kind: "paragraph",
+        props: {
+          text: "Hover me",
+          style: {
+            transition: "color .3s linear",
+            hover: {
+              backgroundColor: "#abc123",
+              scale: "1.37",
+              translate: "0 -7px",
+              opacity: 0.85,
+            },
+          },
+        },
+      },
+    ]);
+
+    // Each set hover prop rides on its own --bn-hover-* var (literal values that
+    // never appear in the static sheet, which only references the vars).
+    assert.match(html, /--bn-hover-bg:#abc123/);
+    assert.match(html, /--bn-hover-scale:1\.37/);
+    assert.match(html, /--bn-hover-translate:0 -7px/);
+    assert.match(html, /--bn-hover-opacity:0\.85/);
+    // Each set prop arms its presence gate so the :hover rule applies.
+    assert.match(html, /data-builder-style-hover-bg=""/);
+    assert.match(html, /data-builder-style-hover-scale=""/);
+    assert.match(html, /data-builder-style-hover-translate=""/);
+    assert.match(html, /data-builder-style-hover-opacity=""/);
+    // Unset hover props emit neither a var nor a gate.
+    assert.doesNotMatch(html, /data-builder-style-hover-color=""/);
+    assert.doesNotMatch(html, /data-builder-style-hover-border-color=""/);
+    assert.doesNotMatch(html, /data-builder-style-hover-shadow=""/);
+    // An explicit transition wins over the auto-default.
+    assert.match(html, /transition:color \.3s linear/);
+    // The :hover rule shipped in the embedded sheet (reads the var).
+    assert.match(html, /scale:var\(--bn-hover-scale\)/);
+  });
+
+  it("auto-defaults the transition when a hover layer is set without one", () => {
+    const html = render([
+      {
+        id: "free:hover-auto",
+        kind: "paragraph",
+        props: {
+          text: "Auto eased",
+          style: { hover: { backgroundColor: "#abc123" } },
+        },
+      },
+    ]);
+
+    // No explicit transition + a hover layer ⇒ gentle auto-ease so hover animates.
+    assert.match(html, /transition:all \.2s ease/);
+    assert.match(html, /data-builder-style-hover-bg=""/);
+  });
+
+  it("emits no hover gate or auto-transition when there is no hover layer", () => {
+    const html = render([
+      {
+        id: "free:no-hover",
+        kind: "paragraph",
+        props: {
+          text: "Resting only",
+          style: { scale: "1.1" },
+        },
+      },
+    ]);
+
+    // A base (non-hover) scale must not arm any hover gate or auto-transition.
+    assert.doesNotMatch(html, /data-builder-style-hover-scale=""/);
+    assert.doesNotMatch(html, /transition:all \.2s ease/);
+  });
+
+  it("renders flex child placement escapes (align-self + flex sizing)", () => {
+    const html = render([
+      {
+        id: "free:selflayout",
+        kind: "paragraph",
+        props: {
+          text: "Wide column",
+          style: {
+            alignSelf: "end",
+            flexGrow: 1,
+            flexShrink: 0,
+            flexBasis: "240px",
+            responsive: { mobile: { flexGrow: 0 } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop child-placement props land inline with their literal values.
+    assert.match(html, /align-self:end/);
+    assert.match(html, /flex-grow:1/);
+    assert.match(html, /flex-shrink:0/);
+    assert.match(html, /flex-basis:240px/);
+    // The mobile flex-grow override of 0 is still emitted (typeof-number gate),
+    // while no tablet override was set.
+    assert.match(html, /data-builder-style-mobile-flex-grow=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-flex-grow=""/);
+  });
+
+  it("renders grid child placement escapes (grid-column + grid-row)", () => {
+    const html = render([
+      {
+        id: "free:grid",
+        kind: "paragraph",
+        props: {
+          text: "Spanning",
+          style: {
+            gridColumn: "span 2",
+            gridRow: "1 / 3",
+            responsive: { tablet: { gridColumn: "span 1" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop grid placement lands inline with literal span/line specs.
+    assert.match(html, /grid-column:span 2/);
+    assert.match(html, /grid-row:1 \/ 3/);
+    // The tablet grid-column override is attr-gated; no mobile override set.
+    assert.match(html, /data-builder-style-tablet-grid-column=""/);
+    assert.doesNotMatch(html, /data-builder-style-mobile-grid-column=""/);
+  });
+
+  it("renders filter effects (filter + backdrop-filter)", () => {
+    const html = render([
+      {
+        id: "free:fx",
+        kind: "paragraph",
+        props: {
+          text: "Frosted",
+          style: {
+            filter: "blur(8px)",
+            backdropFilter: "blur(12px)",
+            responsive: { mobile: { filter: "grayscale(1)" } },
+          },
+        },
+      },
+    ]);
+
+    // Desktop filter + backdrop-filter land inline with distinct literal values.
+    assert.match(html, /filter:blur\(8px\)/);
+    assert.match(html, /backdrop-filter:blur\(12px\)/);
+    // The mobile filter override is attr-gated; no tablet override set.
+    assert.match(html, /data-builder-style-mobile-filter=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-filter=""/);
+  });
+
+  it("renders flex container layout escapes (justify-content + align-items + flex-wrap)", () => {
+    const html = render([
+      {
+        id: "free:flexbox",
+        kind: "container",
+        props: {
+          layout: "row",
+          style: {
+            justifyContent: "space-around",
+            alignItems: "baseline",
+            flexWrap: "nowrap",
+            responsive: { mobile: { justifyContent: "center" } },
+          },
+        },
+        children: [],
+      },
+    ]);
+
+    // Desktop main/cross-axis distribution + wrap land inline. These three literal
+    // values are absent from the embedded static sheet, so a match proves the
+    // inline render (not a stray sheet rule) emitted them.
+    assert.match(html, /justify-content:space-around/);
+    assert.match(html, /align-items:baseline/);
+    assert.match(html, /flex-wrap:nowrap/);
+    // The mobile justify override is attr-gated; no tablet override set.
+    assert.match(html, /data-builder-style-mobile-justify-content=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-justify-content=""/);
+  });
+
+  it("renders free grid-template escapes (columns/rows + auto-flow)", () => {
+    const html = render([
+      {
+        id: "free:grid-tracks",
+        kind: "container",
+        props: {
+          layout: "grid",
+          style: {
+            gridTemplateColumns: "2fr 1fr",
+            gridTemplateRows: "auto 1fr",
+            gridAutoFlow: "column",
+            responsive: { mobile: { gridTemplateColumns: "1fr" } },
+          },
+        },
+        children: [],
+      },
+    ]);
+
+    // Desktop grid tracks + flow land inline. These literal values are absent
+    // from the embedded static sheet (which uses var()/repeat()), so a match
+    // proves the inline render — not a stray sheet rule — emitted them.
+    assert.match(html, /grid-template-columns:2fr 1fr/);
+    assert.match(html, /grid-template-rows:auto 1fr/);
+    assert.match(html, /grid-auto-flow:column/);
+    // The mobile column-track override is attr-gated; no tablet override set.
+    assert.match(html, /data-builder-style-mobile-grid-template-columns=""/);
+    assert.doesNotMatch(html, /data-builder-style-tablet-grid-template-columns=""/);
+  });
+
+  it("themes builder nodes from design tokens (buttons, fonts, tones)", () => {
+    const html = render([
+      { id: "t:btn", kind: "button", props: { label: "Go", href: "/x", tone: "primary" } },
+      { id: "t:h", kind: "heading", props: { text: "Title", level: 2 } },
+      { id: "t:strong", kind: "paragraph", props: { text: "Bold", style: { tone: "strong" } } },
+    ]);
+
+    // Button color is wired to the brand primary token (literal fallback keeps the default).
+    assert.match(html, /background:var\(--token-color-primary,#111\)/);
+    // Heading + paragraph fonts wired to the themed font tokens (additive, inherit fallback).
+    assert.match(html, /font-family:var\(--site-heading-font,inherit\)/);
+    assert.match(html, /font-family:var\(--site-body-font,inherit\)/);
+    // Curated "strong" tone resolves to the ink token inline (distinct #111 fallback).
+    assert.match(html, /color:var\(--token-color-ink,#111\)/);
+  });
+
+  it("preserves a theme-token color binding through the style schema (max 64)", () => {
+    // A token binding like `var(--token-color-surface-raised, #ffffff)` is ~42
+    // chars. textColor is a known schema key, so an over-length value THROWS on
+    // parse (it isn't stripped) — this guards the max(64) widening from sliding
+    // back to a tight cap that would reject token bindings on save.
+    const parsed = BUILDER_NODE_REGISTRY.paragraph.propsSchema.parse({
+      text: "Bound",
+      style: { textColor: "var(--token-color-surface-raised, #ffffff)" },
+    }) as { style?: { textColor?: string } };
+    assert.equal(
+      parsed.style?.textColor,
+      "var(--token-color-surface-raised, #ffffff)",
+    );
   });
 
   it("renders carousel affordances from layout props", () => {

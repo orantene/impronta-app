@@ -57,6 +57,11 @@ import {
   type Shortcut,
 } from "./kit";
 import { isShortcutVisible } from "./kit/shortcuts";
+import { BUILDER_NODE_COMPOSITION_PRESETS } from "@/lib/site-admin/builder-node";
+import {
+  listBuilderComponents,
+  type BuilderComponentRow,
+} from "@/lib/site-admin/edit-mode/builder-components-action";
 import { useEditContext, type EditDevice } from "./edit-context";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -202,6 +207,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
+  // Living-components ("My blocks") fetched when the palette opens so they can
+  // be inserted by name from ⌘K.
+  const [savedBlocks, setSavedBlocks] = useState<
+    ReadonlyArray<BuilderComponentRow>
+  >([]);
 
   // Reset search + selection every time the palette opens. An operator
   // expects a fresh slate when they hit ⌘K, not the last query.
@@ -214,6 +224,18 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       return () => clearTimeout(t);
     }
     return undefined;
+  }, [open]);
+
+  // Refresh saved blocks each time the palette opens.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void listBuilderComponents().then((res) => {
+      if (!cancelled && res.ok) setSavedBlocks(res.components);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   // Build the full row list every render — the list is small (< 50 rows
@@ -615,6 +637,65 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       );
     }
 
+    // Ready-made composition packs (the inspector's "Section packs"), insertable
+    // into the selected container straight from ⌘K.
+    for (const pack of BUILDER_NODE_COMPOSITION_PRESETS) {
+      rows.push(
+        actionRow(
+          `insert-pack:${pack.id}`,
+          `Insert pack: ${pack.label}`,
+          ["pack", "block", "insert", "section pack", ...pack.keywords],
+          () => {
+            const parentId = ctx.selectedBuilderNodeId;
+            if (!parentId) {
+              ctx.reportMutationError(
+                "Select a container on the canvas first, then insert a pack.",
+              );
+              onClose();
+              return;
+            }
+            void ctx
+              .insertBuilderNodeCompositionPreset(parentId, pack.id)
+              .then((res) => {
+                if (!res.ok && res.error) {
+                  ctx.reportMutationError(res.error);
+                }
+              });
+            onClose();
+          },
+        ),
+      );
+    }
+
+    // Living components — the operator's saved "My blocks", insertable by name.
+    for (const block of savedBlocks) {
+      rows.push(
+        actionRow(
+          `insert-my-block:${block.id}`,
+          `Insert my block: ${block.name}`,
+          ["my block", "component", "saved", "reuse", "insert", block.rootKind],
+          () => {
+            const parentId = ctx.selectedBuilderNodeId;
+            if (!parentId) {
+              ctx.reportMutationError(
+                "Select a container on the canvas first, then insert a block.",
+              );
+              onClose();
+              return;
+            }
+            void ctx
+              .insertBuilderComponent(parentId, JSON.stringify(block.subtree))
+              .then((res) => {
+                if (!res.ok && res.error) {
+                  ctx.reportMutationError(res.error);
+                }
+              });
+            onClose();
+          },
+        ),
+      );
+    }
+
     // Navigation — navigator toggle + device switch.
     rows.push(
       navRow(
@@ -646,6 +727,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   }, [
     ctx,
     onClose,
+    savedBlocks,
   ]);
 
   // Score + sort + group.

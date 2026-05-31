@@ -1235,7 +1235,7 @@ export function CompositionLibraryOverlay() {
           data-section-library-catalog-loading=""
           role="status"
           aria-live="polite"
-          className="mx-[18px] mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] font-medium text-zinc-700"
+          className="mx-[18px] mt-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-[12px] font-medium text-stone-700"
         >
           {compositionLoaded ? "Updating catalog…" : "Loading catalog…"}
         </div>
@@ -1258,7 +1258,7 @@ export function CompositionLibraryOverlay() {
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500"
           >
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.3-4.3" />
@@ -1278,7 +1278,7 @@ export function CompositionLibraryOverlay() {
                 ? "No sections available"
                 : `Search ${totalSearchable} item${totalSearchable === 1 ? "" : "s"} — kits, hero, cta, testimonials…`
             }
-            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg border border-[#cfc7b6] bg-white py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow] disabled:cursor-not-allowed disabled:opacity-60"
           />
           {compositionError ? (
             <span id="composition-library-catalog-error-desc" className="sr-only">
@@ -1287,18 +1287,18 @@ export function CompositionLibraryOverlay() {
           ) : null}
         </div>
         {totalSearchable > 0 ? (
-          <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+          <p className="mt-2 text-[11px] leading-snug text-stone-500">
             {advancedHiddenCount > 0 ? (
               <>
                 Search or pick a category. Rare layouts stay behind{" "}
-                <span className="font-medium text-zinc-600">Show advanced sections</span>.
+                <span className="font-medium text-stone-600">Show advanced sections</span>.
                 Optional kit filters live under{" "}
-                <span className="font-medium text-zinc-600">More filters</span>.
+                <span className="font-medium text-stone-600">More filters</span>.
               </>
             ) : (
               <>
                 Search or pick a category — all listed types work in this area of the page. Use{" "}
-                <span className="font-medium text-zinc-600">More filters</span>{" "}
+                <span className="font-medium text-stone-600">More filters</span>{" "}
                 to narrow kits and starters.
               </>
             )}
@@ -1342,7 +1342,7 @@ export function CompositionLibraryOverlay() {
               of the tab strip. On mobile it moves to its own row below
               for a clearer touch target. */}
           {!isMobile && advancedHiddenCount > 0 ? (
-            <label className="ml-auto inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-100">
+            <label className="ml-auto inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full bg-stone-50 px-2 py-0.5 text-[10px] font-medium text-stone-500 ring-1 ring-inset ring-stone-200 hover:bg-stone-100">
               <input
                 type="checkbox"
                 checked={showAdvanced}
@@ -1357,7 +1357,7 @@ export function CompositionLibraryOverlay() {
         {/* Mobile-only: advanced toggle on its own row, full-width touch
             target sized for thumbs. */}
         {isMobile && advancedHiddenCount > 0 ? (
-          <label className="mt-2 flex cursor-pointer select-none items-center justify-between gap-2 rounded-md bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200 active:bg-zinc-100">
+          <label className="mt-2 flex cursor-pointer select-none items-center justify-between gap-2 rounded-md bg-stone-50 px-3 py-2 text-xs font-medium text-stone-700 ring-1 ring-inset ring-stone-200 active:bg-stone-100">
             <span>Show advanced sections</span>
             <input
               type="checkbox"
@@ -1375,7 +1375,7 @@ export function CompositionLibraryOverlay() {
                 type="button"
                 data-section-template-filters-disclosure
                 onClick={() => setStarterFacetFiltersOpen(true)}
-                className="flex w-full items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-[12px] font-medium text-zinc-800 transition hover:border-[#3d4f7c]/25 hover:bg-white"
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-left text-[12px] font-medium text-stone-800 transition hover:border-[#3d4f7c]/25 hover:bg-white"
               >
                 <span className="min-w-0">
                   Refine templates (optional)
@@ -1385,14 +1385,14 @@ export function CompositionLibraryOverlay() {
                     </span>
                   ) : null}
                 </span>
-                <span className="shrink-0 text-[11px] font-normal text-zinc-500">
+                <span className="shrink-0 text-[11px] font-normal text-stone-500">
                   Kind, source, plan…
                 </span>
               </button>
             ) : (
               <>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
                     Kit & starter filters
                   </span>
                   <button
@@ -1405,8 +1405,8 @@ export function CompositionLibraryOverlay() {
                   </button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-[11px] text-stone-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-stone-500">
                 Kind
               </span>
               <select
@@ -1416,7 +1416,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterKindFilter(event.target.value as StarterKindFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-stone-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="data">Data ({starterKindCounts.data})</option>
@@ -1426,8 +1426,8 @@ export function CompositionLibraryOverlay() {
                 </option>
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-[11px] text-stone-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-stone-500">
                 Source
               </span>
               <select
@@ -1437,7 +1437,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterSourceFilter(event.target.value as StarterSourceFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-stone-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="live-data">
@@ -1454,8 +1454,8 @@ export function CompositionLibraryOverlay() {
                 </option>
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-[11px] text-stone-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-stone-500">
                 Ready
               </span>
               <select
@@ -1465,7 +1465,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterReadinessFilter(event.target.value as StarterReadinessFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-stone-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="ready-now">
@@ -1476,8 +1476,8 @@ export function CompositionLibraryOverlay() {
                 </option>
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-[11px] text-stone-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-stone-500">
                 Data
               </span>
               <select
@@ -1489,7 +1489,7 @@ export function CompositionLibraryOverlay() {
                     event.target.value as StarterDataBindingFilter,
                   )
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-stone-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 {BUILDER_DATA_SOURCE_REGISTRY.map((source) => {
@@ -1503,8 +1503,8 @@ export function CompositionLibraryOverlay() {
                 })}
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-[11px] text-stone-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-stone-500">
                 Control
               </span>
               <select
@@ -1516,7 +1516,7 @@ export function CompositionLibraryOverlay() {
                     event.target.value as StarterCapabilityFilter,
                   )
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-stone-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 {EDITABLE_CAPABILITY_OPTIONS.map((capability) => (
@@ -1527,8 +1527,8 @@ export function CompositionLibraryOverlay() {
                 ))}
               </select>
             </label>
-            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
-              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-stone-300 bg-white px-2 py-1.5 text-[11px] text-stone-600 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-stone-500">
                 Plan
               </span>
               <select
@@ -1538,7 +1538,7 @@ export function CompositionLibraryOverlay() {
                 onChange={(event) =>
                   setStarterPlanFilter(event.target.value as StarterPlanFilter)
                 }
-                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+                className="min-w-0 flex-1 cursor-pointer bg-transparent text-[12px] font-medium text-stone-800 outline-none [color-scheme:light]"
               >
                 <option value="all">All ({templateStarterFacetBase.length})</option>
                 <option value="free">Free ({starterPlanCounts.free})</option>
@@ -1566,7 +1566,7 @@ export function CompositionLibraryOverlay() {
                 starterCapabilityFilter === "all" &&
                 starterPlanFilter === "all"
               }
-              className="inline-flex h-full items-center justify-center rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c] disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex h-full items-center justify-center rounded-md border border-stone-200 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 transition hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c] disabled:cursor-not-allowed disabled:opacity-45"
             >
               Reset
             </button>
@@ -1754,7 +1754,7 @@ export function CompositionLibraryOverlay() {
       >
         {/* Drag-handle pill — pure visual cue, no real drag yet */}
         <div className="flex justify-center py-2">
-          <div className="h-1 w-10 rounded-full bg-zinc-300" />
+          <div className="h-1 w-10 rounded-full bg-stone-300" />
         </div>
         {/* Mobile head — replaces DrawerHead on small screens. The
             tools-row close button is replaced by a tap-the-scrim gesture
@@ -1764,22 +1764,22 @@ export function CompositionLibraryOverlay() {
           style={{ borderBottom: `1px solid ${CHROME.line}` }}
         >
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">
               Add section
             </span>
             <span
               id="composition-library-mobile-title"
-              className="text-base font-semibold text-zinc-900"
+              className="text-base font-semibold text-stone-900"
             >
               Pick a section
             </span>
-            <span className="text-xs text-zinc-500">{insertingMeta}</span>
+            <span className="text-xs text-stone-500">{insertingMeta}</span>
           </div>
           <button
             type="button"
             onClick={closeLibrary}
             aria-label="Close"
-            className="-mr-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 active:bg-zinc-100"
+            className="-mr-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-500 active:bg-stone-100"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -1918,7 +1918,7 @@ function DrawerBodyInner({
           : "";
     return (
       <div
-        className="space-y-2 py-12 text-center text-sm text-zinc-500"
+        className="space-y-2 py-12 text-center text-sm text-stone-500"
         role="status"
         aria-live="polite"
         aria-atomic="true"
@@ -1929,7 +1929,7 @@ function DrawerBodyInner({
             ? `No kits, templates, or section types match "${query.trim()}".`
             : "No section templates or types available for this area of the page."}
         </p>
-        {recovery ? <p className="m-0 text-xs leading-relaxed text-zinc-400">{recovery}</p> : null}
+        {recovery ? <p className="m-0 text-xs leading-relaxed text-stone-500">{recovery}</p> : null}
       </div>
     );
   }
@@ -1943,18 +1943,18 @@ function DrawerBodyInner({
         <div
           role="status"
           aria-live="polite"
-          className="rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-[11px] text-zinc-700"
+          className="rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-[11px] text-stone-700"
         >
-          <p className="m-0 font-medium text-zinc-900">
+          <p className="m-0 font-medium text-stone-900">
             No section types match this search in the categories above.
           </p>
-          <p className="mt-1 m-0 text-zinc-600">
+          <p className="mt-1 m-0 text-stone-600">
             Kits and starter templates below still match your search.
             {advancedHiddenCount > 0 && !showAdvanced ? (
               <>
                 {" "}
                 Rare single-section types may need{" "}
-                <strong className="font-semibold text-zinc-800">Show advanced sections</strong>.
+                <strong className="font-semibold text-stone-800">Show advanced sections</strong>.
               </>
             ) : null}
           </p>
@@ -1987,14 +1987,14 @@ function DrawerBodyInner({
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-zinc-950">
+              <span className="text-sm font-semibold text-stone-950">
                 Saved templates
               </span>
               <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#3d4f7c]">
                 Open gallery
               </span>
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+            <span className="mt-1 block text-xs leading-relaxed text-stone-500">
               Reuse workspace templates, save the current draft, or apply a
               saved composition from the full template gallery.
             </span>
@@ -2005,14 +2005,14 @@ function DrawerBodyInner({
         <section>
           <div className="mb-2 flex items-baseline justify-between">
             <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
                 Homepage kits
               </h3>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
                 Multi-section sequences that stay individually editable.
               </p>
             </div>
-            <span className="text-[10px] text-zinc-400 tabular-nums">
+            <span className="text-[10px] text-stone-500 tabular-nums">
               {availableTemplateKitCount}/{templateKits.length} available
             </span>
           </div>
@@ -2042,14 +2042,14 @@ function DrawerBodyInner({
         <section>
           <div className="mb-2 flex items-baseline justify-between">
             <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
                 Starter section templates
               </h3>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
                 Designed presets that insert real editable sections.
               </p>
             </div>
-            <span className="text-[10px] text-zinc-400 tabular-nums">
+            <span className="text-[10px] text-stone-500 tabular-nums">
               {availableTemplateStarterCount}/{templateStarters.length} available
             </span>
           </div>
@@ -2083,10 +2083,10 @@ function DrawerBodyInner({
         return (
           <section key={cat}>
             <div className="mb-2 flex items-baseline justify-between">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
                 {CATEGORY_LABEL[cat] ?? cat}
               </h3>
-              <span className="text-[10px] text-zinc-400 tabular-nums">
+              <span className="text-[10px] text-stone-500 tabular-nums">
                 {entries.length}
               </span>
             </div>
@@ -2102,17 +2102,17 @@ function DrawerBodyInner({
                     onClick={() => void handlePick(entry.typeKey)}
                     className="group flex flex-col items-stretch gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-left transition hover:-translate-y-px hover:border-indigo-300 hover:shadow-md disabled:opacity-50 disabled:hover:border-[#e5e0d5] disabled:hover:translate-y-0 disabled:hover:shadow-none"
                   >
-                    <div className="relative overflow-hidden rounded-md bg-zinc-50 p-2">
+                    <div className="relative overflow-hidden rounded-md bg-stone-50 p-2">
                       <SectionWire
                         typeKey={entry.typeKey}
-                        className="h-20 w-full text-zinc-400"
+                        className="h-20 w-full text-stone-400"
                       />
                       {entry.tag ? (
                         <span
                           className={
                             entry.tag === "new"
                               ? "absolute right-2 top-2 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-700 ring-1 ring-inset ring-blue-200"
-                              : "absolute right-2 top-2 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-700 ring-1 ring-inset ring-zinc-300"
+                              : "absolute right-2 top-2 rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-700 ring-1 ring-inset ring-stone-300"
                           }
                         >
                           {entry.tag}
@@ -2125,16 +2125,16 @@ function DrawerBodyInner({
                       ) : null}
                     </div>
                     <div className="flex w-full items-center justify-between gap-2 px-0.5">
-                      <span className="text-sm font-semibold text-zinc-900">
+                      <span className="text-sm font-semibold text-stone-900">
                         {entry.label}
                       </span>
                       {busy ? (
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-stone-500">
                           Adding…
                         </span>
                       ) : null}
                     </div>
-                    <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-zinc-500">
+                    <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-stone-500">
                       {entry.description}
                     </p>
                   </button>
@@ -2200,44 +2200,44 @@ function KitReviewOverlay({
       >
         <div className="flex items-start justify-between gap-4 border-b border-[#eee9dd] px-5 py-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">
               Review kit
             </p>
             <h3
               id={`kit-review-heading-${kit.id}`}
-              className="mt-1 text-lg font-semibold text-zinc-950"
+              className="mt-1 text-lg font-semibold text-stone-950"
             >
               {kit.label}
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+            <p className="mt-1 text-sm leading-relaxed text-stone-500">
               {kit.description}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={onSelectAll}
-                className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
+                className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
               >
                 Select all
               </button>
               <button
                 type="button"
                 onClick={onSelectHomeCore}
-                className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
+                className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
               >
                 Home core
               </button>
               <button
                 type="button"
                 onClick={onClear}
-                className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
+                className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
               >
                 Clear
               </button>
               <button
                 type="button"
                 onClick={onReset}
-                className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
+                className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c]"
               >
                 Reset
               </button>
@@ -2247,7 +2247,7 @@ function KitReviewOverlay({
             type="button"
             onClick={onClose}
             aria-label="Close kit review"
-            className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100"
+            className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -2274,7 +2274,7 @@ function KitReviewOverlay({
                 className={`flex items-start gap-3 rounded-xl border p-3 transition hover:border-[#3d4f7c]/35 ${
                   checked
                     ? "border-[#3d4f7c]/25 bg-[#fbfaf7]"
-                    : "border-[#eee9dd] bg-zinc-50/60 opacity-75"
+                    : "border-[#eee9dd] bg-stone-50/60 opacity-75"
                 }`}
               >
                 <input
@@ -2285,15 +2285,15 @@ function KitReviewOverlay({
                   className="mt-1 h-4 w-4 accent-[#3d4f7c]"
                 />
                 <span className="flex min-w-0 flex-1 items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-stone-500 ring-1 ring-inset ring-stone-200">
                     {index + 1}
                   </span>
-                  <span className="hidden h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-inset ring-zinc-200 sm:block">
+                  <span className="hidden h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-inset ring-stone-200 sm:block">
                     <StarterPreviewThumb starter={starter} />
                   </span>
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-zinc-950">
+                      <span className="text-sm font-semibold text-stone-950">
                         {starter.label}
                       </span>
                       <span
@@ -2302,16 +2302,16 @@ function KitReviewOverlay({
                             ? "rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-700 ring-1 ring-inset ring-emerald-200"
                             : starter.kind === "conversion"
                               ? "rounded-full bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-700 ring-1 ring-inset ring-indigo-200"
-                              : "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-600 ring-1 ring-inset ring-zinc-200"
+                              : "rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-600 ring-1 ring-inset ring-stone-200"
                         }
                       >
                         {starterKindLabel(starter.kind)}
                       </span>
                     </span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                    <span className="mt-0.5 block text-xs leading-relaxed text-stone-500">
                       {starter.description}
                     </span>
-                    <span className="mt-1 block text-[10px] font-medium text-zinc-500">
+                    <span className="mt-1 block text-[10px] font-medium text-stone-500">
                       {starter.sectionTypeKey.replace(/_/g, " ")} ·{" "}
                       {sourceKindLabel(starter.sourceKind)}
                     </span>
@@ -2331,15 +2331,15 @@ function KitReviewOverlay({
                         Home core
                       </span>
                     ) : null}
-                    <span className="mt-2 block rounded-lg border border-zinc-100 bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-zinc-600">
-                      <span className="font-semibold text-zinc-700">
+                    <span className="mt-2 block rounded-lg border border-stone-100 bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-stone-600">
+                      <span className="font-semibold text-stone-700">
                         How you&apos;ll edit:{" "}
                       </span>
                       {editModelHeadline(starter.editModel)}
                     </span>
                     {stylePresets.length > 0 ? (
                       <span className="mt-3 block">
-                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+                        <span className="mb-1 block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
                           Starting style
                         </span>
                         <span className="grid gap-1.5 sm:grid-cols-2">
@@ -2375,7 +2375,7 @@ function KitReviewOverlay({
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-[#eee9dd] px-5 py-4">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-stone-500">
             {selectedCount} of {kit.starterIds.length} sections selected
             {selectedStyleOverrideCount > 0
               ? ` · ${selectedStyleOverrideCount} style override${selectedStyleOverrideCount === 1 ? "" : "s"}`
@@ -2386,7 +2386,7 @@ function KitReviewOverlay({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100"
             >
               Cancel
             </button>
@@ -2418,11 +2418,11 @@ function StarterPreviewThumb({ starter }: { starter: SectionTemplateStarter }) {
   if (starter.preview === "search" || starter.preview === "chips") {
     return (
       <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#fbfaf7] px-2">
-        <span className="h-1.5 w-12 rounded bg-zinc-800/70" />
-        <span className="h-1 w-16 rounded bg-zinc-300" />
+        <span className="h-1.5 w-12 rounded bg-stone-800/70" />
+        <span className="h-1 w-16 rounded bg-stone-300" />
         <span className="mt-1 flex gap-1">
-          <span className="h-4 w-6 rounded-full border border-zinc-300 bg-white" />
-          <span className="h-4 w-6 rounded-full border border-zinc-300 bg-white" />
+          <span className="h-4 w-6 rounded-full border border-stone-300 bg-white" />
+          <span className="h-4 w-6 rounded-full border border-stone-300 bg-white" />
         </span>
       </span>
     );
@@ -2475,16 +2475,16 @@ function StarterReviewOverlay({
         <div className="min-h-0 overflow-y-auto border-t border-[#eee9dd] px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">
                 Review section
               </p>
               <h3
                 id={`starter-review-heading-${starter.id}`}
-                className="mt-1 text-lg font-semibold text-zinc-950"
+                className="mt-1 text-lg font-semibold text-stone-950"
               >
                 {starter.label}
               </h3>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-500">
+              <p className="mt-1 text-sm leading-relaxed text-stone-500">
                 {starter.description}
               </p>
             </div>
@@ -2492,7 +2492,7 @@ function StarterReviewOverlay({
               type="button"
               onClick={onClose}
               aria-label="Close section review"
-              className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100"
+              className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -2516,7 +2516,7 @@ function StarterReviewOverlay({
           </div>
           {stylePresets.length > 0 ? (
             <div className="mt-3 rounded-xl border border-[#eee9dd] bg-white p-3">
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+              <span className="block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
                 Starting style
               </span>
               <div className="mt-2 grid gap-2">
@@ -2540,29 +2540,29 @@ function StarterReviewOverlay({
           ) : null}
           <div className="mt-3 rounded-xl border border-[#eee9dd] bg-[#fbfaf7] p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+              <span className="block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
                 Data connection
               </span>
               {starter.dataBindingKey ? (
                 <DataBindingBadge sourceKey={starter.dataBindingKey} />
               ) : null}
             </div>
-            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-700">
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-stone-700">
               {starter.dataSource}
             </span>
           </div>
           <div className="mt-3 rounded-xl border border-[#eee9dd] bg-white p-3">
-            <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+            <span className="block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
               What&apos;s included
             </span>
-            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-700">
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-stone-700">
               {starter.componentRecipe.join(" · ")}
             </span>
-            <span className="mt-2 block text-[11px] leading-relaxed text-zinc-500">
-              <span className="font-medium text-zinc-600">What you can change: </span>
+            <span className="mt-2 block text-[11px] leading-relaxed text-stone-500">
+              <span className="font-medium text-stone-600">What you can change: </span>
               {starter.editScope}
             </span>
-            <span className="mt-2 block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+            <span className="mt-2 block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
               Fine-tune in inspector
             </span>
             <span className="mt-1 flex">
@@ -2572,14 +2572,14 @@ function StarterReviewOverlay({
         </div>
 
         <div className="shrink-0 flex items-center justify-between gap-3 border-t border-[#eee9dd] px-5 py-4">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-stone-500">
             Inserts one normal editable section.
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100"
             >
               Cancel
             </button>
@@ -2610,14 +2610,14 @@ function StarterReviewFact({
 }) {
   return (
     <div className="rounded-xl border border-[#eee9dd] bg-[#fbfaf7] p-3">
-      <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+      <span className="block text-[9px] font-semibold uppercase tracking-wider text-stone-500">
         {label}
       </span>
-      <span className="mt-1 block text-xs font-medium leading-snug text-zinc-700">
+      <span className="mt-1 block text-xs font-medium leading-snug text-stone-700">
         {value}
       </span>
       {detail ? (
-        <span className="mt-1.5 block text-[11px] leading-relaxed text-zinc-500">{detail}</span>
+        <span className="mt-1.5 block text-[11px] leading-relaxed text-stone-500">{detail}</span>
       ) : null}
     </div>
   );
@@ -2648,7 +2648,7 @@ function StylePresetButton({
       } ${
         active
           ? "border-[#3d4f7c]/35 bg-[#f6f7fb] text-[#23345f]"
-          : "border-zinc-200 bg-[#fbfaf7] text-zinc-600 hover:border-[#3d4f7c]/25"
+          : "border-stone-200 bg-[#fbfaf7] text-stone-600 hover:border-[#3d4f7c]/25"
       }`}
     >
       <span className={`block font-semibold ${compact ? "text-[11px]" : "text-xs"}`}>
@@ -2675,12 +2675,12 @@ function StarterPreviewLarge({ starter }: { starter: SectionTemplateStarter }) {
   if (starter.preview === "search") {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-[#f8f7f3] to-[#eef7fb] px-8">
-        <div className="h-2 w-32 rounded bg-zinc-900/70" />
-        <div className="mt-4 h-3 w-56 rounded bg-zinc-400/45" />
-        <div className="mt-5 flex h-10 w-full max-w-[320px] items-center rounded-xl border border-zinc-300 bg-white px-3">
-          <div className="h-4 w-4 rounded-full border-2 border-zinc-700" />
-          <div className="ml-3 h-2 flex-1 rounded bg-zinc-300" />
-          <div className="ml-3 h-6 w-16 rounded bg-zinc-900" />
+        <div className="h-2 w-32 rounded bg-stone-900/70" />
+        <div className="mt-4 h-3 w-56 rounded bg-stone-400/45" />
+        <div className="mt-5 flex h-10 w-full max-w-[320px] items-center rounded-xl border border-stone-300 bg-white px-3">
+          <div className="h-4 w-4 rounded-full border-2 border-stone-700" />
+          <div className="ml-3 h-2 flex-1 rounded bg-stone-300" />
+          <div className="ml-3 h-6 w-16 rounded bg-stone-900" />
         </div>
       </div>
     );
@@ -2688,12 +2688,12 @@ function StarterPreviewLarge({ starter }: { starter: SectionTemplateStarter }) {
   if (starter.preview === "chips") {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-[#fbfaf7] px-8">
-        <div className="h-2 w-28 rounded bg-zinc-900/80" />
+        <div className="h-2 w-28 rounded bg-stone-900/80" />
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           {["Models", "Hosts", "Music", "Photo", "Creators"].map((label) => (
             <span
               key={label}
-              className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-[10px] text-zinc-500"
+              className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-[10px] text-stone-500"
             >
               {label}
             </span>
@@ -2816,14 +2816,14 @@ function TemplateDropOverlay({
               </svg>
             )}
           </div>
-          <p className="text-sm font-semibold text-zinc-950">
+          <p className="text-sm font-semibold text-stone-950">
             {dropTarget
               ? dropTarget.allowed
                 ? `${dropTarget.label}: ${activeLabel}`
                 : `Can't add to ${dropTarget.targetSlotLabel}`
               : `Drop to add ${activeLabel}`}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+          <p className="mt-1 text-xs leading-relaxed text-stone-500">
             {dropTarget
               ? dropTarget.allowed
                 ? `${activeCount} will be inserted in ${dropTarget.targetSlotLabel}.`
@@ -2915,7 +2915,7 @@ function SourceKindBadge({
         ? "bg-indigo-50 text-indigo-700 ring-indigo-200"
         : kind === "navigation"
           ? "bg-sky-50 text-sky-700 ring-sky-200"
-          : "bg-zinc-100 text-zinc-600 ring-zinc-200";
+          : "bg-stone-100 text-stone-600 ring-stone-200";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ring-1 ring-inset ${classes}`}
@@ -3003,13 +3003,13 @@ function EditableCapabilityBadges({
       {visibleCapabilities.map((capability) => (
         <span
           key={capability}
-          className="inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-500 ring-1 ring-inset ring-zinc-200"
+          className="inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-500 ring-1 ring-inset ring-stone-200"
         >
           {editableCapabilityLabel(capability)}
         </span>
       ))}
       {hiddenCount > 0 ? (
-        <span className="inline-flex items-center rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-500 ring-1 ring-inset ring-zinc-200">
+        <span className="inline-flex items-center rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-500 ring-1 ring-inset ring-stone-200">
           +{hiddenCount}
         </span>
       ) : null}
@@ -3079,10 +3079,10 @@ function TemplateKitCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="block text-sm font-semibold text-zinc-950">
+          <span className="block text-sm font-semibold text-stone-950">
             {kit.label}
           </span>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500">
             {kit.description}
           </p>
         </div>
@@ -3094,7 +3094,7 @@ function TemplateKitCard({
         {starters.map((starter, idx) => (
           <div
             key={`${kit.id}-${starter.id}-${idx}`}
-            className="h-10 overflow-hidden rounded-md border border-zinc-200 bg-white"
+            className="h-10 overflow-hidden rounded-md border border-stone-200 bg-white"
           >
             <StarterPreviewThumb starter={starter} />
           </div>
@@ -3111,13 +3111,13 @@ function TemplateKitCard({
         ) : null}
       </div>
       {dataConnectedCount > 0 ? (
-        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-zinc-500">
+        <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-stone-500">
           {dataConnectedCount} section{dataConnectedCount === 1 ? "" : "s"} connect to
           tenant data, navigation, or inquiry routes.
         </p>
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-[10px] text-zinc-400">
+        <span className="text-[10px] text-stone-500">
           {compatibility.ok
             ? "Review or drag into the canvas"
             : (compatibility.reason ?? "Not available for this part of the page")}
@@ -3192,10 +3192,10 @@ function TemplateStarterCard({
       <StarterPreview starter={starter} />
       <div className="flex items-start justify-between gap-2 px-0.5">
         <div>
-          <span className="block text-sm font-semibold text-zinc-950">
+          <span className="block text-sm font-semibold text-stone-950">
             {starter.label}
           </span>
-          <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+          <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wider text-stone-500">
             {starter.sectionTypeKey.replace(/_/g, " ")}
           </span>
         </div>
@@ -3205,7 +3205,7 @@ function TemplateStarterCard({
               ? "shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-700 ring-1 ring-inset ring-emerald-200"
               : starter.kind === "conversion"
                 ? "shrink-0 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-700 ring-1 ring-inset ring-indigo-200"
-                : "shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-600 ring-1 ring-inset ring-zinc-200"
+                : "shrink-0 rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-600 ring-1 ring-inset ring-stone-200"
           }
         >
           {starterKindLabel(starter.kind)}
@@ -3224,19 +3224,19 @@ function TemplateStarterCard({
           </span>
         ) : null}
       </div>
-      <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-zinc-500">
+      <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-stone-500">
         {starter.description}
       </p>
-      <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-2 py-1.5">
-        <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+      <div className="rounded-lg border border-stone-100 bg-stone-50/70 px-2 py-1.5">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-500">
           What&apos;s included
         </span>
-        <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
+        <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-stone-500">
           {starter.componentRecipe.join(" · ")}
         </p>
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 px-0.5 pt-1">
-        <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400">
+        <span className="line-clamp-2 text-[10px] leading-snug text-stone-500">
           {compatibility.ok
             ? `${editModelHeadline(starter.editModel)} · ${starter.editScope}`
             : (compatibility.reason ?? "Not available for this part of the page")}
@@ -3265,12 +3265,12 @@ function StarterPreview({ starter }: { starter: SectionTemplateStarter }) {
   if (starter.preview === "search") {
     return (
       <div className="h-24 overflow-hidden rounded-lg bg-gradient-to-br from-[#f8f7f3] to-[#eef7fb] p-4">
-        <div className="mx-auto h-2 w-28 rounded bg-zinc-900/70" />
-        <div className="mx-auto mt-3 h-3 w-44 rounded bg-zinc-400/45" />
-        <div className="mx-auto mt-4 flex h-8 max-w-[210px] items-center rounded-lg border border-zinc-300 bg-white px-2">
-          <div className="h-3 w-3 rounded-full border-2 border-zinc-700" />
-          <div className="ml-2 h-2 flex-1 rounded bg-zinc-300" />
-          <div className="ml-2 h-5 w-12 rounded bg-zinc-900" />
+        <div className="mx-auto h-2 w-28 rounded bg-stone-900/70" />
+        <div className="mx-auto mt-3 h-3 w-44 rounded bg-stone-400/45" />
+        <div className="mx-auto mt-4 flex h-8 max-w-[210px] items-center rounded-lg border border-stone-300 bg-white px-2">
+          <div className="h-3 w-3 rounded-full border-2 border-stone-700" />
+          <div className="ml-2 h-2 flex-1 rounded bg-stone-300" />
+          <div className="ml-2 h-5 w-12 rounded bg-stone-900" />
         </div>
       </div>
     );
@@ -3279,12 +3279,12 @@ function StarterPreview({ starter }: { starter: SectionTemplateStarter }) {
   if (starter.preview === "chips") {
     return (
       <div className="h-24 overflow-hidden rounded-lg bg-[#fbfaf7] p-4">
-        <div className="mx-auto h-2 w-24 rounded bg-zinc-900/80" />
+        <div className="mx-auto h-2 w-24 rounded bg-stone-900/80" />
         <div className="mt-4 flex flex-wrap justify-center gap-1.5">
           {["Models", "Hosts", "Music", "Photo", "Creators"].map((label) => (
             <span
               key={label}
-              className="rounded-full border border-zinc-300 bg-white px-2 py-1 text-[9px] text-zinc-500"
+              className="rounded-full border border-stone-300 bg-white px-2 py-1 text-[9px] text-stone-500"
             >
               {label}
             </span>
@@ -3356,7 +3356,7 @@ function Tab({ active, onClick, label, count, mobile }: TabProps) {
       className={
         active
           ? `inline-flex items-center gap-1 rounded-full bg-[#3d4f7c] ${sizing} font-medium text-white`
-          : `inline-flex items-center gap-1 rounded-full bg-zinc-100 ${sizing} font-medium text-zinc-600 hover:bg-zinc-200 active:bg-zinc-200`
+          : `inline-flex items-center gap-1 rounded-full bg-stone-100 ${sizing} font-medium text-stone-600 hover:bg-stone-200 active:bg-stone-200`
       }
     >
       <span>{label}</span>
@@ -3364,7 +3364,7 @@ function Tab({ active, onClick, label, count, mobile }: TabProps) {
         className={
           active
             ? "tabular-nums text-white/70"
-            : "tabular-nums text-zinc-400"
+            : "tabular-nums text-stone-500"
         }
       >
         {count}

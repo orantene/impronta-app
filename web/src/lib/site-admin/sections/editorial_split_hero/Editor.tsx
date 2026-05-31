@@ -10,11 +10,11 @@ import {
 } from "../../edit-mode/talent-picker-action";
 import type { SectionEditorProps } from "../types";
 import type { EditorialSplitHeroV1 } from "./schema";
+import { KIT } from "@/components/edit-chrome/inspectors/kit";
 
-const FIELD = "flex flex-col gap-1.5 text-sm";
-const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
-const INPUT =
-  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+const FIELD = KIT.field;
+const LABEL = KIT.label;
+const INPUT = KIT.input;
 type DiscoveryForm = NonNullable<EditorialSplitHeroV1["discoveryForm"]>;
 type DiscoveryOption = NonNullable<DiscoveryForm["categories"]>[number];
 type DiscoveryListKey = "categories" | "markets";
@@ -144,7 +144,7 @@ export function EditorialSplitHeroEditor({
         {options.map((option, index) => (
           <div
             key={index}
-            className="grid grid-cols-1 gap-2 rounded-md border border-border/50 p-2 md:grid-cols-[1fr_1fr_auto]"
+            className="grid grid-cols-1 gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2 md:grid-cols-[1fr_1fr_auto]"
           >
             <input
               className={INPUT}
@@ -164,7 +164,7 @@ export function EditorialSplitHeroEditor({
                 })
               }
             />
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <label className="flex items-center gap-2 text-xs text-stone-500">
               <input
                 type="checkbox"
                 checked={option.disabled === true}
@@ -192,7 +192,7 @@ export function EditorialSplitHeroEditor({
         ))}
         <button
           type="button"
-          className="self-start rounded-md border border-border/60 px-2 py-1 text-xs"
+          className={`${KIT.ghostButton} self-start`}
           onClick={() =>
             setDiscoveryOptions(
               key,
@@ -247,7 +247,7 @@ export function EditorialSplitHeroEditor({
         />
       </label>
 
-      <div className="flex flex-col gap-3 rounded-md border border-border/50 p-3">
+      <div className="flex flex-col gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3">
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -384,7 +384,7 @@ export function EditorialSplitHeroEditor({
       </div>
 
       {value.mediaMode !== "static" ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[11px] text-stone-500">
           Selected/dynamic talent media is a documented follow-on (couples to
           the cache-trimmed featured DTO). Static media renders meanwhile.
         </p>
@@ -570,10 +570,10 @@ function TalentStackPicker({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-border/50 p-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3">
       <div>
         <span className={LABEL}>Card-stack talent</span>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
           Pick up to three roster talent. The first slot is the large middle
           card shown on the homepage.
         </p>
@@ -584,7 +584,7 @@ function TalentStackPicker({
           {selected.map((talent, index) => (
             <div
               key={`${talent.profileCode}-${index}`}
-              className="grid grid-cols-[42px_1fr_auto] items-center gap-2 rounded-md border border-border/50 p-2"
+              className="grid grid-cols-[42px_1fr_auto] items-center gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2"
             >
               <span
                 aria-hidden
@@ -592,18 +592,18 @@ function TalentStackPicker({
                 style={{ backgroundImage: `url(${talent.cardImageUrl})` }}
               />
               <span className="min-w-0">
-                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="block text-[10px] uppercase tracking-wide text-stone-500">
                   {STACK_SLOT_LABELS[index] ?? "Support card"}
                 </span>
                 <b className="block truncate text-sm">{talent.displayName}</b>
-                <span className="block truncate text-xs text-muted-foreground">
+                <span className="block truncate text-xs text-stone-500">
                   {talent.profileCode}
                 </span>
               </span>
               <span className="flex gap-1">
                 <button
                   type="button"
-                  className="rounded border border-border/60 px-1.5 py-1 text-[11px] disabled:opacity-35"
+                  className={`${KIT.ghostButton} disabled:opacity-35`}
                   disabled={index === 0}
                   onClick={() => move(index, index - 1)}
                 >
@@ -611,7 +611,7 @@ function TalentStackPicker({
                 </button>
                 <button
                   type="button"
-                  className="rounded border border-border/60 px-1.5 py-1 text-[11px] disabled:opacity-35"
+                  className={`${KIT.ghostButton} disabled:opacity-35`}
                   disabled={index === selected.length - 1}
                   onClick={() => move(index, index + 1)}
                 >
@@ -619,7 +619,7 @@ function TalentStackPicker({
                 </button>
                 <button
                   type="button"
-                  className="rounded border border-border/60 px-1.5 py-1 text-[11px] text-destructive"
+                  className={`${KIT.ghostButton} text-destructive`}
                   onClick={() => remove(talent.profileCode)}
                 >
                   Remove
@@ -637,11 +637,11 @@ function TalentStackPicker({
         onChange={(e) => onQuery(e.target.value)}
       />
       {loading ? (
-        <p className="text-xs text-muted-foreground">Searching...</p>
+        <p className="text-xs text-stone-500">Searching...</p>
       ) : err ? (
         <p className="text-xs text-destructive">{err}</p>
       ) : results.length > 0 ? (
-        <ul className="max-h-56 overflow-auto rounded-md border border-border/60">
+        <ul className="max-h-56 overflow-auto rounded-lg border border-[#e5e0d5]">
           {results.map((talent) => {
             const picked = selected.some(
               (item) => item.profileCode === talent.profileCode,
@@ -667,12 +667,12 @@ function TalentStackPicker({
                   />
                   <span className="min-w-0 truncate">
                     <b>{talent.displayName}</b>{" "}
-                    <span className="text-muted-foreground">
+                    <span className="text-stone-500">
                       {talent.primaryTypeLabel ?? talent.profileCode}
                       {talent.cityLabel ? ` · ${talent.cityLabel}` : ""}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-stone-500">
                     {picked
                       ? "Added"
                       : talent.cardImageUrl
@@ -685,7 +685,7 @@ function TalentStackPicker({
           })}
         </ul>
       ) : query.trim().length > 0 ? (
-        <p className="text-xs text-muted-foreground">No matches on roster.</p>
+        <p className="text-xs text-stone-500">No matches on roster.</p>
       ) : null}
     </div>
   );

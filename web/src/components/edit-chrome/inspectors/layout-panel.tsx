@@ -57,19 +57,28 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useEditContext } from "../edit-context";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
+import { Toggle } from "../kit/toggle";
 import { CHROME } from "../kit/tokens";
 
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+  "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-stone-500";
 const FIELD_LABEL =
-  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
-const HINT = "text-[10.5px] leading-tight text-zinc-500";
-const INHERIT_HINT = "text-[10.5px] text-zinc-400";
+  "text-[10.5px] font-semibold uppercase tracking-[0.10em] text-stone-600";
+const HINT = "text-[11px] leading-tight text-stone-500";
+const INHERIT_HINT = "text-[11px] text-stone-500";
 
 interface LayoutPanelProps {
   presentation: Record<string, unknown>;
   onPatch: (patch: Record<string, unknown>) => void;
   onDeepPatch?: (patch: Record<string, unknown>) => void;
+  /**
+   * True when the section also exposes a dedicated Responsive tab (see
+   * TABS_BY_SECTION_TYPE in inspector-dock). When set, the in-tab
+   * "Per-screen overrides" block is hidden to avoid two editors writing
+   * the same `presentation.breakpoints` store. Sections without a
+   * Responsive tab keep the block as their only per-breakpoint editor.
+   */
+  hasResponsiveTab?: boolean;
 }
 
 // Short pill labels — full descriptors live in PRESENTATION_OPTIONS for the
@@ -798,7 +807,7 @@ function NodeLayoutPresetGrid({
             <span className="block text-[11.5px] font-semibold">
               {preset.label}
             </span>
-            <span className="mt-0.5 block text-[10.5px] leading-tight text-zinc-500">
+            <span className="mt-0.5 block text-[10.5px] leading-tight text-stone-500">
               {preset.description}
             </span>
           </button>
@@ -828,15 +837,10 @@ function ToggleRow({
       }}
     >
       <span className="flex flex-col">
-        <span className="text-[11.5px] font-semibold text-zinc-700">{label}</span>
-        <span className="text-[10.5px] text-zinc-500">{hint}</span>
+        <span className="text-[11.5px] font-semibold text-stone-700">{label}</span>
+        <span className="text-[10.5px] text-stone-500">{hint}</span>
       </span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 cursor-pointer"
-      />
+      <Toggle on={checked} onChange={onChange} />
     </label>
   );
 }
@@ -871,8 +875,8 @@ function LayoutHealthCard({
         data-builder-node-layout-health="ok"
         className="rounded-md px-3 py-2"
         style={{
-          background: "rgba(16, 185, 129, 0.08)",
-          border: "1px solid rgba(16, 185, 129, 0.22)",
+          background: CHROME.greenBg,
+          border: `1px solid ${CHROME.greenLine}`,
         }}
       >
         <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
@@ -913,8 +917,8 @@ function LayoutHealthCard({
           data-builder-node-layout-blockers={blockingCount}
           className="rounded-md px-2.5 py-2"
           style={{
-            background: "rgba(239, 68, 68, 0.08)",
-            border: "1px solid rgba(239, 68, 68, 0.28)",
+            background: CHROME.roseBg,
+            border: `1px solid ${CHROME.roseLine}`,
           }}
         >
           <div className="text-[10px] font-semibold uppercase tracking-[0.11em] text-red-700">
@@ -933,15 +937,15 @@ function LayoutHealthCard({
           className="rounded-md px-2.5 py-2"
           style={{
             background: isBlockingLayoutFindingId(finding.id)
-              ? "rgba(239, 68, 68, 0.08)"
+              ? CHROME.roseBg
               : finding.level === "warning"
-                ? "rgba(245, 158, 11, 0.10)"
-                : "rgba(59, 130, 246, 0.08)",
+                ? CHROME.amberBg
+                : CHROME.blueBg,
             border: isBlockingLayoutFindingId(finding.id)
-              ? "1px solid rgba(239, 68, 68, 0.26)"
+              ? `1px solid ${CHROME.roseLine}`
               : finding.level === "warning"
-                ? "1px solid rgba(245, 158, 11, 0.28)"
-                : "1px solid rgba(59, 130, 246, 0.18)",
+                ? `1px solid ${CHROME.amberLine}`
+                : `1px solid ${CHROME.blueLine}`,
           }}
         >
           <div className="flex items-start justify-between gap-2">
@@ -950,10 +954,10 @@ function LayoutHealthCard({
                 className="text-[9.5px] font-semibold uppercase tracking-[0.11em]"
                 style={{
                   color: isBlockingLayoutFindingId(finding.id)
-                    ? "rgb(185, 28, 28)"
+                    ? CHROME.rose
                     : finding.level === "warning"
-                      ? "rgb(161, 98, 7)"
-                      : "rgb(30, 64, 175)",
+                      ? CHROME.amber
+                      : CHROME.blue,
                 }}
               >
                 {isBlockingLayoutFindingId(finding.id)
@@ -962,10 +966,10 @@ function LayoutHealthCard({
                     ? "Warning"
                     : "Recommendation"}
               </div>
-              <div className="text-[11px] font-semibold text-zinc-800">
+              <div className="text-[11px] font-semibold text-stone-800">
                 {finding.title}
               </div>
-              <p className="mt-0.5 text-[10.5px] leading-snug text-zinc-500">
+              <p className="mt-0.5 text-[10.5px] leading-snug text-stone-500">
                 {finding.message}
               </p>
             </div>
@@ -1296,20 +1300,18 @@ function AdvancedNodeLayoutEditor({
                     border: `1px solid ${CHROME.line}`,
                   }}
                 >
-                  <span className="text-[11.5px] text-zinc-700">{item.props.title}</span>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
+                  <span className="text-[11.5px] text-stone-700">{item.props.title}</span>
+                  <Toggle
+                    on={checked}
+                    onChange={(isOn) => {
                       const next = new Set(defaultOpenItemIds);
-                      if (e.target.checked) next.add(item.id);
+                      if (isOn) next.add(item.id);
                       else next.delete(item.id);
                       onPatch({
                         defaultOpenItemIds:
                           next.size > 0 ? Array.from(next) : undefined,
                       });
                     }}
-                    className="h-4 w-4 cursor-pointer"
                   />
                 </label>
               );
@@ -1357,11 +1359,12 @@ function AdvancedNodeLayoutEditor({
               style={{
                 height: 30,
                 fontSize: 12.5,
-                background: CHROME.surface2,
-                border: `1px solid ${CHROME.lineMid}`,
+                background: CHROME.controlFill,
+                border: `1px solid ${CHROME.controlBorder}`,
                 borderRadius: 6,
                 color: CHROME.ink,
                 outline: "none",
+                colorScheme: "light",
               }}
             >
               <option value="">First tab</option>
@@ -1689,6 +1692,7 @@ export function LayoutPanel({
   presentation,
   onPatch,
   onDeepPatch,
+  hasResponsiveTab,
 }: LayoutPanelProps) {
   const {
     builderTree,
@@ -2083,10 +2087,10 @@ export function LayoutPanel({
         </div>
       </section>
 
-      {onDeepPatch ? (
+      {onDeepPatch && !hasResponsiveTab ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Responsive layout</div>
+            <div className={SECTION_TITLE}>Per-screen overrides</div>
             {hasResponsiveLayoutOverride ? (
               <button
                 type="button"
@@ -2285,18 +2289,16 @@ export function LayoutPanel({
           }}
         >
           <span className="flex flex-col">
-            <span className="text-[11.5px] font-semibold text-zinc-700">
+            <span className="text-[11.5px] font-semibold text-stone-700">
               Full bleed
             </span>
-            <span className="text-[10.5px] text-zinc-500">
+            <span className="text-[10.5px] text-stone-500">
               Escape the page container — touch viewport edges.
             </span>
           </span>
-          <input
-            type="checkbox"
-            checked={Boolean(presentation.fullBleed)}
-            onChange={(e) => onPatch({ fullBleed: e.target.checked || undefined })}
-            className="h-4 w-4 cursor-pointer"
+          <Toggle
+            on={Boolean(presentation.fullBleed)}
+            onChange={(isOn) => onPatch({ fullBleed: isOn || undefined })}
           />
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -2353,7 +2355,7 @@ export function LayoutPanel({
               outline: "none",
             }}
           />
-          <span className="text-[10.5px] text-zinc-400">
+          <span className="text-[10.5px] text-stone-500">
             Section sticks at this offset while you scroll past it.
           </span>
         </div>
@@ -2380,10 +2382,11 @@ export function LayoutPanel({
         </div>
       </section>
 
-      {/* ── Responsive (in-tab summary; the Responsive tab carries the
-            full per-breakpoint editor) ──────────────────────────────── */}
+      {/* ── Stacking & visibility (mobileStack + visibility — NOT covered
+            by the Responsive tab's OVERRIDE_KEYS, so this stays in every
+            Layout tab regardless of hasResponsiveTab) ─────────────────── */}
       <section className="flex flex-col gap-3">
-        <div className={SECTION_TITLE}>Responsive</div>
+        <div className={SECTION_TITLE}>Stacking &amp; visibility</div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className={FIELD_LABEL}>

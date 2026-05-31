@@ -260,14 +260,14 @@ export function TrustStripContentInspector({
                 className={`flex flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition ${
                   active
                     ? "border-indigo-400 shadow-[0_0_0_1px_rgba(61,79,124,0.4)]"
-                    : "border-zinc-200 hover:border-zinc-400"
+                    : "border-stone-200 hover:border-stone-400"
                 }`}
               >
                 <span
                   className="h-8 rounded-md border border-black/5"
                   style={{ backgroundColor: option.color }}
                 />
-                <span className="px-0.5 text-[11px] font-medium text-zinc-700">
+                <span className="px-0.5 text-[11px] font-medium text-stone-700">
                   {option.label}
                 </span>
               </button>
@@ -349,7 +349,7 @@ export function TrustStripContentInspector({
                 {...handleProps}
                 aria-label="Drag to reorder item"
                 title="Drag to reorder"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-zinc-500"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-500"
               >
                 <GripVertical className="h-3.5 w-3.5" />
               </button>
@@ -359,7 +359,7 @@ export function TrustStripContentInspector({
                 disabled={index === 0}
                   aria-label="Move item up"
                   title="Move up"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-zinc-600 disabled:opacity-40"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-600 disabled:opacity-40"
                 >
                   <ChevronUp className="h-3.5 w-3.5" />
                 </button>
@@ -369,7 +369,7 @@ export function TrustStripContentInspector({
                   disabled={index === items.length - 1}
                   aria-label="Move item down"
                   title="Move down"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-zinc-600 disabled:opacity-40"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-600 disabled:opacity-40"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
@@ -379,7 +379,7 @@ export function TrustStripContentInspector({
                   disabled={items.length >= 6}
                   aria-label="Duplicate item"
                   title="Duplicate"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-zinc-600 disabled:opacity-40"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-600 disabled:opacity-40"
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </button>
@@ -387,7 +387,7 @@ export function TrustStripContentInspector({
                   type="button"
                   onClick={() => removeItem(index)}
                   disabled={items.length <= 1}
-                  className="rounded-md border border-[#ddd7ca] px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+                  className="rounded-md border border-[#ddd7ca] px-2 py-1 text-xs text-stone-600 disabled:opacity-40"
                 >
                   Remove
                 </button>
@@ -399,7 +399,7 @@ export function TrustStripContentInspector({
           type="button"
           onClick={addItem}
           disabled={items.length >= 6}
-          className="mt-3 rounded-md border border-[#ddd7ca] px-2.5 py-1.5 text-xs font-medium text-zinc-700 disabled:opacity-50"
+          className="mt-3 rounded-md border border-[#ddd7ca] px-2.5 py-1.5 text-xs font-medium text-stone-700 disabled:opacity-50"
         >
           Add item
         </button>
