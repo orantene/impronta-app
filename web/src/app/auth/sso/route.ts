@@ -16,8 +16,8 @@ export const dynamic = "force-dynamic";
  * generateLink + verifyOtp — no session tokens ever cross the wire. On any
  * failure it lands the visitor on the target page logged-out (safe degrade).
  *
- * NOTE: verifyOtp type for a generateLink('magiclink') hashed_token —
- * QA confirms 'email' vs 'magiclink' on a real custom domain before trusting.
+ * NOTE: verifyOtp type mirrors the generateLink type ('magiclink'). Still worth
+ * a real-custom-domain QA pass to confirm the cookie lands host-only.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
   });
 
   const { error: verifyError } = await supabase.auth.verifyOtp({
-    type: "email",
+    type: "magiclink",
     token_hash: tokenHash,
   });
   if (verifyError) {
