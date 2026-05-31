@@ -26,6 +26,7 @@ import Stripe from "stripe";
 import { getStripe } from "./stripe-checkout";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
 
 export type ConnectAccountStatus =
   | "none"
@@ -166,16 +167,25 @@ export async function getConnectedAccountSnapshotById(
 }
 
 /**
+ * The platform's home country — connected accounts default here when the
+ * workspace hasn't chosen otherwise. The platform Stripe account is Mexican,
+ * so this is "MX" (NOT "US" — the old hard-coded default created mismatched
+ * US accounts for Mexican agencies).
+ */
+const PLATFORM_DEFAULT_COUNTRY = "MX";
+
+/**
  * Create a new Stripe Express account for the agency, or return the existing
  * one. Idempotent — safe to call multiple times.
  *
- * Stripe requires a country code at create-time. We pass "US" as the default
- * because the platform's Stripe account is US; agencies based elsewhere will
- * be guided through Stripe's localization during onboarding. A future
- * enhancement: capture the agency's country up-front and pass it here.
+ * Stripe requires a country code at create-time and it's immutable, so it must
+ * match where the workspace actually banks. `opts.country` (the workspace
+ * picked it on the Payouts page) wins; otherwise we default to the platform's
+ * country rather than guessing US.
  */
 export async function createOrGetConnectedAccount(
   tenantSlug: string,
+  opts: { country?: string | null; businessUrl?: string | null } = {},
 ): Promise<ConnectResult<{ stripeAccountId: string }>> {
   const stripe = getStripe();
   if (!stripe) return { ok: false, error: "Stripe is not configured." };
@@ -187,16 +197,19 @@ export async function createOrGetConnectedAccount(
     return { ok: true, data: { stripeAccountId: agency.stripeAccountId } };
   }
 
+  const country = normalizePayoutCountry(opts.country) ?? PLATFORM_DEFAULT_COUNTRY;
+
   try {
     const account = await stripe.accounts.create({
       type: "express",
-      country: "US",
+      country,
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
       business_profile: {
         name: agency.agencyName,
+        ...(opts.businessUrl ? { url: opts.businessUrl } : {}),
       },
       metadata: {
         account_type: "workspace",
@@ -236,7 +249,11 @@ export async function createOrGetConnectedAccount(
     return { ok: true, data: { stripeAccountId: account.id } };
   } catch (err) {
     logServerError("payments.stripe-connect.create", err);
-    return { ok: false, error: "Could not create Stripe account." };
+    // Most commonly: Stripe doesn't support Connect payouts in `country` yet.
+    return {
+      ok: false,
+      error: `Payouts aren't available in ${payoutCountryLabel(country)} yet — we're expanding coverage.`,
+    };
   }
 }
 

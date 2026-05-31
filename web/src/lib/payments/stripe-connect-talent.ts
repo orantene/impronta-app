@@ -26,6 +26,7 @@ import type Stripe from "stripe";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
 
 export type TalentConnectStatus =
   | "none"
@@ -56,6 +57,22 @@ function deriveStatus(account: Stripe.Account): TalentConnectStatus {
   return "pending";
 }
 
+type AdminClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
+
+/** Look up a country's ISO-2 code from its `countries.id`. */
+async function iso2FromCountryId(
+  admin: AdminClient,
+  countryId: string | null,
+): Promise<string | null> {
+  if (!countryId) return null;
+  const { data } = await admin
+    .from("countries")
+    .select("iso2")
+    .eq("id", countryId)
+    .maybeSingle();
+  return (data?.iso2 as string | null) ?? null;
+}
+
 /**
  * Create-or-get the talent's Stripe Connect Express account.
  *
@@ -65,6 +82,7 @@ function deriveStatus(account: Stripe.Account): TalentConnectStatus {
  */
 export async function createOrGetTalentConnectedAccount(
   talentProfileId: string,
+  opts: { country?: string | null; businessUrl?: string | null } = {},
 ): Promise<TalentConnectResult<{ stripeAccountId: string; existed: boolean }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe not configured." };
@@ -75,10 +93,12 @@ export async function createOrGetTalentConnectedAccount(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Database unavailable." };
 
-  // 1. Fetch the talent_profiles row.
+  // 1. Fetch the talent_profiles row + the talent's RESIDENCE country (where
+  //    they bank / get paid). The account's country is immutable, so it must
+  //    match the payee — never the platform's default.
   const { data: tp, error: readErr } = await admin
     .from("talent_profiles")
-    .select("id, display_name, stripe_account_id")
+    .select("id, display_name, stripe_account_id, profile_code, residence_country_id")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (readErr || !tp) {
@@ -90,20 +110,47 @@ export async function createOrGetTalentConnectedAccount(
     return { ok: true, data: { stripeAccountId: tp.stripe_account_id as string, existed: true } };
   }
 
-  // 2. Create the Express account.
-  const account = await stripe.accounts.create({
-    type: "express",
-    capabilities: {
-      transfers: { requested: true },
-      card_payments: { requested: false },
-    },
-    metadata: {
-      account_type: "talent",
-      talent_profile_id: talentProfileId,
-    },
-  });
+  // 2. Resolve the payout country: an explicit override (the talent picked it
+  //    on the payouts page) wins, else their residence country. If neither is
+  //    known we can't create the account yet — the UI shows a country picker.
+  const residenceIso2 = await iso2FromCountryId(admin, tp.residence_country_id as string | null);
+  const country = normalizePayoutCountry(opts.country) ?? normalizePayoutCountry(residenceIso2);
+  if (!country) {
+    return { ok: false, error: "country_required" };
+  }
 
-  // 3. Persist the id.
+  // 3. Prefill the connected account's business website with the talent's
+  //    public Tulala page so they don't have to type/hunt for a URL.
+  const businessUrl =
+    opts.businessUrl ??
+    (tp.profile_code ? `https://tulala.digital/t/${tp.profile_code}` : undefined);
+
+  // 4. Create the Express account in the payee's country.
+  let account: Stripe.Account;
+  try {
+    account = await stripe.accounts.create({
+      type: "express",
+      country,
+      capabilities: {
+        transfers: { requested: true },
+        card_payments: { requested: false },
+      },
+      business_profile: businessUrl ? { url: businessUrl } : undefined,
+      metadata: {
+        account_type: "talent",
+        talent_profile_id: talentProfileId,
+      },
+    });
+  } catch (err) {
+    logServerError("stripe-connect-talent.createAccount", err);
+    // Most commonly: Stripe doesn't support Connect payouts in `country` yet.
+    return {
+      ok: false,
+      error: `Payouts aren't available in ${payoutCountryLabel(country)} yet — we're expanding coverage.`,
+    };
+  }
+
+  // 5. Persist the id.
   const { error: writeErr } = await admin
     .from("talent_profiles")
     .update({ stripe_account_id: account.id })
@@ -114,6 +161,23 @@ export async function createOrGetTalentConnectedAccount(
   }
 
   return { ok: true, data: { stripeAccountId: account.id, existed: false } };
+}
+
+/** Resolve the talent's preferred payout country (ISO-2), or null if unknown
+ *  and the UI must ask. Cheap read — used by the payouts page to decide
+ *  whether to show a country picker before "Connect". */
+export async function resolveTalentPayoutCountry(
+  talentProfileId: string,
+): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data } = await admin
+    .from("talent_profiles")
+    .select("residence_country_id")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  const iso2 = await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null);
+  return normalizePayoutCountry(iso2);
 }
 
 /**

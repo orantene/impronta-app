@@ -8,6 +8,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ensureWorkspacePayoutAccount,
   getConnectAccountSessionAction,
   getConnectDashboardLinkAction,
   refreshConnectStatusAction,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/server-actions/admin-stripe-connect";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
+import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
 import { createTranslator } from "@/i18n/messages";
 
 const C = {
@@ -78,23 +80,41 @@ export function PayoutsActionsClient({
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [country, setCountry] = useState("");
 
   const fullyEnabled = status === "enabled" && chargesEnabled && payoutsEnabled;
 
-  // Open the inline embedded onboarding (Tulala-branded; no stripe.com
-  // redirect). The Express account is created lazily by the Account Session.
+  // First-time connect: pick the payout country (it's immutable), then mount
+  // the inline embedded onboarding. Resuming an existing account skips the
+  // picker (the country is already locked).
   const onConnect = () => {
+    setError(null); setInfo(null);
+    if (hasAccount) { setShowOnboarding(true); return; }
+    setPicking(true);
+  };
+
+  const onResume = () => {
     setError(null); setInfo(null);
     setShowOnboarding(true);
   };
 
-  const onResume = onConnect; // same inline flow — Stripe re-uses the in-progress account.
-
-  // Re-pull status from Stripe after the embedded flow signals exit.
-  const onOnboardingExit = () => {
+  const onSubmitCountry = () => {
+    if (!country) { setError("Please choose where you'll receive payouts."); return; }
+    setError(null); setInfo(null);
     startTransition(async () => {
-      const r = await refreshConnectStatusAction(tenantSlug);
-      if (r.ok && r.data.status === "enabled") setShowOnboarding(false);
+      const r = await ensureWorkspacePayoutAccount(tenantSlug, { country });
+      if (r.ok) { setPicking(false); setShowOnboarding(true); return; }
+      setError("error" in r ? r.error : "Could not start payout setup.");
+    });
+  };
+
+  // Re-pull status from Stripe after the embedded flow exits — ALWAYS collapse
+  // back so the admin isn't left on a stranded exited iframe.
+  const onOnboardingExit = () => {
+    setShowOnboarding(false);
+    startTransition(async () => {
+      await refreshConnectStatusAction(tenantSlug);
       router.refresh();
     });
   };
@@ -165,18 +185,49 @@ export function PayoutsActionsClient({
         )}
       </div>
 
+      {picking && !showOnboarding && (
+        <div style={{ marginTop: 4, maxWidth: 360 }}>
+          <label htmlFor="ws-payout-country" style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+            Where will this workspace receive payouts?
+          </label>
+          <select
+            id="ws-payout-country"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            style={{
+              width: "100%", padding: "10px 12px", borderRadius: 8,
+              border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13,
+              color: C.ink, background: "#fff", marginBottom: 12,
+            }}
+          >
+            <option value="">Select your country…</option>
+            {PAYOUT_COUNTRIES.map((c) => (
+              <option key={c.iso2} value={c.iso2}>{c.flag} {c.label}</option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
+              {pending ? t("admin.payouts.actions.loading") : "Continue"}
+            </button>
+            <button type="button" onClick={() => { setPicking(false); setError(null); }} style={ghostBtn(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {showOnboarding && !fullyEnabled && (
         <div style={{ marginTop: 4 }}>
           <ConnectEmbeddedOnboarding
             fetchClientSecret={async () => {
-              const r = await getConnectAccountSessionAction(tenantSlug);
+              const r = await getConnectAccountSessionAction(tenantSlug, country ? { country } : {});
               return r.ok ? { ok: true, clientSecret: r.data.clientSecret } : r;
             }}
             onExit={onOnboardingExit}
           />
           <button
             type="button"
-            onClick={() => setShowOnboarding(false)}
+            onClick={onOnboardingExit}
             style={{ ...ghostBtn(false), marginTop: 12 }}
           >
             Done for now

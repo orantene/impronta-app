@@ -116,8 +116,35 @@ export async function getConnectOnboardingLinkAction(
  * stripe.com (mirrors the talent embedded flow). `external_account_collection`
  * lets them attach their bank inside the embedded flow.
  */
+/**
+ * Ensure the workspace's Connect account exists in the chosen country BEFORE
+ * the embedded onboarding mounts. Returns `country_required` only when the
+ * caller passes no country AND there's no default (there always is a platform
+ * default, so in practice this just creates the account in `country` or MX).
+ */
+export async function ensureWorkspacePayoutAccount(
+  tenantSlug: string,
+  opts: { country?: string } = {},
+): Promise<
+  | { ok: true }
+  | { ok: false; code: "country_required" }
+  | { ok: false; code: "error"; error: string }
+> {
+  try {
+    const guard = await authorizeForSlug(tenantSlug);
+    if (!guard.ok) return { ok: false, code: "error", error: guard.error };
+    const ensure = await createOrGetConnectedAccount(tenantSlug, { country: opts.country });
+    if (ensure.ok) return { ok: true };
+    return { ok: false, code: "error", error: ensure.error };
+  } catch (err) {
+    logServerError("admin-stripe-connect.ensureWorkspacePayoutAccount", err);
+    return { ok: false, code: "error", error: "Unexpected error." };
+  }
+}
+
 export async function getConnectAccountSessionAction(
   tenantSlug: string,
+  opts: { country?: string } = {},
 ): Promise<ConnectActionResult<{ clientSecret: string }>> {
   try {
     const guard = await authorizeForSlug(tenantSlug);
@@ -126,7 +153,7 @@ export async function getConnectAccountSessionAction(
     const stripe = getStripe();
     if (!stripe) return { ok: false, error: "Payouts are not available right now." };
 
-    const ensure = await createOrGetConnectedAccount(tenantSlug);
+    const ensure = await createOrGetConnectedAccount(tenantSlug, { country: opts.country });
     if (!ensure.ok) return ensure;
 
     const session = await stripe.accountSessions.create({
