@@ -15,8 +15,7 @@ import "server-only";
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { looksLikeBuilderNode } from "@/lib/site-admin/edit-mode/builder-component-rows";
-import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
 
 export async function loadBuilderComponentsForTenant(
@@ -35,9 +34,15 @@ export async function loadBuilderComponentsForTenant(
 
   const out: ComponentDefinitions = {};
   for (const row of data) {
-    const subtree = (row as { id: string; subtree_jsonb: unknown }).subtree_jsonb;
-    if (looksLikeBuilderNode(subtree)) {
-      out[(row as { id: string }).id] = subtree as BuilderNode;
+    const { id, subtree_jsonb } = row as { id: string; subtree_jsonb: unknown };
+    // Deep-validate before trusting it on the PUBLISHED render path — a corrupt
+    // subtree (e.g. DB tampering) must never reach the renderer and crash a live
+    // page. validateBuilderNodeTree returns a cleaned tree; only the validated
+    // root is used. Invalid rows are dropped → instances fall back to their
+    // stored children.
+    const validated = validateBuilderNodeTree([subtree_jsonb]);
+    if (validated.ok && validated.tree.length === 1) {
+      out[id] = validated.tree[0];
     }
   }
   return out;

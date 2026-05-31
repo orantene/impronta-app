@@ -1050,6 +1050,11 @@ function syncBuilderTreeSectionChildren(
 
   const visit = (node: BuilderNode): BuilderNode => {
     if (node.kind === "section" && node.props.sectionId === input.sectionId) {
+      // "2018 bye-bye" — an ejected section owns its roleless freeform children;
+      // never re-derive curated role nodes over them on a field edit.
+      if (node.props.ejected) {
+        return node;
+      }
       if (isCompositionOwnedSectionType(input.sectionTypeKey)) {
         return node;
       }
