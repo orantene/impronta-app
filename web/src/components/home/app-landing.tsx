@@ -1,40 +1,148 @@
 import Link from "next/link";
+import { getSiteUrl } from "@/lib/auth-flow";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 /**
- * Root page for `kind === "app"` — the internal workspace host.
+ * Root page for `kind === "app"` — the workspace host (app.tulala.digital) as
+ * seen by signed-OUT visitors, including the post-logout landing. Authenticated
+ * users are redirected to their dashboard by auth-routing inside updateSession.
  *
- * Intentionally minimal: no storefront chrome, no directory/AI calls. Just
- * a sign-in entry point. Authenticated users landing here are redirected
- * to their dashboard by `auth-routing` inside `updateSession`.
+ * Rendered INSIDE the platform (Tulala) header/footer wireframe so it is never a
+ * dead end: the wordmark, the top nav, and the footer all lead back to the
+ * marketing site. Those routes live on the marketing host (not this app host),
+ * so they are absolute via `getSiteUrl()`; only Sign in / Create account stay
+ * on this host. Uses the `--plt-*` platform tokens (scoped by
+ * `data-platform-surface="marketing"`) so the branding matches the public site.
  */
 export function AppLanding() {
+  const site = getSiteUrl();
+  const year = new Date().getFullYear();
+
+  const navLinks = [
+    { label: "Discover", href: `${site}/discover-agencies` },
+    { label: "Talent", href: `${site}/directory` },
+    { label: "Pricing", href: `${site}/pricing` },
+  ];
+
   return (
-    <div className="flex min-h-full flex-1 flex-col items-center justify-center bg-background px-4 py-16">
-      <div className="w-full max-w-md text-center">
-        <p className="font-display text-xs font-medium uppercase tracking-[0.4em] text-[var(--impronta-gold-dim)]">
-          Impronta
-        </p>
-        <h1 className="mt-6 font-display text-3xl font-normal leading-tight tracking-[0.06em] text-foreground sm:text-4xl">
-          Workspace
-        </h1>
-        <p className="mx-auto mt-4 max-w-sm text-base text-[var(--impronta-muted)]">
-          Sign in to access your admin, client, or talent workspace.
-        </p>
-        <div className="mt-10 flex flex-col items-center gap-3">
-          <Link
-            href="/login"
-            className="inline-flex h-11 items-center justify-center rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-8 text-sm font-medium text-foreground transition hover:bg-[var(--impronta-surface)]/60"
+    <div
+      data-platform-surface="marketing"
+      className="flex min-h-screen flex-col"
+      style={{ background: "var(--plt-bg)", color: "var(--plt-ink)" }}
+    >
+      {/* Header — the wordmark + nav return to the marketing site (the way out). */}
+      <header
+        className="sticky top-0 z-40 backdrop-blur-xl"
+        style={{
+          background: "color-mix(in srgb, var(--plt-bg) 88%, transparent)",
+          borderBottom: "1px solid var(--plt-hairline)",
+        }}
+      >
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:h-[72px] sm:px-8">
+          <a
+            href={site}
+            aria-label={`${PLATFORM_BRAND.name} — home`}
+            className="-mx-1 flex items-center rounded-md px-1 py-1"
           >
-            Sign in
-          </Link>
-          <Link
-            href="/register"
-            className="text-sm text-[var(--impronta-muted)] underline-offset-4 hover:text-foreground hover:underline"
+            <span
+              aria-hidden
+              className="plt-display inline-flex items-baseline leading-none"
+              style={{ fontWeight: 700, letterSpacing: "-0.045em", fontSize: "1.5rem", color: "var(--plt-ink)" }}
+            >
+              tulala<span style={{ color: "var(--plt-forest)" }}>.</span>
+            </span>
+          </a>
+
+          <nav className="hidden items-center gap-1 sm:flex">
+            {navLinks.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                {l.label}
+              </a>
+            ))}
+          </nav>
+
+          <a
+            href={site}
+            className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
+            style={{ color: "var(--plt-muted)" }}
           >
-            Create an account
-          </Link>
+            ← Back to {PLATFORM_BRAND.name}
+          </a>
         </div>
-      </div>
+      </header>
+
+      {/* Sign-in gateway card */}
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md text-center">
+          <p
+            className="plt-display text-xs font-medium uppercase tracking-[0.4em]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            {PLATFORM_BRAND.name}
+          </p>
+          <h1
+            className="plt-display mt-6 text-3xl font-normal leading-tight tracking-[0.02em] sm:text-4xl"
+            style={{ color: "var(--plt-ink)" }}
+          >
+            Workspace
+          </h1>
+          <p className="mx-auto mt-4 max-w-sm text-base" style={{ color: "var(--plt-muted)" }}>
+            Sign in to access your admin, client, or talent workspace.
+          </p>
+
+          <div className="mt-10 flex flex-col items-center gap-3">
+            <Link
+              href="/login"
+              className="inline-flex h-11 w-full max-w-xs items-center justify-center rounded-[var(--site-radius,10px)] px-8 text-sm font-semibold transition hover:opacity-90"
+              style={{ background: "var(--plt-forest)", color: "#FFFFFF" }}
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/register"
+              className="text-sm underline-offset-4 hover:underline"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              Create an account
+            </Link>
+          </div>
+
+          <p className="mt-8 text-sm" style={{ color: "var(--plt-muted)" }}>
+            Looking for the public site?{" "}
+            <a href={site} className="underline underline-offset-4" style={{ color: "var(--plt-ink)" }}>
+              Go to {PLATFORM_BRAND.name}
+            </a>
+          </p>
+        </div>
+      </main>
+
+      {/* Footer — every link returns to the marketing site. */}
+      <footer style={{ borderTop: "1px solid var(--plt-hairline)" }}>
+        <div
+          className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-5 py-8 text-[0.8125rem] sm:flex-row sm:px-8"
+          style={{ color: "var(--plt-muted)" }}
+        >
+          <span>
+            © {year} {PLATFORM_BRAND.name}. {PLATFORM_BRAND.tagline}.
+          </span>
+          <nav className="flex items-center gap-5">
+            <a href={`${site}/legal/terms`} className="hover:underline" style={{ color: "var(--plt-muted)" }}>
+              Terms
+            </a>
+            <a href={`${site}/legal/privacy`} className="hover:underline" style={{ color: "var(--plt-muted)" }}>
+              Privacy
+            </a>
+            <a href={site} className="hover:underline" style={{ color: "var(--plt-ink)" }}>
+              {PLATFORM_BRAND.domain}
+            </a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
