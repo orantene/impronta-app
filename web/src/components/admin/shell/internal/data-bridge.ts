@@ -188,6 +188,14 @@ export type BridgeData = {
    */
   talentSelfProfile?: TalentSelfProfile | null;
   /**
+   * The current talent's Stripe Connect payout snapshot, for the in-shell
+   * Payouts section. `null` when not loaded (e.g. workspace-only entry).
+   */
+  talentPayoutSnapshot?:
+    | { ok: true; data: import("@/lib/payments/stripe-connect-talent").TalentConnectedAccountSnapshot }
+    | { ok: false; error: string }
+    | null;
+  /**
    * The talent's active inquiries — adapted into `Conversation[]` by the
    * AdminShellProvider adapter for use in TodayPage / InboxShell / CalendarPage.
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
@@ -346,6 +354,7 @@ export function createBridgeDataFromRoster(
     teamMembers: null,
     totalUnread: 0,
     talentSelfProfile: null,
+    talentPayoutSnapshot: null,
     talentInquiries: null,
     talentAgencies: null,
     website: null,

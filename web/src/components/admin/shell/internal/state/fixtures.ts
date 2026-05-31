@@ -281,6 +281,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   reach:       { label: "Reach" },         // legacy — redirects to money
   agencies:    { label: "Agencies" },      // legacy — redirects to money
   money:       { label: "Money" },
+  payouts:     { label: "Payouts" },       // in-shell section, reached from Settings
   "public-page": { label: "My pages" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };

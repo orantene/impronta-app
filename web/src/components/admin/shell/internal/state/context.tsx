@@ -299,6 +299,12 @@ type Ctx = {
    * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
+  /** The current talent's Stripe Connect payout snapshot (from the layout
+   *  bridge), for the in-shell Payouts section. null = not loaded. */
+  bridgeTalentPayoutSnapshot:
+    | { ok: true; data: import("@/lib/payments/stripe-connect-talent").TalentConnectedAccountSnapshot }
+    | { ok: false; error: string }
+    | null;
   /**
    * The talent's agency relationships (cross-tenant). `null` means the
    * layout didn't load them (workspace-only entry). Empty array means the
@@ -711,6 +717,7 @@ function talentPageToSegment(p: TalentPage): string {
     profile:   "profile",
     calendar:  "calendar",
     money:     "money",
+    payouts:   "payouts",
     agencies:  "money",   // legacy alias
     activity:  "money",   // legacy alias
     reach:     "money",   // legacy alias
@@ -1796,6 +1803,7 @@ export function AdminShellProvider({
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
+  const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
   // Talent's agency relationships. `null` means the layout didn't load
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
@@ -1948,6 +1956,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentPayoutSnapshot,
       bridgeTalentAgencies,
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
@@ -2056,6 +2065,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentPayoutSnapshot,
       bridgeTalentAgencies,
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,

@@ -8,6 +8,7 @@ import { InboxPage } from "./talent/pages/InboxPage";
 import { MyProfilePage } from "./talent/pages/MyProfilePage";
 import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
 import { SettingsPage } from "./talent/pages/SettingsPage";
+import { TalentPayoutsPage } from "./page-modules/TalentPayoutsPage";
 import { TalentTodayPage } from "./talent/pages/TodayPage";
 import { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 import { PageHeader } from "./talent/shared/page-chrome-1";
@@ -289,6 +290,9 @@ function TalentRouter() {
       break;
     case "money":
       page = <MoneyPage />;
+      break;
+    case "payouts":
+      page = <TalentPayoutsPage />;
       break;
     case "public-page":
       // WS-8.2 — new canonical page
