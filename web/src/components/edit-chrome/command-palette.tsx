@@ -57,6 +57,7 @@ import {
   type Shortcut,
 } from "./kit";
 import { isShortcutVisible } from "./kit/shortcuts";
+import { BUILDER_NODE_COMPOSITION_PRESETS } from "@/lib/site-admin/builder-node";
 import { useEditContext, type EditDevice } from "./edit-context";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -604,6 +605,36 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           () => {
             void ctx
               .pasteBuilderBlockPreset(preset.id, ctx.selectedBuilderNodeId)
+              .then((res) => {
+                if (!res.ok && res.error) {
+                  ctx.reportMutationError(res.error);
+                }
+              });
+            onClose();
+          },
+        ),
+      );
+    }
+
+    // Ready-made composition packs (the inspector's "Section packs"), insertable
+    // into the selected container straight from ⌘K.
+    for (const pack of BUILDER_NODE_COMPOSITION_PRESETS) {
+      rows.push(
+        actionRow(
+          `insert-pack:${pack.id}`,
+          `Insert pack: ${pack.label}`,
+          ["pack", "block", "insert", "section pack", ...pack.keywords],
+          () => {
+            const parentId = ctx.selectedBuilderNodeId;
+            if (!parentId) {
+              ctx.reportMutationError(
+                "Select a container on the canvas first, then insert a pack.",
+              );
+              onClose();
+              return;
+            }
+            void ctx
+              .insertBuilderNodeCompositionPreset(parentId, pack.id)
               .then((res) => {
                 if (!res.ok && res.error) {
                   ctx.reportMutationError(res.error);
