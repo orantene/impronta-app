@@ -230,6 +230,18 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-grid-template-columns]{grid-template-columns:var(--bn-tablet-grid-template-columns)!important}
   .site-builder-node[data-builder-style-tablet-grid-template-rows]{grid-template-rows:var(--bn-tablet-grid-template-rows)!important}
   .site-builder-node[data-builder-style-tablet-grid-auto-flow]{grid-auto-flow:var(--bn-tablet-grid-auto-flow)!important}
+  .site-builder-node[data-builder-style-tablet-clip-path]{clip-path:var(--bn-tablet-clip-path)!important;-webkit-clip-path:var(--bn-tablet-clip-path)!important}
+  .site-builder-node[data-builder-style-tablet-mask-image]{mask-image:var(--bn-tablet-mask-image)!important;-webkit-mask-image:var(--bn-tablet-mask-image)!important}
+  .site-builder-node[data-builder-style-tablet-text-stroke]{-webkit-text-stroke:var(--bn-tablet-text-stroke)!important}
+  .site-builder-node[data-builder-style-tablet-cursor]{cursor:var(--bn-tablet-cursor)!important}
+  .site-builder-node[data-builder-style-tablet-user-select]{user-select:var(--bn-tablet-user-select)!important;-webkit-user-select:var(--bn-tablet-user-select)!important}
+  .site-builder-node[data-builder-style-tablet-pointer-events]{pointer-events:var(--bn-tablet-pointer-events)!important}
+  .site-builder-node[data-builder-style-tablet-scroll-snap-type]{scroll-snap-type:var(--bn-tablet-scroll-snap-type)!important}
+  .site-builder-node[data-builder-style-tablet-scroll-snap-align]{scroll-snap-align:var(--bn-tablet-scroll-snap-align)!important}
+  .site-builder-node[data-builder-style-tablet-outline]{outline:var(--bn-tablet-outline)!important}
+  .site-builder-node[data-builder-style-tablet-outline-offset]{outline-offset:var(--bn-tablet-outline-offset)!important}
+  .site-builder-node[data-builder-style-tablet-accent-color]{accent-color:var(--bn-tablet-accent-color)!important}
+  .site-builder-node[data-builder-style-tablet-caret-color]{caret-color:var(--bn-tablet-caret-color)!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -317,6 +329,18 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-grid-template-columns]{grid-template-columns:var(--bn-mobile-grid-template-columns)!important}
   .site-builder-node[data-builder-style-mobile-grid-template-rows]{grid-template-rows:var(--bn-mobile-grid-template-rows)!important}
   .site-builder-node[data-builder-style-mobile-grid-auto-flow]{grid-auto-flow:var(--bn-mobile-grid-auto-flow)!important}
+  .site-builder-node[data-builder-style-mobile-clip-path]{clip-path:var(--bn-mobile-clip-path)!important;-webkit-clip-path:var(--bn-mobile-clip-path)!important}
+  .site-builder-node[data-builder-style-mobile-mask-image]{mask-image:var(--bn-mobile-mask-image)!important;-webkit-mask-image:var(--bn-mobile-mask-image)!important}
+  .site-builder-node[data-builder-style-mobile-text-stroke]{-webkit-text-stroke:var(--bn-mobile-text-stroke)!important}
+  .site-builder-node[data-builder-style-mobile-cursor]{cursor:var(--bn-mobile-cursor)!important}
+  .site-builder-node[data-builder-style-mobile-user-select]{user-select:var(--bn-mobile-user-select)!important;-webkit-user-select:var(--bn-mobile-user-select)!important}
+  .site-builder-node[data-builder-style-mobile-pointer-events]{pointer-events:var(--bn-mobile-pointer-events)!important}
+  .site-builder-node[data-builder-style-mobile-scroll-snap-type]{scroll-snap-type:var(--bn-mobile-scroll-snap-type)!important}
+  .site-builder-node[data-builder-style-mobile-scroll-snap-align]{scroll-snap-align:var(--bn-mobile-scroll-snap-align)!important}
+  .site-builder-node[data-builder-style-mobile-outline]{outline:var(--bn-mobile-outline)!important}
+  .site-builder-node[data-builder-style-mobile-outline-offset]{outline-offset:var(--bn-mobile-outline-offset)!important}
+  .site-builder-node[data-builder-style-mobile-accent-color]{accent-color:var(--bn-mobile-accent-color)!important}
+  .site-builder-node[data-builder-style-mobile-caret-color]{caret-color:var(--bn-mobile-caret-color)!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -437,6 +461,18 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-grid-template-columns": tablet?.gridTemplateColumns ? "" : undefined,
     "data-builder-style-tablet-grid-template-rows": tablet?.gridTemplateRows ? "" : undefined,
     "data-builder-style-tablet-grid-auto-flow": tablet?.gridAutoFlow ? "" : undefined,
+    "data-builder-style-tablet-clip-path": tablet?.clipPath ? "" : undefined,
+    "data-builder-style-tablet-mask-image": tablet?.maskImage ? "" : undefined,
+    "data-builder-style-tablet-text-stroke": tablet?.textStroke ? "" : undefined,
+    "data-builder-style-tablet-cursor": tablet?.cursor ? "" : undefined,
+    "data-builder-style-tablet-user-select": tablet?.userSelect ? "" : undefined,
+    "data-builder-style-tablet-pointer-events": tablet?.pointerEvents ? "" : undefined,
+    "data-builder-style-tablet-scroll-snap-type": tablet?.scrollSnapType ? "" : undefined,
+    "data-builder-style-tablet-scroll-snap-align": tablet?.scrollSnapAlign ? "" : undefined,
+    "data-builder-style-tablet-outline": tablet?.outline ? "" : undefined,
+    "data-builder-style-tablet-outline-offset": tablet?.outlineOffset ? "" : undefined,
+    "data-builder-style-tablet-accent-color": tablet?.accentColor ? "" : undefined,
+    "data-builder-style-tablet-caret-color": tablet?.caretColor ? "" : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -522,6 +558,18 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-grid-template-columns": mobile?.gridTemplateColumns ? "" : undefined,
     "data-builder-style-mobile-grid-template-rows": mobile?.gridTemplateRows ? "" : undefined,
     "data-builder-style-mobile-grid-auto-flow": mobile?.gridAutoFlow ? "" : undefined,
+    "data-builder-style-mobile-clip-path": mobile?.clipPath ? "" : undefined,
+    "data-builder-style-mobile-mask-image": mobile?.maskImage ? "" : undefined,
+    "data-builder-style-mobile-text-stroke": mobile?.textStroke ? "" : undefined,
+    "data-builder-style-mobile-cursor": mobile?.cursor ? "" : undefined,
+    "data-builder-style-mobile-user-select": mobile?.userSelect ? "" : undefined,
+    "data-builder-style-mobile-pointer-events": mobile?.pointerEvents ? "" : undefined,
+    "data-builder-style-mobile-scroll-snap-type": mobile?.scrollSnapType ? "" : undefined,
+    "data-builder-style-mobile-scroll-snap-align": mobile?.scrollSnapAlign ? "" : undefined,
+    "data-builder-style-mobile-outline": mobile?.outline ? "" : undefined,
+    "data-builder-style-mobile-outline-offset": mobile?.outlineOffset ? "" : undefined,
+    "data-builder-style-mobile-accent-color": mobile?.accentColor ? "" : undefined,
+    "data-builder-style-mobile-caret-color": mobile?.caretColor ? "" : undefined,
     // Hover-state gates — each presence attr arms the matching :hover rule in the
     // static sheet (which reads the --bn-hover-* var). No attr ⇒ no rule ⇒ resting
     // value is untouched.
@@ -751,6 +799,30 @@ function responsiveStyleVars(
     "--bn-mobile-grid-template-columns": style?.responsive?.mobile?.gridTemplateColumns,
     "--bn-mobile-grid-template-rows": style?.responsive?.mobile?.gridTemplateRows,
     "--bn-mobile-grid-auto-flow": style?.responsive?.mobile?.gridAutoFlow,
+    "--bn-tablet-clip-path": style?.responsive?.tablet?.clipPath,
+    "--bn-tablet-mask-image": style?.responsive?.tablet?.maskImage,
+    "--bn-tablet-text-stroke": style?.responsive?.tablet?.textStroke,
+    "--bn-tablet-cursor": style?.responsive?.tablet?.cursor,
+    "--bn-tablet-user-select": style?.responsive?.tablet?.userSelect,
+    "--bn-tablet-pointer-events": style?.responsive?.tablet?.pointerEvents,
+    "--bn-tablet-scroll-snap-type": style?.responsive?.tablet?.scrollSnapType,
+    "--bn-tablet-scroll-snap-align": style?.responsive?.tablet?.scrollSnapAlign,
+    "--bn-tablet-outline": style?.responsive?.tablet?.outline,
+    "--bn-tablet-outline-offset": style?.responsive?.tablet?.outlineOffset,
+    "--bn-tablet-accent-color": style?.responsive?.tablet?.accentColor,
+    "--bn-tablet-caret-color": style?.responsive?.tablet?.caretColor,
+    "--bn-mobile-clip-path": style?.responsive?.mobile?.clipPath,
+    "--bn-mobile-mask-image": style?.responsive?.mobile?.maskImage,
+    "--bn-mobile-text-stroke": style?.responsive?.mobile?.textStroke,
+    "--bn-mobile-cursor": style?.responsive?.mobile?.cursor,
+    "--bn-mobile-user-select": style?.responsive?.mobile?.userSelect,
+    "--bn-mobile-pointer-events": style?.responsive?.mobile?.pointerEvents,
+    "--bn-mobile-scroll-snap-type": style?.responsive?.mobile?.scrollSnapType,
+    "--bn-mobile-scroll-snap-align": style?.responsive?.mobile?.scrollSnapAlign,
+    "--bn-mobile-outline": style?.responsive?.mobile?.outline,
+    "--bn-mobile-outline-offset": style?.responsive?.mobile?.outlineOffset,
+    "--bn-mobile-accent-color": style?.responsive?.mobile?.accentColor,
+    "--bn-mobile-caret-color": style?.responsive?.mobile?.caretColor,
     // Hover-state overrides — a single (non-viewport) layer. Each var only renders
     // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
     // the static sheet so the override applies only while hovered/focused, and an
