@@ -313,6 +313,20 @@ const BUILDER_NODE_TEXT_DECORATION_OPTIONS: ReadonlyArray<SegmentedOption<string
   { value: "line-through", label: "Strike" },
 ];
 
+const BUILDER_NODE_TEXT_WRAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "balance", label: "Balance" },
+  { value: "pretty", label: "Pretty" },
+  { value: "nowrap", label: "No wrap" },
+];
+
+const BUILDER_NODE_WHITE_SPACE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "normal", label: "Normal" },
+  { value: "nowrap", label: "No wrap" },
+  { value: "pre-wrap", label: "Pre-wrap" },
+];
+
 const BUILDER_NODE_POSITION_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
   { value: "relative", label: "Relative" },
@@ -925,6 +939,9 @@ function cleanBuilderNodeStyle(
   if (value.textTransform) out.textTransform = value.textTransform;
   if (value.fontStyle) out.fontStyle = value.fontStyle;
   if (value.textDecoration) out.textDecoration = value.textDecoration;
+  if (value.textWrap) out.textWrap = value.textWrap;
+  if (value.whiteSpace) out.whiteSpace = value.whiteSpace;
+  if (typeof value.lineClamp === "number") out.lineClamp = value.lineClamp;
   if (value.textColor) out.textColor = value.textColor;
   if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
   if (value.borderColor) out.borderColor = value.borderColor;
@@ -1021,6 +1038,9 @@ function cleanBuilderNodeStyleValue(
   if (value.textTransform) out.textTransform = value.textTransform;
   if (value.fontStyle) out.fontStyle = value.fontStyle;
   if (value.textDecoration) out.textDecoration = value.textDecoration;
+  if (value.textWrap) out.textWrap = value.textWrap;
+  if (value.whiteSpace) out.whiteSpace = value.whiteSpace;
+  if (typeof value.lineClamp === "number") out.lineClamp = value.lineClamp;
   if (value.textColor) out.textColor = value.textColor;
   if (value.backgroundColor) out.backgroundColor = value.backgroundColor;
   if (value.borderColor) out.borderColor = value.borderColor;
@@ -5075,6 +5095,73 @@ export function StylePanel({
                       })
                     }
                     options={BUILDER_NODE_TEXT_DECORATION_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="textWrap"
+                >
+                  <span className={FIELD_LABEL}>Text wrap</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.textWrap ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        textWrap:
+                          (next || undefined) as BuilderNodeStyleValue["textWrap"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_WRAP_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="whiteSpace"
+                >
+                  <span className={FIELD_LABEL}>Whitespace</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.whiteSpace ?? ""}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        whiteSpace:
+                          (next || undefined) as BuilderNodeStyleValue["whiteSpace"],
+                      })
+                    }
+                    options={BUILDER_NODE_WHITE_SPACE_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="lineClamp"
+                >
+                  <span className={FIELD_LABEL}>Truncate to lines</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={1}
+                    placeholder="Off"
+                    className={KIT.input}
+                    value={
+                      typeof selectedStandaloneViewportStyle?.lineClamp ===
+                      "number"
+                        ? selectedStandaloneViewportStyle.lineClamp
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.currentTarget.value.trim();
+                      const n = raw ? Math.round(Number(raw)) : NaN;
+                      patchSelectedStandaloneStyle({
+                        lineClamp:
+                          Number.isFinite(n) && n >= 1 ? n : undefined,
+                      });
+                    }}
                   />
                 </div>
               </div>

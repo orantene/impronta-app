@@ -55,6 +55,12 @@ export interface BuilderNodeStyleValue {
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   fontStyle?: "normal" | "italic";
   textDecoration?: "none" | "underline" | "line-through";
+  /** Modern text wrapping — `balance`/`pretty` give nicer multi-line headings. */
+  textWrap?: "wrap" | "nowrap" | "balance" | "pretty";
+  /** Whitespace handling — `nowrap` keeps a line on one row, `pre` preserves it. */
+  whiteSpace?: "normal" | "nowrap" | "pre" | "pre-wrap" | "pre-line";
+  /** Truncate to N lines with an ellipsis (CSS -webkit-line-clamp). 0/undefined = off. */
+  lineClamp?: number;
   textColor?: string;
   backgroundColor?: string;
   borderColor?: string;

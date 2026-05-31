@@ -86,6 +86,10 @@ const builderNodeStyleValueSchema = z.object({
   textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
   fontStyle: z.enum(["normal", "italic"]).optional(),
   textDecoration: z.enum(["none", "underline", "line-through"]).optional(),
+  // Advanced text controls — modern wrapping, whitespace, and line-clamp truncation.
+  textWrap: z.enum(["wrap", "nowrap", "balance", "pretty"]).optional(),
+  whiteSpace: z.enum(["normal", "nowrap", "pre", "pre-wrap", "pre-line"]).optional(),
+  lineClamp: z.number().int().min(1).max(20).optional(),
   // max 64 (not 32) so a theme-token binding like
   // `var(--token-color-surface-raised, #ffffff)` (and rgba()/hsl() free values)
   // survives the schema instead of being silently stripped on save.

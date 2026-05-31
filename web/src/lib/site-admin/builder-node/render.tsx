@@ -780,6 +780,19 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.textTransform) out.textTransform = style.textTransform;
   if (style.fontStyle) out.fontStyle = style.fontStyle;
   if (style.textDecoration) out.textDecoration = style.textDecoration;
+  // Advanced text controls.
+  if (style.textWrap) {
+    (out as Record<string, unknown>).textWrap = style.textWrap;
+  }
+  if (style.whiteSpace) out.whiteSpace = style.whiteSpace;
+  // Line-clamp truncates to N lines with an ellipsis — needs the -webkit-box
+  // display + vertical orient + hidden overflow together.
+  if (typeof style.lineClamp === "number" && style.lineClamp > 0) {
+    out.display = "-webkit-box";
+    out.WebkitLineClamp = style.lineClamp;
+    out.WebkitBoxOrient = "vertical";
+    out.overflow = "hidden";
+  }
   if (style.textColor) out.color = style.textColor;
   if (style.backgroundColor) out.backgroundColor = style.backgroundColor;
   if (style.borderColor || style.borderWidth || style.borderStyle) {
