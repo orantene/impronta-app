@@ -1,6 +1,5 @@
 import "server-only";
 
-import { improntaLog } from "@/lib/server/structured-log";
 import { emitNotification } from "../emit";
 import type {
   AudienceContext,
@@ -17,11 +16,14 @@ import type {
  * user_id)`). The dispatcher owns dedupe + preferences; this handler only
  * performs the send-effect.
  *
- * Skips when:
- *  - the entry has no in_app config,
- *  - the recipient is a guest (no account / surface to render into),
- *  - the event has no tenant scope (`user_notifications.tenant_id` is
- *    NOT NULL — platform-scoped in-app notifications are a Phase 6+ concern).
+ * Skips when the entry has no in_app config or the recipient is a guest (no
+ * account / surface to render into).
+ *
+ * A platform-scoped event (`tenantId = null`, e.g. a Tulala HQ alert to
+ * super_admins) is written as a `platform`-surface, null-tenant row — readable
+ * by the recipient through the user-scoped RLS policy and surfaced in the HQ
+ * console. (user_notifications.tenant_id is nullable as of the
+ * platform_in_app_notifications migration.)
  */
 export async function sendInAppNotification(
   event: NotificationEvent,
@@ -33,26 +35,14 @@ export async function sendInAppNotification(
   if (!cfg || !recipient.userId) return;
 
   const tenantId = event.tenantId;
-  if (!tenantId) {
-    // Platform-scoped (tenantId=null) in-app notifications aren't deliverable yet:
-    // user_notifications.tenant_id is NOT NULL and there's no platform-admin bell
-    // surface. Log the skip so it's observable rather than silently dropped —
-    // delivering these is a Phase 6+ concern (nullable tenant_id + RLS + UI). The
-    // entry's email channel still delivers, so platform admins are not left dark.
-    void improntaLog("notif.in_app.skip_platform", {
-      entryId: entry.id,
-      eventId: event.eventId,
-      eventType: event.type,
-      recipient: recipient.userId,
-    });
-    return;
-  }
 
   await emitNotification({
     userId: recipient.userId,
     tenantId,
     kind: cfg.kind,
-    surface: cfg.surface,
+    // Platform (null-tenant) rows always carry the `platform` surface so the HQ
+    // reader picks them up and tenant readers (which filter by surface) don't.
+    surface: tenantId ? cfg.surface : "platform",
     title: cfg.title(event, recipient),
     body: cfg.body?.(event, recipient) ?? undefined,
     targetDrawer: cfg.targetDrawer ?? null,
