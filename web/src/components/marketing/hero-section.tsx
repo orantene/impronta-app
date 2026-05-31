@@ -1,8 +1,10 @@
+import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow } from "./container";
 import { MarketingCta } from "./cta-link";
 
-const TALENT_REGISTER_HREF = "/talent/register?next=/talent/profile/fields";
+// Must be absolute — /talent/register is not allowed on the marketing host.
+const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
 
 export function HeroSection() {
   return (
