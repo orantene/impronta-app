@@ -12,6 +12,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -37,6 +38,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   profile: "profile",
   calendar: "calendar",
   money: "money",
+  payouts: "payouts",
   agencies: "money",
   activity: "money",
   reach: "money",
@@ -111,6 +113,7 @@ export default async function PlatformTalentLayout({
     talentCalendarEntries,
     talentEarnings,
     talentSiteDashboardLoad,
+    talentPayoutSnapshot,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -122,6 +125,9 @@ export default async function PlatformTalentLayout({
     loadTalentCalendarEntries(talentSelfProfile.id),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
     loadTalentPersonalSiteDashboardState(),
+    // Stripe Connect payout snapshot for the in-shell Payouts section.
+    // Returns { ok:false } on any failure, so it never breaks the layout.
+    getTalentConnectedAccountSnapshot(talentSelfProfile.id),
   ]);
 
   const isHybrid = membership != null;
@@ -155,6 +161,7 @@ export default async function PlatformTalentLayout({
         tenantIdentity: tenantIdentity ?? PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
+        talentPayoutSnapshot,
         talentInquiries,
         talentAgencies,
         isHybrid,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { openTalentPayouts } from "@/components/talent-payouts/open-payouts";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
 import { COLORS, EARNINGS_ROWS, FONTS, MY_TALENT_PROFILE, RADIUS, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, computeProfileCompleteness, useAdminShell } from "../../state";
@@ -284,7 +283,7 @@ export function TalentTodayPage() {
           onProfile={() => openSection("identity")}
           onPolaroids={() => openSection("polaroids")}
           onReach={() => setTalentPage("money")}
-          onPayouts={openTalentPayouts}
+          onPayouts={() => setTalentPage("payouts")}
           onDismiss={() => setFirstSessionDismissed(true)}
         />
       )}

@@ -9,7 +9,6 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { useState } from "react";
-import { openTalentPayouts } from "@/components/talent-payouts/open-payouts";
 import { COLORS, EARNINGS_ROWS, FONTS, useAdminShell } from "../state";
 import {
   Avatar,
@@ -25,8 +24,9 @@ import { KvRow, SummaryStat } from "./shared";
 // ─── Payouts ────────────────────────────────────────────────────
 
 export function TalentPayoutsDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, setTalentPage } = useAdminShell();
   const open = state.drawer.drawerId === "talent-payouts";
+  const goToPayouts = () => { closeDrawer(); setTalentPage("payouts"); };
 
   return (
     <DrawerShell
@@ -38,7 +38,7 @@ export function TalentPayoutsDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={openTalentPayouts}>Set up payouts</PrimaryButton>
+          <PrimaryButton onClick={goToPayouts}>Set up payouts</PrimaryButton>
         </>
       }
     >
@@ -55,7 +55,7 @@ export function TalentPayoutsDrawer() {
             Complete Stripe&apos;s secure identity + bank setup right inside Tulala. Once
             connected, your share of every confirmed booking transfers to you automatically.
           </div>
-          <PrimaryButton onClick={openTalentPayouts}>Set up payouts →</PrimaryButton>
+          <PrimaryButton onClick={goToPayouts}>Set up payouts →</PrimaryButton>
         </div>
         <KvRow label="Payout schedule" value="Per-booking · on Stripe's standard schedule" />
         <KvRow label="Currency" value="Set during Stripe onboarding" />

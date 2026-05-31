@@ -258,11 +258,10 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // (no tenant slug — matched against the full segments because the platform
   // talent path starts with "talent").
   (s) => s[0] === "talent" && s[1] === "discover-agencies",
-  // /talent/settings/payouts — branded EMBEDDED Stripe Connect onboarding.
-  // Standalone server page (PayoutsShell) that mounts <ConnectAccountOnboarding>
-  // inline; without this matcher the talent SPA renders ON TOP of it. The
-  // tenant-scoped /{slug}/talent/settings/payouts variant 308-redirects here.
-  (s) => s[0] === "talent" && s[1] === "settings" && s[2] === "payouts",
+  // NOTE: talent payouts is an IN-SHELL SPA section (TalentPage "payouts" →
+  // /talent/payouts), NOT a canonical route — it renders inside the talent
+  // dashboard nav (and works on agency hosts, unlike standalone /talent/*
+  // routes which loop there). Intentionally no matcher here.
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
   // The mega Messages shell still owns the LIST (no path segment after
   // "messages") + the legacy ?inquiry=<id> query-param flow. The new
