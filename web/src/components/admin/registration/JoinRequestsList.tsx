@@ -44,10 +44,17 @@ export function JoinRequestsList({
   tenantSlug,
   canManage,
   requests,
+  onChanged,
 }: {
   tenantSlug: string;
   canManage: boolean;
   requests: JoinRequest[];
+  /**
+   * Called after a successful approve/reject. The standalone page relies on
+   * router.refresh() (server re-render); inside the SPA shell the host loads
+   * this data client-side, so it passes a reloader here instead.
+   */
+  onChanged?: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -61,8 +68,12 @@ export function JoinRequestsList({
     startTransition(async () => {
       const res = await decideJoinRequest(tenantSlug, id, decision);
       setBusyId(null);
-      if (res.ok) router.refresh();
-      else setError(res.error);
+      if (res.ok) {
+        if (onChanged) onChanged();
+        else router.refresh();
+      } else {
+        setError(res.error);
+      }
     });
   }
 

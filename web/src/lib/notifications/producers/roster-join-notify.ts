@@ -53,7 +53,7 @@ export async function notifyRosterJoinRequested(params: {
       loadTalent(admin, talentProfileId),
     ]);
     const reviewUrl = slug
-      ? `${getAppUrl()}/${encodeURIComponent(slug)}/admin/roster/registration`
+      ? `${getAppUrl()}/${encodeURIComponent(slug)}/admin/settings?focus=registration`
       : `${getAppUrl()}`;
     void dispatchEventNotifications({
       type: "roster.join_requested",

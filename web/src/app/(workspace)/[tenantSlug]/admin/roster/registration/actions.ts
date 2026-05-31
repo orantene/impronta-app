@@ -22,8 +22,10 @@ import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   isRegistrationModeAllowed,
+  registrationModesForPlan,
   type RegistrationMode,
 } from "@/lib/access/registration-modes";
+import { getPlan, isKnownPlan } from "@/lib/access/plan-catalog";
 import {
   loadRegistrationSettings,
   type RosterVisibility,
@@ -33,6 +35,102 @@ import {
   notifyRosterJoinApproved,
   notifyRosterJoinRejected,
 } from "@/lib/notifications/producers/roster-join-notify";
+
+export type RegistrationManageData =
+  | {
+      ok: true;
+      canManage: boolean;
+      planLabel: string;
+      allowedModes: RegistrationMode[];
+      settings: {
+        enabled: boolean;
+        mode: RegistrationMode;
+        defaultRosterVisibility: RosterVisibility;
+        ctaLabel: string;
+      };
+      requests: { id: string; talentName: string; requestedAt: string }[];
+    }
+  | { ok: false; error: string };
+
+/**
+ * Load everything the in-dashboard "Open for registration" section needs:
+ * current settings, plan-allowed modes, edit permission, and pending join
+ * requests. Read-only (view_dashboard). Rendered inside the admin SPA shell
+ * (Settings → Roster), replacing the old standalone page's server-side load.
+ */
+export async function loadRegistrationManageData(
+  tenantSlug: string,
+): Promise<RegistrationManageData> {
+  const auth = await requireSession();
+  if (!auth.ok) return { ok: false, error: "Please sign in again." };
+
+  const scope = await getTenantScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false, error: "Workspace not found." };
+
+  const canView = await userHasCapability("view_dashboard", scope.tenantId);
+  if (!canView) {
+    return { ok: false, error: "You don't have access to this workspace." };
+  }
+  const canManage = await userHasCapability("manage_talent_roster", scope.tenantId);
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Service unavailable." };
+
+  const { data: agency } = await admin
+    .from("agencies")
+    .select("plan_tier, kind")
+    .eq("id", scope.tenantId)
+    .maybeSingle();
+  const planTier = String(agency?.plan_tier ?? "free");
+  const kind = agency?.kind === "hub" ? "hub" : "agency";
+  const planLabel = isKnownPlan(planTier) ? getPlan(planTier).displayName : "Free";
+  const allowedModes = registrationModesForPlan(planTier, kind);
+
+  const settings = await loadRegistrationSettings(scope.tenantId);
+
+  const { data: pendingRows } = await admin
+    .from("agency_talent_roster")
+    .select("id, added_at, talent_profile_id")
+    .eq("tenant_id", scope.tenantId)
+    .eq("status", "pending")
+    .eq("source_type", "freelancer_claimed")
+    .order("added_at", { ascending: false })
+    .limit(50);
+  const pending = pendingRows ?? [];
+  const talentNameById = new Map<string, string>();
+  if (pending.length > 0) {
+    const ids = pending.map((r) => r.talent_profile_id as string);
+    const { data: profiles } = await admin
+      .from("talent_profiles")
+      .select("id, display_name")
+      .in("id", ids);
+    for (const p of profiles ?? []) {
+      talentNameById.set(
+        p.id as string,
+        (p.display_name as string | null)?.trim() || "A talent",
+      );
+    }
+  }
+  const requests = pending.map((r) => ({
+    id: r.id as string,
+    talentName: talentNameById.get(r.talent_profile_id as string) ?? "A talent",
+    requestedAt: r.added_at as string,
+  }));
+
+  return {
+    ok: true,
+    canManage,
+    planLabel,
+    allowedModes,
+    settings: {
+      enabled: settings.enabled,
+      mode: settings.mode,
+      defaultRosterVisibility: settings.defaultRosterVisibility,
+      ctaLabel: settings.ctaLabel,
+    },
+    requests,
+  };
+}
 
 export type SaveRegistrationSettingsInput = {
   enabled: boolean;

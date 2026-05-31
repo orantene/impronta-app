@@ -15,6 +15,7 @@ import {
   consumePendingSettingsSection,
   type SettingsSectionTarget,
 } from "./settings-deeplink";
+import { RegistrationSection } from "./RegistrationSection";
 
 
 /** Settings list row — white card with flex-row layout + hover lift.
@@ -182,7 +183,7 @@ export function WorkspacePageView() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
     { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
-    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "discover"] },
+    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "registration", "discover"] },
     { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
     { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
     { id: "advanced",  label: "Advanced",      emoji: "⚙",  sections: ["features", "danger"] },
@@ -221,7 +222,21 @@ export function WorkspacePageView() {
   // requests fired while we're already on Settings (no remount).
   useEffect(() => {
     const pending = consumePendingSettingsSection();
-    if (pending) applySettingsTarget(pending);
+    if (pending) {
+      applySettingsTarget(pending);
+    } else {
+      // Deep-link from a full navigation (notification "Review request" link or
+      // the legacy /admin/roster/registration redirect): ?focus=registration
+      // opens Roster → Open for registration and scrolls to it.
+      try {
+        const focus = new URLSearchParams(window.location.search).get("focus");
+        if (focus === "registration") {
+          applySettingsTarget({ tab: "roster", section: "registration" });
+        }
+      } catch {
+        /* no-op */
+      }
+    }
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<SettingsSectionTarget>).detail;
       if (detail) applySettingsTarget(detail);
@@ -636,6 +651,12 @@ export function WorkspacePageView() {
               </div>
               <Affordance label={pendingTalent.length === 0 ? "Open queue" : "Review"} />
             </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("registration") && (
+          <AccordionItem id="registration" label="Open for registration" desc="Let talent join your roster from your public site — instantly, by approval, or as exclusive representation." supportLink="/help/settings/registration" open={isOpen("registration")} onToggle={() => toggleSection("registration")}>
+            <RegistrationSection />
           </AccordionItem>
           )}
 
