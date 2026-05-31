@@ -500,6 +500,13 @@ export function reconcileBuilderTreeWithLegacySlots(
         children: [...preservedChildren],
       };
     }
+    // BUG-1 fix: a section that was just un-ejected (or any rebuilt section with
+    // no derived children) must carry an explicit empty array, never undefined —
+    // otherwise downstream tree walks treat the node as structurally malformed
+    // and an un-ejected-then-empty section silently drops out of the snapshot.
+    if (!Array.isArray(withStableId.children)) {
+      return { ...withStableId, children: [] };
+    }
     return withStableId;
   });
 
