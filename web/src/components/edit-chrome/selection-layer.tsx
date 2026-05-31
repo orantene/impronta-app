@@ -322,6 +322,8 @@ export function SelectionLayer() {
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
     patchBuilderNodeProps,
+    ejectSection,
+    unejectSection,
     reportMutationError,
     advancedElementLibraryEnabled,
   } = useEditContext();
@@ -1347,6 +1349,21 @@ export function SelectionLayer() {
   const contextMenuPastePreview = getCopiedBuilderNodePastePreview(
     contextMenu?.builderNodeId ?? null,
   );
+  // "2018 bye-bye" — the section node for this context menu (when on a section),
+  // for the eject/restore affordance. Eject-able = a curated section (not the
+  // already-freeform blank_section), not already ejected.
+  const contextMenuSectionNode =
+    !contextMenuIsChildNode && contextMenu?.builderNodeId
+      ? builderTree.find(
+          (n) => n.kind === "section" && n.id === contextMenu.builderNodeId,
+        )
+      : undefined;
+  const contextMenuSectionEjected =
+    contextMenuSectionNode?.kind === "section" &&
+    contextMenuSectionNode.props.ejected === true;
+  const contextMenuSectionEjectable =
+    contextMenuSectionNode?.kind === "section" &&
+    contextMenuSectionNode.props.sectionTypeKey !== "blank_section";
 
   if (!portalEl) return null;
 
@@ -1889,6 +1906,20 @@ export function SelectionLayer() {
               );
               closeContextMenu();
             }}
+            canEject={contextMenuSectionEjectable}
+            isEjected={contextMenuSectionEjected}
+            onEject={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              void ejectSection(id);
+              closeContextMenu();
+            }}
+            onUneject={() => {
+              const id = contextMenu?.builderNodeId;
+              if (!id) return;
+              void unejectSection(id);
+              closeContextMenu();
+            }}
             pastePreview={contextMenuPastePreview}
             onCopyNode={() => {
               if (!contextMenuIsChildNode || !contextMenu?.builderNodeId) return;
@@ -2404,6 +2435,10 @@ function SelectionContextMenu({
   onMoveUp,
   onMoveDown,
   onToggleHidden,
+  canEject = false,
+  isEjected = false,
+  onEject,
+  onUneject,
   pastePreview,
   onCopyNode,
   onPasteNode,
@@ -2423,6 +2458,10 @@ function SelectionContextMenu({
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHidden: () => void;
+  canEject?: boolean;
+  isEjected?: boolean;
+  onEject?: () => void;
+  onUneject?: () => void;
   pastePreview: BuilderNodePastePreview | null;
   onCopyNode: () => void;
   onPasteNode: () => void;
@@ -2563,6 +2602,16 @@ function SelectionContextMenu({
           <ContextMenuButton disabled={saving} onClick={onToggleHidden}>
             {isSectionHidden ? "Show section" : "Hide section"}
           </ContextMenuButton>
+          {canEject ? (
+            <ContextMenuButton
+              disabled={saving}
+              onClick={() => (isEjected ? onUneject?.() : onEject?.())}
+            >
+              {isEjected
+                ? "Restore curated section"
+                : "Make editable (eject to blocks)"}
+            </ContextMenuButton>
+          ) : null}
           <ContextMenuSeparator />
           <ContextMenuButton disabled={saving} danger onClick={onDeleteSection}>
             Delete section...

@@ -57,6 +57,7 @@ const sectionPropsSchema = z.object({
   slotKey: z.string().min(1).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
   dataBinding: dataBindingPropsSchema.optional(),
+  ejected: z.boolean().optional(),
 });
 
 const builderNodeStyleValueSchema = z.object({

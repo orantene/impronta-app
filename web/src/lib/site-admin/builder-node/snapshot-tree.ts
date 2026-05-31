@@ -258,6 +258,10 @@ function hydrateLegacySectionChildren(
 
   return tree.map((node) => {
     if (node.kind !== "section") return node;
+    // Ejected ("2018 bye-bye") sections own their content as roleless freeform
+    // children — never re-derive curated role nodes into them, even if a user
+    // emptied them out.
+    if (node.props.ejected) return node;
     if (node.children && node.children.length > 0) return node;
     const key = builderSectionNodeAddressKey({
       sectionId: node.props.sectionId ?? "",
