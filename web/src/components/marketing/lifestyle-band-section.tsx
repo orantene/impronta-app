@@ -3,6 +3,7 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
+import { OpenTalentModalButton } from "./open-talent-modal-button";
 
 /**
  * Homepage workspace band — separates the agency/workspace pitch from the
@@ -244,16 +245,29 @@ function SlideContent({
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <MarketingCta
-            href={slide.primary.href}
-            variant="primary"
-            size="lg"
-            eventSource="home-pathway-slider"
-            eventIntent={slide.primary.intent}
-            className="!bg-[var(--plt-on-inverse)] !text-[var(--plt-forest)] hover:!bg-[#f8f4ea]"
-          >
-            {slide.primary.label}
-          </MarketingCta>
+          {slide.id === "services" ? (
+            <OpenTalentModalButton
+              eventSource="home-pathway-slider"
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-full px-7 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,transform] duration-200 hover:-translate-y-[1px] hover:!bg-[#f8f4ea]"
+              style={{
+                background: "var(--plt-on-inverse)",
+                color: "var(--plt-forest)",
+              }}
+            >
+              {slide.primary.label}
+            </OpenTalentModalButton>
+          ) : (
+            <MarketingCta
+              href={slide.primary.href}
+              variant="primary"
+              size="lg"
+              eventSource="home-pathway-slider"
+              eventIntent={slide.primary.intent}
+              className="!bg-[var(--plt-on-inverse)] !text-[var(--plt-forest)] hover:!bg-[#f8f4ea]"
+            >
+              {slide.primary.label}
+            </MarketingCta>
+          )}
           <MarketingCta
             href={slide.secondary.href}
             variant="secondary"

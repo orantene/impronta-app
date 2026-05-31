@@ -161,6 +161,68 @@ export async function signUpWithEmail(
   redirect(resolvePostAuthDestination(profileData, nextPath));
 }
 
+/**
+ * In-place talent signup for the marketing-site registration modal.
+ *
+ * Unlike {@link signUpWithEmail}, this NEVER redirects — it returns a
+ * structured state so the modal can advance to its profile step (or show a
+ * confirmation view) without a navigation. It is invoked from a marketing
+ * page, so the server-action POST targets the current (allowed) marketing
+ * path; the auth cookie it sets is scoped to the shared parent domain
+ * (see lib/supabase/cookie-domain.ts), making the resulting session usable on
+ * the app host afterward.
+ */
+export type TalentSignupInPlaceState =
+  | { ok: true }
+  | { error: string }
+  | { needsConfirmation: string }
+  | void;
+
+export async function signUpTalentInPlace(
+  _prev: TalentSignupInPlaceState,
+  formData: FormData,
+): Promise<TalentSignupInPlaceState> {
+  const t = authT(formData);
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  if (!email || !password) {
+    return { error: t("public.auth.actions.emailPasswordRequired") };
+  }
+  if (password.length < 8) {
+    return { error: t("public.auth.actions.passwordTooShort") };
+  }
+
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) {
+    return { error: SUPABASE_ENV_HELP };
+  }
+  const origin = getAppUrl();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      // If email confirmation is on, the link lands on the app host and
+      // resumes at the profile step.
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
+        "/onboarding/talent-location",
+      )}`,
+      data: { signup_intent: "talent" },
+    },
+  });
+  if (error) {
+    logServerError("auth/signUpTalentInPlace", error);
+    return { error: mapSignUpError(error, t) };
+  }
+  if (!data.session) {
+    // Email-confirmation mode: no session yet, so the in-place profile step
+    // can't run. Surface the "check your inbox" copy and stop here.
+    return { needsConfirmation: t("public.auth.actions.signupConfirmation") };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await getCachedServerSupabase();
   if (supabase) {
