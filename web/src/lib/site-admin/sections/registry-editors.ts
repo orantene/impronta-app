@@ -85,6 +85,8 @@ import { TeamGridEditor } from "./team_grid/Editor";
 
 import { contactFormMeta } from "./contact_form/meta";
 import { ContactFormEditor } from "./contact_form/Editor";
+import { joinRegisterMeta } from "./join_register/meta";
+import { JoinRegisterEditor } from "./join_register/Editor";
 
 import { anchorNavMeta } from "./anchor_nav/meta";
 import { AnchorNavEditor } from "./anchor_nav/Editor";
@@ -309,6 +311,13 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: contactFormMeta,
     currentVersion: 1,
     Editor: ContactFormEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  join_register: {
+    meta: joinRegisterMeta,
+    currentVersion: 1,
+    Editor: JoinRegisterEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },

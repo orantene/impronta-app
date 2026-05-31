@@ -471,6 +471,16 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       captcha: "none",
     },
   },
+  join_register: {
+    name: "Join / Register — new",
+    props: {
+      eyebrow: "Join the team",
+      headline: "Become part of our roster.",
+      copy: "Create your profile and apply to join — it only takes a minute.",
+      variant: "card",
+      align: "center",
+    },
+  },
   anchor_nav: {
     name: "Anchor nav — new",
     props: {

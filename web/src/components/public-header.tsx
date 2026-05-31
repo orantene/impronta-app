@@ -29,6 +29,11 @@ import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import {
+  loadRegistrationSettings,
+  registrationIsLive,
+} from "@/lib/saas/registration-settings";
+import { OpenTenantRegisterButton } from "@/components/marketing/tenant-register-modal-host";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -251,6 +256,17 @@ export async function PublicHeader() {
   const ctaLabel = identity?.primary_cta_label?.trim() || null;
   const ctaHref = identity?.primary_cta_href?.trim() || null;
   const hasCta = Boolean(ctaLabel && ctaHref);
+  // Tenant Registration Engine — auto "Join the team" CTA. Renders only on a
+  // tenant storefront where registration is live AND the operator hasn't set
+  // their own primary CTA (their explicit CTA always wins). Opens the branded
+  // register modal (mounted by TenantRegisterMount) rather than navigating.
+  const registrationSettings = tenantIdForIdentity
+    ? await loadRegistrationSettings(tenantIdForIdentity)
+    : null;
+  const showAutoRegisterCta =
+    !hasCta &&
+    Boolean(registrationSettings && registrationIsLive(registrationSettings));
+  const autoRegisterLabel = registrationSettings?.ctaLabel || "Join the team";
   const showCtaInDesktopBar =
     hasCta && (ctaPlacement === "right" || ctaPlacement === "both");
   const showCtaInMobileBar =
@@ -491,6 +507,13 @@ export async function PublicHeader() {
           {showCtaInMobileBar && !showCtaInDesktopBar ? (
             <Button size="sm" className="mr-1 inline-flex md:hidden" asChild>
               <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
+            </Button>
+          ) : null}
+          {showAutoRegisterCta ? (
+            <Button size="sm" className="mr-1 inline-flex" asChild>
+              <OpenTenantRegisterButton ariaLabel={autoRegisterLabel}>
+                {autoRegisterLabel}
+              </OpenTenantRegisterButton>
             </Button>
           ) : null}
           <PublicLanguageToggle
