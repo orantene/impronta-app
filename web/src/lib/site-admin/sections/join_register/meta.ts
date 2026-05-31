@@ -8,6 +8,8 @@ export const joinRegisterMeta: SectionMeta = {
   businessPurpose: "conversion",
   visibleToAgency: true,
   category: "convert",
-  inDefault: true,
+  // Revealed under "Show advanced" rather than the curated default picker
+  // (keeps the default-tier budget intact); still searchable + tagged new.
+  inDefault: false,
   tag: "new",
 };

@@ -1831,6 +1831,9 @@ export function deriveLegacySectionChildNodes(
   if (slot.sectionTypeKey === "marquee") {
     return [];
   }
+  if (slot.sectionTypeKey === "join_register") {
+    return [];
+  }
   return [];
 }
 
