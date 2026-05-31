@@ -115,7 +115,15 @@ export type TalentSelfActionGuard = {
   ok: true;
   supabase: SupabaseClient;
   user: User;
-  tenantId: string;
+  /**
+   * Tenant the talent is editing under, or `null` for an INDEPENDENT talent
+   * who self-registered (via /talent/register) and is not on any agency
+   * roster. Tenant only scopes agency-managed fields (internal notes, field
+   * locks, directory feature flag); the talent's own profile data is keyed by
+   * talent_profile_id and loads/saves regardless. Consumers that touch
+   * agency-scoped rows must handle `null` (skip / no-op for independent talent).
+   */
+  tenantId: string | null;
   /** URL-safe profile code for scoping revalidatePath to /t/[profileCode]. */
   profileCode: string;
 };
@@ -144,9 +152,15 @@ export async function requireTalentSelfAction(
     .maybeSingle();
   if (error || !tp) return { ok: false, error: "Not your profile." };
 
+  // Resolve the tenant the talent is editing under, if any. Order of
+  // preference: the host's tenant scope → an active roster row. An
+  // INDEPENDENT talent who self-registered (via /talent/register) is on no
+  // roster and has no tenant — that is NOT an error. They own their profile
+  // (verified above by user_id) and can edit it; tenantId stays null and
+  // agency-scoped reads/writes no-op for them.
   let tenantId = scope?.tenantId ?? null;
   if (!tenantId) {
-    const { data: rosterRow, error: rosterError } = await supabase
+    const { data: rosterRow } = await supabase
       .from("agency_talent_roster")
       .select("tenant_id")
       .eq("talent_profile_id", talent_profile_id)
@@ -154,19 +168,14 @@ export async function requireTalentSelfAction(
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (rosterError || !rosterRow?.tenant_id) {
-      return { ok: false, error: "Talent is not on any active roster." };
-    }
-    tenantId = rosterRow.tenant_id;
+    tenantId = rosterRow?.tenant_id ?? null;
   }
-  if (!tenantId) return { ok: false, error: "Talent is not on any active roster." };
-  const resolvedTenantId = tenantId;
 
   return {
     ok: true,
     supabase,
     user,
-    tenantId: resolvedTenantId,
+    tenantId,
     profileCode: (tp as { id: string; profile_code: string }).profile_code,
   };
 }
