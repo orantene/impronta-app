@@ -1,5 +1,6 @@
 import "server-only";
 
+import { improntaLog } from "@/lib/server/structured-log";
 import { emitNotification } from "../emit";
 import type {
   AudienceContext,
@@ -32,7 +33,20 @@ export async function sendInAppNotification(
   if (!cfg || !recipient.userId) return;
 
   const tenantId = event.tenantId;
-  if (!tenantId) return;
+  if (!tenantId) {
+    // Platform-scoped (tenantId=null) in-app notifications aren't deliverable yet:
+    // user_notifications.tenant_id is NOT NULL and there's no platform-admin bell
+    // surface. Log the skip so it's observable rather than silently dropped —
+    // delivering these is a Phase 6+ concern (nullable tenant_id + RLS + UI). The
+    // entry's email channel still delivers, so platform admins are not left dark.
+    void improntaLog("notif.in_app.skip_platform", {
+      entryId: entry.id,
+      eventId: event.eventId,
+      eventType: event.type,
+      recipient: recipient.userId,
+    });
+    return;
+  }
 
   await emitNotification({
     userId: recipient.userId,
