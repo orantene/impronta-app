@@ -968,6 +968,10 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.pointerEvents) out.pointerEvents = style.pointerEvents;
   if (style.scrollSnapType) out.scrollSnapType = style.scrollSnapType;
   if (style.scrollSnapAlign) out.scrollSnapAlign = style.scrollSnapAlign;
+  if (style.outline) out.outline = style.outline;
+  if (style.outlineOffset) out.outlineOffset = style.outlineOffset;
+  if (style.accentColor) out.accentColor = style.accentColor;
+  if (style.caretColor) out.caretColor = style.caretColor;
   // Entrance animation — fires on the PUBLISHED page only (the edit canvas uses
   // a separate renderer, so the inspector won't re-animate on every keystroke).
   // Maps a friendly preset to a named @keyframe in the static sheet; `both`

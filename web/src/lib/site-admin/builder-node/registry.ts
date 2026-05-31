@@ -220,6 +220,11 @@ const builderNodeStyleValueSchema = z.object({
   pointerEvents: z.enum(["auto", "none"]).optional(),
   scrollSnapType: z.string().max(40).optional(),
   scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
+  // Focus / form theming.
+  outline: z.string().max(60).optional(),
+  outlineOffset: z.string().max(16).optional(),
+  accentColor: z.string().max(64).optional(),
+  caretColor: z.string().max(64).optional(),
   // Entrance animation — preset maps to a baked @keyframe; duration/delay are
   // CSS time strings (short-capped).
   animationPreset: z

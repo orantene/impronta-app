@@ -210,6 +210,13 @@ export interface BuilderNodeStyleValue {
   pointerEvents?: "auto" | "none";
   scrollSnapType?: string;
   scrollSnapAlign?: "none" | "start" | "center" | "end";
+  // Focus / form theming — outline is layout-neutral (unlike border) so it's the
+  // right tool for decorative rings; accentColor themes native checkbox/radio/
+  // range; caretColor sets the text-input cursor colour.
+  outline?: string;
+  outlineOffset?: string;
+  accentColor?: string;
+  caretColor?: string;
   // Entrance animation — a named preset that maps to a CSS @keyframe baked into
   // the static renderer sheet. Fires once on the published page. duration/delay
   // are raw CSS time strings ("0.6s", "120ms").

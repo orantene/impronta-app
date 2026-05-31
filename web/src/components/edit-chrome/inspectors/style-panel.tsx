@@ -1069,6 +1069,10 @@ function cleanBuilderNodeStyle(
   if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
   if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
   if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
+  if (value.outline) out.outline = value.outline;
+  if (value.outlineOffset) out.outlineOffset = value.outlineOffset;
+  if (value.accentColor) out.accentColor = value.accentColor;
+  if (value.caretColor) out.caretColor = value.caretColor;
   if (value.animationPreset) out.animationPreset = value.animationPreset;
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
@@ -1181,6 +1185,10 @@ function cleanBuilderNodeStyleValue(
   if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
   if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
   if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
+  if (value.outline) out.outline = value.outline;
+  if (value.outlineOffset) out.outlineOffset = value.outlineOffset;
+  if (value.accentColor) out.accentColor = value.accentColor;
+  if (value.caretColor) out.caretColor = value.caretColor;
   if (value.animationPreset) out.animationPreset = value.animationPreset;
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
@@ -6728,6 +6736,122 @@ export function StylePanel({
                   onChange={(e) =>
                     patchSelectedStandaloneStyle({
                       textStroke: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="outline"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Outline (layout-neutral ring)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="2px solid #6366f1"
+                  value={selectedStandaloneViewportStyle?.outline ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      outline: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="outlineOffset"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Outline offset
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="2px · -1px"
+                  value={selectedStandaloneViewportStyle?.outlineOffset ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      outlineOffset: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="accentColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Accent (checkbox / radio / range)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="#6366f1 · var(--token-color-primary)"
+                  value={selectedStandaloneViewportStyle?.accentColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      accentColor: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="caretColor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Caret (text-input cursor)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="#6366f1"
+                  value={selectedStandaloneViewportStyle?.caretColor ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      caretColor: e.target.value.trim() || undefined,
                     })
                   }
                 />
