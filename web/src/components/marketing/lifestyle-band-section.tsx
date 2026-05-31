@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
@@ -18,7 +19,7 @@ const SLIDES = [
     photo: MARKETING_PHOTOS.servicePros,
     primary: {
       label: "Sell your services",
-      href: "/talent/register?next=/talent/profile/fields",
+      href: `${getAppUrl()}/talent/register?next=/talent/profile/fields`,
       intent: "sell-services",
     },
     secondary: {

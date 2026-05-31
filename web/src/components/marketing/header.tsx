@@ -22,7 +22,8 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const APP_LOGIN_URL = `${getAppUrl()}/login`;
-const TALENT_REGISTER_HREF = "/talent/register?next=/talent/profile/fields";
+// Must be absolute — /talent/register is not allowed on the marketing host.
+const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
 
 export function MarketingHeader() {
   const pathname = usePathname();

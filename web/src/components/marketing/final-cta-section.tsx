@@ -1,7 +1,9 @@
+import { getAppUrl } from "@/lib/auth-flow";
 import { MarketingContainer, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 
-const TALENT_REGISTER_HREF = "/talent/register?next=/talent/profile/fields";
+// Must be absolute — /talent/register is not allowed on the marketing host.
+const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
 
 export function FinalCtaSection() {
   return (
