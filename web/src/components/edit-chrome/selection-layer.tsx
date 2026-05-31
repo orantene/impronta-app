@@ -1159,13 +1159,18 @@ export function SelectionLayer() {
       const delta = DELTAS[e.key];
       if (!delta) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const ae = document.activeElement as HTMLElement | null;
+      const ae = document.activeElement;
       // Only act when focus is on the page body / canvas — never while an
       // input, the navigator tree, or the inspector panel has focus.
+      // Guard `closest` — activeElement is usually an Element but can be a
+      // non-Element (e.g. an SVG/foreign node) where closest is absent.
       const onCanvas =
         !ae ||
         ae === document.body ||
-        !!ae.closest("[data-cms-section], [data-builder-node-id]");
+        (typeof (ae as Element).closest === "function" &&
+          !!(ae as Element).closest(
+            "[data-cms-section], [data-builder-node-id]",
+          ));
       if (!onCanvas) return;
       const el = getSelectedBuilderNodeEl();
       if (!el) return;
