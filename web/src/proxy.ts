@@ -572,20 +572,32 @@ export async function proxy(request: NextRequest) {
   }
 
   // Phase 3.12 / 3.13 — branded workspace shortcuts on agency hosts.
-  // Keep the branded URL (`/admin`, `/talent`, `/client`) but route through
-  // the canonical slug handlers (`/<slug>/admin`, etc.) via internal rewrite.
+  // Keep the branded URL (`/admin`, `/client`) but route through the
+  // canonical slug handlers (`/<slug>/admin`, etc.) via internal rewrite,
+  // because those surfaces have no standalone (non-slug) route tree.
   //
-  // EXCEPT for the public registration entry points (`/talent/register`,
-  // `/client/register`). Those are unauthenticated marketing-style pages
-  // that resolve via the (auth) route group, NOT via the workspace
-  // [tenantSlug] route. Rewriting them to `/<slug>/talent/register` sent
-  // them to a workspace path that doesn't exist → 404. The talent-
-  // acquisition funnel was visibly broken on improntamodels.com because
-  // of this — adding the bypass below restores it without touching the
-  // existing branded /admin /talent /client /client/<id> rewrite semantics.
-  const isRegistrationEntry =
-    pathnameForAuth === "/talent/register" ||
-    pathnameForAuth === "/client/register";
+  // `/talent/*` is DELIBERATELY EXCLUDED from this rewrite. The talent
+  // self-surface has its own standalone, host-agnostic tree at
+  // `app/(workspace)/talent/*` that resolves the talent's active agency
+  // from session + cookie, so it renders correctly on ANY host without a
+  // slug prefix (the app host already serves it this way). The tenant-
+  // scoped `app/(workspace)/[tenantSlug]/talent/*` pages, by contrast, are
+  // all *legacy redirectors* that `redirect()` straight back to `/talent/*`.
+  // So rewriting `/talent/foo` → `/<slug>/talent/foo` lands on a redirector
+  // that bounces back to `/talent/foo`, which this middleware rewrites
+  // again — an infinite client-side navigation loop where every hop is an
+  // HTTP 200 carrying a NEXT_REDIRECT directive to the same URL (the page
+  // never settles, the heading never renders). This bit every canonical
+  // platform-talent route — /talent/trust, /talent/discover,
+  // /talent/settings/payouts — on agency custom domains. Letting `/talent/*`
+  // fall through to its own tree is both correct and identical to how the
+  // app host serves it.
+  //
+  // `/client/register` still needs the bypass below: it is an
+  // unauthenticated (auth)-route page, and rewriting it to
+  // `/<slug>/client/register` would hit a non-existent workspace path → 404,
+  // breaking the client-acquisition funnel on the tenant's own host.
+  const isRegistrationEntry = pathnameForAuth === "/client/register";
   if (
     hostContext.kind === "agency" &&
     hostContext.tenantSlug &&
@@ -594,8 +606,6 @@ export async function proxy(request: NextRequest) {
     (
       pathnameForAuth === "/admin" ||
       pathnameForAuth.startsWith("/admin/") ||
-      pathnameForAuth === "/talent" ||
-      pathnameForAuth.startsWith("/talent/") ||
       pathnameForAuth === "/client" ||
       pathnameForAuth.startsWith("/client/")
     )
