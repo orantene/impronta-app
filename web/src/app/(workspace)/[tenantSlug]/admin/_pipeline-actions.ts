@@ -30,6 +30,7 @@ import type {
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
+import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
 import {
   assignCoordinator,
   addSecondaryCoordinator,
@@ -2375,6 +2376,11 @@ export async function cancelBookingAction(
         p_kind: "booking_cancelled",
         p_payload: { booking_id: bookingId, by_user_id: user.id },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
+
+      // booking.cancelled notifications (spec §6.4) — client + talent +
+      // coordinator, email + in-app. Needs the inquiry for contact/schedule +
+      // roster, so it only fires when the booking came from an inquiry.
+      notifyBookingCancelled({ tenantId, inquiryId: cancelInquiryId, bookingId });
     }
 
     revalidatePath(`/${tenantSlug}`, "layout");

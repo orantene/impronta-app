@@ -2,11 +2,12 @@
  * Booking-confirmation fan-out (P2) — runs on Stripe payment success.
  *
  * Called from the `booking_payment` webhook action AFTER `markPaid`. Produces
- * the post-payment artifacts the client expects:
- *   • a booking-confirmation PDF auto-attached to the inquiry's Files tab, and
- *   • the confirmation email to the client + each talent (existing template).
- * The in-thread chat card is already posted by `markPaid` (payment_paid), and
- * the Details tab reflects the paid status — so this module owns PDF + email.
+ * the post-payment artifact the client expects:
+ *   • a booking-confirmation PDF auto-attached to the inquiry's Files tab.
+ * The in-thread chat card is already posted by `markPaid` (payment_paid), the
+ * Details tab reflects the paid status, and the confirmation/receipt emails are
+ * owned by the notification engine (`payment.received` from `markPaid`,
+ * `booking.created` at conversion) — so this module owns the PDF only.
  *
  * Everything is best-effort and idempotent: the payment has already settled,
  * so a failure here is logged, never thrown, and a re-delivered webhook does
@@ -22,7 +23,6 @@ import {
   generateBookingConfirmationPdf,
   type BookingConfirmationLineItem,
 } from "./booking-confirmation-pdf";
-import { sendBookingConfirmedNotifications } from "@/lib/email/inquiry-notifications";
 
 const CONFIRMATION_FILENAME = "Booking confirmation.pdf";
 
@@ -47,8 +47,9 @@ function toCents(v: number | string | null | undefined): number {
 }
 
 /**
- * Generate + attach the confirmation PDF and send the confirmation email for a
- * paid booking transaction. Idempotent + best-effort.
+ * Generate + attach the booking-confirmation PDF for a paid booking
+ * transaction. Idempotent + best-effort. (Confirmation/receipt emails are
+ * dispatched by the notification engine, not here.)
  */
 export async function emitBookingConfirmation(transactionId: string): Promise<void> {
   const sb = createServiceRoleClient();
@@ -182,8 +183,11 @@ export async function emitBookingConfirmation(transactionId: string): Promise<vo
       );
     }
 
-    // 6. Email the client + each talent (existing template; fire-and-forget).
-    await sendBookingConfirmedNotifications({ supabase: sb, inquiryId, bookingId });
+    // NB: the post-payment confirmation email is no longer sent from here. The
+    // notification engine owns it now — `payment.received` (client receipt +
+    // workspace alert) fires from `markPaid`, and `booking.created` emails the
+    // client + roster talent at conversion time. This module is solely
+    // responsible for the booking-confirmation PDF + its Files-tab attachment.
   } catch (err) {
     logServerError(`booking-confirmation[txn=${transactionId}]`, err);
   }

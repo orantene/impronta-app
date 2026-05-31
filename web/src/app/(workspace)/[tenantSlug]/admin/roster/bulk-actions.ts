@@ -14,6 +14,7 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 
 export type BulkWorkflowResult =
   | { ok: true; updatedCount: number }
@@ -53,9 +54,11 @@ export async function bulkSetWorkflowStatus(
   if (!admin) return { ok: false, error: "Server configuration error." };
 
   // Resolve which IDs are actually on this tenant's roster (security boundary).
+  // Also read the current agency_visibility so we can tell which talents are
+  // *newly* becoming site-visible (→ talent.profile_approved notification).
   const { data: rosterRows, error: rosterErr } = await admin
     .from("agency_talent_roster")
-    .select("talent_profile_id")
+    .select("talent_profile_id, agency_visibility")
     .eq("tenant_id", scope.tenantId)
     .in("talent_profile_id", talentIds)
     .neq("status", "removed");
@@ -65,9 +68,11 @@ export async function bulkSetWorkflowStatus(
     return { ok: false, error: "Could not verify roster membership." };
   }
 
-  const confirmedIds = (rosterRows ?? []).map(
-    (r) => (r as { talent_profile_id: string }).talent_profile_id,
-  );
+  const confirmedRows = (rosterRows ?? []) as Array<{
+    talent_profile_id: string;
+    agency_visibility: string | null;
+  }>;
+  const confirmedIds = confirmedRows.map((r) => r.talent_profile_id);
 
   if (confirmedIds.length === 0) return { ok: true, updatedCount: 0 };
 
@@ -118,6 +123,22 @@ export async function bulkSetWorkflowStatus(
     );
   } catch (e) {
     logServerError("roster.bulkSetWorkflowStatus/auditEvents", e);
+  }
+
+  // talent.profile_approved (spec §6.3) — notify each talent who *transitioned*
+  // into site-visible. Skip those already site_visible/featured so a re-publish
+  // doesn't re-email. Fire-and-forget per talent; the helper resolves each
+  // talent's account + canonical profile URL and dedupes per tenant+talent.
+  if (targetStatus === "publish") {
+    const alreadyVisible = new Set(["site_visible", "featured"]);
+    for (const row of confirmedRows) {
+      if (alreadyVisible.has(row.agency_visibility ?? "")) continue;
+      void notifyTalentProfileApproved({
+        admin,
+        tenantId: scope.tenantId,
+        talentProfileId: row.talent_profile_id,
+      });
+    }
   }
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
