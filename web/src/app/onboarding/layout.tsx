@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getSiteUrl } from "@/lib/auth-flow";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -83,21 +84,21 @@ function OnboardingFooter() {
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
           <Link
-            href="/legal/terms"
+            href={`${getSiteUrl()}/legal/terms`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Terms
           </Link>
           <Link
-            href="/legal/privacy"
+            href={`${getSiteUrl()}/legal/privacy`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Privacy
           </Link>
           <Link
-            href="/contact"
+            href={`${getSiteUrl()}/contact`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
