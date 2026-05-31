@@ -71,6 +71,10 @@ export type {
 // so we get the shape without pulling the client tree into server land.
 import type { TalentProfile } from "./state";
 import type { WorkspaceMediaPhoto, WorkspaceMediaFolder } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
+// Type-only — erased at compile time, so importing from the `"use server"`
+// payouts actions module pulls no runtime JS (no server tree) into either
+// this server-only file or the client context that re-uses the type.
+import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
 import type {
   WorkspaceInquiryForMessages,
   WorkspaceClientRow,
@@ -317,6 +321,15 @@ export type BridgeData = {
    * shell falls back to `DEFAULT_ROSTER_CARD_BADGES` (all visible).
    */
   rosterCardBadges?: RosterCardBadgePrefs | null;
+
+  /**
+   * Workspace Payouts surface payload (Stripe Connect snapshot + base-fee
+   * state), pre-fetched server-side in the admin layout via
+   * `loadPayoutsSurface`. `null`/omitted = the in-shell `PayoutsPage`
+   * renders its "couldn't load payout settings" error card. The loader
+   * already returns `{ ok: false }` on failure, so this never throws.
+   */
+  payoutsSurface?: PayoutsSurfaceResult | null;
 };
 
 export function createBridgeDataFromRoster(

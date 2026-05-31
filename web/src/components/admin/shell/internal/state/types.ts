@@ -38,6 +38,7 @@ export type WorkspacePage =
   | "media"      // Agency/Studio — workspace media gallery + watermark control
   | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.
   | "financials" // L46 — business financials. Canonical server-rendered route; NOT a SPA nav tab.
+  | "payouts"    // Stripe Connect payout onboarding + base reservation fee. In-shell SPA section (not in nav).
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
