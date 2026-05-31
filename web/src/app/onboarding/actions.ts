@@ -7,7 +7,7 @@ import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-se
 import { requireSession } from "@/lib/server/action-guards";
 import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
+import { applyRegistrationPolicy } from "@/lib/saas/registration-policy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -124,64 +124,13 @@ async function ensureTalentRosterForNext(
   const admin = createServiceRoleClient();
   if (!scope || !admin) return { destination: null };
 
-  const { data: existing, error: existingError } = await admin
-    .from("agency_talent_roster")
-    .select("id, status")
-    .eq("tenant_id", scope.tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-
-  if (existingError) {
-    logServerError("onboarding.talentRoster.lookup", existingError);
-    return { destination: null };
-  }
-
-  const originDomain = await currentOriginDomain();
-  if (existing?.id) {
-    const { error } = await admin
-      .from("agency_talent_roster")
-      .update({
-        status: existing.status === "inactive" ? "pending" : existing.status,
-        source_workspace_id: scope.tenantId,
-        origin_domain: originDomain,
-      })
-      .eq("id", existing.id);
-
-    if (error) {
-      logServerError("onboarding.talentRoster.update", error);
-      return { destination: null };
-    }
-  } else {
-    const seatAvailability = await checkRosterSeatAvailability(
-      admin,
-      scope.tenantId,
-      1,
-    );
-    if (!seatAvailability.ok) {
-      return { destination: null, error: seatAvailability.message };
-    }
-
-    const { error } = await admin
-      .from("agency_talent_roster")
-      .insert({
-        tenant_id: scope.tenantId,
-        talent_profile_id: talentProfileId,
-        source_type: "freelancer_claimed",
-        status: "pending",
-        agency_visibility: "roster_only",
-        hub_visibility_status: "not_submitted",
-        is_primary: false,
-        added_by: userId,
-        source_workspace_id: scope.tenantId,
-        origin_domain: originDomain,
-      });
-
-    if (error) {
-      logServerError("onboarding.talentRoster.insert", error);
-      return { destination: null };
-    }
-  }
+  const outcome = await applyRegistrationPolicy(admin, {
+    tenantId: scope.tenantId,
+    talentProfileId,
+    userId,
+    originDomain: await currentOriginDomain(),
+  });
+  if (!outcome.ok) return { destination: null, error: outcome.error };
 
   revalidatePath(`/${parsed.tenantSlug}/talent`, "layout");
   return { destination: parsed.destination };
@@ -335,7 +284,16 @@ export async function completeTalentLocationOnboarding(
  * roster step here.
  */
 export type TalentProfileInPlaceState =
-  | { ok: true; dashboardUrl: string }
+  | {
+      ok: true;
+      dashboardUrl: string;
+      /**
+       * Present when the registration was scoped to a tenant (the modal carried
+       * a /<slug>/talent next). Lets the success view show "you're in" (active)
+       * vs "request sent — pending approval" (pending).
+       */
+      registration?: { status: "active" | "pending" };
+    }
   | { error: string }
   | void;
 
@@ -350,6 +308,7 @@ export async function completeTalentProfileInPlace(
     };
   }
   const { supabase, user } = auth;
+  const nextPath = nextFromForm(formData);
 
   const display_name = String(formData.get("display_name") ?? "").trim();
   const first_name = String(formData.get("first_name") ?? "").trim();
@@ -404,6 +363,34 @@ export async function completeTalentProfileInPlace(
 
   revalidatePath("/", "layout");
 
+  // Tenant Registration Engine: when the modal carries a tenant talent-portal
+  // `next` (e.g. /<slug>/talent), apply that workspace's join policy now. Open
+  // → active; approval/exclusive → pending. Independent marketing-funnel talent
+  // (no tenant next) skip this entirely, exactly as before.
+  let registration: { status: "active" | "pending" } | undefined;
+  let dashboardUrl = `${getAppUrl()}/talent`;
+  if (tp?.id) {
+    const parsed = parsePortalNext(nextPath, "talent");
+    if (parsed?.tenantSlug) {
+      const scope = await getTenantPortalScopeBySlug(parsed.tenantSlug);
+      const admin = createServiceRoleClient();
+      if (scope && admin) {
+        const outcome = await applyRegistrationPolicy(admin, {
+          tenantId: scope.tenantId,
+          talentProfileId: tp.id,
+          userId: user.id,
+          originDomain: await currentOriginDomain(),
+        });
+        if (!outcome.ok) return { error: outcome.error };
+        registration = { status: outcome.status };
+        revalidatePath(`/${parsed.tenantSlug}/talent`, "layout");
+        dashboardUrl = `${getAppUrl()}${parsed.destination}`;
+      }
+    } else if (parsed?.destination) {
+      dashboardUrl = `${getAppUrl()}${parsed.destination}`;
+    }
+  }
+
   if (user.email) {
     // Welcome email via the notification dispatcher (spec §12), matching
     // completeTalentLocationOnboarding. Platform-scoped (tenantId: null →
@@ -429,5 +416,60 @@ export async function completeTalentProfileInPlace(
     })();
   }
 
-  return { ok: true, dashboardUrl: `${getAppUrl()}/talent` };
+  return { ok: true, dashboardUrl, registration };
+}
+
+/**
+ * Existing-talent "Sign in to apply" path for the tenant registration modal.
+ *
+ * The visitor already has a Tulala account + talent profile (shared session via
+ * the parent-domain cookie). This creates / reactivates their roster row for the
+ * tenant per its join policy — no new account, no profile step. Returns the
+ * outcome so the modal can show "you're in" vs "request sent — pending approval".
+ */
+export type RequestTenantRegistrationState =
+  | { ok: true; status: "active" | "pending" }
+  | { ok: false; error: string };
+
+export async function requestTenantRegistration(
+  tenantSlug: string,
+): Promise<RequestTenantRegistrationState> {
+  const auth = await requireSession();
+  if (!auth.ok) {
+    return { ok: false, error: "Please sign in to apply." };
+  }
+  const { supabase, user } = auth;
+
+  const { data: tp, error: tpError } = await supabase
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (tpError) {
+    logServerError("requestTenantRegistration.profile", tpError);
+    return { ok: false, error: "We couldn't read your profile. Please try again." };
+  }
+  if (!tp?.id) {
+    return {
+      ok: false,
+      error: "Finish setting up your talent profile before applying.",
+    };
+  }
+
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  const admin = createServiceRoleClient();
+  if (!scope || !admin) {
+    return { ok: false, error: "This workspace isn't available right now." };
+  }
+
+  const outcome = await applyRegistrationPolicy(admin, {
+    tenantId: scope.tenantId,
+    talentProfileId: tp.id,
+    userId: user.id,
+    originDomain: await currentOriginDomain(),
+  });
+  if (!outcome.ok) return { ok: false, error: outcome.error };
+
+  revalidatePath(`/${tenantSlug}/talent`, "layout");
+  return { ok: true, status: outcome.status };
 }
