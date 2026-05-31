@@ -118,9 +118,13 @@ export const PLAN_CATALOG: Record<PlanKey, PlanDef> = {
   network: {
     key: "network",
     audience: "workspace",
-    displayName: "Network",
-    tagline: "Multi-brand + hub",
-    description: "Operate multiple agencies and reach the cross-agency discovery hub.",
+    // Product label is "Hub" (private talent hubs / enterprise tier). The
+    // internal plan key stays `network` to avoid a high-blast-radius DB enum
+    // rename (same staged caution as coordinator→manager). Surface "Hub"
+    // everywhere via this displayName.
+    displayName: "Hub",
+    tagline: "Private hubs + enterprise",
+    description: "Run private talent hubs and reach the cross-agency discovery network. Enterprise-level, multi-brand.",
     rank: 3,
     monthlyPriceCents: null,
     annualPriceCents: null,
