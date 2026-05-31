@@ -7,6 +7,9 @@ import SignupFailedAlert from "../../../emails/platform/SignupFailedAlert";
 import TalentClaimInvite from "../../../emails/talent/ClaimInvite";
 import TalentWelcome from "../../../emails/talent/Welcome";
 import TalentProfileApproved from "../../../emails/talent/ProfileApproved";
+import TalentJoinApproved from "../../../emails/talent/JoinApproved";
+import TalentJoinDeclined from "../../../emails/talent/JoinDeclined";
+import RosterJoinRequest from "../../../emails/workspace/RosterJoinRequest";
 import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
 import WorkspaceWelcome from "../../../emails/workspace/Welcome";
 import BookingCanceled from "../../../emails/workspace/BookingCanceled";
@@ -23,6 +26,7 @@ import {
   platformAdmins,
   str,
   workspaceAdmins,
+  workspaceManagersPlus,
 } from "./catalog-audiences";
 import { formatDateLabel, pageUrl, redeemHref } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
@@ -312,6 +316,110 @@ const TALENT_PROFILE_APPROVED: CatalogEntry = {
       React.createElement(TalentProfileApproved, {
         talentName: str(event.payload.talentName) ?? recipient.displayName,
         profileUrl: redeemHref(brand, str(event.payload.profileUrl) ?? "/talent"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "roster",
+      }),
+  },
+};
+
+// ─── Tenant Registration Engine (roster join requests, direct dispatch) ───────
+
+/** roster.join_requested → workspace Manager+ for the tenant. */
+const ROSTER_JOIN_REQUESTED: CatalogEntry = {
+  id: "roster.join_requested.workspace",
+  category: "roster_activity",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["roster.join_requested"],
+  resolveAudience: workspaceManagersPlus,
+  in_app: {
+    kind: "approval",
+    surface: "workspace",
+    title: (event) =>
+      `${str(event.payload.talentName) ?? "A talent"} requested to join your roster`,
+    body: () => "Review and approve or decline the request.",
+  },
+  email: {
+    templateId: "roster.join_requested",
+    subject: (event) =>
+      `${str(event.payload.talentName) ?? "New talent"} wants to join your roster`,
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(RosterJoinRequest, {
+        recipientName: recipient.displayName,
+        talentName: str(event.payload.talentName),
+        reviewUrl:
+          str(event.payload.reviewUrl) ?? pageUrl(brand, "/admin/roster/registration"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "roster",
+      }),
+  },
+};
+
+/** roster.join_approved → the applicant talent (event.userId). */
+const ROSTER_JOIN_APPROVED: CatalogEntry = {
+  id: "roster.join_approved.talent",
+  category: "roster_activity",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["roster.join_approved"],
+  resolveAudience: eventUser("talent"),
+  in_app: {
+    kind: "approval",
+    surface: "talent",
+    title: (event) => {
+      const team = str(event.payload.workspaceName);
+      return team ? `You're on ${team}'s roster` : "Your roster request was approved";
+    },
+    body: () => "You're now part of the team roster.",
+  },
+  email: {
+    templateId: "roster.join_approved",
+    subject: (event) => {
+      const team = str(event.payload.workspaceName);
+      return team ? `You're on ${team}'s roster` : "Your roster request was approved";
+    },
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(TalentJoinApproved, {
+        talentName: str(event.payload.talentName) ?? recipient.displayName,
+        workspaceName: str(event.payload.workspaceName),
+        dashboardUrl: str(event.payload.dashboardUrl) ?? redeemHref(brand, "/talent"),
+        brand,
+        unsubscribeUrl,
+        categoryLabel: "roster",
+      }),
+  },
+};
+
+/** roster.join_rejected → the applicant talent (event.userId). */
+const ROSTER_JOIN_REJECTED: CatalogEntry = {
+  id: "roster.join_rejected.talent",
+  category: "roster_activity",
+  defaultChannels: ["email", "in_app"],
+  required: false,
+  triggers: ["roster.join_rejected"],
+  resolveAudience: eventUser("talent"),
+  in_app: {
+    kind: "system",
+    surface: "talent",
+    title: () => "Update on your roster request",
+    body: (event) => {
+      const team = str(event.payload.workspaceName);
+      return team
+        ? `${team} isn't able to add you to their roster right now.`
+        : "Your request wasn't approved at this time.";
+    },
+  },
+  email: {
+    templateId: "roster.join_rejected",
+    subject: () => "Update on your roster request",
+    render: ({ event, recipient, brand, unsubscribeUrl }) =>
+      React.createElement(TalentJoinDeclined, {
+        talentName: str(event.payload.talentName) ?? recipient.displayName,
+        workspaceName: str(event.payload.workspaceName),
+        exploreUrl:
+          str(event.payload.exploreUrl) ?? redeemHref(brand, "/talent/discover-agencies"),
         brand,
         unsubscribeUrl,
         categoryLabel: "roster",
@@ -632,6 +740,9 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   WORKSPACE_SIGNUP_WELCOME,
   TALENT_WELCOME_ENTRY,
   TALENT_PROFILE_APPROVED,
+  ROSTER_JOIN_REQUESTED,
+  ROSTER_JOIN_APPROVED,
+  ROSTER_JOIN_REJECTED,
   BOOKING_CANCELLED_CLIENT,
   BOOKING_CANCELLED_TALENT,
   BOOKING_CANCELLED_COORDINATOR,

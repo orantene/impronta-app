@@ -143,6 +143,30 @@ export const workspaceAdmins = async (
 };
 
 /**
+ * Workspace Manager-and-above for the event's tenant — who can act on roster
+ * join requests (Tenant Registration Engine). The DB value for the Manager tier
+ * is still `coordinator` during the staged coordinator→manager rename, so the
+ * set is owner/admin/coordinator. Empty without a tenant scope.
+ */
+export const workspaceManagersPlus = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  if (!event.tenantId) return [];
+  const { data, error } = await ctx.admin
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", event.tenantId)
+    .eq("status", "active")
+    .in("role", ["owner", "admin", "coordinator"]);
+  if (error || !data) return [];
+  return (data as Array<{ profile_id: string | null }>)
+    .map((r) => r.profile_id)
+    .filter((id): id is string => Boolean(id))
+    .map((userId) => ({ kind: "user" as const, userId, role: "workspace_member" as const }));
+};
+
+/**
  * Workspace owner(s) for the event's tenant — the billing-responsible party for
  * plan-change + cancellation notices (spec §6.6). Mirrors `workspaceAdmins` but
  * narrows to `role = 'owner'`; keys on `agency_memberships.profile_id` (the

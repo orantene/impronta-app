@@ -3,27 +3,23 @@
 /**
  * Talent Registration Modal — branded, premium, fully in-place signup.
  *
- * Opens anywhere on the marketing site (header, hero, CTAs) via the
- * `TALENT_MODAL_EVENT` custom event, and completes the ENTIRE talent
- * registration without leaving tulala.digital:
- *   1. Account  — email + password (or Google), via `signUpTalentInPlace`.
- *   2. Profile  — name, phone, gender, DOB, via `completeTalentProfileInPlace`.
- *   3. Success  — "your page is live" → hands off to the app-host dashboard
- *                 (the session cookie is shared across the parent domain, so
- *                 they land logged-in).
+ * Two surfaces, one component:
+ *  - Marketing (default): Tulala-branded (`--plt-*`), opens on tulala.digital.
+ *  - Tenant (when `tenant` is passed): re-themed to the workspace's storefront
+ *    tokens + logo, opened on a tenant site. Registration is scoped to the
+ *    tenant via `next=/<slug>/talent` so the join policy applies, and an
+ *    "already have a Tulala account → apply" path uses the shared session.
  *
- * Design notes:
- * - Uses Tulala platform tokens (`--plt-*`) so it sits inside the marketing
- *   site without theme jarring.
- * - Portals to `document.body` so the header's `backdrop-filter` doesn't
- *   create a containing block that breaks fixed positioning.
- * - The two step actions never redirect; they return structured state so the
- *   modal drives its own transitions.
+ * Flow (new person): Account → Profile → Success ("you're in" / "request sent").
+ *
+ * Leaf parts (GoogleButton, ConfirmationView, SubmitButton, ErrorNote, StepDot,
+ * FieldShell) live in `./talent-register-modal-parts` to keep this file under
+ * the 800-line cap. The tenant theme is applied by remapping the `--plt-*` vars
+ * onto storefront `--token-color-*` tokens inline on the root.
  */
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 
 import {
   signUpTalentInPlace,
@@ -31,27 +27,72 @@ import {
 } from "@/app/auth/actions";
 import {
   completeTalentProfileInPlace,
+  requestTenantRegistration,
   type TalentProfileInPlaceState,
 } from "@/app/onboarding/actions";
-import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import { getAppUrl } from "@/lib/auth-flow";
-import { createClient } from "@/lib/supabase/client";
-import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import {
   ArrowGlyph,
   CheckGlyph,
   CloseGlyph,
-  GoogleGlyph,
   MailGlyph,
   Spinner,
   TrustTick,
 } from "./talent-register-modal-glyphs";
+import {
+  ConfirmationView,
+  ErrorNote,
+  FieldShell,
+  GoogleButton,
+  StepDot,
+  SubmitButton,
+} from "./talent-register-modal-parts";
 
 export const TALENT_MODAL_EVENT = "tulala:open-talent-modal" as const;
+/** Tenant storefronts open the engine via this event (carries no payload —
+ *  the mounted host owns the tenant context). */
+export const TENANT_REGISTER_MODAL_EVENT = "tulala:open-tenant-register" as const;
 
-const OAUTH_NEXT_PATH = "/onboarding/talent-location";
+type Step = "apply" | "account" | "profile" | "success";
 
-type Step = "account" | "profile" | "success";
+type RegistrationStatus = "active" | "pending";
+
+/**
+ * Tenant context for the branded variant. Resolved server-side and handed to
+ * the mounted host. Absent → the modal renders its original marketing form.
+ */
+export type TenantRegisterContext = {
+  slug: string;
+  displayName: string;
+  /** Sanitized brand-mark SVG markup, or null to show the name. */
+  logoSvg?: string | null;
+  ctaLabel: string;
+  /** True when the current visitor is already a signed-in Tulala talent. */
+  isAuthedTalent: boolean;
+  /**
+   * On a custom domain (host-only cookies), the "sign in to apply" link routes
+   * through the SSO hand-off (/auth/sso/start) so the session lands on this
+   * domain. Absent on *.tulala.digital subdomains, which share the session.
+   */
+  ssoSignInUrl?: string;
+};
+
+/** Re-theme the modal to a tenant storefront by remapping `--plt-*` onto the
+ *  storefront's design tokens. Unmapped vars fall back to platform defaults. */
+const TENANT_THEME_VARS: React.CSSProperties = {
+  ["--plt-forest" as string]: "var(--token-color-primary, #0F4F3E)",
+  ["--plt-forest-on" as string]: "#ffffff",
+  ["--plt-shadow-forest" as string]: "0 14px 32px -16px rgba(0,0,0,0.4)",
+  ["--plt-ink" as string]: "var(--token-color-ink, #0B0B0D)",
+  ["--plt-ink-soft" as string]: "var(--token-color-neutral, #3f3f46)",
+  ["--plt-muted" as string]: "var(--token-color-muted, #6b7280)",
+  ["--plt-muted-soft" as string]: "var(--token-color-muted, #9ca3af)",
+  ["--plt-bg" as string]: "var(--token-color-background, #ffffff)",
+  ["--plt-bg-elevated" as string]: "var(--token-color-surface-raised, #ffffff)",
+  ["--plt-bg-raised" as string]: "var(--token-color-surface-raised, #f4f4f5)",
+  ["--plt-hairline" as string]: "var(--token-color-line, rgba(24,24,27,0.10))",
+  ["--plt-hairline-strong" as string]: "var(--token-color-line, rgba(24,24,27,0.16))",
+} as React.CSSProperties;
 
 /** Render a button that opens the talent register modal from anywhere. */
 export function TalentModalTrigger({
@@ -77,15 +118,23 @@ export function TalentModalTrigger({
 
 interface TalentRegisterModalProps {
   onClose: () => void;
+  /** When present, render the tenant-branded variant scoped to this workspace. */
+  tenant?: TenantRegisterContext;
 }
 
-export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
+export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [step, setStep] = useState<Step>("account");
+  const [step, setStep] = useState<Step>(
+    tenant?.isAuthedTalent ? "apply" : "account",
+  );
   const [dashboardUrl, setDashboardUrl] = useState<string>(
     `${getAppUrl()}/talent`,
   );
+  const [status, setStatus] = useState<RegistrationStatus>("active");
   const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  // Tenant registrations scope to /<slug>/talent so the join policy applies.
+  const nextPath = tenant ? `/${tenant.slug}/talent` : undefined;
 
   useEffect(() => setMounted(true), []);
 
@@ -98,8 +147,7 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
     };
   }, []);
 
-  // Close on Escape — but not on the success screen (avoid an accidental
-  // dismissal right as the account is created).
+  // Close on Escape — but not on the success screen.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && step !== "success") onClose();
@@ -110,10 +158,17 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
 
   if (!mounted) return null;
 
-  const header = HEADER_COPY[step];
+  const header = headerCopy(step, tenant);
+  const rootStyle = tenant ? TENANT_THEME_VARS : undefined;
+
+  function onProfileComplete(url: string, regStatus?: RegistrationStatus) {
+    setDashboardUrl(url);
+    if (regStatus) setStatus(regStatus);
+    setStep("success");
+  }
 
   return createPortal(
-    <div className="tlmodal-root" data-platform-surface="marketing">
+    <div className="tlmodal-root" data-platform-surface="marketing" style={rootStyle}>
       {/* ── Backdrop ── */}
       <div
         className="fixed inset-0 z-[200] bg-[rgba(15,23,20,0.55)] backdrop-blur-sm"
@@ -156,14 +211,19 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
             </span>
           </button>
 
+          {/* Tenant brand lockup */}
+          {tenant ? <TenantBrandMark tenant={tenant} /> : null}
+
           {/* Step header (hidden on the success screen, which has its own) */}
           {header ? (
             <div className="mb-7 pr-8">
-              {/* Two-step progress dots */}
-              <div className="mb-3 flex items-center gap-1.5">
-                <StepDot active={step === "account"} done={step !== "account"} />
-                <StepDot active={step === "profile"} done={false} />
-              </div>
+              {/* Progress dots — only for the new-person two-step path */}
+              {step === "account" || step === "profile" ? (
+                <div className="mb-3 flex items-center gap-1.5">
+                  <StepDot active={step === "account"} done={step !== "account"} />
+                  <StepDot active={step === "profile"} done={false} />
+                </div>
+              ) : null}
               <p
                 className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
                 style={{ color: "var(--plt-forest)" }}
@@ -176,9 +236,7 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
                 style={{ color: "var(--plt-ink)" }}
               >
                 {header.title}{" "}
-                <span style={{ color: "var(--plt-forest)" }}>
-                  {header.titleAccent}
-                </span>
+                <span style={{ color: "var(--plt-forest)" }}>{header.titleAccent}</span>
               </h2>
               <p
                 className="mt-2 text-[0.875rem] leading-[1.5]"
@@ -190,22 +248,27 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
           ) : null}
 
           {/* Body */}
-          {step === "account" ? (
-            <AccountStep onCreated={() => setStep("profile")} />
-          ) : null}
-          {step === "profile" ? (
-            <ProfileStep
-              onComplete={(url) => {
-                setDashboardUrl(url);
+          {step === "apply" && tenant ? (
+            <ApplyStep
+              tenant={tenant}
+              onApplied={(s) => {
+                setStatus(s);
                 setStep("success");
               }}
+              onUseNewAccount={() => setStep("account")}
             />
           ) : null}
+          {step === "account" ? (
+            <AccountStep next={nextPath} onCreated={() => setStep("profile")} />
+          ) : null}
+          {step === "profile" ? (
+            <ProfileStep next={nextPath} onComplete={onProfileComplete} />
+          ) : null}
           {step === "success" ? (
-            <SuccessView dashboardUrl={dashboardUrl} />
+            <SuccessView dashboardUrl={dashboardUrl} tenant={tenant} status={status} />
           ) : null}
 
-          {/* Trust strip — account step only */}
+          {/* Trust strip — new-person account step only */}
           {step === "account" ? (
             <ul
               className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.75rem]"
@@ -231,12 +294,17 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
             >
               Already have an account?{" "}
               <a
-                href={`${getAppUrl()}/login`}
+                href={
+                  tenant
+                    ? tenant.ssoSignInUrl ??
+                      `${getAppUrl()}/login?next=${encodeURIComponent(`/${tenant.slug}/talent?register=1`)}`
+                    : `${getAppUrl()}/login`
+                }
                 onClick={onClose}
                 className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
-                Sign in
+                {tenant ? "Sign in to apply" : "Sign in"}
               </a>
             </p>
           ) : null}
@@ -247,28 +315,134 @@ export function TalentRegisterModal({ onClose }: TalentRegisterModalProps) {
   );
 }
 
-const HEADER_COPY: Record<
-  Step,
-  { eyebrow: string; title: string; titleAccent: string; sub: string } | null
-> = {
-  account: {
+function headerCopy(
+  step: Step,
+  tenant?: TenantRegisterContext,
+): { eyebrow: string; title: string; titleAccent: string; sub: string } | null {
+  if (step === "success") return null;
+  if (tenant) {
+    if (step === "apply") {
+      return {
+        eyebrow: "Join the roster",
+        title: "Apply to",
+        titleAccent: tenant.displayName + ".",
+        sub: "You're signed in to Tulala — send your request in one tap.",
+      };
+    }
+    if (step === "profile") {
+      return {
+        eyebrow: "Step 2 of 2 · profile",
+        title: "A few details to",
+        titleAccent: "finish.",
+        sub: "Just the essentials — add photos and availability next.",
+      };
+    }
+    return {
+      eyebrow: "Join the roster",
+      title: "Join",
+      titleAccent: tenant.displayName + ".",
+      sub: "Create your free Tulala talent profile and request to join the roster.",
+    };
+  }
+  if (step === "profile") {
+    return {
+      eyebrow: "Step 2 of 2 · profile",
+      title: "A few details to",
+      titleAccent: "finish your page.",
+      sub: "Just the essentials — add photos, rates and availability next.",
+    };
+  }
+  return {
     eyebrow: "Join as talent · free",
     title: "Your talent page,",
     titleAccent: "live in minutes.",
     sub: "Show your work, share one link, and let bookings come to you.",
-  },
-  profile: {
-    eyebrow: "Step 2 of 2 · profile",
-    title: "A few details to",
-    titleAccent: "finish your page.",
-    sub: "Just the essentials — add photos, rates and availability next.",
-  },
-  success: null,
-};
+  };
+}
+
+function TenantBrandMark({ tenant }: { tenant: TenantRegisterContext }) {
+  return (
+    <div className="mb-5 flex items-center gap-2.5">
+      {tenant.logoSvg ? (
+        <span
+          aria-hidden
+          className="inline-flex h-8 max-w-[140px] items-center [&>svg]:h-8 [&>svg]:w-auto"
+          style={{ color: "var(--plt-ink)" }}
+          dangerouslySetInnerHTML={{ __html: tenant.logoSvg }}
+        />
+      ) : (
+        <span
+          className="plt-display text-[1.05rem] font-semibold tracking-[-0.01em]"
+          style={{ color: "var(--plt-ink)" }}
+        >
+          {tenant.displayName}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────── Tenant · Apply (signed-in talent) ─────────────────── */
+
+function ApplyStep({
+  tenant,
+  onApplied,
+  onUseNewAccount,
+}: {
+  tenant: TenantRegisterContext;
+  onApplied: (status: RegistrationStatus) => void;
+  onUseNewAccount: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function apply() {
+    setError(null);
+    startTransition(async () => {
+      const res = await requestTenantRegistration(tenant.slug);
+      if (res.ok) onApplied(res.status);
+      else setError(res.error);
+    });
+  }
+
+  return (
+    <div className="space-y-3.5">
+      {error ? <ErrorNote>{error}</ErrorNote> : null}
+      <button
+        type="button"
+        onClick={apply}
+        disabled={pending}
+        className="group relative inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,transform,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-80"
+        style={{
+          background: "var(--plt-forest)",
+          color: "var(--plt-forest-on)",
+          boxShadow: "var(--plt-shadow-forest)",
+        }}
+      >
+        <span>{pending ? "Sending your request…" : `Apply to ${tenant.displayName}`}</span>
+        {pending ? <Spinner /> : <ArrowGlyph />}
+      </button>
+      <button
+        type="button"
+        onClick={onUseNewAccount}
+        className="block w-full text-center text-[0.8125rem] underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        Register a new account instead
+      </button>
+    </div>
+  );
+}
 
 /* ───────────────────────── Step 1 · Account ───────────────────────── */
 
-function AccountStep({ onCreated }: { onCreated: () => void }) {
+function AccountStep({
+  next,
+  onCreated,
+}: {
+  next?: string;
+  onCreated: () => void;
+}) {
   const [state, formAction, pending] = useActionState<
     TalentSignupInPlaceState,
     FormData
@@ -286,7 +460,8 @@ function AccountStep({ onCreated }: { onCreated: () => void }) {
 
   return (
     <form action={formAction} className="space-y-3.5">
-      <GoogleButton onAuthed={onCreated} />
+      {next ? <input type="hidden" name="next" value={next} /> : null}
+      <GoogleButton next={next} onAuthed={onCreated} />
 
       {/* OR */}
       <div className="flex items-center gap-3 py-1">
@@ -334,14 +509,22 @@ function AccountStep({ onCreated }: { onCreated: () => void }) {
 
 /* ───────────────────────── Step 2 · Profile ───────────────────────── */
 
-function ProfileStep({ onComplete }: { onComplete: (url: string) => void }) {
+function ProfileStep({
+  next,
+  onComplete,
+}: {
+  next?: string;
+  onComplete: (url: string, status?: RegistrationStatus) => void;
+}) {
   const [state, formAction, pending] = useActionState<
     TalentProfileInPlaceState,
     FormData
   >(completeTalentProfileInPlace, undefined);
 
   useEffect(() => {
-    if (state && "ok" in state && state.ok) onComplete(state.dashboardUrl);
+    if (state && "ok" in state && state.ok) {
+      onComplete(state.dashboardUrl, state.registration?.status);
+    }
   }, [state, onComplete]);
 
   const error = state && "error" in state ? state.error : null;
@@ -355,6 +538,7 @@ function ProfileStep({ onComplete }: { onComplete: (url: string) => void }) {
 
   return (
     <form action={formAction} className="space-y-3.5">
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       {error ? <ErrorNote>{error}</ErrorNote> : null}
 
       <FieldShell label="Display name" hint="Shown publicly on your profile">
@@ -442,7 +626,29 @@ function ProfileStep({ onComplete }: { onComplete: (url: string) => void }) {
 
 /* ───────────────────────── Step 3 · Success ───────────────────────── */
 
-function SuccessView({ dashboardUrl }: { dashboardUrl: string }) {
+function SuccessView({
+  dashboardUrl,
+  tenant,
+  status,
+}: {
+  dashboardUrl: string;
+  tenant?: TenantRegisterContext;
+  status: RegistrationStatus;
+}) {
+  const pendingOnTenant = Boolean(tenant) && status === "pending";
+
+  const title = !tenant
+    ? "Your talent page is live."
+    : pendingOnTenant
+      ? "Request sent."
+      : `You're on ${tenant.displayName}'s roster.`;
+
+  const body = !tenant
+    ? "Welcome to Tulala. Open your dashboard to add photos, set your rates, and share your link."
+    : pendingOnTenant
+      ? `${tenant.displayName} will review your request. Meanwhile, set up your Tulala profile.`
+      : `Welcome to ${tenant.displayName}. Open your dashboard to add photos and availability.`;
+
   return (
     <div className="space-y-5 py-2 text-center">
       <div
@@ -452,7 +658,7 @@ function SuccessView({ dashboardUrl }: { dashboardUrl: string }) {
           color: "var(--plt-forest)",
         }}
       >
-        <CheckGlyph />
+        {pendingOnTenant ? <MailGlyph /> : <CheckGlyph />}
       </div>
       <div className="space-y-1.5">
         <h3
@@ -460,14 +666,13 @@ function SuccessView({ dashboardUrl }: { dashboardUrl: string }) {
           className="plt-display text-[1.375rem] font-semibold"
           style={{ color: "var(--plt-ink)" }}
         >
-          Your talent page is live.
+          {title}
         </h3>
         <p
           className="mx-auto max-w-[320px] text-[0.875rem] leading-[1.5]"
           style={{ color: "var(--plt-muted)" }}
         >
-          Welcome to Tulala. Open your dashboard to add photos, set your rates,
-          and share your link.
+          {body}
         </p>
       </div>
       <a
@@ -485,247 +690,3 @@ function SuccessView({ dashboardUrl }: { dashboardUrl: string }) {
     </div>
   );
 }
-
-/* ───────────────────────── Google ───────────────────────── */
-
-function GoogleButton({ onAuthed }: { onAuthed: () => void }) {
-  const router = useRouter();
-  const popupRef = useRef<Window | null>(null);
-  const closeWatcherRef = useRef<number | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    function handleMessage(event: MessageEvent<AuthPopupMessage>) {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== AUTH_POPUP_MESSAGE_TYPE) return;
-      setPending(false);
-      setError(
-        event.data.success ? null : event.data.error ?? "Google sign-in failed.",
-      );
-      if (closeWatcherRef.current) {
-        window.clearInterval(closeWatcherRef.current);
-        closeWatcherRef.current = null;
-      }
-      popupRef.current?.close();
-      popupRef.current = null;
-      if (event.data.success) {
-        // Session is now shared across the parent domain — advance to the
-        // in-place profile step rather than navigating away.
-        router.refresh();
-        onAuthed();
-      }
-    }
-    window.addEventListener("message", handleMessage);
-    return () => {
-      window.removeEventListener("message", handleMessage);
-      if (closeWatcherRef.current) {
-        window.clearInterval(closeWatcherRef.current);
-      }
-    };
-  }, [router, onAuthed]);
-
-  async function handleClick() {
-    setError(null);
-    const supabase = createClient();
-    if (!supabase) {
-      setError(SUPABASE_ENV_HELP);
-      return;
-    }
-    const W = 520;
-    const H = 640;
-    const left = Math.max(window.screenX + (window.outerWidth - W) / 2, 0);
-    const top = Math.max(window.screenY + (window.outerHeight - H) / 2, 0);
-    const popup = window.open(
-      "",
-      "google-auth-popup",
-      `width=${W},height=${H},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
-    );
-    if (!popup) {
-      setError("Popup blocked. Allow popups and try again.");
-      return;
-    }
-    popupRef.current = popup;
-    setPending(true);
-    // The callback must run on the app host — /auth/callback isn't allowed on
-    // the marketing host. The PKCE verifier cookie is shared across the parent
-    // domain (see lib/supabase/client.ts), so the exchange succeeds there.
-    const cb = new URL("/auth/callback", getAppUrl());
-    cb.searchParams.set("popup", "1");
-    cb.searchParams.set("next", OAUTH_NEXT_PATH);
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: cb.toString(), skipBrowserRedirect: true },
-    });
-    if (oauthError || !data?.url) {
-      popup.close();
-      popupRef.current = null;
-      setPending(false);
-      setError(oauthError?.message ?? "Unable to start Google sign-in.");
-      return;
-    }
-    popup.location.href = data.url;
-    closeWatcherRef.current = window.setInterval(() => {
-      if (!popupRef.current || popupRef.current.closed) {
-        if (closeWatcherRef.current) {
-          window.clearInterval(closeWatcherRef.current);
-          closeWatcherRef.current = null;
-        }
-        popupRef.current = null;
-        setPending(false);
-      }
-    }, 500);
-  }
-
-  return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
-        style={{
-          background: "var(--plt-bg-raised)",
-          border: "1px solid var(--plt-hairline-strong)",
-          color: "var(--plt-ink)",
-        }}
-      >
-        {pending ? <Spinner /> : <GoogleGlyph />}
-        <span>{pending ? "Opening Google…" : "Continue with Google"}</span>
-      </button>
-      {error ? <ErrorNote small>{error}</ErrorNote> : null}
-    </div>
-  );
-}
-
-function ConfirmationView({ message }: { message: string }) {
-  return (
-    <div className="space-y-5 py-2 text-center">
-      <div
-        className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-        style={{
-          background: "color-mix(in srgb, var(--plt-forest) 12%, transparent)",
-          color: "var(--plt-forest)",
-        }}
-      >
-        <MailGlyph />
-      </div>
-      <div className="space-y-1.5">
-        <h3
-          className="plt-display text-[1.125rem] font-semibold"
-          style={{ color: "var(--plt-ink)" }}
-        >
-          Check your inbox
-        </h3>
-        <p
-          className="text-[0.875rem] leading-[1.5]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {message}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────────── Shared bits ───────────────────────── */
-
-function SubmitButton({
-  pending,
-  idle,
-  busy,
-}: {
-  pending: boolean;
-  idle: string;
-  busy: string;
-}) {
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="group relative mt-1 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,transform,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-80"
-      style={{
-        background: "var(--plt-forest)",
-        color: "var(--plt-forest-on)",
-        boxShadow: "var(--plt-shadow-forest)",
-      }}
-    >
-      <span>{pending ? busy : idle}</span>
-      {pending ? <Spinner /> : <ArrowGlyph />}
-    </button>
-  );
-}
-
-function ErrorNote({
-  children,
-  small,
-}: {
-  children: React.ReactNode;
-  small?: boolean;
-}) {
-  return (
-    <p
-      className={`rounded-xl px-3 py-2 ${small ? "text-[0.75rem]" : "text-[0.8125rem]"}`}
-      style={{
-        background: "rgba(180, 35, 24, 0.08)",
-        color: "#9b1c14",
-        border: "1px solid rgba(180, 35, 24, 0.18)",
-      }}
-    >
-      {children}
-    </p>
-  );
-}
-
-function StepDot({ active, done }: { active: boolean; done: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className="h-1.5 rounded-full transition-all duration-300"
-      style={{
-        width: active ? "1.5rem" : "0.375rem",
-        background:
-          active || done ? "var(--plt-forest)" : "var(--plt-hairline-strong)",
-      }}
-    />
-  );
-}
-
-function FieldShell({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span
-        className="plt-mono mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.16em]"
-        style={{ color: "var(--plt-muted)" }}
-      >
-        {label}
-      </span>
-      <div
-        className="flex h-12 items-center rounded-2xl px-4 transition-[border-color,box-shadow] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--plt-forest)_18%,transparent)]"
-        style={{
-          background: "var(--plt-bg)",
-          border: "1px solid var(--plt-hairline-strong)",
-        }}
-      >
-        {children}
-      </div>
-      {hint ? (
-        <span
-          className="mt-1 block text-[0.6875rem]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {hint}
-        </span>
-      ) : null}
-    </label>
-  );
-}
-

@@ -678,6 +678,7 @@ const EDITABLE_ROLES_BY_SECTION: Record<string, ReadonlyArray<EditableNodeRole>>
   site_footer: ["headline", "copy"],
   anchor_nav: [],
   marquee: [],
+  join_register: [],
 };
 
 function resolveNodeRole(

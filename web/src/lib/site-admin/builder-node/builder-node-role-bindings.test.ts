@@ -661,6 +661,19 @@ const CASES: ReadonlyArray<BindingCase> = [
     expectedRoles: [],
     componentPath: "src/lib/site-admin/sections/marquee/Component.tsx",
   },
+  {
+    sectionTypeKey: "join_register",
+    props: {
+      eyebrow: "Join the roster",
+      headline: "Become part of our roster",
+      copy: "Create your profile and apply in minutes.",
+      ctaLabel: "Join the team",
+      variant: "card",
+      align: "center",
+    },
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/join_register/Component.tsx",
+  },
 ];
 
 test("derived child roles stay in sync with renderer bindings", () => {

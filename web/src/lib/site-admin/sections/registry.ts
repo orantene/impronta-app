@@ -222,6 +222,14 @@ import {
 } from "./contact_form/schema";
 import { ContactFormComponent } from "./contact_form/Component";
 import { ContactFormEditor } from "./contact_form/Editor";
+import { joinRegisterMeta } from "./join_register/meta";
+import { joinRegisterMigrations } from "./join_register/migrations";
+import {
+  joinRegisterSchemasByVersion,
+  type JoinRegisterV1,
+} from "./join_register/schema";
+import { JoinRegisterComponent } from "./join_register/Component";
+import { JoinRegisterEditor } from "./join_register/Editor";
 
 import { anchorNavMeta } from "./anchor_nav/meta";
 import { anchorNavMigrations } from "./anchor_nav/migrations";
@@ -630,6 +638,15 @@ export const contactFormSection: SectionRegistryEntry<ContactFormV1> = {
   Editor: ContactFormEditor,
 };
 
+export const joinRegisterSection: SectionRegistryEntry<JoinRegisterV1> = {
+  meta: joinRegisterMeta,
+  currentVersion: 1,
+  schemasByVersion: joinRegisterSchemasByVersion,
+  migrations: joinRegisterMigrations,
+  Component: JoinRegisterComponent,
+  Editor: JoinRegisterEditor,
+};
+
 export const anchorNavSection: SectionRegistryEntry<AnchorNavV1> = {
   meta: anchorNavMeta,
   currentVersion: 1,
@@ -814,6 +831,7 @@ export const SECTION_REGISTRY = {
   pricing_grid: pricingGridSection,
   team_grid: teamGridSection,
   contact_form: contactFormSection,
+  join_register: joinRegisterSection,
   anchor_nav: anchorNavSection,
   before_after: beforeAfterSection,
   content_tabs: contentTabsSection,

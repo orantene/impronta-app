@@ -28,6 +28,7 @@ import {
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
 import { GoogleFontsLink } from "./google-fonts-link";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 
 import "./globals.css";
 
@@ -181,6 +182,7 @@ export default async function RootLayout({
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        <TenantRegisterMount />
         <EditChromeMount />
         <Analytics />
         <ClientSpeedInsights />
