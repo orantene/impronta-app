@@ -219,3 +219,30 @@ test("reconcile preserves the ejected flag + children when rebuilding from slots
   assert.equal(sec1.props.ejected, true, "ejected flag must survive reconcile");
   assert.equal(sec1.children?.[0]?.id, "free-h", "ejected children must survive reconcile");
 });
+
+test("BUG-1: reconcile never leaves a rebuilt section with undefined children", () => {
+  // A section that was un-ejected to empty (children: []) and a sibling whose
+  // slot derives nothing. After reconcile, EVERY section node must carry an
+  // explicit children array — undefined makes downstream tree walks treat the
+  // node as malformed and silently drop it from the snapshot.
+  const tree = [
+    {
+      id: "legacy:body:0:sec-1",
+      kind: "section",
+      props: { sectionId: "sec-1", sectionTypeKey: "hero", slotKey: "body", sortOrder: 0 },
+      children: [],
+    },
+  ] as BuilderNodeTree;
+  const slots = [
+    { slotKey: "body", sortOrder: 0, sectionId: "sec-1", sectionTypeKey: "hero", name: "Hero", props: {} },
+    { slotKey: "body", sortOrder: 1, sectionId: "sec-2", sectionTypeKey: "cta_banner", name: "CTA", props: {} },
+  ];
+  const next = reconcileBuilderTreeWithLegacySlots(tree, slots as never);
+  for (const node of next) {
+    if (node.kind !== "section") continue;
+    assert.ok(
+      Array.isArray((node as BuilderNode & { children?: unknown }).children),
+      `section ${node.id} must have an array children, got ${typeof (node as { children?: unknown }).children}`,
+    );
+  }
+});

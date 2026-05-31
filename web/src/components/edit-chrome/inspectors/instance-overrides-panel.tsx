@@ -13,7 +13,7 @@
  * after publish — mirrored on the panel.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   listBuilderComponents,
@@ -55,6 +55,13 @@ export function InstanceOverridesPanel({
   const [slots, setSlots] = useState<ReadonlyArray<OverridableSlot>>([]);
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
+  const [errored, setErrored] = useState(false);
+  // BUG-3 fix: keep keystrokes in a local draft and debounce the DB write so we
+  // commit once the user pauses — not on every character.
+  const [drafts, setDrafts] = useState<
+    Record<string, BuilderNodeInstanceOverride>
+  >({});
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -68,9 +75,14 @@ export function InstanceOverridesPanel({
         if (master) {
           setSlots(collectOverridableSlots(master.subtree as BuilderNode));
           setMissing(false);
+          setErrored(false);
         } else {
           setMissing(true);
         }
+      } else {
+        // BUG-2 fix: surface the load failure instead of silently rendering
+        // "no slots" — the master may exist but the request failed.
+        setErrored(true);
       }
       setLoading(false);
     })();
@@ -79,13 +91,40 @@ export function InstanceOverridesPanel({
     };
   }, [componentId]);
 
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const id of Object.keys(pending)) clearTimeout(pending[id]);
+    };
+  }, []);
+
+  const dropDraft = (masterId: string) => {
+    setDrafts((d) => {
+      const rest = { ...d };
+      delete rest[masterId];
+      return rest;
+    });
+  };
+
   const apply = (slot: OverridableSlot, patch: BuilderNodeInstanceOverride) => {
-    const current = overrides?.[slot.masterId] ?? {};
+    const base = overrides?.[slot.masterId] ?? {};
+    const current = { ...base, ...drafts[slot.masterId] };
     const next = { ...current, ...patch };
-    void setInstanceOverride(instanceNodeId, slot.masterId, JSON.stringify(next));
+    setDrafts((d) => ({ ...d, [slot.masterId]: next }));
+    if (timers.current[slot.masterId]) clearTimeout(timers.current[slot.masterId]);
+    timers.current[slot.masterId] = setTimeout(() => {
+      void setInstanceOverride(
+        instanceNodeId,
+        slot.masterId,
+        JSON.stringify(next),
+      );
+      dropDraft(slot.masterId);
+    }, 400);
   };
 
   const clear = (slot: OverridableSlot) => {
+    if (timers.current[slot.masterId]) clearTimeout(timers.current[slot.masterId]);
+    dropDraft(slot.masterId);
     void setInstanceOverride(instanceNodeId, slot.masterId, null);
   };
 
@@ -110,6 +149,11 @@ export function InstanceOverridesPanel({
         <span className="text-[11px]" style={{ color: CHROME.muted }}>
           Loading master…
         </span>
+      ) : errored ? (
+        <span className="text-[11px]" style={{ color: CHROME.rose }}>
+          Couldn’t load the master component — overrides are unavailable right
+          now. Try reopening this panel.
+        </span>
       ) : missing ? (
         <span className="text-[11px]" style={{ color: CHROME.muted }}>
           Master component not found — this instance renders its stored copy.
@@ -120,7 +164,7 @@ export function InstanceOverridesPanel({
         </span>
       ) : (
         slots.map((slot) => {
-          const ov = overrides?.[slot.masterId];
+          const ov = drafts[slot.masterId] ?? overrides?.[slot.masterId];
           const textVal = (slot.field === "text" ? ov?.text : ov?.imageSrc) ?? "";
           const hasOverride = Boolean(ov && (ov.text || ov.imageSrc || ov.href));
           return (
