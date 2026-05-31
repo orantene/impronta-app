@@ -18,6 +18,7 @@ import {
   isOverrideDurationKey,
   type OverrideDurationKey,
 } from "@/lib/platform/plan-override";
+import { isGrantKind, type GrantKind } from "@/lib/plan-trials";
 import {
   loadPersonBillingSnapshot,
   type PersonBillingSnapshot,
@@ -66,6 +67,12 @@ export async function applyTalentPlanOverride(input: {
   customExpiresAt?: string | null;
   reason?: string | null;
   note?: string | null;
+  /**
+   * `trial` drives the live countdown + post-expiry upgrade nudge on the
+   * talent surface; `comp`/`promo` are silent courtesy grants. Defaults to
+   * `comp` for backward compatibility.
+   */
+  grantKind?: string;
 }): Promise<ActionResult<{ expiresAt: string | null }>> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
@@ -78,6 +85,13 @@ export async function applyTalentPlanOverride(input: {
   }
   if (!isOverrideDurationKey(input.durationKey)) {
     return { ok: false, error: "Invalid duration." };
+  }
+  const grantKind: GrantKind = isGrantKind(input.grantKind)
+    ? input.grantKind
+    : "comp";
+  // A trial must be time-boxed — an open-ended trial can never expire or nudge.
+  if (grantKind === "trial" && input.durationKey === "indefinite") {
+    return { ok: false, error: "A trial needs an end date — pick a duration." };
   }
 
   const expiresAt = computeOverrideExpiry(input.durationKey as OverrideDurationKey, {
@@ -132,6 +146,7 @@ export async function applyTalentPlanOverride(input: {
       status: "active",
       base_plan_key: basePlanKey,
       override_plan_key: input.overridePlanKey,
+      grant_kind: grantKind,
       starts_at: NOW(),
       expires_at: expiresAt,
       reason: input.reason?.trim() || null,
@@ -182,6 +197,7 @@ export async function applyTalentPlanOverride(input: {
       overrideId: inserted.id,
       basePlanKey,
       overridePlanKey: input.overridePlanKey,
+      grantKind,
       expiresAt,
       reason: input.reason?.trim() || null,
     },

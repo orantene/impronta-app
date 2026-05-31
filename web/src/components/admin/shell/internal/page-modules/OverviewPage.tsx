@@ -49,7 +49,7 @@ export function OverviewPage() {
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
   const tenantDomain = bridgeTenantIdentity?.slug
-    ? `${bridgeTenantIdentity.slug}.tulala.app`
+    ? `${bridgeTenantIdentity.slug}.tulala.digital`
     : effectiveTenant.domain;
 
   // Q5: timestamps pinned to mount time (see module-level mkDemoActivityFeed).
@@ -125,10 +125,12 @@ export function OverviewPage() {
             {/* WS-9.1 — Workspace activation v2: progress + smart prompts */}
             <WorkspaceActivationBanner
               state={{
-                hasCompleteProfile: true, // legacy default
+                // "Profile complete" = workspace identity resolved via bridge.
+                // A brand-new workspace without a slug yet shows this as incomplete.
+                hasCompleteProfile: bridgeTenantIdentity != null,
                 hasAnyTalent:       talentCount > 0,
                 hasSentInquiry:     hasInquiry,
-                hasPayoutMethod:    false, // still a real onboarding step
+                hasPayoutMethod:    false, // still a real onboarding step (Phase C)
                 hasCustomDomain:    hasCustomDomain,
                 talentCount,
               }}
@@ -558,7 +560,7 @@ function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string
 function OverviewFree() {
   const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
   const tenantDomain = bridgeTenantIdentity?.slug
-    ? `${bridgeTenantIdentity.slug}.tulala.app`
+    ? `${bridgeTenantIdentity.slug}.tulala.digital`
     : effectiveTenant.domain;
 
   // Live signals that prove a step is "really done" — overrides the

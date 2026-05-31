@@ -21,6 +21,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshots,
+  sumBookingGrossChargedCents,
 } from "@/lib/billing/commission-engine";
 import type {
   PaymentMethod,
@@ -29,6 +30,7 @@ import type {
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
+import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
 import {
   assignCoordinator,
   addSecondaryCoordinator,
@@ -404,12 +406,17 @@ export async function createInquiryTransactionDraft(
       return { ok: false, error: "An active transaction already exists for this booking." };
     }
 
-    const grossAmountCents = booking.total_client_revenue != null
+    const baseRevenueCents = booking.total_client_revenue != null
       ? Math.max(0, Math.round(Number(booking.total_client_revenue) * 100))
       : 0;
-    if (grossAmountCents <= 0) {
+    if (baseRevenueCents <= 0) {
       return { ok: false, error: "Set booking revenue before creating a transaction." };
     }
+    // P1/P4c: bill the FULL client charge frozen in the commission snapshot
+    // (subtotal + client surcharge + workspace base fee). Fall back to the bare
+    // booking revenue when no snapshot exists yet.
+    const grossChargedCents = await sumBookingGrossChargedCents(supabase, booking.id as string);
+    const grossAmountCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
 
     const { data: agency } = await supabase
       .from("agencies")
@@ -2369,6 +2376,11 @@ export async function cancelBookingAction(
         p_kind: "booking_cancelled",
         p_payload: { booking_id: bookingId, by_user_id: user.id },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
+
+      // booking.cancelled notifications (spec §6.4) — client + talent +
+      // coordinator, email + in-app. Needs the inquiry for contact/schedule +
+      // roster, so it only fires when the booking came from an inquiry.
+      notifyBookingCancelled({ tenantId, inquiryId: cancelInquiryId, bookingId });
     }
 
     revalidatePath(`/${tenantSlug}`, "layout");

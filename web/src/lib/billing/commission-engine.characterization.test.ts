@@ -180,7 +180,11 @@ describe("persistBookingCommissionSnapshot — resolver_failed", () => {
     });
     const res = await persistBookingCommissionSnapshot(supabase, BOOKING);
     assert.deepEqual(res, { ok: false, reason: "resolver_failed", detail: "no_line_items" });
-    assert.deepEqual(rpcNames(calls), ["engine_load_commission_context"]);
+    assert.deepEqual(rpcNames(calls), [
+      "engine_load_commission_context",
+      "engine_platform_commission_split",
+      "engine_workspace_base_fee_inputs",
+    ]);
   });
 
   it("CommissionResolutionError code is surfaced verbatim as `detail` (talent_cost_exceeds_price)", async () => {
@@ -222,6 +226,8 @@ describe("persistBookingCommissionSnapshot — persist_failed", () => {
     assert.deepEqual(res, { ok: false, reason: "persist_failed", detail: "persist boom" });
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
+      "engine_platform_commission_split",
+      "engine_workspace_base_fee_inputs",
       "engine_persist_booking_commission_snapshot",
     ]);
     assert.deepEqual(calls.from, []); // returned before the audit-inquiry lookup
@@ -248,8 +254,11 @@ describe("persistBookingCommissionSnapshot — success", () => {
       assert.equal(snap.owning_party_id, TENANT);
       assert.equal(snap.gross_cents, 100_000);
       assert.equal(snap.platform_fee_cents, 5_000);
-      assert.equal(snap.workspace_fee_cents, 20_000);
-      assert.equal(snap.talent_net_cents, 75_000);
+      assert.equal(snap.workspace_fee_cents, 17_500); // margin 20000 − seller deduction 2500
+      assert.equal(snap.talent_net_cents, 80_000);    // full quote — protected
+      assert.equal(snap.client_surcharge_cents, 2_500);
+      assert.equal(snap.gross_charged_cents, 102_500);
+      assert.equal(snap.seller_of_record, "workspace");
       assert.equal(snap.resolved_from, "platform_default");
       assert.equal(snap.payment_method, "card"); // default arg
       assert.equal(snap.off_platform_reason, null);
@@ -275,8 +284,12 @@ describe("persistBookingCommissionSnapshot — success", () => {
           platform_take_floor_cents: 0,
           gross_cents: 100_000,
           platform_fee_cents: 5_000,
-          workspace_fee_cents: 20_000,
-          talent_net_cents: 75_000,
+          workspace_fee_cents: 17_500,
+          talent_net_cents: 80_000,
+          client_surcharge_cents: 2_500,
+          seller_deduction_cents: 2_500,
+          gross_charged_cents: 102_500,
+          seller_shortfall_cents: 0,
           currency_code: "MXN",
           payment_method: "card",
           off_platform_reason: null,
@@ -313,6 +326,8 @@ describe("persistBookingCommissionSnapshot — success", () => {
     assert.equal(res.ok, true);
     assert.deepEqual(rpcNames(calls), [
       "engine_load_commission_context",
+      "engine_platform_commission_split",
+      "engine_workspace_base_fee_inputs",
       "engine_persist_booking_commission_snapshot",
       "inquiry_audit_emit",
     ]);
@@ -324,8 +339,8 @@ describe("persistBookingCommissionSnapshot — success", () => {
         booking_id: BOOKING,
         participant_count: 1,
         platform_fee_cents: 5_000,
-        workspace_fee_cents: 20_000,
-        talent_fee_cents: 75_000, // NOTE: payload key is talent_fee_cents (= talent_net)
+        workspace_fee_cents: 17_500,
+        talent_fee_cents: 80_000, // NOTE: payload key is talent_fee_cents (= talent_net)
       },
     });
   });

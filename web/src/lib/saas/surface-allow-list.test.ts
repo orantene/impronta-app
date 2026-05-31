@@ -236,6 +236,7 @@ test("path-based tenant public routes do not swallow workspace or reserved route
     "/impronta/onboarding/role",
     "/impronta/api/directory",
     "/pricing",
+    "/discover-agencies",
     "/directory",
     "/t/jane-doe",
   ];
@@ -254,6 +255,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/api/analytics/events",
     "/t/jane-doe",
     "/get-started",
+    "/discover-agencies",
     "/operators",
     "/agencies",
     "/organizations",
@@ -265,6 +267,8 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/waitlist",
     "/legal/privacy",
     "/legal/terms",
+    // Global Talent Directory — public cross-tenant browse on the marketing host.
+    "/directory",
   ];
   for (const p of allowed) {
     assert.equal(
@@ -275,7 +279,6 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
   }
 
   const blocked = [
-    "/directory",
     "/admin",
     "/client",
     "/talent",
@@ -306,6 +309,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
 test("marketing host: non-marketing hosts must 404 marketing pages", () => {
   const marketingPages = [
     "/get-started",
+    "/discover-agencies",
     "/operators",
     "/agencies",
     "/organizations",
@@ -322,6 +326,28 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
     assert.equal(isPathAllowedForHostKind("app", p), false, `app must 404 ${p}`);
     assert.equal(isPathAllowedForHostKind("hub", p), false, `hub must 404 ${p}`);
   }
+});
+
+test("compliance endpoints: /unsubscribe + /api/unsubscribe allowed on every host kind", () => {
+  // One-click unsubscribe links are global (built against the platform site
+  // URL) but may be opened from any host context, so they must never 404.
+  const compliance = [
+    "/unsubscribe/abc-token",
+    "/unsubscribe/abc-token/",
+    "/api/unsubscribe/abc-token",
+  ];
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    for (const p of compliance) {
+      assert.equal(
+        isPathAllowedForHostKind(kind, p),
+        true,
+        `${kind} should allow ${p}`,
+      );
+    }
+  }
+  // Segment-boundary protection — a lookalike prefix must not be swallowed.
+  assert.equal(isPathAllowedForHostKind("marketing", "/unsubscribexyz"), false);
+  assert.equal(isPathAllowedForHostKind("app", "/api/unsubscribexyz"), false);
 });
 
 test("prefix boundaries: /talented is not /talent, /administration is not /admin", () => {

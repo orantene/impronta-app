@@ -436,7 +436,19 @@ function StageBadge({ stage }: { stage: string }) {
  * now lead with that.
  */
 export function FreeValuePanel() {
-  const { setPage, openDrawer } = useAdminShell();
+  const { setPage, openDrawer, effectiveRoster, effectiveTenant } = useAdminShell();
+  // Patch the static FREE_PLAN_VALUE entries that contain fixture data:
+  // - "roster" → real count from bridge (cap stays 5)
+  // - "storefront" → real subdomain URL
+  const freePlanItems = FREE_PLAN_VALUE.map((v) => {
+    if (v.id === "roster" && v.used) {
+      return { ...v, used: { ...v.used, current: effectiveRoster.length } };
+    }
+    if (v.id === "storefront") {
+      return { ...v, detail: `Lives at ${effectiveTenant.slug}.tulala.digital.` };
+    }
+    return v;
+  });
   return (
     <div
       style={{
@@ -468,7 +480,7 @@ export function FreeValuePanel() {
         </GhostButton>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {FREE_PLAN_VALUE.map((v, idx) => {
+        {freePlanItems.map((v, idx) => {
           const pct = v.used ? Math.min(100, Math.round((v.used.current / v.used.cap) * 100)) : 0;
           const near = v.used ? pct >= 80 : false;
           return (

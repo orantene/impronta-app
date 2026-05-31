@@ -1,6 +1,7 @@
 import { getAppUrl } from "@/lib/auth-flow";
-import { renderWorkspaceWelcomeEmail } from "@/lib/email/workspace-welcome";
 import { sendProvisioningFailureEmailOnce } from "./workspace-signup-failure-notify";
+import { notifyPlatformNewWorkspace } from "./workspace-signup-platform-alerts";
+import { notifyWorkspaceSignupWelcome } from "./workspace-signup-welcome-notify";
 import { sendEmail } from "@/lib/email";
 import { workspacePathUrl } from "@/lib/saas/workspace-public-url";
 import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-content";
@@ -359,33 +360,6 @@ function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
   return settings;
 }
 
-async function sendWorkspaceWelcomeEmail(params: {
-  ownerEmail: string;
-  ownerName: string;
-  planTier: string;
-  slug: string;
-  adminPath: string;
-  publicUrl: string;
-}): Promise<void> {
-  const appBase = getAppUrl();
-  try {
-    await sendEmail({
-      to: params.ownerEmail,
-      subject: `Your ${params.slug} workspace is ready — ${params.ownerName}`,
-      html: renderWorkspaceWelcomeEmail({
-        ownerName: params.ownerName,
-        planTier: params.planTier,
-        slug: params.slug,
-        adminUrl: `${appBase}${params.adminPath}`,
-        publicUrl: params.publicUrl,
-      }),
-      replyTo: process.env.EMAIL_REPLY_TO,
-    });
-  } catch (err) {
-    logServerError("workspace-signup.welcomeEmail", err);
-  }
-}
-
 async function sendNetworkFounderAlert(params: {
   slug: string;
   tenantId: string;
@@ -437,13 +411,23 @@ async function finalizeProvisionResult(params: {
   const ownerName = params.lead.name.trim() || params.agency.display_name;
 
   if (!params.reusedExisting && ownerEmail) {
-    await sendWorkspaceWelcomeEmail({
-      ownerEmail,
+    notifyWorkspaceSignupWelcome({
+      tenantId: params.agency.id,
+      ownerUserId: params.userId,
       ownerName,
-      planTier: "free",
-      slug: params.agency.slug,
+      workspaceName: params.agency.display_name,
+      planLabel: "Free",
       adminPath,
       publicUrl,
+    });
+  }
+
+  if (!params.reusedExisting) {
+    notifyPlatformNewWorkspace({
+      tenantId: params.agency.id,
+      workspaceName: params.agency.display_name,
+      ownerEmail,
+      planLabel: tierInterest ?? "free",
     });
   }
 
@@ -570,12 +554,26 @@ export async function provisionWorkspaceFromLead(params: {
 
   const leadEmail = lead.email.trim().toLowerCase();
   const actorEmail = (params.userEmail ?? "").trim().toLowerCase();
-  if (!leadEmail || !actorEmail || leadEmail !== actorEmail) {
+  if (!actorEmail) {
     return {
       ok: false,
       error: "email_mismatch",
       message: "Finish signup with the same email you used on Get Started so we can attach the workspace correctly.",
     };
+  }
+  // OAuth signup (e.g. Google) may use a different email than what was typed
+  // in get-started. The workspace goes to the *authenticated* user regardless,
+  // so blocking on mismatch breaks the funnel unnecessarily — the
+  // claimed_by_profile_id gate below is the real anti-theft check.
+  // Update the lead email to the auth address so welcome emails deliver.
+  if (leadEmail && actorEmail && leadEmail !== actorEmail) {
+    const adminForUpdate = createServiceRoleClient();
+    if (adminForUpdate) {
+      await adminForUpdate
+        .from("saas_marketing_signups")
+        .update({ email: params.userEmail })
+        .eq("id", params.leadId);
+    }
   }
 
   if (lead.claimed_by_profile_id && lead.claimed_by_profile_id !== params.userId) {

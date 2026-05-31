@@ -54,7 +54,7 @@ export async function startTalentOnboarding(
     const host = hdrs.get("host") ?? "localhost";
     const proto = hdrs.get("x-forwarded-proto") ?? "https";
     const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
-    const returnUrl = `${origin}/${tenantSlug}/talent/settings/payouts?ok=1`;
+    const returnUrl = `${origin}/${tenantSlug}/talent/settings/payouts/return`;
     const refreshUrl = `${origin}/${tenantSlug}/talent/settings/payouts?refresh=1`;
 
     const r = await createTalentOnboardingLink(

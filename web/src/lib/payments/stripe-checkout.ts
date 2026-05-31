@@ -16,23 +16,21 @@
  *   NEXT_PUBLIC_BASE_URL     — base URL for success/cancel redirects
  */
 
-import Stripe from "stripe";
+import type Stripe from "stripe";
+import { getStripe } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
 
-let cached: Stripe | null = null;
-
 /**
- * Return a Stripe instance when STRIPE_SECRET_KEY is configured. When
- * not configured (local dev / preview), returns null so callers can
- * gracefully degrade to a mock-URL flow.
+ * Re-export the ONE canonical Stripe singleton (server-only, defined in
+ * `lib/stripe/client`). This module used to construct its OWN `new Stripe(...)`
+ * — a second singleton with no `server-only` guard and an independently-pinned
+ * API version that could drift from the rest of the billing code. Collapsing to
+ * the shared client removes that divergence while keeping the public surface
+ * (`getStripe`, `createCheckoutSessionForTransaction`) unchanged: it still
+ * returns `null` when STRIPE_SECRET_KEY is unset, so the mock-URL degrade path
+ * below is untouched.
  */
-export function getStripe(): Stripe | null {
-  if (cached) return cached;
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return null;
-  cached = new Stripe(key, { apiVersion: "2026-04-22.dahlia" });
-  return cached;
-}
+export { getStripe };
 
 export type CheckoutSessionInput = {
   transactionId: string;

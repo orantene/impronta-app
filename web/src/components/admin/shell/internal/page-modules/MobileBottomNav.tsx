@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useDashboardText } from "../dashboard-i18n";
 import { Divider, Icon, useRovingTabindex } from "../primitives";
-import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, NOTIFICATIONS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, useAdminShell } from "../state";
+import { CLIENT_PAGES, CLIENT_PAGE_META, COLORS, ENTITY_TYPE_META, FONTS, PAGE_META, PLATFORM_PAGES, PLATFORM_PAGE_META, TALENT_NOTIFICATION_COUNT, TALENT_PAGES, TALENT_PAGE_META, TRANSITION, WORKSPACE_NOTIFICATION_COUNT, WORKSPACE_PAGES, Z, useAdminShell } from "../state";
 import type { ClientPage, PlatformPage, TalentPage, WorkspacePage } from "../state";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
@@ -15,7 +15,7 @@ export function MobileBottomNav() {
     setTalentPage,
     setClientPage,
     setPlatformPage,
-    pendingTalent,
+    effectiveRoster,
     totalUnread: bridgeTotalUnread,
   } = useAdminShell();
   const copy = useDashboardText();
@@ -28,10 +28,14 @@ export function MobileBottomNav() {
     if (state.surface === "workspace") {
       // Mobile nav badges — surface pending-approval count on the Roster tab
       // + unread message count on Messages, matching the desktop topbar nav.
-      // Single source of truth.
+      // Roster badge derived from effectiveRoster (same source as the page body)
+      // so it never echoes fixture data when live mode shows 0 talent.
       const effectiveUnread = bridgeTotalUnread > 0 ? bridgeTotalUnread : WORKSPACE_NOTIFICATION_COUNT;
+      const rosterPending = effectiveRoster.filter(
+        (p) => p.state === "awaiting-approval"
+      ).length;
       const WORKSPACE_TAB_BADGE: Partial<Record<WorkspacePage, number>> = {
-        roster: pendingTalent.length || undefined,
+        roster: rosterPending || undefined,
         messages: effectiveUnread || undefined,
       };
       return WORKSPACE_PAGES.map((p) => ({
@@ -324,6 +328,7 @@ const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "pl
   calendar: "calendar",
   roster: "team",
   clients: "user",
+  pitches: "bolt",
   operations: "search",
   production: "sparkle",
   settings: "info",

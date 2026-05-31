@@ -11,6 +11,8 @@ import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
+import { BlocksRenderer } from "@/components/page-builder/blocks";
+import type { PageBlock, PageTheme } from "@/components/page-builder/blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +99,36 @@ export default async function CmsPublicPage({
 
   const publicScope = await getPublicTenantScope();
   if (!publicScope) notFound();
+
+  // Phase C — workspace_pages check. Agency hosts can publish pages via the
+  // page builder. Check workspace_pages first when on an agency host.
+  if (publicScope && slugPath) {
+    const { data: wpPage } = await supabase
+      .from("workspace_pages")
+      .select("id, title, blocks, theme")
+      .eq("tenant_id", publicScope.tenantId)
+      .eq("slug", slugPath)
+      .eq("status", "published")
+      .maybeSingle();
+    if (wpPage) {
+      const theme = (wpPage.theme ?? {}) as PageTheme;
+      return (
+        <main
+          style={{
+            minHeight: "100vh",
+            backgroundColor: theme.backgroundColor ?? "#fff",
+            color: theme.fontColor ?? "inherit",
+            fontFamily: theme.fontFamily ?? "inherit",
+          }}
+        >
+          <BlocksRenderer
+            blocks={(wpPage.blocks ?? []) as PageBlock[]}
+            tenantId={publicScope.tenantId}
+          />
+        </main>
+      );
+    }
+  }
 
   // Phase 7 — section-composed snapshot (draft-first while edit/preview).
   // Empty slot arrays still render through HomepageCmsSections so brand-new

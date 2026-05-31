@@ -14,6 +14,7 @@ const COLUMNS: FooterColumn[] = [
     items: [
       { label: "How it works", href: "/how-it-works" },
       { label: "The network", href: "/network" },
+      { label: "Agencies & hubs", href: "/discover-agencies" },
       { label: "Pricing", href: "/pricing" },
       { label: "FAQ", href: "/faq" },
       { label: "Start free", href: "/get-started" },
@@ -24,6 +25,7 @@ const COLUMNS: FooterColumn[] = [
     items: [
       { label: "Independent operators", href: "/operators" },
       { label: "Agencies & representation", href: "/agencies" },
+      { label: "Talent applying to hubs", href: "/discover-agencies" },
       { label: "Staffing & casting", href: "/organizations" },
     ],
   },
@@ -34,6 +36,7 @@ const COLUMNS: FooterColumn[] = [
       { label: "People profiles", href: "/how-it-works#profiles" },
       { label: "Inquiry engine", href: "/agencies#pipeline" },
       { label: "Shared hub", href: "/network" },
+      { label: "Apply discovery", href: "/discover-agencies" },
       { label: "API & embeds", href: "/integrations" },
     ],
   },

@@ -141,22 +141,79 @@ export async function persistBookingCommissionSnapshot(
     return { ok: false, reason: "context_load_failed", detail: "no_participants" };
   }
 
+  // P4: the context RPC doesn't carry the client/seller split ratio; fetch it
+  // so the resolver applies the admin-set split instead of the even-split
+  // default. Non-fatal — on any error the resolver falls back to even split.
+  try {
+    const splitRes = (await supabase.rpc(
+      "engine_platform_commission_split" as never,
+    )) as { data: number | null };
+    if (typeof splitRes.data === "number") {
+      ctx.platform_config = {
+        ...ctx.platform_config,
+        client_surcharge_bps: splitRes.data,
+      };
+    }
+  } catch {
+    /* even-split default applies */
+  }
+
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
   try {
     for (const p of ctx.participants) {
+      // P4c: surface this workspace's base reservation fee + the platform caps
+      // (the context RPC doesn't carry them). Workspace sellers only; non-fatal.
+      let platformConfig = ctx.platform_config;
+      let tenantOverride = p.tenant_override;
+      if (p.owning_party_type !== "talent" && p.tenant_id) {
+        try {
+          const feeRes = (await supabase.rpc(
+            "engine_workspace_base_fee_inputs" as never,
+            { p_tenant_id: p.tenant_id } as never,
+          )) as {
+            data: {
+              base_reservation_fee_cents: number | null;
+              base_reservation_fee_bps: number | null;
+              max_base_fee_cents: number | null;
+              max_base_fee_bps: number | null;
+            } | null;
+          };
+          const f = feeRes.data;
+          if (f) {
+            platformConfig = {
+              ...ctx.platform_config,
+              max_base_fee_cents: f.max_base_fee_cents,
+              max_base_fee_bps: f.max_base_fee_bps,
+            };
+            tenantOverride = {
+              ...(p.tenant_override ?? { platform_take_bps: null, platform_take_floor_cents: null }),
+              base_reservation_fee_cents: f.base_reservation_fee_cents,
+              base_reservation_fee_bps: f.base_reservation_fee_bps,
+            };
+          }
+        } catch {
+          /* base fee non-fatal — resolver defaults it to 0 */
+        }
+      }
+
       const base = resolveBookingCommissions({
         // tenantId is an input field but isn't consumed by the math.
         // For independents we pass the owning_party_id (the talent's id)
         // so traceability still has a value to surface.
         tenantId: p.tenant_id ?? p.owning_party_id,
         workspacePlan: normalizePlan(p.workspace_plan),
+        // Seller of record drives who bears the seller-side platform fee.
+        // owning_party_type='talent' → the independent talent sells direct and
+        // bears it; agency/workspace → the workspace bears it and the talent is
+        // paid their full quote (protected).
+        sellerOfRecord: p.owning_party_type === "talent" ? "talent" : "workspace",
         offerLineItems: p.offer_line_items as OfferLineItemForResolver[],
         currencyCode: ctx.currency_code,
         paymentMethod,
         offPlatformReason,
-        platformConfig: ctx.platform_config,
-        tenantOverride: p.tenant_override,
+        platformConfig,
+        tenantOverride,
         bookingPlatformTakeBpsOverride,
       });
       snapshots.push({
@@ -188,6 +245,10 @@ export async function persistBookingCommissionSnapshot(
         platform_fee_cents: s.platform_fee_cents,
         workspace_fee_cents: s.workspace_fee_cents,
         talent_net_cents: s.talent_net_cents,
+        client_surcharge_cents: s.client_surcharge_cents,
+        seller_deduction_cents: s.seller_deduction_cents,
+        gross_charged_cents: s.gross_charged_cents,
+        seller_shortfall_cents: s.seller_shortfall_cents,
         currency_code: s.currency_code,
         payment_method: s.payment_method,
         off_platform_reason: s.off_platform_reason,
@@ -273,4 +334,30 @@ export async function sumBookingPlatformFeeCents(
 ): Promise<number> {
   const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
   return rows.reduce((sum, r) => sum + r.platform_fee_cents, 0);
+}
+
+/** Sum the client-side surcharge across every participant snapshot on a
+ *  booking — the platform's client-side half, added ON TOP of the subtotal.
+ *  The booking transaction adds this so the client is billed `gross_charged`
+ *  (subtotal + surcharge) and the platform actually collects its client share.
+ *  Returns 0 when no snapshot exists yet (charge the bare subtotal). */
+export async function sumBookingClientSurchargeCents(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<number> {
+  const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
+  return rows.reduce((sum, r) => sum + (r.client_surcharge_cents ?? 0), 0);
+}
+
+/** Sum gross_charged_cents across the booking's snapshots — the FULL amount
+ *  the client is charged: subtotal + client surcharge + workspace base fee.
+ *  This is what the booking transaction should bill so everything the
+ *  workspace/platform is paid was actually collected. Returns 0 when no
+ *  snapshot exists yet (the caller falls back to the bare booking revenue). */
+export async function sumBookingGrossChargedCents(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<number> {
+  const rows = await loadBookingCommissionSnapshots(supabase, bookingId);
+  return rows.reduce((sum, r) => sum + (r.gross_charged_cents ?? 0), 0);
 }

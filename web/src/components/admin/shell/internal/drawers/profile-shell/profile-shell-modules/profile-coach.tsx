@@ -7,6 +7,8 @@ import React, { useState, useEffect, useRef, useId } from "react";
 import {
   COLORS,
   FONTS,
+  SizeIcon,
+  type DrawerSize,
   useDashboardText,
 } from "../../drawer-shared";
 import { ProfileSectionId } from "./profile-state";
@@ -82,9 +84,17 @@ export function HeaderPublishCoach({ missing, onJump }: {
           cursor: "pointer", whiteSpace: "nowrap",
         }}
       >
-        <span aria-hidden style={{
-          width: 6, height: 6, borderRadius: "50%", background: COLORS.indigoDeep,
-        }} />
+        {/* A checklist icon, not a bare dot — the old 6px circle was the same
+            indigo as the pill and read as meaningless noise. This says, at a
+            glance, "there's a list of things to finish before publishing"
+            (which is exactly what the dropdown shows). */}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m3 17 2 2 4-4" />
+          <path d="m3 7 2 2 4-4" />
+          <path d="M13 6h8" />
+          <path d="M13 12h8" />
+          <path d="M13 18h8" />
+        </svg>
         {copy.addToPublish(missing.length)}
         <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▴" : "▾"}</span>
       </button>
@@ -124,15 +134,20 @@ export function HeaderPublishCoach({ missing, onJump }: {
   );
 }
 
-// Mobile overflow menu — collapses Undo / Redo / Templates / View-as-
-// client / Save & exit into one ••• button on screens ≤880px. Status,
-// autosave, and Smart CTA already live in the bottom save bar; this
-// menu carries the actions that don't deserve a permanent slot on mobile.
+// Overflow menu — the single home for every secondary action, shown at
+// ALL drawer widths (the old desktop-only header strip is gone, so there's
+// no more desktop/mobile duplication and the toolbar can't overflow into a
+// "mobile menu" at the default width). Carries: View as client · Review
+// changes · Full editor · Drawer size · Save & exit · Remove from roster.
+// The primary actions (status chip, undo/redo, Save, publish) keep their
+// permanent slots in the header.
 
 export function ProfileShellMobileMenu({
   adminVisible, isSelf, primaryTypeSet,
   onViewAsClient, onSaveAndExit,
   onOpenFullEditor, onRemoveFromRoster,
+  onReviewChanges,
+  drawerSize, customWidth, onSetDrawerSize,
 }: {
   adminVisible: boolean;
   isSelf: boolean;
@@ -147,6 +162,15 @@ export function ProfileShellMobileMenu({
    *  relationship; talent keeps Tulala account. Confirmation handled
    *  by the parent component. */
   onRemoveFromRoster?: () => void;
+  /** #3 redesign — admin-only diff modal trigger. Now reachable at every
+   *  drawer width (it used to live only in the desktop-only strip that
+   *  this menu replaces). */
+  onReviewChanges?: () => void;
+  /** #3 redesign — drawer size presets, relocated from the header into
+   *  this menu so the toolbar stays uncluttered at every width. */
+  drawerSize: DrawerSize;
+  customWidth: number | null;
+  onSetDrawerSize: (sz: DrawerSize) => void;
 }) {
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
@@ -230,6 +254,15 @@ export function ProfileShellMobileMenu({
                   icon="👁" label="View as client"
                   onClick={() => { onViewAsClient(); close(); }}
                 />
+                {/* #3 redesign — Review changes joins the menu so admins can
+                    reach the diff at every drawer width. It used to live only
+                    in the desktop strip that this menu now replaces. */}
+                {adminVisible && onReviewChanges && (
+                  <PMobileMenuItem
+                    icon="⇆" label="Review changes"
+                    onClick={() => { onReviewChanges(); close(); }}
+                  />
+                )}
                 {/* Apply template / Save as template were prototype-only —
                     no DB schema for templates exists yet. Hidden until
                     talent_profile_templates ships so we don't promise
@@ -246,6 +279,33 @@ export function ProfileShellMobileMenu({
                     />
                   </>
                 )}
+
+                {/* Drawer size — relocated here from the header to declutter
+                    the toolbar. Utility classes (not inline style) keep this
+                    within the file's inline-style ratchet budget. */}
+                <div className="h-px my-1 mx-1.5 bg-black/10" />
+                <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-admin-ink-dim">{copy.t("Drawer size")}</div>
+                <div className="flex gap-1 px-2.5 pb-1.5">
+                  {(["compact", "half", "full"] as DrawerSize[]).map((sz) => {
+                    const active = customWidth === null && drawerSize === sz;
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => { onSetDrawerSize(sz); }}
+                        aria-label={`${sz} size`}
+                        title={sz === "compact" ? copy.t("Side drawer") : sz === "half" ? copy.t("Half-page") : copy.t("Full-page")}
+                        className={
+                          "inline-flex flex-1 items-center justify-center rounded-md py-1.5 transition-colors " +
+                          (active ? "bg-white shadow-sm text-admin-ink" : "text-admin-ink-muted hover:bg-black/[0.04]")
+                        }
+                      >
+                        <SizeIcon variant={sz} />
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
                 <PMobileMenuItem
                   icon="💾" label="Save & exit"

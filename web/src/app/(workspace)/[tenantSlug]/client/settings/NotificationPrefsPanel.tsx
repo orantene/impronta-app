@@ -1,19 +1,43 @@
 "use client";
 
 /**
- * NotificationPrefsPanel — B9 (notification preferences UI).
+ * NotificationPrefsPanel — per-category notification preferences (spec §6).
  *
- * Per-event-kind email + push toggles. Saves via the existing
- * `setNotificationPrefs` server action into user_prefs.notification_prefs
- * (schema: 20260914010000_user_prefs_notification_prefs.sql).
+ * This is the surface the notification engine actually honors. The dispatcher
+ * resolves channels per *category* (`lib/notifications/prefs.ts` →
+ * `getCategoryPrefs` / `channelsForRecipient`), reading
+ * `user_prefs.notification_prefs[category]`. This panel writes exactly that
+ * shape via `setCategoryNotificationPrefs`, so every toggle here maps 1:1 to a
+ * real dispatch decision.
  *
- * Defaults are opt-in for transactional events (offers / bookings) and
- * opt-out for nudges (day-of reminders are opt-in too because they're
- * value-add not noise).
+ * Honesty rules baked in:
+ *  - The dispatcher is strictly *subtractive*: it starts from each catalog
+ *    entry's default channels and only drops the ones a user set to `false`.
+ *    A user can't turn ON a channel the catalog never sends. So we render a
+ *    toggle only for a category's live default channels (passed as `channels`
+ *    from the server). No dead toggles.
+ *  - Required categories (account & security, billing) bypass prefs entirely —
+ *    they render locked "Always on", never a toggle.
+ *
+ * The category list is supplied by the server page (categories.ts is
+ * server-only and can't be imported into a client component).
  */
 
 import { useState, useTransition } from "react";
-import { setNotificationPrefs, type NotificationChannelPrefs } from "@/lib/server-actions/user-prefs";
+import { setCategoryNotificationPrefs } from "@/lib/server-actions/user-prefs";
+
+/** Live channels a category preference can carry. Mirrors `LIVE_CHANNELS`. */
+export type UiChannel = "email" | "in_app";
+
+/** Serializable category descriptor handed down from the server page. */
+export type UiCategory = {
+  id: string;
+  label: string;
+  description: string;
+  required: boolean;
+  /** Live default channels for this category (already ∩ LIVE_CHANNELS). */
+  channels: UiChannel[];
+};
 
 const FONT = '"Inter", system-ui, sans-serif';
 
@@ -24,124 +48,109 @@ const C = {
   borderSoft: "rgba(24,24,27,0.08)",
   accent: "#1D4ED8",
   success: "#0F5132",
+  lockBg: "rgba(11,11,13,0.04)",
 } as const;
 
-const EVENT_KINDS: Array<{
-  id: string;
-  label: string;
-  hint: string;
-  defaults: NotificationChannelPrefs;
-}> = [
-  {
-    id: "new_message",
-    label: "New messages",
-    hint: "When your coordinator or a talent replies on a thread you're on.",
-    defaults: { email: true, push: true },
-  },
-  {
-    id: "offer_sent",
-    label: "Offer ready to review",
-    hint: "A new offer is sent for your approval.",
-    defaults: { email: true, push: true },
-  },
-  {
-    id: "payment_request",
-    label: "Payment requests",
-    hint: "An invoice or balance is requested.",
-    defaults: { email: true, push: true },
-  },
-  {
-    id: "booking_confirmed",
-    label: "Booking confirmed",
-    hint: "When a project is booked and confirmed.",
-    defaults: { email: true, push: false },
-  },
-  {
-    id: "day_of_reminder",
-    label: "Day-of reminders",
-    hint: "Call sheet recap the morning of the event.",
-    defaults: { email: true, push: true },
-  },
-];
+const CHANNEL_LABEL: Record<UiChannel, string> = {
+  email: "Email",
+  in_app: "In-app",
+};
+
+type ChannelState = Record<UiChannel, boolean>;
+
+function readBool(raw: Record<string, unknown>, ...keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "boolean") return value;
+  }
+  return undefined;
+}
+
+/**
+ * Resolve the initial toggle state for one category, mirroring the
+ * dispatcher's `getCategoryPrefs` semantics: a stored explicit boolean wins;
+ * otherwise the channel falls back to "on" iff it's a default channel.
+ * Accepts the legacy `inApp` key alongside canonical `in_app`.
+ */
+function seedCategory(cat: UiCategory, stored: unknown): ChannelState {
+  const raw = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : null;
+  const emailDefault = cat.channels.includes("email");
+  const inAppDefault = cat.channels.includes("in_app");
+  return {
+    email: raw ? readBool(raw, "email") ?? emailDefault : emailDefault,
+    in_app: raw ? readBool(raw, "in_app", "inApp") ?? inAppDefault : inAppDefault,
+  };
+}
 
 export function NotificationPrefsPanel({
+  categories,
   initialPrefs,
 }: {
-  initialPrefs: Record<string, NotificationChannelPrefs>;
+  categories: UiCategory[];
+  initialPrefs: Record<string, unknown>;
 }) {
-  const [prefs, setPrefs] = useState<Record<string, NotificationChannelPrefs>>(() => {
-    // Seed any missing kind with its default so the UI starts fully populated.
-    const seeded: Record<string, NotificationChannelPrefs> = { ...initialPrefs };
-    for (const k of EVENT_KINDS) {
-      if (!seeded[k.id]) seeded[k.id] = k.defaults;
-    }
+  // Required categories always render (locked). Non-required render only when
+  // they have at least one live default channel — otherwise there's nothing to
+  // toggle (e.g. marketing, default channels []).
+  const visible = categories.filter((c) => c.required || c.channels.length > 0);
+
+  const [prefs, setPrefs] = useState<Record<string, ChannelState>>(() => {
+    const seeded: Record<string, ChannelState> = {};
+    for (const cat of visible) seeded[cat.id] = seedCategory(cat, initialPrefs[cat.id]);
     return seeded;
   });
   const [, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  function toggle(kindId: string, channel: "email" | "push") {
-    const next: Record<string, NotificationChannelPrefs> = {
-      ...prefs,
-      [kindId]: {
-        ...prefs[kindId],
-        [channel]: !prefs[kindId][channel],
-      },
-    };
-    setPrefs(next);
-    // Fire-and-forget save. Server action upserts user_prefs.
+  function toggle(cat: UiCategory, channel: UiChannel) {
+    if (cat.required) return; // locked — defensive, the UI renders no toggle
+    const current = prefs[cat.id];
+    const updated: ChannelState = { ...current, [channel]: !current[channel] };
+    setPrefs((p) => ({ ...p, [cat.id]: updated }));
+    // Fire-and-forget; the server action merges only this category's key.
     startTransition(async () => {
-      await setNotificationPrefs(next);
+      await setCategoryNotificationPrefs({ [cat.id]: updated });
       setSavedAt(Date.now());
     });
   }
 
   return (
     <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column" }}>
-      {/* Column headers */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          paddingBottom: 8,
-          borderBottom: `1px solid ${C.borderSoft}`,
-          fontSize: 10.5,
-          fontWeight: 700,
-          color: C.inkMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-        }}
-      >
-        <div className="flex-1">Event</div>
-        <div style={{ width: 70, textAlign: "center" }}>Email</div>
-        <div style={{ width: 70, textAlign: "center" }}>Push</div>
-      </div>
-
-      {EVENT_KINDS.map((kind) => {
-        const p = prefs[kind.id] ?? kind.defaults;
+      {visible.map((cat, i) => {
+        const state = prefs[cat.id];
         return (
           <div
-            key={kind.id}
+            key={cat.id}
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "12px 0",
-              borderBottom: `1px solid ${C.borderSoft}`,
-              gap: 12,
+              padding: "13px 0",
+              borderTop: i === 0 ? "none" : `1px solid ${C.borderSoft}`,
+              gap: 16,
             }}
           >
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{kind.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{cat.label}</div>
               <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
-                {kind.hint}
+                {cat.description}
               </div>
             </div>
-            <div style={{ width: 70, display: "flex", justifyContent: "center" }}>
-              <Toggle on={p.email} onClick={() => toggle(kind.id, "email")} ariaLabel={`${kind.label} email`} />
-            </div>
-            <div style={{ width: 70, display: "flex", justifyContent: "center" }}>
-              <Toggle on={!!p.push} onClick={() => toggle(kind.id, "push")} ariaLabel={`${kind.label} push`} />
-            </div>
+
+            {cat.required ? (
+              <LockedPill />
+            ) : (
+              <div style={{ display: "flex", gap: 4 }}>
+                {cat.channels.map((ch) => (
+                  <ChannelControl
+                    key={ch}
+                    label={CHANNEL_LABEL[ch]}
+                    on={state[ch]}
+                    onClick={() => toggle(cat, ch)}
+                    ariaLabel={`${cat.label} — ${CHANNEL_LABEL[ch]}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -149,7 +158,9 @@ export function NotificationPrefsPanel({
       <div
         aria-live="polite"
         style={{
-          marginTop: 12,
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: `1px solid ${C.borderSoft}`,
           fontSize: 11.5,
           color: savedAt ? C.success : C.inkDim,
           textAlign: "right",
@@ -159,6 +170,75 @@ export function NotificationPrefsPanel({
         {savedAt ? "Preferences saved." : "Changes auto-save."}
       </div>
     </div>
+  );
+}
+
+function ChannelControl({
+  label,
+  on,
+  onClick,
+  ariaLabel,
+}: {
+  label: string;
+  on: boolean;
+  onClick: () => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      style={{
+        width: 62,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 5,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: C.inkMuted,
+          textTransform: "uppercase",
+          letterSpacing: 0.4,
+        }}
+      >
+        {label}
+      </span>
+      <Toggle on={on} onClick={onClick} ariaLabel={ariaLabel} />
+    </div>
+  );
+}
+
+function LockedPill() {
+  return (
+    <span
+      title="Required for your account — always sent."
+      style={{
+        fontSize: 10.5,
+        fontWeight: 600,
+        color: C.inkMuted,
+        background: C.lockBg,
+        border: `1px solid ${C.borderSoft}`,
+        borderRadius: 999,
+        padding: "4px 10px",
+        whiteSpace: "nowrap",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+      }}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M6 10V8a6 6 0 1 1 12 0v2m-9 0h6a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      Always on
+    </span>
   );
 }
 

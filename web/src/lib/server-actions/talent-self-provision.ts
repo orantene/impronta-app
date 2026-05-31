@@ -34,44 +34,78 @@ export type ProvisionTalentProfileSelfResult =
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Derive an initial display name from auth user metadata + email fallback. */
-function deriveDisplayNameFromUser(user: {
-  user_metadata?: Record<string, unknown> | null;
-  email?: string | null;
-}): string {
-  const meta = user.user_metadata ?? {};
-  const full =
-    (typeof meta.full_name === "string" && meta.full_name.trim()) ||
-    (typeof meta.name === "string" && meta.name.trim()) ||
-    "";
-  if (full) return full;
-  // Fall back to email local-part
-  const email = user.email ?? "";
-  const localPart = email.split("@")[0] ?? "";
-  // Humanise: replace dots/underscores/hyphens with spaces, capitalise each word
-  return localPart
-    .replace(/[._-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim() || "My Talent Profile";
-}
-
-/** Derive a URL-safe slug candidate from a display name. */
-function deriveSlugFromDisplayName(displayName: string): string {
-  return displayName
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 32) || "talent";
-}
-
-/** Check whether the user already has a talent_profiles row for a given tenant. */
-async function findExistingTalentProfile(
+/**
+ * Idempotency check, scoped to the TARGET tenant.
+ *
+ * Returns the caller's talent profile only if it is already linked to *this*
+ * tenant's roster. A user may legitimately have a self-profile in a different
+ * workspace (the multi-agency / hybrid-workspace model) — that must NOT
+ * short-circuit provisioning here, or a multi-workspace talent could never
+ * create a profile in a second workspace: they'd be silently bounced to their
+ * other workspace with nothing created, and the "create your talent page" CTA
+ * would keep showing. So the lookup is joined through agency_talent_roster on
+ * `tenantId`, not a bare `user_id` match on talent_profiles.
+ */
+async function findExistingTalentProfileForTenant(
   admin: ReturnType<typeof createServiceRoleClient>,
   userId: string,
   tenantId: string,
+): Promise<{ profileCode: string; id: string } | null> {
+  if (!admin) return null;
+
+  // The caller's own (non-deleted) talent profiles. A user can have several —
+  // one per workspace they've self-provisioned in.
+  const { data: profiles, error: profErr } = await admin
+    .from("talent_profiles")
+    .select("id, profile_code")
+    .eq("user_id", userId)
+    .is("deleted_at", null);
+  if (profErr) {
+    logServerError("talent-self-provision.findExisting/profiles", profErr);
+    return null;
+  }
+  if (!profiles || profiles.length === 0) return null;
+
+  const ids = profiles.map((p) => p.id);
+
+  // Only a profile already on THIS tenant's roster makes this a true
+  // idempotent re-run for this workspace.
+  const { data: rosterRow, error: rosterErr } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .in("talent_profile_id", ids)
+    .limit(1)
+    .maybeSingle();
+  if (rosterErr) {
+    // Fail open — allow creation rather than block the user on a read error.
+    logServerError("talent-self-provision.findExisting/roster", rosterErr);
+    return null;
+  }
+  if (!rosterRow) return null;
+
+  const match = profiles.find(
+    (p) => String(p.id) === String(rosterRow.talent_profile_id),
+  );
+  return match
+    ? { profileCode: String(match.profile_code), id: String(match.id) }
+    : null;
+}
+
+/**
+ * The caller's own single live talent profile, if any — regardless of which
+ * workspace(s) it is rostered in. The DB guarantees at most one
+ * (partial unique index `idx_talent_profiles_one_live_user` on `user_id`
+ * WHERE `deleted_at IS NULL`), so this is the profile we either REUSE (link
+ * into a new workspace's roster) or, when absent, create fresh.
+ *
+ * Distinct from `findExistingTalentProfileForTenant`, which answers the
+ * narrower idempotency question "is the caller already on THIS tenant's
+ * roster?". This answers "does the caller have a talent identity at all?".
+ */
+async function findOwnLiveTalentProfile(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
 ): Promise<{ profileCode: string; id: string } | null> {
   if (!admin) return null;
   const { data, error } = await admin
@@ -79,33 +113,16 @@ async function findExistingTalentProfile(
     .select("id, profile_code")
     .eq("user_id", userId)
     .is("deleted_at", null)
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) {
-    logServerError("talent-self-provision.findExisting", error);
+    logServerError("talent-self-provision.findOwnLive", error);
     return null;
   }
-  if (!data) return null;
-
-  // Confirm this profile is on the target tenant's roster
-  const { data: rosterRow, error: rosterErr } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", data.id)
-    .is("deleted_at" as never, null)
-    .limit(1)
-    .maybeSingle();
-
-  if (rosterErr) {
-    logServerError("talent-self-provision.findExisting/roster", rosterErr);
-  }
-
-  // Return the profile even if roster row missing — the profile exists
-  if (data) {
-    return { profileCode: String(data.profile_code), id: String(data.id) };
-  }
-  return null;
+  return data
+    ? { profileCode: String(data.profile_code), id: String(data.id) }
+    : null;
 }
 
 // ── Main action ──────────────────────────────────────────────────────────────
@@ -148,19 +165,50 @@ export async function provisionTalentProfileSelf(params: {
     return { ok: false, error: "Service unavailable. Please try again in a moment." };
   }
 
-  // ── Idempotency: return existing if already provisioned ───────────────────
-  const existing = await findExistingTalentProfile(admin, userId, tenantId);
+  // ── Idempotency: return existing only if already provisioned in THIS tenant ─
+  const existing = await findExistingTalentProfileForTenant(admin, userId, tenantId);
   if (existing) {
     return { ok: true, profileCode: existing.profileCode, talentProfileId: existing.id };
   }
 
-  // ── Seat check ────────────────────────────────────────────────────────────
+  // ── Seat check (a LINK or a CREATE both consume one roster seat) ──────────
   const seats = await checkRosterSeatAvailability(admin, tenantId, 1);
   if (!seats.ok) {
     return { ok: false, error: seats.message };
   }
 
-  // ── Allocate profile code via DB RPC (same as admin-created flow) ─────────
+  // ── One-live-profile-per-user invariant: link, don't duplicate ────────────
+  // The DB enforces at most ONE live talent_profile per user account (partial
+  // unique index `idx_talent_profiles_one_live_user`). A caller who is already
+  // a talent in another workspace therefore CANNOT get a second profile — a
+  // plain insert fails with 23505 (the bug this branch fixes). The canonical
+  // multi-workspace mechanism is the roster join table, so when the caller
+  // already has a live profile we LINK it into THIS workspace's roster instead
+  // of creating a new one. Only a caller with no live profile at all reaches
+  // the create branch below. The typed displayName is honored only on create;
+  // an existing profile keeps its own identity across every workspace.
+  const ownProfile = await findOwnLiveTalentProfile(admin, userId);
+  if (ownProfile) {
+    const linkOriginDomain = (await headers()).get("host")?.toLowerCase() ?? null;
+    const { error: linkErr } = await admin.from("agency_talent_roster").insert({
+      tenant_id:           tenantId,
+      source_workspace_id: tenantId,
+      origin_domain:       linkOriginDomain,
+      talent_profile_id:   ownProfile.id,
+      source_type:         "agency_created",
+      status:              "active",
+      agency_visibility:   "roster_only",
+      added_by:            userId,
+    });
+    if (linkErr) {
+      logServerError("talent-self-provision.linkRoster", linkErr);
+      return { ok: false, error: "Could not add your talent profile to this workspace. Please try again." };
+    }
+    revalidatePath(`/${params.tenantSlug}/admin/roster`);
+    return { ok: true, profileCode: ownProfile.profileCode, talentProfileId: ownProfile.id };
+  }
+
+  // ── Create branch: no existing profile → allocate code via DB RPC ─────────
   const { data: codeRow, error: codeErr } = await admin.rpc("generate_profile_code");
   if (codeErr || !codeRow) {
     logServerError("talent-self-provision.generateCode", codeErr);

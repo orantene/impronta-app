@@ -35,7 +35,7 @@ import { withWeekday } from "./TalentJobShell";
 export type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived" | "triage";
 
 export function AdminOperationsShell() {
-  const { effectiveMessagesInquiries } = useAdminShell();
+  const { effectiveMessagesInquiries, effectiveTenant, tenantSlug } = useAdminShell();
   // Context already decides between bridge-populated (use as-is, even when
   // empty) and standalone-dev (RICH_INQUIRIES mock). Re-doing the fallback
   // here with `length > 0 ?` was the bug: real tenants with 0 inquiries
@@ -208,7 +208,56 @@ export function AdminOperationsShell() {
           needsMe={needsMe}
         />
         <div data-tulala-thread-pane style={{ display: "flex", flexDirection: "column", minHeight: 0, background: COLORS.surfaceAlt, overflow: "hidden" }}>
-          {active ? <AdminInquiryDetail inquiry={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label="No inquiry selected" />}
+          {active ? (
+            <AdminInquiryDetail inquiry={active} onBack={() => setMobilePane("list")} />
+          ) : inquiries.length === 0 ? (
+            // Zero-inquiry empty state: guide the workspace owner toward
+            // sharing their storefront so the first client reaches out.
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              padding: "32px 24px", gap: 10, textAlign: "center",
+            }}>
+              <div aria-hidden style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: COLORS.accentSoft, color: COLORS.accent,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 2,
+              }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M18 3H2a1 1 0 00-1 1v10a1 1 0 001 1h3l3 3 3-3h7a1 1 0 001-1V4a1 1 0 00-1-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700 }} className="text-admin-ink">
+                No messages yet
+              </div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.5, maxWidth: 280 }} className="text-admin-ink-muted">
+                They&apos;ll appear here as clients reach out via your storefront.
+              </div>
+              {(tenantSlug || effectiveTenant?.domain) && (
+                <a
+                  href={`https://${effectiveTenant?.domain ?? `${tenantSlug}.tulala.digital`}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "7px 14px", borderRadius: 999,
+                    border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+                    fontSize: 12.5, fontWeight: 600, color: COLORS.accent,
+                    textDecoration: "none", fontFamily: FONTS.body,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3"/>
+                    <path d="M3 6h6M6 3v6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                  Visit your storefront
+                </a>
+              )}
+            </div>
+          ) : (
+            <EmptyDetail label="No inquiry selected" />
+          )}
         </div>
       </div>
       {mobilePane === "thread" && (

@@ -22,6 +22,7 @@ import {
   type BookingTransaction,
   type TransactionResult,
 } from "@/lib/bookings/transactions";
+import { sumBookingGrossChargedCents } from "@/lib/billing/commission-engine";
 import { logServerError } from "@/lib/server/safe-error";
 
 type Context = {
@@ -178,11 +179,16 @@ export async function createTransactionDraftAction(formData: FormData): Promise<
     returnToDetail(tenantSlug, inquiryId, p);
   }
 
-  const grossAmountCents = centsFromRevenue(context.booking.total_client_revenue);
-  if (grossAmountCents <= 0) {
+  const baseRevenueCents = centsFromRevenue(context.booking.total_client_revenue);
+  if (baseRevenueCents <= 0) {
     const p = new URLSearchParams({ txerr: "Set booking revenue before creating a transaction." });
     returnToDetail(tenantSlug, inquiryId, p);
   }
+  // P1/P4c: bill the FULL client charge frozen in the commission snapshot
+  // (subtotal + client surcharge + workspace base fee). Fall back to the bare
+  // booking revenue when no snapshot exists yet.
+  const grossChargedCents = await sumBookingGrossChargedCents(supabase, context.booking.id);
+  const grossAmountCents = grossChargedCents > 0 ? grossChargedCents : baseRevenueCents;
 
   const { data: agency } = await supabase
     .from("agencies")

@@ -29,7 +29,9 @@ import {
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadUserNotifications,
+  loadRosterCardBadges,
 } from "@/components/admin/shell/internal/data-bridge";
+import { loadPayoutsSurface } from "./payouts/payouts-surface-actions";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { AdminShellClient } from "@/components/admin/shell/admin-shell-client";
@@ -116,6 +118,8 @@ export default async function WorkspaceAdminLayout({
     talentSelfProfile,
     websiteData,
     userNotifications,
+    rosterCardBadges,
+    payoutsSurface,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
@@ -136,6 +140,12 @@ export default async function WorkspaceAdminLayout({
     loadWebsiteData(tenantId),
     // B.2 — user notifications feed for the workspace surface.
     loadUserNotifications(tenantId, "workspace"),
+    // Roster-card badge prefs (agencies.settings.rosterCardBadges).
+    loadRosterCardBadges(tenantId),
+    // Payouts surface (Stripe Connect snapshot + base fee). Keyed by slug —
+    // the loader resolves scope by slug and gates on the owner capability.
+    // Returns `{ ok: false }` on any failure, so it never breaks the layout.
+    loadPayoutsSurface(tenantSlug),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -206,6 +216,8 @@ export default async function WorkspaceAdminLayout({
           firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
           website: websiteData,
           userNotifications,
+          rosterCardBadges,
+          payoutsSurface,
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}

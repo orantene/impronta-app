@@ -632,7 +632,7 @@ export function ProfilePhotoBadgeOverlay({
   trust: TrustSummary;
   size?: "xs" | "sm" | "md" | "lg";
   max?: number;
-  position?: "bottom-right" | "bottom-left" | "top-right";
+  position?: "bottom-right" | "bottom-left" | "top-right" | "inline";
 }) {
   // Public-eligible active badges only — corner overlay is a public
   // signal so it must respect the same visibility rules as the
@@ -648,7 +648,14 @@ export function ProfilePhotoBadgeOverlay({
   const offset = size === "xs" ? 2 : size === "sm" ? 3 : size === "lg" ? 6 : 4;
   const fontSize = size === "xs" ? 8 : size === "sm" ? 10 : size === "lg" ? 16 : 12;
 
-  const positionStyle: React.CSSProperties = position === "bottom-right" ? { bottom: offset, right: offset }
+  // `inline` drops the overlay into whatever positioned group the caller
+  // already has (e.g. the roster card's bottom-right column) instead of
+  // anchoring itself to a corner — so two absolutely-positioned elements
+  // never fight for the same corner.
+  const inline = position === "inline";
+  const positionStyle: React.CSSProperties = inline
+    ? {}
+    : position === "bottom-right" ? { bottom: offset, right: offset }
     : position === "bottom-left" ? { bottom: offset, left: offset }
     : { top: offset, right: offset };
 
@@ -656,7 +663,7 @@ export function ProfilePhotoBadgeOverlay({
     <div
       data-tulala-photo-badges
       style={{
-        position: "absolute",
+        position: inline ? "static" : "absolute",
         ...positionStyle,
         display: "flex",
         flexDirection: "row",

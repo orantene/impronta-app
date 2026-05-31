@@ -1,13 +1,10 @@
 "use server";
 
-// talent-self-profile-sections.ts
-//
-// Server actions for talent users editing their OWN profile.
-// Mirror of admin-talent-profile-sections.ts but uses requireTalentSelfAction
-// (verifies user_id ownership) instead of requireStaffTenantAction (staff check).
-//
-// The drawer calls these when mode === "edit-self". Talent users are not agency
-// staff so requireStaffTenantAction would reject them.
+// Server actions for talent users editing their OWN profile (drawer mode
+// "edit-self"). Mirror of admin-talent-profile-sections.ts but uses
+// requireTalentSelfAction (verifies user_id ownership) instead of
+// requireStaffTenantAction — talent users are not agency staff, so the staff
+// check would reject them.
 
 import { revalidatePath } from "next/cache";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
@@ -439,13 +436,19 @@ export async function syncSelfTalentTypeTaxonomyFromShell(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const tax = await syncTalentTypeTaxonomyFromShellSlugs(supabase, {
-    tenantId,
-    talentProfileId: input.talent_profile_id,
-    primarySlug: input.primary_slug,
-    secondarySlugs: input.secondary_slugs,
-  });
-  if (!tax.ok) return { ok: false, error: tax.error };
+  // Talent-type taxonomy terms are resolved per-agency. An independent
+  // (no-tenant) talent has no agency taxonomy to sync against; skip
+  // gracefully so the rest of their save succeeds. Their talent-type
+  // selection resolves once they're on an agency roster.
+  if (tenantId) {
+    const tax = await syncTalentTypeTaxonomyFromShellSlugs(supabase, {
+      tenantId,
+      talentProfileId: input.talent_profile_id,
+      primarySlug: input.primary_slug,
+      secondarySlugs: input.secondary_slugs,
+    });
+    if (!tax.ok) return { ok: false, error: tax.error };
+  }
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -507,7 +510,6 @@ export async function getTalentProfileDynFieldValuesForSelf(input: {
 }
 
 // ─── Social links ─────────────────────────────────────────────────────────────
-//
 // Saves to talent_profiles.social_links (JSONB). Each entry: {kind, label, url, followers?}.
 
 export async function updateSelfSocialLinks(input: {
@@ -577,7 +579,6 @@ export async function updateSelfProfileDrawerExtras(input: {
 }
 
 // ─── Privacy prefs ────────────────────────────────────────────────────────────
-//
 // Maps talent privacy toggles to talent_profiles.field_visibility JSONB.
 // Keys:
 //   "show_measurements_publicly" → boolean
@@ -615,7 +616,6 @@ export async function updateSelfPrivacy(input: {
 }
 
 // ─── Emergency contact ────────────────────────────────────────────────────────
-//
 // Stored on agency_talent_roster.emergency_contact (JSONB) — not talent_profiles.
 // The talent can update their own emergency contact for ANY active agency roster
 // row. We write the same value to every active roster row for this talent within

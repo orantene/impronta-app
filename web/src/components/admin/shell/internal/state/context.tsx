@@ -14,6 +14,9 @@ import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder } from "../data-bridge";
+// Type-only — erased at compile time, so importing from the `"use server"`
+// payouts actions module pulls no server runtime into this client bundle.
+import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
 import type { TalentEarnings } from "@/lib/talent/earnings-types";
 // Client-safe types module (does NOT import `server-only`). The matching
 // server loader lives in `earnings-by-currency.ts` and is invoked only from
@@ -30,6 +33,8 @@ import { setInquiryFlagsTenantSlug, setInquiryFlagsUserId } from "../inquiry-fla
 import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, CoordinatorAssignment, Density, EntityType, FieldVisibility, HqRole, Impersonation, InquirySource, InquiryStage, MessageSenderRole, Offer, PendingTalent, Plan, PlatformPage, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileVerification, RequirementGroup, RichInquiry, Role, Surface, TalentContactGate, TalentPage, TalentProfile, TalentSubscriptionTier, TeamMember, ThreadMessage, ThreadType, TrustSummary, VerificationActiveStatus, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationRequestStatus, VerificationReviewMode, VerificationSubjectType, VerificationTierGate, VerificationType, VerificationVisibility, WebsiteState, WorkspaceCustomField, WorkspaceLayout, WorkspacePage } from "./types";
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
+import { setRosterCardBadges as persistRosterCardBadges } from "@/lib/server-actions/admin-roster-card-badges";
+import { normalizeRosterCardBadges, type RosterCardBadgePrefs, type RosterCardBadgeKey } from "@/lib/talent-cards/roster-card-badges";
 
 // ─── Provider ────────────────────────────────────────────────────────
 
@@ -99,6 +104,8 @@ type Ctx = {
   setDensity: (d: Density) => void;
   setWorkspaceLayout: (l: WorkspaceLayout) => void;
   setPage: (p: WorkspacePage) => void;
+  /** Update active surface from route mount without pushing a navigation. */
+  syncPage: (p: WorkspacePage) => void;
   setTalentPage: (p: TalentPage) => void;
   /** Switch the talent's plan tier (dev/test affordance until billing is live). */
   setTalentTier: (t: TalentSubscriptionTier) => void;
@@ -229,6 +236,19 @@ type Ctx = {
   effectiveRoster: TalentProfile[];
   /** Set when running in production (cutover) mode — the real tenant slug from the URL. */
   tenantSlug: string | undefined;
+
+  /**
+   * Per-tenant roster-card badge visibility prefs. Seeded from the bridge
+   * (`agencies.settings.rosterCardBadges`), mutated live by the Card Design
+   * studio, consumed by the roster cards. Always a full set (defaults applied).
+   */
+  rosterCardBadges: RosterCardBadgePrefs;
+  /**
+   * Toggle one roster-card badge on/off. Optimistic: flips local state
+   * immediately, persists via the server action, reverts + toasts on
+   * failure. Resolves `true` on success, `false` on failure.
+   */
+  setRosterCardBadge: (key: RosterCardBadgeKey, visible: boolean) => Promise<boolean>;
 
   // ── Phase 3.12 real-data bridge — additional surfaces ────────────────
   /**
@@ -405,6 +425,14 @@ type Ctx = {
    * When false, destructive CMS actions should stay hidden.
    */
   websiteUsesLiveCms: boolean;
+
+  /**
+   * Workspace Payouts surface payload (Stripe Connect snapshot + base-fee
+   * state) pre-fetched server-side by the admin layout. `null` = no bridge
+   * data (mock/standalone mode) or the loader failed; the in-shell
+   * `PayoutsPage` then renders its "couldn't load payout settings" card.
+   */
+  payoutsSurface: PayoutsSurfaceResult | null;
 };
 
 // ── Phase 3.12 bridge adapters ─────────────────────────────────────────────
@@ -810,9 +838,13 @@ export function AdminShellProvider({
   })();
   const initialRole: Role = (() => {
     const r = initialBridgeData?.sessionIdentity?.role;
-    return r === "owner" || r === "admin" || r === "coordinator" || r === "editor" || r === "viewer"
+    // Whitelist the canonical role ladder (Viewer→Editor→Manager→Admin→Owner).
+    // NB: the rank formerly called "coordinator" was renamed to "manager" in the
+    // May 2026 role-model cleanup; an unrecognized/legacy role MUST fall back to
+    // the least-privilege "viewer" — never fail OPEN to "owner".
+    return r === "owner" || r === "admin" || r === "manager" || r === "editor" || r === "viewer"
       ? (r as Role)
-      : "owner";
+      : "viewer";
   })();
 
   // (Phase 1 mutation removed — the old `useState(() => { TENANT.xxx = ... })`
@@ -853,6 +885,13 @@ export function AdminShellProvider({
       }
     }
   }, [router]);
+  // Sync-only page setter for PageRouteSyncer: updates the shell's active
+  // surface WITHOUT pushing a navigation. Plain setPage maps a page to its
+  // canonical segment and pushes there, which would strip deeper sub-routes
+  // (e.g. /website/card-design → /website) when the route-mount sync fires.
+  const syncPage = useCallback((p: WorkspacePage) => {
+    setPageRaw(p);
+  }, []);
   // talent
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
   const setTalentPage = useCallback((p: TalentPage) => {
@@ -1269,6 +1308,10 @@ export function AdminShellProvider({
   }, [talentContactGates, profileVerifications, claimStatusByTalent]);
   const [density, setDensityState] = useState<Density>("comfortable");
   const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("topbar");
+  // Roster-card badge prefs — seeded SSR from the bridge, mutated by the studio.
+  const [rosterCardBadges, setRosterCardBadgesState] = useState<RosterCardBadgePrefs>(
+    () => normalizeRosterCardBadges(initialBridgeData?.rosterCardBadges),
+  );
   const toastIdRef = useRef(0);
 
   // Hydrate density + workspace layout from localStorage on mount.
@@ -1520,6 +1563,30 @@ export function AdminShellProvider({
     [router, toast],
   );
 
+  // Toggle a single roster-card badge. Optimistic flip → persist → reconcile
+  // with the server's normalized set on success, or revert + toast on failure.
+  const setRosterCardBadge = useCallback(
+    async (key: RosterCardBadgeKey, visible: boolean): Promise<boolean> => {
+      setRosterCardBadgesState((prev) => ({ ...prev, [key]: visible }));
+      try {
+        const res = await persistRosterCardBadges({ [key]: visible });
+        if (!res.ok) {
+          setRosterCardBadgesState((prev) => ({ ...prev, [key]: !visible }));
+          toast(res.error, { tone: "error" });
+          return false;
+        }
+        setRosterCardBadgesState(res.data);
+        return true;
+      } catch (err) {
+        setRosterCardBadgesState((prev) => ({ ...prev, [key]: !visible }));
+        logServerError("admin-shell.setRosterCardBadge", err);
+        toast("Could not save badge setting. Try again.", { tone: "error" });
+        return false;
+      }
+    },
+    [toast],
+  );
+
   const completeTask = useCallback((id: string) => {
     setCompletedTasks((prev) => {
       const next = new Set(prev);
@@ -1762,10 +1829,14 @@ export function AdminShellProvider({
   const effectiveWebsiteState = useMemo(
     () =>
       bridgeWebsite != null
-        ? mergeWebsiteStateFromBridge(bridgeWebsite)
+        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "")
         : WEBSITE_STATE,
-    [bridgeWebsite],
+    [bridgeWebsite, bridgeTenantIdentity?.slug],
   );
+
+  // Payouts surface — pass-through bridge payload consumed by the in-shell
+  // PayoutsPage. `null` falls back to the page-module's error card.
+  const bridgePayoutsSurface = initialBridgeData?.payoutsSurface ?? null;
 
   const value: Ctx = useMemo(
     () => ({
@@ -1800,6 +1871,7 @@ export function AdminShellProvider({
       setDensity,
       setWorkspaceLayout,
       setPage,
+      syncPage,
       setTalentPage,
       setTalentTier: handleSetTalentTier,
       setClientPlan,
@@ -1863,6 +1935,8 @@ export function AdminShellProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      rosterCardBadges,
+      setRosterCardBadge,
       // Phase 3.12 — additional surface bridge fields
       effectiveMessagesInquiries,
       effectiveClients,
@@ -1888,6 +1962,7 @@ export function AdminShellProvider({
       effectiveTenant,
       effectiveWebsiteState,
       websiteUsesLiveCms,
+      payoutsSurface: bridgePayoutsSurface,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -1969,6 +2044,8 @@ export function AdminShellProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      rosterCardBadges,
+      setRosterCardBadge,
       effectiveMessagesInquiries,
       effectiveClients,
       effectiveCalendarEvents,
@@ -1993,6 +2070,7 @@ export function AdminShellProvider({
       effectiveTenant,
       effectiveWebsiteState,
       websiteUsesLiveCms,
+      bridgePayoutsSurface,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,

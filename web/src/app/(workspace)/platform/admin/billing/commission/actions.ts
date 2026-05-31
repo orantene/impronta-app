@@ -15,6 +15,12 @@ import { logServerError } from "@/lib/server/safe-error";
 export type CommissionConfig = {
   defaultTakeBps: number;
   defaultTakeFloorCents: number;
+  /** Client-side share of the total take, in bps (null = even split). */
+  clientSurchargeBps: number | null;
+  /** Platform cap on a workspace flat base reservation fee, in cents (null = uncapped). */
+  maxBaseFeeCents: number | null;
+  /** Platform cap on a workspace % base reservation fee, in bps (null = uncapped). */
+  maxBaseFeeBps: number | null;
   planTierBps: Record<string, number>;
 };
 
@@ -45,7 +51,7 @@ export async function loadPlatformCommissionConfig(): Promise<CommissionActionRe
   try {
     const { data, error } = await sb
       .from("platform_commission_config")
-      .select("default_take_bps, default_take_floor_cents, plan_tier_bps")
+      .select("default_take_bps, default_take_floor_cents, client_surcharge_bps, max_base_fee_cents, max_base_fee_bps, plan_tier_bps")
       .eq("singleton_key", true)
       .maybeSingle();
     if (error || !data) {
@@ -56,6 +62,9 @@ export async function loadPlatformCommissionConfig(): Promise<CommissionActionRe
       data: {
         defaultTakeBps: data.default_take_bps,
         defaultTakeFloorCents: data.default_take_floor_cents,
+        clientSurchargeBps: data.client_surcharge_bps ?? null,
+        maxBaseFeeCents: data.max_base_fee_cents ?? null,
+        maxBaseFeeBps: data.max_base_fee_bps ?? null,
         planTierBps: (data.plan_tier_bps ?? {}) as Record<string, number>,
       },
     };
@@ -70,6 +79,12 @@ export async function loadPlatformCommissionConfig(): Promise<CommissionActionRe
 export type UpdateCommissionConfigArgs = {
   defaultTakeBps: number;
   defaultTakeFloorCents: number;
+  /** Client-side share of the total take, in bps (null = even split). */
+  clientSurchargeBps: number | null;
+  /** Platform cap on a workspace flat base reservation fee, in cents (null = uncapped). */
+  maxBaseFeeCents: number | null;
+  /** Platform cap on a workspace % base reservation fee, in bps (null = uncapped). */
+  maxBaseFeeBps: number | null;
   planTierBps: Record<string, number>;
 };
 
@@ -95,6 +110,32 @@ export async function updatePlatformCommissionConfig(
     return { ok: false, error: "Floor must be 0 or a positive number of cents." };
   }
 
+  // Validate the client-side split share (null = even split of the total take).
+  let cleanClientSurchargeBps: number | null = null;
+  if (args.clientSurchargeBps != null) {
+    const csb = Math.round(args.clientSurchargeBps);
+    const csbErr = validateBps(csb, "Client surcharge");
+    if (csbErr) return { ok: false, error: csbErr };
+    cleanClientSurchargeBps = csb;
+  }
+
+  // Validate the platform base-fee caps (null = uncapped).
+  let cleanMaxBaseFeeCents: number | null = null;
+  if (args.maxBaseFeeCents != null) {
+    const mc = Math.round(args.maxBaseFeeCents);
+    if (!Number.isFinite(mc) || mc < 0) {
+      return { ok: false, error: "Max base fee ($) must be 0 or a positive number of cents." };
+    }
+    cleanMaxBaseFeeCents = mc;
+  }
+  let cleanMaxBaseFeeBps: number | null = null;
+  if (args.maxBaseFeeBps != null) {
+    const mb = Math.round(args.maxBaseFeeBps);
+    const mbErr = validateBps(mb, "Max base fee (%)");
+    if (mbErr) return { ok: false, error: mbErr };
+    cleanMaxBaseFeeBps = mb;
+  }
+
   // Validate every plan tier bps.
   const VALID_TIERS = new Set(["free", "studio", "agency", "network"]);
   const cleanTierBps: Record<string, number> = {};
@@ -112,7 +153,7 @@ export async function updatePlatformCommissionConfig(
     // Read the before-state for the audit log.
     const { data: before } = await sb
       .from("platform_commission_config")
-      .select("default_take_bps, default_take_floor_cents, plan_tier_bps")
+      .select("default_take_bps, default_take_floor_cents, client_surcharge_bps, max_base_fee_cents, max_base_fee_bps, plan_tier_bps")
       .eq("singleton_key", true)
       .maybeSingle();
 
@@ -121,6 +162,9 @@ export async function updatePlatformCommissionConfig(
       .update({
         default_take_bps: Math.round(args.defaultTakeBps),
         default_take_floor_cents: Math.round(args.defaultTakeFloorCents),
+        client_surcharge_bps: cleanClientSurchargeBps,
+        max_base_fee_cents: cleanMaxBaseFeeCents,
+        max_base_fee_bps: cleanMaxBaseFeeBps,
         plan_tier_bps: cleanTierBps,
         updated_at: new Date().toISOString(),
       })
@@ -143,6 +187,9 @@ export async function updatePlatformCommissionConfig(
         after: {
           default_take_bps: Math.round(args.defaultTakeBps),
           default_take_floor_cents: Math.round(args.defaultTakeFloorCents),
+          client_surcharge_bps: cleanClientSurchargeBps,
+          max_base_fee_cents: cleanMaxBaseFeeCents,
+          max_base_fee_bps: cleanMaxBaseFeeBps,
           plan_tier_bps: cleanTierBps,
         },
       },

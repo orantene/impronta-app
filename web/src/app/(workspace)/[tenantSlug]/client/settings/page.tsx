@@ -9,7 +9,9 @@ import { ClientTrustShell } from "./ClientTrustShell";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
 import { loadUserPrefs } from "@/lib/server-actions/user-prefs";
-import { NotificationPrefsPanel } from "./NotificationPrefsPanel";
+import { NotificationPrefsPanel, type UiCategory, type UiChannel } from "./NotificationPrefsPanel";
+import { ORDERED_CATEGORIES } from "@/lib/notifications/categories";
+import { LIVE_CHANNELS } from "@/lib/notifications/types";
 import { ProfileFields, AccountFields } from "./_components/AccountFormsClient";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +62,20 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   if (!clientProfile) notFound();
   const stripeEnabled = isStripeConfigured();
   const notificationPrefs = userPrefs?.notificationPrefs ?? {};
+
+  // Category list for the prefs panel. categories.ts is server-only, so we map
+  // the canonical definitions to a serializable shape here and hand them to the
+  // client panel. Channels are narrowed to the live set the dispatcher can
+  // actually deliver on — the panel renders a toggle only for those.
+  const notificationCategories: UiCategory[] = ORDERED_CATEGORIES.map((c) => ({
+    id: c.id,
+    label: c.label,
+    description: c.description,
+    required: c.required,
+    channels: c.defaultChannels.filter((ch): ch is UiChannel =>
+      (LIVE_CHANNELS as readonly string[]).includes(ch),
+    ),
+  }));
 
   const userEmail =
     (session.user.email as string | undefined) ?? "—";
@@ -119,12 +135,15 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           />
         </Card>
 
-        {/* Notifications — placeholder */}
+        {/* Notifications — per-category channel prefs the dispatcher honors. */}
         <Card
           title="Notifications"
-          subtitle="How you hear about inquiry updates. Changes auto-save."
+          subtitle="Choose how you hear about each kind of update. Account & billing notices are always sent. Changes auto-save."
         >
-          <NotificationPrefsPanel initialPrefs={notificationPrefs} />
+          <NotificationPrefsPanel
+            categories={notificationCategories}
+            initialPrefs={notificationPrefs}
+          />
         </Card>
 
         {/* Phase 8.3 — Trust badge + verification + balance top-up */}

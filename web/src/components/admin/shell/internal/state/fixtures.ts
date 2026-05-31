@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
-import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteDomain, WebsitePageRow, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
+import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
 export const SURFACES: Surface[] = ["workspace", "talent", "client", "platform"];
@@ -260,6 +260,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   media:     { label: "Media",     icon: "camera",   description: "Workspace photo library, watermark control, and usage tracking" },
   pitches:   { label: "Pitches",   icon: "send",     description: "Curated talent suggestions sent to clients" },
   financials:{ label: "Financials",icon: "trending-up", description: "Revenue, payouts, commissions, and payment status" },
+  payouts:   { label: "Payouts",   icon: "credit-card", description: "Stripe Connect payout onboarding and base reservation fee" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
   inbox:     { label: "Inbox",     icon: "mail" },
@@ -3066,6 +3067,7 @@ export const TYPE_RATE_UNIT: Record<TaxonomyParentId, RateUnit> = {
   photo_video:    "day",
   event_staff:    "hour",
   security:       "hour",
+  services:       "hour",
 };
 export const LOCALE_LABEL: Record<LocaleCode, string> = {
   en: "English",
@@ -3339,6 +3341,19 @@ export const TAXONOMY: TaxonomyParent[] = [
       { id: "door",         label: "Door staff" },
     ],
   },
+  {
+    id: "services", label: "Services", emoji: "🔧", minPlan: "free",
+    helper: "Cleaning, hospitality staff, transport, security, catering, retail, technical support.",
+    children: [
+      { id: "cleaning_staff",   label: "Cleaning & Laundry",  specialties: ["Standard clean", "Deep clean", "Industrial", "Laundry & ironing", "Turndown service"] },
+      { id: "hotel_staff",      label: "Hospitality staff",   specialties: ["Front desk", "Housekeeping", "Butler", "Concierge", "Villa staff"] },
+      { id: "svc_transport",    label: "Transport staff",     specialties: ["Airport transfer", "Shuttle", "Delivery", "Long-distance"] },
+      { id: "svc_security",     label: "Security staff",      specialties: ["Event security", "Door staff", "Close protection"] },
+      { id: "svc_catering",     label: "Catering staff",      specialties: ["Events", "Corporate", "Wedding", "Private dining"] },
+      { id: "svc_retail",       label: "Retail staff",        specialties: ["Sales", "Cashier", "Visual merchandising", "Stock management"] },
+      { id: "svc_technical",    label: "Technical & AV",      specialties: ["AV / sound", "Lighting", "IT support", "Stage rigging"] },
+    ],
+  },
 ];
 
 export const PLAN_TAXONOMY_LIMITS: Record<"free" | "studio" | "agency" | "network", number> = {
@@ -3413,6 +3428,15 @@ export const TAXONOMY_FIELDS: Record<TaxonomyParentId, RegField[]> = {
     { id: "training",      label: "Training",       kind: "multiselect", options: ["Close protection", "Crowd control", "First aid", "De-escalation"] },
     { id: "languages_fluent", label: "Languages spoken", kind: "chips", placeholder: "Add a language…" },
   ],
+  services: [
+    { id: "service_types", label: "Services provided", kind: "multiselect", options: ["Housekeeping", "Laundry & ironing", "Deep clean", "Industrial clean", "Turndown service", "Concierge support", "Front desk", "Butler service", "Transport", "Security", "Catering", "AV / Technical", "Retail"] },
+    { id: "experience_yrs", label: "Years experience", kind: "number", optional: true, placeholder: "3" },
+    { id: "equipment_own",  label: "Brings own equipment", kind: "select", optional: true, options: ["Yes", "No", "Partial"] },
+    { id: "availability",   label: "Availability schedule", kind: "select", optional: true, options: ["Full-time", "Part-time", "On-call", "Seasonal", "Flexible"] },
+    { id: "certifications", label: "Certifications", kind: "chips", optional: true, placeholder: "Add cert…" },
+    { id: "languages_fluent", label: "Languages spoken", kind: "chips", optional: true, placeholder: "Add a language…" },
+    { id: "uniform",        label: "Uniform", kind: "select", optional: true, options: ["Formal / black tie", "Smart casual", "Company uniform", "Casual", "None"] },
+  ],
 };
 
 /** Default settings for the demo agency (Atelier Roma). Free plan = 3 enabled. */
@@ -3429,6 +3453,9 @@ export const WORKSPACE_TAXONOMY_DEFAULT: WorkspaceTaxonomySetting[] = [
   { parentId: "photo_video",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: false },
   { parentId: "event_staff",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: false },
   { parentId: "security",       isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  // Services: free-tier accessible so workspaces like Hotels Express Lavanderia
+  // can onboard cleaning, hospitality, and transport staff without needing Agency plan.
+  { parentId: "services",       isEnabled: true,  showInDirectory: true, showInRegistration: true,  requiresApproval: false },
 ];
 
 export const DISCOVER_TALENT: DiscoverTalent[] = [
@@ -4721,14 +4748,19 @@ export const WEBSITE_STATE: WebsiteState = {
 
 /**
  * Merge server-loaded `WebsiteData` into the prototype `WebsiteState` shape.
- * Keeps mock analytics / maintenance / announcement until those loaders exist.
+ *
+ * Phase B de-fixture (2026-05-28):
+ *  - Domain fallback uses real `${tenantSlug}.tulala.digital`, not prototype literal.
+ *  - Analytics zeroed out — real analytics loader is Phase C. `WebsitePerformance`
+ *    renders cleanly with all-zeros (top-performer tables filter to `visits > 0`).
+ *  - Announcement disabled — SS27 fixture copy removed; real announcement is Phase C.
  */
-export function mergeWebsiteStateFromBridge(live: WebsiteData): WebsiteState {
+export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: string): WebsiteState {
   const host =
     live.domainSummary.primaryHost ??
     live.domainSummary.customDomainHost ??
     live.domainSummary.subdomainHost ??
-    WEBSITE_STATE.domain.primaryDomain;
+    `${tenantSlug}.tulala.digital`;
 
   const sslOk =
     live.domainSummary.primaryHostStatus === "active" ||
@@ -4811,12 +4843,33 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData): WebsiteState {
     canonicalDomain: host,
   };
 
+  // Zero analytics — real analytics loader is Phase C. The Performance panel
+  // renders cleanly with zeros (no top-performer rows shown when visits === 0).
+  const zeroMetrics: WebsitePeriodMetrics = {
+    visits: 0, inquiries: 0, bookings: 0, revenue: 0,
+    prior: { visits: 0, inquiries: 0, bookings: 0, revenue: 0 },
+  };
+  const analyticsZero: WebsiteAnalytics = {
+    refreshedAt:  new Date().toISOString(),
+    last7d:       zeroMetrics,
+    last30d:      zeroMetrics,
+    byPage7d:     [],
+    byPage30d:    [],
+    byTalent7d:   [],
+    byTalent30d:  [],
+  };
+
   return {
     ...WEBSITE_STATE,
     pages,
     posts,
     redirects,
-    domain: domainPatch,
-    seo: seoPatch,
+    domain:       domainPatch,
+    seo:          seoPatch,
+    analytics:    analyticsZero,
+    // Disable fixture announcement — real announcement management is Phase C.
+    announcement: { enabled: false, text: "", audience: "all", tone: "info" },
+    // Scope tracking domain to the real workspace.
+    tracking: { ...WEBSITE_STATE.tracking, plausibleDomain: host },
   };
 }

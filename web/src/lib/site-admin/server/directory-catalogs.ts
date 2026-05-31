@@ -402,6 +402,82 @@ export async function setDirectorySectionCollapsedDefault(
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Read: card-eligible field candidates (Card Design studio)
+// ──────────────────────────────────────────────────────────────────────
+
+export type CardDesignFieldCandidate = {
+  key: string;
+  label: string;
+  /** Whether the field currently renders on talent cards for this tenant. */
+  cardVisible: boolean;
+  valueType: string;
+};
+
+type CardCandidateRow = {
+  key: string;
+  value_type: string;
+  sort_order: number | null;
+  label_en: string | null;
+  tenant_id: string | null;
+  card_visible: boolean | null;
+};
+
+/**
+ * The candidate set the Card Design studio offers as card fields: every
+ * field the public surface stack would let onto a card (`public_visible`
+ * + `profile_visible`, active, non-internal), each tagged with its current
+ * `card_visible` flag so the studio can render on/off toggles. Tenant-local
+ * override rows shadow canonical rows by key — the same precedence the
+ * directory card display catalog applies. Toggling a row calls
+ * `setFieldCardVisible`, so the studio reads and writes the one engine
+ * source (`field_definitions`), not a parallel model.
+ */
+export async function readCardDesignFieldCandidates(): Promise<
+  { ok: true; data: CardDesignFieldCandidate[] } | { ok: false; error: string }
+> {
+  const guard = await guardCatalogScope();
+  if (!guard.ok) return guard;
+  const { admin, tenantId } = guard.scope;
+
+  const columns = "key, value_type, sort_order, label_en, tenant_id, card_visible";
+  const base = () =>
+    admin
+      .from("field_definitions")
+      .select(columns)
+      .is("archived_at", null)
+      .eq("active", true)
+      .eq("internal_only", false)
+      .eq("public_visible", true)
+      .eq("profile_visible", true);
+
+  const [canonicalRes, tenantRes] = await Promise.all([
+    base().is("tenant_id", null),
+    base().eq("tenant_id", tenantId),
+  ]);
+  if (canonicalRes.error) return { ok: false, error: canonicalRes.error.message };
+  if (tenantRes.error) return { ok: false, error: tenantRes.error.message };
+
+  // Canonical first, tenant-local rows override by key.
+  const byKey = new Map<string, CardCandidateRow>();
+  for (const r of (canonicalRes.data ?? []) as CardCandidateRow[]) byKey.set(r.key, r);
+  for (const r of (tenantRes.data ?? []) as CardCandidateRow[]) byKey.set(r.key, r);
+
+  const data = [...byKey.values()]
+    .filter((r) => r.key !== "fit_labels")
+    .map((r) => ({
+      key: r.key,
+      label: r.label_en?.trim() || r.key,
+      cardVisible: Boolean(r.card_visible),
+      valueType: r.value_type,
+      sortOrder: typeof r.sort_order === "number" ? r.sort_order : 0,
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
+    .map(({ sortOrder: _sortOrder, ...rest }) => rest);
+
+  return { ok: true, data };
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // field_definitions writes (card_visible + directory_filter_visible)
 // ──────────────────────────────────────────────────────────────────────
 

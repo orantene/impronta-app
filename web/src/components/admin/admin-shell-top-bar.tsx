@@ -70,6 +70,7 @@ import { cn } from "@/lib/utils";
 // ADMIN_NAV_LABEL_BY_SEGMENT so a sidebar rename auto-updates the breadcrumb.
 const SUBROUTE_LABELS: Record<string, string> = {
   "site-settings": "Site",
+  "card-design": "Card Design",
   structure: "Composer",
   design: "Design",
   sections: "Sections",

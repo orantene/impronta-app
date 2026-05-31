@@ -9,6 +9,7 @@ import {
 import { ProductTourSection } from "@/components/marketing/product-tour-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 
 export const metadata: Metadata = {
   title: "For agencies & representation",
@@ -162,209 +163,107 @@ export default function AgenciesPage() {
 }
 
 function PillarArt({ variant }: { variant: "site" | "roster" | "pipeline" }) {
-  if (variant === "site") return <SiteArt />;
-  if (variant === "roster") return <RosterArt />;
-  return <PipelineArt />;
+  if (variant === "site") {
+    return (
+      <PhotoPillarArt
+        photo={MARKETING_PHOTOS.agencyBuilder}
+        eyebrow="Workspace live"
+        title="Website, inquiries, roster."
+        statA={{ label: "Domain", value: "Custom" }}
+        statB={{ label: "Setup", value: "Fast" }}
+      />
+    );
+  }
+  if (variant === "roster") {
+    return (
+      <PhotoPillarArt
+        photo={MARKETING_PHOTOS.heroServices}
+        eyebrow="People as product"
+        title="Profiles clients want to click."
+        statA={{ label: "Profiles", value: "Rich" }}
+        statB={{ label: "Media", value: "Premium" }}
+      />
+    );
+  }
+  return (
+    <PhotoPillarArt
+      photo={MARKETING_PHOTOS.hubDiscovery}
+      eyebrow="Pipeline"
+      title="Every request gets a home."
+      statA={{ label: "Inbox", value: "Structured" }}
+      statB={{ label: "Source", value: "Tracked" }}
+    />
+  );
 }
 
-function ArtFrame({ children }: { children: React.ReactNode }) {
+function PhotoPillarArt({
+  photo,
+  eyebrow,
+  title,
+  statA,
+  statB,
+}: {
+  photo: MarketingPhoto;
+  eyebrow: string;
+  title: string;
+  statA: { label: string; value: string };
+  statB: { label: string; value: string };
+}) {
   return (
-    <div
-      className="relative aspect-[5/4] overflow-hidden rounded-[28px]"
+    <figure
+      className="relative min-h-[24rem] overflow-hidden rounded-[28px]"
       style={{
-        background:
-          "linear-gradient(145deg, #0f1714 0%, #1f4a3a 45%, #2e6b52 100%)",
+        background: "var(--plt-bg-deep)",
         border: "1px solid var(--plt-hairline-strong)",
         boxShadow:
-          "0 40px 80px -40px rgba(15,23,20,0.5), 0 14px 32px -18px rgba(31,74,58,0.35)",
+          "0 40px 80px -42px rgba(15,23,20,0.45), 0 14px 32px -24px rgba(31,74,58,0.3)",
       }}
     >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photo.url()}
+        alt={photo.alt}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
       <div
         aria-hidden
-        className="absolute inset-0 opacity-50"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 28% 22%, rgba(255,253,248,0.22), transparent 55%), radial-gradient(circle at 82% 78%, rgba(46,107,82,0.35), transparent 50%)",
-        }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(180deg, rgba(15,23,20,0.04) 10%, rgba(15,23,20,0.58) 100%)" }}
       />
-      <div className="relative h-full w-full p-6 sm:p-7">{children}</div>
-    </div>
-  );
-}
-
-function SiteArt() {
-  return (
-    <ArtFrame>
-      <div
-        className="h-full w-full overflow-hidden rounded-[16px]"
-        style={{
-          background: "rgba(241,237,227,0.96)",
-          boxShadow:
-            "0 30px 60px -30px rgba(15,23,20,0.5), 0 1px 0 rgba(255,255,255,0.4) inset",
-        }}
-      >
-        <div
-          className="flex items-center gap-2 border-b px-3 py-2.5"
-          style={{ borderColor: "var(--plt-hairline)" }}
+      <figcaption className="absolute inset-x-5 bottom-5 sm:inset-x-6 sm:bottom-6">
+        <span
+          className="plt-mono text-[0.6875rem] font-medium uppercase"
+          style={{ color: "rgba(241,237,227,0.72)" }}
         >
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#e0dcd0" }} />
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#e0dcd0" }} />
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#e0dcd0" }} />
-          <span
-            className="ml-2 truncate plt-mono text-[0.625rem] tracking-[0.08em]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            your-agency.com
-          </span>
-        </div>
-        <div className="flex items-center justify-between px-5 py-4">
-          <span
-            className="plt-display text-[0.9375rem] font-medium tracking-[-0.02em]"
-            style={{ color: "var(--plt-ink)" }}
-          >
-            NOVA
-          </span>
-          <div className="flex gap-4">
-            {["Roster", "Work", "Journal", "Contact"].map((n) => (
-              <span
-                key={n}
-                className="text-[0.625rem]"
-                style={{ color: "var(--plt-muted)" }}
-              >
-                {n}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="px-5">
-          <div
-            className="h-[6px] w-20 rounded-full"
-            style={{ background: "var(--plt-forest)" }}
-          />
-          <div
-            className="mt-3 h-[14px] w-3/4 rounded-full"
-            style={{ background: "rgba(15,23,20,0.14)" }}
-          />
-          <div
-            className="mt-2 h-[14px] w-5/6 rounded-full"
-            style={{ background: "rgba(15,23,20,0.1)" }}
-          />
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="aspect-[3/4] rounded-md"
-                style={{
-                  background:
-                    i === 0
-                      ? "linear-gradient(170deg, #1f4a3a, #2e6b52)"
-                      : i === 1
-                      ? "linear-gradient(170deg, #2c332f, #5c6561)"
-                      : "linear-gradient(170deg, #143226, #1f4a3a)",
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </ArtFrame>
-  );
-}
-
-function RosterArt() {
-  return (
-    <ArtFrame>
-      <div className="grid h-full grid-cols-2 gap-3">
-        {[
-          { name: "Sofia M.", label: "Editorial \u00b7 MX" },
-          { name: "Kai T.", label: "Runway \u00b7 JP" },
-          { name: "Mara L.", label: "Commercial \u00b7 ES" },
-          { name: "Oren V.", label: "Fitness \u00b7 DE" },
-        ].map((p, i) => (
-          <div
-            key={p.name}
-            className="relative overflow-hidden rounded-[14px]"
-            style={{
-              background:
-                i === 0
-                  ? "linear-gradient(165deg, #0f1714 0%, #1f4a3a 65%, #2e6b52 100%)"
-                  : i === 1
-                  ? "linear-gradient(165deg, #18211d 0%, #2c332f 55%, #5c6561 100%)"
-                  : i === 2
-                  ? "linear-gradient(165deg, #1a2e26 0%, #3a5b4e 55%, #6f8f80 100%)"
-                  : "linear-gradient(165deg, #0a1411 0%, #143226 55%, #1f4a3a 100%)",
-              border: "1px solid rgba(241,237,227,0.08)",
-            }}
-          >
+          {eyebrow}
+        </span>
+        <h3
+          className="plt-display mt-2 max-w-[24rem] text-[1.85rem] font-semibold leading-[1.06]"
+          style={{ color: "var(--plt-on-inverse)" }}
+        >
+          {title}
+        </h3>
+        <dl className="mt-5 grid grid-cols-2 gap-3">
+          {[statA, statB].map((stat) => (
             <div
-              aria-hidden
-              className="absolute inset-x-3 top-3 h-[3px] rounded-full"
-              style={{ background: "rgba(241,237,227,0.25)" }}
-            />
-            <div className="absolute inset-x-3 bottom-3">
-              <div
-                className="plt-mono text-[0.5625rem] tracking-[0.18em]"
-                style={{ color: "rgba(241,237,227,0.6)" }}
-              >
-                {p.label}
-              </div>
-              <div
-                className="plt-display mt-0.5 text-[0.8125rem] font-medium tracking-[-0.01em]"
-                style={{ color: "rgba(241,237,227,0.96)" }}
-              >
-                {p.name}
-              </div>
+              key={stat.label}
+              className="rounded-[16px] px-4 py-3 backdrop-blur-md"
+              style={{
+                background: "rgba(241,237,227,0.12)",
+                border: "1px solid rgba(241,237,227,0.16)",
+                color: "var(--plt-on-inverse)",
+              }}
+            >
+              <dt className="plt-mono text-[0.625rem] uppercase" style={{ color: "rgba(241,237,227,0.62)" }}>
+                {stat.label}
+              </dt>
+              <dd className="mt-1 text-[0.9375rem] font-semibold">
+                {stat.value}
+              </dd>
             </div>
-          </div>
-        ))}
-      </div>
-    </ArtFrame>
-  );
-}
-
-function PipelineArt() {
-  const STAGES = [
-    { label: "Inquiry", count: 12, tone: "rgba(241,237,227,0.16)" },
-    { label: "Offer", count: 5, tone: "rgba(46,107,82,0.5)" },
-    { label: "Approved", count: 3, tone: "rgba(46,107,82,0.75)" },
-    { label: "Booked", count: 2, tone: "rgba(241,237,227,0.92)" },
-  ];
-  return (
-    <ArtFrame>
-      <div className="flex h-full flex-col justify-center gap-3">
-        {STAGES.map((s, i) => (
-          <div key={s.label} className="flex items-center gap-3">
-            <span
-              className="plt-mono w-16 shrink-0 text-[0.625rem] tracking-[0.14em]"
-              style={{ color: "rgba(241,237,227,0.7)" }}
-            >
-              {s.label.toUpperCase()}
-            </span>
-            <div
-              className="relative h-[22px] flex-1 overflow-hidden rounded-full"
-              style={{ background: "rgba(241,237,227,0.08)" }}
-            >
-              <div
-                className="absolute inset-y-0 left-0 rounded-full"
-                style={{
-                  width: `${100 - i * 18}%`,
-                  background:
-                    i === STAGES.length - 1
-                      ? "linear-gradient(90deg, rgba(46,107,82,0.9), rgba(241,237,227,0.95))"
-                      : `linear-gradient(90deg, ${s.tone}, rgba(46,107,82,0.55))`,
-                  boxShadow: "0 0 0 1px rgba(241,237,227,0.06) inset",
-                }}
-              />
-            </div>
-            <span
-              className="plt-mono w-7 text-right text-[0.75rem] font-medium"
-              style={{ color: "rgba(241,237,227,0.9)" }}
-            >
-              {s.count}
-            </span>
-          </div>
-        ))}
-      </div>
-    </ArtFrame>
+          ))}
+        </dl>
+      </figcaption>
+    </figure>
   );
 }

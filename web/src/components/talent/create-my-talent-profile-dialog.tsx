@@ -94,9 +94,23 @@ export function CreateMyTalentProfileDialog({
         return;
       }
 
-      // Success — navigate to talent dashboard for this workspace.
-      // Keep dialog open while navigating to avoid a layout flash.
-      router.push(`/${tenantSlug}/talent`);
+      // Success — land on the workspace roster, where the caller now appears as
+      // a talent (the server action revalidates `/${tenantSlug}/admin/roster`,
+      // so the new row is present on arrival).
+      //
+      // Why not the talent surface itself? The CTA that opens this dialog is
+      // admin-only, so the caller's `app_role` is a workspace/staff role — not
+      // "talent". Auth-routing (middleware → resolveAuthRoutingDecision) bounces
+      // ANY `/talent/*` request whose `app_role !== "talent"` to the role
+      // dashboard, and creating a talent_profile row does NOT change app_role.
+      // So both `/talent/today` and `/${tenantSlug}/talent/today` (which 308s to
+      // `/talent/today`) bounce admins straight to `/admin`. Direct talent-surface
+      // access for hybrid admins is the deferred app_role-hybrid flip; until then
+      // the roster is the reachable surface that confirms the profile was created.
+      // Close the dialog first — this is an in-shell navigation (same admin
+      // shell), so there's no cross-shell flash to bridge.
+      onOpenChange(false);
+      router.push(`/${tenantSlug}/admin/roster`);
     } catch (err) {
       setSubmitState({
         status: "error",

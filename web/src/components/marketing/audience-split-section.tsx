@@ -18,51 +18,51 @@ type Audience = {
 const AUDIENCES: Audience[] = [
   {
     key: "operator",
-    eyebrow: "For independent operators",
-    title: "You ARE the business.",
+    eyebrow: "For talent & service pros",
+    title: "Start selling from one link.",
     subtitle:
-      `You coordinate, book, and represent a roster out of your phone. ${PLATFORM_BRAND.name} gives you the structure — without the overhead of building anything.`,
+      `Singer, cleaner, chef, creator, stylist, instructor — ${PLATFORM_BRAND.name} gives your work a page, a request flow, and room to grow without building anything first.`,
     bullets: [
-      "One polished link for the whole roster",
-      "A free subdomain, ready in minutes",
-      "Structured inquiry inbox, not chat threads",
-      "Optional hub exposure for discovery",
+      "Free profile page and shareable link",
+      "Reservations and inquiries from clients",
+      "Upgrade to Pro or Max when you want a site",
+      "Apply to agencies and hubs when ready",
     ],
-    cta: { label: "Start free as an operator", href: "/operators", intent: "operator" },
+    cta: { label: "Start as talent", href: "/operators", intent: "operator" },
     tint: "neutral",
     photo: MARKETING_PHOTOS.operator,
   },
   {
     key: "agency",
-    eyebrow: "For agencies & representation",
-    title: "Your agency, rebuilt for 2026.",
+    eyebrow: "For agencies & workspaces",
+    title: "Build the business around them.",
     subtitle:
-      "Run a branded site on your own domain, manage the roster in a modern CMS, and work inquiries in a real pipeline — not a spreadsheet.",
+      "Run a branded site on your own domain, manage people and services in a modern CMS, and turn inquiries into real pipeline instead of another spreadsheet.",
     bullets: [
       "Custom domain, branded identity, CMS-driven pages",
       "Multi-user access with roles and permissions",
       "Inquiry → offer → approval → booking pipeline",
       "Design system that flows across every surface",
     ],
-    cta: { label: "See agency features", href: "/agencies", intent: "agency" },
+    cta: { label: "Build an agency", href: "/agencies", intent: "agency" },
     tint: "ink",
     photo: MARKETING_PHOTOS.agency,
   },
   {
     key: "organization",
-    eyebrow: "For staffing, casting & placement",
-    title: "A directory that works.",
+    eyebrow: "For hubs & networks",
+    title: "Make discovery feel alive.",
     subtitle:
-      "Whether you place performers, crew, coordinators, or specialists — organize people, surface them to clients, and turn inquiries into structured opportunities.",
+      "Curate agencies, talent, categories, and locations into a searchable network clients want to browse and talent want to join.",
     bullets: [
-      "Taxonomy-driven people profiles",
-      "Filterable, browsable directory",
+      "Netflix-style browsing and filters",
+      "Agency and hub application paths",
       "Role-scoped access for large teams",
-      "API-ready (roadmap) for integrations",
+      "Inquiry routing with source ownership",
     ],
     cta: {
-      label: "For larger organizations",
-      href: "/organizations",
+      label: "Browse agencies & hubs",
+      href: "/discover-agencies",
       intent: "organization",
     },
     tint: "forest",
@@ -86,9 +86,8 @@ export function AudienceSplitSection() {
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            Whether you&rsquo;re a one-person operator or running a full representation
-            business, {PLATFORM_BRAND.name} scales with how you work — without forcing you
-            to change how you work.
+            Whether you are earning from your own skill, running a full representation
+            business, or curating a hub, {PLATFORM_BRAND.name} scales with how you work.
           </p>
         </div>
 
@@ -102,9 +101,9 @@ export function AudienceSplitSection() {
           className="mx-auto mt-10 max-w-2xl text-center text-[0.875rem]"
           style={{ color: "var(--mkt-muted)" }}
         >
-          Talent and model agencies are one strong example — but the same infrastructure
-          runs casting, staffing, speaker bureaus, performer rosters, and any business
-          where the product is <em>people you represent</em>.
+          Talent and model agencies are one strong example — the same infrastructure
+          works for cleaning teams, private chefs, beauty pros, performers, healthcare
+          clinics, accounting firms, and any service business built around people.
         </p>
       </MarketingContainer>
     </MarketingSection>

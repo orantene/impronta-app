@@ -325,6 +325,31 @@ export function RosterGrid({
 }
 
 // ── Roster card (premium 2026 design) ───────────────────────────────
+/**
+ * Shared base style for the roster-card overlay pills. One cohesive token —
+ * dark frosted glass, hairline light border, blur — so the completeness,
+ * photo-count, TAL-ID and availability chips read as one family instead of
+ * the four slightly-different pills they used to be. Per-pill overrides
+ * (critical red at 0 photos, mono for the TAL-ID, the light availability
+ * variant) spread on top of this.
+ */
+const OVERLAY_PILL_BASE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  height: 22,
+  padding: "0 8px",
+  borderRadius: 999,
+  background: "rgba(11,11,13,0.62)",
+  border: "1px solid rgba(255,255,255,0.14)",
+  color: "#fff",
+  fontSize: 10,
+  fontWeight: 600,
+  lineHeight: 1,
+  backdropFilter: "blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
+};
+
 function RosterCard({
   profile,
   selected,
@@ -340,7 +365,7 @@ function RosterCard({
   // Mirror the old CSS background-image silent-fallback: on 400/404 from
   // Supabase, hide the image and let the initials placeholder show through.
   const [photoFailed, setPhotoFailed] = useState(false);
-  const { bridgeTalentSelfProfile, tenantSlug, t } = useAdminShell();
+  const { bridgeTalentSelfProfile, tenantSlug, t, rosterCardBadges } = useAdminShell();
   const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
   // Resolve primary type → label + parent emoji + first specialty.
@@ -394,7 +419,7 @@ function RosterCard({
         boxShadow: hover ? "0 6px 20px -10px rgba(11,11,13,0.18)" : "0 1px 2px rgba(11,11,13,0.03)",
         // Talent has globally hidden themselves — render the card "deactivated"
         // so the agency sees at a glance it is off everywhere, not just here.
-        opacity: profile.talentHidden ? 0.6 : 1,
+        opacity: profile.state === "draft" ? 0.75 : profile.talentHidden ? 0.6 : 1,
       }}
     >
       {/* Photo */}
@@ -427,8 +452,8 @@ function RosterCard({
             {profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
           </div>
         )}
-        {/* Modern verified-icon overlay — IG / Tulala / Agency. */}
-        <RosterPhotoBadgeOverlay talentId={profile.id} />
+        {/* Verified marks now live in the bottom-right stack (below) so they
+            stack with availability + TAL-ID instead of overlapping them. */}
         {/* "You" badge — persistent marker when this is the signed-in talent's own profile */}
         {isSelf && (
           <div
@@ -505,15 +530,17 @@ function RosterCard({
             zIndex: 2,
           }}
         >
-          <RosterEyeToggle
-            talentId={profile.id}
-            tenantSlug={tenantSlug}
-            siteVisible={profile.siteVisible ?? false}
-            talentHidden={profile.talentHidden ?? false}
-          />
+          {rosterCardBadges.visibility && (
+            <RosterEyeToggle
+              talentId={profile.id}
+              tenantSlug={tenantSlug}
+              siteVisible={profile.siteVisible ?? false}
+              talentHidden={profile.talentHidden ?? false}
+            />
+          )}
           {/* "On Discover" pill — surfaces talent_profiles.is_discoverable
               (the talent's cross-tenant Tulala Discover opt-in). */}
-          {profile.isDiscoverable && (
+          {rosterCardBadges.discover && profile.isDiscoverable && (
             <div
               aria-label="On Tulala Discover"
               title="This talent has enabled their Discover toggle"
@@ -549,25 +576,12 @@ function RosterCard({
             gap: 4,
           }}
         >
-          {profile.state !== "published" && profile.completeness !== undefined && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                borderRadius: 999,
-                background: "rgba(11,11,13,0.55)",
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 600,
-                backdropFilter: "blur(6px)",
-              }}
-            >
+          {rosterCardBadges.completeness && profile.state !== "published" && profile.completeness !== undefined && (
+            <div style={OVERLAY_PILL_BASE}>
               {profile.completeness}%
             </div>
           )}
-          {profile.portfolioCount !== undefined && (
+          {rosterCardBadges.photoCount && profile.portfolioCount !== undefined && (
             <div
               title={
                 profile.portfolioCount === 1
@@ -579,18 +593,15 @@ function RosterCard({
                     })
               }
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                borderRadius: 999,
-                background: profile.portfolioCount === 0
-                  ? "rgba(200,55,55,0.78)"
-                  : "rgba(11,11,13,0.55)",
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 600,
-                backdropFilter: "blur(6px)",
+                ...OVERLAY_PILL_BASE,
+                ...(profile.portfolioCount === 0
+                  ? {
+                      // Cooler, palette-aligned critical red (≈ COLORS.critical
+                      // #B0303A) instead of the old orange-leaning rgba.
+                      background: "rgba(176,48,58,0.84)",
+                      border: "1px solid rgba(255,255,255,0.18)",
+                    }
+                  : null),
               }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -603,9 +614,9 @@ function RosterCard({
           )}
         </div>
 
-        {/* Bottom-right stack: availability pill (published only) +
-            the talent's canonical code (TAL-NNNNN). Stacked vertically
-            so the two never overlap. */}
+        {/* Bottom-right stack: verified marks + availability pill (published
+            only) + the talent's canonical code (TAL-NNNNN). Stacked vertically
+            so the verified mark, availability, and ID never overlap. */}
         <div
           style={{
             position: "absolute",
@@ -615,29 +626,33 @@ function RosterCard({
             flexDirection: "column",
             alignItems: "flex-end",
             gap: 4,
+            zIndex: 2,
           }}
         >
-          {profile.state === "published" && profile.availability && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)", boxShadow: "0 1px 4px rgba(11,11,13,0.10)", fontSize: 10, fontWeight: 600, textTransform: "capitalize" }} className="text-admin-ink">
+          {rosterCardBadges.trust && <RosterPhotoBadgeOverlay talentId={profile.id} inline />}
+          {rosterCardBadges.availability && profile.state === "published" && profile.availability && (
+            <div
+              style={{
+                ...OVERLAY_PILL_BASE,
+                background: "rgba(255,255,255,0.92)",
+                border: "1px solid rgba(11,11,13,0.06)",
+                color: COLORS.ink,
+                textTransform: "capitalize",
+                boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
+              }}
+            >
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: availDot }} />
               {profile.availability}
             </div>
           )}
-          {profile.profileCode && (
+          {rosterCardBadges.talentId && profile.profileCode && (
             <div
               title={profile.profileCode}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "3px 8px",
-                borderRadius: 999,
-                background: "rgba(11,11,13,0.55)",
-                color: "#fff",
-                fontSize: 10,
+                ...OVERLAY_PILL_BASE,
                 fontWeight: 700,
                 letterSpacing: 0.3,
                 fontFamily: FONTS.mono,
-                backdropFilter: "blur(6px)",
               }}
             >
               {profile.profileCode}
@@ -648,6 +663,17 @@ function RosterCard({
 
       {/* Card body — name + type + city, hairlined */}
       <div style={{ padding: "10px 12px 12px" }}>
+        {profile.state === "draft" && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            padding: "2px 7px", borderRadius: 5, marginBottom: 5,
+            background: "rgba(11,11,13,0.06)",
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.6,
+            textTransform: "uppercase",
+          }} className="text-admin-ink-muted">
+            Draft
+          </div>
+        )}
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {profile.name}
         </div>
@@ -690,6 +716,31 @@ function RosterCard({
         <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
           <RosterTrustCell talentId={profile.id} />
         </div>
+        {profile.state === "draft" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(profile);
+            }}
+            style={{
+              marginTop: 8,
+              width: "100%",
+              padding: "5px 10px",
+              borderRadius: 7,
+              border: `1px dashed ${COLORS.accent}`,
+              background: "transparent",
+              color: COLORS.accentDeep,
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              letterSpacing: 0.1,
+            }}
+          >
+            Continue editing →
+          </button>
+        )}
       </div>
     </div>
   );

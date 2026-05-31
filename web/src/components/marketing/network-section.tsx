@@ -1,5 +1,6 @@
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
+import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 
 export function NetworkSection() {
   return (
@@ -35,19 +36,19 @@ export function NetworkSection() {
               className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--mkt-ink-soft)" }}
             >
-              Every roster site plugs into a shared discovery hub where clients actually
-              browse. So independent operators get exposure, agencies get volume, and the
-              whole network gets bigger every time someone new joins.
+              Talent can browse agencies and hubs to apply, clients can discover the right
+              people, and workspaces can grow beyond their own website. The network should
+              feel like an opportunity feed, not a static list.
             </p>
 
             <ul className="mt-8 space-y-4">
               <NetworkBullet
-                title="Shared discovery"
-                body="Clients search across the network — not just your inbox — so the people you represent get seen even when you&rsquo;re not pitching."
+                title="Talent applies where they fit"
+                body="A singer, cleaner, chef, or model can find open agencies and hubs, then apply from the talent dashboard."
               />
               <NetworkBullet
-                title="Agencies as hubs"
-                body="Agencies run their own branded site and still benefit from network-wide discovery. One platform, both surfaces."
+                title="Agencies build their own business"
+                body="Each workspace keeps its brand, inquiry pipeline, roster, and site while still benefiting from shared discovery."
               />
               <NetworkBullet
                 title="Your data stays yours"
@@ -57,13 +58,13 @@ export function NetworkSection() {
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <MarketingCta
-                href="/network"
+                href="/discover-agencies"
                 variant="primary"
                 size="md"
                 eventSource="home-network"
-                eventIntent="network"
+                eventIntent="discover-agencies"
               >
-                Explore the network
+                Browse agencies & hubs
               </MarketingCta>
               <MarketingCta
                 href="/how-it-works#network"
@@ -114,135 +115,112 @@ function NetworkBullet({ title, body }: { title: string; body: string }) {
 }
 
 /**
- * Schematic: central "hub" ring with agency + freelancer + client nodes
- * connected by thin gold lines. Pure SVG.
+ * Homepage preview of the discovery experience. The full interactive filter
+ * grid lives at `/discover-agencies`; this stays static so the section remains
+ * lightweight and fast.
  */
 function NetworkDiagram() {
   return (
     <div
-      className="relative mx-auto aspect-square w-full max-w-[520px] overflow-hidden rounded-[28px] p-6 sm:p-10"
+      className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-[28px] p-4 sm:p-5"
       style={{
         background: "var(--mkt-surface-raised)",
         border: "1px solid var(--mkt-hairline-strong)",
         boxShadow: "0 32px 72px -32px rgba(15,23,20,0.25)",
       }}
     >
-      <svg
-        viewBox="0 0 420 420"
-        fill="none"
-        className="h-full w-full"
-        role="img"
-        aria-label="Network diagram: central hub connected to agencies, freelancers, and clients."
+      <div
+        className="relative h-[180px] overflow-hidden rounded-[22px] sm:h-[220px]"
+        style={{ background: "var(--plt-bg-deep)" }}
       >
-        <defs>
-          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2e6b52" />
-            <stop offset="100%" stopColor="#0f1714" />
-          </linearGradient>
-          <radialGradient id="nodeForest" cx="50%" cy="45%" r="50%">
-            <stop offset="0%" stopColor="#5c8b76" />
-            <stop offset="100%" stopColor="#1f4a3a" />
-          </radialGradient>
-          <radialGradient id="nodeInk" cx="50%" cy="45%" r="50%">
-            <stop offset="0%" stopColor="#2c332f" />
-            <stop offset="100%" stopColor="#0f1714" />
-          </radialGradient>
-        </defs>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={MARKETING_PHOTOS.hubDiscovery.url()}
+          alt={MARKETING_PHOTOS.hubDiscovery.alt}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "linear-gradient(180deg, rgba(15,23,20,0.05) 0%, rgba(15,23,20,0.42) 100%)" }}
+        />
+        <div className="absolute inset-x-4 bottom-4">
+          <span
+            className="plt-mono text-[0.625rem] font-medium uppercase"
+            style={{ color: "rgba(241,237,227,0.72)" }}
+          >
+            Agencies & hubs
+          </span>
+          <p
+            className="plt-display mt-1 text-[1.35rem] font-semibold leading-[1.08]"
+            style={{ color: "var(--plt-on-inverse)" }}
+          >
+            Search the network before you apply.
+          </p>
+        </div>
+      </div>
 
-        {/* Rings */}
-        <circle cx="210" cy="210" r="180" stroke="var(--mkt-hairline)" strokeDasharray="2 6" />
-        <circle cx="210" cy="210" r="130" stroke="var(--mkt-hairline)" strokeDasharray="2 6" />
-        <circle cx="210" cy="210" r="80" stroke="url(#ringGrad)" strokeWidth="1.25" />
-
-        {/* Connection lines */}
-        {LINES.map((l) => (
-          <line
-            key={`${l.x1}-${l.y1}`}
-            x1={l.x1}
-            y1={l.y1}
-            x2={210}
-            y2={210}
-            stroke="url(#ringGrad)"
-            strokeOpacity="0.35"
-            strokeWidth="0.75"
-          />
+      <div className="mt-4 flex flex-wrap gap-2">
+        {["Open", "Tulum", "Beauty", "Food", "Live music"].map((tag) => (
+          <span
+            key={tag}
+            className="rounded-full px-3 py-1.5 text-[0.75rem] font-medium"
+            style={{
+              background: tag === "Open" ? "var(--plt-forest)" : "var(--plt-bg)",
+              color: tag === "Open" ? "var(--plt-forest-on)" : "var(--plt-ink-soft)",
+              border: tag === "Open" ? "1px solid var(--plt-forest)" : "1px solid var(--plt-hairline)",
+            }}
+          >
+            {tag}
+          </span>
         ))}
+      </div>
 
-        {/* Central hub */}
-        <circle cx="210" cy="210" r="54" fill="url(#nodeInk)" />
-        <text
-          x="210"
-          y="204"
-          textAnchor="middle"
-          fill="var(--plt-on-inverse)"
-          fontFamily="var(--font-geist-sans), sans-serif"
-          fontSize="15"
-          fontWeight="600"
-          letterSpacing="-0.5"
-        >
-          Network
-        </text>
-        <text
-          x="210"
-          y="222"
-          textAnchor="middle"
-          fill="rgba(241,237,227,0.55)"
-          fontFamily="var(--font-geist-mono), monospace"
-          fontSize="9"
-          fontWeight="500"
-          letterSpacing="2"
-        >
-          SHARED HUB
-        </text>
-
-        {/* Nodes */}
-        {NODES.map((node) => (
-          <g key={`${node.label}-${node.x}-${node.y}`}>
-            <circle
-              cx={node.x}
-              cy={node.y}
-              r={node.r}
-              fill={node.tone === "forest" ? "url(#nodeForest)" : "var(--plt-bg-raised)"}
-              stroke={node.tone === "forest" ? "none" : "var(--plt-hairline-strong)"}
-              strokeWidth="1"
-            />
-            <text
-              x={node.x}
-              y={node.y + 4}
-              textAnchor="middle"
-              fontFamily="var(--font-geist-sans), sans-serif"
-              fontSize="10"
-              fontWeight="600"
-              fill={node.tone === "forest" ? "var(--plt-on-inverse)" : "var(--plt-ink)"}
-            >
-              {node.initial}
-            </text>
-            <text
-              x={node.x}
-              y={node.y + node.r + 14}
-              textAnchor="middle"
-              fontFamily="var(--font-geist-sans), sans-serif"
-              fontSize="10"
-              fontWeight="500"
-              fill="var(--plt-muted)"
-              letterSpacing="0.05em"
-            >
-              {node.label}
-            </text>
-          </g>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {NETWORK_PREVIEW_CARDS.map((card) => (
+          <article
+            key={card.name}
+            className="rounded-[20px] p-4"
+            style={{
+              background: "var(--plt-bg)",
+              border: "1px solid var(--plt-hairline)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p
+                  className="text-[0.9375rem] font-semibold"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  {card.name}
+                </p>
+                <p
+                  className="mt-1 text-[0.75rem]"
+                  style={{ color: "var(--plt-muted)" }}
+                >
+                  {card.meta}
+                </p>
+              </div>
+              <span
+                className="rounded-full px-2 py-1 text-[0.625rem] font-semibold uppercase"
+                style={{
+                  background: card.kind === "Hub" ? "rgba(46,107,82,0.14)" : "var(--plt-bg-raised)",
+                  color: card.kind === "Hub" ? "var(--plt-forest)" : "var(--plt-ink-soft)",
+                }}
+              >
+                {card.kind}
+              </span>
+            </div>
+          </article>
         ))}
-      </svg>
+      </div>
     </div>
   );
 }
 
-const NODES = [
-  { x: 90, y: 90, r: 22, tone: "ink", initial: "A", label: "Agency" },
-  { x: 330, y: 95, r: 22, tone: "forest", initial: "F", label: "Freelancer" },
-  { x: 360, y: 230, r: 18, tone: "forest", initial: "T", label: "Talent" },
-  { x: 320, y: 345, r: 20, tone: "ink", initial: "C", label: "Client" },
-  { x: 110, y: 340, r: 18, tone: "ink", initial: "B", label: "Booker" },
-  { x: 55, y: 220, r: 20, tone: "forest", initial: "T", label: "Talent" },
+const NETWORK_PREVIEW_CARDS = [
+  { name: "Impronta Models", meta: "Tulum · models, creators, hosts", kind: "Agency" },
+  { name: "Tulala Service Hub", meta: "Network · chefs, beauty, home", kind: "Hub" },
+  { name: "Nova Crew", meta: "Mexico City · events, performers", kind: "Agency" },
+  { name: "Private Pro Network", meta: "Remote · specialists, teams", kind: "Hub" },
 ] as const;
-
-const LINES = NODES.map((n) => ({ x1: n.x, y1: n.y }));

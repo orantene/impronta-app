@@ -59,6 +59,12 @@ export function EditorialFrame({
   caption?: string;
   eyebrow?: string;
 }) {
+  const imageUrl = photo.url({ w: 1600, q: 72 });
+  const remoteSrcSet = imageUrl.startsWith("http")
+    ? [640, 960, 1280, 1600]
+        .map((w) => `${photo.url({ w, q: 70 })} ${w}w`)
+        .join(", ")
+    : undefined;
   const borderColor =
     tone === "ink"
       ? "var(--plt-hairline-inverse-strong, rgba(241,237,227,0.18))"
@@ -71,7 +77,7 @@ export function EditorialFrame({
       ? "linear-gradient(180deg, rgba(15,23,20,0.12) 0%, rgba(15,23,20,0.36) 100%)"
       : tone === "forest"
         ? "linear-gradient(180deg, rgba(31,74,58,0.14) 0%, rgba(31,74,58,0.32) 100%)"
-        : "linear-gradient(180deg, rgba(245,242,234,0.00) 45%, rgba(15,23,20,0.08) 100%)";
+        : "linear-gradient(180deg, rgba(245,242,234,0.00) 40%, rgba(15,23,20,0.52) 100%)";
 
   const shadow =
     tone === "ink"
@@ -96,10 +102,8 @@ export function EditorialFrame({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={photo.url({ w: 1600, q: 72 })}
-        srcSet={[640, 960, 1280, 1600]
-          .map((w) => `${photo.url({ w, q: 70 })} ${w}w`)
-          .join(", ")}
+        src={imageUrl}
+        srcSet={remoteSrcSet}
         sizes="(min-width: 1024px) 40vw, 90vw"
         alt={photo.alt}
         loading={priority ? "eager" : "lazy"}

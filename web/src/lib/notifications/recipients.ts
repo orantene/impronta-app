@@ -52,7 +52,11 @@ export async function resolveInquiryRecipients(
         .neq("status", "removed"),
       admin
         .from("agency_memberships")
-        .select("user_id")
+        // agency_memberships keys on profile_id (→ profiles.id, which is the
+        // auth user id — see the table's RLS `profile_id = auth.uid()`). There
+        // is NO `user_id` column; selecting it errored and silently returned
+        // zero workspace recipients, so workspace staff never got in-app bells.
+        .select("profile_id")
         .eq("tenant_id", tenantId)
         .eq("status", "active"),
     ]);
@@ -78,8 +82,8 @@ export async function resolveInquiryRecipients(
     }
 
     const workspaceSet = new Set<string>();
-    for (const m of ((staffRes.data ?? []) as Array<{ user_id: string | null }>)) {
-      if (m.user_id) workspaceSet.add(m.user_id);
+    for (const m of ((staffRes.data ?? []) as Array<{ profile_id: string | null }>)) {
+      if (m.profile_id) workspaceSet.add(m.profile_id);
     }
 
     return {

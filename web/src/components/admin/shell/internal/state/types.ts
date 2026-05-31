@@ -38,6 +38,7 @@ export type WorkspacePage =
   | "media"      // Agency/Studio — workspace media gallery + watermark control
   | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.
   | "financials" // L46 — business financials. Canonical server-rendered route; NOT a SPA nav tab.
+  | "payouts"    // Stripe Connect payout onboarding + base reservation fee. In-shell SPA section (not in nav).
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
@@ -1498,7 +1499,8 @@ export type DiscoverTalent = {
 export type TaxonomyParentId =
   | "models" | "hosts" | "performers" | "music" | "creators"
   | "chefs" | "wellness" | "hospitality" | "transportation"
-  | "photo_video" | "event_staff" | "security";
+  | "photo_video" | "event_staff" | "security"
+  | "services";
 
 /**
  * A specific bookable Talent Type (the answer to "I need a ___").

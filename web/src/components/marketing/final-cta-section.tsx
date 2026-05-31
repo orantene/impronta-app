@@ -1,5 +1,9 @@
+import { getAppUrl } from "@/lib/auth-flow";
 import { MarketingContainer, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
+
+// Must be absolute — /talent/register is not allowed on the marketing host.
+const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
 
 export function FinalCtaSection() {
   return (
@@ -43,7 +47,7 @@ export function FinalCtaSection() {
             <h2
               className="plt-display mt-6 text-[2.25rem] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-[3.25rem] md:text-[3.75rem]"
             >
-              Send one link.
+              Turn work into money.
               <br />
               <span
                 style={{
@@ -61,29 +65,40 @@ export function FinalCtaSection() {
               className="mx-auto mt-6 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
               style={{ color: "rgba(241,237,227,0.76)" }}
             >
-              Your roster deserves more than a chat thread. Claim your link in under ten
-              minutes — no credit card, no friction, no lock-in.
+              Talent can open a free page and start taking requests. Agencies and
+              workspaces can launch a real site, collect inquiries, and run the business.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={TALENT_REGISTER_HREF}
+                className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-[background,transform] duration-200 hover:-translate-y-[1px]"
+                style={{
+                  background: "var(--plt-on-inverse)",
+                  color: "var(--plt-forest)",
+                }}
+              >
+                Join as talent free
+              </a>
               <MarketingCta
                 href="/get-started"
-                variant="inverse"
-                size="lg"
-                eventSource="home-final-cta"
-                eventIntent="get-started"
-              >
-                Start free
-              </MarketingCta>
-              <MarketingCta
-                href="/how-it-works"
                 variant="secondary"
                 size="lg"
                 eventSource="home-final-cta"
-                eventIntent="learn"
+                eventIntent="get-started"
+                className="!border-[rgba(241,237,227,0.3)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
+              >
+                Build workspace
+              </MarketingCta>
+              <MarketingCta
+                href="/discover-agencies"
+                variant="secondary"
+                size="lg"
+                eventSource="home-final-cta"
+                eventIntent="discover-agencies"
                 className="!border-[rgba(241,237,227,0.3)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)] hover:!border-[var(--plt-on-inverse)]"
               >
-                See how it works
+                Browse agencies & hubs
               </MarketingCta>
             </div>
 

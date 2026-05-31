@@ -19,6 +19,7 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -555,6 +556,14 @@ export async function setRosterTalentSiteVisibility(
     });
   } catch (e) {
     logServerError("roster/[id].setRosterTalentSiteVisibility/events", e);
+  }
+
+  // talent.profile_approved (spec §6.3) — the talent just became site-visible
+  // (from a non-visible, non-featured state, per the early returns above), so
+  // their profile is now discoverable to clients. Fire-and-forget; deduped per
+  // tenant+talent so re-toggling the eye won't re-email.
+  if (visible) {
+    void notifyTalentProfileApproved({ admin, tenantId, talentProfileId: talentId });
   }
 
   revalidatePath(`/${tenantSlug}/admin/roster`);

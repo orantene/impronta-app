@@ -4,6 +4,10 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  normalizeRosterCardBadges,
+  type RosterCardBadgePrefs,
+} from "@/lib/talent-cards/roster-card-badges";
 
 // Re-export the workspace-level loaders so layout.tsx has a single import
 // surface for all bridge data. The workspace bridge is tenant-id-explicit;
@@ -67,6 +71,10 @@ export type {
 // so we get the shape without pulling the client tree into server land.
 import type { TalentProfile } from "./state";
 import type { WorkspaceMediaPhoto, WorkspaceMediaFolder } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
+// Type-only — erased at compile time, so importing from the `"use server"`
+// payouts actions module pulls no runtime JS (no server tree) into either
+// this server-only file or the client context that re-uses the type.
+import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
 import type {
   WorkspaceInquiryForMessages,
   WorkspaceClientRow,
@@ -305,6 +313,23 @@ export type BridgeData = {
    * Empty `pages` arrays still mean "real tenant, zero pages" — not mock.
    */
   website?: WebsiteData | null;
+
+  /**
+   * Per-tenant roster-card badge visibility prefs (visibility eye, trust
+   * marks, Discover pill, completeness, photo count, availability, TAL-ID).
+   * Read from `agencies.settings.rosterCardBadges`. `null`/omitted = the
+   * shell falls back to `DEFAULT_ROSTER_CARD_BADGES` (all visible).
+   */
+  rosterCardBadges?: RosterCardBadgePrefs | null;
+
+  /**
+   * Workspace Payouts surface payload (Stripe Connect snapshot + base-fee
+   * state), pre-fetched server-side in the admin layout via
+   * `loadPayoutsSurface`. `null`/omitted = the in-shell `PayoutsPage`
+   * renders its "couldn't load payout settings" error card. The loader
+   * already returns `{ ok: false }` on failure, so this never throws.
+   */
+  payoutsSurface?: PayoutsSurfaceResult | null;
 };
 
 export function createBridgeDataFromRoster(
@@ -325,6 +350,49 @@ export function createBridgeDataFromRoster(
     talentAgencies: null,
     website: null,
   };
+}
+
+/**
+ * Load the per-tenant roster-card badge prefs from
+ * `agencies.settings.rosterCardBadges`. Read under the user's RLS via the SSR
+ * client — `agencies.settings` is staff-only and the workspace admin owns the
+ * row, so no service-role elevation is needed. Returns `null` on any failure
+ * (no scope, no env, query error); the shell then falls back to the all-on
+ * default, so a transient read failure never silently hides badges.
+ */
+export async function loadRosterCardBadges(
+  explicitTenantId?: string,
+): Promise<RosterCardBadgePrefs | null> {
+  try {
+    let tenantId = explicitTenantId ?? null;
+    if (!tenantId) {
+      const scope = await getTenantScope();
+      if (!scope) return null;
+      tenantId = scope.tenantId;
+    }
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const { data: agency, error } = await supabase
+      .from("agencies")
+      .select("settings")
+      .eq("id", tenantId)
+      .single();
+    if (error) {
+      logServerError("admin-shell-prototype.loadRosterCardBadges", error);
+      return null;
+    }
+
+    const settings =
+      typeof agency?.settings === "object" && agency.settings !== null
+        ? (agency.settings as Record<string, unknown>)
+        : {};
+    return normalizeRosterCardBadges(settings.rosterCardBadges);
+  } catch (err) {
+    logServerError("admin-shell-prototype.loadRosterCardBadges", err);
+    return null;
+  }
 }
 
 type RosterRow = {

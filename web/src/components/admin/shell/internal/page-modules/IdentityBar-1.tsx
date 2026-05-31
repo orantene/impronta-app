@@ -12,11 +12,12 @@ import { WorkspaceLifecycleDialog } from "@/components/admin/workspace-lifecycle
 import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
-import { Avatar, Icon, PlanChip, ShortcutsModal } from "../primitives";
+import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, PLAN_META, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
+import { WorkspacePlanBadge } from "./WorkspacePlanBadge";
 
 
 export function TulalaIdentityBar() {
@@ -24,7 +25,6 @@ export function TulalaIdentityBar() {
     state,
     openDrawer,
     flipMode,
-    toast,
     setClientPage,
     setTalentPage,
     totalUnread: bridgeTotalUnread,
@@ -40,7 +40,7 @@ export function TulalaIdentityBar() {
     effectiveTenant,
   } = useAdminShell();
   const copy = useDashboardText();
-  const { surface, alsoTalent, role, plan, entityType } = state;
+  const { surface, alsoTalent, role, entityType } = state;
 
   // Hooks must be called unconditionally (Rules of Hooks). These drive the
   // "Start a workspace" dialog that only renders on non-platform surfaces, but
@@ -347,21 +347,9 @@ export function TulalaIdentityBar() {
             }}
           >
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, letterSpacing: -0.05, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.15 }} className="text-admin-ink">
+              {/* Plan tier moved to its own clickable <WorkspacePlanBadge> in the
+                  right utility cluster — opens a summary popover. */}
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{actingLabel}</span>
-              {inWorkspace && (
-                <span
-                  data-tulala-plan-tier-badge
-                  data-plan={plan}
-                  style={{ flexShrink: 0, display: "inline-flex" }}
-                >
-                  <PlanChip
-                    plan={
-                      (bridgeTenantIdentity?.planTier as typeof plan) ?? plan
-                    }
-                    variant="outline"
-                  />
-                </span>
-              )}
             </span>
             <span data-tulala-acting-detail style={{
               fontFamily: FONTS.body,
@@ -389,6 +377,11 @@ export function TulalaIdentityBar() {
         </button>
 
         <div style={{ flex: 1 }} />
+
+        {/* Workspace plan badge — clickable tier chip + summary popover
+            (registration, renewal, seats, subscription, plan override).
+            Workspace surface only: talent + client have no workspace plan. */}
+        {inWorkspace && <WorkspacePlanBadge />}
 
         {/* Mode toggle — only for hybrid users (talent who also have a
             workspace). Hidden on the client surface — clients are
@@ -432,11 +425,14 @@ export function TulalaIdentityBar() {
             Compact pill; the inactive side flips on click. */}
         <LocaleToggle />
 
-        {/* Sign out — matches production. Compact icon button at the
-            far right; click confirms via toast in the prototype. */}
+        {/* Sign out — calls the real signOut server action (clears the
+            Supabase session + redirects to "/"). Previously a prototype
+            stub that only fired a toast and never logged the user out. */}
         <IdentityBarIconButton
           aria-label={copy.t("Sign out")}
-          onClick={() => toast(copy.t("Signed out"))}
+          onClick={() => {
+            void signOut();
+          }}
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -473,7 +469,7 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast, state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
