@@ -7,6 +7,10 @@ import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
 
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { resolveBuilderNodeRole } from "./role-bindings";
+import {
+  resolveInstanceChildren,
+  type ComponentDefinitions,
+} from "./component-instances";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 
 export interface BuilderNodeRenderDataSources {
@@ -28,6 +32,11 @@ export interface BuilderNodeRenderOptions {
   publicPathPrefix?: string;
   mode?: "all" | "freeform";
   dataSources?: BuilderNodeRenderDataSources;
+  // Phase 3 — saved component definitions (componentId → master subtree root).
+  // When provided, linked instances (containers tagged props.instanceOf) render
+  // the master subtree LIVE with per-instance overrides. When absent or the
+  // component is missing, instances fall back to their own stored children.
+  components?: ComponentDefinitions;
 }
 
 const GAP_BY_SIZE = {
@@ -1023,6 +1032,19 @@ function renderDataBoundContainerChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
   options: Required<BuilderNodeRenderOptions>,
 ): ReactNode {
+  // Phase 3 — live component instance. When this container is a linked instance
+  // and its master definition is available, render the resolved master subtree
+  // (with per-instance overrides) LIVE. resolveInstanceChildren returns null when
+  // the component is missing/unloaded, so we fall through to the node's own
+  // stored children — a published page can never blank out.
+  if (node.props.instanceOf) {
+    const resolved = resolveInstanceChildren(node, options.components);
+    if (resolved) {
+      return resolved
+        .filter((child) => shouldRenderNode(child, options.mode))
+        .map((child) => renderBuilderNode(child, options));
+    }
+  }
   const sourceKey = node.props.dataBinding?.sourceKey;
   if (sourceKey === "tenant_directory_search") {
     return renderDirectorySearchChildren(node, options);
@@ -1582,6 +1604,7 @@ export function renderBuilderNodes(
     publicPathPrefix: options.publicPathPrefix ?? "",
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
+    components: options.components ?? {},
   };
   const renderedNodes = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions.mode))

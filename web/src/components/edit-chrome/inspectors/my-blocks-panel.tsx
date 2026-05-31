@@ -29,6 +29,8 @@ export function MyBlocksPanel({
     insertLinkedComponent,
     syncComponentInstances,
     saveSelectedNodeAsComponent,
+    updateSelectedNodeAsComponent,
+    selectedBuilderNodeId,
   } = useEditContext();
   const [components, setComponents] = useState<
     ReadonlyArray<BuilderComponentRow>
@@ -120,6 +122,22 @@ export function MyBlocksPanel({
         ? `Synced ${result.synced} instance${result.synced === 1 ? "" : "s"}.`
         : "No linked instances of this block on the page.",
     );
+  }
+
+  async function onUpdateMaster(component: BuilderComponentRow) {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const result = await updateSelectedNodeAsComponent(component.id);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't update the master.");
+      return;
+    }
+    setNote(
+      `Updated "${component.name}" master. Published instances reflect it live; in-editor, Sync to refresh.`,
+    );
+    void refresh();
   }
 
   async function onDelete(component: BuilderComponentRow) {
@@ -241,6 +259,18 @@ export function MyBlocksPanel({
                 >
                   Insert copy
                 </button>
+                {selectedBuilderNodeId ? (
+                  <button
+                    type="button"
+                    data-builder-node-my-block-update-master={component.id}
+                    title="Overwrite this master with the selected block — published instances update live"
+                    className={KIT.ghostButton}
+                    disabled={busy}
+                    onClick={() => void onUpdateMaster(component)}
+                  >
+                    ↑ Update master
+                  </button>
+                ) : null}
                 {component.rootKind === "container" ? (
                   <>
                     <button

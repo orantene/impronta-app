@@ -58,10 +58,14 @@ import type {
   EditorMutation,
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
-import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-components-action";
+import {
+  saveBuilderComponent,
+  updateBuilderComponent,
+} from "@/lib/site-admin/edit-mode/builder-components-action";
 import {
   syncComponentInstances as syncComponentInstancesInTree,
   detachComponentInstance as detachComponentInstanceInTree,
+  setInstanceOverride as setInstanceOverrideInTree,
   countComponentInstances,
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
@@ -430,12 +434,30 @@ export interface EditContextValue {
     nodeId: string,
   ) => Promise<{ ok: boolean; error?: string; detached?: boolean }>;
   /**
+   * Phase 3 — set or clear a per-instance override on a linked instance, keyed
+   * by the MASTER child id. overrideJson is a JSON string of
+   * {text?,imageSrc?,imageAlt?,href?} or null to clear (kept a string to dodge
+   * a React-Compiler object-param memo bail, matching insertBuilderComponent).
+   */
+  setInstanceOverride: (
+    nodeId: string,
+    masterChildId: string,
+    overrideJson: string | null,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
    * Living components — snapshot the currently selected freeform block as a
    * reusable saved component (persisted to cms_builder_components).
    */
   saveSelectedNodeAsComponent: (
     name: string,
     description?: string,
+  ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
+  /**
+   * Phase 3 — overwrite an existing master component with the selected block, so
+   * every published linked instance reflects the change live (minus overrides).
+   */
+  updateSelectedNodeAsComponent: (
+    componentId: string,
   ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
   duplicateBuilderNode: (
     nodeId: string,
@@ -3646,6 +3668,35 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
+  // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
+  // instance, keyed by the MASTER child id. Pure transform + shared commit path.
+  const setInstanceOverride = useCallback<
+    EditContextValue["setInstanceOverride"]
+  >(
+    async (nodeId, masterChildId, overrideJson) => {
+      let override: Record<string, string> | null = null;
+      if (overrideJson) {
+        try {
+          override = JSON.parse(overrideJson) as Record<string, string>;
+        } catch {
+          return { ok: false, error: "That override could not be read." };
+        }
+      }
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: setInstanceOverrideInTree(tree, nodeId, masterChildId, override),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
   const saveSelectedNodeAsComponent = useCallback<
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
@@ -3669,6 +3720,28 @@ export function EditProvider({
         subtree: location.node,
       });
       return result;
+    },
+    [selectedBuilderNodeId],
+  );
+  // Phase 3 — overwrite an existing master component from the selected block.
+  const updateSelectedNodeAsComponent = useCallback<
+    EditContextValue["updateSelectedNodeAsComponent"]
+  >(
+    async (componentId) => {
+      if (!selectedBuilderNodeId) {
+        return { ok: false, error: "Select a block on the canvas first." };
+      }
+      const location = findBuilderNodeLocation(
+        builderTreeRef.current,
+        selectedBuilderNodeId,
+      );
+      if (!location || location.node.kind === "section") {
+        return {
+          ok: false,
+          error: "Pick a block inside a section, not the whole section.",
+        };
+      }
+      return updateBuilderComponent({ componentId, subtree: location.node });
     },
     [selectedBuilderNodeId],
   );
@@ -4556,7 +4629,9 @@ export function EditProvider({
       insertLinkedComponent,
       syncComponentInstances,
       detachComponentInstance,
+      setInstanceOverride,
       saveSelectedNodeAsComponent,
+      updateSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
       patchBuilderNodeProps,
@@ -4702,7 +4777,9 @@ export function EditProvider({
       insertLinkedComponent,
       syncComponentInstances,
       detachComponentInstance,
+      setInstanceOverride,
       saveSelectedNodeAsComponent,
+      updateSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,
       saveCopiedBuilderNodeAsPreset,

@@ -317,14 +317,28 @@ export interface BuilderContainerNode extends BuilderNodeBase {
       maxItems?: number;
     };
     style?: BuilderNodeStyle;
-    // Linked-component instance marker (Living Components Phase 2). When set,
-    // this container is an instance of the saved component with this id; the
-    // "Sync instances" action replaces its children with a fresh clone of the
-    // master. Purely additive — inert at render time (renders its own stored
-    // children like any container), so it can never break the published page.
+    // Linked-component instance marker (Living Components Phase 2/3). When set,
+    // this container is an instance of the saved component with this id.
+    // Phase 2: "Sync instances" replaces its children with a fresh clone of the
+    // master. Phase 3: at render time the master subtree is resolved LIVE (when
+    // component definitions are provided) and per-instance overrides are layered
+    // on. Its own stored children remain a graceful fallback — if the component
+    // is missing or definitions aren't loaded, the stored children render, so it
+    // can never break the published page.
     instanceOf?: string;
+    // Phase 3 per-instance overrides — keyed by the MASTER child node id. Lets
+    // an instance swap text / image / link on specific child nodes while staying
+    // structurally linked to the master.
+    instanceOverrides?: Record<string, BuilderNodeInstanceOverride>;
   };
   children: BuilderNode[];
+}
+
+export interface BuilderNodeInstanceOverride {
+  text?: string;
+  imageSrc?: string;
+  imageAlt?: string;
+  href?: string;
 }
 
 export interface BuilderSplitNode extends BuilderNodeBase {

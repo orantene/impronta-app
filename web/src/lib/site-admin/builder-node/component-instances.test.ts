@@ -7,6 +7,7 @@ import {
   countComponentInstances,
   tagAsInstance,
   detachComponentInstance,
+  resolveInstanceChildren,
 } from "./component-instances";
 
 function container(
@@ -140,4 +141,104 @@ test("original tree is not mutated (pure)", () => {
   const before = collectIds(tree[0]);
   syncComponentInstances(tree, "cmp-1", MASTER_CHILDREN);
   assert.deepEqual(collectIds(tree[0]), before);
+});
+
+// ── Phase 3: live-render resolution ──────────────────────────────────────────
+
+function heading(id: string, text: string): BuilderNode {
+  return { id, kind: "heading", props: { text, level: 2 } } as BuilderNode;
+}
+function button(id: string, label: string, href = "/"): BuilderNode {
+  return { id, kind: "button", props: { label, href, tone: "primary" } } as BuilderNode;
+}
+function image(id: string, src: string): BuilderNode {
+  return { id, kind: "image", props: { src } } as BuilderNode;
+}
+function instance(id: string, instanceOf: string | undefined, overrides?: object, kids: BuilderNode[] = []): BuilderNode {
+  return {
+    id, kind: "container",
+    props: { layout: "stack", ...(instanceOf ? { instanceOf } : {}), ...(overrides ? { instanceOverrides: overrides } : {}) },
+    children: kids,
+  } as BuilderNode;
+}
+
+// Master component subtree root (a container) with a heading + button + image.
+const MASTER = container("master-root", [
+  heading("m-h", "Master heading"),
+  button("m-b", "Master CTA", "/master"),
+  image("m-img", "/master.jpg"),
+]);
+const DEFS = { "cmp-1": MASTER };
+
+test("resolveInstanceChildren: null for non-instance / missing component / fallback path", () => {
+  assert.equal(resolveInstanceChildren(container("plain", []), DEFS), null);
+  assert.equal(resolveInstanceChildren(instance("i", "cmp-MISSING"), DEFS), null);
+  assert.equal(resolveInstanceChildren(heading("h", "x"), DEFS), null);
+});
+
+test("resolveInstanceChildren: resolves master children with namespaced ids", () => {
+  const resolved = resolveInstanceChildren(instance("inst1", "cmp-1"), DEFS)!;
+  assert.equal(resolved.length, 3);
+  assert.deepEqual(resolved.map((n) => n.id), ["inst1__m-h", "inst1__m-b", "inst1__m-img"]);
+  // master content passes through untouched when no overrides
+  assert.equal((resolved[0].props as { text: string }).text, "Master heading");
+});
+
+test("resolveInstanceChildren: two instances get distinct namespaced ids (no key collision)", () => {
+  const a = resolveInstanceChildren(instance("A", "cmp-1"), DEFS)!;
+  const b = resolveInstanceChildren(instance("B", "cmp-1"), DEFS)!;
+  assert.equal(a[0].id, "A__m-h");
+  assert.equal(b[0].id, "B__m-h");
+  assert.notEqual(a[0].id, b[0].id);
+});
+
+test("resolveInstanceChildren: per-instance overrides apply by MASTER id", () => {
+  const ov = { "m-h": { text: "Custom heading" }, "m-b": { text: "Buy now", href: "/buy" }, "m-img": { imageSrc: "/custom.jpg", imageAlt: "Custom" } };
+  const r = resolveInstanceChildren(instance("inst1", "cmp-1", ov), DEFS)!;
+  assert.equal((r[0].props as { text: string }).text, "Custom heading");
+  assert.equal((r[1].props as { label: string }).label, "Buy now");
+  assert.equal((r[1].props as { href: string }).href, "/buy");
+  assert.equal((r[2].props as { src: string }).src, "/custom.jpg");
+  assert.equal((r[2].props as { alt: string }).alt, "Custom");
+});
+
+test("resolveInstanceChildren: empty-string override never wipes master content", () => {
+  const r = resolveInstanceChildren(instance("inst1", "cmp-1", { "m-h": { text: "" } }), DEFS)!;
+  assert.equal((r[0].props as { text: string }).text, "Master heading");
+});
+
+test("resolveInstanceChildren: master + instance are not mutated (pure)", () => {
+  const ov = { "m-h": { text: "Changed" } };
+  const inst = instance("inst1", "cmp-1", ov);
+  resolveInstanceChildren(inst, DEFS);
+  const masterKids = (MASTER as { children: BuilderNode[] }).children;
+  assert.equal((masterKids[0].props as { text: string }).text, "Master heading");
+  assert.equal((inst as { children: BuilderNode[] }).children.length, 0);
+});
+
+import { collectOverridableSlots, setInstanceOverride } from "./component-instances";
+
+test("collectOverridableSlots: collects text/button/image slots depth-first", () => {
+  const slots = collectOverridableSlots(MASTER);
+  assert.deepEqual(slots.map((s) => s.masterId), ["m-h", "m-b", "m-img"]);
+  assert.deepEqual(slots.map((s) => s.field), ["text", "text", "imageSrc"]);
+  const btn = slots.find((s) => s.kind === "button")!;
+  assert.equal(btn.supportsHref, true);
+  assert.equal(slots[0].defaultValue, "Master heading");
+});
+
+test("setInstanceOverride: sets, then clears (prunes empty) an override", () => {
+  const tree = [instance("inst1", "cmp-1")];
+  const withOv = setInstanceOverride(tree, "inst1", "m-h", { text: "Hi" });
+  assert.equal((withOv[0].props as { instanceOverrides: Record<string, { text: string }> }).instanceOverrides["m-h"].text, "Hi");
+  // clearing with empty removes the key (and the whole map when last one goes)
+  const cleared = setInstanceOverride(withOv, "inst1", "m-h", { text: "" });
+  assert.equal((cleared[0].props as { instanceOverrides?: unknown }).instanceOverrides, undefined);
+});
+
+test("setInstanceOverride: only touches the matching instance node (pure)", () => {
+  const tree = [instance("A", "cmp-1"), instance("B", "cmp-1")];
+  const next = setInstanceOverride(tree, "A", "m-h", { text: "X" });
+  assert.ok((next[0].props as { instanceOverrides?: unknown }).instanceOverrides);
+  assert.equal((next[1].props as { instanceOverrides?: unknown }).instanceOverrides, undefined);
 });
