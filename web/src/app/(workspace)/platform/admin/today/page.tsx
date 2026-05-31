@@ -10,6 +10,7 @@ import {
   loadRecentSignups,
   type PlatformLeadRow,
 } from "../../platform-data";
+import { loadPlatformNotifications } from "../../platform-notifications";
 
 // ─── HQ design tokens ─────────────────────────────────────────────────────────
 
@@ -271,12 +272,13 @@ function Pill({ children, color }: { children: React.ReactNode; color: string })
 }
 
 export default async function PlatformTodayPage() {
-  const [stats, recentSignups, recentLeads, leadStats, orphanGhosts] = await Promise.all([
+  const [stats, recentSignups, recentLeads, leadStats, orphanGhosts, hqAlerts] = await Promise.all([
     loadPlatformStats(),
     loadRecentSignups(5),
     loadRecentLeads(10),
     loadLeadStats(),
     loadOrphanPaidFreeWorkspaces(25),
+    loadPlatformNotifications(12),
   ]);
 
   return (
@@ -363,6 +365,51 @@ export default async function PlatformTodayPage() {
           gap: 12,
         }}
       >
+        {/* HQ alerts — platform in-app notifications (new workspace, signup-failed, …) */}
+        <HqCard
+          title="HQ alerts"
+          subtitle={hqAlerts.length === 0 ? "No platform alerts yet" : `${hqAlerts.length} recent`}
+        >
+          {hqAlerts.length === 0 ? (
+            <p style={{ color: HQ.inkMuted, fontSize: 13, padding: "10px 0" }}>
+              Platform alerts (new workspaces, failed signups) will appear here.
+            </p>
+          ) : (
+            hqAlerts.map((n) => (
+              <div
+                key={n.id}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "9px 0",
+                  borderTop: `1px solid ${HQ.borderSoft}`,
+                  fontFamily: F,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    marginTop: 6,
+                    background: n.read ? HQ.inkDim : HQ.green,
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: HQ.ink, fontWeight: 500 }}>{n.title}</div>
+                  {n.body && (
+                    <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 1 }}>{n.body}</div>
+                  )}
+                </div>
+                <span style={{ fontSize: 11.5, color: HQ.inkDim, whiteSpace: "nowrap" }}>{n.ts}</span>
+              </div>
+            ))
+          )}
+        </HqCard>
+
         {/* Recent signups */}
         <HqCard
           title="Recent signups"
