@@ -33,6 +33,34 @@ export type AccountSessionResult =
   | { ok: true; clientSecret: string }
   | { ok: false; error: string };
 
+export type EnsurePayoutAccountResult =
+  | { ok: true }
+  | { ok: false; code: "country_required" }
+  | { ok: false; code: "error"; error: string };
+
+/**
+ * Ensure the talent's Connect account exists in the right country BEFORE we
+ * mount the embedded onboarding. Returns `country_required` when we don't yet
+ * know the talent's payout country (residence unset + no override) — the
+ * payouts page then shows a country picker. The account's country is
+ * immutable, so this must be settled up front.
+ */
+export async function ensureTalentPayoutAccount(
+  opts: { country?: string } = {},
+): Promise<EnsurePayoutAccountResult> {
+  try {
+    const tp = await resolveOwnTalentProfileId();
+    if (!tp.ok) return { ok: false, code: "error", error: tp.error };
+    const ensure = await createOrGetTalentConnectedAccount(tp.id, { country: opts.country });
+    if (ensure.ok) return { ok: true };
+    if (ensure.error === "country_required") return { ok: false, code: "country_required" };
+    return { ok: false, code: "error", error: ensure.error };
+  } catch (err) {
+    logServerError("talent-payouts.ensureAccount", err);
+    return { ok: false, code: "error", error: "Could not start payout setup. Please try again." };
+  }
+}
+
 /**
  * Resolve the talent_profiles.id owned by the signed-in user, or an
  * error message. Shared by the embedded-onboarding actions below.
@@ -64,7 +92,9 @@ async function resolveOwnTalentProfileId(): Promise<
  * `external_account_collection` is enabled so the talent can attach
  * their bank account inside the embedded flow.
  */
-export async function createTalentAccountSession(): Promise<AccountSessionResult> {
+export async function createTalentAccountSession(
+  opts: { country?: string } = {},
+): Promise<AccountSessionResult> {
   try {
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payouts are not available right now." };
@@ -75,7 +105,7 @@ export async function createTalentAccountSession(): Promise<AccountSessionResult
     const tp = await resolveOwnTalentProfileId();
     if (!tp.ok) return { ok: false, error: tp.error };
 
-    const ensure = await createOrGetTalentConnectedAccount(tp.id);
+    const ensure = await createOrGetTalentConnectedAccount(tp.id, { country: opts.country });
     if (!ensure.ok) return { ok: false, error: ensure.error };
 
     const session = await stripe.accountSessions.create({

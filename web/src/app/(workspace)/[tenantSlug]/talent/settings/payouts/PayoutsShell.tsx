@@ -2,8 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createTalentAccountSession, refreshTalentPayoutStatus } from "./actions";
+import {
+  createTalentAccountSession,
+  ensureTalentPayoutAccount,
+  refreshTalentPayoutStatus,
+} from "./actions";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
+import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 
 const C = {
@@ -39,8 +44,10 @@ export function PayoutsShell({
   const router = useRouter();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [needCountry, setNeedCountry] = useState(false);
+  const [country, setCountry] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
 
   const status = snapshot?.status ?? "none";
   const tone =
@@ -67,15 +74,37 @@ export function PayoutsShell({
     : status === "enabled" ? "Update payout details"
     : "Continue Stripe onboarding";
 
-  // Re-pull status from Stripe after the embedded flow signals exit, so the
-  // status card reflects reality without waiting on the async webhook.
+  // Start: ensure the Connect account exists in the right country, then mount
+  // the embedded onboarding. If we don't know the talent's country yet, ask.
+  const onConnect = () => {
+    setError(null);
+    startTransition(async () => {
+      const r = await ensureTalentPayoutAccount();
+      if (r.ok) { setShowOnboarding(true); return; }
+      if (r.code === "country_required") { setNeedCountry(true); return; }
+      setError(r.error);
+    });
+  };
+
+  const onSubmitCountry = () => {
+    if (!country) { setError("Please choose where you'll receive payouts."); return; }
+    setError(null);
+    startTransition(async () => {
+      const r = await ensureTalentPayoutAccount({ country });
+      if (r.ok) { setNeedCountry(false); setShowOnboarding(true); return; }
+      if (r.code === "country_required") { setError("Please choose a country."); return; }
+      setError(r.error);
+    });
+  };
+
+  // Re-pull status from Stripe after the embedded flow exits ("Done for now"
+  // or completion) and ALWAYS collapse back to the status card — no stranded
+  // exited-iframe state, no manual refresh needed.
   const handleExit = () => {
+    setShowOnboarding(false);
     startTransition(async () => {
       const r = await refreshTalentPayoutStatus();
-      if (r.ok) {
-        setSnapshot(r.snapshot);
-        if (r.snapshot.status === "enabled") setShowOnboarding(false);
-      }
+      if (r.ok) setSnapshot(r.snapshot);
       router.refresh();
     });
   };
@@ -95,9 +124,10 @@ export function PayoutsShell({
         fontSize: 13, lineHeight: 1.55,
         color: C.inkMuted,
       }}>
-        Connect a Stripe Express account to receive talent payouts on
-        confirmed bookings. Set it up right here — Stripe handles the bank
-        details + identity check, and we never see them.
+        Connect a Stripe account to receive talent payouts on confirmed
+        bookings — in your own country. Set it up right here; Stripe handles
+        the bank details + identity check, and we never see them. You file
+        your own taxes — we just hand you the year-end summary.
       </p>
 
       {justReturned && status === "enabled" && (
@@ -179,16 +209,15 @@ export function PayoutsShell({
           </div>
         )}
 
-        {/* Embedded onboarding renders inline once the talent opts in (or
-            when an enabled account wants to update details). Until then we
-            show a single branded CTA so the account isn't created until the
-            talent actually starts. */}
         {showOnboarding ? (
           <div style={{ marginTop: 4 }}>
-            <ConnectEmbeddedOnboarding fetchClientSecret={createTalentAccountSession} onExit={handleExit} />
+            <ConnectEmbeddedOnboarding
+              fetchClientSecret={() => createTalentAccountSession(country ? { country } : {})}
+              onExit={handleExit}
+            />
             <button
               type="button"
-              onClick={() => setShowOnboarding(false)}
+              onClick={handleExit}
               style={{
                 marginTop: 12, padding: "8px 14px", borderRadius: 8,
                 background: "transparent", color: C.inkMuted,
@@ -200,22 +229,74 @@ export function PayoutsShell({
               Done for now
             </button>
           </div>
+        ) : needCountry ? (
+          <div style={{ marginTop: 4 }}>
+            <label htmlFor="payout-country" style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+              Where will you receive payouts?
+            </label>
+            <select
+              id="payout-country"
+              data-testid="talent-payout-country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              style={{
+                width: "100%", maxWidth: 340, padding: "10px 12px",
+                borderRadius: 10, border: `1px solid ${C.border}`,
+                fontFamily: FONT, fontSize: 13, color: C.ink, background: "#fff",
+                marginBottom: 12,
+              }}
+            >
+              <option value="">Select your country…</option>
+              {PAYOUT_COUNTRIES.map((c) => (
+                <option key={c.iso2} value={c.iso2}>{c.flag} {c.label}</option>
+              ))}
+            </select>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={onSubmitCountry}
+                disabled={pending}
+                style={{
+                  padding: "11px 18px", borderRadius: 10,
+                  background: pending ? "rgba(31,74,58,0.6)" : C.accent,
+                  color: "#fff", border: "none",
+                  fontFamily: FONT, fontSize: 13, fontWeight: 700,
+                  cursor: pending ? "wait" : "pointer", minHeight: 44,
+                }}
+              >
+                {pending ? "Setting up…" : "Continue"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNeedCountry(false); setError(null); }}
+                style={{
+                  padding: "11px 14px", borderRadius: 10,
+                  background: "transparent", color: C.inkMuted,
+                  border: `1px solid ${C.border}`,
+                  fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         ) : (
           <button
             type="button"
             data-testid="talent-connect-cta"
-            onClick={() => { setError(null); setShowOnboarding(true); }}
+            onClick={onConnect}
+            disabled={pending}
             style={{
               width: "100%", maxWidth: 340,
               padding: "11px 18px", borderRadius: 10,
-              background: C.accent,
+              background: pending ? "rgba(31,74,58,0.6)" : C.accent,
               color: "#fff", border: "none",
               fontFamily: FONT, fontSize: 13, fontWeight: 700,
-              cursor: "pointer",
+              cursor: pending ? "wait" : "pointer",
               minHeight: 44,
             }}
           >
-            {ctaLabel}
+            {pending ? "Opening…" : ctaLabel}
           </button>
         )}
       </div>
