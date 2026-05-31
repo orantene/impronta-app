@@ -121,9 +121,9 @@ function freshNodeId(kind: BuilderNode["kind"]): string {
   return `${kind}-${crypto.randomUUID()}`;
 }
 
-function cloneNodeWithFreshIds(
+export function cloneNodeWithFreshIds(
   node: BuilderNode,
-  idMap: Map<string, string>,
+  idMap: Map<string, string> = new Map(),
 ): BuilderNode {
   const nextId = freshNodeId(node.kind);
   idMap.set(node.id, nextId);

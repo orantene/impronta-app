@@ -58,6 +58,7 @@ import type {
   EditorMutation,
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
+import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-components-action";
 import {
   applyBuilderNodeOperation,
   builderSectionNodeAddressKey,
@@ -65,6 +66,7 @@ import {
   BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
   builderNodeKindAllowedAtRoot,
+  cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
   createBuilderNode,
@@ -383,6 +385,25 @@ export interface EditContextValue {
     presetId: BuilderNodeCompositionPresetId,
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Living components — insert a saved block subtree (ids re-minted to copies)
+   * at the target. The subtree is passed as a JSON string (a primitive param,
+   * so the React Compiler can't read it as a mutable captured object and bail
+   * memoization for the whole context). Mirrors the composition-preset insert.
+   */
+  insertBuilderComponent: (
+    parentId: string | null,
+    subtreeJson: string,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Living components — snapshot the currently selected freeform block as a
+   * reusable saved component (persisted to cms_builder_components).
+   */
+  saveSelectedNodeAsComponent: (
+    name: string,
+    description?: string,
+  ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
   duplicateBuilderNode: (
     nodeId: string,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
@@ -3430,6 +3451,80 @@ export function EditProvider({
       markNavigatorAddition,
     ],
   );
+  const insertBuilderComponent = useCallback<
+    EditContextValue["insertBuilderComponent"]
+  >(
+    async (parentId, subtreeJson, index) => {
+      // subtreeJson is a primitive string param → parsing yields a fresh local
+      // the compiler never tracks as a mutable captured object.
+      let parsed: BuilderNode;
+      try {
+        parsed = JSON.parse(subtreeJson) as BuilderNode;
+      } catch {
+        return { ok: false, error: "That block could not be read." };
+      }
+      const node = cloneNodeWithFreshIds(parsed);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
+  const saveSelectedNodeAsComponent = useCallback<
+    EditContextValue["saveSelectedNodeAsComponent"]
+  >(
+    async (name, description) => {
+      if (!selectedBuilderNodeId) {
+        return { ok: false, error: "Select a block on the canvas first." };
+      }
+      const location = findBuilderNodeLocation(
+        builderTreeRef.current,
+        selectedBuilderNodeId,
+      );
+      if (!location || location.node.kind === "section") {
+        return {
+          ok: false,
+          error: "Pick a block inside a section, not the whole section.",
+        };
+      }
+      const result = await saveBuilderComponent({
+        name,
+        description,
+        subtree: location.node,
+      });
+      return result;
+    },
+    [selectedBuilderNodeId],
+  );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
   >(
@@ -4310,6 +4405,8 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderComponent,
+      saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
       patchBuilderNodeProps,
@@ -4451,6 +4548,8 @@ export function EditProvider({
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
+      insertBuilderComponent,
+      saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,
       saveCopiedBuilderNodeAsPreset,

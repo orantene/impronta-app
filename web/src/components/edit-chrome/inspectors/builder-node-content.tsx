@@ -29,6 +29,7 @@ import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
+import { MyBlocksPanel } from "./my-blocks-panel";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -1135,6 +1136,7 @@ function NestedBlocksCard({
               </div>
             </details>
           ) : null}
+          <MyBlocksPanel parentNodeId={parentNodeId} />
           {presets.length > 0 ? (
             <details className="rounded-lg border border-stone-200 bg-white px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
