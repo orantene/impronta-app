@@ -430,11 +430,23 @@ const BUILDER_NODE_ANIMATION_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<strin
   { value: "slide-left", label: "Slide ←" },
   { value: "slide-right", label: "Slide →" },
   { value: "blur-in", label: "Blur" },
+  { value: "flip-in", label: "Flip" },
+  { value: "bounce-in", label: "Bounce" },
 ];
 
 const BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "On load" },
   { value: "scroll", label: "On scroll" },
+];
+
+const BUILDER_NODE_ANIMATION_EASING_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Ease" },
+  { value: "linear", label: "Linear" },
+  { value: "ease-in", label: "In" },
+  { value: "ease-out", label: "Out" },
+  { value: "ease-in-out", label: "In-out" },
+  { value: "back", label: "Back" },
+  { value: "smooth", label: "Smooth" },
 ];
 
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -1061,6 +1073,7 @@ function cleanBuilderNodeStyle(
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
+  if (value.animationEasing) out.animationEasing = value.animationEasing;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1172,6 +1185,7 @@ function cleanBuilderNodeStyleValue(
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
   if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
+  if (value.animationEasing) out.animationEasing = value.animationEasing;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -6888,6 +6902,25 @@ export function StylePanel({
                     })
                   }
                   options={BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationEasing"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Easing
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.animationEasing ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      animationEasing: (next || undefined) as BuilderNodeStyleValue["animationEasing"],
+                    })
+                  }
+                  options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
                 />
               </div>
             </div>

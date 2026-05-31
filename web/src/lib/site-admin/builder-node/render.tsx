@@ -87,6 +87,8 @@ const BUILDER_NODE_RENDERER_CSS = `
 @keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
 @keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
 @keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
+@keyframes bn-anim-flip-in{from{opacity:0;transform:perspective(800px) rotateX(35deg)}to{opacity:1;transform:perspective(800px) rotateX(0)}}
+@keyframes bn-anim-bounce-in{0%{opacity:0;transform:scale(0.8)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
 .site-builder-node{box-sizing:border-box}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
@@ -754,6 +756,27 @@ function responsiveStyleVars(
   });
 }
 
+// Map a friendly easing key to a CSS timing-function. "back" overshoots
+// slightly (a tasteful spring feel); "smooth" is the Material standard curve.
+function resolveAnimationEasing(
+  easing: BuilderNodeStyle["animationEasing"],
+): string {
+  switch (easing) {
+    case "linear":
+    case "ease-in":
+    case "ease-out":
+    case "ease-in-out":
+      return easing;
+    case "back":
+      return "cubic-bezier(0.34, 1.56, 0.64, 1)";
+    case "smooth":
+      return "cubic-bezier(0.4, 0, 0.2, 1)";
+    case "ease":
+    default:
+      return "ease";
+  }
+}
+
 function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (!style) return {};
   const out: CSSProperties = {
@@ -952,7 +975,8 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.animationPreset && style.animationPreset !== "none") {
     const duration = style.animationDuration || "0.6s";
     const delay = style.animationDelay || "0s";
-    out.animation = `bn-anim-${style.animationPreset} ${duration} ease ${delay} both`;
+    const easing = resolveAnimationEasing(style.animationEasing);
+    out.animation = `bn-anim-${style.animationPreset} ${duration} ${easing} ${delay} both`;
     if (style.animationTrigger === "scroll") {
       // CSS scroll-driven animation — progress maps to the node entering the
       // viewport. Pure CSS; unsupported browsers ignore the timeline and just

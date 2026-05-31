@@ -221,9 +221,19 @@ export interface BuilderNodeStyleValue {
     | "zoom-in"
     | "slide-left"
     | "slide-right"
-    | "blur-in";
+    | "blur-in"
+    | "flip-in"
+    | "bounce-in";
   animationDuration?: string;
   animationDelay?: string;
+  animationEasing?:
+    | "ease"
+    | "linear"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "back"
+    | "smooth";
   // Trigger: "load" plays once on page load; "scroll" drives the animation by
   // scroll position via CSS scroll-driven animations (animation-timeline:view()).
   // Pure CSS — unsupported browsers fall back to playing it on load.

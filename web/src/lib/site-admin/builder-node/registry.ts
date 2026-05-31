@@ -232,11 +232,16 @@ const builderNodeStyleValueSchema = z.object({
       "slide-left",
       "slide-right",
       "blur-in",
+      "flip-in",
+      "bounce-in",
     ])
     .optional(),
   animationDuration: z.string().max(16).optional(),
   animationDelay: z.string().max(16).optional(),
   animationTrigger: z.enum(["load", "scroll"]).optional(),
+  animationEasing: z
+    .enum(["ease", "linear", "ease-in", "ease-out", "ease-in-out", "back", "smooth"])
+    .optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while
