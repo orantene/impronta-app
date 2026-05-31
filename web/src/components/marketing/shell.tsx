@@ -1,5 +1,6 @@
 import { MarketingHeader } from "./header";
 import { MarketingFooter } from "./footer";
+import { MarketingModalHost } from "./marketing-modal-host";
 
 /**
  * The outer layout for every platform marketing surface (homepage + sub-pages).
@@ -18,6 +19,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
       <MarketingHeader />
       <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
+      <MarketingModalHost />
     </div>
   );
 }

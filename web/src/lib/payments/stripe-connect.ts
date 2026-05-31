@@ -199,6 +199,7 @@ export async function createOrGetConnectedAccount(
         name: agency.agencyName,
       },
       metadata: {
+        account_type: "workspace",
         agency_id: agency.agencyId,
         tenant_slug: tenantSlug,
       },

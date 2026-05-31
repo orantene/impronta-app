@@ -17,9 +17,10 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 export type EmitNotificationInput = {
   userId: string;
-  tenantId: string;
+  /** NULL = platform-scoped (Tulala HQ) notification for a super_admin. */
+  tenantId: string | null;
   kind: "message" | "offer" | "booking" | "payment" | "approval" | "system" | "profile";
-  surface: "workspace" | "talent" | "client";
+  surface: "workspace" | "talent" | "client" | "platform";
   title: string;
   body?: string;
   actorUserId?: string | null;
@@ -38,7 +39,7 @@ export async function emitNotification(input: EmitNotificationInput): Promise<vo
 
     const { error } = await admin.from("user_notifications").insert({
       user_id: input.userId,
-      tenant_id: input.tenantId,
+      tenant_id: input.tenantId ?? null,
       kind: input.kind,
       surface: input.surface,
       title: input.title,

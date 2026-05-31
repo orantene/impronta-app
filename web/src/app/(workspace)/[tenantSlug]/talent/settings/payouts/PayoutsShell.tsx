@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { startTalentOnboarding } from "./actions";
+import { useRouter } from "next/navigation";
+import { createTalentAccountSession, refreshTalentPayoutStatus } from "./actions";
+import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 
 const C = {
@@ -12,7 +14,7 @@ const C = {
   border:     "rgba(24,24,27,0.12)",
   surface:    "#ffffff",
   surfaceAlt: "rgba(11,11,13,0.025)",
-  accent:     "#0F4F3E",
+  accent:     "#1f4a3a",
   green:      "#1A7348",
   greenSoft:  "rgba(26,115,72,0.10)",
   amber:      "#8A6F1A",
@@ -24,32 +26,21 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 
 export function PayoutsShell({
-  tenantSlug,
-  snapshot,
+  snapshot: initialSnapshot,
   loadError,
   justReturned,
   justRefreshed,
 }: {
-  tenantSlug: string;
   snapshot: TalentConnectedAccountSnapshot | null;
   loadError: string | null;
   justReturned: boolean;
   justRefreshed: boolean;
 }) {
+  const router = useRouter();
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  const onboard = () => {
-    setError(null);
-    startTransition(async () => {
-      const r = await startTalentOnboarding(tenantSlug);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      window.location.href = r.url;
-    });
-  };
+  const [, startTransition] = useTransition();
 
   const status = snapshot?.status ?? "none";
   const tone =
@@ -68,13 +59,26 @@ export function PayoutsShell({
   const statusLabel =
       status === "enabled" ? "Active — payouts ready"
     : status === "pending" ? "Onboarding in progress"
-    : status === "restricted" ? "Action needed in Stripe"
+    : status === "restricted" ? "Action needed"
     : status === "disabled" ? "Disabled by Stripe"
     : "Not connected";
 
   const ctaLabel = status === "none" ? "Connect Stripe to receive payouts"
-    : status === "enabled" ? "Update Stripe details"
+    : status === "enabled" ? "Update payout details"
     : "Continue Stripe onboarding";
+
+  // Re-pull status from Stripe after the embedded flow signals exit, so the
+  // status card reflects reality without waiting on the async webhook.
+  const handleExit = () => {
+    startTransition(async () => {
+      const r = await refreshTalentPayoutStatus();
+      if (r.ok) {
+        setSnapshot(r.snapshot);
+        if (r.snapshot.status === "enabled") setShowOnboarding(false);
+      }
+      router.refresh();
+    });
+  };
 
   return (
     <div data-msg-shell style={{
@@ -92,8 +96,8 @@ export function PayoutsShell({
         color: C.inkMuted,
       }}>
         Connect a Stripe Express account to receive talent payouts on
-        confirmed bookings. Stripe handles the bank details + KYC —
-        we never see them.
+        confirmed bookings. Set it up right here — Stripe handles the bank
+        details + identity check, and we never see them.
       </p>
 
       {justReturned && status === "enabled" && (
@@ -105,22 +109,13 @@ export function PayoutsShell({
           ✓ Stripe onboarding complete — you&apos;re ready for payouts.
         </div>
       )}
-      {justReturned && status !== "enabled" && (
-        <div role="status" style={{
-          marginBottom: 16, padding: "10px 12px",
-          background: C.amberSoft, color: C.amber,
-          borderRadius: 10, fontSize: 12.5,
-        }}>
-          Stripe still has open requirements. Tap below to continue.
-        </div>
-      )}
       {justRefreshed && (
         <div role="status" style={{
           marginBottom: 16, padding: "10px 12px",
           background: C.surfaceAlt, color: C.inkMuted,
           borderRadius: 10, fontSize: 12.5,
         }}>
-          Onboarding link expired — we&apos;ll mint a fresh one.
+          Status refreshed.
         </div>
       )}
       {loadError && (
@@ -157,9 +152,9 @@ export function PayoutsShell({
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
               color: tonePalette.fg, textTransform: "uppercase",
             }}>
-              Status
+              Stripe account status
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginTop: 2 }}>
+            <div data-testid="talent-payout-status" style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginTop: 2 }}>
               {statusLabel}
             </div>
           </div>
@@ -184,22 +179,45 @@ export function PayoutsShell({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={onboard}
-          disabled={pending}
-          style={{
-            width: "100%", maxWidth: 320,
-            padding: "11px 18px", borderRadius: 10,
-            background: pending ? "rgba(15,79,62,0.6)" : C.accent,
-            color: "#fff", border: "none",
-            fontFamily: FONT, fontSize: 13, fontWeight: 700,
-            cursor: pending ? "wait" : "pointer",
-            minHeight: 44,
-          }}
-        >
-          {pending ? "Opening Stripe…" : ctaLabel}
-        </button>
+        {/* Embedded onboarding renders inline once the talent opts in (or
+            when an enabled account wants to update details). Until then we
+            show a single branded CTA so the account isn't created until the
+            talent actually starts. */}
+        {showOnboarding ? (
+          <div style={{ marginTop: 4 }}>
+            <ConnectEmbeddedOnboarding fetchClientSecret={createTalentAccountSession} onExit={handleExit} />
+            <button
+              type="button"
+              onClick={() => setShowOnboarding(false)}
+              style={{
+                marginTop: 12, padding: "8px 14px", borderRadius: 8,
+                background: "transparent", color: C.inkMuted,
+                border: `1px solid ${C.border}`,
+                fontFamily: FONT, fontSize: 12.5, fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Done for now
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            data-testid="talent-connect-cta"
+            onClick={() => { setError(null); setShowOnboarding(true); }}
+            style={{
+              width: "100%", maxWidth: 340,
+              padding: "11px 18px", borderRadius: 10,
+              background: C.accent,
+              color: "#fff", border: "none",
+              fontFamily: FONT, fontSize: 13, fontWeight: 700,
+              cursor: "pointer",
+              minHeight: 44,
+            }}
+          >
+            {ctaLabel}
+          </button>
+        )}
       </div>
 
       <div style={{

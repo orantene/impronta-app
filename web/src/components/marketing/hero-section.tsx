@@ -1,10 +1,7 @@
-import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow } from "./container";
 import { MarketingCta } from "./cta-link";
-
-// Must be absolute — /talent/register is not allowed on the marketing host.
-const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
+import { OpenTalentModalButton } from "./open-talent-modal-button";
 
 export function HeroSection() {
   return (
@@ -37,8 +34,8 @@ export function HeroSection() {
             </p>
 
             <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
-              <a
-                href={TALENT_REGISTER_HREF}
+              <OpenTalentModalButton
+                eventSource="home-hero"
                 className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-[background,transform,box-shadow] duration-200 hover:-translate-y-[1px]"
                 style={{
                   background: "var(--plt-forest)",
@@ -47,7 +44,7 @@ export function HeroSection() {
                 }}
               >
                 Join as talent free
-              </a>
+              </OpenTalentModalButton>
               <MarketingCta
                 href="/discover-agencies"
                 variant="secondary"

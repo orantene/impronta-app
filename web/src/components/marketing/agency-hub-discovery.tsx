@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { getAppUrl } from "@/lib/auth-flow";
 import { MARKETING_PHOTOS, type MarketingPhotoKey } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
+import { OpenTalentModalButton } from "./open-talent-modal-button";
 
 type DiscoveryCard = {
   id: string;
@@ -18,8 +18,6 @@ type DiscoveryCard = {
   href: string;
 };
 
-// Must be absolute — /talent/register is not allowed on the marketing host.
-const TALENT_REGISTER_HREF = `${getAppUrl()}/talent/register?next=/talent/profile/fields`;
 const KIND_OPTIONS = ["All", "Agency", "Hub"] as const;
 const CATEGORIES = [
   "All",
@@ -226,8 +224,8 @@ export function AgencyHubDiscovery({
                 when you find a fit.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <a
-                  href={TALENT_REGISTER_HREF}
+                <OpenTalentModalButton
+                  eventSource="discover-agencies-hero"
                   className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-[background,transform,box-shadow] duration-200 hover:-translate-y-[1px]"
                   style={{
                     background: "var(--plt-forest)",
@@ -236,7 +234,7 @@ export function AgencyHubDiscovery({
                   }}
                 >
                   Create free talent page
-                </a>
+                </OpenTalentModalButton>
                 <a
                   href={appDiscoverHref}
                   className="inline-flex min-h-12 items-center justify-center rounded-full border px-6 text-[0.9375rem] font-medium leading-none transition-colors hover:border-[var(--plt-forest)] hover:text-[var(--plt-forest)]"
