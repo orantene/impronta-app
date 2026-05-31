@@ -4318,7 +4318,7 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
     { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: s.hasCompleteProfile ?? false, cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
     { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? false, cta: "Add talent",      onCta: () => setPage("roster") },
     { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: s.hasSentInquiry     ?? false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
-    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
+    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => setPage("payouts") },
     { id: "domain",     label: isFreePlan ? "View your storefront URL" : "Set your workspace domain", desc: domainStepDesc, done: !isFreePlan && (s.hasCustomDomain ?? false), cta: domainStepCta, onCta: domainStepAction },
   ];
 
