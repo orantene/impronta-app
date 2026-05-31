@@ -2,7 +2,7 @@ import "server-only";
 
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import { renderEmailHtml } from "@/lib/email/render";
-import { sendEmail } from "@/lib/email";
+import { sendEmailResult } from "@/lib/email";
 import {
   buildUnsubscribeApiUrl,
   buildUnsubscribeUrl,
@@ -22,8 +22,9 @@ import type {
  * (non-required categories with a known user only), renders the catalog
  * entry's React Email template, and hands the HTML to `sendEmail`.
  *
- * `sendEmail` no-ops gracefully when `RESEND_API_KEY` is unset, so this runs
- * end-to-end in dev — the send is simply skipped and logged.
+ * The send no-ops gracefully when `RESEND_API_KEY` is unset (dev), and a real
+ * Resend failure is re-thrown so the dispatcher records the row as `failed`
+ * rather than masking the lost email as `sent`.
  *
  * Returns the Resend message id (or null) so the dispatcher can persist it as
  * the dispatch_log `provider_reference` — the key the Resend webhook uses to
@@ -58,10 +59,19 @@ export async function sendEmailNotification(
   const element = cfg.render({ event, recipient, brand, unsubscribeUrl });
   const html = await renderEmailHtml(element);
 
-  return sendEmail({
+  const result = await sendEmailResult({
     to: recipient.email,
     subject: cfg.subject(event, recipient),
     html,
     headers,
   });
+  // Surface a real provider failure so the dispatcher records THIS dispatch_log
+  // row as `failed` (its try/catch calls markDispatchLogFailed) instead of
+  // masking the lost email as `sent`. A skipped send (no RESEND_API_KEY — dev/
+  // test only; prod always has the key) returns null and is logged as sent,
+  // which is acceptable for a deliberate no-op.
+  if (result.status === "failed") {
+    throw new Error(`Resend send failed for ${entry.id}: ${result.error}`);
+  }
+  return result.status === "sent" ? result.id : null;
 }
