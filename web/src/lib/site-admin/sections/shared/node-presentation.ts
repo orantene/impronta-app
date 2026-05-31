@@ -27,6 +27,10 @@ export const nodePresentationValueSchema = z.object({
   letterSpacingPx: z.number().min(-5).max(30).optional(),
   lineHeightPct: z.number().int().min(80).max(300).optional(),
   textTransform: z.enum(["none", "uppercase", "lowercase", "capitalize"]).optional(),
+  // Advanced text controls — modern wrapping, whitespace, and line-clamp.
+  textWrap: z.enum(["wrap", "nowrap", "balance", "pretty"]).optional(),
+  whiteSpace: z.enum(["normal", "nowrap", "pre", "pre-wrap", "pre-line"]).optional(),
+  lineClamp: z.number().int().min(1).max(20).optional(),
   // Colors hold either a literal CSS color OR a theme-token binding such as
   // `var(--token-color-surface-raised, #ffffff)` (~42 chars). Capped at 64 so a
   // token binding survives the parse — a too-long KNOWN key makes Zod THROW
@@ -168,6 +172,17 @@ export function nodePresentationInlineStyle(
   }
   if (value.lineHeightPct !== undefined) style.lineHeight = value.lineHeightPct / 100;
   if (value.textTransform) style.textTransform = value.textTransform;
+  // Advanced text controls.
+  if (value.textWrap) {
+    (style as Record<string, unknown>).textWrap = value.textWrap;
+  }
+  if (value.whiteSpace) style.whiteSpace = value.whiteSpace;
+  if (value.lineClamp !== undefined && value.lineClamp > 0) {
+    style.display = "-webkit-box";
+    style.WebkitLineClamp = value.lineClamp;
+    style.WebkitBoxOrient = "vertical";
+    style.overflow = "hidden";
+  }
   if (value.textColor) style.color = value.textColor;
   if (value.backgroundColor) style.backgroundColor = value.backgroundColor;
   if (

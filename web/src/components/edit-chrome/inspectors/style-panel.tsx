@@ -1730,6 +1730,9 @@ export function StylePanel({
       cleaned.lineHeightPct = value.lineHeightPct;
     }
     if (value.textTransform) cleaned.textTransform = value.textTransform;
+    if (value.textWrap) cleaned.textWrap = value.textWrap;
+    if (value.whiteSpace) cleaned.whiteSpace = value.whiteSpace;
+    if (typeof value.lineClamp === "number") cleaned.lineClamp = value.lineClamp;
     if (value.textColor) cleaned.textColor = value.textColor;
     if (value.backgroundColor) cleaned.backgroundColor = value.backgroundColor;
     if (value.borderColor) cleaned.borderColor = value.borderColor;
@@ -1841,6 +1844,11 @@ export function StylePanel({
         out.lineHeightPct = breakpoint.lineHeightPct;
       }
       if (breakpoint.textTransform) out.textTransform = breakpoint.textTransform;
+      if (breakpoint.textWrap) out.textWrap = breakpoint.textWrap;
+      if (breakpoint.whiteSpace) out.whiteSpace = breakpoint.whiteSpace;
+      if (typeof breakpoint.lineClamp === "number") {
+        out.lineClamp = breakpoint.lineClamp;
+      }
       if (breakpoint.textColor) out.textColor = breakpoint.textColor;
       if (breakpoint.backgroundColor) {
         out.backgroundColor = breakpoint.backgroundColor;
@@ -4510,6 +4518,73 @@ export function StylePanel({
                       })
                     }
                     options={BUILDER_NODE_TEXT_TRANSFORM_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="textWrap"
+                >
+                  <span className={FIELD_LABEL}>Text wrap</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedNodeViewportPresentation?.textWrap ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        textWrap:
+                          (next || undefined) as NodePresentationValue["textWrap"],
+                      })
+                    }
+                    options={BUILDER_NODE_TEXT_WRAP_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="whiteSpace"
+                >
+                  <span className={FIELD_LABEL}>Whitespace</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedNodeViewportPresentation?.whiteSpace ?? ""}
+                    onChange={(next) =>
+                      patchSelectedNodePresentation({
+                        whiteSpace:
+                          (next || undefined) as NodePresentationValue["whiteSpace"],
+                      })
+                    }
+                    options={BUILDER_NODE_WHITE_SPACE_OPTIONS}
+                  />
+                </div>
+
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-node-presentation-control="lineClamp"
+                >
+                  <span className={FIELD_LABEL}>Truncate to lines</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={1}
+                    placeholder="Off"
+                    className={KIT.input}
+                    value={
+                      typeof selectedNodeViewportPresentation?.lineClamp ===
+                      "number"
+                        ? selectedNodeViewportPresentation.lineClamp
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.currentTarget.value.trim();
+                      const n = raw ? Math.round(Number(raw)) : NaN;
+                      patchSelectedNodePresentation({
+                        lineClamp:
+                          Number.isFinite(n) && n >= 1 ? n : undefined,
+                      });
+                    }}
                   />
                 </div>
               </div>
