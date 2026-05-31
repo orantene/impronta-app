@@ -113,6 +113,9 @@ export async function proxy(request: NextRequest) {
     // Branded 404 page for unregistered hosts — must bypass host gating to
     // avoid infinite rewrite loops when the middleware rewrites here.
     pathname === "/_host-unregistered" ||
+    // Branded "page not found" page for known-host disallowed paths — same
+    // recursion-avoidance rationale as /_host-unregistered above.
+    pathname === "/_page-not-found" ||
     // Dev sign-in shortcut — host-resolution bypass.
     //   - NODE_ENV=development: local `npm run dev`, allowed unconditionally
     //   - VERCEL_ENV=preview: Vercel preview deploys, allowed because previews
@@ -365,10 +368,14 @@ export async function proxy(request: NextRequest) {
       !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
     )
   ) {
-    return new NextResponse("Not found", {
-      status: 404,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
+    // Render the branded "page not found" page (Tulala chrome + a way home)
+    // instead of bare plain-text — a mistyped or stale URL on a known host must
+    // never be a chrome-less dead end. The rewrite target is whitelisted in the
+    // short-circuit block above so this does not recurse.
+    return NextResponse.rewrite(
+      new URL("/_page-not-found", request.url),
+      { status: 404 },
+    );
   }
 
   // Phase 9 v2 — share-link viewer rate limit. Token verification is
