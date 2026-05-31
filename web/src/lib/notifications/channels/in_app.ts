@@ -47,7 +47,14 @@ export async function sendInAppNotification(
     body: cfg.body?.(event, recipient) ?? undefined,
     targetDrawer: cfg.targetDrawer ?? null,
     targetPayload: cfg.targetPayload?.(event) ?? null,
-    originEventId: event.eventId,
+    // `origin_event_id` is a UUID column for the legacy emit.ts path's
+    // inquiry-event ids. The engine's `eventId` is a composite dedupe STRING
+    // (e.g. "payment-received:<txn>", "workspace-created:<tenant>"), which fails
+    // the uuid cast — and emitNotification swallows the error, so the in-app row
+    // is silently dropped while dispatch_log still records "sent". Idempotency
+    // for engine notifications is already the dispatcher's `dedupe_key` on
+    // notification_dispatch_log, so leave origin_event_id null here.
+    originEventId: null,
     originKind: event.type,
     originInquiryId: event.inquiryId ?? null,
   });
