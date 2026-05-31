@@ -84,3 +84,29 @@ test("original tree is not mutated (pure)", () => {
   assert.deepEqual(allIds(tree), before);
   assert.equal((tree[0].props as { ejected?: boolean }).ejected, undefined);
 });
+
+import { reconcileBuilderTreeWithLegacySlots } from "./snapshot-tree";
+
+test("reconcile preserves the ejected flag + children when rebuilding from slots", () => {
+  // An ejected section in the tree; reconcile triggers because another slot is
+  // missing from the tree. The ejected section must KEEP ejected + its children
+  // (else it double-renders curated + freeform).
+  const tree = [
+    {
+      id: "legacy:body:0:sec-1",
+      kind: "section",
+      props: { sectionId: "sec-1", sectionTypeKey: "hero", slotKey: "body", sortOrder: 0, ejected: true },
+      children: [{ id: "free-h", kind: "heading", props: { text: "Ejected", level: 2 } }],
+    },
+  ] as BuilderNodeTree;
+  const slots = [
+    { slotKey: "body", sortOrder: 0, sectionId: "sec-1", sectionTypeKey: "hero", name: "Hero", props: { title: "T" } },
+    { slotKey: "body", sortOrder: 1, sectionId: "sec-2", sectionTypeKey: "cta_banner", name: "CTA", props: { label: "Go" } },
+  ];
+  const next = reconcileBuilderTreeWithLegacySlots(tree, slots as never);
+  const sec1 = next.find(
+    (n) => n.kind === "section" && (n.props as { sectionId?: string }).sectionId === "sec-1",
+  ) as BuilderNode & { props: { ejected?: boolean }; children?: BuilderNode[] };
+  assert.equal(sec1.props.ejected, true, "ejected flag must survive reconcile");
+  assert.equal(sec1.children?.[0]?.id, "free-h", "ejected children must survive reconcile");
+});

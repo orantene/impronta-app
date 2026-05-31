@@ -425,6 +425,10 @@ export function reconcileBuilderTreeWithLegacySlots(
 
   const sectionNodeIdBySectionId = new Map<string, string>();
   const sectionChildrenBySectionId = new Map<string, ReadonlyArray<BuilderNode>>();
+  // "2018 bye-bye" — preserve the ejected flag across reconcile; rebuilt section
+  // nodes come from slots (which carry no flag), so without this an ejected
+  // section would lose `ejected` and double-render (curated + freeform).
+  const sectionEjectedBySectionId = new Map<string, boolean>();
   const nonSectionRoots: BuilderNode[] = [];
   const usedIds = new Set<string>();
 
@@ -441,6 +445,9 @@ export function reconcileBuilderTreeWithLegacySlots(
         node.children.length > 0
       ) {
         sectionChildrenBySectionId.set(sectionId, node.children);
+      }
+      if (sectionId && node.props.ejected) {
+        sectionEjectedBySectionId.set(sectionId, true);
       }
       return;
     }
@@ -477,7 +484,16 @@ export function reconcileBuilderTreeWithLegacySlots(
       !Array.isArray(node.children) || node.children.length === 0
         ? (sectionId ? sectionChildrenBySectionId.get(sectionId) : null)
         : null;
-    const withStableId = nextId === node.id ? node : { ...node, id: nextId };
+    const wasEjected = sectionId
+      ? sectionEjectedBySectionId.get(sectionId) === true
+      : false;
+    let withStableId = nextId === node.id ? node : { ...node, id: nextId };
+    if (wasEjected && !withStableId.props.ejected) {
+      withStableId = {
+        ...withStableId,
+        props: { ...withStableId.props, ejected: true },
+      };
+    }
     if (preservedChildren && preservedChildren.length > 0) {
       return {
         ...withStableId,

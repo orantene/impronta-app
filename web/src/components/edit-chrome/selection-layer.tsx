@@ -285,6 +285,15 @@ function builderNodeCrumbLabel(node: BuilderNode, sectionLabel: string): string 
   return truncateNodeLabel(canvasChildPrimaryLabel(node), 42);
 }
 
+// Section types that may NOT be ejected to freeform: the already-freeform
+// blank_section, and the site-shell sections (header/footer), which render via
+// PublishedShell with no eject gate.
+const NON_EJECTABLE_SECTION_TYPE_KEYS = new Set<string>([
+  "blank_section",
+  "site_header",
+  "site_footer",
+]);
+
 export function SelectionLayer() {
   const {
     selectedSectionId,
@@ -1363,7 +1372,12 @@ export function SelectionLayer() {
     contextMenuSectionNode.props.ejected === true;
   const contextMenuSectionEjectable =
     contextMenuSectionNode?.kind === "section" &&
-    contextMenuSectionNode.props.sectionTypeKey !== "blank_section";
+    // Not the already-freeform blank_section, and NOT the site-shell sections
+    // (header/footer) — those render via PublishedShell, which has no eject
+    // gate, so ejecting them would double-render (curated shell + roleless).
+    !NON_EJECTABLE_SECTION_TYPE_KEYS.has(
+      contextMenuSectionNode.props.sectionTypeKey,
+    );
 
   if (!portalEl) return null;
 
