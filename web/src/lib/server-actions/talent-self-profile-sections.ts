@@ -439,13 +439,19 @@ export async function syncSelfTalentTypeTaxonomyFromShell(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, profileCode } = auth;
 
-  const tax = await syncTalentTypeTaxonomyFromShellSlugs(supabase, {
-    tenantId,
-    talentProfileId: input.talent_profile_id,
-    primarySlug: input.primary_slug,
-    secondarySlugs: input.secondary_slugs,
-  });
-  if (!tax.ok) return { ok: false, error: tax.error };
+  // Talent-type taxonomy terms are resolved per-agency. An independent
+  // (no-tenant) talent has no agency taxonomy to sync against; skip
+  // gracefully so the rest of their save succeeds. Their talent-type
+  // selection resolves once they're on an agency roster.
+  if (tenantId) {
+    const tax = await syncTalentTypeTaxonomyFromShellSlugs(supabase, {
+      tenantId,
+      talentProfileId: input.talent_profile_id,
+      primarySlug: input.primary_slug,
+      secondarySlugs: input.secondary_slugs,
+    });
+    if (!tax.ok) return { ok: false, error: tax.error };
+  }
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };

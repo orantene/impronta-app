@@ -26,7 +26,8 @@ function talentTypeSlugsFromTaxonomyEmbed(rows: unknown): {
 
 export async function loadSelfProfileEditorData(input: {
   supabase: SupabaseClient;
-  tenantId: string;
+  /** Null for an independent (self-registered, no-agency) talent. */
+  tenantId: string | null;
   talentProfileId: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | { ok: false; error: string }> {
   const { supabase, tenantId, talentProfileId } = input;
@@ -54,13 +55,17 @@ export async function loadSelfProfileEditorData(input: {
       `)
       .eq("id", talentProfileId)
       .maybeSingle(),
-    supabase
-      .from("agency_talent_roster")
-      .select("internal_notes, emergency_contact, field_locks_data, feature_in_directory")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("tenant_id", tenantId)
-      .neq("status", "removed")
-      .maybeSingle(),
+    // Agency-managed fields only exist when the talent is on a roster.
+    // Independent (no-tenant) talent skip this query entirely.
+    tenantId
+      ? supabase
+          .from("agency_talent_roster")
+          .select("internal_notes, emergency_contact, field_locks_data, feature_in_directory")
+          .eq("talent_profile_id", talentProfileId)
+          .eq("tenant_id", tenantId)
+          .neq("status", "removed")
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (profileRes.error || !profileRes.data) {
