@@ -1,4 +1,8 @@
-import type { BuilderNode, BuilderNodeTree } from "./types";
+import type {
+  BuilderNode,
+  BuilderNodeTree,
+  BuilderNodeInstanceOverride,
+} from "./types";
 import { cloneNodeWithFreshIds } from "./operations";
 
 /**
@@ -137,4 +141,123 @@ export function detachComponentInstance(
   };
 
   return { tree: tree.map(visit), detached };
+}
+
+// ── Phase 3: live-render resolution ──────────────────────────────────────────
+
+/** A map of componentId → the saved component's subtree ROOT node. */
+export type ComponentDefinitions = Record<string, BuilderNode>;
+
+/**
+ * Does this tree contain ANY linked instance (a container with instanceOf)?
+ * Lets the published render skip the component-definitions DB query entirely on
+ * the common case (pages with no instances). Pure read.
+ */
+export function treeHasInstances(
+  nodes: ReadonlyArray<BuilderNode>,
+): boolean {
+  const visit = (node: BuilderNode): boolean => {
+    if (node.kind === "container" && typeof node.props.instanceOf === "string") {
+      return true;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      return node.children.some(visit);
+    }
+    return false;
+  };
+  return nodes.some(visit);
+}
+
+/**
+ * Apply a per-instance override to a single node's text-bearing / media props,
+ * by kind. Returns a new node (never mutates). Unknown kinds are returned
+ * unchanged. Empty-string overrides are ignored (treated as "not overridden")
+ * so a blank field never wipes the master content.
+ */
+function applyOverride(
+  node: BuilderNode,
+  override: BuilderNodeInstanceOverride | undefined,
+): BuilderNode {
+  if (!override) return node;
+  const props = node.props as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...props };
+  let changed = false;
+  if (override.text && (node.kind === "heading" || node.kind === "paragraph")) {
+    next.text = override.text;
+    changed = true;
+  }
+  if (override.text && node.kind === "button") {
+    next.label = override.text;
+    changed = true;
+  }
+  if (override.href && node.kind === "button") {
+    next.href = override.href;
+    changed = true;
+  }
+  if (node.kind === "image") {
+    if (override.imageSrc) {
+      next.src = override.imageSrc;
+      changed = true;
+    }
+    if (override.imageAlt) {
+      next.alt = override.imageAlt;
+      changed = true;
+    }
+  }
+  return changed ? ({ ...node, props: next } as BuilderNode) : node;
+}
+
+/**
+ * Recursively rebuild a master subtree node for live rendering inside one
+ * instance: namespace ids (so N instances of the same component don't collide
+ * on React keys / data-builder-node-id) and layer per-instance overrides keyed
+ * by the ORIGINAL master node id. Pure.
+ */
+function materializeForInstance(
+  node: BuilderNode,
+  instanceId: string,
+  overrides: Record<string, BuilderNodeInstanceOverride>,
+): BuilderNode {
+  const overridden = applyOverride(node, overrides[node.id]);
+  const namespacedId = `${instanceId}__${node.id}`;
+  if ("children" in overridden && Array.isArray(overridden.children)) {
+    return {
+      ...overridden,
+      id: namespacedId,
+      children: overridden.children.map((child) =>
+        materializeForInstance(child, instanceId, overrides),
+      ),
+    } as BuilderNode;
+  }
+  return { ...overridden, id: namespacedId } as BuilderNode;
+}
+
+/**
+ * Resolve the children a linked instance should render LIVE from its master
+ * component, with per-instance overrides applied. Returns:
+ *   - the resolved children array when the node is a tagged instance AND the
+ *     component definition is available;
+ *   - null otherwise — the caller MUST fall back to the instance's own stored
+ *     children, so a missing/deleted component or un-loaded definitions can
+ *     never blank a published page.
+ *
+ * Pure (master + instance in → fresh nodes out; neither is mutated).
+ */
+export function resolveInstanceChildren(
+  instanceNode: BuilderNode,
+  components: ComponentDefinitions,
+): BuilderNode[] | null {
+  if (instanceNode.kind !== "container") return null;
+  const componentId = instanceNode.props.instanceOf;
+  if (!componentId) return null;
+  const master = components[componentId];
+  if (!master) return null;
+  const masterChildren =
+    "children" in master && Array.isArray(master.children)
+      ? master.children
+      : [];
+  const overrides = instanceNode.props.instanceOverrides ?? {};
+  return masterChildren.map((child) =>
+    materializeForInstance(child, instanceNode.id, overrides),
+  );
 }

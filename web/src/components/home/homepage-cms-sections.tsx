@@ -33,6 +33,8 @@ import {
   resolveBuilderNodeRole,
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
+import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import {
@@ -212,6 +214,11 @@ export async function HomepageCmsSections({
     tenantId,
     locale,
   );
+  // Phase 3 — load this tenant's component definitions so linked instances
+  // render LIVE. Skipped entirely (no DB query) when the page has no instances.
+  const builderComponents = treeHasInstances(builderTreeResolution.tree)
+    ? await loadBuilderComponentsForTenant(tenantId)
+    : {};
 
   if (
     process.env.NODE_ENV !== "production" &&
@@ -438,6 +445,7 @@ export async function HomepageCmsSections({
                   publicPathPrefix,
                   mode: "freeform",
                   dataSources: builderDataSources,
+                  components: builderComponents,
                 })
               : null}
           </div>

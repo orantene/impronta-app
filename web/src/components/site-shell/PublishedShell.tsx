@@ -34,6 +34,8 @@ import {
   resolveBuilderNodeRole,
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
+import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
@@ -264,6 +266,11 @@ async function renderShellSlot(
         ? renderBuilderNodes(builderSectionChildren, {
             publicPathPrefix,
             mode: "freeform",
+            // Phase 3 — resolve live component instances in shell slots too.
+            // Gated: the DB query only runs when the slot actually has instances.
+            components: treeHasInstances(builderSectionChildren)
+              ? await loadBuilderComponentsForTenant(tenantId)
+              : {},
           })
         : null}
     </div>

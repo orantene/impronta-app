@@ -339,6 +339,19 @@ const containerPropsSchema = z
     dataBinding: dataBindingPropsSchema.optional(),
     style: builderNodeStyleSchema,
     instanceOf: z.string().max(120).optional(),
+    instanceOverrides: z
+      .record(
+        z.string().max(200),
+        z
+          .object({
+            text: z.string().max(2000).optional(),
+            imageSrc: z.string().max(2000).optional(),
+            imageAlt: z.string().max(500).optional(),
+            href: z.string().max(2000).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .superRefine((value, ctx) => {
     const baseLayout = value.layout;
