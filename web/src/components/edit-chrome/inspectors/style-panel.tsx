@@ -51,6 +51,7 @@ import {
   type LengthValue,
 } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
+import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
@@ -6905,6 +6906,10 @@ export function StylePanel({
                   onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
                   options={BUILDER_NODE_SHADOW_OPTIONS}
                 />
+                <ShadowBuilder
+                  value={selectedStandaloneViewportStyle?.boxShadow}
+                  onChange={(next) => patchSelectedStandaloneStyle({ boxShadow: next })}
+                />
               </div>
               <div
                 className="flex flex-col gap-1"
@@ -6960,6 +6965,10 @@ export function StylePanel({
                       backgroundImage: e.target.value.trim() || undefined,
                     })
                   }
+                />
+                <GradientBuilder
+                  value={selectedStandaloneViewportStyle?.backgroundImage}
+                  onChange={(next) => patchSelectedStandaloneStyle({ backgroundImage: next })}
                 />
               </div>
               <div
