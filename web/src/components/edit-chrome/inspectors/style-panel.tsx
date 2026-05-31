@@ -5236,6 +5236,21 @@ export function StylePanel({
                         outline: "none",
                       }}
                     />
+                    {/* Tactile slider — only drives a unitless multiplier; leaves
+                        the field empty (theme default) until dragged. */}
+                    <input
+                      type="range"
+                      aria-label="Line height slider"
+                      data-builder-node-style-slider="lineHeight"
+                      min={0.8}
+                      max={2.6}
+                      step={0.05}
+                      value={Number(selectedStandaloneViewportStyle?.lineHeight) || 1.5}
+                      onChange={(e) =>
+                        patchSelectedStandaloneStyle({ lineHeight: e.target.value })
+                      }
+                      style={{ width: "100%", accentColor: CHROME.ink, cursor: "pointer" }}
+                    />
                   </div>
                 </div>
 
@@ -5257,6 +5272,29 @@ export function StylePanel({
                         letterSpacing: next ? formatLength(next) : undefined,
                       })
                     }
+                  />
+                  {/* Tactile slider in em (the common unit). Writes "<v>em"; a
+                      0 value clears the override (back to theme). */}
+                  <input
+                    type="range"
+                    aria-label="Letter spacing slider (em)"
+                    data-builder-node-style-slider="letterSpacing"
+                    min={-0.05}
+                    max={0.4}
+                    step={0.005}
+                    value={(() => {
+                      const p = parseCssLength(
+                        selectedStandaloneViewportStyle?.letterSpacing,
+                      );
+                      return p && p.unit === "em" ? p.value : 0;
+                    })()}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      patchSelectedStandaloneStyle({
+                        letterSpacing: v === 0 ? undefined : `${v}em`,
+                      });
+                    }}
+                    style={{ width: "100%", accentColor: CHROME.ink, cursor: "pointer" }}
                   />
                 </div>
 
