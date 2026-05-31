@@ -4,6 +4,7 @@ import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/setti
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { PasskeysCard } from "../../modern-features";
+import { openTalentPayouts } from "@/components/talent-payouts/open-payouts";
 import { Divider, Icon, SecondaryButton, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_AGENCIES, MY_TALENT_PROFILE, useAdminShell } from "../../state";
 import { Grid, PageHeader } from "../shared/page-chrome-1";
@@ -232,9 +233,9 @@ export function SettingsPage() {
         />
         <SecondaryCard
           title="Payouts"
-          description="Bank info for direct payouts when an agency uses Tulala billing."
-          affordance="Manage"
-          onClick={() => openDrawer("talent-payouts")}
+          description="Connect a Stripe account to receive payouts on confirmed bookings — set up right inside Tulala."
+          affordance="Set up payouts"
+          onClick={openTalentPayouts}
         />
         <SecondaryCard
           title="Identity verification"

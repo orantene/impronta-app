@@ -98,6 +98,7 @@ export async function createOrGetTalentConnectedAccount(
       card_payments: { requested: false },
     },
     metadata: {
+      account_type: "talent",
       talent_profile_id: talentProfileId,
     },
   });

@@ -21,7 +21,10 @@ export function PayoutNudgeCard({
    *  gets sharper. */
   pendingPayouts = 0,
 }: {
-  tenantSlug: string;
+  /** Optional — agency-less platform talents have no slug. Falls back to
+   *  the platform-scoped payouts route (which the tenant-scoped one
+   *  redirects to anyway), avoiding a broken `/undefined/...` link. */
+  tenantSlug?: string | null;
   status: Status;
   pendingPayouts?: number;
 }) {
@@ -97,7 +100,7 @@ export function PayoutNudgeCard({
           {body}
         </div>
         <Link
-          href={`/${tenantSlug}/talent/settings/payouts`}
+          href={tenantSlug ? `/${tenantSlug}/talent/settings/payouts` : `/talent/settings/payouts`}
           style={{
             display: "inline-block",
             marginTop: 10,

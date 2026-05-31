@@ -8,12 +8,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getConnectOnboardingLinkAction,
+  getConnectAccountSessionAction,
   getConnectDashboardLinkAction,
   refreshConnectStatusAction,
   disconnectStripeAccountAction,
 } from "@/lib/server-actions/admin-stripe-connect";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
+import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
 import { createTranslator } from "@/i18n/messages";
 
 const C = {
@@ -76,19 +77,27 @@ export function PayoutsActionsClient({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const fullyEnabled = status === "enabled" && chargesEnabled && payoutsEnabled;
 
+  // Open the inline embedded onboarding (Tulala-branded; no stripe.com
+  // redirect). The Express account is created lazily by the Account Session.
   const onConnect = () => {
     setError(null); setInfo(null);
-    startTransition(async () => {
-      const r = await getConnectOnboardingLinkAction(tenantSlug);
-      if (!r.ok) { setError(r.error); return; }
-      window.location.assign(r.data.url);
-    });
+    setShowOnboarding(true);
   };
 
-  const onResume = onConnect; // same flow — Stripe re-uses the in-progress account.
+  const onResume = onConnect; // same inline flow — Stripe re-uses the in-progress account.
+
+  // Re-pull status from Stripe after the embedded flow signals exit.
+  const onOnboardingExit = () => {
+    startTransition(async () => {
+      const r = await refreshConnectStatusAction(tenantSlug);
+      if (r.ok && r.data.status === "enabled") setShowOnboarding(false);
+      router.refresh();
+    });
+  };
 
   const onManage = () => {
     setError(null); setInfo(null);
@@ -155,6 +164,25 @@ export function PayoutsActionsClient({
           </button>
         )}
       </div>
+
+      {showOnboarding && !fullyEnabled && (
+        <div style={{ marginTop: 4 }}>
+          <ConnectEmbeddedOnboarding
+            fetchClientSecret={async () => {
+              const r = await getConnectAccountSessionAction(tenantSlug);
+              return r.ok ? { ok: true, clientSecret: r.data.clientSecret } : r;
+            }}
+            onExit={onOnboardingExit}
+          />
+          <button
+            type="button"
+            onClick={() => setShowOnboarding(false)}
+            style={{ ...ghostBtn(false), marginTop: 12 }}
+          >
+            Done for now
+          </button>
+        </div>
+      )}
 
       {error && (
         <div style={{ fontSize: 12, color: C.coral }}>

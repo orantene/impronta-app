@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
+import { requirePlatformTalentContext } from "@/lib/talent/platform-talent-context";
 import { loadTalentPayoutSnapshot } from "../../../[tenantSlug]/talent/settings/payouts/actions";
 import { PayoutsShell } from "../../../[tenantSlug]/talent/settings/payouts/PayoutsShell";
 
@@ -13,7 +13,6 @@ export default async function PlatformTalentPayoutsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { tenantSlug } = await resolveTalentPageScope(Promise.resolve({}));
   const sp = await searchParams;
 
   const session = await getCachedActorSession();
@@ -21,11 +20,15 @@ export default async function PlatformTalentPayoutsPage({
     redirect(`/login?next=/talent/settings/payouts`);
   }
 
+  // Embedded onboarding has no Stripe-hosted return redirect, so it does
+  // NOT require an active agency tenant. requirePlatformTalentContext only
+  // 404s when the user has no talent profile (correct) — an independent
+  // (agency-less) talent with no tenantSlug can still onboard here.
+  await requirePlatformTalentContext();
   const snapResult = await loadTalentPayoutSnapshot();
 
   return (
     <PayoutsShell
-      tenantSlug={tenantSlug}
       snapshot={snapResult.ok ? snapResult.snapshot : null}
       loadError={snapResult.ok ? null : snapResult.error}
       justReturned={sp.ok === "1"}

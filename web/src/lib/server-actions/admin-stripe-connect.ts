@@ -18,6 +18,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { getStripe } from "@/lib/stripe/client";
 import {
   createOrGetConnectedAccount,
   createOnboardingLink,
@@ -104,6 +105,44 @@ export async function getConnectOnboardingLinkAction(
   } catch (err) {
     logServerError("admin-stripe-connect.getConnectOnboardingLinkAction", err);
     return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Mint a Stripe **Account Session** client secret for the workspace's
+ * Connect Express account, scoped to the embedded `account_onboarding`
+ * component. Lazily ensures the Express account exists. Powers the in-app,
+ * Tulala-branded EMBEDDED onboarding — the workspace admin never leaves for
+ * stripe.com (mirrors the talent embedded flow). `external_account_collection`
+ * lets them attach their bank inside the embedded flow.
+ */
+export async function getConnectAccountSessionAction(
+  tenantSlug: string,
+): Promise<ConnectActionResult<{ clientSecret: string }>> {
+  try {
+    const guard = await authorizeForSlug(tenantSlug);
+    if (!guard.ok) return guard;
+
+    const stripe = getStripe();
+    if (!stripe) return { ok: false, error: "Payouts are not available right now." };
+
+    const ensure = await createOrGetConnectedAccount(tenantSlug);
+    if (!ensure.ok) return ensure;
+
+    const session = await stripe.accountSessions.create({
+      account: ensure.data.stripeAccountId,
+      components: {
+        account_onboarding: {
+          enabled: true,
+          features: { external_account_collection: true },
+        },
+      },
+    });
+    revalidatePath(`/${tenantSlug}/admin/payouts`);
+    return { ok: true, data: { clientSecret: session.client_secret } };
+  } catch (err) {
+    logServerError("admin-stripe-connect.getConnectAccountSessionAction", err);
+    return { ok: false, error: "Could not start payout setup. Please try again." };
   }
 }
 

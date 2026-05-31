@@ -105,6 +105,23 @@ const googleMapsCsp = {
   frameSrc: "'self' https://*.google.com",
 };
 
+/**
+ * Stripe — covers BOTH Stripe.js (embedded Payment Element checkout in
+ * Messages) AND Connect.js embedded components (talent/workspace payout
+ * onboarding). Without these the SDKs are silently blocked:
+ * `loadStripe`/`loadConnectAndInitialize` reject with "Failed to load …"
+ * and the iframes never mount. `js.stripe.com` ≠ `*.js.stripe.com` (the
+ * wildcard doesn't match the bare host), so both are listed.
+ * Per https://docs.stripe.com/connect/get-started-connect-embedded-components#csp
+ */
+const stripeCsp = {
+  script: "https://js.stripe.com https://connect-js.stripe.com https://*.js.stripe.com",
+  connect:
+    "https://api.stripe.com https://connect-js.stripe.com https://*.js.stripe.com https://merchant-ui-api.stripe.com",
+  frame:
+    "https://js.stripe.com https://connect-js.stripe.com https://*.js.stripe.com https://hooks.stripe.com",
+};
+
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
   // @vercel/analytics + @vercel/speed-insights load scripts from va.vercel-scripts.com
@@ -115,13 +132,13 @@ function contentSecurityPolicy(): string {
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${googleTag} ${vercelInsights}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${googleTag} ${vercelInsights}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${vercelInsights}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${vercelInsights}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
-    `frame-src ${googleMapsCsp.frameSrc}`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
+    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
     "frame-ancestors 'self'",
