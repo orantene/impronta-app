@@ -48,11 +48,20 @@ export type TalentConnectResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-/** Derive the bucketed status from a Stripe.Account response. */
+/** Derive the bucketed status from a Stripe.Account response.
+ *
+ *  A brand-new Express account reports `disabled_reason: "requirements.past_due"`
+ *  (or `requirements.pending_verification`) simply because onboarding isn't
+ *  finished — that is NOT a real disablement and must never surface the scary
+ *  "Disabled by Stripe" copy. Only genuine rejections / reviews count as
+ *  "disabled"; everything else is "pending" (in progress) or "restricted"
+ *  (submitted, action needed). */
 function deriveStatus(account: Stripe.Account): TalentConnectStatus {
   if (account.charges_enabled && account.payouts_enabled) return "enabled";
-  const r = account.requirements?.disabled_reason;
-  if (r) return "disabled";
+  const r = account.requirements?.disabled_reason ?? "";
+  if (r.startsWith("rejected") || r === "listed" || r === "under_review" || r === "platform_paused") {
+    return "disabled";
+  }
   if (account.details_submitted) return "restricted";
   return "pending";
 }
