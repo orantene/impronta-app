@@ -74,7 +74,7 @@ export class ColorNode extends TextNode {
   }
 
   override updateDOM(
-    prevNode: ColorNode,
+    prevNode: this,
     dom: HTMLElement,
     config: EditorConfig,
   ): boolean {

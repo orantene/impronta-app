@@ -40,7 +40,7 @@ export interface BuilderNodeCompositionPreset {
   id: BuilderNodeCompositionPresetId;
   label: string;
   description: string;
-  rootKind: Extract<BuilderNodeKind, "container" | "split" | "accordion">;
+  rootKind: Extract<BuilderNodeKind, "container" | "split" | "accordion" | "card">;
   category: "hero" | "data" | "story" | "trust" | "conversion";
   dataMode: "starter" | "data-ready";
   keywords: ReadonlyArray<string>;
