@@ -41,6 +41,11 @@ alter table public.cms_builder_components enable row level security;
 
 -- Mirrors cms_workspace_templates: staff of the owning tenant can read their
 -- own, plus any platform-promoted component; writes are owning-tenant only.
+-- Idempotent: this migration was renamed from a colliding timestamp
+-- (20261005000000, which the remote ledger assigned to plan_trials_engine), so
+-- the table + policies may already exist on remote from Phase 1 QA. Drop the
+-- policies before recreating them so re-applying is a safe no-op.
+drop policy if exists cms_builder_components_staff_read on public.cms_builder_components;
 create policy cms_builder_components_staff_read on public.cms_builder_components
   for select to authenticated
   using (
@@ -48,6 +53,7 @@ create policy cms_builder_components_staff_read on public.cms_builder_components
     or cms_builder_components.visibility = 'platform'
   );
 
+drop policy if exists cms_builder_components_staff_write on public.cms_builder_components;
 create policy cms_builder_components_staff_write on public.cms_builder_components
   for all to authenticated
   using (
