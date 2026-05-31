@@ -6075,11 +6075,16 @@ export function StylePanel({
             ) : null}
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="position"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Position</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Position</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <Segmented
                 fullWidth
                 compact
@@ -6217,14 +6222,21 @@ export function StylePanel({
                   />
                 </div>
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="transform"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Transform</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Transform</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <div className="grid grid-cols-2 gap-2">
                 <div
                   className="flex flex-col gap-1"
@@ -6363,14 +6375,21 @@ export function StylePanel({
                   />
                 </div>
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="selfLayout"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Layout in parent</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Layout in parent</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="alignSelf"
@@ -6551,14 +6570,21 @@ export function StylePanel({
                   />
                 </div>
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="childLayout"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Layout (children)</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Layout (children)</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <span className="text-[11px]" style={{ color: CHROME.muted }}>
                 Distributes this box&apos;s own children — works on row / grid
                 containers (container, split, card, CTA group).
@@ -6697,14 +6723,21 @@ export function StylePanel({
                   options={BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS}
                 />
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="effects-interaction"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Effects &amp; interaction</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Effects &amp; interaction</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="clipPath"
@@ -7013,14 +7046,21 @@ export function StylePanel({
                   options={BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS}
                 />
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="entrance-animation"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Entrance animation</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Entrance animation</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
                 Plays once when the published page loads (not previewed in the
                 editor). Respects reduced-motion.
@@ -7140,14 +7180,21 @@ export function StylePanel({
                   options={BUILDER_NODE_ANIMATION_EASING_OPTIONS}
                 />
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="surface"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Surface &amp; depth</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Surface &amp; depth</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="boxShadow"
@@ -7371,14 +7418,21 @@ export function StylePanel({
                   </span>
                 </div>
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="effects"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Effects</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Effects</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="filter"
@@ -7457,14 +7511,21 @@ export function StylePanel({
                   options={BUILDER_NODE_BLEND_OPTIONS}
                 />
               </div>
+              </div>
+              </details>
             </div>
 
             <div
-              className="flex flex-col gap-2 border-t pt-3"
+              className="border-t pt-3"
               data-builder-node-style-control="hover"
               style={{ borderColor: CHROME.line }}
             >
-              <span className={FIELD_LABEL}>Hover state</span>
+              <details>
+                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
+                  <span className={FIELD_LABEL}>Hover state</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+              <div className="flex flex-col gap-2 mt-2">
               <span className="text-[11px]" style={{ color: CHROME.muted }}>
                 Applies on the live site while hovered or keyboard-focused.
                 Colors accept a token (var(--token-color-primary)), hex, or rgb.
@@ -7711,6 +7772,8 @@ export function StylePanel({
                   />
                 </div>
               </div>
+              </div>
+              </details>
             </div>
 
             {selectedStandaloneStyleNode.kind === "image" ? (
