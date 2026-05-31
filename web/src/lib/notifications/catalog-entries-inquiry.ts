@@ -151,13 +151,13 @@ const OFFER_SENT_CLIENT: CatalogEntry = {
   },
 };
 
-/** booking.created → client confirmation (closes a P0 email gap). */
-const BOOKING_CREATED_CLIENT: CatalogEntry = {
-  id: "booking.created.client",
+/** booking.confirmed (emitted at payment) → client confirmation. */
+const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
+  id: "booking.confirmed.client",
   category: "bookings",
   defaultChannels: ["email"],
   required: false,
-  triggers: ["booking.created"],
+  triggers: ["booking.confirmed"],
   hydrate: loadInquiryView,
   resolveAudience: clientOrGuest,
   email: {
@@ -182,13 +182,13 @@ const BOOKING_CREATED_CLIENT: CatalogEntry = {
   },
 };
 
-/** booking.created → confirmation to every talent on the booking (P0 gap). */
-const BOOKING_CREATED_TALENT: CatalogEntry = {
-  id: "booking.created.talent",
+/** booking.confirmed (emitted at payment) → confirmation to every talent on the booking. */
+const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
+  id: "booking.confirmed.talent",
   category: "bookings",
   defaultChannels: ["email"],
   required: false,
-  triggers: ["booking.created"],
+  triggers: ["booking.confirmed"],
   hydrate: loadInquiryView,
   resolveAudience: allRosterTalent,
   email: {
@@ -449,8 +449,8 @@ export const INQUIRY_CATALOG_ENTRIES: CatalogEntry[] = [
   INQUIRY_SUBMITTED_COORDINATOR,
   INQUIRY_SUBMITTED_TALENT,
   OFFER_SENT_CLIENT,
-  BOOKING_CREATED_CLIENT,
-  BOOKING_CREATED_TALENT,
+  BOOKING_CONFIRMED_CLIENT,
+  BOOKING_CONFIRMED_TALENT,
   ROSTER_TALENT_INVITED,
   COORDINATOR_ASSIGNED,
   OFFER_DECLINED_WORKSPACE,
