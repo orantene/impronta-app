@@ -953,6 +953,14 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
     const duration = style.animationDuration || "0.6s";
     const delay = style.animationDelay || "0s";
     out.animation = `bn-anim-${style.animationPreset} ${duration} ease ${delay} both`;
+    if (style.animationTrigger === "scroll") {
+      // CSS scroll-driven animation — progress maps to the node entering the
+      // viewport. Pure CSS; unsupported browsers ignore the timeline and just
+      // play it on load. The view-timeline ignores the duration above.
+      const record = out as Record<string, unknown>;
+      record.animationTimeline = "view()";
+      record.animationRange = "entry 0% cover 35%";
+    }
   }
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the

@@ -430,6 +430,11 @@ const BUILDER_NODE_ANIMATION_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<strin
   { value: "blur-in", label: "Blur" },
 ];
 
+const BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "On load" },
+  { value: "scroll", label: "On scroll" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -1053,6 +1058,7 @@ function cleanBuilderNodeStyle(
   if (value.animationPreset) out.animationPreset = value.animationPreset;
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
+  if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1163,6 +1169,7 @@ function cleanBuilderNodeStyleValue(
   if (value.animationPreset) out.animationPreset = value.animationPreset;
   if (value.animationDuration) out.animationDuration = value.animationDuration;
   if (value.animationDelay) out.animationDelay = value.animationDelay;
+  if (value.animationTrigger) out.animationTrigger = value.animationTrigger;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -6856,6 +6863,25 @@ export function StylePanel({
                     }
                   />
                 </div>
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationTrigger"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Trigger
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.animationTrigger ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      animationTrigger: (next || undefined) as BuilderNodeStyleValue["animationTrigger"],
+                    })
+                  }
+                  options={BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS}
+                />
               </div>
             </div>
 

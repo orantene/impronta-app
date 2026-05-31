@@ -236,6 +236,7 @@ const builderNodeStyleValueSchema = z.object({
     .optional(),
   animationDuration: z.string().max(16).optional(),
   animationDelay: z.string().max(16).optional(),
+  animationTrigger: z.enum(["load", "scroll"]).optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while

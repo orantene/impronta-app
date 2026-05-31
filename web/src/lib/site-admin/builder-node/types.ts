@@ -224,6 +224,10 @@ export interface BuilderNodeStyleValue {
     | "blur-in";
   animationDuration?: string;
   animationDelay?: string;
+  // Trigger: "load" plays once on page load; "scroll" drives the animation by
+  // scroll position via CSS scroll-driven animations (animation-timeline:view()).
+  // Pure CSS — unsupported browsers fall back to playing it on load.
+  animationTrigger?: "load" | "scroll";
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only
