@@ -6,6 +6,7 @@ import {
   syncComponentInstances,
   countComponentInstances,
   tagAsInstance,
+  detachComponentInstance,
 } from "./component-instances";
 
 function container(
@@ -109,6 +110,29 @@ test("tagAsInstance tags a container, leaves the tag stable", () => {
 test("tagAsInstance leaves non-container kinds unchanged", () => {
   const heading = { id: "h", kind: "heading", props: {} } as unknown as BuilderNode;
   assert.equal(tagAsInstance(heading, "cmp-9"), heading);
+});
+
+test("detach strips the instanceOf tag but keeps children + id", () => {
+  const tree = [container("root", [container("inst", [container("kid")], "cmp-1")])];
+  const { tree: next, detached } = detachComponentInstance(tree, "inst");
+  assert.equal(detached, true);
+  const inst = (next[0] as BuilderNode & { children: BuilderNode[] }).children[0] as BuilderNode & {
+    children: BuilderNode[];
+    props: { instanceOf?: string };
+  };
+  assert.equal(inst.id, "inst");
+  assert.equal(inst.props.instanceOf, undefined);
+  assert.deepEqual(collectIds(inst), ["inst", "kid"]);
+  // A detached instance is no longer counted/synced.
+  assert.equal(countComponentInstances(next, "cmp-1"), 0);
+});
+
+test("detach is a no-op for an unknown / non-instance id", () => {
+  const tree = [container("inst", [], "cmp-1")];
+  const a = detachComponentInstance(tree, "missing");
+  assert.equal(a.detached, false);
+  const b = detachComponentInstance([container("plain")], "plain");
+  assert.equal(b.detached, false);
 });
 
 test("original tree is not mutated (pure)", () => {

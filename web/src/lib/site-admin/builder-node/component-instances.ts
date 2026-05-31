@@ -100,3 +100,41 @@ export function tagAsInstance(
     props: { ...node.props, instanceOf: componentId },
   } as BuilderNode;
 }
+
+export interface DetachInstanceResult {
+  tree: BuilderNodeTree;
+  /** Whether a tagged instance with this id was found and detached. */
+  detached: boolean;
+}
+
+/**
+ * Detach a single instance (by node id): strip its `instanceOf` tag so it
+ * becomes a plain, independent container. Its children are left exactly as
+ * they are — detaching keeps the current content and only severs the link, so
+ * a future "Sync instances" will no longer touch it. Pure.
+ */
+export function detachComponentInstance(
+  tree: BuilderNodeTree,
+  nodeId: string,
+): DetachInstanceResult {
+  let detached = false;
+
+  const visit = (node: BuilderNode): BuilderNode => {
+    if (
+      node.id === nodeId &&
+      node.kind === "container" &&
+      typeof node.props.instanceOf === "string"
+    ) {
+      detached = true;
+      const nextProps = { ...node.props };
+      delete (nextProps as { instanceOf?: string }).instanceOf;
+      return { ...node, props: nextProps } as BuilderNode;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      return { ...node, children: node.children.map(visit) } as BuilderNode;
+    }
+    return node;
+  };
+
+  return { tree: tree.map(visit), detached };
+}

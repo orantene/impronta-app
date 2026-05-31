@@ -61,6 +61,7 @@ import type {
 import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-components-action";
 import {
   syncComponentInstances as syncComponentInstancesInTree,
+  detachComponentInstance as detachComponentInstanceInTree,
   countComponentInstances,
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
@@ -421,6 +422,13 @@ export interface EditContextValue {
     componentId: string,
     masterSubtreeJson: string,
   ) => Promise<{ ok: boolean; error?: string; synced?: number }>;
+  /**
+   * Detach a single linked instance (by node id) — severs its component link
+   * while keeping its current content, so future syncs skip it.
+   */
+  detachComponentInstance: (
+    nodeId: string,
+  ) => Promise<{ ok: boolean; error?: string; detached?: boolean }>;
   /**
    * Living components — snapshot the currently selected freeform block as a
    * reusable saved component (persisted to cms_builder_components).
@@ -3614,6 +3622,30 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
+  // Detach a single linked instance — strip its instanceOf tag so it becomes an
+  // independent container (keeps its current content). Pure transform + the
+  // shared commit path.
+  const detachComponentInstance = useCallback<
+    EditContextValue["detachComponentInstance"]
+  >(
+    async (nodeId) => {
+      let didDetach = false;
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => {
+          const out = detachComponentInstanceInTree(tree, nodeId);
+          didDetach = out.detached;
+          return { ok: true, tree: out.tree };
+        },
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true, detached: didDetach };
+    },
+    [executeBuilderNodeOperation],
+  );
   const saveSelectedNodeAsComponent = useCallback<
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
@@ -4523,6 +4555,7 @@ export function EditProvider({
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
+      detachComponentInstance,
       saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
@@ -4668,6 +4701,7 @@ export function EditProvider({
       insertBuilderComponent,
       insertLinkedComponent,
       syncComponentInstances,
+      detachComponentInstance,
       saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,

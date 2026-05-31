@@ -1509,6 +1509,7 @@ export function StylePanel({
     canUndo,
     canRedo,
     patchBuilderNodeProps,
+    detachComponentInstance,
     undo,
     redo,
   } = useEditContext();
@@ -1569,6 +1570,12 @@ export function StylePanel({
     () => resolveStandaloneBuilderNodeForContent(builderTree, selectedBuilderNodeId),
     [builderTree, selectedBuilderNodeId],
   );
+  // Linked-component instance marker (Living Components Phase 2) — present only
+  // on a container tagged instanceOf. Drives the Detach affordance.
+  const selectedInstanceComponentId =
+    selectedStandaloneStyleNode?.kind === "container"
+      ? (selectedStandaloneStyleNode.props.instanceOf ?? null)
+      : null;
   const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
   const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
   const selectedNodeIsButton =
@@ -4978,6 +4985,40 @@ export function StylePanel({
                 </button>
               ) : null}
             </div>
+
+            {selectedInstanceComponentId && selectedBuilderNodeId ? (
+              <div
+                className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5"
+                data-builder-node-linked-instance=""
+                style={{
+                  background: CHROME.surface,
+                  border: `1px solid ${CHROME.line}`,
+                }}
+              >
+                <span
+                  className="text-[10.5px] font-semibold"
+                  style={{ color: CHROME.muted }}
+                >
+                  ⟳ Linked instance
+                </span>
+                <button
+                  type="button"
+                  data-builder-node-detach-instance=""
+                  className="cursor-pointer text-[10.5px] font-semibold"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: CHROME.ink,
+                    padding: 0,
+                  }}
+                  onClick={() => {
+                    void detachComponentInstance(selectedBuilderNodeId);
+                  }}
+                >
+                  Detach
+                </button>
+              </div>
+            ) : null}
 
             <StylePresetsBar
               currentStyle={selectedStandaloneFullStyle ?? undefined}
