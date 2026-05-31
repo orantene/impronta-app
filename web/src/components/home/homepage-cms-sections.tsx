@@ -216,9 +216,14 @@ export async function HomepageCmsSections({
   );
   // Phase 3 — load this tenant's component definitions so linked instances
   // render LIVE. Skipped entirely (no DB query) when the page has no instances.
-  const builderComponents = treeHasInstances(builderTreeResolution.tree)
-    ? await loadBuilderComponentsForTenant(tenantId)
-    : {};
+  // EDIT MODE renders the instance's editable STORED children instead: live
+  // resolution namespaces ids (instanceId__masterId) which the editor's
+  // selection/inspector model doesn't track, so resolving in edit mode would
+  // break selecting/editing instance content. Preview + published resolve live.
+  const builderComponents =
+    !editMode && treeHasInstances(builderTreeResolution.tree)
+      ? await loadBuilderComponentsForTenant(tenantId)
+      : {};
 
   if (
     process.env.NODE_ENV !== "production" &&
