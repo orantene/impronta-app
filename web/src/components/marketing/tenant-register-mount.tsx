@@ -14,8 +14,12 @@ import "server-only";
  * no-op on the marketing site and the app host.
  */
 
+import { headers } from "next/headers";
+
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getAppUrl } from "@/lib/auth-flow";
+import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   loadRegistrationSettings,
@@ -60,6 +64,22 @@ export async function TenantRegisterMount() {
     isAuthedTalent = Boolean(tp?.id);
   }
 
+  // On a tenant CUSTOM domain (host-only cookies), the "sign in to apply" path
+  // can't rely on the shared parent-domain session — route it through the SSO
+  // hand-off so the session lands on this domain. *.tulala.digital subdomains
+  // share the session and skip this.
+  const hdrs = await headers();
+  const host = (hdrs.get("x-impronta-host-name") ?? hdrs.get("host") ?? "")
+    .split(":")[0]
+    .toLowerCase();
+  const isCustomDomain =
+    Boolean(host) && host !== "localhost" && !cookieDomainForHost(host);
+  const ssoSignInUrl = isCustomDomain
+    ? `${getAppUrl()}/auth/sso/start?return=${encodeURIComponent(
+        `https://${host}/${slug}/talent?register=1`,
+      )}`
+    : undefined;
+
   return (
     <TenantRegisterModalHost
       tenant={{
@@ -68,6 +88,7 @@ export async function TenantRegisterMount() {
         logoSvg,
         ctaLabel: settings.ctaLabel,
         isAuthedTalent,
+        ssoSignInUrl,
       }}
     />
   );

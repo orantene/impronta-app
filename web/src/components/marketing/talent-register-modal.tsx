@@ -69,6 +69,12 @@ export type TenantRegisterContext = {
   ctaLabel: string;
   /** True when the current visitor is already a signed-in Tulala talent. */
   isAuthedTalent: boolean;
+  /**
+   * On a custom domain (host-only cookies), the "sign in to apply" link routes
+   * through the SSO hand-off (/auth/sso/start) so the session lands on this
+   * domain. Absent on *.tulala.digital subdomains, which share the session.
+   */
+  ssoSignInUrl?: string;
 };
 
 /** Re-theme the modal to a tenant storefront by remapping `--plt-*` onto the
@@ -290,7 +296,8 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
               <a
                 href={
                   tenant
-                    ? `${getAppUrl()}/login?next=${encodeURIComponent(`/${tenant.slug}/talent?register=1`)}`
+                    ? tenant.ssoSignInUrl ??
+                      `${getAppUrl()}/login?next=${encodeURIComponent(`/${tenant.slug}/talent?register=1`)}`
                     : `${getAppUrl()}/login`
                 }
                 onClick={onClose}
