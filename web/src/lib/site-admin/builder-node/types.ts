@@ -210,6 +210,20 @@ export interface BuilderNodeStyleValue {
   pointerEvents?: "auto" | "none";
   scrollSnapType?: string;
   scrollSnapAlign?: "none" | "start" | "center" | "end";
+  // Entrance animation — a named preset that maps to a CSS @keyframe baked into
+  // the static renderer sheet. Fires once on the published page. duration/delay
+  // are raw CSS time strings ("0.6s", "120ms").
+  animationPreset?:
+    | "none"
+    | "fade-in"
+    | "rise"
+    | "fall"
+    | "zoom-in"
+    | "slide-left"
+    | "slide-right"
+    | "blur-in";
+  animationDuration?: string;
+  animationDelay?: string;
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only

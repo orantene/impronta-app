@@ -80,6 +80,14 @@ const CONTAINER_STYLE: CSSProperties = {
 };
 
 const BUILDER_NODE_RENDERER_CSS = `
+@keyframes bn-anim-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes bn-anim-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-fall{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bn-anim-zoom-in{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+@keyframes bn-anim-slide-left{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-slide-right{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes bn-anim-blur-in{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
+@media (prefers-reduced-motion:reduce){.site-builder-node[style*="animation"]{animation:none!important}}
 .site-builder-node{box-sizing:border-box}
 .site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);align-items:var(--bn-align,stretch)}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
@@ -937,6 +945,15 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.pointerEvents) out.pointerEvents = style.pointerEvents;
   if (style.scrollSnapType) out.scrollSnapType = style.scrollSnapType;
   if (style.scrollSnapAlign) out.scrollSnapAlign = style.scrollSnapAlign;
+  // Entrance animation — fires on the PUBLISHED page only (the edit canvas uses
+  // a separate renderer, so the inspector won't re-animate on every keystroke).
+  // Maps a friendly preset to a named @keyframe in the static sheet; `both`
+  // fill keeps the end state. Honours prefers-reduced-motion via the sheet.
+  if (style.animationPreset && style.animationPreset !== "none") {
+    const duration = style.animationDuration || "0.6s";
+    const delay = style.animationDelay || "0s";
+    out.animation = `bn-anim-${style.animationPreset} ${duration} ease ${delay} both`;
+  }
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

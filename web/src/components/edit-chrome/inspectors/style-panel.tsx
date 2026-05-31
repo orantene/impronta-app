@@ -419,6 +419,17 @@ const BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<stri
   { value: "none", label: "None" },
 ];
 
+const BUILDER_NODE_ANIMATION_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "None" },
+  { value: "fade-in", label: "Fade" },
+  { value: "rise", label: "Rise" },
+  { value: "fall", label: "Fall" },
+  { value: "zoom-in", label: "Zoom" },
+  { value: "slide-left", label: "Slide ←" },
+  { value: "slide-right", label: "Slide →" },
+  { value: "blur-in", label: "Blur" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -1039,6 +1050,9 @@ function cleanBuilderNodeStyle(
   if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
   if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
   if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
+  if (value.animationPreset) out.animationPreset = value.animationPreset;
+  if (value.animationDuration) out.animationDuration = value.animationDuration;
+  if (value.animationDelay) out.animationDelay = value.animationDelay;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1146,6 +1160,9 @@ function cleanBuilderNodeStyleValue(
   if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
   if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
   if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
+  if (value.animationPreset) out.animationPreset = value.animationPreset;
+  if (value.animationDuration) out.animationDuration = value.animationDuration;
+  if (value.animationDelay) out.animationDelay = value.animationDelay;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -6750,6 +6767,95 @@ export function StylePanel({
                   }
                   options={BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS}
                 />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="entrance-animation"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Entrance animation</span>
+              <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
+                Plays once when the published page loads (not previewed in the
+                editor). Respects reduced-motion.
+              </p>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="animationPreset"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Effect
+                </span>
+                <Segmented
+                  value={selectedStandaloneViewportStyle?.animationPreset ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      animationPreset: (next || undefined) as BuilderNodeStyleValue["animationPreset"],
+                    })
+                  }
+                  options={BUILDER_NODE_ANIMATION_PRESET_OPTIONS}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="animationDuration"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Duration
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0.6s"
+                    value={selectedStandaloneViewportStyle?.animationDuration ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        animationDuration: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="animationDelay"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Delay
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0s"
+                    value={selectedStandaloneViewportStyle?.animationDelay ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        animationDelay: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
               </div>
             </div>
 

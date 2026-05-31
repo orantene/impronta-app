@@ -220,6 +220,22 @@ const builderNodeStyleValueSchema = z.object({
   pointerEvents: z.enum(["auto", "none"]).optional(),
   scrollSnapType: z.string().max(40).optional(),
   scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
+  // Entrance animation — preset maps to a baked @keyframe; duration/delay are
+  // CSS time strings (short-capped).
+  animationPreset: z
+    .enum([
+      "none",
+      "fade-in",
+      "rise",
+      "fall",
+      "zoom-in",
+      "slide-left",
+      "slide-right",
+      "blur-in",
+    ])
+    .optional(),
+  animationDuration: z.string().max(16).optional(),
+  animationDelay: z.string().max(16).optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while
