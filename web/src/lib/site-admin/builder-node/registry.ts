@@ -193,6 +193,33 @@ const builderNodeStyleValueSchema = z.object({
   gridAutoFlow: z
     .enum(["row", "column", "row dense", "column dense"])
     .optional(),
+  // Premium-2026 effect & interaction escapes. Raw-CSS fields length-capped;
+  // the rest are small enums. Land in inline styles, validated by the CSSOM.
+  clipPath: z.string().max(200).optional(),
+  maskImage: z.string().max(300).optional(),
+  textStroke: z.string().max(40).optional(),
+  cursor: z
+    .enum([
+      "auto",
+      "default",
+      "pointer",
+      "grab",
+      "grabbing",
+      "crosshair",
+      "zoom-in",
+      "zoom-out",
+      "not-allowed",
+      "text",
+      "wait",
+      "help",
+      "move",
+      "none",
+    ])
+    .optional(),
+  userSelect: z.enum(["auto", "none", "text", "all"]).optional(),
+  pointerEvents: z.enum(["auto", "none"]).optional(),
+  scrollSnapType: z.string().max(40).optional(),
+  scrollSnapAlign: z.enum(["none", "start", "center", "end"]).optional(),
 });
 
 // Hover-state overrides — a curated subset of animatable props re-applied while

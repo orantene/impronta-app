@@ -183,6 +183,33 @@ export interface BuilderNodeStyleValue {
   gridTemplateColumns?: string;
   gridTemplateRows?: string;
   gridAutoFlow?: "row" | "column" | "row dense" | "column dense";
+  // Premium-2026 effect & interaction escapes — all opt-in, applied last so they
+  // layer over everything. clipPath/maskImage are raw CSS (shapes & reveal
+  // masks); textStroke maps to -webkit-text-stroke (outlined/hollow glyphs);
+  // cursor/userSelect/pointerEvents are interaction polish; scrollSnap* turn a
+  // container into a snap track. All length/enum-capped — no injection surface.
+  clipPath?: string;
+  maskImage?: string;
+  textStroke?: string;
+  cursor?:
+    | "auto"
+    | "default"
+    | "pointer"
+    | "grab"
+    | "grabbing"
+    | "crosshair"
+    | "zoom-in"
+    | "zoom-out"
+    | "not-allowed"
+    | "text"
+    | "wait"
+    | "help"
+    | "move"
+    | "none";
+  userSelect?: "auto" | "none" | "text" | "all";
+  pointerEvents?: "auto" | "none";
+  scrollSnapType?: string;
+  scrollSnapAlign?: "none" | "start" | "center" | "end";
 }
 
 // Hover-state overrides — a curated subset of style props that re-apply only

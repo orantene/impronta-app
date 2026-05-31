@@ -915,6 +915,28 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   }
   // Compositing — blend this node against the backdrop (overlays/duotone).
   if (style.mixBlendMode) out.mixBlendMode = style.mixBlendMode;
+  // Premium-2026 effect & interaction escapes — applied last so they layer over
+  // everything. clipPath/maskImage carry the -webkit- prefix for Safari;
+  // textStroke maps to -webkit-text-stroke (outlined/hollow glyphs).
+  if (style.clipPath) {
+    out.clipPath = style.clipPath;
+    (out as Record<string, unknown>).WebkitClipPath = style.clipPath;
+  }
+  if (style.maskImage) {
+    (out as Record<string, unknown>).maskImage = style.maskImage;
+    out.WebkitMaskImage = style.maskImage;
+  }
+  if (style.textStroke) {
+    (out as Record<string, unknown>).WebkitTextStroke = style.textStroke;
+  }
+  if (style.cursor) out.cursor = style.cursor;
+  if (style.userSelect) {
+    out.userSelect = style.userSelect;
+    out.WebkitUserSelect = style.userSelect;
+  }
+  if (style.pointerEvents) out.pointerEvents = style.pointerEvents;
+  if (style.scrollSnapType) out.scrollSnapType = style.scrollSnapType;
+  if (style.scrollSnapAlign) out.scrollSnapAlign = style.scrollSnapAlign;
   // Visibility — a desktop-level "hidden" removes the node everywhere (the
   // breakpoint layers inherit it). Per-breakpoint hides are handled by the
   // data-attr + media rules in builderNodeStyleAttrs / the static sheet.

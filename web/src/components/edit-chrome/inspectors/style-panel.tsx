@@ -386,6 +386,39 @@ const BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS: ReadonlyArray<SegmentedOption<string>
   { value: "column dense", label: "Col dense" },
 ];
 
+const BUILDER_NODE_CURSOR_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "pointer", label: "Pointer" },
+  { value: "grab", label: "Grab" },
+  { value: "move", label: "Move" },
+  { value: "zoom-in", label: "Zoom" },
+  { value: "not-allowed", label: "Blocked" },
+  { value: "text", label: "Text" },
+  { value: "none", label: "Hide" },
+];
+
+const BUILDER_NODE_USER_SELECT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "auto", label: "Auto" },
+  { value: "text", label: "Text" },
+  { value: "all", label: "All" },
+  { value: "none", label: "None" },
+];
+
+const BUILDER_NODE_POINTER_EVENTS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "auto", label: "Auto" },
+  { value: "none", label: "Pass-through" },
+];
+
+const BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "none", label: "None" },
+];
+
 const BUILDER_NODE_BORDER_STYLE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "None" },
   { value: "solid", label: "Solid" },
@@ -998,6 +1031,14 @@ function cleanBuilderNodeStyle(
   if (value.gridTemplateColumns) out.gridTemplateColumns = value.gridTemplateColumns;
   if (value.gridTemplateRows) out.gridTemplateRows = value.gridTemplateRows;
   if (value.gridAutoFlow) out.gridAutoFlow = value.gridAutoFlow;
+  if (value.clipPath) out.clipPath = value.clipPath;
+  if (value.maskImage) out.maskImage = value.maskImage;
+  if (value.textStroke) out.textStroke = value.textStroke;
+  if (value.cursor) out.cursor = value.cursor;
+  if (value.userSelect) out.userSelect = value.userSelect;
+  if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
+  if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
+  if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
   const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
   const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
   if (tablet || mobile) {
@@ -1097,6 +1138,14 @@ function cleanBuilderNodeStyleValue(
   if (value.gridTemplateColumns) out.gridTemplateColumns = value.gridTemplateColumns;
   if (value.gridTemplateRows) out.gridTemplateRows = value.gridTemplateRows;
   if (value.gridAutoFlow) out.gridAutoFlow = value.gridAutoFlow;
+  if (value.clipPath) out.clipPath = value.clipPath;
+  if (value.maskImage) out.maskImage = value.maskImage;
+  if (value.textStroke) out.textStroke = value.textStroke;
+  if (value.cursor) out.cursor = value.cursor;
+  if (value.userSelect) out.userSelect = value.userSelect;
+  if (value.pointerEvents) out.pointerEvents = value.pointerEvents;
+  if (value.scrollSnapType) out.scrollSnapType = value.scrollSnapType;
+  if (value.scrollSnapAlign) out.scrollSnapAlign = value.scrollSnapAlign;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -4570,7 +4619,17 @@ export function StylePanel({
                     max={20}
                     step={1}
                     placeholder="Off"
-                    className={KIT.input}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
                     value={
                       typeof selectedNodeViewportPresentation?.lineClamp ===
                       "number"
@@ -5222,7 +5281,17 @@ export function StylePanel({
                     max={20}
                     step={1}
                     placeholder="Off"
-                    className={KIT.input}
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
                     value={
                       typeof selectedStandaloneViewportStyle?.lineClamp ===
                       "number"
@@ -6480,6 +6549,206 @@ export function StylePanel({
                     })
                   }
                   options={BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS}
+                />
+              </div>
+            </div>
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="effects-interaction"
+              style={{ borderColor: CHROME.line }}
+            >
+              <span className={FIELD_LABEL}>Effects &amp; interaction</span>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="clipPath"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Clip path
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="circle(50%) · polygon(0 0,100% 0,100% 80%,0 100%)"
+                  value={selectedStandaloneViewportStyle?.clipPath ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      clipPath: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="maskImage"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Mask image
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="linear-gradient(#000,transparent) · url(mask.svg)"
+                  value={selectedStandaloneViewportStyle?.maskImage ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      maskImage: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="textStroke"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text stroke (outline glyphs)
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="1px #111 · 2px var(--token-color-text)"
+                  value={selectedStandaloneViewportStyle?.textStroke ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      textStroke: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="cursor"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Cursor
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.cursor ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      cursor: (next || undefined) as BuilderNodeStyleValue["cursor"],
+                    })
+                  }
+                  options={BUILDER_NODE_CURSOR_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="userSelect"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Text selection
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.userSelect ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      userSelect: (next || undefined) as BuilderNodeStyleValue["userSelect"],
+                    })
+                  }
+                  options={BUILDER_NODE_USER_SELECT_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="pointerEvents"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Pointer events
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.pointerEvents ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      pointerEvents: (next || undefined) as BuilderNodeStyleValue["pointerEvents"],
+                    })
+                  }
+                  options={BUILDER_NODE_POINTER_EVENTS_OPTIONS}
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="scrollSnapType"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Scroll-snap track
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="x mandatory · y proximity"
+                  value={selectedStandaloneViewportStyle?.scrollSnapType ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      scrollSnapType: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="scrollSnapAlign"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Snap align (child)
+                </span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.scrollSnapAlign ?? ""}
+                  onChange={(next) =>
+                    patchSelectedStandaloneStyle({
+                      scrollSnapAlign: (next || undefined) as BuilderNodeStyleValue["scrollSnapAlign"],
+                    })
+                  }
+                  options={BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS}
                 />
               </div>
             </div>
