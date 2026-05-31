@@ -20,6 +20,12 @@ import {
   createGalleryStripPreset,
   createNewsletterSignupPreset,
 } from "./composition-preset-factories";
+import {
+  createTeamGridPreset,
+  createProcessStepsPreset,
+  createFeatureComparisonPreset,
+  createAnnouncementBarPreset,
+} from "./composition-preset-factories-extra";
 
 export type BuilderNodeCompositionPresetId =
   | "agency-search-hero"
@@ -34,7 +40,11 @@ export type BuilderNodeCompositionPresetId =
   | "testimonial-card"
   | "logo-cloud"
   | "gallery-strip"
-  | "newsletter-signup";
+  | "newsletter-signup"
+  | "team-grid"
+  | "process-steps"
+  | "feature-comparison"
+  | "announcement-bar";
 
 export interface BuilderNodeCompositionPreset {
   id: BuilderNodeCompositionPresetId;
@@ -178,6 +188,46 @@ export const BUILDER_NODE_COMPOSITION_PRESETS: ReadonlyArray<BuilderNodeComposit
     keywords: ["stats", "numbers", "metrics", "proof", "results", "kpi"],
     sectionCount: 4,
   },
+  {
+    id: "team-grid",
+    label: "Team grid",
+    description: "A 3-up grid of people — portrait, name, and role.",
+    rootKind: "container",
+    category: "trust",
+    dataMode: "starter",
+    keywords: ["team", "people", "about", "staff", "founders", "crew"],
+    sectionCount: 5,
+  },
+  {
+    id: "process-steps",
+    label: "Process steps",
+    description: "Numbered how-it-works steps in a clean horizontal flow.",
+    rootKind: "container",
+    category: "story",
+    dataMode: "starter",
+    keywords: ["process", "steps", "how it works", "timeline", "flow", "stages"],
+    sectionCount: 5,
+  },
+  {
+    id: "feature-comparison",
+    label: "Plan comparison",
+    description: "Three plan cards side by side with prices and a CTA each.",
+    rootKind: "container",
+    category: "conversion",
+    dataMode: "starter",
+    keywords: ["compare", "plans", "pricing", "tiers", "table", "features"],
+    sectionCount: 6,
+  },
+  {
+    id: "announcement-bar",
+    label: "Announcement bar",
+    description: "A slim full-width banner with a message and an inline action.",
+    rootKind: "container",
+    category: "conversion",
+    dataMode: "starter",
+    keywords: ["announcement", "banner", "promo", "notice", "bar", "alert"],
+    sectionCount: 2,
+  },
 ] as const;
 
 export function createBuilderNodeCompositionPreset(
@@ -210,5 +260,13 @@ export function createBuilderNodeCompositionPreset(
       return createGalleryStripPreset();
     case "newsletter-signup":
       return createNewsletterSignupPreset();
+    case "team-grid":
+      return createTeamGridPreset();
+    case "process-steps":
+      return createProcessStepsPreset();
+    case "feature-comparison":
+      return createFeatureComparisonPreset();
+    case "announcement-bar":
+      return createAnnouncementBarPreset();
   }
 }
