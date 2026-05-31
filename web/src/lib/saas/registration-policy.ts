@@ -33,6 +33,7 @@ import {
   loadRegistrationSettings,
   type RegistrationSettings,
 } from "@/lib/saas/registration-settings";
+import { notifyRosterJoinRequested } from "@/lib/notifications/producers/roster-join-notify";
 
 export type RegistrationOutcome =
   | {
@@ -105,12 +106,12 @@ export async function applyRegistrationPolicy(
       logServerError("registration-policy.update", error);
       return { ok: false, error: "We couldn't process your request. Please try again." };
     }
-    return {
-      ok: true,
-      status: nextStatus === "active" ? "active" : "pending",
-      created: false,
-      mode: settings.mode,
-    };
+    const existingStatus: "active" | "pending" =
+      nextStatus === "active" ? "active" : "pending";
+    if (existingStatus === "pending") {
+      void notifyRosterJoinRequested({ admin, tenantId, talentProfileId });
+    }
+    return { ok: true, status: existingStatus, created: false, mode: settings.mode };
   }
 
   // Fresh join — seat-check first (counts pending+active, fail-closed).
@@ -136,5 +137,8 @@ export async function applyRegistrationPolicy(
     return { ok: false, error: "We couldn't process your request. Please try again." };
   }
 
+  if (targetStatus === "pending") {
+    void notifyRosterJoinRequested({ admin, tenantId, talentProfileId });
+  }
   return { ok: true, status: targetStatus, created: true, mode: settings.mode };
 }

@@ -16,6 +16,7 @@ import { getPlan, isKnownPlan } from "@/lib/access/plan-catalog";
 import { registrationModesForPlan } from "@/lib/access/registration-modes";
 import { loadRegistrationSettings } from "@/lib/saas/registration-settings";
 import { RegistrationSettingsClient } from "@/components/admin/registration/RegistrationSettingsClient";
+import { JoinRequestsList } from "@/components/admin/registration/JoinRequestsList";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,35 @@ export default async function AdminRosterRegistrationPage({
 
   const settings = await loadRegistrationSettings(scope.tenantId);
 
+  // Pending self-registration join requests (status='pending' from the engine).
+  const { data: pendingRows } = admin
+    ? await admin
+        .from("agency_talent_roster")
+        .select("id, added_at, talent_profile_id")
+        .eq("tenant_id", scope.tenantId)
+        .eq("status", "pending")
+        .eq("source_type", "freelancer_claimed")
+        .order("added_at", { ascending: false })
+        .limit(50)
+    : { data: null };
+  const pending = pendingRows ?? [];
+  const talentNameById = new Map<string, string>();
+  if (admin && pending.length > 0) {
+    const ids = pending.map((r) => r.talent_profile_id as string);
+    const { data: profiles } = await admin
+      .from("talent_profiles")
+      .select("id, display_name")
+      .in("id", ids);
+    for (const p of profiles ?? []) {
+      talentNameById.set(p.id as string, (p.display_name as string | null)?.trim() || "A talent");
+    }
+  }
+  const requests = pending.map((r) => ({
+    id: r.id as string,
+    talentName: talentNameById.get(r.talent_profile_id as string) ?? "A talent",
+    requestedAt: r.added_at as string,
+  }));
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, maxWidth: 1024 }}>
       <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -81,6 +111,12 @@ export default async function AdminRosterRegistrationPage({
           defaultRosterVisibility: settings.defaultRosterVisibility,
           ctaLabel: settings.ctaLabel,
         }}
+      />
+
+      <JoinRequestsList
+        tenantSlug={tenantSlug}
+        canManage={canManage}
+        requests={requests}
       />
 
       <p style={{ margin: 0, fontSize: 12.5, color: "rgba(11,11,13,0.55)" }}>
