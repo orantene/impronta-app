@@ -1,10 +1,15 @@
 # Multi-tenant talent identity — design doc
 
 **Status:** Phase 1 shipped (verified badge + locked-fields metadata). Phase 2
-(faded talent-types in admin editor) is scoped, file:line ready, deferred.
-Phase 3 (agency permission/consent model) is designed below — not built.
+(faded talent-types in admin editor) shipped (PR #73). Phase 2-sub (per-field
+personal locks + a server-side `assertPersonalProfileEditable` guard floor
+wired across 8 write paths) shipped to production 2026-05-28 (PR #77). Phase 3
+(agency permission/consent model) is designed below — not built; its open
+questions were ratified by the product owner on 2026-05-28 (see "Open
+questions — RESOLVED").
 
 **Written:** 2026-05-28 — companion to the multi-tenant-talent-identity PR.
+**Updated:** 2026-05-28 — Phase 2-sub shipped; Phase 3 open questions ratified.
 
 ---
 
@@ -253,33 +258,47 @@ Talent can revoke a permission at any time from
 | Tests | 4h | Phase 3 W3 |
 | **Total** | **~24h / 3 weeks part-time** | Phase 3 |
 
-### Open questions
+### Open questions — RESOLVED (ratified by product owner 2026-05-28)
 
-1. **Commission negotiation in the prompt** — should the talent be able to
-   counter the proposed commission rate as part of the consent flow, or
-   is the agency's proposal take-it-or-leave-it? Recommend: counter
-   allowed; agency can re-propose; max 3 rounds.
-2. **Talent-types intersection** — if Moran has *Chef* but Impronta has
-   *Chefs & Culinary* disabled, do we show that as a required talent-type
-   for the roster? Recommend: only INTERSECTION of talent's types and
-   agency's enabled types are eligible; if no intersection, block the
-   invite at the admin side with a clear "your agency doesn't support
-   any of this talent's types" message.
-3. **Exclusivity downgrade** — can talent flip from exclusive → non-
-   exclusive without leaving the roster? Recommend: yes, with a 30-day
-   notice period to give the agency time to renegotiate commission.
-4. **Display preference** — when a talent is on multiple agencies'
-   rosters, the public profile at `tulala.digital/t/<slug>` shows which
-   agencies? Recommend: show all with `roster.list_publicly` granted +
-   `status=active`; agency-specific subdomains show only that agency.
+The four design questions below were decided by the product owner. Where a
+decision diverges from the original "Recommend" lean, that is called out — the
+ratified call wins. Net effect: Phase 3's consent flow is **simpler** than the
+original design.
+
+1. **Commission negotiation in the prompt → NO counter.** The agency's
+   proposal is take-it-or-leave-it; there is no counter / re-propose flow.
+   *(Diverges from the original lean of "counter allowed, max 3 rounds."
+   Rationale: a negotiation state machine over-complicates the platform.)*
+2. **Talent-type deactivation = visual leanness only, NOT a hard gate.** A
+   deactivated talent type is purely a presentation / curation choice: hide it
+   from the directory filters, the top talent-type nav, and the registration +
+   profile-editor selection so the front end stays lean (Tulala deliberately
+   avoids overwhelming filter sprawl). It is not an invite-blocking access
+   rule. *(Reframes the original "intersection + block the invite" lean toward
+   a presentational rule.)*
+3. **Commission is opaque to the talent, resolved per offer.** Commission is
+   set globally per agency (fixed amount or %) and applied at offer / message
+   time. The talent only ever sees their own net payout inside an offer —
+   never the agency's margin — and there is no "register into the agency and
+   see its commission" step. *(Supersedes the commission aspects of Q1/Q3. The
+   literal exclusivity-downgrade mechanic is not separately decided — deferred
+   to Phase 3 build.)*
+4. **Multi-agency public display → DEFERRED.** `tulala.digital` will get its
+   own canonical talent profile pages as a later effort; the rule for which
+   agencies appear on a multi-roster talent's public profile will be decided
+   then.
 
 ---
 
 ## TL;DR for the next session
 
-- **Shipped:** verified banner + 3 new fields on editor-data response.
-- **Tracked but deferred:** per-field read-only gates (15 components + 8
-  server-actions, ~3h), faded talent-type chips (~80 LOC, ~2h).
+- **Shipped:** verified banner + 3 new fields on editor-data response; faded
+  talent-type chips (Phase 2, PR #73); Phase 2-sub per-field personal locks +
+  the `assertPersonalProfileEditable` server-side guard floor across 8 write
+  paths (PR #77, in production 2026-05-28).
 - **Designed:** OAuth-style permission/consent flow with 2 new tables, 10
-  scopes, ~24h implementation. Ready to start when product gives the green
-  light on the open questions.
+  scopes, ~24h implementation. Open questions are now RESOLVED (see above) —
+  the flow is simplified: no commission negotiation, commission stays opaque
+  to the talent and is resolved per offer, talent-type deactivation is
+  presentational only, and multi-agency public display is deferred. Still a
+  ~24h build; not started.
