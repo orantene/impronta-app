@@ -86,6 +86,12 @@ export async function setTalentFieldValueAsTalent(
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user, tenantId } = auth;
 
+  // Independent (no-agency) talent have no tenant-scoped catalog field to
+  // write to. These dynamic fields only exist within an agency's catalog.
+  if (!tenantId) {
+    return { ok: false, error: "This field becomes editable once you join an agency." };
+  }
+
   const { data: rosterRow } = await tenantScopedQuery(
     supabase,
     "agency_talent_roster",
@@ -188,6 +194,11 @@ export async function setTalentFieldVisibilityAsTalent(
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
+  // Independent (no-agency) talent have no tenant-scoped catalog field rows.
+  if (!tenantId) {
+    return { ok: false, error: "This field becomes editable once you join an agency." };
+  }
+
   // Platform-global catalog definition table; no tenant_id column.
   // eslint-disable-next-line ratchet/no-untenanted-from
   const { data: def } = await supabase
@@ -249,6 +260,9 @@ export async function getTalentFieldValuesAsTalent(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
+  // Independent (no-agency) talent have no tenant-scoped dynamic field values.
+  if (!tenantId) return { ok: true, values: [] };
+
   const { data, error } = await tenantScopedQuery(
     supabase,
     "talent_profile_field_values",
@@ -289,6 +303,12 @@ export async function getFieldsForTalentAsTalent(input: {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
+
+  // Independent (no-agency) talent have no tenant-scoped catalog to resolve
+  // against. Return an empty (but successful) field set so the editor opens
+  // and the core profile sections render; agency-defined dynamic fields only
+  // appear once the talent is on an agency roster.
+  if (!tenantId) return { ok: true, fields: [], groups: [] };
 
   // Resolve the talent's active-roster tenant — same lookup the writer
   // uses. A talent who isn't on any active roster has no tenant context

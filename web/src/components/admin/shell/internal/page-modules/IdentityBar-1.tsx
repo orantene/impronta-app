@@ -25,7 +25,6 @@ export function TulalaIdentityBar() {
     state,
     openDrawer,
     flipMode,
-    toast,
     setClientPage,
     setTalentPage,
     totalUnread: bridgeTotalUnread,
@@ -426,11 +425,14 @@ export function TulalaIdentityBar() {
             Compact pill; the inactive side flips on click. */}
         <LocaleToggle />
 
-        {/* Sign out — matches production. Compact icon button at the
-            far right; click confirms via toast in the prototype. */}
+        {/* Sign out — calls the real signOut server action (clears the
+            Supabase session + redirects to "/"). Previously a prototype
+            stub that only fired a toast and never logged the user out. */}
         <IdentityBarIconButton
           aria-label={copy.t("Sign out")}
-          onClick={() => toast(copy.t("Signed out"))}
+          onClick={() => {
+            void signOut();
+          }}
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -467,7 +469,7 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast, state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
