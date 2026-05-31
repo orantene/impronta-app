@@ -4,6 +4,7 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { getCoordinatorTimeoutHours, getInquiryExpiryHours } from "./inquiry-settings";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { buildInquiryBells } from "./inquiry-notifications";
 import type { EngineResult } from "./inquiry-engine.types";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Staff lifecycle actions
@@ -72,6 +73,14 @@ export async function freezeInquiry(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { reason: ctx.reason },
+      notifications: await buildInquiryBells({
+        inquiryId: ctx.inquiryId,
+        tenantId: ctx.tenantId,
+        audiences: ["client", "talent"],
+        title: "Inquiry paused",
+        body: "A coordinator paused this inquiry. No action is needed right now.",
+        excludeUserId: ctx.actorUserId,
+      }),
     });
 
     return { success: true };
@@ -228,6 +237,14 @@ export async function clientCancelInquiry(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { reason: ctx.reason ?? null, by: "client" },
+      notifications: await buildInquiryBells({
+        inquiryId: ctx.inquiryId,
+        tenantId: ctx.tenantId,
+        audiences: ["client", "talent"],
+        title: "Inquiry cancelled",
+        body: "This inquiry was cancelled. No further action is needed.",
+        excludeUserId: ctx.actorUserId,
+      }),
     });
 
     return { success: true };
@@ -266,6 +283,13 @@ export async function processCoordinatorTimeouts(supabase: SupabaseClient): Prom
         inquiryId: row.id as string,
         actorUserId: (row.coordinator_id as string) ?? null,
         data: { automated: true },
+        notifications: await buildInquiryBells({
+          inquiryId: row.id as string,
+          tenantId: row.tenant_id as string,
+          audiences: ["workspaceAdmins"],
+          title: "Inquiry needs a coordinator",
+          body: "A coordinator assignment timed out. Please reassign this inquiry.",
+        }),
       });
     }
   }
@@ -280,7 +304,7 @@ export async function processExpirations(supabase: SupabaseClient): Promise<{ pr
 
   const { data: rows } = await supabase
     .from("inquiries")
-    .select("id, version")
+    .select("id, version, tenant_id")
     .in("status", ["submitted", "coordination", "offer_pending"] as never[])
     .not("expires_at", "is", null)
     .lt("expires_at", now);
@@ -305,6 +329,13 @@ export async function processExpirations(supabase: SupabaseClient): Promise<{ pr
         inquiryId: row.id as string,
         actorUserId: null,
         data: { automated: true },
+        notifications: await buildInquiryBells({
+          inquiryId: row.id as string,
+          tenantId: row.tenant_id as string,
+          audiences: ["coordinator", "workspaceAdmins"],
+          title: "Inquiry expired",
+          body: "This inquiry expired before it was booked.",
+        }),
       });
     }
   }

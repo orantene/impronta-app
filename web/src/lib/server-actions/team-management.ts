@@ -127,35 +127,42 @@ export async function inviteTeamMember(
     const expiresAt = (token as { id: string; expires_at: string }).expires_at;
     const redeemUrl = `/team-invite/${inviteId}`;
 
-    // Fire-and-forget email delivery — no-op when RESEND_API_KEY is unset
-    // so the admin-side flow still works in dev / preview. Failures are
-    // logged in sendEmail; we still return ok so the admin sees the URL.
+    // Fire-and-forget invite email via the notification dispatcher — no-op
+    // when RESEND_API_KEY is unset so the admin-side flow still works in dev /
+    // preview. The dispatcher renders the branded TeamInvite template to an
+    // email-only (guest) recipient; we still return ok so the admin sees the
+    // copy-able URL regardless of send outcome.
     void (async () => {
       try {
-        const [{ sendEmail }, { teamInviteEmail }, { data: agencyRow }, { data: inviterProfile }] = await Promise.all([
-          import("@/lib/email"),
-          import("@/lib/email/templates"),
-          admin.from("agencies").select("display_name, slug").eq("id", tenantId).maybeSingle(),
+        const [{ dispatchEventNotifications }, { data: agencyRow }, { data: inviterProfile }] = await Promise.all([
+          import("@/lib/notifications/dispatcher"),
+          admin.from("agencies").select("display_name").eq("id", tenantId).maybeSingle(),
           admin.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
         ]);
         const agencyName = (agencyRow as { display_name?: string | null } | null)?.display_name?.trim() || "the workspace";
         const inviterName = (inviterProfile as { display_name?: string | null } | null)?.display_name?.trim() || "A teammate";
-        const tenantSlug = (agencyRow as { slug?: string | null } | null)?.slug ?? "";
-        const { subject, html } = teamInviteEmail({
-          inviterName,
-          agencyName,
-          role,
-          redeemUrl,
-          expiresAtIso: expiresAt,
-          brand: tenantSlug
-            ? { wordmark: agencyName.toUpperCase(), accountName: agencyName }
-            : undefined,
+        const roleLabel =
+          role === "admin" ? "Admin"
+          : role === "manager" ? "Manager"
+          : role === "editor" ? "Editor"
+          : "Viewer";
+        await dispatchEventNotifications({
+          type: "workspace.team_invite_sent",
+          tenantId,
+          eventId: `team-invite:${inviteId}`,
+          payload: {
+            inviteeEmail: trimmed,
+            inviterName,
+            workspaceName: agencyName,
+            roleLabel,
+            redeemPath: redeemUrl,
+            expiresAtIso: expiresAt,
+          },
         });
-        await sendEmail({ to: trimmed, subject, html });
       } catch (err) {
         // Never let email failure break the action — the admin still has the URL.
         void improntaLog("team_management.warn", {
-          message: "[team-management.inviteTeamMember] email send failed",
+          message: "[team-management.inviteTeamMember] dispatch failed",
           error: String(err),
         });
       }

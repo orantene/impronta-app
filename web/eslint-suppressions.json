@@ -1622,7 +1622,7 @@
   },
   "src/lib/server-actions/cancel-subscription.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 7
+      "count": 5
     }
   },
   "src/lib/server-actions/client-guest-merge.ts": {
@@ -1732,7 +1732,7 @@
   },
   "src/lib/server-actions/user-prefs.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 7
+      "count": 8
     }
   },
   "src/lib/server-actions/workspace-lifecycle.ts": {

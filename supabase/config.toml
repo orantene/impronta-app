@@ -224,20 +224,42 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
+# Route Supabase Auth mail through Resend SMTP (spec Phase 7 / decision D2 — one
+# sender for the whole product). BLOCKED until RESEND_API_KEY is provisioned:
+# create a Resend SMTP credential, set RESEND_SMTP_PASSWORD in the environment,
+# then uncomment. host/user are Resend's fixed SMTP values; pass is the API key.
+# Mirror these in the hosted project (Dashboard → Auth → SMTP) — config.toml
+# only governs local `supabase start`. Until then auth mail falls back to the
+# local Inbucket catcher (dev) / Supabase's shared sender (prod).
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(RESEND_SMTP_PASSWORD)"
+# admin_email = "no-reply@tulala.digital"
+# sender_name = "Tulala"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Branded auth templates. These HTML files are GENERATED from the React Email
+# components in web/emails/auth/* via `npm run email:export-auth` (web/) — do not
+# hand-edit them; edit the component and re-run the export. The Go-template
+# tokens ({{ .ConfirmationURL }}, {{ .NewEmail }}) are substituted by Supabase at
+# send time. content_path is resolved from the repo root (where the CLI runs).
+[auth.email.template.confirmation]
+subject = "Confirm your email"
+content_path = "./supabase/templates/confirm.html"
+
+[auth.email.template.magic_link]
+subject = "Your sign-in link"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.recovery]
+subject = "Reset your password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email"
+content_path = "./supabase/templates/email_change.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

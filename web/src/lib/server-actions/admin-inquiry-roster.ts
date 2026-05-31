@@ -10,7 +10,6 @@ import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
-import { sendTalentInvitedNotification } from "@/lib/email/inquiry-notifications";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -70,7 +69,9 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
   }
 
   revalidatePath(`/admin/inquiries/${inquiryId}`);
-  void sendTalentInvitedNotification({ supabase, inquiryId, talentProfileId });
+  // The talent-invited email now fans out through the notification engine via
+  // the ROSTER_TALENT_INVITED engine event emitted inside addTalentToRoster
+  // (dispatcher listener in inquiry-events.ts → catalog in lib/notifications).
   return { ok: true, message: "Talent added to shortlist." };
 }
 

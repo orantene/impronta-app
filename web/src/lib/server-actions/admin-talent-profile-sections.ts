@@ -927,15 +927,16 @@ export async function sendTalentClaimInvite(input: {
     input.email?.trim() ? `&email=${encodeURIComponent(input.email.trim())}` : ""
   }`;
 
-  // Fire-and-forget email delivery (email channel only — SMS Phase 8+).
-  // No-op when RESEND_API_KEY unset; failures logged.
+  // Fire-and-forget claim-invite email via the notification dispatcher
+  // (email channel only — SMS Phase 8+). The dispatcher renders the branded
+  // ClaimInvite template to an email-only (guest) recipient and no-ops when
+  // RESEND_API_KEY is unset. `tenantId` carries the workspace brand.
   if (channel === "email" && input.email?.trim()) {
     const targetEmail = input.email.trim();
     void (async () => {
       try {
-        const [{ sendEmail }, { talentClaimInviteEmail }, { data: agency }, { data: talent }] = await Promise.all([
-          import("@/lib/email"),
-          import("@/lib/email/templates"),
+        const [{ dispatchEventNotifications }, { data: agency }, { data: talent }] = await Promise.all([
+          import("@/lib/notifications/dispatcher"),
           supabase.from("agencies").select("display_name").eq("id", tenantId).maybeSingle(),
           supabase
             .from("talent_profiles")
@@ -948,18 +949,22 @@ export async function sendTalentClaimInvite(input: {
           (talent as { display_name?: string | null } | null)?.display_name?.trim() ||
           (talent as { first_name?: string | null } | null)?.first_name?.trim() ||
           null;
-        const { subject, html } = talentClaimInviteEmail({
-          agencyName,
-          talentDisplayName: talentName,
-          redeemUrl,
-          expiresAtIso: expiresAt,
-          isResend: input.resend === true,
-          brand: { wordmark: agencyName.toUpperCase(), accountName: agencyName },
+        await dispatchEventNotifications({
+          type: "roster.claim_invite_requested",
+          tenantId,
+          eventId: `talent-claim:${invitationId}`,
+          payload: {
+            inviteeEmail: targetEmail,
+            inviteeName: talentName,
+            workspaceName: agencyName,
+            redeemPath: redeemUrl,
+            expiresAtIso: expiresAt,
+            isResend: input.resend === true,
+          },
         });
-        await sendEmail({ to: targetEmail, subject, html });
       } catch (err) {
         void improntaLog("admin_talent_profile_sections.warn", {
-          message: "[sendTalentClaimInvite] email send failed",
+          message: "[sendTalentClaimInvite] dispatch failed",
           error: String(err),
         });
       }

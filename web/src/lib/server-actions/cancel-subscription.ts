@@ -1,11 +1,11 @@
 "use server";
-import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
 import type { ServerActionResult } from "./result";
 
 /**
@@ -139,35 +139,18 @@ export async function cancelSubscription(
       return { ok: false, error: "Couldn't apply plan change. Try again.", reason: "unexpected" };
     }
 
-    // Fire-and-forget cancel-confirmation email. No-op when RESEND_API_KEY
-    // is unset; failures are logged but don't block the plan change.
-    void (async () => {
-      try {
-        const [{ sendEmail }, { subscriptionCancelEmail }, { data: agency }, { data: profile }] = await Promise.all([
-          import("@/lib/email"),
-          import("@/lib/email/templates"),
-          admin.from("agencies").select("display_name").eq("id", tenantId).maybeSingle(),
-          admin.from("profiles").select("email").eq("id", user.id).maybeSingle(),
-        ]);
-        const agencyName =
-          (agency as { display_name?: string | null } | null)?.display_name?.trim() || "Your workspace";
-        const ownerEmail = (profile as { email?: string | null } | null)?.email?.trim() || null;
-        if (!ownerEmail) return;
-        const { subject, html } = subscriptionCancelEmail({
-          agencyName,
-          fromPlan,
-          toPlan,
-          effectiveAtIso: effectiveAt,
-          brand: { wordmark: agencyName.toUpperCase(), accountName: agencyName },
-        });
-        await sendEmail({ to: ownerEmail, subject, html });
-      } catch (err) {
-        void improntaLog("cancel_subscription.warn", {
-          message: "[cancel-subscription] email send failed",
-          error: String(err),
-        });
-      }
-    })();
+    // Slice 15.4: billing plan-change notice (spec §6.6, REQUIRED category).
+    // Routes through the notification catalog so the workspace owner(s) get the
+    // right channel mix — a full cancel (→ free) emails the cancellation
+    // receipt, a downgrade (→ lower paid tier) sends the plan-change email +
+    // in-app bell. The dispatcher resolves the tenant brand + recipients and
+    // no-ops without RESEND_API_KEY; fire-and-forget, never blocks the change.
+    notifyWorkspacePlanChange({
+      tenantId,
+      fromPlan,
+      toPlan,
+      effectiveAtIso: effectiveAt,
+    });
 
     revalidatePath("/", "layout");
     return {

@@ -157,10 +157,17 @@ export async function inviteRosterTalent(
       };
     }
 
-    // ── Invite email — fire-and-forget, no-ops without RESEND_API_KEY ──────
+    // ── Claim invite — routed through the notification dispatcher.
+    // Fire-and-forget; the dispatcher renders the branded ClaimInvite email
+    // to an email-only (guest) recipient and no-ops without RESEND_API_KEY.
+    // `tenantId` carries the workspace brand so the email + link render on
+    // the agency's host. This roster-add path has no claim token, so the
+    // talent redeems by signing up at /get-started with this email.
     void (async () => {
       try {
-        const { sendEmail } = await import("@/lib/email");
+        const { dispatchEventNotifications } = await import(
+          "@/lib/notifications/dispatcher"
+        );
         // agencies is the tenant table itself (PK = id, no tenant_id column).
         // eslint-disable-next-line ratchet/no-untenanted-from -- agencies is the tenant table; looked up by its primary key
         const { data: agencyRow } = await admin
@@ -171,20 +178,16 @@ export async function inviteRosterTalent(
         const workspaceName =
           (agencyRow as { display_name?: string | null } | null)?.display_name?.trim() ||
           "a workspace";
-        const claimUrl = "https://tulala.digital/get-started";
-        await sendEmail({
-          to: email,
-          subject: `You've been invited to ${workspaceName} on Tulala`,
-          html: `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a;">
-  <h2 style="font-size:20px;font-weight:700;margin:0 0 12px;">You've been invited to ${workspaceName}</h2>
-  <p style="font-size:15px;line-height:1.6;color:#444;margin:0 0 14px;">
-    Hi ${displayName}, <strong>${workspaceName}</strong> has added you to their talent roster on Tulala.
-  </p>
-  <p style="font-size:15px;line-height:1.6;color:#444;margin:0 0 18px;">
-    Create your free Tulala account with this email address (${email}) to claim your profile and manage your bookings.
-  </p>
-  <a href="${claimUrl}" style="display:inline-block;background:#0F4F3E;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 22px;border-radius:8px;">Claim your profile →</a>
-</div>`,
+        await dispatchEventNotifications({
+          type: "roster.claim_invite_requested",
+          tenantId: scope.tenantId,
+          eventId: `roster-claim:${talentProfileId}`,
+          payload: {
+            inviteeEmail: email,
+            inviteeName: displayName,
+            workspaceName,
+            redeemPath: "/get-started",
+          },
         });
       } catch (err) {
         logServerError("roster-invite/email", err);

@@ -3,6 +3,7 @@ import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { buildInquiryBells } from "./inquiry-notifications";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -60,6 +61,14 @@ async function invalidateOfferIfRosterChanged(
       body: "Roster changed after offer was sent. A new offer is required.",
       eventType: "roster_changed_offer_invalidated",
     },
+    notifications: await buildInquiryBells({
+      inquiryId,
+      tenantId,
+      audiences: ["coordinator"],
+      title: "Offer needs to be re-sent",
+      body: "The roster changed after the offer went out, so the offer was invalidated.",
+      excludeUserId: actorUserId,
+    }),
   });
 }
 
@@ -412,6 +421,14 @@ export async function acceptTalentInvitation(
         body: "A talent accepted the invitation.",
         eventType: "talent_accepted",
       },
+      notifications: await buildInquiryBells({
+        inquiryId: ctx.inquiryId,
+        tenantId: ctx.tenantId,
+        audiences: ["coordinator"],
+        title: "Talent accepted",
+        body: "A talent accepted their invitation for this inquiry.",
+        excludeUserId: ctx.actorUserId,
+      }),
     });
 
     return { success: true };
@@ -461,6 +478,14 @@ export async function declineTalentInvitation(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { declineReason: ctx.declineReason ?? "other" },
+      notifications: await buildInquiryBells({
+        inquiryId: ctx.inquiryId,
+        tenantId: ctx.tenantId,
+        audiences: ["coordinator"],
+        title: "Talent declined",
+        body: "A talent declined their invitation. You may want to line up an alternative.",
+        excludeUserId: ctx.actorUserId,
+      }),
     });
 
     return { success: true };

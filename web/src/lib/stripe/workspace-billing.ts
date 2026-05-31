@@ -18,6 +18,8 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
+import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import type { AllowedStatus } from "@/lib/stripe/utils";
 import type Stripe from "stripe";
@@ -305,6 +307,19 @@ export async function syncStripeSubscriptionToDb(
       ? "free"
       : planKey;
 
+  // Slice 15.4 pre-read: capture the prior plan tier + subscription status
+  // BEFORE the upsert/agency-update overwrite them. We need the OLD values to
+  // emit a plan-change notice only on a real tier transition, and a dunning
+  // alert only on the edge INTO past_due (Stripe re-sends the subscription on
+  // every retry — we must not re-alert each time).
+  const [{ data: priorAgency }, { data: priorSub }] = await Promise.all([
+    sb.from("agencies").select("plan_tier, display_name").eq("id", tenantId).maybeSingle(),
+    sb.from("workspace_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
+  ]);
+  const priorPlanTier = (priorAgency as { plan_tier?: string | null } | null)?.plan_tier ?? null;
+  const workspaceName = (priorAgency as { display_name?: string | null } | null)?.display_name ?? null;
+  const priorStatus = (priorSub as { status?: string | null } | null)?.status ?? null;
+
   try {
     // Upsert subscription record
     const { error: subError } = await sb
@@ -362,6 +377,38 @@ export async function syncStripeSubscriptionToDb(
         { tenant_id: tenantId, stripe_customer_id: customerId },
         { onConflict: "tenant_id" },
       );
+
+    // Slice 15.4: billing notices (spec §6.6 plan change + §6.5 dunning). The
+    // webhook sync and the self-serve `cancelSubscription` action are disjoint
+    // paths today, so we emit from BOTH for full coverage; the shared
+    // plan-change eventId dedupes if they ever race. Both no-op without
+    // RESEND_API_KEY.
+    //
+    // Only announce a plan change on a SETTLED outcome — active/trialing (the
+    // tier is genuinely in effect) or a downgrade to free (a real
+    // cancellation). This suppresses a premature "you're upgraded" on an
+    // `incomplete` checkout and avoids treating past_due/paused (which keep the
+    // tier but flag a payment issue) as a deliberate tier move.
+    const planNoticeWorthy =
+      status === "active" || status === "trialing" || newPlanTier === "free";
+    if (planNoticeWorthy && priorPlanTier !== newPlanTier) {
+      notifyWorkspacePlanChange({
+        tenantId,
+        fromPlan: priorPlanTier,
+        toPlan: newPlanTier,
+        effectiveAtIso: new Date().toISOString(),
+        workspaceName,
+      });
+    }
+    if (status === "past_due" && priorStatus !== "past_due") {
+      notifyWorkspacePaymentFailed({
+        tenantId,
+        workspaceName,
+        amountDueCents: item?.price?.unit_amount ?? null,
+        currency: item?.price?.currency ?? null,
+        occurredOn: new Date().toISOString().slice(0, 10),
+      });
+    }
 
     return { ok: true, data: undefined };
   } catch (err) {
