@@ -52,6 +52,7 @@ import {
 } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
+import { StylePresetsBar } from "./style-presets-bar";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
@@ -4963,6 +4964,11 @@ export function StylePanel({
                 </button>
               ) : null}
             </div>
+
+            <StylePresetsBar
+              currentStyle={selectedStandaloneFullStyle ?? undefined}
+              onApply={(style) => patchSelectedBaseStyle(style)}
+            />
 
             {selectedStandaloneStylePresets.length > 0 ? (
               <div
