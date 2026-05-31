@@ -300,6 +300,12 @@ export interface BuilderContainerNode extends BuilderNodeBase {
       maxItems?: number;
     };
     style?: BuilderNodeStyle;
+    // Linked-component instance marker (Living Components Phase 2). When set,
+    // this container is an instance of the saved component with this id; the
+    // "Sync instances" action replaces its children with a fresh clone of the
+    // master. Purely additive — inert at render time (renders its own stored
+    // children like any container), so it can never break the published page.
+    instanceOf?: string;
   };
   children: BuilderNode[];
 }

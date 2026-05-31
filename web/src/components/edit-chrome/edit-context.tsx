@@ -60,6 +60,11 @@ import type {
 } from "@/lib/site-admin/edit-mode/editor-mutations";
 import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-components-action";
 import {
+  syncComponentInstances as syncComponentInstancesInTree,
+  countComponentInstances,
+  tagAsInstance,
+} from "@/lib/site-admin/builder-node/component-instances";
+import {
   applyBuilderNodeOperation,
   builderSectionNodeAddressKey,
   buildLegacySectionBuilderTree,
@@ -396,6 +401,26 @@ export interface EditContextValue {
     subtreeJson: string,
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Living components Phase 2 — insert a LINKED instance of a saved component.
+   * Identical to insertBuilderComponent but tags the (container) root with
+   * instanceOf=componentId so syncComponentInstances can refresh it later.
+   */
+  insertLinkedComponent: (
+    parentId: string | null,
+    subtreeJson: string,
+    componentId: string,
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  /**
+   * Re-sync every linked instance of a component on the current page: each
+   * tagged container's children are replaced with a fresh clone of the master
+   * component subtree's children. Returns how many instances were synced.
+   */
+  syncComponentInstances: (
+    componentId: string,
+    masterSubtreeJson: string,
+  ) => Promise<{ ok: boolean; error?: string; synced?: number }>;
   /**
    * Living components — snapshot the currently selected freeform block as a
    * reusable saved component (persisted to cms_builder_components).
@@ -3499,6 +3524,96 @@ export function EditProvider({
       markNavigatorAddition,
     ],
   );
+  // Living Components Phase 2 — insert a LINKED instance: same proven insert
+  // path as insertBuilderComponent, but the (container) root is tagged
+  // instanceOf=componentId so "Sync instances" can later refresh it.
+  const insertLinkedComponent = useCallback<
+    EditContextValue["insertLinkedComponent"]
+  >(
+    async (parentId, subtreeJson, componentId, index) => {
+      let parsed: BuilderNode;
+      try {
+        parsed = JSON.parse(subtreeJson) as BuilderNode;
+      } catch {
+        return { ok: false, error: "That block could not be read." };
+      }
+      const node = tagAsInstance(cloneNodeWithFreshIds(parsed), componentId);
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
+        parentId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.error };
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
+      markNavigatorAddition,
+    ],
+  );
+  // Re-sync every instance of a component: replace each tagged container's
+  // children with a fresh-id clone of the master subtree's children. The tree
+  // transform is pure + unit-tested (component-instances.test.ts); persistence
+  // rides the same commit path as every other builder mutation.
+  const syncComponentInstances = useCallback<
+    EditContextValue["syncComponentInstances"]
+  >(
+    async (componentId, masterSubtreeJson) => {
+      let parsed: BuilderNode;
+      try {
+        parsed = JSON.parse(masterSubtreeJson) as BuilderNode;
+      } catch {
+        return { ok: false, error: "That component could not be read." };
+      }
+      const masterChildren =
+        "children" in parsed && Array.isArray(parsed.children)
+          ? parsed.children
+          : [];
+      if (countComponentInstances(builderTreeRef.current, componentId) === 0) {
+        return { ok: true, synced: 0 };
+      }
+      let syncedCount = 0;
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        run: (tree) => {
+          const out = syncComponentInstancesInTree(
+            tree,
+            componentId,
+            masterChildren,
+          );
+          syncedCount = out.synced;
+          return { ok: true, tree: out.tree };
+        },
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true, synced: syncedCount };
+    },
+    [executeBuilderNodeOperation],
+  );
   const saveSelectedNodeAsComponent = useCallback<
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
@@ -4406,6 +4521,8 @@ export function EditProvider({
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
       insertBuilderComponent,
+      insertLinkedComponent,
+      syncComponentInstances,
       saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
@@ -4549,6 +4666,8 @@ export function EditProvider({
       insertBuilderNode,
       insertBuilderNodeCompositionPreset,
       insertBuilderComponent,
+      insertLinkedComponent,
+      syncComponentInstances,
       saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,

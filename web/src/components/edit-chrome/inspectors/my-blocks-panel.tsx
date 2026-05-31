@@ -24,8 +24,12 @@ export function MyBlocksPanel({
   /** Container the inserted block becomes a child of. */
   parentNodeId: string;
 }) {
-  const { insertBuilderComponent, saveSelectedNodeAsComponent } =
-    useEditContext();
+  const {
+    insertBuilderComponent,
+    insertLinkedComponent,
+    syncComponentInstances,
+    saveSelectedNodeAsComponent,
+  } = useEditContext();
   const [components, setComponents] = useState<
     ReadonlyArray<BuilderComponentRow>
   >([]);
@@ -34,6 +38,7 @@ export function MyBlocksPanel({
   const [error, setError] = useState<string | null>(null);
   const [naming, setNaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [note, setNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -78,6 +83,43 @@ export function MyBlocksPanel({
     if (!result.ok) {
       setError(result.error ?? "Couldn't insert the block.");
     }
+  }
+
+  async function onInsertLinked(component: BuilderComponentRow) {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const result = await insertLinkedComponent(
+      parentNodeId,
+      JSON.stringify(component.subtree),
+      component.id,
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't insert the linked instance.");
+      return;
+    }
+    setNote("Linked instance inserted — edit the master then Sync.");
+  }
+
+  async function onSyncInstances(component: BuilderComponentRow) {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const result = await syncComponentInstances(
+      component.id,
+      JSON.stringify(component.subtree),
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't sync instances.");
+      return;
+    }
+    setNote(
+      result.synced
+        ? `Synced ${result.synced} instance${result.synced === 1 ? "" : "s"}.`
+        : "No linked instances of this block on the page.",
+    );
   }
 
   async function onDelete(component: BuilderComponentRow) {
@@ -158,6 +200,12 @@ export function MyBlocksPanel({
           </div>
         ) : null}
 
+        {note ? (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10.5px] text-emerald-700">
+            {note}
+          </div>
+        ) : null}
+
         {/* Saved blocks list */}
         {loading ? (
           <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
@@ -183,15 +231,41 @@ export function MyBlocksPanel({
                   {component.rootKind} · {component.nodeCount} nodes
                 </span>
               </span>
-              <button
-                type="button"
-                data-builder-node-my-block-insert={component.id}
-                className={KIT.subtleButton}
-                disabled={busy}
-                onClick={() => void onInsert(component)}
-              >
-                Insert
-              </button>
+              <span className="flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  data-builder-node-my-block-insert={component.id}
+                  className={KIT.subtleButton}
+                  disabled={busy}
+                  onClick={() => void onInsert(component)}
+                >
+                  Insert copy
+                </button>
+                {component.rootKind === "container" ? (
+                  <>
+                    <button
+                      type="button"
+                      data-builder-node-my-block-insert-linked={component.id}
+                      title="Insert a linked instance that can be re-synced from this master"
+                      className={KIT.subtleButton}
+                      disabled={busy}
+                      onClick={() => void onInsertLinked(component)}
+                    >
+                      Insert linked
+                    </button>
+                    <button
+                      type="button"
+                      data-builder-node-my-block-sync={component.id}
+                      title="Push this master's content to every linked instance on the page"
+                      className={KIT.ghostButton}
+                      disabled={busy}
+                      onClick={() => void onSyncInstances(component)}
+                    >
+                      Sync instances
+                    </button>
+                  </>
+                ) : null}
+              </span>
               <button
                 type="button"
                 aria-label={`Delete ${component.name}`}
