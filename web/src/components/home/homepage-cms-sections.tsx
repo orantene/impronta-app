@@ -329,6 +329,9 @@ export async function HomepageCmsSections({
             onlySectionId ? { onlySectionId } : undefined,
           );
         const builderSectionChildren = builderSectionNode?.children ?? [];
+        // "2018 bye-bye" — an ejected section no longer renders its curated
+        // React component; its roleless freeform children render in its place.
+        const sectionEjected = builderSectionNode?.props.ejected === true;
         const roleBindingResult = buildBuilderNodeRoleBindings(
           builderNodeId
             ? (builderSectionChildNodeIds.get(builderNodeId) ?? []).filter((id) =>
@@ -444,7 +447,7 @@ export async function HomepageCmsSections({
                 ) : null}
               </>
             ) : null}
-            {rendered}
+            {sectionEjected ? null : rendered}
             {builderSectionChildren.length > 0
               ? renderBuilderNodes(builderSectionChildren, {
                   publicPathPrefix,

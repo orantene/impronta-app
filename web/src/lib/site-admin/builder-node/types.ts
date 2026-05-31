@@ -285,6 +285,12 @@ export interface BuilderSectionNode extends BuilderNodeBase {
       filterQuery?: string;
       maxItems?: number;
     };
+    // "2018 bye-bye" — when true this curated section has been EJECTED to
+    // freeform: its content was re-minted as roleless builder children, the
+    // curated React component no longer renders for it, and the legacy
+    // derivation no longer re-hydrates it. Reversible (un-eject clears the
+    // flag + children → the section re-derives). Lives in the snapshot tree.
+    ejected?: boolean;
   };
   children?: BuilderNode[];
 }

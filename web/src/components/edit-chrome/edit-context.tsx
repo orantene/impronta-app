@@ -70,6 +70,10 @@ import {
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
 import {
+  ejectSectionInTree,
+  unejectSectionInTree,
+} from "@/lib/site-admin/builder-node/section-eject";
+import {
   applyBuilderNodeOperation,
   builderSectionNodeAddressKey,
   buildLegacySectionBuilderTree,
@@ -433,6 +437,16 @@ export interface EditContextValue {
   detachComponentInstance: (
     nodeId: string,
   ) => Promise<{ ok: boolean; error?: string; detached?: boolean }>;
+  /**
+   * "2018 bye-bye" — eject a curated section to freeform (its content becomes
+   * roleless editable blocks; the curated component stops rendering). Reversible.
+   */
+  ejectSection: (
+    sectionNodeId: string,
+  ) => Promise<{ ok: boolean; error?: string; ejected?: boolean }>;
+  unejectSection: (
+    sectionNodeId: string,
+  ) => Promise<{ ok: boolean; error?: string; ejected?: boolean }>;
   /**
    * Phase 3 — set or clear a per-instance override on a linked instance, keyed
    * by the MASTER child id. overrideJson is a JSON string of
@@ -3668,6 +3682,43 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
+  // "2018 bye-bye" — eject a curated section to freeform: re-mint its children
+  // roleless + flag it ejected (renderer skips the curated component). Reversible
+  // via unejectSection. Pure transform + shared commit path.
+  const ejectSection = useCallback<EditContextValue["ejectSection"]>(
+    async (sectionNodeId) => {
+      let didEject = false;
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: sectionNodeId,
+        run: (tree) => {
+          const out = ejectSectionInTree(tree, sectionNodeId);
+          didEject = out.ejected;
+          return { ok: true, tree: out.tree };
+        },
+      });
+      if (!result.ok) return { ok: false, error: result.error };
+      return { ok: true, ejected: didEject };
+    },
+    [executeBuilderNodeOperation],
+  );
+  const unejectSection = useCallback<EditContextValue["unejectSection"]>(
+    async (sectionNodeId) => {
+      let didUneject = false;
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: sectionNodeId,
+        run: (tree) => {
+          const out = unejectSectionInTree(tree, sectionNodeId);
+          didUneject = out.ejected;
+          return { ok: true, tree: out.tree };
+        },
+      });
+      if (!result.ok) return { ok: false, error: result.error };
+      return { ok: true, ejected: didUneject };
+    },
+    [executeBuilderNodeOperation],
+  );
   // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
   // instance, keyed by the MASTER child id. Pure transform + shared commit path.
   const setInstanceOverride = useCallback<
@@ -4629,6 +4680,8 @@ export function EditProvider({
       insertLinkedComponent,
       syncComponentInstances,
       detachComponentInstance,
+      ejectSection,
+      unejectSection,
       setInstanceOverride,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
@@ -4777,6 +4830,8 @@ export function EditProvider({
       insertLinkedComponent,
       syncComponentInstances,
       detachComponentInstance,
+      ejectSection,
+      unejectSection,
       setInstanceOverride,
       saveSelectedNodeAsComponent,
       updateSelectedNodeAsComponent,
