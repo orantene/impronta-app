@@ -78,17 +78,17 @@ test.describe("Talent payouts — branded embedded Connect", () => {
     // (loading state allowed) — and must NOT fall into the error state.
     await expect(
       page
-        .getByTestId("talent-embedded-onboarding")
-        .or(page.getByTestId("talent-embedded-onboarding-loading")),
+        .getByTestId("connect-embedded-onboarding")
+        .or(page.getByTestId("connect-embedded-onboarding-loading")),
     ).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId("talent-embedded-onboarding-error")).toHaveCount(0);
+    await expect(page.getByTestId("connect-embedded-onboarding-error")).toHaveCount(0);
 
     // The Stripe Connect component actually mounts — it loads Connect.js,
     // fetches the Account Session (→ our server action) and renders its
     // embedded element + iframe. Poll for a real Stripe Connect element (its
     // exact custom-element tag / shadow-DOM boundary varies by SDK version),
     // proving the component engaged — not just our wrapper div.
-    const mounted = page.getByTestId("talent-embedded-onboarding");
+    const mounted = page.getByTestId("connect-embedded-onboarding");
     await expect(mounted).toBeVisible({ timeout: 45_000 });
     await expect
       .poll(
@@ -107,7 +107,11 @@ test.describe("Talent payouts — branded embedded Connect", () => {
     // PERSISTENCE — the Account Session lazily created + saved the Express
     // account id. Reload → the status card shows acct_… loaded from the DB,
     // proving the server-side write stuck (not a transient client state).
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByText(/acct_/)).toBeVisible({ timeout: 45_000 });
+    // Retry the reload: the embedded iframe can mount slightly before the
+    // Account Session call finishes creating the account server-side.
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText(/acct_/).first()).toBeVisible({ timeout: 15_000 });
+    }).toPass({ timeout: 75_000 });
   });
 });

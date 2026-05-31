@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { refreshTalentPayoutStatus } from "./actions";
-import { EmbeddedOnboarding } from "./EmbeddedOnboarding";
+import { createTalentAccountSession, refreshTalentPayoutStatus } from "./actions";
+import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 
 const C = {
@@ -185,7 +185,7 @@ export function PayoutsShell({
             talent actually starts. */}
         {showOnboarding ? (
           <div style={{ marginTop: 4 }}>
-            <EmbeddedOnboarding onExit={handleExit} />
+            <ConnectEmbeddedOnboarding fetchClientSecret={createTalentAccountSession} onExit={handleExit} />
             <button
               type="button"
               onClick={() => setShowOnboarding(false)}

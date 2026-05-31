@@ -1,34 +1,34 @@
 "use client";
 
 /**
- * Tulala-branded EMBEDDED Stripe Connect onboarding for talent payouts.
- *
- * Renders `<ConnectAccountOnboarding>` (from @stripe/react-connect-js)
- * inline on the talent payouts page, themed with the Tulala Appearance
- * (deep green, Inter) so the talent completes KYC + bank linking without
- * ever leaving for stripe.com. Replaces the old hosted `account_onboarding`
+ * Tulala-branded EMBEDDED Stripe Connect onboarding — shared by talent
+ * (`/talent/settings/payouts`) and workspace (`/[tenant]/admin/payouts`)
+ * payout setup. Renders `<ConnectAccountOnboarding>` inline, themed with the
+ * Tulala Appearance, so the recipient completes KYC + bank linking without
+ * ever leaving for stripe.com. Replaces the hosted `account_onboarding`
  * Account Link redirect.
  *
- * The Connect instance is initialised in an effect (client-only) — the
- * SDK touches `window`, so it must never run during SSR. The account is
- * lazily created the first time the SDK calls `fetchClientSecret`
- * (→ `createTalentAccountSession`), so no Stripe account exists until the
- * talent actually starts onboarding here.
+ * The Connect instance is initialised in an effect (client-only) — the SDK
+ * touches `window`, so it must never run during SSR (we use the `pure`
+ * entrypoint to avoid the import-time side effect too). The caller supplies
+ * `fetchClientSecret`, which the SDK invokes to mint an Account Session; the
+ * underlying Express account is created lazily at that point.
  */
 
-import { useEffect, useState } from "react";
-// `pure` entrypoint: doesn't auto-inject Connect.js on import, so it stays
-// quiet during SSR of this client component (the default import logs a
-// benign "can't load in SSR" error). We init explicitly in an effect below.
+import { useEffect, useRef, useState } from "react";
 import { loadConnectAndInitialize } from "@stripe/connect-js/pure";
 import {
   ConnectAccountOnboarding,
   ConnectComponentsProvider,
 } from "@stripe/react-connect-js";
+import { TULALA_CONNECT_APPEARANCE } from "@/lib/payments/connect-appearance";
 
 type StripeConnectInstance = ReturnType<typeof loadConnectAndInitialize>;
-import { TULALA_CONNECT_APPEARANCE } from "@/lib/payments/connect-appearance";
-import { createTalentAccountSession } from "./actions";
+
+/** Mints an Account Session client secret server-side (a "use server" action). */
+export type AccountSessionFetch = () => Promise<
+  { ok: true; clientSecret: string } | { ok: false; error: string }
+>;
 
 const C = {
   ink: "#0B0B0D",
@@ -38,11 +38,25 @@ const C = {
   surfaceAlt: "rgba(11,11,13,0.025)",
 } as const;
 
-export function EmbeddedOnboarding({ onExit }: { onExit?: () => void }) {
+export function ConnectEmbeddedOnboarding({
+  fetchClientSecret,
+  onExit,
+}: {
+  fetchClientSecret: AccountSessionFetch;
+  onExit?: () => void;
+}) {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const [connectInstance, setConnectInstance] =
     useState<StripeConnectInstance | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+
+  // Keep the latest fetcher in a ref so the Connect instance is created ONCE
+  // (callers may pass an inline `fetchClientSecret`; depending on its identity
+  // would re-init — and remount the iframe — on every render).
+  const fetchRef = useRef(fetchClientSecret);
+  useEffect(() => {
+    fetchRef.current = fetchClientSecret;
+  });
 
   useEffect(() => {
     if (!publishableKey) {
@@ -53,7 +67,7 @@ export function EmbeddedOnboarding({ onExit }: { onExit?: () => void }) {
       const instance = loadConnectAndInitialize({
         publishableKey,
         fetchClientSecret: async () => {
-          const r = await createTalentAccountSession();
+          const r = await fetchRef.current();
           if (!r.ok) throw new Error(r.error);
           return r.clientSecret;
         },
@@ -69,7 +83,7 @@ export function EmbeddedOnboarding({ onExit }: { onExit?: () => void }) {
     return (
       <div
         role="alert"
-        data-testid="talent-embedded-onboarding-error"
+        data-testid="connect-embedded-onboarding-error"
         style={{
           padding: "12px 14px",
           background: C.coralSoft,
@@ -87,7 +101,7 @@ export function EmbeddedOnboarding({ onExit }: { onExit?: () => void }) {
   if (!connectInstance) {
     return (
       <div
-        data-testid="talent-embedded-onboarding-loading"
+        data-testid="connect-embedded-onboarding-loading"
         style={{
           padding: "20px 16px",
           background: C.surfaceAlt,
@@ -103,7 +117,7 @@ export function EmbeddedOnboarding({ onExit }: { onExit?: () => void }) {
   }
 
   return (
-    <div data-testid="talent-embedded-onboarding">
+    <div data-testid="connect-embedded-onboarding">
       <ConnectComponentsProvider connectInstance={connectInstance}>
         <ConnectAccountOnboarding onExit={() => onExit?.()} />
       </ConnectComponentsProvider>
