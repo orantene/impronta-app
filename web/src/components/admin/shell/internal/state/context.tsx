@@ -14,6 +14,9 @@ import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
 import type { BridgeData, WorkspaceInquiryForMessages, WorkspaceClientRow, CalendarEvent as BridgeCalendarEvent, WorkspaceOverviewMetrics, WorkspaceBookingRow, WorkspacePitchRow, WorkspaceTeamMember as BridgeTeamMember, TalentSelfProfile as BridgeTalentSelfProfile, TalentInquiryRow, TalentAgencyRow, WorkspaceMediaPhoto as BridgeMediaPhoto, WorkspaceMediaFolder as BridgeMediaFolder } from "../data-bridge";
+// Type-only — erased at compile time, so importing from the `"use server"`
+// payouts actions module pulls no server runtime into this client bundle.
+import type { PayoutsSurfaceResult } from "@/app/(workspace)/[tenantSlug]/admin/payouts/payouts-surface-actions";
 import type { TalentEarnings } from "@/lib/talent/earnings-types";
 // Client-safe types module (does NOT import `server-only`). The matching
 // server loader lives in `earnings-by-currency.ts` and is invoked only from
@@ -422,6 +425,14 @@ type Ctx = {
    * When false, destructive CMS actions should stay hidden.
    */
   websiteUsesLiveCms: boolean;
+
+  /**
+   * Workspace Payouts surface payload (Stripe Connect snapshot + base-fee
+   * state) pre-fetched server-side by the admin layout. `null` = no bridge
+   * data (mock/standalone mode) or the loader failed; the in-shell
+   * `PayoutsPage` then renders its "couldn't load payout settings" card.
+   */
+  payoutsSurface: PayoutsSurfaceResult | null;
 };
 
 // ── Phase 3.12 bridge adapters ─────────────────────────────────────────────
@@ -1823,6 +1834,10 @@ export function AdminShellProvider({
     [bridgeWebsite, bridgeTenantIdentity?.slug],
   );
 
+  // Payouts surface — pass-through bridge payload consumed by the in-shell
+  // PayoutsPage. `null` falls back to the page-module's error card.
+  const bridgePayoutsSurface = initialBridgeData?.payoutsSurface ?? null;
+
   const value: Ctx = useMemo(
     () => ({
       state: {
@@ -1947,6 +1962,7 @@ export function AdminShellProvider({
       effectiveTenant,
       effectiveWebsiteState,
       websiteUsesLiveCms,
+      payoutsSurface: bridgePayoutsSurface,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -2054,6 +2070,7 @@ export function AdminShellProvider({
       effectiveTenant,
       effectiveWebsiteState,
       websiteUsesLiveCms,
+      bridgePayoutsSurface,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,

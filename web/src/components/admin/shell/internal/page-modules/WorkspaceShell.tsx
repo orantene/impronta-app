@@ -14,6 +14,7 @@ import { TulalaIdentityBar } from "./IdentityBar-1";
 import { UnifiedInboxPage, WorkspaceMessagesPage } from "./InboxPage";
 import { OperationsPage, ProductionPage } from "./OperationsPage";
 import { OverviewPage } from "./OverviewPage";
+import { PayoutsPage } from "./PayoutsPage";
 import { PitchesPage } from "./PitchesPage-1";
 import { SitePage } from "./SitePage";
 import { TalentPage } from "./TalentPage-1";
@@ -321,6 +322,11 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     // Media Gallery + Watermark — Agency/Studio gated
     case "media":
       body = <WorkspaceMediaPage />;
+      break;
+    // Stripe Connect payout onboarding + base reservation fee. In-shell
+    // SPA section (renders inside the dashboard nav, not standalone).
+    case "payouts":
+      body = <PayoutsPage />;
       break;
     // WS-3.5 — canonical "settings" route (was "workspace"); billing
     // is folded in as an anchor section inside the settings page.
