@@ -58,7 +58,10 @@ import type {
   EditorMutation,
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
-import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-components-action";
+import {
+  saveBuilderComponent,
+  updateBuilderComponent,
+} from "@/lib/site-admin/edit-mode/builder-components-action";
 import {
   syncComponentInstances as syncComponentInstancesInTree,
   detachComponentInstance as detachComponentInstanceInTree,
@@ -448,6 +451,13 @@ export interface EditContextValue {
   saveSelectedNodeAsComponent: (
     name: string,
     description?: string,
+  ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
+  /**
+   * Phase 3 — overwrite an existing master component with the selected block, so
+   * every published linked instance reflects the change live (minus overrides).
+   */
+  updateSelectedNodeAsComponent: (
+    componentId: string,
   ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
   duplicateBuilderNode: (
     nodeId: string,
@@ -3713,6 +3723,28 @@ export function EditProvider({
     },
     [selectedBuilderNodeId],
   );
+  // Phase 3 — overwrite an existing master component from the selected block.
+  const updateSelectedNodeAsComponent = useCallback<
+    EditContextValue["updateSelectedNodeAsComponent"]
+  >(
+    async (componentId) => {
+      if (!selectedBuilderNodeId) {
+        return { ok: false, error: "Select a block on the canvas first." };
+      }
+      const location = findBuilderNodeLocation(
+        builderTreeRef.current,
+        selectedBuilderNodeId,
+      );
+      if (!location || location.node.kind === "section") {
+        return {
+          ok: false,
+          error: "Pick a block inside a section, not the whole section.",
+        };
+      }
+      return updateBuilderComponent({ componentId, subtree: location.node });
+    },
+    [selectedBuilderNodeId],
+  );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
   >(
@@ -4599,6 +4631,7 @@ export function EditProvider({
       detachComponentInstance,
       setInstanceOverride,
       saveSelectedNodeAsComponent,
+      updateSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
       patchBuilderNodeProps,
@@ -4746,6 +4779,7 @@ export function EditProvider({
       detachComponentInstance,
       setInstanceOverride,
       saveSelectedNodeAsComponent,
+      updateSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,
       saveCopiedBuilderNodeAsPreset,

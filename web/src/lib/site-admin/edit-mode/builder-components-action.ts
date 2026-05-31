@@ -95,6 +95,57 @@ export async function saveBuilderComponent(input: {
   return { ok: true, componentId: inserted.id as string };
 }
 
+// ── 1b. updateBuilderComponent (Phase 3 — edit master) ───────────────────
+
+/**
+ * Overwrite an existing saved component's master subtree from a freshly-selected
+ * block. This is the practical "edit master" flow: edit any copy on the canvas,
+ * then push it back over the master — every PUBLISHED linked instance then
+ * reflects the change live (Phase 3 resolution), minus its own overrides.
+ * Tenant-scoped; never crosses tenants.
+ */
+export async function updateBuilderComponent(input: {
+  componentId: string;
+  subtree: BuilderNode;
+}): Promise<SaveComponentResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+
+  if (!looksLikeBuilderNode(input.subtree)) {
+    return { ok: false, error: "Select a block on the canvas first." };
+  }
+  if (input.subtree.kind === "section") {
+    return { ok: false, error: "Whole sections can't be a component master." };
+  }
+  if (countSubtreeNodes(input.subtree) > MAX_NODES) {
+    return { ok: false, error: "That block is too large to save." };
+  }
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { ok: false, error: "Server is missing service-role credentials." };
+  }
+
+  const { data: updated, error } = await admin
+    .from("cms_builder_components")
+    .update({
+      root_kind: input.subtree.kind,
+      subtree_jsonb: input.subtree,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.componentId)
+    .eq("tenant_id", scope.tenantId)
+    .neq("visibility", "archived")
+    .select("id")
+    .single();
+  if (error || !updated) {
+    return { ok: false, error: "Couldn't update the master component." };
+  }
+  return { ok: true, componentId: updated.id as string };
+}
+
 // ── 2. listBuilderComponents ─────────────────────────────────────────────
 
 export async function listBuilderComponents(): Promise<ListComponentsResult> {
