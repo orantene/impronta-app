@@ -53,6 +53,7 @@ import {
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { ShadowBuilder, GradientBuilder } from "./css-value-builders";
 import { StylePresetsBar } from "./style-presets-bar";
+import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 
@@ -5026,6 +5027,18 @@ export function StylePanel({
                   Detach
                 </button>
               </div>
+            ) : null}
+
+            {selectedInstanceComponentId && selectedBuilderNodeId ? (
+              <InstanceOverridesPanel
+                instanceNodeId={selectedBuilderNodeId}
+                componentId={selectedInstanceComponentId}
+                overrides={
+                  selectedStandaloneStyleNode?.kind === "container"
+                    ? selectedStandaloneStyleNode.props.instanceOverrides
+                    : undefined
+                }
+              />
             ) : null}
 
             <StylePresetsBar

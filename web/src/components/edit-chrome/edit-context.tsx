@@ -62,6 +62,7 @@ import { saveBuilderComponent } from "@/lib/site-admin/edit-mode/builder-compone
 import {
   syncComponentInstances as syncComponentInstancesInTree,
   detachComponentInstance as detachComponentInstanceInTree,
+  setInstanceOverride as setInstanceOverrideInTree,
   countComponentInstances,
   tagAsInstance,
 } from "@/lib/site-admin/builder-node/component-instances";
@@ -429,6 +430,17 @@ export interface EditContextValue {
   detachComponentInstance: (
     nodeId: string,
   ) => Promise<{ ok: boolean; error?: string; detached?: boolean }>;
+  /**
+   * Phase 3 — set or clear a per-instance override on a linked instance, keyed
+   * by the MASTER child id. overrideJson is a JSON string of
+   * {text?,imageSrc?,imageAlt?,href?} or null to clear (kept a string to dodge
+   * a React-Compiler object-param memo bail, matching insertBuilderComponent).
+   */
+  setInstanceOverride: (
+    nodeId: string,
+    masterChildId: string,
+    overrideJson: string | null,
+  ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Living components — snapshot the currently selected freeform block as a
    * reusable saved component (persisted to cms_builder_components).
@@ -3646,6 +3658,35 @@ export function EditProvider({
     },
     [executeBuilderNodeOperation],
   );
+  // Phase 3 — set/clear a per-instance override (text/image/href) on a linked
+  // instance, keyed by the MASTER child id. Pure transform + shared commit path.
+  const setInstanceOverride = useCallback<
+    EditContextValue["setInstanceOverride"]
+  >(
+    async (nodeId, masterChildId, overrideJson) => {
+      let override: Record<string, string> | null = null;
+      if (overrideJson) {
+        try {
+          override = JSON.parse(overrideJson) as Record<string, string>;
+        } catch {
+          return { ok: false, error: "That override could not be read." };
+        }
+      }
+      const result = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId,
+        run: (tree) => ({
+          ok: true,
+          tree: setInstanceOverrideInTree(tree, nodeId, masterChildId, override),
+        }),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error };
+      }
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation],
+  );
   const saveSelectedNodeAsComponent = useCallback<
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
@@ -4556,6 +4597,7 @@ export function EditProvider({
       insertLinkedComponent,
       syncComponentInstances,
       detachComponentInstance,
+      setInstanceOverride,
       saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       removeBuilderNode,
@@ -4702,6 +4744,7 @@ export function EditProvider({
       insertLinkedComponent,
       syncComponentInstances,
       detachComponentInstance,
+      setInstanceOverride,
       saveSelectedNodeAsComponent,
       duplicateBuilderNode,
       copyBuilderNode,

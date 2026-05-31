@@ -215,3 +215,30 @@ test("resolveInstanceChildren: master + instance are not mutated (pure)", () => 
   assert.equal((masterKids[0].props as { text: string }).text, "Master heading");
   assert.equal((inst as { children: BuilderNode[] }).children.length, 0);
 });
+
+import { collectOverridableSlots, setInstanceOverride } from "./component-instances";
+
+test("collectOverridableSlots: collects text/button/image slots depth-first", () => {
+  const slots = collectOverridableSlots(MASTER);
+  assert.deepEqual(slots.map((s) => s.masterId), ["m-h", "m-b", "m-img"]);
+  assert.deepEqual(slots.map((s) => s.field), ["text", "text", "imageSrc"]);
+  const btn = slots.find((s) => s.kind === "button")!;
+  assert.equal(btn.supportsHref, true);
+  assert.equal(slots[0].defaultValue, "Master heading");
+});
+
+test("setInstanceOverride: sets, then clears (prunes empty) an override", () => {
+  const tree = [instance("inst1", "cmp-1")];
+  const withOv = setInstanceOverride(tree, "inst1", "m-h", { text: "Hi" });
+  assert.equal((withOv[0].props as { instanceOverrides: Record<string, { text: string }> }).instanceOverrides["m-h"].text, "Hi");
+  // clearing with empty removes the key (and the whole map when last one goes)
+  const cleared = setInstanceOverride(withOv, "inst1", "m-h", { text: "" });
+  assert.equal((cleared[0].props as { instanceOverrides?: unknown }).instanceOverrides, undefined);
+});
+
+test("setInstanceOverride: only touches the matching instance node (pure)", () => {
+  const tree = [instance("A", "cmp-1"), instance("B", "cmp-1")];
+  const next = setInstanceOverride(tree, "A", "m-h", { text: "X" });
+  assert.ok((next[0].props as { instanceOverrides?: unknown }).instanceOverrides);
+  assert.equal((next[1].props as { instanceOverrides?: unknown }).instanceOverrides, undefined);
+});

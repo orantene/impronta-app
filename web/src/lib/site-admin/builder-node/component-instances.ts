@@ -232,6 +232,83 @@ function materializeForInstance(
   return { ...overridden, id: namespacedId } as BuilderNode;
 }
 
+/** An overridable slot in a master component — surfaced in the editor's
+ * "Instance overrides" panel so an operator can swap text / image / link per
+ * instance without touching the master. */
+export interface OverridableSlot {
+  /** The MASTER child node id — the override key. */
+  masterId: string;
+  kind: "heading" | "paragraph" | "button" | "image";
+  /** Which override field this slot edits. */
+  field: "text" | "imageSrc";
+  /** Whether this slot also supports an href override (buttons). */
+  supportsHref: boolean;
+  /** The master's current value, shown as the placeholder / default. */
+  defaultValue: string;
+}
+
+/**
+ * Walk a master component subtree and collect its overridable slots (text on
+ * heading/paragraph/button; src on image). Order is stable (depth-first) so the
+ * panel lists slots top-to-bottom. Pure read.
+ */
+export function collectOverridableSlots(
+  master: BuilderNode,
+): OverridableSlot[] {
+  const slots: OverridableSlot[] = [];
+  const visit = (node: BuilderNode): void => {
+    const p = node.props as Record<string, unknown>;
+    if (node.kind === "heading" || node.kind === "paragraph") {
+      slots.push({ masterId: node.id, kind: node.kind, field: "text", supportsHref: false, defaultValue: String(p.text ?? "") });
+    } else if (node.kind === "button") {
+      slots.push({ masterId: node.id, kind: "button", field: "text", supportsHref: true, defaultValue: String(p.label ?? "") });
+    } else if (node.kind === "image") {
+      slots.push({ masterId: node.id, kind: "image", field: "imageSrc", supportsHref: false, defaultValue: String(p.src ?? "") });
+    }
+    if ("children" in node && Array.isArray(node.children)) node.children.forEach(visit);
+  };
+  visit(master);
+  return slots;
+}
+
+/**
+ * Set (or clear, when override is null/empty) a single per-instance override on
+ * the instance container with id `nodeId`. Empty overrides are pruned so the
+ * stored map stays minimal. Pure tree-in/tree-out.
+ */
+export function setInstanceOverride(
+  tree: BuilderNodeTree,
+  nodeId: string,
+  masterChildId: string,
+  override: BuilderNodeInstanceOverride | null,
+): BuilderNodeTree {
+  const isEmpty = (o: BuilderNodeInstanceOverride | null): boolean =>
+    !o || (!o.text && !o.imageSrc && !o.imageAlt && !o.href);
+
+  const visit = (node: BuilderNode): BuilderNode => {
+    if (node.id === nodeId && node.kind === "container") {
+      const current = { ...(node.props.instanceOverrides ?? {}) };
+      if (isEmpty(override)) {
+        delete current[masterChildId];
+      } else {
+        current[masterChildId] = override as BuilderNodeInstanceOverride;
+      }
+      const nextProps = { ...node.props };
+      if (Object.keys(current).length > 0) {
+        nextProps.instanceOverrides = current;
+      } else {
+        delete (nextProps as { instanceOverrides?: unknown }).instanceOverrides;
+      }
+      return { ...node, props: nextProps } as BuilderNode;
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      return { ...node, children: node.children.map(visit) } as BuilderNode;
+    }
+    return node;
+  };
+  return tree.map(visit);
+}
+
 /**
  * Resolve the children a linked instance should render LIVE from its master
  * component, with per-instance overrides applied. Returns:
