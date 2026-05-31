@@ -212,6 +212,10 @@ function applyOverride(
  * instance: namespace ids (so N instances of the same component don't collide
  * on React keys / data-builder-node-id) and layer per-instance overrides keyed
  * by the ORIGINAL master node id. Pure.
+ *
+ * Accordion / tabs cross-reference props (defaultOpenItemIds, defaultTabId) are
+ * also remapped to namespaced ids so "open by default" state works correctly
+ * in the live-rendered tree.
  */
 function materializeForInstance(
   node: BuilderNode,
@@ -220,16 +224,44 @@ function materializeForInstance(
 ): BuilderNode {
   const overridden = applyOverride(node, overrides[node.id]);
   const namespacedId = `${instanceId}__${node.id}`;
-  if ("children" in overridden && Array.isArray(overridden.children)) {
-    return {
-      ...overridden,
-      id: namespacedId,
-      children: overridden.children.map((child) =>
-        materializeForInstance(child, instanceId, overrides),
-      ),
-    } as BuilderNode;
+  if (!("children" in overridden) || !Array.isArray(overridden.children)) {
+    return { ...overridden, id: namespacedId } as BuilderNode;
   }
-  return { ...overridden, id: namespacedId } as BuilderNode;
+
+  const props = overridden.props as Record<string, unknown>;
+  let nextProps: Record<string, unknown> = { ...props };
+
+  // Accordion: remap defaultOpenItemIds so "open by default" targets the
+  // namespaced accordion_item ids, not the stale master ids.
+  if (
+    overridden.kind === "accordion" &&
+    Array.isArray(props.defaultOpenItemIds)
+  ) {
+    nextProps = {
+      ...nextProps,
+      defaultOpenItemIds: (props.defaultOpenItemIds as string[]).map(
+        (id) => `${instanceId}__${id}`,
+      ),
+    };
+  }
+
+  // Tabs: remap defaultTabId so the default-selected panel matches its
+  // namespaced id in the rendered tree.
+  if (overridden.kind === "tabs" && typeof props.defaultTabId === "string") {
+    nextProps = {
+      ...nextProps,
+      defaultTabId: `${instanceId}__${props.defaultTabId}`,
+    };
+  }
+
+  return {
+    ...overridden,
+    id: namespacedId,
+    props: nextProps,
+    children: overridden.children.map((child) =>
+      materializeForInstance(child, instanceId, overrides),
+    ),
+  } as BuilderNode;
 }
 
 /** An overridable slot in a master component — surfaced in the editor's
