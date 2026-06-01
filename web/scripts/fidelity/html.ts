@@ -1,16 +1,28 @@
 import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { renderBuilderNodes } from "../../src/lib/site-admin/builder-node/render";
+import {
+  renderBuilderNodes,
+  type BuilderNodeRenderDataSources,
+} from "../../src/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
 import { planFidelityFonts, type PlanFidelityFontsOptions } from "./fonts-bridge";
 
 export { planFidelityFonts, type FidelityFontPlan } from "./fonts-bridge";
+export type { BuilderNodeRenderDataSources } from "../../src/lib/site-admin/builder-node/render";
 
 export interface FidelityDesign {
   id: string;
   title: string;
   tree: BuilderNode[];
+  /**
+   * Inline data sources for the renderer. The fidelity harness has no backend,
+   * so any repeater (`container` with `dataBinding.repeat`) is driven by a
+   * static collection supplied here under `collections[sourceKey]`. This is the
+   * mechanism that lets P3 repeaters render N real cards deterministically
+   * (real photos + field bindings) instead of falling back to a single template.
+   */
+  dataSources?: BuilderNodeRenderDataSources;
 }
 
 export interface FidelityBreakpoint {
@@ -25,13 +37,17 @@ export const FIDELITY_BREAKPOINTS: readonly FidelityBreakpoint[] = [
   { name: "mobile", width: 390, height: 844 },
 ];
 
-export function renderFidelityMarkup(tree: ReadonlyArray<BuilderNode>): string {
+export function renderFidelityMarkup(
+  tree: ReadonlyArray<BuilderNode>,
+  dataSources?: BuilderNodeRenderDataSources,
+): string {
   return renderToStaticMarkup(
     createElement(
       Fragment,
       null,
       renderBuilderNodes(tree, {
         mode: "freeform",
+        dataSources,
       }),
     ),
   );
@@ -41,7 +57,7 @@ export function buildFidelityHtml(
   design: FidelityDesign,
   options: PlanFidelityFontsOptions = {},
 ): string {
-  const markup = renderFidelityMarkup(design.tree);
+  const markup = renderFidelityMarkup(design.tree, design.dataSources);
   // Font bridge: inject Google links for CDN faces + self-hosted @font-face for
   // bundled faces so declared registry families render with their real glyphs
   // instead of silently falling back to the system serif/sans.

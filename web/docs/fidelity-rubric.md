@@ -82,6 +82,7 @@ motion frame backs a specific axis:
 | Frame | State | Backs axis | What it proves |
 |---|---|---|---|
 | `saas-1440-scrolled.png` | scrolled 50% | **Color and surface** (glass) + **Interaction and motion** (sticky) | `position:sticky` nav stays pinned AND `backdrop-filter` glass renders OVER real scrolled content — invisible in a pre-scroll static frame. |
+| `saas-1440-hover.png` | hover (first CTA) | **Interaction and motion** (hover) | The sticky-nav "Start free" CTA's `style.hover` (scale + glow + colour shift, eased by a base transition) settles to its hovered end state under `animations:"disabled"` — a real state change vs. rest. |
 | `editorial-1440-reveal.png` | reveal (scrolled into view) | **Interaction and motion** | The scroll-driven (`animation-timeline: view()`) entrance animation reaches its settled end state when the node enters the viewport, vs. being stuck at `opacity:0`. |
 
 Scoring rule: score **Color/glass and Interaction/motion from the motion
@@ -90,15 +91,18 @@ the page's initial background, but only the `scrolled` frame proves the blur
 composites over moving content; score the glass component of Color from there.
 Likewise, score sticky + reveal behavior only from the motion frames.
 
-### Hover (built, golden pending)
+### Hover (committed in P4 Lane B)
 
-`applyMotionState` supports a `hover` state (real pointer → CSS `:hover`), and a
-throwaway smoke design proved it during this lane. It is **not** committed as a
-golden for the current `saas`/`editorial` trees because no button in them
-declares `stateStyles.hover` — a hover frame there would baseline a frame
-identical to rest, a false "motion is covered" signal. A `hover` golden is added
-the moment a registered design wires up hover styling (the design-rebuild lane
-will). This omission is intentional and logged here, not a silent gap.
+`applyMotionState` drives a `hover` state (real pointer → CSS `:hover`). It was
+previously omitted as a golden because no registered design wired up hover
+styling — a hover frame would have baselined a frame identical to rest. The P4
+Lane B `saas` rebuild gives its sticky-nav CTA a real `style.hover` block, so
+`saas-1440-hover.png` is now a committed golden that captures a genuine hovered
+end state (see the motion-frame table above). The editorial and agency CTAs +
+cards also declare `style.hover`, but only the `saas` nav CTA (the first
+`.site-builder-node--button` on the page, which `FIDELITY_HOVER_SELECTOR`
+targets) is captured as a hover golden; the others are exercised but not
+independently frame-proven — scored accordingly in the M2 scorecard.
 
 ## Goldens are CI-seeded (read before "fixing" a local red)
 
