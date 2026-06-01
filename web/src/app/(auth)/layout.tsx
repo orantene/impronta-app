@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
+import { getSiteUrl } from "@/lib/auth-flow";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getPublicHostContext } from "@/lib/saas";
@@ -159,21 +160,21 @@ function AuthFooter() {
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
           <Link
-            href="/legal/terms"
+            href={`${getSiteUrl()}/legal/terms`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Terms
           </Link>
           <Link
-            href="/legal/privacy"
+            href={`${getSiteUrl()}/legal/privacy`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Privacy
           </Link>
           <Link
-            href="/contact"
+            href={`${getSiteUrl()}/contact`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
