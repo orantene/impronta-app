@@ -21,7 +21,8 @@ export type BuilderNodeKind =
   | "divider"
   | "spacer"
   | "card"
-  | "cta_group";
+  | "cta_group"
+  | "nav";
 
 export interface BuilderNodeBase {
   id: string;
@@ -617,6 +618,43 @@ export interface BuilderCtaGroupNode extends BuilderNodeBase {
   children: BuilderNode[];
 }
 
+/** A single navigation link inside a `nav` node. Links are PROPS (not child
+ *  nodes) so the responsive disclosure can render them in two places — the
+ *  inline desktop row and the mobile menu — from one source of truth. */
+export interface BuilderNavLink {
+  id: string;
+  label: string;
+  href: string;
+}
+
+/**
+ * Header navigation bar. Renders the links inline on desktop and collapses them
+ * into a CSS-only hamburger→menu disclosure (native `<details>`/`<summary>`,
+ * no client JS) below `collapseAt`. Solves the Responsive-axis gap where a
+ * desktop link row simply vanished on mobile. The links remain reachable on
+ * mobile via the disclosure menu; the toggle is keyboard-operable and exposes
+ * its expanded/collapsed state natively (see render.tsx for the a11y notes).
+ */
+export interface BuilderNavNode extends BuilderNodeBase {
+  kind: "nav";
+  props: {
+    /** Optional brand/wordmark shown at the start of the bar. */
+    brand?: string;
+    /** Where the brand links (default "/"). */
+    brandHref?: string;
+    /** Navigation links — rendered inline on desktop AND inside the mobile menu. */
+    links: BuilderNavLink[];
+    /** Viewport at/below which the inline row collapses to the hamburger menu.
+     *  "mobile" = ≤640px (default), "tablet" = ≤900px. */
+    collapseAt?: "tablet" | "mobile";
+    /** Accessible label for the hamburger toggle (default "Menu"). */
+    menuLabel?: string;
+    /** Accessible label for the <nav> landmark (default "Primary"). */
+    ariaLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export type BuilderNode =
   | BuilderSectionNode
   | BuilderContainerNode
@@ -640,6 +678,7 @@ export type BuilderNode =
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode
-  | BuilderCtaGroupNode;
+  | BuilderCtaGroupNode
+  | BuilderNavNode;
 
 export type BuilderNodeTree = BuilderNode[];

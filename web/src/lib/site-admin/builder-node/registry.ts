@@ -8,6 +8,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "card",
   "cta_group",
   "split",
+  "nav",
   "accordion",
   "tabs",
   "carousel",
@@ -557,6 +558,25 @@ const ctaGroupPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const navPropsSchema = z.object({
+  brand: z.string().max(120).optional(),
+  brandHref: z.string().max(500).optional(),
+  links: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(120),
+        label: z.string().min(1).max(120),
+        href: z.string().min(1).max(500),
+      }),
+    )
+    .min(1)
+    .max(12),
+  collapseAt: z.enum(["tablet", "mobile"]).optional(),
+  menuLabel: z.string().max(80).optional(),
+  ariaLabel: z.string().max(80).optional(),
+  style: builderNodeStyleSchema,
+});
+
 export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNodeRegistryEntry>> =
   {
     section: {
@@ -793,5 +813,13 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Vertical spacing node.",
       children: { type: "none" },
       propsSchema: spacerPropsSchema,
+    },
+    nav: {
+      kind: "nav",
+      label: "Navigation",
+      description:
+        "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width.",
+      children: { type: "none" },
+      propsSchema: navPropsSchema,
     },
   };

@@ -385,7 +385,12 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /data-builder-style-mobile-fit="cover"/);
     // Mobile focal-point override is gated by its own value-carrying data-attr.
     assert.match(html, /data-builder-style-mobile-object-position="50% 20%"/);
-    assert.doesNotMatch(html, /border-radius:8px/);
+    // No default rounded corners on the image ELEMENT. Scope to the rendered
+    // markup (not the global <style> sheet, which legitimately carries 8px radii
+    // for unrelated components like the nav toggle/menu) so the assertion checks
+    // what it names rather than coincidental stylesheet text.
+    const markupOnly = html.replace(/<style[\s\S]*?<\/style>/g, "");
+    assert.doesNotMatch(markupOnly, /border-radius:8px/);
   });
 
   it("renders a free aspect-ratio that overrides the ratio enum", () => {
