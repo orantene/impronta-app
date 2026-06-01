@@ -458,6 +458,31 @@ const videoPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+// Embed iframes are gated to the same hosts as the CSP frame-src allowlist
+// (next.config.ts builderEmbedCsp + googleMapsCsp). Validating here is
+// defense-in-depth: the iframe DOM is never emitted for an off-allowlist origin,
+// so a mismatched provider/src (e.g. provider:"youtube" + src:"https://attacker.com")
+// is rejected at authoring time instead of relying solely on the browser CSP.
+const ALLOWED_EMBED_HOST_SUFFIXES = [
+  "youtube.com",
+  "youtube-nocookie.com",
+  "vimeo.com",
+  "calendly.com",
+  "google.com",
+] as const;
+
+function isAllowedEmbedSrc(value: string): boolean {
+  let host: string;
+  try {
+    host = new URL(value).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return ALLOWED_EMBED_HOST_SUFFIXES.some(
+    (suffix) => host === suffix || host.endsWith(`.${suffix}`),
+  );
+}
+
 const embedPropsSchema = z.object({
   src: z
     .string()
@@ -465,6 +490,10 @@ const embedPropsSchema = z.object({
     .max(2048)
     .refine((value) => value.startsWith("https://"), {
       message: "Embed URLs must use https://.",
+    })
+    .refine(isAllowedEmbedSrc, {
+      message:
+        "Embed host must be YouTube, Vimeo, Calendly, or Google Maps (the allowed embed providers).",
     }),
   title: z.string().max(160).optional(),
   provider: z.enum(["youtube", "vimeo", "maps", "calendly", "url"]).optional(),

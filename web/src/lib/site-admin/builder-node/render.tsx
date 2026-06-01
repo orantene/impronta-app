@@ -1692,7 +1692,7 @@ function renderBuilderNode(
           src={node.props.src}
           title={node.props.title ?? "Embedded content"}
           loading="lazy"
-          sandbox="allow-forms allow-popups allow-presentation allow-same-origin allow-scripts"
+          sandbox="allow-forms allow-popups allow-presentation allow-scripts"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen={node.props.allowFullScreen ?? true}
@@ -1717,7 +1717,7 @@ function renderBuilderNode(
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--icon"
           role={decorative ? undefined : "img"}
-          aria-label={decorative ? undefined : node.props.label}
+          aria-label={decorative ? undefined : node.props.label || icon.name}
           aria-hidden={decorative ? true : undefined}
           style={{
             fontSize: ICON_SIZE[node.props.size ?? "md"],

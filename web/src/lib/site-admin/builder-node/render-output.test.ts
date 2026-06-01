@@ -303,6 +303,33 @@ test("node kind: icon renders inline currentColor svg", () => {
   assert.ok(html.includes("color:#0f766e"), "shared style color");
 });
 
+test("security: embed sandbox never grants allow-same-origin (would defeat itself)", () => {
+  const html = render([
+    {
+      id: "embed-sec",
+      kind: "embed",
+      props: { src: "https://player.vimeo.com/video/123", provider: "vimeo", style: {} },
+    } as BuilderNode,
+  ]);
+  // allow-same-origin + allow-scripts together let framed content remove its own
+  // sandbox attribute — they must never ship together.
+  assert.ok(html.includes("allow-scripts"), "scripts allowed (players need it)");
+  assert.ok(!html.includes("allow-same-origin"), "must NOT grant allow-same-origin");
+});
+
+test("a11y: non-decorative icon without a label falls back to an accessible name", () => {
+  const html = render([
+    {
+      id: "icon-no-label",
+      kind: "icon",
+      props: { icon: "check", decorative: false, style: {} },
+    } as BuilderNode,
+  ]);
+  assert.ok(html.includes('role="img"'), "semantic icon");
+  // role=img must never be nameless (WCAG 4.1.2) — fall back to the icon name.
+  assert.ok(html.includes('aria-label="check"'), "accessible-name fallback");
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {
