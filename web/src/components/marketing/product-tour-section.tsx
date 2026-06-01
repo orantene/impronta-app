@@ -1,67 +1,36 @@
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
-type Tab = {
-  id: "site" | "profile" | "inbox";
-  label: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-};
+type TabCopy = { eyebrow: string; title: string; body: string };
 
-const TABS: Tab[] = [
-  {
-    id: "site",
-    label: "Your page",
-    eyebrow: "01 · Public site",
-    title: "A site that's ready to book in minutes.",
-    body:
-      "A real, editorial-grade page with your work front and centre. Your subdomain on day one, your own domain whenever you want it. No developer, no template feel.",
-  },
-  {
-    id: "profile",
-    label: "Profiles",
-    eyebrow: "02 · Public profiles",
-    title: "Every person, presented properly.",
-    body:
-      "Portfolio, services, availability, and one clean booking button — on one shareable link. The way selling your work was always supposed to look online.",
-  },
-  {
-    id: "inbox",
-    label: "Bookings inbox",
-    eyebrow: "03 · Booking pipeline",
-    title: "From inquiry to paid booking, in one place.",
-    body:
-      "Structured inquiries, versioned offers, approvals, and traceable bookings. Everything a real business needs that a group chat can't give you.",
-  },
-];
-
-export function ProductTourSection() {
+export async function ProductTourSection() {
+  const copy = getMarketingCopy(await getRequestLocale()).tour;
   return (
     <MarketingSection id="tour" className="overflow-hidden">
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Product tour</MarketingEyebrow>
+          <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Everything they see. Everything you run.
+            {copy.title}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--plt-muted)" }}
           >
-            A public page clients can book from, profiles that show your work properly, and an
-            inbox where inquiries turn into paid bookings — all wired together.
+            {copy.subtitle}
           </p>
         </div>
 
         <div className="mt-16 grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-center lg:gap-16">
           <div className="order-2 flex flex-col gap-4 lg:order-1">
-            {TABS.map((tab, i) => (
-              <TourStep key={tab.id} tab={tab} index={i} />
+            {copy.tabs.map((tab, i) => (
+              <TourStep key={i} tab={tab} index={i} />
             ))}
           </div>
           <div className="relative order-1 lg:order-2">
@@ -77,7 +46,7 @@ export function ProductTourSection() {
   );
 }
 
-function TourStep({ tab, index }: { tab: Tab; index: number }) {
+function TourStep({ tab, index }: { tab: TabCopy; index: number }) {
   return (
     <div
       className="relative rounded-2xl border p-6 transition-colors sm:p-7"

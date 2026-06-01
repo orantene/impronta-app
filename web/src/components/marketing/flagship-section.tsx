@@ -1,3 +1,5 @@
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -9,25 +11,24 @@ import { OpenTalentModalButton } from "./open-talent-modal-button";
  * Big alternating feature rows with schematic, on-brand product mocks, then a
  * supporting triptych. This is the "no one else has built this" moment.
  */
-export function FlagshipSection() {
+export async function FlagshipSection() {
+  const copy = getMarketingCopy(await getRequestLocale()).flagship;
   return (
     <MarketingSection className="overflow-hidden">
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>The platform</MarketingEyebrow>
+          <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
           <h2
             className="plt-display mt-5 text-[2rem] font-semibold tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Two things no one else has
-            <br className="hidden sm:block" /> put in one place.
+            {copy.title}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--plt-muted)" }}
           >
-            A builder that ships your whole business in a click — and a messenger where the
-            conversation becomes the booking, and the payment.
+            {copy.subtitle}
           </p>
         </div>
 
@@ -38,24 +39,19 @@ export function FlagshipSection() {
           style={{ scrollMarginTop: "6rem" }}
         >
           <FeatureCopy
-            eyebrow="One-click page builder"
-            title="Your website and your workspace. One click."
-            body="Describe your business once. Tulala builds the services website your clients see and the workspace you run it from — wired together, on-brand, live in minutes. This is the 2027 builder: repeaters, a media library, motion, and real data binding, with zero code."
-            bullets={[
-              "One prompt → a public site and a private workspace, instantly",
-              "Drag-and-drop refinement when you want it; AI when you don't",
-              "Your brand, your domain, your design system on every page",
-              "The same builder powers a solo page or a 50-person roster",
-            ]}
+            eyebrow={copy.builder.eyebrow}
+            title={copy.builder.title}
+            body={copy.builder.body}
+            bullets={copy.builder.bullets}
             cta={<OpenTalentModalButton
               eventSource="home-flagship-builder"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[0.875rem] font-medium leading-none transition-[transform,box-shadow] hover:-translate-y-[1px]"
               style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)", boxShadow: "var(--plt-shadow-forest)" }}
             >
-              Build yours free
+              {copy.builder.cta}
             </OpenTalentModalButton>}
           />
-          <BuilderVisual />
+          <BuilderVisual mock={copy.builderMock} />
         </div>
 
         {/* Row 2 — booking messenger */}
@@ -69,17 +65,12 @@ export function FlagshipSection() {
           </div>
           <div className="order-1 lg:order-2">
             <FeatureCopy
-              eyebrow="Booking messenger"
-              title="Where the chat becomes the booking — and the payment."
-              body="Every inquiry lands in one thread. Send a versioned offer, get it approved, take a deposit or the full amount, and turn it into a confirmed booking — without leaving the conversation. Messages and money, finally in the same place."
-              bullets={[
-                "Inquiry → offer → approval → booking, one thread",
-                "Collect deposits or full payment right inside the chat",
-                "Versioned offers and multi-party approvals built in",
-                "Every booking traceable to the source that earned it",
-              ]}
+              eyebrow={copy.messenger.eyebrow}
+              title={copy.messenger.title}
+              body={copy.messenger.body}
+              bullets={copy.messenger.bullets}
               cta={<MarketingCta href="/how-it-works" variant="secondary" size="md" eventSource="home-flagship-messenger" eventIntent="how-it-works">
-                See how it works
+                {copy.messenger.cta}
               </MarketingCta>}
             />
           </div>
@@ -87,21 +78,9 @@ export function FlagshipSection() {
 
         {/* Supporting triptych */}
         <div className="mt-20 grid gap-4 sm:grid-cols-3 md:mt-24">
-          <SupportCard
-            title="Reservations & deposits"
-            body="Calendars, slots, and deposits that quietly kill no-shows."
-            icon={<CalendarIcon />}
-          />
-          <SupportCard
-            title="The shared network"
-            body="Opt into cross-roster discovery and get found by new clients."
-            icon={<NetworkIcon />}
-          />
-          <SupportCard
-            title="Talent + workspace"
-            body="Be the talent and run the business — from one login."
-            icon={<SwitchIcon />}
-          />
+          <SupportCard title={copy.support[0].title} body={copy.support[0].body} icon={<CalendarIcon />} />
+          <SupportCard title={copy.support[1].title} body={copy.support[1].body} icon={<NetworkIcon />} />
+          <SupportCard title={copy.support[2].title} body={copy.support[2].body} icon={<SwitchIcon />} />
         </div>
       </MarketingContainer>
     </MarketingSection>
@@ -183,7 +162,11 @@ function SupportCard({ title, body, icon }: { title: string; body: string; icon:
 
 /* ───────────────────────── Mock visuals ───────────────────────── */
 
-function BuilderVisual() {
+function BuilderVisual({
+  mock,
+}: {
+  mock: { prompt: string; services: string; workspace: string };
+}) {
   return (
     <div
       className="relative overflow-hidden rounded-[24px] p-5 sm:p-7"
@@ -200,7 +183,7 @@ function BuilderVisual() {
       >
         <SparkleIcon />
         <span className="text-[0.875rem]" style={{ color: "var(--plt-ink-soft)" }}>
-          &ldquo;A booking site for my massage studio&rdquo;
+          &ldquo;{mock.prompt}&rdquo;
         </span>
         <span
           className="plt-mono ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold"
@@ -217,7 +200,7 @@ function BuilderVisual() {
 
       {/* Two generated outputs */}
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <OutputCard label="Services website" tag="Public">
+        <OutputCard label={mock.services} tag="Public">
           <div className="space-y-1.5">
             <div className="h-2 w-3/4 rounded-full" style={{ background: "var(--plt-hairline-strong)" }} />
             <div className="aspect-[5/3] rounded-md" style={{ background: "var(--plt-forest)", opacity: 0.18 }} />
@@ -225,7 +208,7 @@ function BuilderVisual() {
             <div className="h-1.5 w-2/3 rounded-full" style={{ background: "var(--plt-hairline)" }} />
           </div>
         </OutputCard>
-        <OutputCard label="Business workspace" tag="Private">
+        <OutputCard label={mock.workspace} tag="Private">
           <div className="space-y-1.5">
             <div className="flex gap-1">
               <div className="h-6 w-1/3 rounded-md" style={{ background: "var(--plt-hairline)" }} />
