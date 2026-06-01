@@ -236,6 +236,58 @@ export async function releaseHeldPayouts(
   return outcomes;
 }
 
+export type HeldLedgerRow = {
+  id: string;
+  bookingId: string;
+  participantId: string;
+  party: PayoutParty;
+  talentProfileId: string | null;
+  tenantId: string | null;
+  amountCents: number;
+  currency: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  createdAt: string;
+};
+
+/**
+ * All currently-held (and failed) payout legs across the platform — for the
+ * platform-admin reconciliation list. Service-role read; newest first.
+ */
+export async function listHeldPayouts(sbIn?: SupabaseClient | null): Promise<HeldLedgerRow[]> {
+  const sb = sbIn ?? createServiceRoleClient();
+  if (!sb) return [];
+  try {
+    const { data, error } = await sb
+      .from("booking_payouts")
+      .select(
+        "id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, status, attempts, last_error, created_at",
+      )
+      .in("status", ["held", "failed"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error || !data) return [];
+    return (data as Array<Record<string, unknown>>).map((r) => ({
+      id: r.id as string,
+      bookingId: r.booking_id as string,
+      participantId: r.participant_id as string,
+      party: r.party as PayoutParty,
+      talentProfileId: (r.talent_profile_id as string | null) ?? null,
+      tenantId: (r.tenant_id as string | null) ?? null,
+      amountCents: r.amount_cents as number,
+      currency: r.currency as string,
+      status: r.status as string,
+      attempts: (r.attempts as number) ?? 0,
+      lastError: (r.last_error as string | null) ?? null,
+      createdAt: r.created_at as string,
+    }));
+  } catch (err) {
+    logServerError("booking-payouts.listHeld", err);
+    return [];
+  }
+}
+
 /** Sum of a payee's currently-held payout legs, grouped by currency. For the UX banner. */
 export async function getHeldPayoutTotals(
   target: { talentProfileId?: string | null; tenantId?: string | null },
