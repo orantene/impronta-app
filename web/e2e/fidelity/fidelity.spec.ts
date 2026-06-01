@@ -6,7 +6,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { fidelityDesigns } from "../../scripts/fidelity/designs";
 import { FIDELITY_BREAKPOINTS } from "../../scripts/fidelity/html";
-import { applyMotionState, FIDELITY_MOTION_FRAMES } from "../../scripts/fidelity/motion";
+import {
+  applyMotionState,
+  fidelityMotionFrameKey,
+  FIDELITY_MOTION_FRAMES,
+} from "../../scripts/fidelity/motion";
 import {
   fidelityHtmlUrl,
   startFidelityServer,
@@ -116,17 +120,18 @@ for (const design of fidelityDesigns) {
 test.describe("fidelity: motion", () => {
   test.use({ reducedMotion: "no-preference" });
   for (const frame of FIDELITY_MOTION_FRAMES) {
-    test(`${frame.design} ${frame.state} ${frame.width}px`, async ({ page, browserName }) => {
+    const frameKey = fidelityMotionFrameKey(frame);
+    test(`${frame.design} ${frameKey} ${frame.width}px`, async ({ page, browserName }) => {
       // Motion goldens are chromium-pinned. WebKit's backdrop-filter compositing
       // and scroll-timeline support diverge enough that a shared golden would be
       // noise, not signal; the cross-engine (webkit) project covers the static
       // frames instead. Seed a webkit motion golden intentionally before lifting.
       test.skip(browserName !== "chromium", "motion goldens are chromium-pinned");
       await page.setViewportSize({ width: frame.width, height: frame.height });
-      await loadServedDesign(page, frame.design, `${frame.width}-${frame.state}`);
-      await applyMotionState(page, frame.state);
+      await loadServedDesign(page, frame.design, `${frame.width}-${frameKey}`);
+      await applyMotionState(page, frame.state, { targetSelector: frame.targetSelector });
 
-      await expect(page).toHaveScreenshot(`${frame.design}-${frame.width}-${frame.state}.png`, {
+      await expect(page).toHaveScreenshot(`${frame.design}-${frame.width}-${frameKey}.png`, {
         clip: { x: 0, y: 0, width: frame.width, height: frame.height },
         animations: "disabled",
         maxDiffPixels: 250,

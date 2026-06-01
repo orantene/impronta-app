@@ -14,6 +14,7 @@ import {
 } from "./html";
 import {
   applyMotionState,
+  fidelityMotionFrameKey,
   FIDELITY_MOTION_FRAMES,
   type FidelityMotionFrame,
 } from "./motion";
@@ -130,7 +131,7 @@ async function captureMotionFrame(
     width: frame.width,
     height: frame.height,
   };
-  const artifactBase = `${design.id}-${frame.width}-${frame.state}`;
+  const artifactBase = `${design.id}-${frame.width}-${fidelityMotionFrameKey(frame)}`;
   const htmlPath = join(designDir, `${artifactBase}.html`);
   const pngPath = join(designDir, `${artifactBase}.png`);
 
@@ -140,7 +141,7 @@ async function captureMotionFrame(
     // fast-forwarded; `animations:"disabled"` at screenshot time settles it.
     await loadDesignPage(page, server, htmlPath, html, breakpoint, "no-preference");
     await assertFontsLoaded(page, requiredFamilies, design.id);
-    await applyMotionState(page, frame.state);
+    await applyMotionState(page, frame.state, { targetSelector: frame.targetSelector });
     await page.screenshot({
       path: pngPath,
       animations: "disabled",
@@ -153,7 +154,7 @@ async function captureMotionFrame(
   return {
     design: design.id,
     breakpoint: breakpoint.name,
-    state: frame.state,
+    state: fidelityMotionFrameKey(frame),
     htmlPath,
     pngPath,
   };

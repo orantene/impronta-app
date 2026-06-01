@@ -26,6 +26,28 @@ export interface FidelityMotionFrame {
   state: FidelityMotionState;
   width: number;
   height: number;
+  /**
+   * Artifact-name + golden suffix. Defaults to `state`. Set this when a design
+   * captures TWO frames of the same state so their PNGs don't collide — e.g.
+   * editorial captures both a CTA `hover` (`editorial-1440-hover`) and a
+   * series-card `hover` (`editorial-1440-cardlift`).
+   */
+  key?: string;
+  /**
+   * Overrides the element the motion state acts on:
+   *  - `hover`  — the element to drive `:hover` onto (default: the first CTA,
+   *    `FIDELITY_HOVER_SELECTOR`). Card-lift frames point this at a repeated card
+   *    via an ends-with `data-builder-node-id` selector, e.g.
+   *    `[data-builder-node-id$="__agency-work-card"]` (first match wins).
+   *  - `reveal` — the animated node to scroll into view (default: the first node
+   *    carrying an inline `animation`/`animation-timeline`).
+   */
+  targetSelector?: string;
+}
+
+/** Artifact + golden suffix for a frame: its explicit `key`, else its `state`. */
+export function fidelityMotionFrameKey(frame: FidelityMotionFrame): string {
+  return frame.key ?? frame.state;
 }
 
 /**
@@ -48,12 +70,30 @@ export const FIDELITY_MOTION_FRAMES: readonly FidelityMotionFrame[] = [
   { design: "saas", state: "hover", width: 1440, height: 1100 },
   // editorial scroll-driven entrance animation settled at its end state.
   { design: "editorial", state: "reveal", width: 1440, height: 1100 },
-  // editorial hero CTA hovered — its 2nd proven motion behaviour alongside the
-  // reveal (lifts Motion from "only one behaviour" toward faithful).
+  // editorial hero CTA hovered (first button) — proves the declared CTA hover
+  // (ink fill + scale + shadow) settles to its hovered end state.
   { design: "editorial", state: "hover", width: 1440, height: 1100 },
-  // agency hero CTA hovered — proves the declared hover (scale + glow); first
-  // captured motion for agency (was built-but-uncaptured → scored static).
-  { design: "agency", state: "hover", width: 1440, height: 1100 },
+  // editorial series-card hover-lift — its 2nd hover behaviour. `key:"cardlift"`
+  // so it doesn't collide with the CTA `hover` PNG; targets a repeated series
+  // card (not the first button) so the captured frame shows the card raised.
+  {
+    design: "editorial",
+    state: "hover",
+    key: "cardlift",
+    width: 1440,
+    height: 1100,
+    targetSelector: '[data-builder-node-id$="__editorial-series-card"]',
+  },
+  // agency selected-work card lift — the contact-sheet card the scorecard calls
+  // out as agency's signature motion. Targets a repeated work card (NOT the hero
+  // CTA the default selector would hit) so the frame proves the translate lift.
+  {
+    design: "agency",
+    state: "hover",
+    width: 1440,
+    height: 1100,
+    targetSelector: '[data-builder-node-id$="__agency-work-card"]',
+  },
   // agency "selected work" scroll-reveal settled — agency's 2nd proven behaviour.
   { design: "agency", state: "reveal", width: 1440, height: 1100 },
 ];
@@ -68,6 +108,17 @@ export interface MotionPage {
   hover(selector: string): Promise<void>;
 }
 
+/** Options for {@link applyMotionState}. */
+export interface ApplyMotionStateOptions {
+  /**
+   * Overrides the default target (see {@link FidelityMotionFrame.targetSelector}).
+   * For `hover`, the element to hover; for `reveal`, the animated node to scroll
+   * into view. Omitted for the default first-CTA hover / first-animated-node
+   * reveal.
+   */
+  targetSelector?: string;
+}
+
 /**
  * Drive the page into the requested motion state. Idempotent and timing-free:
  * it only sets scroll position / hover, then settles a couple of animation
@@ -77,6 +128,7 @@ export interface MotionPage {
 export async function applyMotionState(
   page: MotionPage,
   state: FidelityMotionState,
+  options: ApplyMotionStateOptions = {},
 ): Promise<void> {
   switch (state) {
     case "scrolled":
@@ -85,22 +137,41 @@ export async function applyMotionState(
         window.scrollTo(0, Math.max(0, Math.round(max * 0.5)));
       });
       break;
-    case "hover":
+    case "hover": {
       // CSS `:hover` only fires from a real pointer, so use Playwright's input
-      // (a synthetic MouseEvent does NOT match `:hover`). Reset scroll first so
-      // the first CTA is near the top of the captured viewport.
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.hover(FIDELITY_HOVER_SELECTOR);
+      // (a synthetic MouseEvent does NOT match `:hover`).
+      const selector = options.targetSelector ?? FIDELITY_HOVER_SELECTOR;
+      if (options.targetSelector) {
+        // A specific, deeper target (e.g. a repeated work/series card): center it
+        // so the captured viewport is deterministic. Playwright's hover() would
+        // otherwise auto-scroll the card to a layout-dependent offset → flaky
+        // golden. `scrollIntoView({block:"center"})` is layout-derived and stable.
+        await page.evaluate((sel) => {
+          const el = document.querySelector<HTMLElement>(sel);
+          if (!el) throw new Error(`motion[hover]: no element matches "${sel}"`);
+          el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });
+        }, selector);
+      } else {
+        // Default first-CTA: reset to the top, where it sits in view. Preserves
+        // the existing saas / editorial-CTA hover goldens exactly.
+        await page.evaluate(() => window.scrollTo(0, 0));
+      }
+      await page.hover(selector);
       break;
-    case "reveal":
-      await page.evaluate(() => {
-        const target = document.querySelector<HTMLElement>(
-          '.site-builder-node[style*="animation-timeline"], .site-builder-node[style*="animation"]',
-        );
+    }
+    case "reveal": {
+      const selector = options.targetSelector ?? null;
+      await page.evaluate((sel) => {
+        const target = sel
+          ? document.querySelector<HTMLElement>(sel)
+          : document.querySelector<HTMLElement>(
+              '.site-builder-node[style*="animation-timeline"], .site-builder-node[style*="animation"]',
+            );
         if (!target) throw new Error("motion[reveal]: no animated node found");
         target.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });
-      });
+      }, selector);
       break;
+    }
   }
   // Settle two animation frames so layout/scroll-timeline progress is applied
   // before the screenshot fast-forwards the animation to completion.
