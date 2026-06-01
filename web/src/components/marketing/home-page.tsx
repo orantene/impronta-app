@@ -52,7 +52,7 @@ export async function MarketingHomePage() {
         <PricingTeaserSection />
       </div>
       <div data-mkt-section="faq">
-        <FaqSection />
+        <FaqSection locale={locale} />
       </div>
       <div data-mkt-section="final-cta">
         <FinalCtaSection />

@@ -229,6 +229,48 @@ const en = {
     mostPopular: "Most popular",
   },
 
+  faq: {
+    eyebrow: "Frequently asked",
+    title: "The short version.",
+    subtitle: "What people ask before signing up. Straight answers — no fluff.",
+    stillQuestions: "Still have questions?",
+    seeAll: "See all FAQs",
+    items: [
+      {
+        q: "Who is Tulala for?",
+        a: "Anyone who sells their work or runs a business around people — singers, chefs, stylists, cleaners, photographers, coaches; salons, studios and agencies; and city hubs that connect local pros with clients. If you've ever booked work over WhatsApp, this is for you.",
+      },
+      {
+        q: "Is there really a free plan?",
+        a: "Yes — a genuinely useful free plan, not a trial in disguise. You get a free page, a shareable link, reservations, and a real inquiry inbox. No credit card required.",
+      },
+      {
+        q: "Can I use my own domain?",
+        a: "Yes, on the paid plans. Bring your own domain and get full control over your pages, design, and brand. Your site looks like a real business — because it is one.",
+      },
+      {
+        q: "How is this different from Squarespace or Notion?",
+        a: "Those are just for presentation — you'd still juggle bookings in WhatsApp, payments somewhere else, and your schedule in your head. Tulala is the whole thing: a site, a booking flow, payments, and a shared discovery network — built around how service businesses actually work.",
+      },
+      {
+        q: "Do I have to be on the shared network?",
+        a: "No. The network is opt-in, per business and per profile. Run Tulala as a private branded site, appear in the network, or both — you control what's discoverable.",
+      },
+      {
+        q: "What happens to my data if I leave?",
+        a: "It stays yours. Full export of your profiles, media, and booking history is available on every paid plan. No lock-in, no hostage data.",
+      },
+      {
+        q: "Can my team work in it together?",
+        a: "Yes — paid plans support multiple users with roles and permissions: owners, admins, coordinators, assistants. Everyone works in the same place with the right level of access.",
+      },
+      {
+        q: "Does it work outside the US?",
+        a: "Yes. Spanish and English, multi-currency pricing, and a design that travels cleanly across markets. Built for LATAM, North America, and Europe out of the box.",
+      },
+    ],
+  },
+
   finalCta: {
     eyebrow: "Start where you are. Grow as you go.",
     titleLine1: "Turn work into money.",
@@ -494,6 +536,48 @@ const es: MarketingCopy = {
     footnote:
       "La moneda se ajusta para LATAM y la UE. Los planes anuales ahorran 20%. Sin costos de instalación, y tus datos siempre son tuyos — expórtalos cuando quieras.",
     mostPopular: "Más popular",
+  },
+
+  faq: {
+    eyebrow: "Preguntas frecuentes",
+    title: "La versión corta.",
+    subtitle: "Lo que la gente pregunta antes de registrarse. Respuestas claras, sin rollo.",
+    stillQuestions: "¿Te quedan dudas?",
+    seeAll: "Ver todas las preguntas",
+    items: [
+      {
+        q: "¿Para quién es Tulala?",
+        a: "Para quien vende su trabajo o lleva un negocio alrededor de personas — cantantes, chefs, estilistas, personal de limpieza, fotógrafos, coaches; salones, estudios y agencias; y hubs locales que conectan profesionales con clientes. Si alguna vez agendaste trabajo por WhatsApp, esto es para ti.",
+      },
+      {
+        q: "¿De verdad hay un plan gratis?",
+        a: "Sí — un plan gratis de verdad útil, no una prueba disfrazada. Tienes una página gratis, un enlace para compartir, reservas y una bandeja de solicitudes real. Sin tarjeta.",
+      },
+      {
+        q: "¿Puedo usar mi propio dominio?",
+        a: "Sí, en los planes de pago. Trae tu dominio y controla por completo tus páginas, diseño y marca. Tu sitio se ve como un negocio de verdad — porque lo es.",
+      },
+      {
+        q: "¿En qué se diferencia de Squarespace o Notion?",
+        a: "Esos son solo para presentar — seguirías cuadrando reservas por WhatsApp, los pagos por otro lado y la agenda en tu cabeza. Tulala es todo junto: un sitio, un flujo de reservas, pagos y una red de descubrimiento — hecho para cómo funcionan de verdad los negocios de servicios.",
+      },
+      {
+        q: "¿Estoy obligado a aparecer en la red compartida?",
+        a: "No. La red es opcional, por negocio y por perfil. Usa Tulala como un sitio privado con tu marca, aparece en la red, o las dos cosas — tú decides qué se puede descubrir.",
+      },
+      {
+        q: "¿Qué pasa con mis datos si me voy?",
+        a: "Siguen siendo tuyos. Puedes exportar tus perfiles, medios e historial de reservas en cualquier plan de pago. Sin candados, sin datos secuestrados.",
+      },
+      {
+        q: "¿Mi equipo puede trabajar conmigo ahí?",
+        a: "Sí — los planes de pago permiten varios usuarios con roles y permisos: dueños, administradores, coordinadores, asistentes. Todos trabajan en el mismo lugar con el acceso que les toca.",
+      },
+      {
+        q: "¿Funciona fuera de EE. UU.?",
+        a: "Sí. Español e inglés, precios en varias monedas, y un diseño que viaja bien entre mercados. Hecho para LATAM, Norteamérica y Europa desde el primer día.",
+      },
+    ],
   },
 
   finalCta: {

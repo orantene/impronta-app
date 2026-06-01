@@ -1,66 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 
-type QA = {
-  id: string;
-  q: string;
-  a: string;
-};
+type QA = { id: string; q: string; a: string };
 
-const FAQS: QA[] = [
-  {
-    id: "what-is-tulala",
-    q: `Who is ${PLATFORM_BRAND.name} for?`,
-    a: `Anyone whose business is built on representing people — independent coordinators, talent and model agencies, casting operations, staffing firms, speaker bureaus, and any roster-based business where the product is the people you represent. If you've ever sent profiles on WhatsApp, ${PLATFORM_BRAND.name} is for you.`,
-  },
-  {
-    id: "free-plan",
-    q: "Is there really a free plan?",
-    a: "Yes — a genuinely useful free plan, not a trial in disguise. You get a free subdomain, up to 5 people profiles, a structured inquiry inbox, and optional exposure on the shared discovery hub. No credit card required.",
-  },
-  {
-    id: "custom-domain",
-    q: "Can I use my own domain?",
-    a: "Yes, on the Agency plan and above. Bring your own domain, get full CMS control over navigation, design, and pages. Your site looks like a serious editorial business — because it is one.",
-  },
-  {
-    id: "vs-website-builder",
-    q: "How is this different from Squarespace or Notion?",
-    a: `Those are presentation tools — you'd still manage your roster in a spreadsheet, your inquiries in WhatsApp, and your bookings in your head. ${PLATFORM_BRAND.name} is the operating layer: a branded site, structured people profiles, a real inquiry pipeline, and a shared discovery network — all designed around how representation businesses actually work.`,
-  },
-  {
-    id: "network-opt-in",
-    q: "Am I forced to be on the &ldquo;shared network&rdquo;?",
-    a: `No. The hub is opt-in per organization and per profile. You can run ${PLATFORM_BRAND.name} as a pure branded site, appear in the network, or both. You control what&rsquo;s discoverable.`,
-  },
-  {
-    id: "data-ownership",
-    q: "What happens to my data if I leave?",
-    a: "It stays yours. Full export of your roster, profiles, media, and inquiry history is available on every paid plan. No lock-in, no hostage data.",
-  },
-  {
-    id: "team",
-    q: "Can my team collaborate on it?",
-    a: "Yes — Agency plan and above support multiple users with role-based permissions: owners, admins, coordinators, assistants. Everyone works in the same roster with the right level of access.",
-  },
-  {
-    id: "localization",
-    q: "Does it work outside the US?",
-    a: "Yes. Multi-locale support, multi-currency pricing, and design tokens that translate cleanly across markets. Built to work across LATAM, North America, and Europe out of the box.",
-  },
-];
+export function FaqSection({ locale = "en" }: { locale?: string }) {
+  const copy = getMarketingCopy(locale).faq;
+  const faqs: QA[] = copy.items.map((it, i) => ({ id: String(i), q: it.q, a: it.a }));
 
-export function FaqSection() {
   return (
-    <MarketingSection
-      id="faq"
-      style={{ background: "var(--mkt-surface)" }}
-    >
+    <MarketingSection id="faq" style={{ background: "var(--mkt-surface)" }}>
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
@@ -68,38 +21,36 @@ export function FaqSection() {
       />
       <MarketingContainer size="default">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Frequently asked</MarketingEyebrow>
+          <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
           <h2
             className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--mkt-ink)" }}
           >
-            The short version.
+            {copy.title}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            What people ask before signing up. Straight answers — no fluff.
+            {copy.subtitle}
           </p>
         </div>
 
-        <div className="mx-auto mt-14 max-w-3xl overflow-hidden rounded-[24px] border"
+        <div
+          className="mx-auto mt-14 max-w-3xl overflow-hidden rounded-[24px] border"
           style={{
             borderColor: "var(--mkt-hairline-strong)",
             background: "var(--mkt-surface-raised)",
           }}
         >
-          {FAQS.map((f, i) => (
-            <FaqItem key={f.id} item={f} isLast={i === FAQS.length - 1} />
+          {faqs.map((f, i) => (
+            <FaqItem key={f.id} item={f} isLast={i === faqs.length - 1} />
           ))}
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <p
-            className="text-[0.9375rem]"
-            style={{ color: "var(--mkt-muted)" }}
-          >
-            Still have questions?
+          <p className="text-[0.9375rem]" style={{ color: "var(--mkt-muted)" }}>
+            {copy.stillQuestions}
           </p>
           <MarketingCta
             href="/faq"
@@ -108,7 +59,7 @@ export function FaqSection() {
             eventSource="home-faq"
             eventIntent="faq-deep"
           >
-            See all FAQs
+            {copy.seeAll}
           </MarketingCta>
         </div>
       </MarketingContainer>
@@ -145,8 +96,9 @@ function FaqItem({ item, isLast }: { item: QA; isLast: boolean }) {
         <span
           className="mkt-display text-[1.0625rem] font-medium leading-[1.35] tracking-[-0.01em] sm:text-[1.125rem]"
           style={{ color: "var(--mkt-ink)" }}
-          dangerouslySetInnerHTML={{ __html: item.q }}
-        />
+        >
+          {item.q}
+        </span>
         <span
           className={`mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-transform duration-200 ${
             open ? "rotate-45" : ""
@@ -171,9 +123,7 @@ function FaqItem({ item, isLast }: { item: QA; isLast: boolean }) {
       <div
         id={`faq-${item.id}`}
         className="grid overflow-hidden transition-[grid-template-rows] duration-300 ease-out"
-        style={{
-          gridTemplateRows: open ? "1fr" : "0fr",
-        }}
+        style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
       >
         <div className="min-h-0">
           <p
