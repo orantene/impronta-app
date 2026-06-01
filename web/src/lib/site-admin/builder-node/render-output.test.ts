@@ -509,6 +509,29 @@ test("security: embed sandbox never grants allow-same-origin (would defeat itsel
   assert.ok(!html.includes("allow-same-origin"), "must NOT grant allow-same-origin");
 });
 
+test("node kind: rich_text renders annotations and sanitizes unsafe links", () => {
+  const html = render([
+    {
+      id: "rich-1",
+      kind: "rich_text",
+      props: {
+        text: "{b}Bold{/b} and {i}italic{/i} with [safe](https://example.com) plus [local](/directory) and [bad](javascript:alert(1)).",
+        style: { textColor: "#111827" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="rich_text"'), "kind marker");
+  assert.ok(html.includes("<strong>Bold</strong>"), "bold annotation");
+  assert.ok(html.includes("<em>italic</em>"), "italic annotation");
+  assert.ok(html.includes('href="https://example.com"'), "https link kept");
+  assert.ok(html.includes('target="_blank"'), "external link target");
+  assert.ok(html.includes('href="/directory"'), "relative link kept");
+  assert.ok(html.includes("bad"), "unsafe label kept as text");
+  assert.ok(!html.includes("javascript:alert"), "unsafe href removed");
+  assert.ok(html.includes("color:#111827"), "shared style");
+});
+
 test("a11y: non-decorative icon without a label falls back to an accessible name", () => {
   const html = render([
     {

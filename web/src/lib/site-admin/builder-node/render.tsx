@@ -288,6 +288,8 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--pricing-feature-mark{font-weight:800;color:var(--token-color-primary,#111)}
 .site-builder-node--pricing-feature[data-builder-feature-included="false"] .site-builder-node--pricing-feature-mark{color:rgba(18,18,18,0.34)}
 .site-builder-node--pricing-cta{margin-top:auto;display:inline-flex;width:100%;align-items:center;justify-content:center;border:1px solid var(--token-color-primary,#111);border-radius:999px;background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff);padding:0.8rem 1rem;font-weight:800;text-align:center;text-decoration:none}
+.site-builder-node--rich-text{width:100%;max-width:100%;font-family:var(--site-body-font,inherit)}
+.site-builder-node--rich-text .site-link{color:inherit;text-decoration:underline;text-underline-offset:0.16em}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -525,6 +527,34 @@ function hasTransitionLonghands(style: BuilderNodeStyleValue | undefined): boole
       style?.transitionDuration ||
       style?.transitionTimingFunction ||
       style?.transitionDelay,
+  );
+}
+
+const MARKDOWN_LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+/**
+ * Allowlist guard for inline markdown-link hrefs. Permits https:// and
+ * relative / in-page targets only; rejects javascript:, data:, vbscript: and
+ * any other scheme. Exported so the section-level renderInlineRich guards every
+ * user-authored link at one chokepoint, not just the rich_text builder node.
+ */
+export function isSafeBuilderRichTextHref(value: string): boolean {
+  const href = value.trim();
+  if (!href || href.startsWith("//")) return false;
+  if (/^https:\/\//i.test(href)) return true;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return false;
+  return (
+    href.startsWith("/") ||
+    href.startsWith("#") ||
+    href.startsWith("?") ||
+    href.startsWith("./") ||
+    href.startsWith("../")
+  );
+}
+
+export function sanitizeBuilderRichText(input: string): string {
+  return input.replace(MARKDOWN_LINK_RE, (match, label: string, href: string) =>
+    isSafeBuilderRichTextHref(href) ? match : label,
   );
 }
 
@@ -2257,6 +2287,26 @@ function renderBuilderNode(
               ) : null}
             </article>
           ))}
+        </div>
+      );
+    case "rich_text":
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--rich-text"
+          style={{
+            margin: 0,
+            lineHeight: 1.65,
+            color: "rgba(18, 18, 18, 0.72)",
+            whiteSpace: "pre-wrap",
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        >
+          {renderInlineRich(sanitizeBuilderRichText(node.props.text))}
         </div>
       );
     case "divider":

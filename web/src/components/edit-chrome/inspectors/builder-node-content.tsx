@@ -1669,6 +1669,8 @@ function childPrimaryLabel(node: BuilderNode): string {
       return node.props.text;
     case "paragraph":
       return truncate(node.props.text, 72);
+    case "rich_text":
+      return truncate(node.props.text, 72);
     case "button":
       return node.props.label;
     case "image":
@@ -1689,6 +1691,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return `Heading · H${node.props.level}`;
     case "paragraph":
       return "Paragraph block";
+    case "rich_text":
+      return "Rich text block";
     case "button":
       return node.props.href || "Button link";
     case "image":

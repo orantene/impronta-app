@@ -3774,6 +3774,8 @@ function canvasChildPrimaryLabel(node: BuilderNode): string {
       return node.props.text;
     case "paragraph":
       return truncateNodeLabel(node.props.text, 56);
+    case "rich_text":
+      return truncateNodeLabel(node.props.text, 56);
     case "button":
       return node.props.label;
     case "image":
@@ -3794,6 +3796,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return `Heading · H${node.props.level}`;
     case "paragraph":
       return "Paragraph block";
+    case "rich_text":
+      return "Rich text block";
     case "button":
       return node.props.href || "Button link";
     case "image":

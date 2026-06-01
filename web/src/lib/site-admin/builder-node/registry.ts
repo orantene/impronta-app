@@ -20,6 +20,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "embed",
   "icon",
   "pricing_table",
+  "rich_text",
   "divider",
   "spacer",
 ];
@@ -529,6 +530,7 @@ const pricingTablePropsSchema = z.object({
     features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional(),
   })).min(2).max(4), style: builderNodeStyleSchema,
 });
+const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), style: builderNodeStyleSchema });
 
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
@@ -782,6 +784,9 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "pricing_table",
       label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" },
       propsSchema: pricingTablePropsSchema,
+    },
+    rich_text: {
+      kind: "rich_text", label: "Rich text", description: "Body copy with bold, italic, and sanitized links.", children: { type: "none" }, propsSchema: richTextPropsSchema,
     },
     divider: {
       kind: "divider",

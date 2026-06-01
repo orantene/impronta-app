@@ -308,6 +308,14 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       };
     case "pricing_table":
       return createPricingTable();
+    case "rich_text":
+      return {
+        id: makeId("rich_text"),
+        kind: "rich_text",
+        props: {
+          text: "Write {b}rich copy{/b}, {i}editorial emphasis{/i}, and [safe links](/directory).",
+        },
+      };
     case "divider":
       return {
         id: makeId("divider"),

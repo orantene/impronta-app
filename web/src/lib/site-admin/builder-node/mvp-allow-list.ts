@@ -19,6 +19,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "embed",
   "icon",
   "pricing_table",
+  "rich_text",
   "divider",
   "spacer",
 ];
@@ -45,6 +46,7 @@ export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
   embed: "Embed",
   icon: "Icon",
   pricing_table: "Pricing table",
+  rich_text: "Rich text",
   divider: "Divider",
   spacer: "Spacer",
 };
@@ -92,6 +94,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     embed: "media",
     icon: "utility",
     pricing_table: "actions",
+    rich_text: "typography",
     button: "actions",
     divider: "utility",
     spacer: "utility",
@@ -128,6 +131,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     embed: "iframe youtube vimeo maps calendly booking widget embed",
     icon: "svg symbol pictogram check star heart arrow sparkle",
     pricing_table: "pricing plans tiers packages features check marks conversion",
+    rich_text: "body copy rich text bold italic inline links markdown",
     divider: "rule separator hr",
     spacer: "whitespace gap rhythm",
     accordion: "faq collapse expand",

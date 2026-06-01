@@ -16,6 +16,7 @@ export type BuilderNodeKind =
   | "embed"
   | "icon"
   | "pricing_table"
+  | "rich_text"
   | "divider"
   | "spacer"
   | "card"
@@ -533,6 +534,14 @@ export interface BuilderPricingTableNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderRichTextNode extends BuilderNodeBase {
+  kind: "rich_text";
+  props: {
+    text: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -589,6 +598,7 @@ export type BuilderNode =
   | BuilderEmbedNode
   | BuilderIconNode
   | BuilderPricingTableNode
+  | BuilderRichTextNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode
