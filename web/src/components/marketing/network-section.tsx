@@ -1,8 +1,11 @@
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 
-export function NetworkSection() {
+export async function NetworkSection() {
+  const copy = getMarketingCopy(await getRequestLocale()).network;
   return (
     <MarketingSection
       id="network"
@@ -23,37 +26,26 @@ export function NetworkSection() {
       <MarketingContainer size="wide" className="relative">
         <div className="grid items-center gap-12 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-16">
           <div>
-            <MarketingEyebrow>The network</MarketingEyebrow>
+            <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
             <h2
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              You&rsquo;re not alone on a link.
+              {copy.titleLine1}
               <br />
-              <span style={{ color: "var(--plt-forest)" }}>You&rsquo;re on a network.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{copy.titleLine2}</span>
             </h2>
             <p
               className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--mkt-ink-soft)" }}
             >
-              Talent can browse agencies and hubs to apply, clients can discover the right
-              people, and workspaces can grow beyond their own website. The network should
-              feel like an opportunity feed, not a static list.
+              {copy.paragraph}
             </p>
 
             <ul className="mt-8 space-y-4">
-              <NetworkBullet
-                title="Talent applies where they fit"
-                body="A singer, cleaner, chef, or model can find open agencies and hubs, then apply from the talent dashboard."
-              />
-              <NetworkBullet
-                title="Agencies build their own business"
-                body="Each workspace keeps its brand, inquiry pipeline, roster, and site while still benefiting from shared discovery."
-              />
-              <NetworkBullet
-                title="Your data stays yours"
-                body="Opt in to the hub, opt out any time. Your roster, your branding, your relationships — always portable."
-              />
+              {copy.bullets.map((b) => (
+                <NetworkBullet key={b.title} title={b.title} body={b.body} />
+              ))}
             </ul>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -64,7 +56,7 @@ export function NetworkSection() {
                 eventSource="home-network"
                 eventIntent="discover-agencies"
               >
-                Browse agencies & hubs
+                {copy.ctaPrimary}
               </MarketingCta>
               <MarketingCta
                 href="/how-it-works#network"
@@ -73,7 +65,7 @@ export function NetworkSection() {
                 eventSource="home-network"
                 eventIntent="learn-network"
               >
-                How the hub works
+                {copy.ctaSecondary}
               </MarketingCta>
             </div>
           </div>

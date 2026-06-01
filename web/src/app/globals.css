@@ -1099,8 +1099,12 @@ html[data-public-font-preset="editorial"] {
 }
 
 [data-platform-surface="marketing"] ::selection {
-  background: var(--tl-forest-ring);
-  color: var(--tl-ink);
+  background: var(--tl-forest);
+  color: var(--tl-forest-on);
+}
+[data-platform-surface="marketing"] ::-moz-selection {
+  background: var(--tl-forest);
+  color: var(--tl-forest-on);
 }
 
 /* Subtle paper grain — hero-scoped. Uses the Tulala ink tone so the grain

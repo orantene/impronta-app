@@ -1,61 +1,49 @@
 import { AudienceSplitSection } from "./audience-split-section";
-import { ContrastSection } from "./contrast-section";
+import { CaseStudiesSection } from "./case-studies-section";
 import { FaqSection } from "./faq-section";
-import { FeatureGridSection } from "./feature-grid-section";
 import { FinalCtaSection } from "./final-cta-section";
+import { FlagshipSection } from "./flagship-section";
 import { HeroSection } from "./hero-section";
-import { HowItWorksSection } from "./how-it-works-section";
-import { LifestyleBandSection } from "./lifestyle-band-section";
 import { MarketingAnalyticsTracker } from "./analytics-tracker";
 import { NetworkSection } from "./network-section";
 import { PricingTeaserSection } from "./pricing-teaser-section";
 import { ProductTourSection } from "./product-tour-section";
-import { TrustStripSection } from "./trust-strip-section";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 /**
- * The composed marketing homepage — a single, editorial-to-product scroll.
+ * The composed marketing homepage — a tight, conversion-first scroll.
  *
- * Layout rhythm (by section):
- *   hero  → contrast    (pain/gain primer)
- *         → how-it-works (3 steps, instantly graspable)
- *         → trust        (founder-led principles, no fake logos)
- *         → audience     (three buyer pathways)
- *         → features     (six-feature grid)
- *         → product-tour (mock browser + surfaces)
- *         → network      (the differentiator)
- *         → pricing      (free-first)
- *         → faq          (short version)
- *         → final-cta    (one more chance to convert)
+ * Trimmed from 14 sections to 9: cut the dated WhatsApp "contrast", the
+ * "no fake logos" trust strip, the generic six-feature grid, the three-step
+ * how-it-works, and the heavy dark lifestyle slider (redundant with the
+ * audience section). The flagship + product tour now carry the "how it
+ * works" job; audience leads with the three motions.
+ *
+ * Flow:
+ *   hero → audience (3 ways) → flagship (builder + messenger)
+ *        → product tour → stories → network → pricing → faq → final-cta
  *
  * Wrapped in `MarketingAnalyticsTracker` so each section fires a
  * `marketing_section_viewed` event when it crosses the viewport.
  */
 export async function MarketingHomePage() {
+  const locale = await getRequestLocale();
   return (
     <MarketingAnalyticsTracker sourcePage="home">
       <div data-mkt-section="hero">
-        <HeroSection />
-      </div>
-      <div data-mkt-section="lifestyle-band">
-        <LifestyleBandSection />
-      </div>
-      <div data-mkt-section="contrast">
-        <ContrastSection />
-      </div>
-      <div data-mkt-section="how-it-works">
-        <HowItWorksSection />
-      </div>
-      <div data-mkt-section="trust-strip">
-        <TrustStripSection />
+        <HeroSection locale={locale} />
       </div>
       <div data-mkt-section="audience-split">
         <AudienceSplitSection />
       </div>
-      <div data-mkt-section="feature-grid">
-        <FeatureGridSection />
+      <div data-mkt-section="flagship">
+        <FlagshipSection />
       </div>
       <div data-mkt-section="product-tour">
         <ProductTourSection />
+      </div>
+      <div data-mkt-section="stories">
+        <CaseStudiesSection locale={locale} />
       </div>
       <div data-mkt-section="network">
         <NetworkSection />
@@ -64,7 +52,7 @@ export async function MarketingHomePage() {
         <PricingTeaserSection />
       </div>
       <div data-mkt-section="faq">
-        <FaqSection />
+        <FaqSection locale={locale} />
       </div>
       <div data-mkt-section="final-cta">
         <FinalCtaSection />

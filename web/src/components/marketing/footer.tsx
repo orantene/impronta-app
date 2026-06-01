@@ -1,53 +1,21 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { CurrencyPicker } from "./currency-picker";
+import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 
-type FooterColumn = {
-  label: string;
-  items: { label: string; href: string }[];
+/** Hrefs by column — labels come from the copy module (per locale), in order. */
+const FOOTER_HREFS = {
+  platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
+  solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
+  discover: ["/directory", "/discover-agencies", "/#stories"],
+  company: ["/pricing", "/get-started", "/faq", "/legal/privacy", "/legal/terms"],
 };
-
-const COLUMNS: FooterColumn[] = [
-  {
-    label: "Product",
-    items: [
-      { label: "How it works", href: "/how-it-works" },
-      { label: "The network", href: "/network" },
-      { label: "Agencies & hubs", href: "/discover-agencies" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "FAQ", href: "/faq" },
-      { label: "Start free", href: "/get-started" },
-    ],
-  },
-  {
-    label: "Who it's for",
-    items: [
-      { label: "Independent operators", href: "/operators" },
-      { label: "Agencies & representation", href: "/agencies" },
-      { label: "Talent applying to hubs", href: "/discover-agencies" },
-      { label: "Staffing & casting", href: "/organizations" },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      { label: "Branded roster site", href: "/agencies#site" },
-      { label: "People profiles", href: "/how-it-works#profiles" },
-      { label: "Inquiry engine", href: "/agencies#pipeline" },
-      { label: "Shared hub", href: "/network" },
-      { label: "Apply discovery", href: "/discover-agencies" },
-      { label: "API & embeds", href: "/integrations" },
-    ],
-  },
-  {
-    label: "Legal",
-    items: [
-      { label: "Privacy", href: "/legal/privacy" },
-      { label: "Terms", href: "/legal/terms" },
-    ],
-  },
-];
 
 export async function MarketingFooter() {
   // L50 Phase 2: every marketing footer ends with a currency picker so
@@ -55,6 +23,20 @@ export async function MarketingFooter() {
   // footer doesn't know which page it's on, so it resolves from cookie
   // + IP only (no URL param).
   const { currency, source } = await resolveCurrency(null);
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).footer;
+  const h = await headers();
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    h.get("x-impronta-original-pathname") ?? "/",
+    FALLBACK_LANGUAGE_SETTINGS,
+  );
+  const COLUMNS = (["platform", "solutions", "discover", "company"] as const).map((key) => ({
+    label: copy.columns[key].label,
+    items: copy.columns[key].items.map((label, i) => ({
+      label,
+      href: FOOTER_HREFS[key][i],
+    })),
+  }));
   return (
     <footer
       className="relative"
@@ -77,7 +59,7 @@ export async function MarketingFooter() {
               className="mt-5 text-[0.9375rem] leading-[1.6]"
               style={{ color: "var(--plt-muted)" }}
             >
-              {PLATFORM_BRAND.description}
+              {copy.description}
             </p>
             <div className="mt-8 flex items-center gap-2.5">
               <SocialLink href="https://instagram.com" label="Instagram">
@@ -160,6 +142,10 @@ export async function MarketingFooter() {
             &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {PLATFORM_BRAND.positioning}
           </span>
           <div className="inline-flex items-center gap-3">
+            <MarketingLanguageToggle
+              activeLocale={locale}
+              pathnameWithoutLocale={pathnameWithoutLocale}
+            />
             <CurrencyPicker current={currency} source={source} />
             <span className="inline-flex items-center gap-2">
               <span
