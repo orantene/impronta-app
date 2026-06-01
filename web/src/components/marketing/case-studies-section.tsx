@@ -18,16 +18,17 @@ import { createPortal } from "react-dom";
 
 import { CASE_STUDY_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { trackProductEvent } from "@/lib/analytics/track-client";
-import {
-  CASE_STUDIES,
-  FILTERS,
-  type CaseStudy,
-  type Motion,
-} from "./case-studies-data";
+import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
+import { CASE_STUDIES, type CaseStudy, type Motion } from "./case-studies-data";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { EditorialFrame } from "./editorial-image";
 
-export function CaseStudiesSection() {
+type StoriesCopy = MarketingCopy["stories"];
+const FILTER_VALUES: (Motion | null)[] = [null, "Talent", "Business", "Hub", "Hybrid"];
+
+export function CaseStudiesSection({ locale = "en" }: { locale?: string }) {
+  const copy = getMarketingCopy(locale).stories;
+  const filters = copy.filters.map((label, i) => ({ label, value: FILTER_VALUES[i] }));
   const [filter, setFilter] = useState<Motion | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
 
@@ -52,26 +53,24 @@ export function CaseStudiesSection() {
       />
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Stories</MarketingEyebrow>
+          <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
           <h2
             className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--mkt-ink)" }}
           >
-            One platform. Every kind of
-            <br className="hidden sm:block" /> talent business.
+            {copy.title}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            From a solo singer to a city-wide services hub — see how people use Tulala to sell
-            their work, run their business, or both. Tap any story to read it.
+            {copy.subtitle}
           </p>
         </div>
 
         {/* Filter chips */}
         <div className="mt-9 flex flex-wrap items-center justify-center gap-2">
-          {FILTERS.map((f) => {
+          {filters.map((f) => {
             const isActive = filter === f.value;
             return (
               <button
@@ -94,7 +93,12 @@ export function CaseStudiesSection() {
         {/* Card grid */}
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {visible.map((study) => (
-            <CaseStudyCard key={study.key} study={study} onOpen={() => open(study)} />
+            <CaseStudyCard
+              key={study.key}
+              study={study}
+              onOpen={() => open(study)}
+              readStory={copy.readStory}
+            />
           ))}
         </div>
 
@@ -102,12 +106,13 @@ export function CaseStudiesSection() {
           className="mx-auto mt-10 max-w-2xl text-center text-[0.8125rem] leading-[1.5]"
           style={{ color: "var(--mkt-muted)" }}
         >
-          Illustrative stories that show what&rsquo;s possible today. Real customer pages connect
-          here as they launch.
+          {copy.footnote}
         </p>
       </MarketingContainer>
 
-      {active ? <CaseStudyModal study={active} onClose={() => setOpenKey(null)} /> : null}
+      {active ? (
+        <CaseStudyModal study={active} onClose={() => setOpenKey(null)} labels={copy} />
+      ) : null}
     </MarketingSection>
   );
 }
@@ -136,7 +141,15 @@ function MotionPill({ motion, plan }: { motion: Motion; plan: string }) {
   );
 }
 
-function CaseStudyCard({ study, onOpen }: { study: CaseStudy; onOpen: () => void }) {
+function CaseStudyCard({
+  study,
+  onOpen,
+  readStory,
+}: {
+  study: CaseStudy;
+  onOpen: () => void;
+  readStory: string;
+}) {
   return (
     <article
       className="group relative flex h-full flex-col rounded-[20px] transition-transform duration-300 hover:-translate-y-1"
@@ -183,7 +196,7 @@ function CaseStudyCard({ study, onOpen }: { study: CaseStudy; onOpen: () => void
           className="mt-auto flex items-center gap-1.5 pt-4 text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-ink-soft)" }}
         >
-          Read the story
+          {readStory}
           <ArrowGlyph />
         </div>
       </div>
@@ -200,7 +213,15 @@ function CaseStudyCard({ study, onOpen }: { study: CaseStudy; onOpen: () => void
 
 /* ───────────────────────── Modal ───────────────────────── */
 
-function CaseStudyModal({ study, onClose }: { study: CaseStudy; onClose: () => void }) {
+function CaseStudyModal({
+  study,
+  onClose,
+  labels,
+}: {
+  study: CaseStudy;
+  onClose: () => void;
+  labels: StoriesCopy;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -306,13 +327,13 @@ function CaseStudyModal({ study, onClose }: { study: CaseStudy; onClose: () => v
                 {study.cardTitle}
               </h3>
 
-              <Block label="The challenge">
+              <Block label={labels.challengeLabel}>
                 <p className="text-[0.9375rem] leading-[1.6]" style={{ color: "var(--plt-ink-soft)" }}>
                   {study.challenge}
                 </p>
               </Block>
 
-              <Block label="How they use Tulala">
+              <Block label={labels.approachLabel}>
                 <ul className="space-y-2.5">
                   {study.approach.map((a) => (
                     <li
@@ -327,7 +348,7 @@ function CaseStudyModal({ study, onClose }: { study: CaseStudy; onClose: () => v
                 </ul>
               </Block>
 
-              <Block label="The result">
+              <Block label={labels.resultLabel}>
                 <div className="grid grid-cols-3 gap-3">
                   {study.outcome.map((o) => (
                     <div
@@ -395,7 +416,7 @@ function CaseStudyModal({ study, onClose }: { study: CaseStudy; onClose: () => v
                   <span className="truncate">{study.link}</span>
                 </div>
                 <p className="mt-1 text-[0.6875rem]" style={{ color: "var(--plt-muted)" }}>
-                  Example page · live link coming soon
+                  {labels.exampleNote}
                 </p>
               </div>
               <a
@@ -408,7 +429,7 @@ function CaseStudyModal({ study, onClose }: { study: CaseStudy; onClose: () => v
                   boxShadow: "var(--plt-shadow-forest)",
                 }}
               >
-                Preview the page
+                {labels.previewCta}
                 <ArrowGlyph />
               </a>
             </div>

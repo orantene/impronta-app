@@ -43,7 +43,7 @@ export async function MarketingHomePage() {
         <ProductTourSection />
       </div>
       <div data-mkt-section="stories">
-        <CaseStudiesSection />
+        <CaseStudiesSection locale={locale} />
       </div>
       <div data-mkt-section="network">
         <NetworkSection />

@@ -271,6 +271,22 @@ const en = {
     ],
   },
 
+  stories: {
+    eyebrow: "Stories",
+    title: "One platform. Every kind of talent business.",
+    subtitle:
+      "From a solo singer to a city-wide services hub — see how people use Tulala to sell their work, run their business, or both. Tap any story to read it.",
+    footnote:
+      "Illustrative stories that show what's possible today. Real customer pages connect here as they launch.",
+    filters: ["All stories", "Talent", "Business", "Hubs", "Hybrid"],
+    readStory: "Read the story",
+    challengeLabel: "The challenge",
+    approachLabel: "How they use Tulala",
+    resultLabel: "The result",
+    previewCta: "Preview the page",
+    exampleNote: "Example page · live link coming soon",
+  },
+
   finalCta: {
     eyebrow: "Start where you are. Grow as you go.",
     titleLine1: "Turn work into money.",
@@ -578,6 +594,22 @@ const es: MarketingCopy = {
         a: "Sí. Español e inglés, precios en varias monedas, y un diseño que viaja bien entre mercados. Hecho para LATAM, Norteamérica y Europa desde el primer día.",
       },
     ],
+  },
+
+  stories: {
+    eyebrow: "Historias",
+    title: "Una plataforma. Cada tipo de negocio de talento.",
+    subtitle:
+      "De una cantante independiente a un hub de servicios para toda una ciudad — mira cómo la gente usa Tulala para vender su trabajo, llevar su negocio, o las dos cosas. Toca cualquier historia para leerla.",
+    footnote:
+      "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
+    filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
+    readStory: "Leer la historia",
+    challengeLabel: "El reto",
+    approachLabel: "Cómo usan Tulala",
+    resultLabel: "El resultado",
+    previewCta: "Ver la página",
+    exampleNote: "Página de ejemplo · enlace real pronto",
   },
 
   finalCta: {
