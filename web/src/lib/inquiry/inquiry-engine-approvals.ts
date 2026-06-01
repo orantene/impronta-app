@@ -144,3 +144,70 @@ export async function clientAcceptOffer(
     decision: "accepted",
   });
 }
+
+/**
+ * Talent shortcut — resolves the acting talent's participant row and records
+ * their approval (or rejection) of an offer. Mirrors {@link clientAcceptOffer}
+ * but scoped to `role = "talent"`. An offer only converts to a booking once
+ * EVERY party (client + each assigned talent) has accepted, so this is the
+ * missing half of the multi-party approval gate on the talent side.
+ */
+export async function talentRespondToOffer(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    /** Pin a specific offer; when omitted the active/sent offer is resolved. */
+    offerId?: string;
+    actorUserId: string;
+    expectedVersion: number;
+    decision: "accepted" | "rejected";
+  },
+): Promise<EngineResult> {
+  const { data: part } = await supabase
+    .from("inquiry_participants")
+    .select("id")
+    .eq("inquiry_id", ctx.inquiryId)
+    .eq("tenant_id", ctx.tenantId)
+    .eq("user_id", ctx.actorUserId)
+    .eq("role", "talent")
+    .maybeSingle();
+  if (!part) return { success: false, error: "no_talent_participant" };
+
+  // Resolve which offer to respond to when the caller didn't pin one: prefer
+  // the inquiry's current offer pointer, else the latest SENT offer still
+  // awaiting approvals.
+  let offerId = ctx.offerId ?? null;
+  if (!offerId) {
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("current_offer_id")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    offerId = (inq?.current_offer_id as string | null) ?? null;
+    if (!offerId) {
+      const { data: off } = await supabase
+        .from("inquiry_offers")
+        .select("id")
+        .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId)
+        .eq("status", "sent")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      offerId = (off?.id as string | null) ?? null;
+    }
+  }
+  if (!offerId) return { success: false, error: "no_active_offer" };
+
+  return submitApproval(supabase, {
+    inquiryId: ctx.inquiryId,
+    tenantId: ctx.tenantId,
+    offerId,
+    participantId: part.id as string,
+    actorUserId: ctx.actorUserId,
+    expectedVersion: ctx.expectedVersion,
+    decision: ctx.decision,
+  });
+}
