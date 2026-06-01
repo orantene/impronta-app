@@ -622,3 +622,40 @@ test("security: renderInlineRich neutralizes javascript:/data:/vbscript: links t
   // the link label survives as readable text
   assert.ok(renderRich("[click](javascript:alert(1))").includes("click"), "label kept as text");
 });
+
+// ── SECURITY: structured href fields (button/CTA) render-time scheme guard ─────
+// Sibling of the rich-text guard above, for STRUCTURED href fields (button
+// `href`, pricing `ctaHref`, section `ctaHref`/`rsvpUrl`/`brandHref`). These are
+// guarded at publish time, but admin Duplicate / JSON import / legacy data /
+// direct DB writes bypass preflight. prefixPublicHref now neutralizes
+// dangerous-scheme hrefs at render so the published <a> can never be a
+// clickable XSS. `render()` here uses an empty publicPathPrefix → the apex
+// surface, the exact attack target.
+
+function buttonNode(href: string): BuilderNode {
+  return { id: "b1", kind: "button", props: { href, label: "Go" } } as BuilderNode;
+}
+
+test("security: button node renders dangerous-scheme href as # on the apex surface", () => {
+  for (const href of [
+    "javascript:alert(1)",
+    "JavaScript:alert(document.cookie)",
+    "data:text/html,<script>alert(1)</script>",
+    "vbscript:msgbox(1)",
+  ]) {
+    const html = render([buttonNode(href)]);
+    assert.ok(html.includes('href="#"'), `neutralized to # for ${href}`);
+    assert.ok(!html.toLowerCase().includes("javascript:"), `no javascript: href for ${href}`);
+    assert.ok(!html.toLowerCase().includes("vbscript:"), `no vbscript: href for ${href}`);
+    assert.ok(!html.toLowerCase().includes("data:text"), `no data: href for ${href}`);
+    assert.ok(html.includes(">Go<"), `label preserved for ${href}`);
+  }
+});
+
+test("security: button node preserves legitimate mailto/tel/https/relative hrefs", () => {
+  assert.ok(render([buttonNode("mailto:hi@example.com")]).includes('href="mailto:hi@example.com"'));
+  assert.ok(render([buttonNode("tel:+15551234567")]).includes('href="tel:+15551234567"'));
+  assert.ok(render([buttonNode("https://example.com")]).includes('href="https://example.com"'));
+  assert.ok(render([buttonNode("/directory")]).includes('href="/directory"'));
+  assert.ok(render([buttonNode("#section")]).includes('href="#section"'));
+});
