@@ -47,6 +47,7 @@ export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
   icon: "Icon",
   pricing_table: "Pricing table",
   rich_text: "Rich text",
+  code: "Code / HTML",
   divider: "Divider",
   spacer: "Spacer",
 };
@@ -95,6 +96,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     icon: "utility",
     pricing_table: "actions",
     rich_text: "typography",
+    code: "utility",
     button: "actions",
     divider: "utility",
     spacer: "utility",
@@ -132,6 +134,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     icon: "svg symbol pictogram check star heart arrow sparkle",
     pricing_table: "pricing plans tiers packages features check marks conversion",
     rich_text: "body copy rich text bold italic inline links markdown",
+    code: "code html css raw markup snippet iframe embed sandbox custom widget",
     divider: "rule separator hr",
     spacer: "whitespace gap rhythm",
     accordion: "faq collapse expand",
@@ -178,6 +181,11 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "tab_panel",
     "carousel",
     "masonry",
+    // `code` is a shipped, registered kind (renders via the sandboxed iframe),
+    // but it is deliberately NOT in MVP_ELEMENT_LIBRARY_KINDS — it stays hidden
+    // from ordinary editors and is surfaced only through the owner-only gate
+    // (see OWNER_ONLY_ELEMENT_INSERT_KINDS + gateNestedInsertKinds).
+    "code",
   ]),
 ];
 
@@ -189,4 +197,37 @@ export function filterKindsForShippedElementCatalog(
   kinds: ReadonlyArray<BuilderNodeKind>,
 ): BuilderNodeKind[] {
   return kinds.filter((k) => SHIPPED_ELEMENT_INSERT_SET.has(k));
+}
+
+/**
+ * Kinds that only a platform owner (super_admin) may INSERT, regardless of
+ * workspace plan or editor role. Raw-HTML `code` lives here: even though its
+ * render path is sandboxed, dropping arbitrary HTML/CSS is a privileged,
+ * abuse-sensitive capability we keep off the standard editor surface until
+ * reviewed. The render/validation layers still accept the kind (so existing
+ * owner-authored blocks publish and load); this gate only governs *insertion*.
+ */
+export const OWNER_ONLY_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
+  "code",
+];
+
+const OWNER_ONLY_ELEMENT_INSERT_SET = new Set<BuilderNodeKind>(
+  OWNER_ONLY_ELEMENT_INSERT_KINDS,
+);
+
+export function isOwnerOnlyElementKind(kind: BuilderNodeKind): boolean {
+  return OWNER_ONLY_ELEMENT_INSERT_SET.has(kind);
+}
+
+/**
+ * Strip owner-only insert kinds unless the current editor is a platform owner.
+ * Default-deny: non-owners (and any call site that doesn't pass the flag) never
+ * see them.
+ */
+export function filterKindsForOwnerOnlyAccess(
+  kinds: ReadonlyArray<BuilderNodeKind>,
+  canInsertOwnerOnly: boolean,
+): BuilderNodeKind[] {
+  if (canInsertOwnerOnly) return [...kinds];
+  return kinds.filter((k) => !OWNER_ONLY_ELEMENT_INSERT_SET.has(k));
 }

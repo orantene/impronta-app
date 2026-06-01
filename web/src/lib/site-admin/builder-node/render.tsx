@@ -6,6 +6,7 @@ import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_t
 import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
 
 import { BuilderNodeCarouselTrack } from "./carousel";
+import { BuilderNodeCodeFrame } from "./code-frame";
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   resolveInstanceChildren,
@@ -288,6 +289,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--pricing-feature-mark{font-weight:800;color:var(--token-color-primary,#111)}
 .site-builder-node--pricing-feature[data-builder-feature-included="false"] .site-builder-node--pricing-feature-mark{color:rgba(18,18,18,0.34)}
 .site-builder-node--pricing-cta{margin-top:auto;display:inline-flex;width:100%;align-items:center;justify-content:center;border:1px solid var(--token-color-primary,#111);border-radius:999px;background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff);padding:0.8rem 1rem;font-weight:800;text-align:center;text-decoration:none}
+.site-builder-node--code{display:block;width:100%;max-width:100%;margin:0 auto;border:0;background:transparent;box-sizing:border-box}
 .site-builder-node--rich-text{width:100%;max-width:100%;font-family:var(--site-body-font,inherit)}
 .site-builder-node--rich-text .site-link{color:inherit;text-decoration:underline;text-underline-offset:0.16em}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
@@ -2308,6 +2310,25 @@ function renderBuilderNode(
         >
           {renderInlineRich(sanitizeBuilderRichText(node.props.text))}
         </div>
+      );
+    case "code":
+      // SECURITY: author HTML is NEVER inlined into the page DOM. It is mounted
+      // inside an opaque-origin sandboxed iframe (sandbox="allow-scripts" only)
+      // by BuilderNodeCodeFrame — see that file for the full threat model. No
+      // DOM-level sanitizer is used (none is sound on this shared-apex origin).
+      return (
+        <BuilderNodeCodeFrame
+          key={node.id}
+          nodeId={node.id}
+          html={node.props.html}
+          minHeight={node.props.minHeight}
+          className="site-builder-node site-builder-node--code"
+          dataAttrs={builderNodeStyleAttrs(node.props.style)}
+          style={{
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
       );
     case "divider":
       return (

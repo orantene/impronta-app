@@ -17,6 +17,7 @@ export type BuilderNodeKind =
   | "icon"
   | "pricing_table"
   | "rich_text"
+  | "code"
   | "divider"
   | "spacer"
   | "card"
@@ -542,6 +543,25 @@ export interface BuilderRichTextNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * Raw author HTML/CSS. SECURITY: the author HTML is never inlined into the
+ * page DOM — `render.tsx` mounts it inside a fully sandboxed iframe via
+ * `srcdoc` with `sandbox="allow-scripts"` ONLY (no `allow-same-origin`), so it
+ * runs on a unique opaque origin and cannot read the parent-scoped
+ * `.tulala.digital` cookies or touch the parent DOM. Insertion/editing is
+ * gated to platform owners (super_admin) in the editor chrome — see
+ * `OWNER_ONLY_ELEMENT_INSERT_KINDS`. `minHeight` is the documented fallback
+ * floor for the postMessage height handshake.
+ */
+export interface BuilderCodeNode extends BuilderNodeBase {
+  kind: "code";
+  props: {
+    html: string;
+    minHeight?: number;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -599,6 +619,7 @@ export type BuilderNode =
   | BuilderIconNode
   | BuilderPricingTableNode
   | BuilderRichTextNode
+  | BuilderCodeNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode
