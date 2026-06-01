@@ -222,6 +222,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
                   povCanEditLineup={isCoordinator}
                   povCanSeeOffers={isCoordinator}
                   povCanSeeCoordNote={true}
+                  mode="chat"
                 />
               )}
               {showClient && isCoordinator && (
@@ -234,10 +235,20 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
                   povCanSeeCoordNote={true}
                 />
               )}
+              {/* "Activity" sub-tab (repurposed from the retired fake DM):
+                  the job's money/booking timeline — offer → payment → booking
+                  — as read-only timestamped cards. Same underlying group thread
+                  as Chat, filtered to event cards so Chat stays conversation. */}
               {showDm && (
-                <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, textAlign: "center", fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-                  Direct messages with your coordinator land here in a later slice.
-                </div>
+                <ConversationTab
+                  conv={conv}
+                  threadKey={`${conv.id}:talent`}
+                  placeholder=""
+                  povCanEditLineup={isCoordinator}
+                  povCanSeeOffers={isCoordinator}
+                  povCanSeeCoordNote={false}
+                  mode="activity"
+                />
               )}
             </>
           );

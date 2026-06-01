@@ -219,7 +219,7 @@ export function ChatSubToggleDropdown({
   onLockedClick?: () => void;
 }) {
   const labelOf = (s: ChatSubThreadId): string =>
-    s === "client" ? "Client" : s === "group" ? "Group" : "DM";
+    s === "client" ? "Client" : s === "group" ? "Chat" : "Activity";
 
   const subs: ChatSubThreadId[] = ["client", "group", "dm"];
 

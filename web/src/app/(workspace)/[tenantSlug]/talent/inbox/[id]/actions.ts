@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
@@ -146,6 +147,126 @@ export async function markTalentInquiryThreadRead(
   });
   if (error) {
     logServerError("talent.thread.markRead", error);
+  }
+}
+
+// ─── Real thread load (talent group thread — text + money cards) ─────────────
+
+export type TalentThreadMessage = {
+  id: string;
+  isMine: boolean;
+  senderName: string;
+  senderRole: "you" | "coordinator" | "system";
+  body: string;
+  ts: string;
+  messageKind: string;
+  cardPayload: Record<string, unknown> | null;
+};
+
+/**
+ * Load the talent's real conversation for an inquiry (the GROUP thread the
+ * talent participates in) WITH message_kind + card_payload, so the talent
+ * Chat can render the money/booking story as structured cards instead of the
+ * mock prototype thread. Tenant is derived from the inquiry (RLS scopes the
+ * talent to inquiries they participate in). Returns [] when the caller isn't a
+ * participant or on any error — the SPA falls back to its empty state.
+ *
+ * Role-safe by construction: card_payload for talent-thread cards carries only
+ * labels (talent rate, booking-confirmed), never margin/commission — the
+ * client-facing offer/payment amounts live on the PRIVATE thread, not here.
+ */
+export async function loadTalentInquiryThread(
+  inquiryId: string,
+): Promise<TalentThreadMessage[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    // Reads use the service-role client AFTER the participant authorization
+    // below — mirrors loadInquiryMessages. Talent RLS doesn't grant SELECT on
+    // system (sender_user_id null) group-thread rows, so a user-scoped read
+    // silently returns [] even for a valid participant.
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    const { data: inquiry } = await readClient
+      .from("inquiries")
+      .select("id, tenant_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    if (!inquiry?.tenant_id) return [];
+    const tenantId = inquiry.tenant_id as string;
+
+    // Resolve the signed-in user's talent profile by user_id (NOT the
+    // tenant/roster-scoped loadTalentSelfProfile — a platform talent whose
+    // agency roster row is inactive still legitimately participates in the
+    // inquiry, and must see their own thread).
+    const { data: tp } = await readClient
+      .from("talent_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const talentProfileId = (tp as { id: string } | null)?.id;
+    if (!talentProfileId) return [];
+
+    // Authorization: that talent profile must be a participant on this inquiry.
+    const { data: participant } = await readClient
+      .from("inquiry_participants")
+      .select("inquiry_id")
+      .eq("inquiry_id", inquiryId)
+      .eq("talent_profile_id", talentProfileId)
+      .in("status", ["invited", "active"])
+      .maybeSingle();
+    if (!participant) return [];
+
+    const { data, error } = await readClient
+      .from("inquiry_messages")
+      .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
+      .eq("inquiry_id", inquiryId)
+      .eq("thread_type", "group")
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (error) {
+      logServerError("talent.thread.load", error);
+      return [];
+    }
+
+    type Row = {
+      id: string;
+      sender_user_id: string | null;
+      body: string;
+      created_at: string;
+      message_kind: string | null;
+      card_payload: Record<string, unknown> | null;
+      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
+    };
+    return ((data ?? []) as unknown as Row[]).map((row) => {
+      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      const isMine = !!row.sender_user_id && row.sender_user_id === user.id;
+      const senderRole: TalentThreadMessage["senderRole"] = !row.sender_user_id
+        ? "system"
+        : isMine
+          ? "you"
+          : "coordinator";
+      return {
+        id: row.id,
+        isMine,
+        senderName: isMine ? "You" : profile?.display_name?.trim() || "Coordinator",
+        senderRole,
+        body: row.body,
+        ts: row.created_at,
+        messageKind: row.message_kind ?? "text",
+        cardPayload: row.card_payload ?? null,
+      };
+    });
+  } catch (err) {
+    logServerError("talent.thread.load", err);
+    return [];
   }
 }
 

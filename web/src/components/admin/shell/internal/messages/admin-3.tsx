@@ -300,7 +300,7 @@ export function renderChatCardForMessage(
   kind: string,
   payload: Record<string, unknown>,
   toast: (s: string) => void,
-  ctx?: { inquiryId?: string; messageId?: string },
+  ctx?: { inquiryId?: string; messageId?: string; suppressPayCta?: boolean },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
   switch (kind) {
@@ -321,7 +321,9 @@ export function renderChatCardForMessage(
           amountLabel={get<string>("amount_label", "—")}
           status="requested"
           hint={get<string>("hint", "")}
-          onPayNow={() => toast("Open Pay-Now sheet — wire on client adapter")}
+          // Talent is not the payer — show the requested state without a Pay CTA
+          // (suppressPayCta). The client checkout lives on the client surface.
+          onPayNow={ctx?.suppressPayCta ? undefined : () => toast("Open Pay-Now sheet — wire on client adapter")}
         />
       );
     case "payment_paid":
