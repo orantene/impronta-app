@@ -1,3 +1,5 @@
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import {
@@ -42,6 +44,7 @@ export async function PricingTeaserSection({
   const resolvedCurrency =
     currency ?? (await resolveCurrency(null)).currency;
   const rows = await loadMarketingTiers("workspace", resolvedCurrency);
+  const copy = getMarketingCopy(await getRequestLocale()).pricing;
   // Attach CTAs + filter out unknown tiers gracefully.
   const TIERS: Tier[] = rows
     .filter((t) => TIER_CTA[t.key] !== undefined)
@@ -51,19 +54,18 @@ export async function PricingTeaserSection({
       <MarketingContainer size="wide">
         {hideHeading ? null : (
           <div className="mx-auto max-w-2xl text-center">
-            <MarketingEyebrow>Pricing</MarketingEyebrow>
+            <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
             <h2
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              Start free. Grow when you&rsquo;re ready.
+              {copy.title}
             </h2>
             <p
               className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
               style={{ color: "var(--mkt-muted)" }}
             >
-              Every plan takes you from inquiry to booked and paid &mdash; for free. Paid tiers
-              add roster size, branding, and channels as your business grows.
+              {copy.subtitle}
             </p>
           </div>
         )}
@@ -80,8 +82,7 @@ export async function PricingTeaserSection({
           className="mx-auto mt-10 max-w-xl text-center text-[0.875rem]"
           style={{ color: "var(--mkt-muted)" }}
         >
-          Currency converts for LATAM &amp; EU. Annual plans save 20%. No setup fees, and
-          your data is always yours &mdash; export anytime.
+          {copy.footnote}
         </p>
       </MarketingContainer>
     </MarketingSection>

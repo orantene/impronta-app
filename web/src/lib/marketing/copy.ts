@@ -121,6 +121,43 @@ const en = {
     },
   },
 
+  network: {
+    eyebrow: "The network",
+    titleLine1: "You're not alone on a link.",
+    titleLine2: "You're on a network.",
+    paragraph:
+      "Talent finds agencies and hubs to apply to, clients discover the right people, and businesses grow beyond their own site. It's an opportunity feed, not a static list.",
+    bullets: [
+      {
+        title: "Talent applies where they fit",
+        body: "Find open agencies and hubs and apply right from your talent dashboard.",
+      },
+      {
+        title: "Businesses keep their own brand",
+        body: "Every workspace keeps its site, roster, and bookings — and still gets found through shared discovery.",
+      },
+      {
+        title: "Your data stays yours",
+        body: "Opt in any time, opt out any time. Your roster, brand, and relationships are always portable.",
+      },
+    ],
+    ctaPrimary: "Browse agencies & hubs",
+    ctaSecondary: "How the hub works",
+    diagramEyebrow: "Agencies & hubs",
+    diagramCaption: "Search the network before you apply.",
+    tagOpen: "Open",
+  },
+
+  pricing: {
+    eyebrow: "Pricing",
+    title: "Start free. Grow when you're ready.",
+    subtitle:
+      "Every plan takes you from inquiry to booked and paid — for free. Paid tiers add roster size, branding, and channels as your business grows.",
+    footnote:
+      "Currency converts for LATAM & EU. Annual plans save 20%. No setup fees, and your data is always yours — export anytime.",
+    mostPopular: "Most popular",
+  },
+
   finalCta: {
     eyebrow: "Start where you are. Grow as you go.",
     titleLine1: "Turn work into money.",
@@ -278,6 +315,43 @@ const es: MarketingCopy = {
       ],
       cta: "Explora los hubs",
     },
+  },
+
+  network: {
+    eyebrow: "La red",
+    titleLine1: "No estás solo con un enlace.",
+    titleLine2: "Estás en una red.",
+    paragraph:
+      "El talento encuentra agencias y hubs para postularse, los clientes descubren a las personas indicadas, y los negocios crecen más allá de su propio sitio. Es un feed de oportunidades, no una lista estática.",
+    bullets: [
+      {
+        title: "El talento se postula donde encaja",
+        body: "Encuentra agencias y hubs abiertos y postúlate desde tu panel de talento.",
+      },
+      {
+        title: "Los negocios conservan su marca",
+        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas — y aun así lo encuentran en el descubrimiento compartido.",
+      },
+      {
+        title: "Tus datos son tuyos",
+        body: "Súmate cuando quieras, sal cuando quieras. Tu catálogo, tu marca y tus relaciones siempre son portables.",
+      },
+    ],
+    ctaPrimary: "Explora agencias y hubs",
+    ctaSecondary: "Cómo funciona el hub",
+    diagramEyebrow: "Agencias y hubs",
+    diagramCaption: "Busca en la red antes de postularte.",
+    tagOpen: "Abierto",
+  },
+
+  pricing: {
+    eyebrow: "Precios",
+    title: "Empieza gratis. Crece cuando estés listo.",
+    subtitle:
+      "Todos los planes te llevan de la solicitud a reservado y pagado — gratis. Los planes de pago suman tamaño de catálogo, marca y canales conforme creces.",
+    footnote:
+      "La moneda se ajusta para LATAM y la UE. Los planes anuales ahorran 20%. Sin costos de instalación, y tus datos siempre son tuyos — expórtalos cuando quieras.",
+    mostPopular: "Más popular",
   },
 
   finalCta: {

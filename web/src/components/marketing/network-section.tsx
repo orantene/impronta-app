@@ -1,8 +1,11 @@
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 
-export function NetworkSection() {
+export async function NetworkSection() {
+  const copy = getMarketingCopy(await getRequestLocale()).network;
   return (
     <MarketingSection
       id="network"
@@ -23,37 +26,26 @@ export function NetworkSection() {
       <MarketingContainer size="wide" className="relative">
         <div className="grid items-center gap-12 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-16">
           <div>
-            <MarketingEyebrow>The network</MarketingEyebrow>
+            <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
             <h2
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              You&rsquo;re not alone on a link.
+              {copy.titleLine1}
               <br />
-              <span style={{ color: "var(--plt-forest)" }}>You&rsquo;re on a network.</span>
+              <span style={{ color: "var(--plt-forest)" }}>{copy.titleLine2}</span>
             </h2>
             <p
               className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--mkt-ink-soft)" }}
             >
-              Talent finds agencies and hubs to apply to, clients discover the right people,
-              and businesses grow beyond their own site. It&rsquo;s an opportunity feed, not a
-              static list.
+              {copy.paragraph}
             </p>
 
             <ul className="mt-8 space-y-4">
-              <NetworkBullet
-                title="Talent applies where they fit"
-                body="Find open agencies and hubs and apply right from your talent dashboard."
-              />
-              <NetworkBullet
-                title="Businesses keep their own brand"
-                body="Every workspace keeps its site, roster, and bookings — and still gets found through shared discovery."
-              />
-              <NetworkBullet
-                title="Your data stays yours"
-                body="Opt in any time, opt out any time. Your roster, brand, and relationships are always portable."
-              />
+              {copy.bullets.map((b) => (
+                <NetworkBullet key={b.title} title={b.title} body={b.body} />
+              ))}
             </ul>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -64,7 +56,7 @@ export function NetworkSection() {
                 eventSource="home-network"
                 eventIntent="discover-agencies"
               >
-                Browse agencies & hubs
+                {copy.ctaPrimary}
               </MarketingCta>
               <MarketingCta
                 href="/how-it-works#network"
@@ -73,7 +65,7 @@ export function NetworkSection() {
                 eventSource="home-network"
                 eventIntent="learn-network"
               >
-                How the hub works
+                {copy.ctaSecondary}
               </MarketingCta>
             </div>
           </div>
