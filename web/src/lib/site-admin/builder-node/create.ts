@@ -243,6 +243,18 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           muted: true,
         },
       };
+    case "embed":
+      return {
+        id: makeId("embed"),
+        kind: "embed",
+        props: {
+          src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+          title: "Embedded video",
+          provider: "youtube",
+          allowFullScreen: true,
+          style: { aspectRatio: "16:9" },
+        },
+      };
     case "divider":
       return {
         id: makeId("divider"),

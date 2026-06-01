@@ -3315,6 +3315,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Image block";
     case "video":
       return "Video block";
+    case "embed":
+      return "Embed block";
     case "accordion_item":
     case "tab_panel":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;

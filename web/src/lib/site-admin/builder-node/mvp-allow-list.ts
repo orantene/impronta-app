@@ -16,6 +16,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "button",
   "image",
   "video",
+  "embed",
   "divider",
   "spacer",
 ];
@@ -39,6 +40,7 @@ export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
   button: "Button",
   image: "Image",
   video: "Video",
+  embed: "Embed",
   divider: "Divider",
   spacer: "Spacer",
 };
@@ -83,6 +85,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     paragraph: "typography",
     image: "media",
     video: "media",
+    embed: "media",
     button: "actions",
     divider: "utility",
     spacer: "utility",
@@ -116,6 +119,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     paragraph: "body copy text",
     image: "photo picture media",
     video: "movie reel clip media poster autoplay loop controls",
+    embed: "iframe youtube vimeo maps calendly booking widget embed",
     divider: "rule separator hr",
     spacer: "whitespace gap rhythm",
     accordion: "faq collapse expand",

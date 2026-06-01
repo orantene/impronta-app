@@ -251,6 +251,35 @@ test("node kind: video renders hosted media with playback controls", () => {
   assert.ok(html.includes("border-radius:18px"), "shared style");
 });
 
+test("node kind: embed renders a sandboxed iframe", () => {
+  const html = render([
+    {
+      id: "embed-1",
+      kind: "embed",
+      props: {
+        src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        title: "Launch film",
+        provider: "youtube",
+        allowFullScreen: true,
+        style: { aspectRatio: "16:9" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="embed"'), "kind marker");
+  assert.ok(html.includes('data-builder-embed-provider="youtube"'), "provider");
+  assert.ok(
+    html.includes('src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"'),
+    "iframe src",
+  );
+  assert.ok(html.includes('title="Launch film"'), "title");
+  assert.ok(html.includes("sandbox="), "sandboxed");
+  assert.ok(html.includes("allow-forms"), "sandbox allows forms");
+  assert.ok(html.includes("allowFullScreen"), "fullscreen enabled");
+  assert.ok(html.includes("referrerPolicy"), "referrer policy set");
+  assert.ok(html.includes("aspect-ratio:16 / 9"), "aspect ratio");
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {

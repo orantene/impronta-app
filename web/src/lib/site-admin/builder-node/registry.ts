@@ -16,6 +16,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "button",
   "image",
   "video",
+  "embed",
   "divider",
   "spacer",
 ];
@@ -455,6 +456,20 @@ const videoPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const embedPropsSchema = z.object({
+  src: z
+    .string()
+    .url()
+    .max(2048)
+    .refine((value) => value.startsWith("https://"), {
+      message: "Embed URLs must use https://.",
+    }),
+  title: z.string().max(160).optional(),
+  provider: z.enum(["youtube", "vimeo", "maps", "calendly", "url"]).optional(),
+  allowFullScreen: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
   style: builderNodeStyleSchema,
@@ -531,6 +546,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "button",
           "image",
           "video",
+          "embed",
           "divider",
           "spacer",
           "container",
@@ -564,6 +580,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "button",
           "image",
           "video",
+          "embed",
           "divider",
           "spacer",
           "container",
@@ -595,6 +612,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "button",
           "image",
           "video",
+          "embed",
           "divider",
           "spacer",
           "container",
@@ -613,6 +631,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         kinds: [
           "image",
           "video",
+          "embed",
           "heading",
           "paragraph",
           "button",
@@ -633,6 +652,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         kinds: [
           "image",
           "video",
+          "embed",
           "heading",
           "paragraph",
           "button",
@@ -678,6 +698,13 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Hosted video with poster, playback, and control options.",
       children: { type: "none" },
       propsSchema: videoPropsSchema,
+    },
+    embed: {
+      kind: "embed",
+      label: "Embed",
+      description: "Sandboxed iframe for video, maps, booking, or other embeds.",
+      children: { type: "none" },
+      propsSchema: embedPropsSchema,
     },
     divider: {
       kind: "divider",

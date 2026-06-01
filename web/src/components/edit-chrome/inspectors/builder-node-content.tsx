@@ -1608,6 +1608,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.src;
     case "video":
       return node.props.src;
+    case "embed":
+      return node.props.src;
     case "accordion_item":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "tab_panel":

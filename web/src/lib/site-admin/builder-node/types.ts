@@ -13,6 +13,7 @@ export type BuilderNodeKind =
   | "button"
   | "image"
   | "video"
+  | "embed"
   | "divider"
   | "spacer"
   | "card"
@@ -474,6 +475,17 @@ export interface BuilderVideoNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderEmbedNode extends BuilderNodeBase {
+  kind: "embed";
+  props: {
+    src: string;
+    title?: string;
+    provider?: "youtube" | "vimeo" | "maps" | "calendly" | "url";
+    allowFullScreen?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -527,6 +539,7 @@ export type BuilderNode =
   | BuilderButtonNode
   | BuilderImageNode
   | BuilderVideoNode
+  | BuilderEmbedNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode

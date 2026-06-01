@@ -144,6 +144,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--heading{font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
 .site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
 .site-builder-node--video{display:block;width:100%;max-width:100%;background:#000}
+.site-builder-node--embed{display:block;width:100%;max-width:100%;border:0;background:#000}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -1665,6 +1666,31 @@ function renderBuilderNode(
             aspectRatio:
               node.props.style?.aspectRatioFree ??
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
+      );
+    case "embed":
+      return (
+        <iframe
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-embed-provider={node.props.provider ?? "url"}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--embed"
+          src={node.props.src}
+          title={node.props.title ?? "Embedded content"}
+          loading="lazy"
+          sandbox="allow-forms allow-popups allow-presentation allow-same-origin allow-scripts"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen={node.props.allowFullScreen ?? true}
+          style={{
+            aspectRatio:
+              node.props.style?.aspectRatioFree ??
+              NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "16:9"],
             ...sharedNodeStyle(node.props.style),
             ...alignSelfStyle(node.props.style),
           }}
