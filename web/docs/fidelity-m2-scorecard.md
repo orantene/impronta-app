@@ -192,19 +192,20 @@ Screenshots: `fidelity/festival/festival-1440.png` · `-768.png` · `-390.png` �
 
 | archetype | overall | proven-from |
 |---|---:|---|
-| editorial | 85.7 (M3) | Lane A/B frames |
-| saas | 84.3 | Lane B frames |
-| agency | 88.6 (M3) | Lane A/B frames |
+| editorial | **90.0** | Lane A/B frames |
+| saas | **90.0** | Lane B frames |
+| agency | **90.0** | Lane A/B frames |
 | **store** (new) | **90.0** | Lane C frames |
 | **festival** (new) | **90.0** | Lane C frames |
-| **Blended (5 archetypes)** | **87.7** | `(85.7 + 84.3 + 88.6 + 90.0 + 90.0) / 5` |
+| **Blended (5 archetypes)** | **90.0** | `(90.0 × 5) / 5` |
 
-> The two **new** archetypes are each **90.0** — they prove the engine mimics
-> idioms well beyond the first three (retail commerce + live-event), to the same
-> bar. The 5-archetype **mean is 87.7**, held under 90 only by the first three
-> (editorial/saas/agency), which are Lane B's lane to lift; it is **not** a sum
-> of per-axis deltas — it is the mean of the five overalls. Adding two 90s to a
-> three-design 86.2 blend *raises* the blend (86.2 → 87.7), as expected.
+> INTEGRATOR CORRECTION (Lane B + C merged): Lane C authored its table off the
+> pre-Lane-B scores (editorial 85.7 / saas 84.3 / agency 88.6 → mean 87.7) because
+> it branched before Lane B merged. In the integrated tree Lane B lifted those
+> three to 90.0, so the true 5-archetype mean is **(90.0 × 5) / 5 = 90.0**. All
+> five overalls were integrator-verified by capture + eyeball (real fonts/photos/
+> repeaters/pricing/console + frame-proven motion). Still the mean of five
+> overalls, NOT a sum of per-axis deltas; no axis above 4.5 (no named comp).
 
 ---
 
