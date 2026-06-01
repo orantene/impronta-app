@@ -168,7 +168,7 @@ type BookingCard = {
 /** One booking per slide — the card mirrors the talent on screen (same order as SLIDES). */
 const BOOKING_CARDS: BookingCard[] = [
   { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
-  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Valentina · Runway", when: "Fashion week · Sat" },
+  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Léa & Marco · Runway", when: "Fashion week · Sat" },
   { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
   { label: "New booking", status: "New", tone: "new", amount: "$1,800", who: "Brand launch · 3 models", when: "Friday night" },
   { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
