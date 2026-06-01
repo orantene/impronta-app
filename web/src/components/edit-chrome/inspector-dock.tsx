@@ -67,6 +67,7 @@ import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-se
 import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import {
   BUILDER_NODE_REGISTRY,
+  builderNodeSupportsFieldBindings,
   builderNodeSupportsDataBinding,
   normalizeBuilderDataBinding,
   type BuilderNode,
@@ -848,6 +849,8 @@ export function InspectorDock() {
         tabs.push("layout");
       }
       if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
+        tabs.push("data");
+      } else if (builderNodeSupportsFieldBindings(selectedStandaloneBuilderNode.kind)) {
         tabs.push("data");
       }
       return tabs;

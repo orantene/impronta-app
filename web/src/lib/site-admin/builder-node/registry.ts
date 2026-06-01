@@ -26,12 +26,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
 ];
 
 /** §7A parent/child governance — Card (typography + media + actions; no layout shells inside). */
-const CARD_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
-  "heading",
-  "paragraph",
-  "button",
-  "image",
-];
+const CARD_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = ["heading", "paragraph", "button", "image"];
 
 /** §7A parent/child governance — CTA group is buttons only. */
 const CTA_GROUP_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = ["button"];
@@ -54,7 +49,10 @@ const dataBindingPropsSchema = z.object({
   mode: z.enum(["auto", "manual", "bound", "hybrid"]).optional(),
   filterQuery: z.string().max(500).optional(),
   maxItems: z.number().int().min(1).max(100).optional(),
+  repeat: z.boolean().optional(),
 });
+
+const fieldBindingPropsSchema = z.object({ text: z.string().max(160).optional(), label: z.string().max(160).optional(), href: z.string().max(160).optional(), src: z.string().max(160).optional(), alt: z.string().max(160).optional() }).strict();
 
 const sectionPropsSchema = z.object({
   sectionId: z.string().uuid().nullable().optional(),
@@ -434,11 +432,13 @@ const splitPropsSchema = z.object({
 const headingPropsSchema = z.object({
   text: z.string().min(1).max(240),
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
 
 const paragraphPropsSchema = z.object({
   text: z.string().min(1).max(5000),
+  fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -446,6 +446,7 @@ const buttonPropsSchema = z.object({
   label: z.string().min(1).max(80),
   href: z.string().min(1).max(500),
   tone: z.enum(["primary", "secondary"]).optional(),
+  fieldBindings: fieldBindingPropsSchema.optional(),
   stateStyles: z
     .object({
       hover: z.object({ tone: z.enum(["primary", "secondary"]).optional() }).optional(),
@@ -460,6 +461,7 @@ const buttonPropsSchema = z.object({
 const imagePropsSchema = z.object({
   src: z.string().url().max(2048),
   alt: z.string().max(240).optional(),
+  fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -528,7 +530,7 @@ const pricingTablePropsSchema = z.object({
   tiers: z.array(z.object({ id: z.string().min(1).max(80), name: z.string().min(1).max(120), description: z.string().max(500).optional(), price: z.string().min(1).max(80), period: z.string().max(80).optional(), ctaLabel: z.string().max(80).optional(), ctaHref: z.string().max(500).optional(), highlighted: z.boolean().optional(), features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional() })).min(2).max(4),
   style: builderNodeStyleSchema,
 });
-const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), style: builderNodeStyleSchema });
+const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), fieldBindings: fieldBindingPropsSchema.optional(), style: builderNodeStyleSchema });
 
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),

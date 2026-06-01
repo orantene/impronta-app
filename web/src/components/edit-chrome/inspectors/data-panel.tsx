@@ -4,19 +4,24 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 import {
   BUILDER_DATA_SOURCE_REGISTRY,
+  BUILDER_FIELD_BINDING_OPTIONS,
   builderDataSourceAllowedForPlan,
+  builderNodeSupportsFieldBindings,
   builderNodeSupportsDataBinding,
   getBuilderDataBindingFindings,
   getBuilderDataSourceDefinition,
+  getBuilderNodeFieldBindingProps,
   getDefaultBuilderDataBinding,
+  normalizeBuilderFieldBindings,
   normalizeBuilderDataBinding,
   type BuilderDataBinding,
   type BuilderDataBindingMode,
   type BuilderDataSourceKey,
+  type BuilderFieldBindingProp,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
 import { useEditContext } from "../edit-context";
-import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented } from "../kit";
+import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 
 interface DataPanelProps {
@@ -61,6 +66,15 @@ export function DataPanel({
     return <SectionDataHintCard />;
   }
   if (!builderNodeSupportsDataBinding(selectedBuilderNode.kind)) {
+    if (builderNodeSupportsFieldBindings(selectedBuilderNode.kind)) {
+      return (
+        <FieldBindingsPanel
+          selectedBuilderNode={selectedBuilderNode}
+          onPatchBuilderNodeProps={onPatchBuilderNodeProps}
+          onMutationError={onMutationError}
+        />
+      );
+    }
     return <UnsupportedDataNodeCard kind={selectedBuilderNode.kind} />;
   }
 
@@ -193,6 +207,17 @@ export function DataPanel({
               </Field>
             ) : null}
 
+            {binding && selectedBuilderNode.kind === "container" ? (
+              <div style={{ padding: "4px 0" }}>
+                <Toggle
+                  on={binding.repeat === true}
+                  onChange={(next) => patchBinding({ repeat: next || undefined })}
+                  label={`Repeat over ${source?.label ?? "source"}`}
+                  helper="The first nested block is the per-item template; empty data renders it once as fallback."
+                />
+              </div>
+            ) : null}
+
             {binding && source && !hasSourcePlanAccess ? (
               <div
                 className="rounded-lg border px-3 py-2 text-[11px] leading-snug text-amber-800"
@@ -284,6 +309,78 @@ export function DataPanel({
   );
 }
 
+function FieldBindingsPanel({
+  selectedBuilderNode,
+  onPatchBuilderNodeProps,
+  onMutationError,
+}: {
+  selectedBuilderNode: BuilderNode;
+  onPatchBuilderNodeProps: DataPanelProps["onPatchBuilderNodeProps"];
+  onMutationError?: DataPanelProps["onMutationError"];
+}) {
+  const propKeys = getBuilderNodeFieldBindingProps(selectedBuilderNode.kind);
+  const persisted = normalizeBuilderFieldBindings(
+    (selectedBuilderNode.props as Record<string, unknown>).fieldBindings,
+    propKeys,
+  );
+  async function patchFieldBinding(
+    prop: BuilderFieldBindingProp,
+    fieldKey: string,
+  ) {
+    const next = { ...(persisted ?? {}) };
+    if (fieldKey) {
+      next[prop] = fieldKey;
+    } else {
+      delete next[prop];
+    }
+    const result = await onPatchBuilderNodeProps(selectedBuilderNode.id, {
+      fieldBindings: Object.keys(next).length > 0 ? next : undefined,
+    });
+    if (!result.ok && result.error) onMutationError?.(result.error);
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-3"
+      data-builder-data-panel="field-bindings"
+      data-builder-data-target-kind={selectedBuilderNode.kind}
+      data-builder-data-target-id={selectedBuilderNode.id}
+    >
+      <Card state={persisted ? "active" : "default"}>
+        <CardHead title="Field bindings" sub="Repeat item props" iconAccent="green" />
+        <CardBody>
+          <div className="flex flex-col gap-3">
+            {propKeys.map((prop) => (
+              <Field key={prop} flush>
+                <FieldLabel>{fieldBindingPropLabel(prop)}</FieldLabel>
+                <select
+                  className={KIT.select}
+                  value={persisted?.[prop] ?? ""}
+                  onChange={(event) => {
+                    void patchFieldBinding(prop, event.currentTarget.value);
+                  }}
+                  aria-label={`${fieldBindingPropLabel(prop)} field binding`}
+                >
+                  <option value="">Manual fallback</option>
+                  {BUILDER_FIELD_BINDING_OPTIONS.map((field) => (
+                    <option key={`${prop}:${field.key}`} value={field.key}>
+                      {field.label} ({field.key})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ))}
+            <Helper>
+              These fields resolve inside a repeating container; the saved manual
+              value remains the fallback.
+            </Helper>
+          </div>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
 function SectionDataHintCard() {
   return (
     <Card state="muted">
@@ -296,6 +393,21 @@ function SectionDataHintCard() {
       </CardBody>
     </Card>
   );
+}
+
+function fieldBindingPropLabel(prop: BuilderFieldBindingProp): string {
+  switch (prop) {
+    case "label":
+      return "Label";
+    case "href":
+      return "Link";
+    case "src":
+      return "Image source";
+    case "alt":
+      return "Alt text";
+    default:
+      return "Text";
+  }
 }
 
 function UnsupportedDataNodeCard({ kind }: { kind: string }) {
@@ -317,6 +429,7 @@ function cleanBinding(binding: BuilderDataBinding): BuilderDataBinding {
   if (binding.mode) next.mode = binding.mode;
   if (binding.filterQuery?.trim()) next.filterQuery = binding.filterQuery.trim();
   if (binding.maxItems) next.maxItems = Math.max(1, Math.min(100, binding.maxItems));
+  if (binding.repeat) next.repeat = true;
   return next;
 }
 

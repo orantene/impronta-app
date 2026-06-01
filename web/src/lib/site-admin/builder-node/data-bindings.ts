@@ -1,4 +1,8 @@
-import type { BuilderNode, BuilderNodeKind } from "./types";
+import type {
+  BuilderNode,
+  BuilderNodeFieldBindings,
+  BuilderNodeKind,
+} from "./types";
 
 export type BuilderDataSourceKey =
   | "workspace_profile"
@@ -17,6 +21,15 @@ export interface BuilderDataBinding {
   mode?: BuilderDataBindingMode;
   filterQuery?: string;
   maxItems?: number;
+  repeat?: boolean;
+}
+
+export type BuilderFieldBindingProp = "text" | "label" | "href" | "src" | "alt";
+
+export interface BuilderDataSourceFieldDefinition {
+  key: string;
+  label: string;
+  kind: "text" | "image" | "href";
 }
 
 export interface BuilderDataSourceDefinition {
@@ -24,10 +37,21 @@ export interface BuilderDataSourceDefinition {
   label: string;
   description: string;
   examples: ReadonlyArray<string>;
+  fields?: ReadonlyArray<BuilderDataSourceFieldDefinition>;
   recommendedMaxItems?: number;
   supportsManualSelection: boolean;
   supportsFiltering: boolean;
   requiredPlan: "free" | "studio" | "agency" | "network";
+}
+
+export type BuilderDataSourceRecord = Readonly<Record<string, unknown>>;
+
+export interface BuilderRepeatItem {
+  key: string;
+  sourceKey: string;
+  index: number;
+  fields: Readonly<Record<string, string>>;
+  raw: BuilderDataSourceRecord;
 }
 
 export type BuilderDataBindingFindingSeverity = "info" | "warning" | "error";
@@ -52,12 +76,42 @@ const PLAN_RANK: Record<string, number> = {
   legacy: 3,
 };
 
+const FEATURED_TALENT_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "displayName", label: "Display name", kind: "text" },
+  { key: "primaryTalentTypeLabel", label: "Primary type", kind: "text" },
+  { key: "secondaryTalentTypeLabel", label: "Secondary type", kind: "text" },
+  { key: "locationLabel", label: "Location", kind: "text" },
+  { key: "thumbnailUrl", label: "Image", kind: "image" },
+  { key: "href", label: "Profile link", kind: "href" },
+];
+
+const DIRECTORY_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "name", label: "Name", kind: "text" },
+  { key: "slug", label: "Slug", kind: "text" },
+  { key: "href", label: "Directory link", kind: "href" },
+];
+
+const LOCATION_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "displayName", label: "Location", kind: "text" },
+  { key: "talentCount", label: "Talent count", kind: "text" },
+  { key: "citySlug", label: "Location slug", kind: "text" },
+  { key: "href", label: "Location link", kind: "href" },
+];
+
+const GENERIC_FIELDS: ReadonlyArray<BuilderDataSourceFieldDefinition> = [
+  { key: "title", label: "Title", kind: "text" },
+  { key: "description", label: "Description", kind: "text" },
+  { key: "imageUrl", label: "Image", kind: "image" },
+  { key: "href", label: "Link", kind: "href" },
+];
+
 export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefinition> = [
   {
     key: "workspace_profile",
     label: "Workspace profile",
     description: "Tenant name, brand, location, and public contact metadata.",
     examples: ["Agency name", "Primary market", "Brand intro"],
+    fields: GENERIC_FIELDS,
     supportsManualSelection: false,
     supportsFiltering: false,
     requiredPlan: "free",
@@ -67,6 +121,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "Roster talent",
     description: "Published talent profiles owned by the workspace.",
     examples: ["Featured talent", "Latest public profiles", "Selected models"],
+    fields: FEATURED_TALENT_FIELDS,
     recommendedMaxItems: 5,
     supportsManualSelection: true,
     supportsFiltering: true,
@@ -77,6 +132,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "Directory taxonomy",
     description: "Public categories, skills, disciplines, and browsable groups.",
     examples: ["Talent types", "Service categories", "Skill clusters"],
+    fields: DIRECTORY_FIELDS,
     recommendedMaxItems: 8,
     supportsManualSelection: true,
     supportsFiltering: true,
@@ -87,6 +143,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "Locations",
     description: "Markets and places inferred from published talent coverage.",
     examples: ["Cancun", "Ibiza", "Tulum"],
+    fields: LOCATION_FIELDS,
     recommendedMaxItems: 6,
     supportsManualSelection: true,
     supportsFiltering: true,
@@ -97,6 +154,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "Inquiry path",
     description: "Contact, booking, and request-a-brief entry points.",
     examples: ["Book talent", "Start inquiry", "Request availability"],
+    fields: GENERIC_FIELDS,
     supportsManualSelection: false,
     supportsFiltering: false,
     requiredPlan: "free",
@@ -106,6 +164,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "CMS page",
     description: "Published CMS pages and editorial entries.",
     examples: ["Journal index", "Featured story", "Press page"],
+    fields: GENERIC_FIELDS,
     recommendedMaxItems: 4,
     supportsManualSelection: true,
     supportsFiltering: true,
@@ -116,6 +175,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "Asset library",
     description: "Workspace images, videos, documents, and reusable media.",
     examples: ["Hero image", "Gallery set", "PDF deck"],
+    fields: GENERIC_FIELDS,
     recommendedMaxItems: 12,
     supportsManualSelection: true,
     supportsFiltering: true,
@@ -126,6 +186,7 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
     label: "Custom fields",
     description: "Structured workspace fields configured for reusable content.",
     examples: ["Trust metrics", "Service stats", "Pricing notes"],
+    fields: GENERIC_FIELDS,
     recommendedMaxItems: 10,
     supportsManualSelection: true,
     supportsFiltering: true,
@@ -134,9 +195,37 @@ export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefini
 ] as const;
 
 const DATA_BINDING_NODE_KINDS = new Set<BuilderNodeKind>(["section", "container"]);
+const FIELD_BINDING_PROPS_BY_KIND: Partial<
+  Record<BuilderNodeKind, ReadonlyArray<BuilderFieldBindingProp>>
+> = {
+  heading: ["text"],
+  paragraph: ["text"],
+  rich_text: ["text"],
+  button: ["label", "href"],
+  image: ["src", "alt"],
+};
+
+export const BUILDER_FIELD_BINDING_OPTIONS: ReadonlyArray<BuilderDataSourceFieldDefinition> =
+  Array.from(
+    new Map(
+      BUILDER_DATA_SOURCE_REGISTRY.flatMap((source) => source.fields ?? []).map(
+        (field) => [field.key, field],
+      ),
+    ).values(),
+  );
 
 export function builderNodeSupportsDataBinding(kind: BuilderNodeKind): boolean {
   return DATA_BINDING_NODE_KINDS.has(kind);
+}
+
+export function builderNodeSupportsFieldBindings(kind: BuilderNodeKind): boolean {
+  return Boolean(FIELD_BINDING_PROPS_BY_KIND[kind]?.length);
+}
+
+export function getBuilderNodeFieldBindingProps(
+  kind: BuilderNodeKind,
+): ReadonlyArray<BuilderFieldBindingProp> {
+  return FIELD_BINDING_PROPS_BY_KIND[kind] ?? [];
 }
 
 export function getBuilderDataSourceDefinition(
@@ -205,7 +294,32 @@ export function normalizeBuilderDataBinding(
   if (mode) binding.mode = mode;
   if (filterQuery) binding.filterQuery = filterQuery;
   if (maxItems) binding.maxItems = maxItems;
+  if (record.repeat === true) binding.repeat = true;
   return binding;
+}
+
+export function isBuilderDataBindingRepeater(
+  binding: BuilderDataBinding | null | undefined,
+): boolean {
+  return binding?.repeat === true;
+}
+
+export function normalizeBuilderFieldBindings(
+  value: unknown,
+  allowedProps?: ReadonlyArray<BuilderFieldBindingProp>,
+): BuilderNodeFieldBindings | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const allowed = new Set<BuilderFieldBindingProp>(
+    allowedProps ?? ["text", "label", "href", "src", "alt"],
+  );
+  const out: BuilderNodeFieldBindings = {};
+  for (const prop of allowed) {
+    const raw = (value as Record<string, unknown>)[prop];
+    if (typeof raw === "string" && raw.trim()) {
+      out[prop] = raw.trim().slice(0, 160);
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 export function getBuilderNodeDataBinding(node: BuilderNode): BuilderDataBinding | null {
@@ -213,6 +327,139 @@ export function getBuilderNodeDataBinding(node: BuilderNode): BuilderDataBinding
   return normalizeBuilderDataBinding(
     (node.props as Record<string, unknown>).dataBinding,
   );
+}
+
+const FIELD_TOKEN_RE = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+
+export function hasBuilderFieldTokens(value: string): boolean {
+  return /\{\{\s*[a-zA-Z0-9_.-]+\s*\}\}/.test(value);
+}
+
+export function normalizeBuilderFieldBindingTemplate(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return hasBuilderFieldTokens(trimmed) ? trimmed : `{{${trimmed}}}`;
+}
+
+export function resolveBuilderFieldTokens(
+  template: string,
+  item: BuilderRepeatItem | null | undefined,
+): string {
+  if (!item) return template;
+  return template.replace(FIELD_TOKEN_RE, (_match, key: string) => {
+    return item.fields[key] ?? "";
+  });
+}
+
+export function resolveBuilderFieldBindingValue(
+  fallbackValue: string,
+  bindingTemplate: string | null | undefined,
+  item: BuilderRepeatItem | null | undefined,
+): { value: string; bound: boolean } {
+  if (!item) return { value: fallbackValue, bound: false };
+  if (bindingTemplate?.trim()) {
+    return {
+      value: resolveBuilderFieldTokens(
+        normalizeBuilderFieldBindingTemplate(bindingTemplate),
+        item,
+      ),
+      bound: true,
+    };
+  }
+  if (hasBuilderFieldTokens(fallbackValue)) {
+    return {
+      value: resolveBuilderFieldTokens(fallbackValue, item),
+      bound: true,
+    };
+  }
+  return { value: fallbackValue, bound: false };
+}
+
+export function resolveBuilderDataBindingCollection(
+  binding: BuilderDataBinding | null | undefined,
+  records: ReadonlyArray<BuilderDataSourceRecord> | null | undefined,
+): BuilderRepeatItem[] {
+  const normalized = normalizeBuilderDataBinding(binding);
+  if (!normalized || !records?.length) return [];
+  const fieldsByRecord = records.map((record) => ({
+    record,
+    fields: stringifyRecordFields(record),
+  }));
+  const filterQuery = normalized.filterQuery?.trim().toLowerCase();
+  const filtered = filterQuery
+    ? fieldsByRecord.filter(({ fields }) => recordMatchesFilter(fields, filterQuery))
+    : fieldsByRecord;
+  const limit = Math.min(normalized.maxItems ?? filtered.length, 100);
+  return filtered.slice(0, limit).map(({ record, fields }, index) => ({
+    key: stableRepeatItemKey(fields, index),
+    sourceKey: normalized.sourceKey,
+    index,
+    fields,
+    raw: record,
+  }));
+}
+
+export function isSafeBuilderBoundImageSrc(value: string): boolean {
+  const src = value.trim();
+  if (!src || src.startsWith("//")) return false;
+  if (/^https?:\/\//i.test(src)) return true;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(src)) return false;
+  return src.startsWith("/") || src.startsWith("./") || src.startsWith("../");
+}
+
+function stringifyRecordFields(
+  record: BuilderDataSourceRecord,
+): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const [key, value] of Object.entries(record)) {
+    const stringValue = stringifyFieldValue(value);
+    if (stringValue) fields[key] = stringValue;
+  }
+  return fields;
+}
+
+function stringifyFieldValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    return value.map(stringifyFieldValue).filter(Boolean).join(", ");
+  }
+  return "";
+}
+
+function recordMatchesFilter(
+  fields: Readonly<Record<string, string>>,
+  filterQuery: string,
+): boolean {
+  return Object.entries(fields).some(([key, value]) => {
+    const normalizedValue = value.toLowerCase();
+    const normalizedKey = key.toLowerCase();
+    return (
+      normalizedValue.includes(filterQuery) ||
+      `${normalizedKey}=${normalizedValue}`.includes(filterQuery) ||
+      `${normalizedKey}:${normalizedValue}`.includes(filterQuery)
+    );
+  });
+}
+
+function stableRepeatItemKey(
+  fields: Readonly<Record<string, string>>,
+  index: number,
+): string {
+  const seed =
+    fields.id ??
+    fields.profileCode ??
+    fields.slug ??
+    fields.citySlug ??
+    fields.href ??
+    `item-${index + 1}`;
+  const normalized = seed
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `${normalized || "item"}-${index + 1}`;
 }
 
 export function getBuilderDataBindingFindings(

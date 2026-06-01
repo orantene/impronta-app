@@ -289,6 +289,27 @@ export interface BuilderNodeStyle extends BuilderNodeStyleValue {
   hover?: BuilderNodeHoverStyle;
 }
 
+export interface BuilderDataBindingProps {
+  sourceKey: string;
+  mode?: "manual" | "bound" | "hybrid";
+  filterQuery?: string;
+  maxItems?: number;
+  /**
+   * Repeat model: when true on a container, the FIRST child is the template
+   * cloned once per resolved collection item. Empty data falls back to that
+   * template once so the published page never blanks.
+   */
+  repeat?: boolean;
+}
+
+export interface BuilderNodeFieldBindings {
+  text?: string;
+  label?: string;
+  href?: string;
+  src?: string;
+  alt?: string;
+}
+
 export interface BuilderSectionNode extends BuilderNodeBase {
   kind: "section";
   props: {
@@ -297,12 +318,7 @@ export interface BuilderSectionNode extends BuilderNodeBase {
     label?: string | null;
     slotKey?: string | null;
     sortOrder?: number;
-    dataBinding?: {
-      sourceKey: string;
-      mode?: "manual" | "bound" | "hybrid";
-      filterQuery?: string;
-      maxItems?: number;
-    };
+    dataBinding?: BuilderDataBindingProps;
     // "2018 bye-bye" — when true this curated section has been EJECTED to
     // freeform: its content was re-minted as roleless builder children, the
     // curated React component no longer renders for it, and the legacy
@@ -334,12 +350,7 @@ export interface BuilderContainerNode extends BuilderNodeBase {
         align?: "start" | "center" | "end" | "stretch";
       };
     };
-    dataBinding?: {
-      sourceKey: string;
-      mode?: "manual" | "bound" | "hybrid";
-      filterQuery?: string;
-      maxItems?: number;
-    };
+    dataBinding?: BuilderDataBindingProps;
     style?: BuilderNodeStyle;
     // Linked-component instance marker (Living Components Phase 2/3). When set,
     // this container is an instance of the saved component with this id.
@@ -441,6 +452,7 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
   props: {
     text: string;
     level: 1 | 2 | 3 | 4;
+    fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
 }
@@ -449,6 +461,7 @@ export interface BuilderParagraphNode extends BuilderNodeBase {
   kind: "paragraph";
   props: {
     text: string;
+    fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
 }
@@ -459,6 +472,7 @@ export interface BuilderButtonNode extends BuilderNodeBase {
     label: string;
     href: string;
     tone?: "primary" | "secondary";
+    fieldBindings?: BuilderNodeFieldBindings;
     stateStyles?: {
       hover?: { tone?: "primary" | "secondary" };
       focus?: { tone?: "primary" | "secondary" };
@@ -474,6 +488,7 @@ export interface BuilderImageNode extends BuilderNodeBase {
   props: {
     src: string;
     alt?: string;
+    fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
 }
@@ -538,6 +553,7 @@ export interface BuilderRichTextNode extends BuilderNodeBase {
   kind: "rich_text";
   props: {
     text: string;
+    fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
 }

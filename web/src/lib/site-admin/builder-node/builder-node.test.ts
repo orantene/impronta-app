@@ -32,13 +32,18 @@ test("validates a registry-backed node tree", () => {
           sourceKey: "featured_talent_profiles",
           mode: "bound",
           maxItems: 4,
+          repeat: true,
         },
       },
       children: [
         {
           id: "headline",
           kind: "heading",
-          props: { text: "Builder-owned content", level: 2 },
+          props: {
+            text: "Builder-owned content",
+            level: 2,
+            fieldBindings: { text: "displayName" },
+          },
         },
         {
           id: "body",

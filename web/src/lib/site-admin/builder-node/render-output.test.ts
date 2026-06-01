@@ -24,11 +24,11 @@ function renderRich(input: string): string {
  * regress the published render. Deterministic — no browser.
  */
 
-function render(nodes: BuilderNode[], components?: Record<string, BuilderNode>): string {
+function render(nodes: BuilderNode[], options: Parameters<typeof renderBuilderNodes>[1] = {}): string {
   return renderToStaticMarkup(
     renderBuilderNodes(nodes, {
       mode: "freeform",
-      ...(components ? { components } : {}),
+      ...options,
     }) as Parameters<typeof renderToStaticMarkup>[0],
   );
 }
@@ -554,6 +554,182 @@ test("a11y: non-decorative icon without a label falls back to an accessible name
   assert.ok(html.includes('aria-label="check"'), "accessible-name fallback");
 });
 
+// ── Data-binding repeaters + field bindings ─────────────────────────────────
+
+function repeatCard(maxItems = 3): BuilderNode {
+  return {
+    id: "repeat",
+    kind: "container",
+    props: {
+      layout: "grid",
+      dataBinding: {
+        sourceKey: "featured_talent_profiles",
+        mode: "bound",
+        repeat: true,
+        maxItems,
+      },
+    },
+    children: [
+      {
+        id: "card",
+        kind: "card",
+        props: {},
+        children: [
+          {
+            id: "name",
+            kind: "heading",
+            props: {
+              text: "Fallback name",
+              level: 3,
+              fieldBindings: { text: "displayName" },
+            },
+          },
+          {
+            id: "cta",
+            kind: "button",
+            props: {
+              label: "Fallback CTA",
+              href: "/fallback",
+              fieldBindings: { label: "displayName", href: "href" },
+            },
+          },
+          {
+            id: "photo",
+            kind: "image",
+            props: {
+              src: "https://cdn.example.com/fallback.jpg",
+              alt: "Fallback alt",
+              fieldBindings: { src: "imageUrl", alt: "displayName" },
+            },
+          },
+        ],
+      },
+    ],
+  } as BuilderNode;
+}
+
+test("repeaters: container template emits one clone per collection item", () => {
+  const html = render([repeatCard()], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Ana", href: "/t/ana", imageUrl: "/assets/ana.jpg" },
+          { id: "talent-2", displayName: "Bea", href: "/t/bea", imageUrl: "/assets/bea.jpg" },
+          { id: "talent-3", displayName: "Cleo", href: "/t/cleo", imageUrl: "/assets/cleo.jpg" },
+        ],
+      },
+    },
+  });
+
+  assert.equal((html.match(/data-builder-node-kind="card"/g) ?? []).length, 3);
+  assert.ok(html.includes("repeat__repeat_talent-1-1__card"), "stable item namespace");
+  assert.ok(html.includes(">Ana<") && html.includes(">Bea<") && html.includes(">Cleo<"));
+  assert.ok(html.includes('href="/t/ana"'), "bound href kept after allowlist");
+  assert.ok(html.includes('src="/assets/ana.jpg"'), "bound image src kept after validation");
+  assert.ok(!html.includes("Fallback name"), "field binding replaces design text");
+});
+
+test("repeaters: maxItems limits resolved collection output", () => {
+  const html = render([repeatCard(1)], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Ana" },
+          { id: "talent-2", displayName: "Bea" },
+        ],
+      },
+    },
+  });
+
+  assert.ok(html.includes(">Ana<"));
+  assert.ok(!html.includes(">Bea<"));
+});
+
+test("repeaters: empty source renders the template once as static fallback", () => {
+  const html = render([repeatCard()], {
+    dataSources: { collections: { featured_talent_profiles: [] } },
+  });
+
+  assert.equal((html.match(/data-builder-node-kind="card"/g) ?? []).length, 1);
+  assert.ok(html.includes("Fallback name"), "template remains visible");
+});
+
+test("repeaters: bound javascript href is dropped", () => {
+  const html = render([repeatCard()], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          {
+            id: "talent-1",
+            displayName: "Unsafe",
+            href: "javascript:alert(1)",
+            imageUrl: "/assets/safe.jpg",
+          },
+        ],
+      },
+    },
+  });
+
+  assert.ok(html.includes(">Unsafe<"), "bound label still renders as text");
+  assert.ok(!html.includes("javascript:alert"), "unsafe href never reaches markup");
+  assert.ok(!html.includes('href="javascript'), "link target dropped");
+});
+
+test("repeaters: bound image src is validated before rendering", () => {
+  const html = render([repeatCard()], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Bad image", imageUrl: "data:image/svg+xml,<svg/>" },
+        ],
+      },
+    },
+  });
+
+  assert.ok(html.includes("Bad image"));
+  assert.ok(!html.includes("data:image"), "unsafe image src never reaches markup");
+});
+
+test("repeaters: nested repeaters render once per outer item, not cartesian", () => {
+  const node = repeatCard() as Extract<BuilderNode, { kind: "container" }>;
+  const template = node.children[0] as BuilderNode & { children: BuilderNode[] };
+  template.children = [
+    {
+      id: "nested",
+      kind: "container",
+      props: {
+        layout: "stack",
+        dataBinding: {
+          sourceKey: "featured_talent_profiles",
+          mode: "bound",
+          repeat: true,
+          maxItems: 10,
+        },
+      },
+      children: [
+        {
+          id: "nested-name",
+          kind: "heading",
+          props: { text: "Nested {{displayName}}", level: 4 },
+        },
+      ],
+    },
+  ];
+  const html = render([node], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Ana" },
+          { id: "talent-2", displayName: "Bea" },
+        ],
+      },
+    },
+  });
+
+  assert.equal((html.match(/Nested /g) ?? []).length, 2);
+  assert.ok(html.includes("Nested Ana") && html.includes("Nested Bea"));
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {
@@ -575,7 +751,7 @@ function instance(id: string, overrides?: Record<string, unknown>): BuilderNode 
 test("phase3: instance resolves master LIVE + per-instance override + namespaced ids", () => {
   const html = render(
     [instance("instA"), instance("instB", { "m-h": { text: "OVERRIDDEN" } })],
-    { "cmp-1": MASTER },
+    { components: { "cmp-1": MASTER } },
   );
   assert.ok(html.includes("MASTER HEADING"), "instA shows master heading live");
   assert.ok(html.includes("OVERRIDDEN"), "instB heading overridden");
@@ -586,7 +762,7 @@ test("phase3: instance resolves master LIVE + per-instance override + namespaced
 
 test("phase3: missing component + no-components both fall back to stored children (never blank)", () => {
   // component map present but missing this id
-  const missing = render([instance("instC")], { "other-cmp": MASTER });
+  const missing = render([instance("instC")], { components: { "other-cmp": MASTER } });
   assert.ok(missing.includes("FALLBACK") && !missing.includes("MASTER HEADING"), "missing component → stored fallback");
   // no components passed at all
   const none = render([instance("instD")]);
