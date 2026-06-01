@@ -31,3 +31,17 @@ export const GEIST_MONO =
   '"Geist Mono", var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace';
 /** Humanist sans — warm body. Agency body copy. */
 export const RALEWAY = '"Raleway", var(--font-body-sans), system-ui, sans-serif';
+
+/**
+ * P5 Lane C archetypes (appended — do not reorder the faces above).
+ *
+ * These two faces are GOOGLE-source registry families (not bundled woff2). The
+ * font bridge emits a `fonts.googleapis.com/css2` stylesheet for them and the
+ * capture loads it over http (CI has network), so the capture font self-check
+ * still proves a real loaded FontFace — no system fallback. They give the
+ * festival archetype a type pairing distinct from the five bundled faces above.
+ */
+/** Contemporary characterful grotesque display — festival masthead/poster idiom. */
+export const BRICOLAGE = '"Bricolage Grotesque", system-ui, sans-serif';
+/** Geometric humanist sans — clean body/labels. Festival body + nav + meta. */
+export const MANROPE = '"Manrope", system-ui, sans-serif';
