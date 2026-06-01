@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
-import { formatEurCents, type TalentEarningsRow } from "@/lib/talent/earnings-view";
+import { formatMoneyCents, type TalentEarningsRow } from "@/lib/talent/earnings-view";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
 
 type SourceFilter = "all" | TalentEarningsRow["source"];
@@ -121,6 +121,7 @@ export function EarningsLedger() {
   }, [earnings.rows, sourceFilter, statusFilter]);
 
   const filteredTotal = filtered.reduce((sum, row) => sum + row.netCents, 0);
+  const currency = earnings.totals.currency;
 
   return (
     <section>
@@ -199,7 +200,7 @@ export function EarningsLedger() {
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {formatEurCents(filteredTotal)}
+          {formatMoneyCents(filteredTotal, currency)}
         </span>
       </div>
 
@@ -324,7 +325,7 @@ export function EarningsLedger() {
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {formatEurCents(row.netCents)}
+                        {formatMoneyCents(row.netCents, currency)}
                       </div>
                       {row.paymentMethod ? (
                         <div

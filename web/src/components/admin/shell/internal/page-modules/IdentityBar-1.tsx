@@ -15,6 +15,7 @@ import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, PLAN_META, TRANSITION, fmtMoney, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
+import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { WorkspacePlanBadge } from "./WorkspacePlanBadge";
@@ -161,10 +162,12 @@ export function TulalaIdentityBar() {
     if (inClient) return activeClientProfile.industry;
     if (inTalent) {
       if (bridgeTalentEarnings != null) {
-        const ytdEuros = Math.round(bridgeTalentEarnings.totals.ytdNetCents / 100);
-        return copy.isSpanish
-          ? `${fmtMoney(ytdEuros)} neto YTD`
-          : `${fmtMoney(ytdEuros)} net YTD`;
+        // Honor the booking's currency (MXN/ARS/USD/…), never a hardcoded €.
+        const ytd = formatMoneyCents(
+          bridgeTalentEarnings.totals.ytdNetCents,
+          bridgeTalentEarnings.totals.currency,
+        );
+        return copy.isSpanish ? `${ytd} neto YTD` : `${ytd} net YTD`;
       }
       const n = agencyCount;
       return copy.isSpanish

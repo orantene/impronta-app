@@ -8,7 +8,10 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
-import { loadTalentEarnings } from "@/lib/talent/earnings";
+import {
+  loadTalentEarningsByCurrency,
+  primaryBundleOrEmpty,
+} from "@/lib/talent/earnings-by-currency";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +55,15 @@ export async function GET(request: Request) {
   }
 
   const sinceISO = `${year}-01-01T00:00:00.000Z`;
-  const earnings = await loadTalentEarnings(guard.talentProfile.id, { sinceISO });
+  // Use the multi-currency loader (it does NOT drop non-EUR rows the way the
+  // legacy single-currency loader does) and report the talent's primary
+  // currency bundle. A talent with bookings in several currencies gets their
+  // primary one here; a per-currency tax PDF is a documented follow-up — but
+  // critically, a MXN/ARS/USD talent no longer sees an empty (EUR-filtered) PDF.
+  const earningsByCurrency = await loadTalentEarningsByCurrency(guard.talentProfile.id, {
+    sinceISO,
+  });
+  const earnings = primaryBundleOrEmpty(earningsByCurrency);
 
   const talentName = guard.talentProfile.displayName ?? "Talent";
   const profileCode = guard.talentProfile.profileCode ?? "";
@@ -214,7 +225,7 @@ export async function GET(request: Request) {
       const rowData = [
         { text: agency.name, col: agencyCols[0] },
         { text: String(agency.bookingsCount), col: agencyCols[1] },
-        { text: fmt(agency.ytdNetCents), col: agencyCols[2] },
+        { text: fmt(agency.ytdNetCents, totals.currency), col: agencyCols[2] },
         { text: agency.lastBookingAt ?? "—", col: agencyCols[3] },
       ];
       rowData.forEach(({ text, col }) => {
@@ -271,8 +282,8 @@ export async function GET(request: Request) {
         { text: row.workDate, col: bookCols[0] },
         { text: row.agencyName, col: bookCols[1] },
         { text: row.client, col: bookCols[2] },
-        { text: fmt(row.grossCents), col: bookCols[3] },
-        { text: fmt(row.netCents), col: bookCols[4] },
+        { text: fmt(row.grossCents, totals.currency), col: bookCols[3] },
+        { text: fmt(row.netCents, totals.currency), col: bookCols[4] },
         { text: row.status, col: bookCols[5] },
       ];
       rowData.forEach(({ text, col }) => {

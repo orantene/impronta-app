@@ -37,12 +37,24 @@ export const EMPTY_TALENT_EARNINGS_BY_CURRENCY: TalentEarningsByCurrency = {
 
 /**
  * Convenience helper: extract the primary-currency `TalentEarnings` bundle
- * from a `TalentEarningsByCurrency` result. Returns `EMPTY_TALENT_EARNINGS`
- * when `byCurrency` is empty (no snapshot rows yet). Used by the bridge
- * to keep backward-compat consumers working without changes.
+ * from a `TalentEarningsByCurrency` result. Used by the bridge to keep
+ * backward-compat consumers working without changes.
+ *
+ * When `byCurrency` is empty (no snapshot rows yet), returns an empty bundle
+ * stamped with the talent's `defaultCurrency` rather than the literal EUR —
+ * so a Mexico-based talent with no earnings yet sees "MX$0", not "€0", and
+ * the "before" reads in the same currency the first booking will pay in.
  */
 export function primaryBundleOrEmpty(
   earningsByCurrency: TalentEarningsByCurrency,
 ): TalentEarnings {
-  return earningsByCurrency.byCurrency[0] ?? EMPTY_TALENT_EARNINGS;
+  const primary = earningsByCurrency.byCurrency[0];
+  if (primary) return primary;
+  return {
+    ...EMPTY_TALENT_EARNINGS,
+    totals: {
+      ...EMPTY_TALENT_EARNINGS.totals,
+      currency: (earningsByCurrency.defaultCurrency || "EUR").toUpperCase(),
+    },
+  };
 }
