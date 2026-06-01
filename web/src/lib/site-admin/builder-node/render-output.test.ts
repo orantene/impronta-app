@@ -167,6 +167,56 @@ test("renderer css: page-level sheet plus opt-out renders one style tag", () => 
   assert.ok(html.includes("data-builder-node-id=\"c1\""), "first section renders");
 });
 
+// -- Font loading --------------------------------------------------------------
+
+test("font loading: node font families emit Google stylesheet links", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        container({
+          fontFamily: '"Manrope", system-ui, sans-serif',
+          responsive: {
+            mobile: {
+              fontFamily:
+                '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',
+            },
+          },
+        }),
+      ],
+      {
+        mode: "freeform",
+        includeRendererStyles: false,
+      },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(html.includes("data-builder-node-fonts"), "font link marker");
+  assert.ok(
+    html.includes("family=Manrope:wght@400;500;600;700"),
+    "desktop family loaded",
+  );
+  assert.ok(
+    html.includes("family=IBM+Plex+Mono:wght@400;500;700"),
+    "responsive family loaded",
+  );
+  assert.equal(countRendererStyles(html), 0);
+});
+
+test("font loading: bundled Next fonts do not emit extra Google links", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [container({ fontFamily: '"Raleway", var(--font-body-sans), system-ui, sans-serif' })],
+      {
+        mode: "freeform",
+        includeRendererStyles: false,
+      },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(!html.includes("data-builder-node-fonts"), "no google link needed");
+  assert.ok(html.includes("font-family:&quot;Raleway&quot;"), "font still renders");
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {

@@ -11,6 +11,10 @@ import {
   resolveInstanceChildren,
   type ComponentDefinitions,
 } from "./component-instances";
+import {
+  buildGoogleFontsHrefForFamilies,
+  collectBuilderNodeFontFamilies,
+} from "./fonts-registry";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 
 export interface BuilderNodeRenderDataSources {
@@ -33,6 +37,7 @@ export interface BuilderNodeRenderOptions {
   mode?: "all" | "freeform";
   dataSources?: BuilderNodeRenderDataSources;
   includeRendererStyles?: boolean;
+  includeFontLinks?: boolean;
   // Phase 3 — saved component definitions (componentId → master subtree root).
   // When provided, linked instances (containers tagged props.instanceOf) render
   // the master subtree LIVE with per-instance overrides. When absent or the
@@ -1678,14 +1683,48 @@ export function renderBuilderNodes(
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
     includeRendererStyles: options.includeRendererStyles ?? true,
+    includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
   };
   const renderedNodes = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions.mode))
     .map((node) => renderBuilderNode(node, normalizedOptions));
   if (renderedNodes.length === 0) return null;
-  if (!normalizedOptions.includeRendererStyles) return renderedNodes;
-  return [<BuilderNodeRendererStyles key="site-builder-node-styles" />, ...renderedNodes];
+  const fontLinks = normalizedOptions.includeFontLinks ? (
+    <BuilderNodeFontLinks
+      key="site-builder-node-fonts"
+      nodes={nodes}
+      components={normalizedOptions.components}
+    />
+  ) : null;
+  const headNodes = [
+    fontLinks,
+    normalizedOptions.includeRendererStyles ? (
+      <BuilderNodeRendererStyles key="site-builder-node-styles" />
+    ) : null,
+  ].filter(Boolean);
+  if (headNodes.length === 0) return renderedNodes;
+  return [...headNodes, ...renderedNodes];
+}
+
+export function BuilderNodeFontLinks({
+  nodes,
+  components,
+}: {
+  nodes: ReadonlyArray<BuilderNode>;
+  components?: ComponentDefinitions;
+}): ReactNode {
+  const href = buildGoogleFontsHrefForFamilies(
+    collectBuilderNodeFontFamilies(nodes, components),
+  );
+  if (!href) return null;
+  return (
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      <link rel="stylesheet" href={href} data-builder-node-fonts="" />
+    </>
+  );
 }
 
 export function BuilderNodeRendererStyles(): ReactNode {
