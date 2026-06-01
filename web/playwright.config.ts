@@ -105,5 +105,19 @@ export default defineConfig({
         ...(useGoogleChrome ? { channel: "chrome" as const } : {}),
       },
     },
+    // Cross-engine fidelity coverage. WebKit is Safari's engine; the platform is
+    // PWA-first, so Safari/iOS rendering is load-bearing. Scoped via `testMatch`
+    // to the fidelity spec ONLY so the broader e2e suite (smoke/host/etc.) is not
+    // doubled. Static frames carry webkit goldens (`*-webkit-darwin.png`); the
+    // motion frames stay chromium-pinned (see e2e/fidelity/fidelity.spec.ts).
+    // Goldens are macos-14-specific — seed them on CI, never on a dev mac
+    // (builder-fidelity.yml `update_snapshots`).
+    {
+      name: "webkit",
+      testMatch: /fidelity\.spec\.ts/,
+      use: {
+        ...devices["Desktop Safari"],
+      },
+    },
   ],
 });

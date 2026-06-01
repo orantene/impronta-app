@@ -62,7 +62,12 @@ for (const design of fidelityDesigns) {
 test.describe("fidelity: motion", () => {
   test.use({ reducedMotion: "no-preference" });
   for (const frame of FIDELITY_MOTION_FRAMES) {
-    test(`${frame.design} ${frame.state} ${frame.width}px`, async ({ page }) => {
+    test(`${frame.design} ${frame.state} ${frame.width}px`, async ({ page, browserName }) => {
+      // Motion goldens are chromium-pinned. WebKit's backdrop-filter compositing
+      // and scroll-timeline support diverge enough that a shared golden would be
+      // noise, not signal; the cross-engine (webkit) project covers the static
+      // frames instead. Seed a webkit motion golden intentionally before lifting.
+      test.skip(browserName !== "chromium", "motion goldens are chromium-pinned");
       await page.setViewportSize({ width: frame.width, height: frame.height });
       await page.setContent(buildHtmlInRendererProcess(frame.design), { waitUntil: "load" });
       await page.evaluate(() => document.fonts.ready);
