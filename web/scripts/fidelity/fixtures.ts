@@ -4,18 +4,25 @@ import { resolve } from "node:path";
 /**
  * Real-photo fixtures for the fidelity harness.
  *
- * Honest Asset scoring needs REAL photography, not initials-in-a-box or abstract
- * SVG shapes (those read "unfinished" and are the user's #1 acceptance blocker).
- * Rather than duplicate ~1.6 MB of binaries, this resolver points at photos that
- * already ship in `web/public/`.
+ * Honest Asset scoring needs REAL photography, not initials-in-a-box, abstract
+ * SVG shapes, or UI wireframe mockups (those read "unfinished" and are the
+ * user's #1 acceptance blocker). Rather than duplicate binaries, this resolver
+ * points at editorial photos that already ship in `web/public/marketing/photos`.
  *
- * IMPORTANT — why a root-relative path, not `file://`: the renderer validates
- * every image `src` via `isSafeBuilderImageSrc`, which accepts ONLY `http(s)` or
- * root-relative `/…` and drops `file://` AND `data:` srcs. So the harness serves
- * `web/public` over a localhost static server during capture (see capture.ts) and
- * designs reference photos as `/marketing/…` — which the renderer accepts and the
- * server resolves to `web/public/marketing/…`. This keeps captures offline,
- * deterministic, and security-faithful (no loosening of the renderer guard).
+ * IMPORTANT — every alias below is a genuine photograph. The `public/talent-
+ * templates/*.webp` files are deliberately NOT used here: they are template-
+ * preview wireframes (grey placeholder boxes + dummy headlines), i.e. exactly
+ * the placeholder imagery the Asset axis penalises. Using them would make the
+ * "real photography" claim false.
+ *
+ * Why a root-relative path, not `file://`: the renderer validates every image
+ * `src` via `isSafeBuilderImageSrc`, which accepts ONLY `http(s)` or root-
+ * relative `/…` and drops `file://` AND `data:` srcs (a `data:` SVG silently
+ * renders NOTHING). So the harness serves `web/public` over a localhost static
+ * server during capture (see server.ts) and designs reference photos as
+ * `/marketing/…` — which the renderer accepts and the server resolves to
+ * `web/public/marketing/…`. Captures stay offline, deterministic, and
+ * security-faithful (the renderer guard is never loosened).
  */
 
 // Resolved from cwd (always `web/` — every harness entry point runs there).
@@ -23,15 +30,22 @@ import { resolve } from "node:path";
 // e2e import graph (CJS transpile) by a fixture-using design.
 const WEB_ROOT = resolve(process.cwd());
 
-/** Curated real photos that already ship in the repo. Keyed by a stable alias. */
+/**
+ * Curated REAL photos that already ship in the repo. Each is a high-resolution
+ * editorial photograph; the comment notes its native framing so designs can
+ * pick honest `object-position` crops for repeater variety.
+ */
 export const FIDELITY_PHOTOS = {
-  portraitWarm: "/talent-templates/editorial.webp",
-  portraitStage: "/talent-templates/stage.webp",
-  portraitCreator: "/talent-templates/creator.webp",
-  lifestyleSinger: "/marketing/photos/independent-singer-booking.jpg",
-  lifestyleServices: "/marketing/photos/talent-services-hero.jpg",
-  lifestylePros: "/marketing/photos/service-pros-lifestyle.jpg",
-  workspaceBuilder: "/marketing/photos/agency-workspace-builder.jpg",
+  /** ~2:1 wide loft scene — singer (L), chef (C), nail-artist (R). Hero / crop source. */
+  studioScene: "/marketing/photos/talent-services-hero.jpg",
+  /** ~4:5 portrait — vocalist at a mic. Portrait card / roster card. */
+  vocalistPortrait: "/marketing/photos/independent-singer-booking.jpg",
+  /** ~2:1 diptych — home-service pro (L) + makeup-artist & pilates coach (R). Crop source. */
+  serviceProsScene: "/marketing/photos/service-pros-lifestyle.jpg",
+  /** ~3:2 — three creatives reviewing prints + a laptop at a studio desk. */
+  studioDesk: "/marketing/photos/agency-workspace-builder.jpg",
+  /** ~4:3 portrait — director with a tablet against a moodboard wall. */
+  directorPortrait: "/marketing/photos/hub-agency-discovery.jpg",
 } as const;
 
 export type FidelityPhotoKey = keyof typeof FIDELITY_PHOTOS;
