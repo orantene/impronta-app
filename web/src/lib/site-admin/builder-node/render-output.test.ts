@@ -441,6 +441,60 @@ test("node kind: icon renders inline currentColor svg", () => {
   assert.ok(html.includes("color:#0f766e"), "shared style color");
 });
 
+test("node kind: pricing_table renders responsive tiers with feature marks", () => {
+  const html = render([
+    {
+      id: "pricing-1",
+      kind: "pricing_table",
+      props: {
+        style: { gap: "24px" },
+        tiers: [
+          {
+            id: "tier-basic",
+            name: "Basic",
+            description: "A lean launch package.",
+            price: "$800",
+            period: "project",
+            ctaLabel: "Start basic",
+            ctaHref: "/inquire",
+            features: [
+              { label: "Planning call" },
+              { label: "Priority revisions", included: false },
+            ],
+          },
+          {
+            id: "tier-pro",
+            name: "Pro",
+            price: "$1,600",
+            period: "project",
+            ctaLabel: "Start pro",
+            ctaHref: "/inquire?plan=pro",
+            highlighted: true,
+            features: [{ label: "Planning call" }],
+          },
+        ],
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="pricing_table"'), "kind marker");
+  assert.ok(
+    html.includes(".site-builder-node--pricing-table{width:100%"),
+    "static pricing table CSS",
+  );
+  assert.ok(
+    html.includes(".site-builder-node--pricing-table{grid-template-columns:1fr}"),
+    "mobile stack rule",
+  );
+  assert.ok(html.includes("--bn-pricing-columns:2"), "column count var");
+  assert.ok(html.includes("--bn-gap:24px"), "gap style override");
+  assert.ok(html.includes('data-builder-pricing-highlighted="true"'), "highlight");
+  assert.ok(html.includes('href="/inquire?plan=pro"'), "CTA href");
+  assert.ok(html.includes('data-builder-feature-included="false"'), "excluded feature");
+  assert.ok(html.includes("✓"), "check mark");
+  assert.ok(html.includes("×"), "x mark");
+});
+
 test("security: embed sandbox never grants allow-same-origin (would defeat itself)", () => {
   const html = render([
     {

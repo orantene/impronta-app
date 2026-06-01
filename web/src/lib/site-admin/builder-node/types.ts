@@ -15,6 +15,7 @@ export type BuilderNodeKind =
   | "video"
   | "embed"
   | "icon"
+  | "pricing_table"
   | "divider"
   | "spacer"
   | "card"
@@ -511,6 +512,27 @@ export interface BuilderIconNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderPricingTableNode extends BuilderNodeBase {
+  kind: "pricing_table";
+  props: {
+    tiers: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      price: string;
+      period?: string;
+      ctaLabel?: string;
+      ctaHref?: string;
+      highlighted?: boolean;
+      features?: Array<{
+        label: string;
+        included?: boolean;
+      }>;
+    }>;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -566,6 +588,7 @@ export type BuilderNode =
   | BuilderVideoNode
   | BuilderEmbedNode
   | BuilderIconNode
+  | BuilderPricingTableNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode

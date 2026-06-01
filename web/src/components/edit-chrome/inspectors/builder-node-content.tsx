@@ -1699,6 +1699,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.src;
     case "icon":
       return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
+    case "pricing_table":
+      return `${node.props.tiers.length} pricing tier${node.props.tiers.length === 1 ? "" : "s"}`;
     case "accordion_item":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "tab_panel":

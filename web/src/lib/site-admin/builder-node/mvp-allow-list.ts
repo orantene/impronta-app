@@ -18,6 +18,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "video",
   "embed",
   "icon",
+  "pricing_table",
   "divider",
   "spacer",
 ];
@@ -43,6 +44,7 @@ export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
   video: "Video",
   embed: "Embed",
   icon: "Icon",
+  pricing_table: "Pricing table",
   divider: "Divider",
   spacer: "Spacer",
 };
@@ -89,6 +91,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     video: "media",
     embed: "media",
     icon: "utility",
+    pricing_table: "actions",
     button: "actions",
     divider: "utility",
     spacer: "utility",
@@ -124,6 +127,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     video: "movie reel clip media poster autoplay loop controls",
     embed: "iframe youtube vimeo maps calendly booking widget embed",
     icon: "svg symbol pictogram check star heart arrow sparkle",
+    pricing_table: "pricing plans tiers packages features check marks conversion",
     divider: "rule separator hr",
     spacer: "whitespace gap rhythm",
     accordion: "faq collapse expand",

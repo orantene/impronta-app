@@ -273,6 +273,21 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--video{display:block;width:100%;max-width:100%;background:#000}
 .site-builder-node--embed{display:block;width:100%;max-width:100%;border:0;background:#000}
 .site-builder-node--icon{display:inline-flex;align-items:center;justify-content:center;color:currentColor;line-height:1}
+.site-builder-node--pricing-table{width:100%;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(var(--bn-pricing-columns,3),minmax(0,1fr));gap:var(--bn-gap,1.25rem);align-items:stretch}
+.site-builder-node--pricing-tier{display:flex;min-width:0;flex-direction:column;gap:1rem;border:1px solid rgba(18,18,18,0.14);background:#fff;padding:1.25rem}
+.site-builder-node--pricing-tier[data-builder-pricing-highlighted="true"]{border-color:var(--token-color-primary,#111);box-shadow:0 14px 36px rgba(18,18,18,0.12)}
+.site-builder-node--pricing-tier-header{display:grid;gap:0.4rem}
+.site-builder-node--pricing-tier-title{margin:0;font-size:1rem;font-weight:800;line-height:1.15;color:var(--token-color-ink,#111)}
+.site-builder-node--pricing-tier-description{margin:0;color:rgba(18,18,18,0.66);font-size:0.92rem;line-height:1.5}
+.site-builder-node--pricing-price{display:flex;align-items:baseline;gap:0.35rem;color:var(--token-color-ink,#111)}
+.site-builder-node--pricing-price strong{font-size:clamp(2rem,4vw,3.2rem);line-height:0.95}
+.site-builder-node--pricing-period{color:rgba(18,18,18,0.58);font-size:0.9rem}
+.site-builder-node--pricing-features{display:grid;gap:0.6rem;margin:0;padding:0;list-style:none}
+.site-builder-node--pricing-feature{display:grid;grid-template-columns:1.2rem minmax(0,1fr);gap:0.55rem;align-items:start;color:rgba(18,18,18,0.78);font-size:0.92rem;line-height:1.45}
+.site-builder-node--pricing-feature[data-builder-feature-included="false"]{color:rgba(18,18,18,0.42)}
+.site-builder-node--pricing-feature-mark{font-weight:800;color:var(--token-color-primary,#111)}
+.site-builder-node--pricing-feature[data-builder-feature-included="false"] .site-builder-node--pricing-feature-mark{color:rgba(18,18,18,0.34)}
+.site-builder-node--pricing-cta{margin-top:auto;display:inline-flex;width:100%;align-items:center;justify-content:center;border:1px solid var(--token-color-primary,#111);border-radius:999px;background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff);padding:0.8rem 1rem;font-weight:800;text-align:center;text-decoration:none}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -489,6 +504,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--split[data-builder-collapse-mobile="true"]{grid-template-columns:1fr}
   .site-builder-node--carousel-slide{flex-basis:86%}
   .site-builder-node--masonry{column-count:var(--bn-mobile-columns,1)}
+  .site-builder-node--pricing-table{grid-template-columns:1fr}
 }
 ${BUILDER_NODE_CONTAINER_QUERY_CSS}
 `;
@@ -1747,6 +1763,18 @@ function ctaGroupStyle(node: Extract<BuilderNode, { kind: "cta_group" }>): CSSPr
   };
 }
 
+function pricingTableStyle(
+  node: Extract<BuilderNode, { kind: "pricing_table" }>,
+): CSSProperties {
+  return {
+    ...builderNodeStyleVars({
+      "--bn-pricing-columns": Math.min(Math.max(node.props.tiers.length, 2), 4),
+      "--bn-gap": GAP_BY_SIZE.m,
+    }),
+    ...sharedNodeStyle(node.props.style),
+  };
+}
+
 function buttonStateAttrs(node: Extract<BuilderNode, { kind: "button" }>) {
   return {
     "data-builder-button-tone": node.props.tone ?? "primary",
@@ -2163,6 +2191,74 @@ function renderBuilderNode(
         </span>
       );
     }
+    case "pricing_table":
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--pricing-table"
+          style={pricingTableStyle(node)}
+        >
+          {node.props.tiers.map((tier) => (
+            <article
+              key={tier.id}
+              className="site-builder-node--pricing-tier"
+              data-builder-pricing-highlighted={tier.highlighted ? "true" : undefined}
+            >
+              <header className="site-builder-node--pricing-tier-header">
+                <h3 className="site-builder-node--pricing-tier-title">
+                  {renderInlineRich(tier.name)}
+                </h3>
+                {tier.description ? (
+                  <p className="site-builder-node--pricing-tier-description">
+                    {renderInlineRich(tier.description)}
+                  </p>
+                ) : null}
+              </header>
+              <div className="site-builder-node--pricing-price">
+                <strong>{tier.price}</strong>
+                {tier.period ? (
+                  <span className="site-builder-node--pricing-period">
+                    / {tier.period}
+                  </span>
+                ) : null}
+              </div>
+              {(tier.features?.length ?? 0) > 0 ? (
+                <ul className="site-builder-node--pricing-features">
+                  {(tier.features ?? []).map((feature) => {
+                    const included = feature.included !== false;
+                    return (
+                      <li
+                        key={feature.label}
+                        className="site-builder-node--pricing-feature"
+                        data-builder-feature-included={included ? "true" : "false"}
+                      >
+                        <span
+                          className="site-builder-node--pricing-feature-mark"
+                          aria-hidden="true"
+                        >
+                          {included ? "✓" : "×"}
+                        </span>
+                        <span>{renderInlineRich(feature.label)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              {tier.ctaLabel && tier.ctaHref ? (
+                <a
+                  className="site-builder-node--pricing-cta"
+                  href={prefixPublicHref(tier.ctaHref, options.publicPathPrefix)}
+                >
+                  {renderInlineRich(tier.ctaLabel)}
+                </a>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      );
     case "divider":
       return (
         <hr

@@ -19,6 +19,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "video",
   "embed",
   "icon",
+  "pricing_table",
   "divider",
   "spacer",
 ];
@@ -522,6 +523,13 @@ const iconPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const pricingTablePropsSchema = z.object({
+  tiers: z.array(z.object({
+    id: z.string().min(1).max(80), name: z.string().min(1).max(120), description: z.string().max(500).optional(), price: z.string().min(1).max(80), period: z.string().max(80).optional(), ctaLabel: z.string().max(80).optional(), ctaHref: z.string().max(500).optional(), highlighted: z.boolean().optional(),
+    features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional(),
+  })).min(2).max(4), style: builderNodeStyleSchema,
+});
+
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
   style: builderNodeStyleSchema,
@@ -769,6 +777,11 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Inline SVG icon that inherits current text color.",
       children: { type: "none" },
       propsSchema: iconPropsSchema,
+    },
+    pricing_table: {
+      kind: "pricing_table",
+      label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" },
+      propsSchema: pricingTablePropsSchema,
     },
     divider: {
       kind: "divider",
