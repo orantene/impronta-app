@@ -27,6 +27,12 @@ const SAMPLE_IMAGES = [
   },
 ] as const;
 
+const SAMPLE_VIDEO = {
+  src: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+  poster:
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=80",
+} as const;
+
 export function createHeading(
   text: string,
   level: 1 | 2 | 3 | 4 = 2,
@@ -226,6 +232,17 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return createButton("Button");
     case "image":
       return createImage(0);
+    case "video":
+      return {
+        id: makeId("video"),
+        kind: "video",
+        props: {
+          src: SAMPLE_VIDEO.src,
+          poster: SAMPLE_VIDEO.poster,
+          controls: true,
+          muted: true,
+        },
+      };
     case "divider":
       return {
         id: makeId("divider"),

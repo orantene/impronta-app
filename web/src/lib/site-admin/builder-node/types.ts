@@ -12,6 +12,7 @@ export type BuilderNodeKind =
   | "paragraph"
   | "button"
   | "image"
+  | "video"
   | "divider"
   | "spacer"
   | "card"
@@ -460,6 +461,19 @@ export interface BuilderImageNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderVideoNode extends BuilderNodeBase {
+  kind: "video";
+  props: {
+    src: string;
+    poster?: string;
+    autoplay?: boolean;
+    muted?: boolean;
+    loop?: boolean;
+    controls?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -512,6 +526,7 @@ export type BuilderNode =
   | BuilderParagraphNode
   | BuilderButtonNode
   | BuilderImageNode
+  | BuilderVideoNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode

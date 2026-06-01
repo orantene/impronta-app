@@ -143,6 +143,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--button[data-builder-button-disabled-tone="primary"][aria-disabled="true"]{background:rgba(18,18,18,0.35);color:#fff;border-color:rgba(18,18,18,0.08);pointer-events:none}
 .site-builder-node--heading{font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
 .site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
+.site-builder-node--video{display:block;width:100%;max-width:100%;background:#000}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -1632,6 +1633,33 @@ function renderBuilderNode(
             display: "block",
             width: "100%",
             maxWidth: "100%",
+            objectFit: node.props.style?.objectFit ?? "cover",
+            objectPosition: node.props.style?.objectPosition ?? "center",
+            aspectRatio:
+              node.props.style?.aspectRatioFree ??
+              NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
+      );
+    case "video":
+      return (
+        <video
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--video"
+          src={node.props.src}
+          poster={node.props.poster}
+          autoPlay={node.props.autoplay ?? false}
+          muted={node.props.muted ?? node.props.autoplay ?? false}
+          loop={node.props.loop ?? false}
+          controls={node.props.controls ?? true}
+          playsInline
+          preload="metadata"
+          style={{
             objectFit: node.props.style?.objectFit ?? "cover",
             objectPosition: node.props.style?.objectPosition ?? "center",
             aspectRatio:

@@ -217,6 +217,40 @@ test("font loading: bundled Next fonts do not emit extra Google links", () => {
   assert.ok(html.includes("font-family:&quot;Raleway&quot;"), "font still renders");
 });
 
+// -- Node kinds ----------------------------------------------------------------
+
+test("node kind: video renders hosted media with playback controls", () => {
+  const html = render([
+    {
+      id: "video-1",
+      kind: "video",
+      props: {
+        src: "https://cdn.example.com/demo.mp4",
+        poster: "https://cdn.example.com/poster.jpg",
+        autoplay: true,
+        muted: true,
+        loop: true,
+        controls: true,
+        style: {
+          aspectRatio: "16:9",
+          objectFit: "cover",
+          borderRadius: "18px",
+        },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="video"'), "kind marker");
+  assert.ok(html.includes('src="https://cdn.example.com/demo.mp4"'), "video src");
+  assert.ok(html.includes('poster="https://cdn.example.com/poster.jpg"'), "poster");
+  assert.ok(html.includes("autoPlay"), "autoplay");
+  assert.ok(html.includes("muted"), "muted");
+  assert.ok(html.includes("loop"), "loop");
+  assert.ok(html.includes("controls"), "controls");
+  assert.ok(html.includes("aspect-ratio:16 / 9"), "aspect ratio");
+  assert.ok(html.includes("border-radius:18px"), "shared style");
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {

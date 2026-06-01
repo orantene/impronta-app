@@ -15,6 +15,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "paragraph",
   "button",
   "image",
+  "video",
   "divider",
   "spacer",
 ];
@@ -444,6 +445,16 @@ const imagePropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const videoPropsSchema = z.object({
+  src: z.string().url().max(2048),
+  poster: z.string().url().max(2048).optional(),
+  autoplay: z.boolean().optional(),
+  muted: z.boolean().optional(),
+  loop: z.boolean().optional(),
+  controls: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
   style: builderNodeStyleSchema,
@@ -519,6 +530,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "video",
           "divider",
           "spacer",
           "container",
@@ -551,6 +563,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "video",
           "divider",
           "spacer",
           "container",
@@ -581,6 +594,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "video",
           "divider",
           "spacer",
           "container",
@@ -598,6 +612,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         type: "allow_list",
         kinds: [
           "image",
+          "video",
           "heading",
           "paragraph",
           "button",
@@ -617,6 +632,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         type: "allow_list",
         kinds: [
           "image",
+          "video",
           "heading",
           "paragraph",
           "button",
@@ -655,6 +671,13 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Standalone image node.",
       children: { type: "none" },
       propsSchema: imagePropsSchema,
+    },
+    video: {
+      kind: "video",
+      label: "Video",
+      description: "Hosted video with poster, playback, and control options.",
+      children: { type: "none" },
+      propsSchema: videoPropsSchema,
     },
     divider: {
       kind: "divider",

@@ -1606,6 +1606,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.href || "Button link";
     case "image":
       return node.props.src;
+    case "video":
+      return node.props.src;
     case "accordion_item":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "tab_panel":
