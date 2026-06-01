@@ -280,7 +280,12 @@ const agencyTree: BuilderNode[] = [
                     gap: "12px",
                     containerType: "inline-size",
                     containerName: "work-card",
-                    transitionProperty: "transform",
+                    // Transition the `translate` property the hover actually sets
+                    // (was "transform" → the lift jumped instantly). Settled end
+                    // state is identical under animations:"disabled", so the
+                    // agency-1440-hover golden is unchanged; this only makes the
+                    // live hover-lift ease smoothly, matching editorial's card.
+                    transitionProperty: "translate",
                     transitionDuration: "240ms",
                     transitionTimingFunction: "ease",
                     hover: { translate: "0 -6px" },

@@ -320,6 +320,16 @@ const editorialTree: BuilderNode[] = [
                     gap: "12px",
                     containerType: "inline-size",
                     containerName: "series-card",
+                    // Tasteful hover-lift — editorial's 2nd motion behaviour
+                    // (alongside the hero-CTA hover + the dark scroll-reveal).
+                    // Captured as editorial-1440-cardlift so the Motion axis is
+                    // proven by more than a single behaviour. Transitions the
+                    // `translate` property the hover sets (settled end state read
+                    // under animations:"disabled").
+                    transitionProperty: "translate",
+                    transitionDuration: "240ms",
+                    transitionTimingFunction: "ease",
+                    hover: { translate: "0 -6px" },
                   },
                 },
                 children: [

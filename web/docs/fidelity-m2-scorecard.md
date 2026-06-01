@@ -44,7 +44,7 @@ Target intent:
 3. A restrained "selected series" triptych + one dark scroll-reveal statement.
 
 Screenshots: `fidelity/editorial/editorial-1440.png` · `-768.png` · `-390.png` ·
-`-1440-reveal.png`
+`-1440-reveal.png` · `-1440-hover.png` · `-1440-cardlift.png`
 
 | Axis | Score | Evidence |
 |---|---:|---|
@@ -53,7 +53,7 @@ Screenshots: `fidelity/editorial/editorial-1440.png` · `-768.png` · `-390.png`
 | Color and surface | 4.0 | Cohesive cream `#ece2d4`/ink `#1b1713`/terracotta accent; tasteful image shadows. −1.0: deliberately flat — little depth/gradient/material variety (no glass in this archetype). |
 | Spacing rhythm | 4.0 | Consistent gutters and triptych gap, generous section padding. −1.0: the hero→triptych vertical transition could tighten; the reveal band's top margin is large. |
 | Responsive behavior | 4.5 | 3→1 col series; nav secondary links hide cleanly (brand persists, **no broken nav**); hero collapses with the portrait full-width. −0.5: the mobile hero overlap crop sits a touch tight. |
-| Interaction and motion | 4.5 | **(P5 M3)** Two behaviours now frame-proven: `editorial-1440-reveal.png` (scroll-driven `rise` entrance settled) + `editorial-1440-hover.png` (hero CTA hover end-state). −0.5: built from intent. |
+| Interaction and motion | 4.5 | **(P5 M3 — goldens seeded)** Three behaviours frame-proven: `editorial-1440-reveal.png` (scroll-driven `rise` entrance settled, not stuck at `opacity:0`) + `editorial-1440-hover.png` (hero CTA settles to its hovered end state — ink fill + `scale:1.03` + shadow, vs. the transparent outline at rest) + `editorial-1440-cardlift.png` (a "selected series" card's `translate:0 -6px` lift settles, raised above its row-mates; measured: computed `translate` eases toward `0 -6px`). −0.5: built from intent; no sticky/glass in this archetype. |
 | Asset handling | 4.5 | Real photography throughout — portrait hero + 3 distinct cover-cropped series photos, all stable, focal via `object-position`. −0.5: a couple of series crops are center-top compromises (group scene cropped to 3:4). |
 | **Total** | **85.7 / 100** | `30.0 * 20 / 7` (M2 82.9; +1.0 Motion via P5 Lane A) |
 
@@ -93,7 +93,8 @@ Target intent:
    sheet (five real-photo cards).
 3. A three-tier engagement table on ink.
 
-Screenshots: `fidelity/agency/agency-1440.png` · `-768.png` · `-390.png`
+Screenshots: `fidelity/agency/agency-1440.png` · `-768.png` · `-390.png` ·
+`-1440-hover.png` · `-1440-reveal.png`
 
 | Axis | Score | Evidence |
 |---|---:|---|
@@ -102,7 +103,7 @@ Screenshots: `fidelity/agency/agency-1440.png` · `-768.png` · `-390.png`
 | Color and surface | 4.0 | Premium ink `#15120e`/bone `#efeae1` alternation + bronze accent; good contrast and band rhythm. −1.0: no depth/glass; the bronze accent is subtle and does little work. |
 | Spacing rhythm | 4.5 | Generous, even cadence; the cinematic band + work-grid + pricing rhythm is balanced. −0.5: the bone work section could use slightly more breathing room above the grid. |
 | Responsive behavior | 4.5 | Hero/band/grid/pricing all collapse cleanly to 1 col; nav links hide (brand persists); the cinematic band re-crops taller (`2.4`→`1.4`) on mobile. −0.5: 3-col work grid at 768 is a little tight. |
-| Interaction and motion | 4.5 | **(P5 M3)** Two behaviours now frame-proven: `agency-1440-hover.png` (hero CTA hover — scale + glow end-state) + `agency-1440-reveal.png` (the "selected work" contact sheet's scroll `rise` settled). Work-card lift hover remains declared-but-uncaptured (hover frame targets the hero CTA). −0.5: built from intent. |
+| Interaction and motion | 4.5 | **(P5 M3 — goldens seeded)** Two behaviours frame-proven, including the signature: `agency-1440-hover.png` (a "selected work" contact-sheet card's declared `translate:0 -6px` lift settles, raised above the grid — the hover frame now `targetSelector`s a work card, **not** the hero CTA; measured computed `translate:"0px -6px"`) + `agency-1440-reveal.png` (the section's scroll-driven `rise` settles to full opacity/position). The M2 caveat — "work-card lift declared-but-uncaptured" — is now closed. −0.5: built from intent; no sticky/glass in this archetype. |
 | Asset handling | 4.5 | Richest real-photo usage — cinematic band + 5 distinct cover-cropped work photos, all stable with sensible focal crops. −0.5: a couple of group-shot 4:3 crops are generic. |
 | **Total** | **88.6 / 100** | `31.0 * 20 / 7` (M2 84.3; +1.5 Motion via P5 Lane A) |
 
@@ -118,8 +119,14 @@ Screenshots: `fidelity/agency/agency-1440.png` · `-768.png` · `-390.png`
 | **Blended (3 archetypes)** | **~58** | **M2 83.8 → M3 86.2** | **+28.2** |
 
 > **P5 Lane A (motion capture)** lifted editorial + agency Motion to 4.5 by frame-proving the
-> already-declared hover + a new agency scroll-reveal — `(85.7 + 84.3 + 88.6) / 3 = 86.2`. saas was
-> unchanged (its motion was already 4.5). Remaining to 90: P5 Lane B closes saas Assets (3.5),
+> declared hover — including agency's **signature contact-sheet work-card lift** (the hover frame now
+> targets a work card, not the hero CTA) and a **new editorial series-card lift** — plus a new agency
+> scroll-reveal. `(85.7 + 84.3 + 88.6) / 3 = 86.2`. saas was unchanged (its motion was already 4.5).
+> All four new motion goldens (`editorial-1440-hover/-cardlift`, `agency-1440-hover/-reveal`) are
+> **dev-seeded `chromium-darwin` PNGs; a CI reseed is pending** (see NEEDS HUMAN EYES). Honest note:
+> the 86.2 headline was first asserted when these frames were registered but **not** seeded and agency
+> proved only the CTA — this completion makes the 4.5s real (committed goldens + the named signature
+> behaviour), it does **not** raise the number. Remaining to 90: P5 Lane B closes saas Assets (3.5),
 > editorial Layout/Color/Spacing (4.0), agency Color (4.0), and the 768-tablet density.
 
 > `(82.9 + 84.3 + 84.3) / 3 = 83.8`. The blend is the mean of the three
@@ -147,6 +154,11 @@ drove the +25.8, honestly split between *real* improvement and *calibration*:
   the honest asymmetry: `saas` motion is well-proven (4.5), but `agency` motion
   is **built but not frame-captured (3.0)** and `editorial` has only the reveal
   (3.5). I did not award motion credit I couldn't see in a frame.
+  **(M3 update — P5 Lane A.)** That asymmetry is now closed: editorial frame-proves
+  the CTA hover + a series-card lift + the reveal (4.5), and agency frame-proves its
+  contact-sheet work-card lift + the work-section reveal (4.5). Motion is now
+  credited from committed goldens on all three archetypes — still no 5.0, because
+  none pairs hover with *both* sticky and reveal.
 - **Color and surface (mostly calibration, some real).** The glass component was
   unscoreable from a pre-scroll frame at M1; the `scrolled` frame now proves the
   backdrop-filter composites over moving content. The palettes themselves are a
@@ -166,11 +178,14 @@ frame proves it).
 
 ## What still loses points (blunt)
 
-- **Motion is thin where it isn't frame-proven.** Only `saas` has captured
-  hover + sticky + glass. `agency`'s hover-lift cards and `editorial`'s CTA hover
-  are coded but not captured, so they score as near-static. Adding an
-  `agency hover` + an `editorial hover` motion frame (and a sticky element to one
-  of them) is the cheapest path to +0.5–1.0 on two designs.
+- **Motion is now frame-proven on all three (M3) — the cap is the missing third
+  modality.** P5 Lane A captured editorial (CTA hover + series-card lift + reveal)
+  and agency (work-card lift + reveal); saas already had sticky + glass + hover.
+  Each sits at 4.5 because it exercises hover + exactly one of {reveal, sticky},
+  not the full set: editorial/agency have no sticky/glass, saas has no entrance
+  reveal. The next cheap motion point is a sticky masthead on `agency` (mirroring
+  saas's sticky nav), deliberately deferred here so this lane didn't have to
+  disturb the CI-seeded static goldens.
 - **Tablet density on `saas`.** Keeping pricing + features at 3 columns at 768px
   is cramped; dropping to 2 columns at tablet would lift Spacing + Responsive.
 - **`saas` asset sparsity.** One photo + a code block. A real product-UI asset
@@ -186,9 +201,19 @@ frame proves it).
 ## NEEDS HUMAN EYES
 
 - Whether the editorial hero overlap crop reads as intentional or busy.
+- Whether the −6px card lift reads as enough on its own, or wants a paired shadow
+  deepen (held minimal here to mirror the existing agency lift; tasteful either way).
 - Cross-machine golden seeding: the committed `e2e/fidelity` PNGs are CI-seeded
   on macos-14. These M2 frames were captured on a dev mac, so the goldens for the
   new/rebuilt designs must be reseeded via the `builder-fidelity.yml`
   `workflow_dispatch (update_snapshots=true)` path before the suite is green on
   CI. `capture.ts`'s 0-byte determinism self-test is the same-machine truth and
   passes for all four designs.
+- **CI reseed required (P5 Lane A).** The four new motion goldens
+  (`editorial-1440-hover`, `editorial-1440-cardlift`, `agency-1440-hover`,
+  `agency-1440-reveal`) are committed as dev-mac `chromium-darwin` PNGs so the
+  suite has a baseline and the PR shows the intended frames; they will fail
+  `maxDiffPixels` on the macos-14 runner by AA drift until the integrator reseeds
+  via the same `workflow_dispatch (update_snapshots=true)` path. The pre-existing
+  `saas-*` + `editorial-1440-reveal` goldens are untouched (the default first-CTA
+  hover / reveal scroll behaviour is byte-stable).

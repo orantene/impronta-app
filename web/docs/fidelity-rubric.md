@@ -22,8 +22,10 @@ npx playwright test e2e/fidelity/fidelity.spec.ts --update-snapshots
 Artifacts land in `web/fidelity/<design>/` (git-ignored; regenerated):
 
 - Static frames: `<design>-1440.png`, `<design>-768.png`, `<design>-390.png`
-- Motion frames: `<design>-<width>-<state>.png` (e.g. `saas-1440-scrolled.png`,
-  `editorial-1440-reveal.png`) — see [Motion-state frames](#motion-state-frames)
+- Motion frames: `<design>-<width>-<key>.png`, where `<key>` is the frame's
+  `state` (e.g. `saas-1440-scrolled.png`) or an explicit `key` when a design has
+  two frames of one state (e.g. `editorial-1440-cardlift.png` alongside
+  `editorial-1440-hover.png`) — see [Motion-state frames](#motion-state-frames)
 - matching HTML files for local inspection
 - `<design>/determinism.json` proving the same tree renders to a 0-diff screenshot
 - `capture-summary.json` listing all captures (static + motion)
@@ -83,7 +85,11 @@ motion frame backs a specific axis:
 |---|---|---|---|
 | `saas-1440-scrolled.png` | scrolled 50% | **Color and surface** (glass) + **Interaction and motion** (sticky) | `position:sticky` nav stays pinned AND `backdrop-filter` glass renders OVER real scrolled content — invisible in a pre-scroll static frame. |
 | `saas-1440-hover.png` | hover (first CTA) | **Interaction and motion** (hover) | The sticky-nav "Start free" CTA's `style.hover` (scale + glow + colour shift, eased by a base transition) settles to its hovered end state under `animations:"disabled"` — a real state change vs. rest. |
-| `editorial-1440-reveal.png` | reveal (scrolled into view) | **Interaction and motion** | The scroll-driven (`animation-timeline: view()`) entrance animation reaches its settled end state when the node enters the viewport, vs. being stuck at `opacity:0`. |
+| `editorial-1440-reveal.png` | reveal (scrolled into view) | **Interaction and motion** (reveal) | The scroll-driven (`animation-timeline: view()`) entrance animation reaches its settled end state when the node enters the viewport, vs. being stuck at `opacity:0`. |
+| `editorial-1440-hover.png` | hover (hero CTA) | **Interaction and motion** (hover) | The hero "View the series" CTA's `style.hover` (ink fill + `scale:1.03` + shadow) settles to its hovered end state — editorial's 2nd proven behaviour beyond the reveal (vs. the transparent outline at rest in `editorial-1440.png`). |
+| `editorial-1440-cardlift.png` | hover (series card) | **Interaction and motion** (hover-lift) | A repeated "selected series" card, centered then hovered, settles its `translate:0 -6px` lift — raised above its row-mates. A distinct 2nd hover behaviour; `key:"cardlift"` keeps it off the CTA frame's filename, and `targetSelector` aims it at a card (not the first button). |
+| `agency-1440-hover.png` | hover (work card) | **Interaction and motion** (hover-lift) | A repeated "selected work" contact-sheet card, centered then hovered, settles its declared `translate:0 -6px` lift — raised above the grid. Agency's signature card lift, now frame-proven (declared-but-uncaptured at M2, which capped Motion at 3.0). `targetSelector` aims it at a work card, **not** the hero CTA the default selector hits. |
+| `agency-1440-reveal.png` | reveal (scrolled into view) | **Interaction and motion** (reveal) | The "selected work" section's scroll-driven `rise` entrance settles to full opacity/position — agency's 2nd proven behaviour alongside the card lift. |
 
 Scoring rule: score **Color/glass and Interaction/motion from the motion
 frames**, not the static frames. A static frame may *show* a glass panel against
@@ -91,18 +97,32 @@ the page's initial background, but only the `scrolled` frame proves the blur
 composites over moving content; score the glass component of Color from there.
 Likewise, score sticky + reveal behavior only from the motion frames.
 
-### Hover (committed in P4 Lane B)
+### Hover (P4 Lane B → P5 Lane A)
 
 `applyMotionState` drives a `hover` state (real pointer → CSS `:hover`). It was
-previously omitted as a golden because no registered design wired up hover
-styling — a hover frame would have baselined a frame identical to rest. The P4
-Lane B `saas` rebuild gives its sticky-nav CTA a real `style.hover` block, so
-`saas-1440-hover.png` is now a committed golden that captures a genuine hovered
-end state (see the motion-frame table above). The editorial and agency CTAs +
-cards also declare `style.hover`, but only the `saas` nav CTA (the first
-`.site-builder-node--button` on the page, which `FIDELITY_HOVER_SELECTOR`
-targets) is captured as a hover golden; the others are exercised but not
-independently frame-proven — scored accordingly in the M2 scorecard.
+once omitted as a golden because no registered design wired up hover styling — a
+hover frame would have baselined a frame identical to rest. P4 Lane B gave the
+`saas` sticky-nav CTA a real `style.hover` block (`saas-1440-hover.png`), and the
+editorial/agency CTAs + cards declared `style.hover` too — but at M2 only the
+`saas` CTA was captured, so editorial/agency hover was scored as built-but-
+unproven.
+
+**P5 Lane A frame-proves the rest.** A motion frame may now point its `hover`
+state at a specific element via `FidelityMotionFrame.targetSelector` (default: the
+first `.site-builder-node--button`), and a frame can set `key` to disambiguate two
+hover PNGs for one design. Using those, the suite now captures:
+
+- `editorial-1440-hover.png` — the hero CTA (default selector).
+- `editorial-1440-cardlift.png` — a "selected series" card (`key:"cardlift"`,
+  `targetSelector` → `[data-builder-node-id$="__editorial-series-card"]`).
+- `agency-1440-hover.png` — a "selected work" card
+  (`targetSelector` → `[data-builder-node-id$="__agency-work-card"]`), the
+  contact-sheet lift the scorecard names — **not** the hero CTA.
+
+Card targets are deep in the page, so the handler centers the card
+(`scrollIntoView({block:"center"})`) before hovering — deterministic, vs.
+Playwright's layout-dependent auto-scroll. The default first-CTA path is unchanged,
+so the `saas` / `editorial`-CTA hover goldens are byte-stable.
 
 ## Goldens are CI-seeded (read before "fixing" a local red)
 
