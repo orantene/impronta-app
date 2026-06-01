@@ -3295,6 +3295,8 @@ function canvasChildPrimaryLabel(node: BuilderNode): string {
       return node.props.label;
     case "image":
       return node.props.alt?.trim() || "Image block";
+    case "icon":
+      return node.props.label || BUILDER_NODE_REGISTRY[node.kind].label;
     case "accordion_item":
     case "tab_panel":
       return node.props.title;
@@ -3313,6 +3315,12 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return node.props.href || "Button link";
     case "image":
       return "Image block";
+    case "video":
+      return "Video block";
+    case "embed":
+      return "Embed block";
+    case "icon":
+      return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
     case "accordion_item":
     case "tab_panel":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;

@@ -11,6 +11,11 @@ import {
   resolveInstanceChildren,
   type ComponentDefinitions,
 } from "./component-instances";
+import {
+  buildGoogleFontsHrefForFamilies,
+  collectBuilderNodeFontFamilies,
+} from "./fonts-registry";
+import { getBuilderIconDefinition } from "./icon-registry";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 
 export interface BuilderNodeRenderDataSources {
@@ -33,6 +38,7 @@ export interface BuilderNodeRenderOptions {
   mode?: "all" | "freeform";
   dataSources?: BuilderNodeRenderDataSources;
   includeRendererStyles?: boolean;
+  includeFontLinks?: boolean;
   // Phase 3 — saved component definitions (componentId → master subtree root).
   // When provided, linked instances (containers tagged props.instanceOf) render
   // the master subtree LIVE with per-instance overrides. When absent or the
@@ -50,6 +56,13 @@ const SPACER_BY_SIZE = {
   s: "1rem",
   m: "2rem",
   l: "3rem",
+} as const;
+
+const ICON_SIZE = {
+  sm: "1.25rem",
+  md: "2rem",
+  lg: "3rem",
+  xl: "4.5rem",
 } as const;
 
 const NODE_SPACING = {
@@ -138,6 +151,9 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--button[data-builder-button-disabled-tone="primary"][aria-disabled="true"]{background:rgba(18,18,18,0.35);color:#fff;border-color:rgba(18,18,18,0.08);pointer-events:none}
 .site-builder-node--heading{font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
 .site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
+.site-builder-node--video{display:block;width:100%;max-width:100%;background:#000}
+.site-builder-node--embed{display:block;width:100%;max-width:100%;border:0;background:#000}
+.site-builder-node--icon{display:inline-flex;align-items:center;justify-content:center;color:currentColor;line-height:1}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -1637,6 +1653,108 @@ function renderBuilderNode(
           }}
         />
       );
+    case "video":
+      return (
+        <video
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--video"
+          src={node.props.src}
+          poster={node.props.poster}
+          autoPlay={node.props.autoplay ?? false}
+          muted={node.props.muted ?? node.props.autoplay ?? false}
+          loop={node.props.loop ?? false}
+          controls={node.props.controls ?? true}
+          playsInline
+          preload="metadata"
+          style={{
+            objectFit: node.props.style?.objectFit ?? "cover",
+            objectPosition: node.props.style?.objectPosition ?? "center",
+            aspectRatio:
+              node.props.style?.aspectRatioFree ??
+              NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
+      );
+    case "embed":
+      return (
+        <iframe
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-embed-provider={node.props.provider ?? "url"}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--embed"
+          src={node.props.src}
+          title={node.props.title ?? "Embedded content"}
+          loading="lazy"
+          sandbox="allow-forms allow-popups allow-presentation allow-same-origin allow-scripts"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          allowFullScreen={node.props.allowFullScreen ?? true}
+          style={{
+            aspectRatio:
+              node.props.style?.aspectRatioFree ??
+              NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "16:9"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
+      );
+    case "icon": {
+      const icon = getBuilderIconDefinition(node.props.icon);
+      const decorative = node.props.decorative ?? !node.props.label;
+      return (
+        <span
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-icon={icon.name}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--icon"
+          role={decorative ? undefined : "img"}
+          aria-label={decorative ? undefined : node.props.label}
+          aria-hidden={decorative ? true : undefined}
+          style={{
+            fontSize: ICON_SIZE[node.props.size ?? "md"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="1em"
+            height="1em"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            {icon.paths.map((path) => (
+              <path key={path} d={path} />
+            ))}
+            {icon.circles?.map((circle) => (
+              <circle
+                key={`${circle.cx}-${circle.cy}-${circle.r}`}
+                cx={circle.cx}
+                cy={circle.cy}
+                r={circle.r}
+              />
+            ))}
+            {icon.polygons?.map((points) => (
+              <polygon key={points} points={points} />
+            ))}
+          </svg>
+        </span>
+      );
+    }
     case "divider":
       return (
         <hr
@@ -1678,14 +1796,48 @@ export function renderBuilderNodes(
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
     includeRendererStyles: options.includeRendererStyles ?? true,
+    includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
   };
   const renderedNodes = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions.mode))
     .map((node) => renderBuilderNode(node, normalizedOptions));
   if (renderedNodes.length === 0) return null;
-  if (!normalizedOptions.includeRendererStyles) return renderedNodes;
-  return [<BuilderNodeRendererStyles key="site-builder-node-styles" />, ...renderedNodes];
+  const fontLinks = normalizedOptions.includeFontLinks ? (
+    <BuilderNodeFontLinks
+      key="site-builder-node-fonts"
+      nodes={nodes}
+      components={normalizedOptions.components}
+    />
+  ) : null;
+  const headNodes = [
+    fontLinks,
+    normalizedOptions.includeRendererStyles ? (
+      <BuilderNodeRendererStyles key="site-builder-node-styles" />
+    ) : null,
+  ].filter(Boolean);
+  if (headNodes.length === 0) return renderedNodes;
+  return [...headNodes, ...renderedNodes];
+}
+
+export function BuilderNodeFontLinks({
+  nodes,
+  components,
+}: {
+  nodes: ReadonlyArray<BuilderNode>;
+  components?: ComponentDefinitions;
+}): ReactNode {
+  const href = buildGoogleFontsHrefForFamilies(
+    collectBuilderNodeFontFamilies(nodes, components),
+  );
+  if (!href) return null;
+  return (
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      <link rel="stylesheet" href={href} data-builder-node-fonts="" />
+    </>
+  );
 }
 
 export function BuilderNodeRendererStyles(): ReactNode {

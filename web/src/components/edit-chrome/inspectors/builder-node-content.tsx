@@ -11,9 +11,11 @@ import {
 
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
+  BUILDER_ICON_REGISTRY,
   BUILDER_NODE_COMPOSITION_PRESETS,
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
+  type BuilderIconName,
   type BuilderNode,
   type BuilderNodeCompositionPreset,
   type BuilderNodeCompositionPresetId,
@@ -356,6 +358,89 @@ export function BuilderNodeContentInspector({
                 />
                 <Helper>Optional, but recommended for accessibility and SEO.</Helper>
               </Field>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (node.kind === "icon") {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Icon node" sub="Inline SVG" iconAccent="blue" />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <Field flush>
+                <FieldLabel>Icon</FieldLabel>
+                <select
+                  className={KIT.input}
+                  value={node.props.icon}
+                  onChange={(event) => {
+                    const icon = event.currentTarget.value as BuilderIconName;
+                    const label =
+                      BUILDER_ICON_REGISTRY.find((item) => item.name === icon)
+                        ?.label ?? "Icon";
+                    void commitPatch({
+                      icon,
+                      label: node.props.decorative ? node.props.label : label,
+                    });
+                  }}
+                >
+                  {BUILDER_ICON_REGISTRY.map((icon) => (
+                    <option key={icon.name} value={icon.name}>
+                      {icon.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field flush>
+                <FieldLabel>Size</FieldLabel>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={node.props.size ?? "md"}
+                  onChange={(next) => {
+                    void commitPatch({ size: next });
+                  }}
+                  options={[
+                    { value: "sm", label: "S" },
+                    { value: "md", label: "M" },
+                    { value: "lg", label: "L" },
+                    { value: "xl", label: "XL" },
+                  ]}
+                />
+              </Field>
+              <Field flush>
+                <FieldLabel>Accessible label</FieldLabel>
+                <input
+                  key={`${node.id}:label:${node.props.label ?? ""}`}
+                  defaultValue={node.props.label ?? ""}
+                  className={KIT.input}
+                  placeholder="Describe the icon"
+                  disabled={node.props.decorative ?? false}
+                  onBlur={(event) => {
+                    void commitTextInput("label", node.props.label ?? "", true)(
+                      event.currentTarget.value,
+                    );
+                  }}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("label", node.props.label ?? "", true)(value);
+                  })}
+                />
+                <Helper>Leave decorative on when the icon only supports nearby text.</Helper>
+              </Field>
+              <div style={{ padding: "4px 0" }}>
+                <Toggle
+                  on={node.props.decorative ?? false}
+                  onChange={(next) => {
+                    void commitPatch({ decorative: next });
+                  }}
+                  label="Decorative"
+                  helper="Decorative icons are hidden from screen readers."
+                />
+              </div>
             </div>
           </CardBody>
         </Card>
@@ -1588,6 +1673,8 @@ function childPrimaryLabel(node: BuilderNode): string {
       return node.props.label;
     case "image":
       return node.props.alt?.trim() || "Image block";
+    case "icon":
+      return node.props.label || BUILDER_NODE_REGISTRY[node.kind].label;
     case "accordion_item":
     case "tab_panel":
       return node.props.title;
@@ -1606,6 +1693,12 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.href || "Button link";
     case "image":
       return node.props.src;
+    case "video":
+      return node.props.src;
+    case "embed":
+      return node.props.src;
+    case "icon":
+      return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
     case "accordion_item":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "tab_panel":

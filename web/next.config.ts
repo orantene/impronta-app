@@ -122,6 +122,11 @@ const stripeCsp = {
     "https://js.stripe.com https://connect-js.stripe.com https://*.js.stripe.com https://hooks.stripe.com",
 };
 
+const builderEmbedCsp = {
+  frame:
+    "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://calendly.com https://*.calendly.com",
+};
+
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
   // @vercel/analytics + @vercel/speed-insights load scripts from va.vercel-scripts.com
@@ -138,7 +143,7 @@ function contentSecurityPolicy(): string {
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
-    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame}`,
+    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
     "frame-ancestors 'self'",

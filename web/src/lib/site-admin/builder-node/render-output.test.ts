@@ -167,6 +167,142 @@ test("renderer css: page-level sheet plus opt-out renders one style tag", () => 
   assert.ok(html.includes("data-builder-node-id=\"c1\""), "first section renders");
 });
 
+// -- Font loading --------------------------------------------------------------
+
+test("font loading: node font families emit Google stylesheet links", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        container({
+          fontFamily: '"Manrope", system-ui, sans-serif',
+          responsive: {
+            mobile: {
+              fontFamily:
+                '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',
+            },
+          },
+        }),
+      ],
+      {
+        mode: "freeform",
+        includeRendererStyles: false,
+      },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(html.includes("data-builder-node-fonts"), "font link marker");
+  assert.ok(
+    html.includes("family=Manrope:wght@400;500;600;700"),
+    "desktop family loaded",
+  );
+  assert.ok(
+    html.includes("family=IBM+Plex+Mono:wght@400;500;700"),
+    "responsive family loaded",
+  );
+  assert.equal(countRendererStyles(html), 0);
+});
+
+test("font loading: bundled Next fonts do not emit extra Google links", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [container({ fontFamily: '"Raleway", var(--font-body-sans), system-ui, sans-serif' })],
+      {
+        mode: "freeform",
+        includeRendererStyles: false,
+      },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(!html.includes("data-builder-node-fonts"), "no google link needed");
+  assert.ok(html.includes("font-family:&quot;Raleway&quot;"), "font still renders");
+});
+
+// -- Node kinds ----------------------------------------------------------------
+
+test("node kind: video renders hosted media with playback controls", () => {
+  const html = render([
+    {
+      id: "video-1",
+      kind: "video",
+      props: {
+        src: "https://cdn.example.com/demo.mp4",
+        poster: "https://cdn.example.com/poster.jpg",
+        autoplay: true,
+        muted: true,
+        loop: true,
+        controls: true,
+        style: {
+          aspectRatio: "16:9",
+          objectFit: "cover",
+          borderRadius: "18px",
+        },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="video"'), "kind marker");
+  assert.ok(html.includes('src="https://cdn.example.com/demo.mp4"'), "video src");
+  assert.ok(html.includes('poster="https://cdn.example.com/poster.jpg"'), "poster");
+  assert.ok(html.includes("autoPlay"), "autoplay");
+  assert.ok(html.includes("muted"), "muted");
+  assert.ok(html.includes("loop"), "loop");
+  assert.ok(html.includes("controls"), "controls");
+  assert.ok(html.includes("aspect-ratio:16 / 9"), "aspect ratio");
+  assert.ok(html.includes("border-radius:18px"), "shared style");
+});
+
+test("node kind: embed renders a sandboxed iframe", () => {
+  const html = render([
+    {
+      id: "embed-1",
+      kind: "embed",
+      props: {
+        src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+        title: "Launch film",
+        provider: "youtube",
+        allowFullScreen: true,
+        style: { aspectRatio: "16:9" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="embed"'), "kind marker");
+  assert.ok(html.includes('data-builder-embed-provider="youtube"'), "provider");
+  assert.ok(
+    html.includes('src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"'),
+    "iframe src",
+  );
+  assert.ok(html.includes('title="Launch film"'), "title");
+  assert.ok(html.includes("sandbox="), "sandboxed");
+  assert.ok(html.includes("allow-forms"), "sandbox allows forms");
+  assert.ok(html.includes("allowFullScreen"), "fullscreen enabled");
+  assert.ok(html.includes("referrerPolicy"), "referrer policy set");
+  assert.ok(html.includes("aspect-ratio:16 / 9"), "aspect ratio");
+});
+
+test("node kind: icon renders inline currentColor svg", () => {
+  const html = render([
+    {
+      id: "icon-1",
+      kind: "icon",
+      props: {
+        icon: "check",
+        label: "Included",
+        size: "lg",
+        style: { textColor: "#0f766e" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="icon"'), "kind marker");
+  assert.ok(html.includes('data-builder-icon="check"'), "icon marker");
+  assert.ok(html.includes('role="img"'), "semantic icon");
+  assert.ok(html.includes('aria-label="Included"'), "accessible label");
+  assert.ok(html.includes('stroke="currentColor"'), "currentColor stroke");
+  assert.ok(html.includes("font-size:3rem"), "size");
+  assert.ok(html.includes("color:#0f766e"), "shared style color");
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {

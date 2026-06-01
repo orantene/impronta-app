@@ -12,6 +12,9 @@ export type BuilderNodeKind =
   | "paragraph"
   | "button"
   | "image"
+  | "video"
+  | "embed"
+  | "icon"
   | "divider"
   | "spacer"
   | "card"
@@ -460,6 +463,41 @@ export interface BuilderImageNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderVideoNode extends BuilderNodeBase {
+  kind: "video";
+  props: {
+    src: string;
+    poster?: string;
+    autoplay?: boolean;
+    muted?: boolean;
+    loop?: boolean;
+    controls?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+export interface BuilderEmbedNode extends BuilderNodeBase {
+  kind: "embed";
+  props: {
+    src: string;
+    title?: string;
+    provider?: "youtube" | "vimeo" | "maps" | "calendly" | "url";
+    allowFullScreen?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+export interface BuilderIconNode extends BuilderNodeBase {
+  kind: "icon";
+  props: {
+    icon: import("./icon-registry").BuilderIconName;
+    label?: string;
+    decorative?: boolean;
+    size?: "sm" | "md" | "lg" | "xl";
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -512,6 +550,9 @@ export type BuilderNode =
   | BuilderParagraphNode
   | BuilderButtonNode
   | BuilderImageNode
+  | BuilderVideoNode
+  | BuilderEmbedNode
+  | BuilderIconNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode

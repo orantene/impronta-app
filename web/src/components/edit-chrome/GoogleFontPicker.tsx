@@ -21,41 +21,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  BUILDER_FONT_REGISTRY,
+  buildGoogleFontsHrefForFamilies,
+  cssFamilyForBuilderFont,
+  firstFontFamily,
+  resolveBuilderFont,
+  type BuilderFontCategory,
+  type BuilderFontDefinition,
+} from "@/lib/site-admin/builder-node/fonts-registry";
+
 type Slot = "heading" | "body";
 
-interface GoogleFont {
-  family: string;
-  category: "sans" | "serif" | "display" | "mono";
-  /** Weights to load when this font is picked. Comma-joined for the URL. */
-  weights: string;
-}
-
-const FONT_LIBRARY: ReadonlyArray<GoogleFont> = [
-  // Sans
-  { family: "Inter", category: "sans", weights: "400;500;600;700" },
-  { family: "Manrope", category: "sans", weights: "400;500;600;700" },
-  { family: "DM Sans", category: "sans", weights: "400;500;700" },
-  { family: "Work Sans", category: "sans", weights: "400;500;600" },
-  { family: "Outfit", category: "sans", weights: "400;500;600;700" },
-  { family: "Plus Jakarta Sans", category: "sans", weights: "400;500;600" },
-  // Serif
-  { family: "Playfair Display", category: "serif", weights: "400;500;700" },
-  { family: "Cormorant Garamond", category: "serif", weights: "400;500;600" },
-  { family: "EB Garamond", category: "serif", weights: "400;500;600" },
-  { family: "Libre Caslon Text", category: "serif", weights: "400;700" },
-  { family: "Fraunces", category: "serif", weights: "400;500;600;700" },
-  { family: "Lora", category: "serif", weights: "400;500;600;700" },
-  // Display
-  { family: "Bricolage Grotesque", category: "display", weights: "400;600;700" },
-  { family: "Editorial New", category: "display", weights: "400;700" },
-  { family: "Italiana", category: "display", weights: "400" },
-  { family: "Cinzel", category: "display", weights: "400;600;700" },
-  // Mono
-  { family: "JetBrains Mono", category: "mono", weights: "400;500;700" },
-  { family: "IBM Plex Mono", category: "mono", weights: "400;500;700" },
-];
-
-const CATEGORY_LABEL: Record<GoogleFont["category"], string> = {
+const CATEGORY_LABEL: Record<BuilderFontCategory, string> = {
   sans: "Sans",
   serif: "Serif",
   display: "Display",
@@ -70,17 +48,16 @@ interface GoogleFontPickerProps {
 }
 
 export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProps) {
-  const [filter, setFilter] = useState<GoogleFont["category"] | "all">("all");
+  const [filter, setFilter] = useState<BuilderFontCategory | "all">("all");
   const [search, setSearch] = useState("");
 
   const grouped = useMemo(() => {
-    const filtered = FONT_LIBRARY.filter((f) => {
+    const filtered = BUILDER_FONT_REGISTRY.filter((f) => {
       if (filter !== "all" && f.category !== filter) return false;
-      if (search && !f.family.toLowerCase().includes(search.toLowerCase()))
-        return false;
+      if (search && !f.family.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-    const out = new Map<GoogleFont["category"], GoogleFont[]>();
+    const out = new Map<BuilderFontCategory, BuilderFontDefinition[]>();
     for (const f of filtered) {
       if (!out.has(f.category)) out.set(f.category, []);
       out.get(f.category)!.push(f);
@@ -92,20 +69,18 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
   // value so the preview button renders in the actual face.
   useEffect(() => {
     if (!value) return;
-    const family = parseFirstFamily(value);
-    if (!family) return;
-    const def = FONT_LIBRARY.find((f) => f.family === family);
+    const def = resolveBuilderFont(value);
     if (!def) return;
     ensureFontLoaded(def);
   }, [value]);
 
-  const current = parseFirstFamily(value);
+  const current = firstFontFamily(value);
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-          Google Fonts — {slot}
+          Fonts — {slot}
         </span>
         {current ? (
           <button
@@ -157,7 +132,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
               selected={current === f.family}
               onPick={() => {
                 ensureFontLoaded(f);
-                onChange(`"${f.family}", ${fallbackFor(f.category)}`);
+                onChange(cssFamilyForBuilderFont(f));
               }}
             />
           )),
@@ -177,7 +152,7 @@ function FontTile({
   selected,
   onPick,
 }: {
-  font: GoogleFont;
+  font: BuilderFontDefinition;
   selected: boolean;
   onPick: () => void;
 }) {
@@ -185,7 +160,7 @@ function FontTile({
     <button
       type="button"
       onClick={onPick}
-      style={{ fontFamily: `"${font.family}", ${fallbackFor(font.category)}` }}
+      style={{ fontFamily: font.cssFamily }}
       className={`flex flex-col items-start rounded-lg border px-2 py-1.5 text-left transition ${
         selected
           ? "border-indigo-400 bg-indigo-50"
@@ -194,35 +169,17 @@ function FontTile({
     >
       <span className="text-[14px] leading-tight text-stone-800">{font.family}</span>
       <span className="text-[9px] uppercase tracking-wide text-stone-500">
-        Aa Bb 0123
+        {font.source === "bundled" ? "Bundled" : "Google"} · Aa Bb 0123
       </span>
     </button>
   );
 }
 
-function fallbackFor(category: GoogleFont["category"]): string {
-  switch (category) {
-    case "sans":
-      return "system-ui, sans-serif";
-    case "serif":
-      return "Georgia, serif";
-    case "display":
-      return "Georgia, serif";
-    case "mono":
-      return 'ui-monospace, "SF Mono", Menlo, monospace';
-  }
-}
-
-function parseFirstFamily(value: string): string | null {
-  if (!value) return null;
-  const m = value.match(/^"?([^",]+)"?/);
-  return m ? m[1].trim() : null;
-}
-
 const LOADED = new Set<string>();
 
-function ensureFontLoaded(font: GoogleFont): void {
+function ensureFontLoaded(font: BuilderFontDefinition): void {
   if (typeof document === "undefined") return;
+  if (font.source === "bundled") return;
   if (LOADED.has(font.family)) return;
   // QA 2026-05-13 — defense-in-depth: even when our in-memory Set says
   // "not loaded" we still check the DOM. The Set resets on full page
@@ -238,8 +195,8 @@ function ensureFontLoaded(font: GoogleFont): void {
     return;
   }
   LOADED.add(font.family);
-  const family = font.family.replace(/ /g, "+");
-  const href = `https://fonts.googleapis.com/css2?family=${family}:wght@${font.weights}&display=swap`;
+  const href = buildGoogleFontsHrefForFamilies([font.cssFamily]);
+  if (!href) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = href;
