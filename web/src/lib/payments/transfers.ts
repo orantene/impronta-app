@@ -34,7 +34,7 @@ import type Stripe from "stripe";
 
 type Party = "talent" | "workspace";
 
-type TransferOutcome = {
+export type TransferOutcome = {
   party: Party;
   participantId: string;
   amountCents: number;
@@ -43,6 +43,19 @@ type TransferOutcome = {
   destination?: string | null;
   transferId?: string | null;
   detail?: string;
+};
+
+/**
+ * Optional dependency injection seam — production passes nothing (real
+ * service-role client, real Stripe, real account lookups). Tests inject fakes
+ * so the N-way split, idempotency, and held-skip can be asserted without a
+ * live Stripe account or DB.
+ */
+export type TransferDeps = {
+  sb?: SupabaseClient | null;
+  stripe?: Stripe | null;
+  resolveTalentAccount?: (talentProfileId: string) => Promise<string | null>;
+  resolveWorkspaceAccount?: (tenantId: string) => Promise<string | null>;
 };
 
 /** Resolve the talent_profiles.id this snapshot row pays out to. */
@@ -127,12 +140,18 @@ async function payParty(
  * Execute the talent + workspace transfers for a paid booking transaction.
  * Idempotent + best-effort; never throws (the payment already settled).
  */
-export async function executeBookingTransfers(transactionId: string): Promise<void> {
-  const sb = createServiceRoleClient();
+export async function executeBookingTransfers(
+  transactionId: string,
+  deps: TransferDeps = {},
+): Promise<TransferOutcome[]> {
+  const sb = deps.sb ?? createServiceRoleClient();
   if (!sb) {
     logServerError("transfers", new Error("service-role client unavailable"));
-    return;
+    return [];
   }
+  const resolveTalentAccount = deps.resolveTalentAccount ?? talentTransferAccount;
+  const resolveWorkspaceAccount = deps.resolveWorkspaceAccount ?? workspaceTransferAccount;
+  const outcomes: TransferOutcome[] = [];
 
   try {
     const { data: txn } = await sb
@@ -140,16 +159,15 @@ export async function executeBookingTransfers(transactionId: string): Promise<vo
       .select("id, booking_id, status, currency")
       .eq("id", transactionId)
       .maybeSingle();
-    if (!txn?.booking_id) return;
+    if (!txn?.booking_id) return outcomes;
     // Only fan out once the charge is settled.
-    if (!["paid", "payout_pending", "payout_sent"].includes(txn.status as string)) return;
+    if (!["paid", "payout_pending", "payout_sent"].includes(txn.status as string)) return outcomes;
 
     const bookingId = txn.booking_id as string;
     const snapshots = await loadBookingCommissionSnapshots(sb, bookingId);
-    if (!snapshots.length) return;
+    if (!snapshots.length) return outcomes;
 
-    const stripe = getStripe();
-    const outcomes: TransferOutcome[] = [];
+    const stripe = deps.stripe ?? getStripe();
 
     for (const snap of snapshots) {
       const currency = (snap.currency_code || (txn.currency as string) || "usd").toLowerCase();
@@ -157,7 +175,7 @@ export async function executeBookingTransfers(transactionId: string): Promise<vo
 
       // 1) Talent — full protected quote.
       if (snap.talent_net_cents > 0) {
-        const accountId = talentProfileId ? await talentTransferAccount(talentProfileId) : null;
+        const accountId = talentProfileId ? await resolveTalentAccount(talentProfileId) : null;
         outcomes.push(
           await payParty(stripe, {
             party: "talent",
@@ -175,7 +193,7 @@ export async function executeBookingTransfers(transactionId: string): Promise<vo
         (snap.owning_party_type === "agency" || snap.owning_party_type === "workspace") &&
         snap.workspace_fee_cents > 0
       ) {
-        const accountId = await workspaceTransferAccount(snap.owning_party_id);
+        const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
         outcomes.push(
           await payParty(stripe, {
             party: "workspace",
@@ -205,7 +223,9 @@ export async function executeBookingTransfers(transactionId: string): Promise<vo
         ),
       );
     }
+    return outcomes;
   } catch (err) {
     logServerError(`transfers[txn=${transactionId}]`, err);
+    return outcomes;
   }
 }
