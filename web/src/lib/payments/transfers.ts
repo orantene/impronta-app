@@ -29,6 +29,7 @@ import {
   getTalentConnectedAccountSnapshot,
   canRouteTransfersToTalent,
 } from "@/lib/payments/stripe-connect-talent";
+import { recordPayoutLeg } from "@/lib/payments/booking-payouts-ledger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
@@ -57,6 +58,15 @@ export type TransferDeps = {
   resolveTalentAccount?: (talentProfileId: string) => Promise<string | null>;
   resolveWorkspaceAccount?: (tenantId: string) => Promise<string | null>;
 };
+
+/** Map a transfer outcome status to the ledger's persisted status.
+ *  'mock' (no STRIPE_SECRET_KEY) and zero-amount legs are not recorded by the
+ *  caller; only transferred / held (skipped_no_account) / failed reach here. */
+function ledgerStatus(s: TransferOutcome["status"]): "transferred" | "held" | "failed" {
+  if (s === "transferred") return "transferred";
+  if (s === "failed") return "failed";
+  return "held"; // skipped_no_account (and mock, defensively) → held
+}
 
 /** Resolve the talent_profiles.id this snapshot row pays out to. */
 async function resolveTalentProfileId(
@@ -172,38 +182,68 @@ export async function executeBookingTransfers(
     for (const snap of snapshots) {
       const currency = (snap.currency_code || (txn.currency as string) || "usd").toLowerCase();
       const talentProfileId = await resolveTalentProfileId(sb, snap);
+      const isWorkspaceOwned =
+        snap.owning_party_type === "agency" || snap.owning_party_type === "workspace";
+      const tenantId = isWorkspaceOwned ? snap.owning_party_id : null;
 
       // 1) Talent — full protected quote.
       if (snap.talent_net_cents > 0) {
         const accountId = talentProfileId ? await resolveTalentAccount(talentProfileId) : null;
-        outcomes.push(
-          await payParty(stripe, {
-            party: "talent",
-            participantId: snap.participant_id,
-            bookingId,
-            amountCents: snap.talent_net_cents,
-            currency,
-            accountId,
-          }),
-        );
+        const outcome = await payParty(stripe, {
+          party: "talent",
+          participantId: snap.participant_id,
+          bookingId,
+          amountCents: snap.talent_net_cents,
+          currency,
+          accountId,
+        });
+        outcomes.push(outcome);
+        await recordPayoutLeg(sb, {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          party: "talent",
+          owningPartyType: snap.owning_party_type,
+          owningPartyId: snap.owning_party_id,
+          talentProfileId,
+          tenantId,
+          destinationAccountId: outcome.destination ?? accountId,
+          amountCents: snap.talent_net_cents,
+          currency,
+          status: ledgerStatus(outcome.status),
+          stripeTransferId: outcome.transferId ?? null,
+          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+        });
       }
 
       // 2) Workspace — margin net of the platform's seller share.
-      if (
-        (snap.owning_party_type === "agency" || snap.owning_party_type === "workspace") &&
-        snap.workspace_fee_cents > 0
-      ) {
+      if (isWorkspaceOwned && snap.workspace_fee_cents > 0) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
-        outcomes.push(
-          await payParty(stripe, {
-            party: "workspace",
-            participantId: snap.participant_id,
-            bookingId,
-            amountCents: snap.workspace_fee_cents,
-            currency,
-            accountId,
-          }),
-        );
+        const outcome = await payParty(stripe, {
+          party: "workspace",
+          participantId: snap.participant_id,
+          bookingId,
+          amountCents: snap.workspace_fee_cents,
+          currency,
+          accountId,
+        });
+        outcomes.push(outcome);
+        await recordPayoutLeg(sb, {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          party: "workspace",
+          owningPartyType: snap.owning_party_type,
+          owningPartyId: snap.owning_party_id,
+          talentProfileId: null,
+          tenantId,
+          destinationAccountId: outcome.destination ?? accountId,
+          amountCents: snap.workspace_fee_cents,
+          currency,
+          status: ledgerStatus(outcome.status),
+          stripeTransferId: outcome.transferId ?? null,
+          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+        });
       }
       // Platform retains platform_fee_cents — already on the platform account.
     }

@@ -63,6 +63,7 @@ import { handleTalentStripeSubscriptionEvent } from "@/lib/payments/stripe-talen
 import { markPaid } from "@/lib/bookings/transactions";
 import { emitBookingConfirmation } from "@/lib/payments/booking-confirmation";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
+import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
 import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refunds";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -157,16 +158,35 @@ async function persistConnectAccount(accountId: string, eventId: string): Promis
 
 /** account.updated path: resolve agency first, then talent, then ack-and-log unknown. */
 async function persistAccountFromObject(account: Stripe.Account, eventId: string): Promise<void> {
+  // When an account flips to payouts-enabled, forward any payouts that were
+  // held while it was still onboarding (else they're stranded on the platform).
+  const payoutsEnabled = !!account.payouts_enabled;
+
   const agency = await findAgencyByStripeAccountId(account.id);
   if (agency) {
     const result = await persistAccountSnapshot(agency.agencyId, account);
     if (!result.ok) throw new TransientWebhookError(`account persist (agency) failed: ${result.error}`);
+    if (payoutsEnabled) {
+      // Best-effort — never let release failure fail the webhook ack.
+      try {
+        await releaseHeldPayouts({ tenantId: agency.agencyId });
+      } catch (err) {
+        logServerError(`stripe-webhook.release[agency=${agency.agencyId}]`, err);
+      }
+    }
     return;
   }
   const talent = await findTalentByStripeAccountId(account.id);
   if (talent) {
     const result = await persistTalentAccountSnapshot(talent.talentProfileId, account);
     if (!result.ok) throw new TransientWebhookError(`account persist (talent) failed: ${result.error}`);
+    if (payoutsEnabled) {
+      try {
+        await releaseHeldPayouts({ talentProfileId: talent.talentProfileId });
+      } catch (err) {
+        logServerError(`stripe-webhook.release[talent=${talent.talentProfileId}]`, err);
+      }
+    }
     return;
   }
   // Unknown account — log + silently ack so Stripe stops retrying.

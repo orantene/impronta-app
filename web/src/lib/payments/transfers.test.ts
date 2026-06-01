@@ -35,11 +35,15 @@ type Snap = {
   currency_code: string;
 };
 
-/** Fake Supabase serving the exact reads executeBookingTransfers makes. */
+type LedgerWrite = { op: "insert" | "update"; row: Record<string, unknown> };
+
+/** Fake Supabase serving the reads executeBookingTransfers makes + capturing
+ *  booking_payouts ledger writes into `ledger` for assertion. */
 function makeSupabase(opts: {
   txnStatus?: string;
   snapshots: Snap[];
   participants?: Record<string, string>; // participant_id -> talent_profile_id
+  ledger?: LedgerWrite[];
 }): SupabaseClient {
   const txn = {
     id: TXN_ID,
@@ -55,6 +59,15 @@ function makeSupabase(opts: {
         lastVal = val;
         return chain;
       },
+      in: () => chain,
+      insert: (row: Record<string, unknown>) => {
+        if (table === "booking_payouts") opts.ledger?.push({ op: "insert", row });
+        return Promise.resolve({ data: null, error: null });
+      },
+      update: (row: Record<string, unknown>) => {
+        if (table === "booking_payouts") opts.ledger?.push({ op: "update", row });
+        return chain; // .update(...).eq(...) — eq returns chain (thenable not needed)
+      },
       order: () =>
         Promise.resolve(
           table === "booking_commission_snapshot"
@@ -67,6 +80,7 @@ function makeSupabase(opts: {
           const tpid = opts.participants?.[String(lastVal)] ?? null;
           return Promise.resolve({ data: tpid ? { talent_profile_id: tpid } : null, error: null });
         }
+        // booking_payouts existing-leg lookup → none (always insert path)
         return Promise.resolve({ data: null, error: null });
       },
     };
@@ -119,9 +133,10 @@ test("N-way split: each talent gets full quote, agency gets each margin share, p
   ];
   const participants = { p1: "tp1", p2: "tp2", p3: "tp3" };
   const { calls, stripe } = makeStripe();
+  const ledger: LedgerWrite[] = [];
 
   const outcomes = await executeBookingTransfers(TXN_ID, {
-    sb: makeSupabase({ snapshots, participants }),
+    sb: makeSupabase({ snapshots, participants, ledger }),
     stripe,
     resolveTalentAccount: async (tp) => `acct_talent_${tp}`,
     resolveWorkspaceAccount: async (t) => `acct_${t}`,
@@ -154,6 +169,15 @@ test("N-way split: each talent gets full quote, agency gets each margin share, p
   assert.equal(new Set(keys).size, 6, "all idempotency keys distinct");
   assert.ok(keys.includes(`transfer_${BOOKING_ID}_p1_talent`));
   assert.ok(keys.includes(`transfer_${BOOKING_ID}_p1_workspace`));
+
+  // LEDGER: every leg recorded as 'transferred' with its stripe_transfer_id
+  assert.equal(ledger.length, 6, "6 ledger writes");
+  assert.ok(ledger.every((w) => w.op === "insert"), "all new legs inserted");
+  assert.ok(ledger.every((w) => w.row.status === "transferred"), "all recorded transferred");
+  assert.ok(ledger.every((w) => typeof w.row.stripe_transfer_id === "string"), "transfer id persisted");
+  const talentLeg = ledger.find((w) => w.row.party === "talent" && w.row.amount_cents === 120000);
+  assert.equal(talentLeg?.row.talent_profile_id, "tp1");
+  assert.equal(talentLeg?.row.destination_account_id, "acct_talent_tp1");
 });
 
 test("held-skip: a talent with no enabled account is skipped (funds held), the rest still pay", async () => {
@@ -163,9 +187,10 @@ test("held-skip: a talent with no enabled account is skipped (funds held), the r
   ];
   const participants = { p1: "tp1", p2: "tp2" };
   const { calls, stripe } = makeStripe();
+  const ledger: LedgerWrite[] = [];
 
   const outcomes = await executeBookingTransfers(TXN_ID, {
-    sb: makeSupabase({ snapshots, participants }),
+    sb: makeSupabase({ snapshots, participants, ledger }),
     stripe,
     // tp2 has NOT onboarded → no transfer-enabled account
     resolveTalentAccount: async (tp) => (tp === "tp2" ? null : `acct_talent_${tp}`),
@@ -184,6 +209,15 @@ test("held-skip: a talent with no enabled account is skipped (funds held), the r
   // Stripe was called only for the 3 real transfers (tp1 + 2 workspace), NOT the held one
   assert.equal(calls.length, 3);
   assert.ok(!calls.some((c) => c.idempotencyKey === `transfer_${BOOKING_ID}_p2_talent`));
+
+  // LEDGER: the unonboarded talent leg is recorded 'held' (so it can be released
+  // later) — with NO stripe_transfer_id — while the paid legs are 'transferred'.
+  const heldLeg = ledger.find((w) => w.row.party === "talent" && w.row.amount_cents === 90000);
+  assert.equal(heldLeg?.row.status, "held", "unonboarded talent leg recorded held");
+  assert.equal(heldLeg?.row.stripe_transfer_id, null);
+  assert.equal(heldLeg?.row.talent_profile_id, "tp2");
+  assert.equal(ledger.filter((w) => w.row.status === "transferred").length, 3, "3 legs transferred");
+  assert.equal(ledger.filter((w) => w.row.status === "held").length, 1, "1 leg held");
 });
 
 test("zero amounts are skipped (no Stripe call)", async () => {
