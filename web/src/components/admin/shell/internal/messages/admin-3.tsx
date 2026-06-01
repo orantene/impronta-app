@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { OfferCard, PaymentRequestCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
+import { OfferCard, PaymentRequestCard, BookingConfirmedCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
 import { adminAddSuggestedTalent } from "@/lib/server-actions/admin-suggested-talent";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
@@ -300,7 +300,7 @@ export function renderChatCardForMessage(
   kind: string,
   payload: Record<string, unknown>,
   toast: (s: string) => void,
-  ctx?: { inquiryId?: string; messageId?: string },
+  ctx?: { inquiryId?: string; messageId?: string; suppressPayCta?: boolean },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
   switch (kind) {
@@ -321,11 +321,28 @@ export function renderChatCardForMessage(
           amountLabel={get<string>("amount_label", "—")}
           status="requested"
           hint={get<string>("hint", "")}
-          onPayNow={() => toast("Open Pay-Now sheet — wire on client adapter")}
+          // Talent is not the payer — show the requested state without a Pay CTA
+          // (suppressPayCta). The client checkout lives on the client surface.
+          onPayNow={ctx?.suppressPayCta ? undefined : () => toast("Open Pay-Now sheet — wire on client adapter")}
         />
       );
     case "payment_paid":
       return <PaymentRequestCard amountLabel={get<string>("amount_label", "—")} status="paid" />;
+    case "booking_confirmed":
+      return (
+        <BookingConfirmedCard
+          totalLabel={get<string>("total_label", "")}
+          summary={get<string>("summary", "")}
+        />
+      );
+    case "talent_rate_confirmed":
+      return (
+        <TalentRateCard
+          talentName={get<string>("talent_name", "Your rate")}
+          rateLabel={get<string>("rate_label", "—")}
+          state="accepted"
+        />
+      );
     case "coordinator_request":
       return (
         <CoordinatorRequestCard

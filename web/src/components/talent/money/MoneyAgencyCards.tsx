@@ -6,7 +6,7 @@ import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
-import { formatEurCents } from "@/lib/talent/earnings-view";
+import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
 
 function planLabel(plan: string): string {
@@ -49,6 +49,7 @@ function MetaChip({ label, tone = "neutral" }: { label: string; tone?: "neutral"
 export function MoneyAgencyCards() {
   const { openDrawer, bridgeTalentAgencies, bridgeTalentSelfProfile } = useAdminShell();
   const earnings = useResolvedTalentEarnings();
+  const currency = earnings.totals.currency;
 
   const agencies =
     bridgeTalentAgencies !== null
@@ -215,7 +216,7 @@ export function MoneyAgencyCards() {
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      {formatEurCents(agency.ytdNetCents)}
+                      {formatMoneyCents(agency.ytdNetCents, currency)}
                     </dd>
                   </div>
                   <div>

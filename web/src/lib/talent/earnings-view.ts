@@ -4,13 +4,41 @@ import type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-ty
 
 export type { TalentEarnings, TalentEarningsRow } from "@/lib/talent/earnings-types";
 
+/**
+ * Currency-aware money formatter for every talent earnings surface.
+ *
+ * Renders `cents` in the booking's ACTUAL currency (`currencyCode`, an
+ * ISO-4217 code from the commission snapshot — e.g. MXN, ARS, USD, GBP, EUR),
+ * NOT a hardcoded euro. `Intl.NumberFormat` picks the right symbol/code per
+ * currency: MXN → "MX$800", USD → "$800", EUR → "€800", GBP → "£800",
+ * ARS → "ARS 800". This is what keeps a MXN booking from being mislabeled €
+ * (or, paired with the no-EUR-filter loader, dropped to 0) on the dashboard.
+ *
+ * Falls back to EUR when the code is missing/blank (the historical default)
+ * and degrades to a plain "<CODE> <amount>" string if `Intl` rejects an
+ * unknown code, so a bad code never throws in render.
+ */
+export function formatMoneyCents(cents: number, currencyCode?: string | null): string {
+  const code = (currencyCode || "EUR").toUpperCase();
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(cents / 100);
+  } catch {
+    return `${code} ${Math.round(cents / 100).toLocaleString("en-US")}`;
+  }
+}
+
+/**
+ * @deprecated Hardcodes EUR. Kept only for non-talent-money call sites that
+ * are genuinely euro. New talent earnings UI must use {@link formatMoneyCents}
+ * with the bundle's `totals.currency` so MXN/ARS/USD render correctly.
+ */
 export function formatEurCents(cents: number): string {
-  return new Intl.NumberFormat("en-EU", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return formatMoneyCents(cents, "EUR");
 }
 
 function parseAmountCents(amount: string): number {

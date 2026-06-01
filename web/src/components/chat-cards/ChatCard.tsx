@@ -261,6 +261,36 @@ export function PaymentRequestCard(props: {
   );
 }
 
+/**
+ * BookingConfirmedCard — the booking is locked once the client's payment
+ * settles. Emitted into the thread alongside payment_paid so every role sees
+ * the same "this job is confirmed" milestone. Role-safe: shows only the
+ * confirmed total label + a date summary, never margin/commission.
+ */
+export function BookingConfirmedCard(props: {
+  totalLabel?: string;
+  summary?: string;
+  onOpen?: () => void;
+}) {
+  const { totalLabel, summary, onOpen } = props;
+  return (
+    <ChatCardShell
+      tone="success"
+      kind="Booking"
+      title="Booking confirmed"
+      summary={summary ?? "Payment received — the job is locked in."}
+      meta={totalLabel || undefined}
+      onOpen={onOpen}
+      icon={
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M4.4 7.2l1.8 1.8 3.4-3.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      }
+    />
+  );
+}
+
 export function CoordinatorRequestCard(props: {
   requesterName: string;
   pitch?: string | null;

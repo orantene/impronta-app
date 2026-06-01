@@ -427,6 +427,26 @@ export async function markPaid(
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.chatCard", r.error);
       });
+      // §6 chat-card: booking-confirmed milestone — the money settled, so the
+      // job is locked. Emitted alongside payment_paid so every role sees the
+      // same "booking confirmed" card in the thread. Role-safe payload (label
+      // only — no margin/commission). booking_confirmed message_kind added in
+      // migration 20260601155328.
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "private",
+        sender_user_id: null,
+        body: "Booking confirmed",
+        message_kind: "booking_confirmed",
+        card_payload: {
+          total_label: amountLabel,
+          summary: "Payment received — the booking is confirmed.",
+          transaction_id: result.data.id,
+        },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard", r.error);
+      });
     }
   }
   // Slice 15.4: payment.received → client receipt (email) + workspace alert
@@ -434,6 +454,29 @@ export async function markPaid(
   // inquiry; the dispatcher no-ops without RESEND_API_KEY and dedupes a retry
   // on the stable transaction-scoped eventId.
   if (result.ok) {
+    // Sync the booking the talent/agency dashboards read. The payment flow
+    // historically only flipped booking_transactions.status — agency_bookings
+    // (what talent earnings + workspace financials read) was never updated, so a
+    // client's real payment never showed as "paid" on those surfaces. Money
+    // received ⇒ payment_status='paid' + client_revenue_lifecycle='paid' (talent
+    // moves confirmed→pending; payout_lifecycle flips to 'paid' later, when
+    // executeBookingTransfers actually disburses the talent's funds).
+    if (result.data.bookingId) {
+      const sbBooking = createServiceRoleClient();
+      if (sbBooking) {
+        sbBooking
+          .from("agency_bookings")
+          .update({
+            payment_status: "paid",
+            client_revenue_lifecycle: "paid",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", result.data.bookingId)
+          .then((r) => {
+            if (r.error) logServerError("transactions.markPaid.bookingSync", r.error);
+          });
+      }
+    }
     notifyPaymentReceived({
       transactionId: result.data.id,
       tenantId: result.data.sourceTenantId,

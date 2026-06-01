@@ -9,7 +9,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { releaseHeldPayouts, payoutIdempotencyKey } from "@/lib/payments/booking-payouts-ledger";
+import {
+  releaseHeldPayouts,
+  payoutIdempotencyKey,
+  syncBookingPayoutLifecycle,
+} from "@/lib/payments/booking-payouts-ledger";
 
 type Row = {
   id: string;
@@ -169,4 +173,62 @@ test("no target → no-op", async () => {
   const out = await releaseHeldPayouts({}, { sb: makeSupabase([], []), stripe });
   assert.equal(out.length, 0);
   assert.equal(calls.length, 0);
+});
+
+// ── syncBookingPayoutLifecycle — flips agency_bookings to payout_lifecycle=paid
+//    once every TALENT leg for the booking is transferred. This is the link that
+//    moves the talent dashboard from "pending" to "paid".
+
+/** Fake sb: booking_payouts talent legs (read) + agency_bookings (update sink). */
+function makeLifecycleSupabase(
+  talentLegs: Array<{ status: string }>,
+  bookingUpdates: Array<Record<string, unknown>>,
+): SupabaseClient {
+  return {
+    from: (table: string) => {
+      if (table === "agency_bookings") {
+        return {
+          update: (patch: Record<string, unknown>) => ({
+            eq: (_c: string, _v: unknown) => {
+              bookingUpdates.push(patch);
+              return Promise.resolve({ data: null, error: null });
+            },
+          }),
+        };
+      }
+      // booking_payouts: .select(...).eq(...).eq(...) → awaitable talent legs
+      const chain: Record<string, unknown> = {
+        select: () => chain,
+        eq: () => chain,
+        then: (resolve: (v: unknown) => void) =>
+          resolve({ data: talentLegs, error: null }),
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+}
+
+test("lifecycle: all talent legs transferred → booking flips to payout_lifecycle=paid", async () => {
+  const updates: Array<Record<string, unknown>> = [];
+  await syncBookingPayoutLifecycle(
+    makeLifecycleSupabase([{ status: "transferred" }, { status: "transferred" }], updates),
+    "bk_1",
+  );
+  assert.equal(updates.length, 1, "agency_bookings updated once");
+  assert.equal(updates[0].payout_lifecycle, "paid");
+});
+
+test("lifecycle: a still-held talent leg → booking is NOT flipped to paid", async () => {
+  const updates: Array<Record<string, unknown>> = [];
+  await syncBookingPayoutLifecycle(
+    makeLifecycleSupabase([{ status: "transferred" }, { status: "held" }], updates),
+    "bk_1",
+  );
+  assert.equal(updates.length, 0, "not flipped while a talent leg is unpaid");
+});
+
+test("lifecycle: no talent legs recorded → no-op (never blocks, never falsely pays)", async () => {
+  const updates: Array<Record<string, unknown>> = [];
+  await syncBookingPayoutLifecycle(makeLifecycleSupabase([], updates), "bk_1");
+  assert.equal(updates.length, 0);
 });

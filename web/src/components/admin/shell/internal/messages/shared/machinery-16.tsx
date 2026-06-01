@@ -12,6 +12,10 @@ import { convToInquiry } from "./machinery-1";
 import { LiveLineupPanel } from "./machinery-11";
 import { DaySeparator, TeamStrip, dayKey, renderWithMentions } from "./machinery-15";
 import { SystemEventBubble } from "./machinery-6";
+import { RealThreadStream } from "@/components/talent/talent-thread-stream";
+import { loadTalentInquiryThread, type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 
 // ── CrossThreadBridge — a low-key sliver that tells non-coord talent:
@@ -45,6 +49,11 @@ export function ConversationTab({
   povCanEditLineup = false,
   povCanSeeOffers = false,
   povCanSeeCoordNote = true,
+  /** "chat" (default) = human conversation only — clean. "activity" =
+   *  the job's money/booking timeline (offer → payment → booking) as
+   *  timestamped cards, read-only. Splits the two so Chat stays a
+   *  conversation and every financial/status event lives in Activity. */
+  mode = "chat",
 }: {
   conv: Conversation;
   placeholder: string;
@@ -57,8 +66,9 @@ export function ConversationTab({
   povCanEditLineup?: boolean;
   povCanSeeOffers?: boolean;
   povCanSeeCoordNote?: boolean;
+  mode?: "chat" | "activity";
 }) {
-  const { toast } = useAdminShell();
+  const { toast, bridgeTalentSelfProfile } = useAdminShell();
   // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
   // (parent shell handles tab switching). The drawer is no longer rendered.
   const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
@@ -79,6 +89,21 @@ export function ConversationTab({
     id: m.id, kind: "text" as const, sender: m.sender, body: m.body, ts: m.ts, readBy: [],
   }));
   const messages = [...seedMessages, ...localMessages];
+  // Real-thread mode: when the conv is a real inquiry (UUID) and a real talent
+  // identity is in scope, load the live GROUP thread from Supabase (text +
+  // money/booking cards) and render THAT instead of the mock prototype thread.
+  // Mock convs (synthetic "c7" ids) are untouched — showReal is false for them.
+  const isRealInquiry = UUID_RE.test(conv.id);
+  const showReal = isRealInquiry && bridgeTalentSelfProfile != null;
+  const [realThread, setRealThread] = useState<TalentThreadMessage[] | null>(null);
+  useEffect(() => {
+    if (!showReal) { setRealThread(null); return; }
+    let active = true;
+    setRealThread(null);
+    loadTalentInquiryThread(conv.id).then((rows) => { if (active) setRealThread(rows); });
+    return () => { active = false; };
+    // Re-load when switching conv or when a local send appends (stash bump).
+  }, [conv.id, showReal]);
   // In-thread search — small toggle in the header opens a compact
   // search input that filters visible bubbles to those whose body
   // matches. System events are kept (they often anchor the search
@@ -197,6 +222,14 @@ export function ConversationTab({
         padding: "10px 14px",
         display: "flex", flexDirection: "column", gap: 10,
       }}>
+        {showReal ? (
+          <RealThreadStream
+            messages={realThread}
+            conv={conv}
+            toast={toast}
+            mode={mode}
+          />
+        ) : (<>
         {systemEvents.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 4 }}>
             {systemEvents.map(e => (
@@ -321,13 +354,14 @@ export function ConversationTab({
         })}
         {showTyping && <TypingIndicator who={conv.leader.name.split(" ")[0]} />}
         </div>
+        </>)}
       </div>
       {/* Fixed composer — locked at the bottom of the visible area so
           users can always reply without scrolling. Closed convs
           (cancelled / past) replace the composer with a closure
-          notice — typing into a dead conversation makes no sense and
-          would mislead the demo into "I sent something but nothing
-          happened" confusion. */}
+          notice. Hidden entirely in Activity mode — the activity
+          timeline is a read-only record of money/booking events. */}
+      {mode !== "activity" && (
       <div style={{
         flexShrink: 0,
         padding: "10px 14px 14px",
@@ -378,6 +412,7 @@ export function ConversationTab({
           />
         )}
       </div>
+      )}
     </div>
   );
 }

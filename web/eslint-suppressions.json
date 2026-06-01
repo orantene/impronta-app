@@ -539,7 +539,7 @@
   },
   "src/components/admin/shell/internal/messages/talent-2.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 15
+      "count": 14
     }
   },
   "src/components/admin/shell/internal/metrics-ribbon.tsx": {

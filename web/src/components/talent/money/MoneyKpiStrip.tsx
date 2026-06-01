@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
-import { formatEurCents } from "@/lib/talent/earnings-view";
+import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
+
+/** Bare currency symbol/code for inline prefixes (e.g. the goal editor). */
+function currencyPrefix(currencyCode: string): string {
+  return formatMoneyCents(0, currencyCode).replace(/[\d\s.,]/g, "") || currencyCode.toUpperCase();
+}
 
 function KpiCard({
   label,
@@ -69,7 +74,7 @@ function KpiCard({
   );
 }
 
-function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
+function EarningsGoalRing({ ytdNetCents, currency }: { ytdNetCents: number; currency: string }) {
   const [goal, setGoal] = useState(30000_00);
   const [editOpen, setEditOpen] = useState(false);
   const [editValue, setEditValue] = useState("");
@@ -215,16 +220,16 @@ function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {formatEurCents(ytdNetCents)}
+            {formatMoneyCents(ytdNetCents, currency)}
           </span>
-          <span style={{ fontSize: 12, color: COLORS.inkMuted }}>of {formatEurCents(goal)}</span>
+          <span style={{ fontSize: 12, color: COLORS.inkMuted }}>of {formatMoneyCents(goal, currency)}</span>
         </div>
         <div style={{ marginTop: 4, fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-          {formatEurCents(Math.max(0, goal - ytdNetCents))} to go · expected by now ≈ {formatEurCents(Math.round(expectedByNow * 100))}
+          {formatMoneyCents(Math.max(0, goal - ytdNetCents), currency)} to go · expected by now ≈ {formatMoneyCents(Math.round(expectedByNow * 100), currency)}
         </div>
         {editOpen ? (
           <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: COLORS.inkMuted }}>€</span>
+            <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{currencyPrefix(currency)}</span>
             <input
               type="text"
               value={editValue}
@@ -307,6 +312,7 @@ function EarningsGoalRing({ ytdNetCents }: { ytdNetCents: number }) {
 export function MoneyKpiStrip() {
   const earnings = useResolvedTalentEarnings();
   const { totals, rows } = earnings;
+  const currency = totals.currency;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -319,23 +325,23 @@ export function MoneyKpiStrip() {
       >
         <KpiCard
           label="YTD net"
-          value={formatEurCents(totals.ytdNetCents)}
+          value={formatMoneyCents(totals.ytdNetCents, currency)}
           caption={`${rows.length} booking${rows.length === 1 ? "" : "s"} paid or logged`}
           tone="success"
         />
         <KpiCard
           label="Pending"
-          value={formatEurCents(totals.pendingCents)}
+          value={formatMoneyCents(totals.pendingCents, currency)}
           caption="Invoiced · awaiting payout"
           tone="indigo"
         />
         <KpiCard
           label="Confirmed pipeline"
-          value={formatEurCents(totals.confirmedPipelineCents)}
+          value={formatMoneyCents(totals.confirmedPipelineCents, currency)}
           caption="Booked · not yet invoiced"
         />
       </div>
-      <EarningsGoalRing ytdNetCents={totals.ytdNetCents} />
+      <EarningsGoalRing ytdNetCents={totals.ytdNetCents} currency={currency} />
     </div>
   );
 }
