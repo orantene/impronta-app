@@ -62,6 +62,13 @@ const editorialTree: BuilderNode[] = [
             paddingBottom: "96px",
             paddingLeft: "44px",
             backgroundColor: "#ece2d4",
+            // Restrained depth on a deliberately flat archetype: a soft warm
+            // light from the upper-left + a gentle vertical tonal deepening,
+            // both inside the cream/terracotta palette. Reads as material
+            // (the band is no longer one flat fill) without introducing glass
+            // or a foreign hue. Proven in editorial-1440.png.
+            backgroundImage:
+              "radial-gradient(115% 80% at 16% 8%, #f4ece0 0%, rgba(244,236,224,0) 56%), linear-gradient(180deg,#ece2d4 0%,#e2d6c3 100%)",
             position: "relative",
             overflow: "hidden",
             responsive: { mobile: { paddingRight: "22px", paddingLeft: "22px", paddingBottom: "60px" } },
@@ -244,19 +251,30 @@ const editorialTree: BuilderNode[] = [
                     id: "editorial-overlap-image",
                     kind: "image",
                     props: {
-                      src: PHOTO.studioScene,
+                      // A calmer single-subject crop (not the crowded loft) so the
+                      // inset reads as a deliberate detail print, not a busy second
+                      // scene fighting the portrait.
+                      src: PHOTO.director,
                       alt: "Detail crop from a studio session",
                       style: {
                         position: "absolute",
-                        right: "-56px",
-                        bottom: "64px",
-                        width: "44%",
+                        // Bottom edge sits flush with the portrait's bottom edge
+                        // (deliberate alignment, not a floating mid-crop) and a
+                        // cleaner, smaller right overhang. A cream matting border
+                        // separates it from the portrait behind so the two photos
+                        // read as composed, not collided. Proven in editorial-1440.png.
+                        right: "-40px",
+                        bottom: "0px",
+                        width: "39%",
                         aspectRatio: "3:4",
                         objectFit: "cover",
                         objectPosition: "center",
                         borderRadius: "2px",
-                        boxShadow: "0 28px 70px rgba(27,23,19,0.3)",
-                        responsive: { mobile: { right: "0px", bottom: "14px", width: "52%" } },
+                        borderColor: "#f3efe7",
+                        borderWidth: "8px",
+                        borderStyle: "solid",
+                        boxShadow: "0 30px 64px rgba(27,23,19,0.32)",
+                        responsive: { mobile: { right: "-6px", bottom: "0px", width: "46%", borderWidth: "5px" } },
                       },
                     },
                   },
@@ -275,12 +293,21 @@ const editorialTree: BuilderNode[] = [
           style: {
             width: "100%",
             maxWidthFree: "1280px",
-            gap: "28px",
-            paddingTop: "104px",
-            paddingRight: "44px",
-            paddingBottom: "40px",
-            paddingLeft: "44px",
-            responsive: { mobile: { paddingRight: "22px", paddingLeft: "22px", paddingTop: "72px" } },
+            gap: "24px",
+            // Tighter hero→triptych transition (was 104px) so the gallery follows
+            // the hero without a dead vertical gap. Proven in editorial-1440.png.
+            paddingTop: "64px",
+            paddingRight: "48px",
+            paddingBottom: "76px",
+            paddingLeft: "48px",
+            // Layered tonal panel: the gallery sits on a faint warm shelf a shade
+            // deeper than the page cream, with a whisper of contact shadow. Adds
+            // material depth/variety to the flat archetype without a foreign hue.
+            backgroundImage: "linear-gradient(180deg,#f1e9dd 0%,#e8ddca 100%)",
+            borderRadius: "4px",
+            boxShadow: "0 32px 90px rgba(27,23,19,0.07)",
+            marginTopFree: "12px",
+            responsive: { mobile: { paddingRight: "22px", paddingLeft: "22px", paddingTop: "48px", paddingBottom: "56px" } },
           },
         },
         children: [
@@ -296,6 +323,21 @@ const editorialTree: BuilderNode[] = [
                 letterSpacing: "0.26em",
                 textTransform: "uppercase",
                 textColor: "#9a4a36",
+              },
+            },
+          },
+          {
+            // Short terracotta rule — makes the accent hue do structural work
+            // (a deliberate section marker) rather than only tinting eyebrows.
+            id: "editorial-series-rule",
+            kind: "divider",
+            props: {
+              style: {
+                width: "52px",
+                height: "2px",
+                backgroundColor: "#9a4a36",
+                marginTopFree: "0px",
+                marginBottomFree: "4px",
               },
             },
           },
@@ -401,12 +443,20 @@ const editorialTree: BuilderNode[] = [
           style: {
             width: "100%",
             maxWidthFree: "100%",
-            paddingTop: "132px",
+            paddingTop: "120px",
             paddingRight: "32px",
-            paddingBottom: "132px",
+            paddingBottom: "120px",
             paddingLeft: "32px",
-            marginTopFree: "64px",
+            // Was 64px — too large a void above the statement band. Tightened so
+            // the reveal reads as the page's closing note, not a detached slab.
+            marginTopFree: "24px",
             backgroundColor: "#191512",
+            // Whisper of depth on the ink band: a faint warm light bleeding from
+            // the top edge + a vertical deepening, so the statement band has
+            // material rather than a single flat ink fill. Proven in
+            // editorial-1440.png (and -reveal once settled).
+            backgroundImage:
+              "radial-gradient(90% 62% at 50% 0%, rgba(198,169,140,0.12), rgba(198,169,140,0) 56%), linear-gradient(180deg,#1d1813 0%,#151009 100%)",
             animationPreset: "rise",
             animationTrigger: "scroll",
             animationDuration: "1s",

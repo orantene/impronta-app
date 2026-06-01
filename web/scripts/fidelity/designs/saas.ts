@@ -23,9 +23,9 @@ import { GEIST, GEIST_MONO, INTER } from "./tokens";
 const dataSources: BuilderNodeRenderDataSources = {
   collections: {
     saas_capabilities: [
-      { id: "c1", index: "01", title: "Metered usage", body: "Capture every billable event once, then meter, aggregate, and gate on it without scattering pricing logic through your app." },
-      { id: "c2", index: "02", title: "Billing that reconciles", body: "Invoices, credits, and proration reconcile against usage automatically — close the month without a spreadsheet." },
-      { id: "c3", index: "03", title: "Account health, ranked", body: "Usage, billing, and support signals fold into one ranked queue so the team works the accounts that need it." },
+      { id: "c1", index: "01", title: "Metered usage", body: "Capture every billable event once, then meter, aggregate, and gate on it without scattering pricing logic through your app.", imageUrl: fidelityPhotoSrc("studioScene") },
+      { id: "c2", index: "02", title: "Billing that reconciles", body: "Invoices, credits, and proration reconcile against usage automatically — close the month without a spreadsheet.", imageUrl: fidelityPhotoSrc("serviceProsScene") },
+      { id: "c3", index: "03", title: "Account health, ranked", body: "Usage, billing, and support signals fold into one ranked queue so the team works the accounts that need it.", imageUrl: fidelityPhotoSrc("directorPortrait") },
     ],
   },
 };
@@ -37,6 +37,45 @@ const glassCardStyle = {
   borderStyle: "solid" as const,
   borderRadius: "18px",
 };
+
+/**
+ * A realistic 12-cycle metered-usage series (believable upward trend with noise)
+ * for the in-context console chart. Heights are px; the latest cycle is the
+ * solid-mint focal bar, the prior two are brighter, the rest a translucent mint —
+ * so the chart reads as a real product surface (current period highlighted), not
+ * a boxy wireframe. Rendered as real builder nodes (the builder's own primitives
+ * drawing a product console), which is the most honest "product-UI asset" for an
+ * Asset-axis lift: no fabricated screenshot, no placeholder image.
+ */
+const USAGE_BARS = [40, 33, 48, 54, 45, 62, 57, 74, 67, 86, 98, 116] as const;
+const USAGE_BAR_MAX = 124;
+
+function usageBarNodes(): BuilderNode[] {
+  return USAGE_BARS.map((height, index) => {
+    const isLatest = index === USAGE_BARS.length - 1;
+    const isRecent = index >= USAGE_BARS.length - 3;
+    const fill = isLatest
+      ? "#7df2c4"
+      : isRecent
+        ? "rgba(125,242,196,0.62)"
+        : "rgba(125,242,196,0.28)";
+    return {
+      id: `saas-usage-bar-${index}`,
+      kind: "container",
+      props: {
+        layout: "stack",
+        style: {
+          width: "100%",
+          minWidth: "0",
+          height: `${height}px`,
+          backgroundColor: fill,
+          borderRadius: "3px 3px 1px 1px",
+        },
+      },
+      children: [],
+    };
+  });
+}
 
 const saasTree: BuilderNode[] = [
   {
@@ -343,6 +382,12 @@ const saasTree: BuilderNode[] = [
                 ],
               },
               {
+                // Polished in-context product console: a metered-usage readout
+                // (status pill + three KPI figures + a 12-cycle bar chart +
+                // axis + a mono usage-contract footer). Drawn entirely from the
+                // builder's own primitives — the most honest "product-UI asset"
+                // for the Asset axis (no fabricated screenshot). Proven in
+                // saas-1440.png.
                 id: "saas-panel-code-card",
                 kind: "card",
                 props: {
@@ -352,36 +397,157 @@ const saasTree: BuilderNode[] = [
                     borderWidth: "1px",
                     borderStyle: "solid",
                     borderRadius: "18px",
-                    gap: "14px",
+                    gap: "18px",
                   },
                 },
                 children: [
+                  // Header: title + live status pill.
                   {
-                    id: "saas-panel-code-title",
-                    kind: "heading",
+                    id: "saas-console-head",
+                    kind: "container",
                     props: {
-                      text: "Usage contract",
-                      level: 3,
-                      style: { fontFamily: GEIST, fontSize: "20px", letterSpacing: "-0.01em", textColor: "#ffffff" },
+                      layout: "row",
+                      align: "center",
+                      style: { width: "100%", maxWidthFree: "100%", justifyContent: "space-between", gap: "10px" },
+                    },
+                    children: [
+                      {
+                        id: "saas-console-title",
+                        kind: "heading",
+                        props: {
+                          text: "Usage this cycle",
+                          level: 3,
+                          style: { fontFamily: GEIST, fontSize: "20px", letterSpacing: "-0.01em", textColor: "#ffffff", marginBottomFree: "0px" },
+                        },
+                      },
+                      {
+                        id: "saas-console-pill",
+                        kind: "paragraph",
+                        props: {
+                          text: "● Live · billing in 4d",
+                          style: {
+                            fontFamily: GEIST_MONO,
+                            fontSize: "11.5px",
+                            letterSpacing: "0.02em",
+                            textColor: "#9ff5cf",
+                            backgroundColor: "rgba(125,242,196,0.12)",
+                            borderColor: "rgba(125,242,196,0.28)",
+                            borderWidth: "1px",
+                            borderStyle: "solid",
+                            borderRadius: "999px",
+                            paddingTop: "5px",
+                            paddingBottom: "5px",
+                            paddingLeft: "11px",
+                            paddingRight: "11px",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                  // KPI figures.
+                  {
+                    id: "saas-console-kpis",
+                    kind: "container",
+                    props: {
+                      layout: "row",
+                      align: "start",
+                      style: { width: "100%", maxWidthFree: "100%", justifyContent: "space-between", gap: "12px" },
+                    },
+                    children: [
+                      {
+                        id: "saas-kpi-1",
+                        kind: "container",
+                        props: { layout: "stack", style: { gap: "3px", minWidth: "0" } },
+                        children: [
+                          { id: "saas-kpi-1-v", kind: "heading", props: { text: "4.82M", level: 4, style: { fontFamily: GEIST, fontSize: "27px", fontWeight: 700, letterSpacing: "-0.02em", textColor: "#ffffff", marginBottomFree: "0px" } } },
+                          { id: "saas-kpi-1-l", kind: "paragraph", props: { text: "Metered events", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", textColor: "rgba(233,240,252,0.5)" } } },
+                        ],
+                      },
+                      {
+                        id: "saas-kpi-2",
+                        kind: "container",
+                        props: { layout: "stack", style: { gap: "3px", minWidth: "0" } },
+                        children: [
+                          { id: "saas-kpi-2-v", kind: "heading", props: { text: "$128.4k", level: 4, style: { fontFamily: GEIST, fontSize: "27px", fontWeight: 700, letterSpacing: "-0.02em", textColor: "#ffffff", marginBottomFree: "0px" } } },
+                          { id: "saas-kpi-2-l", kind: "paragraph", props: { text: "Billed MTD", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", textColor: "rgba(233,240,252,0.5)" } } },
+                        ],
+                      },
+                      {
+                        id: "saas-kpi-3",
+                        kind: "container",
+                        props: { layout: "stack", style: { gap: "3px", minWidth: "0" } },
+                        children: [
+                          { id: "saas-kpi-3-v", kind: "heading", props: { text: "+18.4%", level: 4, style: { fontFamily: GEIST, fontSize: "27px", fontWeight: 700, letterSpacing: "-0.02em", textColor: "#7df2c4", marginBottomFree: "0px" } } },
+                          { id: "saas-kpi-3-l", kind: "paragraph", props: { text: "vs last cycle", style: { fontFamily: INTER, fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", textColor: "rgba(233,240,252,0.5)" } } },
+                        ],
+                      },
+                    ],
+                  },
+                  // Chart caption.
+                  {
+                    id: "saas-console-chart-label",
+                    kind: "paragraph",
+                    props: {
+                      text: "Metered events · last 12 cycles",
+                      style: { fontFamily: INTER, fontSize: "10.5px", letterSpacing: "0.16em", textTransform: "uppercase", textColor: "rgba(233,240,252,0.42)" },
                     },
                   },
+                  // Bar chart (real builder nodes, bottom-aligned).
+                  {
+                    id: "saas-console-chart",
+                    kind: "container",
+                    props: {
+                      layout: "grid",
+                      align: "end",
+                      style: {
+                        width: "100%",
+                        maxWidthFree: "100%",
+                        // 12 even columns via a style override (the `columns` prop
+                        // caps at 5); inline grid-template-columns wins over the
+                        // class's repeat(--bn-columns). Bars bottom-align via align:end.
+                        gridTemplateColumns: "repeat(12,minmax(0,1fr))",
+                        gap: "6px",
+                        height: `${USAGE_BAR_MAX}px`,
+                        paddingTop: "4px",
+                        borderColor: "rgba(255,255,255,0.08)",
+                        borderWidth: "0px 0px 1px 0px",
+                        borderStyle: "solid",
+                      },
+                    },
+                    children: usageBarNodes(),
+                  },
+                  // Axis ends.
+                  {
+                    id: "saas-console-axis",
+                    kind: "container",
+                    props: {
+                      layout: "row",
+                      align: "center",
+                      style: { width: "100%", maxWidthFree: "100%", justifyContent: "space-between", gap: "8px" },
+                    },
+                    children: [
+                      { id: "saas-axis-start", kind: "paragraph", props: { text: "12 cycles ago", style: { fontFamily: GEIST_MONO, fontSize: "10.5px", textColor: "rgba(233,240,252,0.38)" } } },
+                      { id: "saas-axis-end", kind: "paragraph", props: { text: "this cycle", style: { fontFamily: GEIST_MONO, fontSize: "10.5px", textColor: "#7df2c4" } } },
+                    ],
+                  },
+                  // Mono usage-contract footer (kept from the original surface, compact).
                   {
                     id: "saas-panel-code",
                     kind: "paragraph",
                     props: {
-                      text: "meter  api.request    → usage.events\nrate   tier.scale      → $0.0004 / unit\nclose  invoice.cycle   → billing.run\nroute  account.health  → success.queue",
+                      text: "meter  api.request   → $0.0004 / unit\nclose  invoice.cycle  → billing.run",
                       style: {
                         fontFamily: GEIST_MONO,
-                        fontSize: "13.5px",
-                        lineHeight: "1.85",
+                        fontSize: "12.5px",
+                        lineHeight: "1.7",
                         whiteSpace: "pre",
                         textColor: "#9ff5cf",
                         backgroundColor: "rgba(125,242,196,0.07)",
-                        borderRadius: "12px",
-                        paddingTop: "16px",
-                        paddingRight: "16px",
-                        paddingBottom: "16px",
-                        paddingLeft: "16px",
+                        borderRadius: "10px",
+                        paddingTop: "12px",
+                        paddingRight: "14px",
+                        paddingBottom: "12px",
+                        paddingLeft: "14px",
                       },
                     },
                   },
@@ -399,7 +565,6 @@ const saasTree: BuilderNode[] = [
           layout: "grid",
           columns: 3,
           gap: "m",
-          responsive: { tablet: { columns: 3 }, mobile: { columns: 1 } },
           dataBinding: { sourceKey: "saas_capabilities", mode: "bound", repeat: true, maxItems: 3 },
           style: {
             width: "100%",
@@ -410,6 +575,13 @@ const saasTree: BuilderNode[] = [
             paddingBottom: "96px",
             paddingLeft: "28px",
             backgroundColor: "#0b0e15",
+            // 2-col at the 768 tablet width (was a cramped 3-up). gridTemplateColumns
+            // is a STYLE-responsive override (renderer emits it !important inside the
+            // tablet @media), NOT a `props.responsive.columns` value — the latter is
+            // inert here without a paired `tablet.layout:"grid"`. Mobile auto-collapses
+            // to one column (a container with no mobile.layout flexes to a stack).
+            // Proven in saas-768.png / saas-390.png.
+            responsive: { tablet: { gridTemplateColumns: "repeat(2,minmax(0,1fr))" } },
           },
         },
         children: [
@@ -431,6 +603,26 @@ const saasTree: BuilderNode[] = [
               },
             },
             children: [
+              {
+                // Real supporting photography on every feature card (was type-only)
+                // — bound per-item so the three cards show three distinct, stable
+                // 16:9 crops. Closes half the saas Asset gap; proven in saas-1440.png.
+                id: "saas-feature-image",
+                kind: "image",
+                props: {
+                  src: fidelityPhotoSrc("studioScene"),
+                  alt: "Feature illustration",
+                  fieldBindings: { src: "imageUrl", alt: "title" },
+                  style: {
+                    width: "100%",
+                    aspectRatio: "16:9",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    borderRadius: "12px",
+                    marginBottomFree: "4px",
+                  },
+                },
+              },
               {
                 id: "saas-feature-index",
                 kind: "paragraph",
@@ -506,7 +698,15 @@ const saasTree: BuilderNode[] = [
             id: "saas-pricing",
             kind: "pricing_table",
             props: {
-              style: { fontFamily: INTER, maxWidthFree: "1100px" },
+              style: {
+                fontFamily: INTER,
+                maxWidthFree: "1100px",
+                // 2-col at the 768 tablet width (was a cramped 3-up). The renderer's
+                // tablet container query applies this !important grid-template over
+                // the default --bn-pricing-columns:3; collapses to 1 on mobile via
+                // the built-in pricing-table mobile rule. Proven in saas-768.png.
+                responsive: { tablet: { gridTemplateColumns: "repeat(2,minmax(0,1fr))" } },
+              },
               tiers: [
                 {
                   id: "starter",
