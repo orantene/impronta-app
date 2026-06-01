@@ -9,7 +9,10 @@ import {
 } from "./actions";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
 import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
+import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
+
+type HeldTotal = { currency: string; amountCents: number; count: number };
 
 const C = {
   ink:        "#0B0B0D",
@@ -33,11 +36,13 @@ const FONT = '"Inter", system-ui, sans-serif';
 export function PayoutsShell({
   snapshot: initialSnapshot,
   loadError,
+  heldPayouts = null,
   justReturned,
   justRefreshed,
 }: {
   snapshot: TalentConnectedAccountSnapshot | null;
   loadError: string | null;
+  heldPayouts?: HeldTotal[] | null;
   justReturned: boolean;
   justRefreshed: boolean;
 }) {
@@ -129,6 +134,11 @@ export function PayoutsShell({
         the bank details + identity check, and we never see them. You file
         your own taxes — we just hand you the year-end summary.
       </p>
+
+      {/* Earnings already waiting on bank connection — the headline reason to
+          finish onboarding. Hidden once the account is enabled (held legs
+          auto-release on the next account.updated / reconcile sweep). */}
+      {status !== "enabled" && <HeldPayoutsBanner held={heldPayouts} audience="talent" />}
 
       {justReturned && status === "enabled" && (
         <div role="status" style={{

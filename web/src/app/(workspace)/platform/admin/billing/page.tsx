@@ -11,6 +11,8 @@ import {
   loadPlatformBookingRevenue,
   type PlatformRevenueByCurrency,
 } from "@/lib/billing/platform-revenue";
+import { listHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import { HeldPayoutsSection } from "./HeldPayoutsSection";
 
 function fmtMoney(cents: number, currency: string): string {
   return (cents / 100).toLocaleString("en-US", {
@@ -156,10 +158,11 @@ const PLAN_PALETTE: Record<string, string> = {
 };
 
 export default async function PlatformBillingPage() {
-  const [planDist, stats, revenue] = await Promise.all([
+  const [planDist, stats, revenue, heldPayouts] = await Promise.all([
     loadPlatformPlanDistribution(),
     loadPlatformStats(),
     loadPlatformBookingRevenue(),
+    listHeldPayouts(),
   ]);
 
   // Primary currency = the one with the most platform-fee revenue.
@@ -525,6 +528,8 @@ export default async function PlatformBillingPage() {
           </>
         )}
       </HqCard>
+
+      <HeldPayoutsSection rows={heldPayouts} />
     </>
   );
 }

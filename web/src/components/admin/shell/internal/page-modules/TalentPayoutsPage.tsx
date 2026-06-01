@@ -18,7 +18,7 @@ import { PayoutsShell } from "@/app/(workspace)/[tenantSlug]/talent/settings/pay
 import { useAdminShell } from "../state";
 
 export function TalentPayoutsPage() {
-  const { bridgeTalentPayoutSnapshot } = useAdminShell();
+  const { bridgeTalentPayoutSnapshot, bridgeTalentHeldPayouts } = useAdminShell();
   const snap = bridgeTalentPayoutSnapshot;
   const snapshot = snap?.ok ? snap.data : null;
   const loadError = snap && !snap.ok ? snap.error : null;
@@ -26,6 +26,7 @@ export function TalentPayoutsPage() {
     <PayoutsShell
       snapshot={snapshot}
       loadError={loadError}
+      heldPayouts={bridgeTalentHeldPayouts ?? null}
       justReturned={false}
       justRefreshed={false}
     />

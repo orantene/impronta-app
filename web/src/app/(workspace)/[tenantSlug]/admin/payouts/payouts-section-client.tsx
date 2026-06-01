@@ -25,6 +25,7 @@
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { PayoutsActionsClient } from "./payouts-actions-client";
 import { BaseFeeClient } from "./base-fee-client";
+import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
 import type { PayoutsSurfaceData, PayoutsSurfaceResult } from "./payouts-surface-actions";
 
 const C = {
@@ -155,10 +156,12 @@ export function PayoutsSectionClient({
 }
 
 function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSurfaceData }) {
-  const { connect, baseFee } = data;
+  const { connect, baseFee, held } = data;
+  const enabled = connect.ok && connect.data.status === "enabled" && connect.data.payoutsEnabled;
 
   return (
     <>
+      {!enabled && <HeldPayoutsBanner held={held} audience="workspace" />}
       <section style={{
         background: C.cardBg,
         border: `1px solid ${C.border}`,

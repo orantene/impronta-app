@@ -18,6 +18,7 @@
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getConnectedAccountSnapshot, type ConnectedAccountSnapshot } from "@/lib/payments/stripe-connect";
+import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
 import { loadWorkspaceBaseFee, type WorkspaceBaseFeeState } from "./base-fee-actions";
 
 export type PayoutsSurfaceResult =
@@ -37,6 +38,8 @@ export type PayoutsSurfaceData = {
   baseFee:
     | { ok: true; data: WorkspaceBaseFeeState }
     | { ok: false; error: string };
+  /** Held payout totals (earnings waiting on bank connection), by currency. */
+  held: Array<{ currency: string; amountCents: number; count: number }>;
 };
 
 export async function loadPayoutsSurface(
@@ -49,10 +52,11 @@ export async function loadPayoutsSurface(
   if (!canEdit) return { ok: false, error: "Forbidden — workspace admin only." };
 
   // Both reads gate on the same capability internally; run them together.
-  const [connect, baseFee] = await Promise.all([
+  const [connect, baseFee, held] = await Promise.all([
     getConnectedAccountSnapshot(tenantSlug),
     loadWorkspaceBaseFee(tenantSlug),
+    getHeldPayoutTotals({ tenantId: scope.tenantId }),
   ]);
 
-  return { ok: true, data: { connect, baseFee } };
+  return { ok: true, data: { connect, baseFee, held } };
 }

@@ -13,6 +13,7 @@ import {
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
+import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -114,6 +115,7 @@ export default async function PlatformTalentLayout({
     talentEarnings,
     talentSiteDashboardLoad,
     talentPayoutSnapshot,
+    talentHeldPayouts,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -128,6 +130,8 @@ export default async function PlatformTalentLayout({
     // Stripe Connect payout snapshot for the in-shell Payouts section.
     // Returns { ok:false } on any failure, so it never breaks the layout.
     getTalentConnectedAccountSnapshot(talentSelfProfile.id),
+    // Held payout totals (earnings waiting on bank connection) for the banner.
+    getHeldPayoutTotals({ talentProfileId: talentSelfProfile.id }),
   ]);
 
   const isHybrid = membership != null;
@@ -162,6 +166,7 @@ export default async function PlatformTalentLayout({
         sessionIdentity,
         talentSelfProfile,
         talentPayoutSnapshot,
+        talentHeldPayouts,
         talentInquiries,
         talentAgencies,
         isHybrid,

@@ -196,6 +196,11 @@ export type BridgeData = {
     | { ok: false; error: string }
     | null;
   /**
+   * The current talent's HELD payout totals (earnings waiting on bank
+   * connection), grouped by currency. Drives the payouts-page banner.
+   */
+  talentHeldPayouts?: Array<{ currency: string; amountCents: number; count: number }> | null;
+  /**
    * The talent's active inquiries — adapted into `Conversation[]` by the
    * AdminShellProvider adapter for use in TodayPage / InboxShell / CalendarPage.
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
@@ -355,6 +360,7 @@ export function createBridgeDataFromRoster(
     totalUnread: 0,
     talentSelfProfile: null,
     talentPayoutSnapshot: null,
+    talentHeldPayouts: null,
     talentInquiries: null,
     talentAgencies: null,
     website: null,
