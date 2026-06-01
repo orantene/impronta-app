@@ -40,9 +40,11 @@ async function main(): Promise<void> {
     console.log(
       `Captured ${results.length} screenshots for ${fidelityDesigns.length} design(s) in ${OUTPUT_ROOT}`,
     );
-    console.log(
-      `Determinism self-test: ${determinism.byteDifferences} byte difference(s) at ${determinism.breakpoint}`,
-    );
+    for (const d of determinism) {
+      console.log(
+        `Determinism self-test [${d.design}]: ${d.byteDifferences} byte difference(s) at ${d.breakpoint}`,
+      );
+    }
   } finally {
     await browser.close();
   }
@@ -86,52 +88,58 @@ async function captureDesign(
 
 async function proveDeterministic(
   browser: Browser,
-): Promise<{ design: string; breakpoint: string; byteDifferences: number }> {
-  const design = fidelityDesigns.find((candidate) => candidate.id === "trivial");
-  if (!design) {
-    throw new Error("Expected a registered `trivial` design for the determinism self-test.");
-  }
+): Promise<Array<{ design: string; breakpoint: string; byteDifferences: number }>> {
+  // Run the determinism check on ALL registered designs (not just trivial).
+  // editorial uses scroll-driven animation-timeline and both editorial + saas
+  // use backdrop-filter — the designs most likely to produce non-deterministic
+  // screenshots. We only use the first breakpoint (desktop) to keep it fast.
   const breakpoint = FIDELITY_BREAKPOINTS[0];
-  const html = buildFidelityHtml(design);
-  const page = await browser.newPage();
+  const results: Array<{ design: string; breakpoint: string; byteDifferences: number }> = [];
 
-  try {
-    await preparePage(page, html, breakpoint);
-    const first = await page.screenshot({
-      fullPage: true,
-      animations: "disabled",
-    });
-    await preparePage(page, html, breakpoint);
-    const second = await page.screenshot({
-      fullPage: true,
-      animations: "disabled",
-    });
-    const byteDifferences = countByteDifferences(first, second);
-    const designDir = join(OUTPUT_ROOT, design.id);
-    await mkdir(designDir, { recursive: true });
-    await writeFile(
-      join(designDir, "determinism.json"),
-      `${JSON.stringify(
-        {
-          design: design.id,
-          breakpoint: breakpoint.name,
-          width: breakpoint.width,
-          byteDifferences,
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    );
-    if (byteDifferences !== 0) {
-      throw new Error(
-        `Determinism self-test failed: ${byteDifferences} screenshot byte difference(s).`,
+  for (const design of fidelityDesigns) {
+    const html = buildFidelityHtml(design);
+    const page = await browser.newPage();
+
+    try {
+      await preparePage(page, html, breakpoint);
+      const first = await page.screenshot({
+        fullPage: true,
+        animations: "disabled",
+      });
+      await preparePage(page, html, breakpoint);
+      const second = await page.screenshot({
+        fullPage: true,
+        animations: "disabled",
+      });
+      const byteDifferences = countByteDifferences(first, second);
+      const designDir = join(OUTPUT_ROOT, design.id);
+      await mkdir(designDir, { recursive: true });
+      await writeFile(
+        join(designDir, "determinism.json"),
+        `${JSON.stringify(
+          {
+            design: design.id,
+            breakpoint: breakpoint.name,
+            width: breakpoint.width,
+            byteDifferences,
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
       );
+      if (byteDifferences !== 0) {
+        throw new Error(
+          `Determinism self-test failed for "${design.id}": ${byteDifferences} screenshot byte difference(s).`,
+        );
+      }
+      results.push({ design: design.id, breakpoint: breakpoint.name, byteDifferences });
+    } finally {
+      await page.close();
     }
-    return { design: design.id, breakpoint: breakpoint.name, byteDifferences };
-  } finally {
-    await page.close();
   }
+
+  return results;
 }
 
 async function preparePage(

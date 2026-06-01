@@ -57,6 +57,24 @@ provisional until a human reviews the screenshots against the target description
 | Interaction and motion | Expected interaction/motion is absent or broken. | Basic hover or entrance behavior exists, but timing/scroll behavior is limited. | Motion, hover, sticky, and reveal behavior match the target intent without regressions. |
 | Asset handling | Assets are missing, unstable, or badly cropped. | Assets render, with crop/srcset/library/focal-point compromises. | Assets are stable, correctly cropped, responsive, and production-manageable. |
 
+## Known limitations
+
+The harness captures a **static single-frame PNG** per breakpoint. It cannot
+measure:
+
+- **Interaction / motion fidelity** — hover states, click transitions, scroll
+  animations, and animation timing are not observable in a still image.
+- **`position:sticky` behavior** — sticky nav and sticky sidebars are captured
+  in their initial (pre-scroll) position only; correct scroll-attachment
+  requires a scrolled capture or human verification.
+- **Glassmorphism over scrolling content** — `backdrop-filter` cards and blurred
+  panels are captured against the initial page background; how the blur renders
+  while content scrolls behind them cannot be verified from a static PNG.
+
+These axes require **human visual verification** or a future enhancement that
+captures scroll-state / motion-state snapshots (e.g. a scrolled-golden at 50%
+page height). This is a documented limitation, not a bug.
+
 ## Fill-In Template
 
 ```markdown
