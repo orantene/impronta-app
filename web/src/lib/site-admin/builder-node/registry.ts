@@ -525,10 +525,8 @@ const iconPropsSchema = z.object({
 });
 
 const pricingTablePropsSchema = z.object({
-  tiers: z.array(z.object({
-    id: z.string().min(1).max(80), name: z.string().min(1).max(120), description: z.string().max(500).optional(), price: z.string().min(1).max(80), period: z.string().max(80).optional(), ctaLabel: z.string().max(80).optional(), ctaHref: z.string().max(500).optional(), highlighted: z.boolean().optional(),
-    features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional(),
-  })).min(2).max(4), style: builderNodeStyleSchema,
+  tiers: z.array(z.object({ id: z.string().min(1).max(80), name: z.string().min(1).max(120), description: z.string().max(500).optional(), price: z.string().min(1).max(80), period: z.string().max(80).optional(), ctaLabel: z.string().max(80).optional(), ctaHref: z.string().max(500).optional(), highlighted: z.boolean().optional(), features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional() })).min(2).max(4),
+  style: builderNodeStyleSchema,
 });
 const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), style: builderNodeStyleSchema });
 
@@ -780,14 +778,8 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       children: { type: "none" },
       propsSchema: iconPropsSchema,
     },
-    pricing_table: {
-      kind: "pricing_table",
-      label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" },
-      propsSchema: pricingTablePropsSchema,
-    },
-    rich_text: {
-      kind: "rich_text", label: "Rich text", description: "Body copy with bold, italic, and sanitized links.", children: { type: "none" }, propsSchema: richTextPropsSchema,
-    },
+    pricing_table: { kind: "pricing_table", label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" }, propsSchema: pricingTablePropsSchema },
+    rich_text: { kind: "rich_text", label: "Rich text", description: "Body copy with bold, italic, and sanitized links.", children: { type: "none" }, propsSchema: richTextPropsSchema },
     divider: {
       kind: "divider",
       label: "Divider",

@@ -5,6 +5,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { BuilderNodeRendererStyles, renderBuilderNodes } from "./render";
 import type { BuilderNode } from "./types";
+import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
+
+function renderRich(input: string): string {
+  return renderToStaticMarkup(
+    createElement(Fragment, null, ...renderInlineRich(input)) as Parameters<
+      typeof renderToStaticMarkup
+    >[0],
+  );
+}
 
 /**
  * Render-output regression suite — locks in that the builder's STYLE ESCAPES,
@@ -582,4 +591,34 @@ test("phase3: missing component + no-components both fall back to stored childre
   // no components passed at all
   const none = render([instance("instD")]);
   assert.ok(none.includes("FALLBACK") && !none.includes("MASTER HEADING"), "no components → stored fallback");
+});
+
+// ── SECURITY: section-level inline rich text href allowlist ───────────────────
+// Regression for a LIVE pre-Wave-2 prod XSS: renderInlineRich rendered markdown
+// link hrefs straight into <a href> with no scheme guard, so a `javascript:`
+// link in any section text field was a clickable cross-tenant XSS on the shared
+// apex (parent-scoped cookies, unsafe-inline CSP). The href allowlist now blocks
+// it at the shared chokepoint that ~45 section components funnel through.
+
+test("security: renderInlineRich keeps safe https + relative markdown links", () => {
+  const html = renderRich("[ext](https://example.com) and [home](/directory) and [anchor](#top)");
+  assert.ok(html.includes('href="https://example.com"'), "https anchor kept");
+  assert.ok(html.includes('href="/directory"'), "relative anchor kept");
+  assert.ok(html.includes('href="#top"'), "in-page anchor kept");
+  assert.ok(html.includes('target="_blank"'), "external link target preserved");
+});
+
+test("security: renderInlineRich neutralizes javascript:/data:/vbscript: links to plain text", () => {
+  for (const scheme of [
+    "[click](javascript:alert(1))",
+    "[x](JavaScript:alert(1))",
+    "[y](data:text/html,<script>alert(1)</script>)",
+    "[z](vbscript:msgbox(1))",
+  ]) {
+    const html = renderRich(scheme).toLowerCase();
+    assert.ok(!/<a[\s>]/.test(html), `no anchor rendered for ${scheme}`);
+    assert.ok(!html.includes("href="), `no href attribute emitted for ${scheme}`);
+  }
+  // the link label survives as readable text
+  assert.ok(renderRich("[click](javascript:alert(1))").includes("click"), "label kept as text");
 });
