@@ -69,7 +69,7 @@ const en = {
 
   hero: {
     eyebrow: "The talent business platform",
-    titleLine1: "Your talent is",
+    titleLine1: "Your talent and services",
     titleLine2: "worth money.",
     subhead:
       "Open a free page and start taking requests in minutes. When you're ready, build your own site and business workspace in one click — and take bookings and payments right inside the chat.",
@@ -394,8 +394,8 @@ const es: MarketingCopy = {
 
   hero: {
     eyebrow: "La plataforma del negocio del talento",
-    titleLine1: "Tu talento",
-    titleLine2: "vale dinero.",
+    titleLine1: "Tu talento y tus servicios",
+    titleLine2: "valen dinero.",
     subhead:
       "Abre una página gratis y empieza a recibir solicitudes en minutos. Cuando estés listo, crea tu propio sitio y tu panel de negocio en un clic — y cobra reservas y pagos desde el mismo chat.",
     ctaTalent: "Vende tu trabajo — gratis",
