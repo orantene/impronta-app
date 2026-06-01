@@ -218,6 +218,14 @@ const agencyTree: BuilderNode[] = [
             paddingRight: "44px",
             paddingBottom: "100px",
             paddingLeft: "44px",
+            // Scroll-driven entrance for the "selected work" contact sheet — it
+            // rises into place as it enters the viewport. Captured as
+            // agency-1440-reveal so the Motion axis is frame-proven (was 3.0,
+            // built-but-uncaptured; this gives agency a 2nd proven behavior
+            // alongside the hero-CTA hover).
+            animationPreset: "rise",
+            animationTrigger: "scroll",
+            animationDuration: "1s",
             responsive: { mobile: { paddingRight: "22px", paddingLeft: "22px", paddingTop: "68px", paddingBottom: "68px" } },
           },
         },
