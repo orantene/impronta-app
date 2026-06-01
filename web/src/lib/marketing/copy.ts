@@ -121,6 +121,22 @@ const en = {
     },
   },
 
+  finalCta: {
+    eyebrow: "Start where you are. Grow as you go.",
+    titleLine1: "Turn work into money.",
+    titleLine2: "Run a real business.",
+    subhead:
+      "Open a free page and start taking requests today. When you're ready, launch your own site, collect inquiries, and run the whole business.",
+    ctaTalent: "Sell your work — free",
+    ctaBusiness: "Start a business",
+    trust: [
+      "Free subdomain",
+      "No credit card",
+      "Full export any time",
+      "Upgrade to your own domain",
+    ],
+  },
+
   footer: {
     description:
       "The talent business platform — sell your services, run your business, get paid.",
@@ -262,6 +278,22 @@ const es: MarketingCopy = {
       ],
       cta: "Explora los hubs",
     },
+  },
+
+  finalCta: {
+    eyebrow: "Empieza donde estás. Crece a tu ritmo.",
+    titleLine1: "Convierte tu trabajo en dinero.",
+    titleLine2: "Lleva un negocio de verdad.",
+    subhead:
+      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando estés listo, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
+    ctaTalent: "Vende tu trabajo — gratis",
+    ctaBusiness: "Abre tu negocio",
+    trust: [
+      "Subdominio gratis",
+      "Sin tarjeta",
+      "Exporta cuando quieras",
+      "Conecta tu propio dominio",
+    ],
   },
 
   footer: {
