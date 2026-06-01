@@ -963,3 +963,17 @@ test("security: button node preserves legitimate mailto/tel/https/relative hrefs
   assert.ok(render([buttonNode("/directory")]).includes('href="/directory"'));
   assert.ok(render([buttonNode("#section")]).includes('href="#section"'));
 });
+
+// ── REGRESSION: data:image/* URIs must render (dropped after P3 image validation) ──
+test("regression: data:image/* image src renders; data:text/html is rejected", () => {
+  const ok = render([
+    { id: "img-data", kind: "image", props: { src: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E", alt: "inline svg", style: {} } } as BuilderNode,
+  ]);
+  assert.ok(ok.includes("<img"), "data:image/* renders an <img>");
+  assert.ok(ok.includes("data:image/svg+xml"), "data:image src is preserved");
+
+  const bad = render([
+    { id: "img-html", kind: "image", props: { src: "data:text/html,<script>alert(1)</script>", alt: "x", style: {} } } as BuilderNode,
+  ]);
+  assert.ok(!bad.includes("<img"), "data:text/html is not a valid image src and is dropped");
+});
