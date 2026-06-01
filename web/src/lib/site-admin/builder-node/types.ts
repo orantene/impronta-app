@@ -139,10 +139,15 @@ export interface BuilderNodeStyleValue {
   scale?: string;
   translate?: string;
   transformOrigin?: string;
-  // Transition escape — free CSS transition string that smooths any animatable
-  // property change (hover, responsive, state). e.g. "all .2s ease",
-  // "transform .3s cubic-bezier(.2,.8,.2,1)". When a hover layer is present the
-  // renderer auto-defaults this to "all .2s ease" so hover changes ease in.
+  // First-class CSS transitions — smooth animatable changes (hover, responsive,
+  // state). The longhands are emitted through the renderer CSS var/data-attr
+  // path, so breakpoint overrides work like the rest of the freeform escapes.
+  transitionProperty?: string;
+  transitionDuration?: string;
+  transitionTimingFunction?: string;
+  transitionDelay?: string;
+  // Legacy shorthand escape. When present it wins over the longhands, matching
+  // normal CSS cascade behavior for an inline transition declaration.
   transition?: string;
   // Flex/grid child placement — how this node sizes & aligns inside a row/grid
   // parent. alignSelf overrides the parent's cross-axis alignment for just this

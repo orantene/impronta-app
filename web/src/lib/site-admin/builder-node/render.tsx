@@ -160,6 +160,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node[data-builder-style-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)}
 .site-builder-node--paragraph[data-builder-style-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)}
 .site-builder-node--paragraph[data-builder-style-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)}
+.site-builder-node[data-builder-style-transition]{transition-property:var(--bn-transition-property,all);transition-duration:var(--bn-transition-duration,.2s);transition-timing-function:var(--bn-transition-timing-function,ease);transition-delay:var(--bn-transition-delay,0s)}
 .site-builder-node[data-builder-style-hover-bg]:hover,.site-builder-node[data-builder-style-hover-bg]:focus-visible{background-color:var(--bn-hover-bg)!important}
 .site-builder-node[data-builder-style-hover-color]:hover,.site-builder-node[data-builder-style-hover-color]:focus-visible{color:var(--bn-hover-color)!important}
 .site-builder-node[data-builder-style-hover-border-color]:hover,.site-builder-node[data-builder-style-hover-border-color]:focus-visible{border-color:var(--bn-hover-border-color)!important}
@@ -259,6 +260,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-outline-offset]{outline-offset:var(--bn-tablet-outline-offset)!important}
   .site-builder-node[data-builder-style-tablet-accent-color]{accent-color:var(--bn-tablet-accent-color)!important}
   .site-builder-node[data-builder-style-tablet-caret-color]{caret-color:var(--bn-tablet-caret-color)!important}
+  .site-builder-node[data-builder-style-tablet-transition]{transition-property:var(--bn-tablet-transition-property,var(--bn-transition-property,all))!important;transition-duration:var(--bn-tablet-transition-duration,var(--bn-transition-duration,.2s))!important;transition-timing-function:var(--bn-tablet-transition-timing-function,var(--bn-transition-timing-function,ease))!important;transition-delay:var(--bn-tablet-transition-delay,var(--bn-transition-delay,0s))!important}
   .site-builder-node--container[data-builder-tablet-layout="stack"]{display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-tablet-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-tablet-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-tablet-columns,var(--bn-columns,2)),minmax(0,1fr))}
@@ -358,6 +360,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-mobile-outline-offset]{outline-offset:var(--bn-mobile-outline-offset)!important}
   .site-builder-node[data-builder-style-mobile-accent-color]{accent-color:var(--bn-mobile-accent-color)!important}
   .site-builder-node[data-builder-style-mobile-caret-color]{caret-color:var(--bn-mobile-caret-color)!important}
+  .site-builder-node[data-builder-style-mobile-transition]{transition-property:var(--bn-mobile-transition-property,var(--bn-transition-property,all))!important;transition-duration:var(--bn-mobile-transition-duration,var(--bn-transition-duration,.2s))!important;transition-timing-function:var(--bn-mobile-transition-timing-function,var(--bn-transition-timing-function,ease))!important;transition-delay:var(--bn-mobile-transition-delay,var(--bn-transition-delay,0s))!important}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
@@ -380,9 +383,19 @@ function builderNodeStyleVars(
   return style as CSSProperties;
 }
 
+function hasTransitionLonghands(style: BuilderNodeStyleValue | undefined): boolean {
+  return Boolean(
+    style?.transitionProperty ||
+      style?.transitionDuration ||
+      style?.transitionTimingFunction ||
+      style?.transitionDelay,
+  );
+}
+
 function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
   const tablet = style?.responsive?.tablet;
   const mobile = style?.responsive?.mobile;
+  const hasBaseTransition = Boolean(style?.hover) || hasTransitionLonghands(style);
   return {
     "data-builder-style-align": style?.align,
     "data-builder-style-size": style?.size,
@@ -393,6 +406,7 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-fit": style?.objectFit,
     "data-builder-style-object-position": style?.objectPosition,
     "data-builder-style-ratio": style?.aspectRatio,
+    "data-builder-style-transition": hasBaseTransition ? "" : undefined,
     "data-builder-style-tablet-align": tablet?.align,
     "data-builder-style-tablet-size": tablet?.size,
     "data-builder-style-tablet-tone": tablet?.tone,
@@ -490,6 +504,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-tablet-outline-offset": tablet?.outlineOffset ? "" : undefined,
     "data-builder-style-tablet-accent-color": tablet?.accentColor ? "" : undefined,
     "data-builder-style-tablet-caret-color": tablet?.caretColor ? "" : undefined,
+    "data-builder-style-tablet-transition": hasTransitionLonghands(tablet)
+      ? ""
+      : undefined,
     "data-builder-style-mobile-align": mobile?.align,
     "data-builder-style-mobile-size": mobile?.size,
     "data-builder-style-mobile-tone": mobile?.tone,
@@ -587,6 +604,9 @@ function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
     "data-builder-style-mobile-outline-offset": mobile?.outlineOffset ? "" : undefined,
     "data-builder-style-mobile-accent-color": mobile?.accentColor ? "" : undefined,
     "data-builder-style-mobile-caret-color": mobile?.caretColor ? "" : undefined,
+    "data-builder-style-mobile-transition": hasTransitionLonghands(mobile)
+      ? ""
+      : undefined,
     // Hover-state gates — each presence attr arms the matching :hover rule in the
     // static sheet (which reads the --bn-hover-* var). No attr ⇒ no rule ⇒ resting
     // value is untouched.
@@ -619,7 +639,21 @@ function styleBackground(
 function responsiveStyleVars(
   style: BuilderNodeStyle | undefined,
 ): CSSProperties {
+  const hasBaseTransition =
+    Boolean(style?.hover) || hasTransitionLonghands(style);
   return builderNodeStyleVars({
+    "--bn-transition-property": hasBaseTransition
+      ? style?.transitionProperty ?? "all"
+      : undefined,
+    "--bn-transition-duration": hasBaseTransition
+      ? style?.transitionDuration ?? ".2s"
+      : undefined,
+    "--bn-transition-timing-function": hasBaseTransition
+      ? style?.transitionTimingFunction ?? "ease"
+      : undefined,
+    "--bn-transition-delay": hasBaseTransition
+      ? style?.transitionDelay ?? "0s"
+      : undefined,
     "--bn-tablet-align": style?.responsive?.tablet?.align,
     "--bn-tablet-color": styleColor(style?.responsive?.tablet?.tone),
     "--bn-tablet-max-width": style?.responsive?.tablet?.maxWidth
@@ -828,6 +862,13 @@ function responsiveStyleVars(
     "--bn-tablet-outline-offset": style?.responsive?.tablet?.outlineOffset,
     "--bn-tablet-accent-color": style?.responsive?.tablet?.accentColor,
     "--bn-tablet-caret-color": style?.responsive?.tablet?.caretColor,
+    "--bn-tablet-transition-property":
+      style?.responsive?.tablet?.transitionProperty,
+    "--bn-tablet-transition-duration":
+      style?.responsive?.tablet?.transitionDuration,
+    "--bn-tablet-transition-timing-function":
+      style?.responsive?.tablet?.transitionTimingFunction,
+    "--bn-tablet-transition-delay": style?.responsive?.tablet?.transitionDelay,
     "--bn-mobile-clip-path": style?.responsive?.mobile?.clipPath,
     "--bn-mobile-mask-image": style?.responsive?.mobile?.maskImage,
     "--bn-mobile-text-stroke": style?.responsive?.mobile?.textStroke,
@@ -840,6 +881,13 @@ function responsiveStyleVars(
     "--bn-mobile-outline-offset": style?.responsive?.mobile?.outlineOffset,
     "--bn-mobile-accent-color": style?.responsive?.mobile?.accentColor,
     "--bn-mobile-caret-color": style?.responsive?.mobile?.caretColor,
+    "--bn-mobile-transition-property":
+      style?.responsive?.mobile?.transitionProperty,
+    "--bn-mobile-transition-duration":
+      style?.responsive?.mobile?.transitionDuration,
+    "--bn-mobile-transition-timing-function":
+      style?.responsive?.mobile?.transitionTimingFunction,
+    "--bn-mobile-transition-delay": style?.responsive?.mobile?.transitionDelay,
     // Hover-state overrides — a single (non-viewport) layer. Each var only renders
     // when set; the matching data-builder-style-hover-* attr gates a :hover rule in
     // the static sheet so the override applies only while hovered/focused, and an
@@ -1008,11 +1056,9 @@ function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSProperties {
   if (style.scale) out.scale = style.scale;
   if (style.translate) out.translate = style.translate;
   if (style.transformOrigin) out.transformOrigin = style.transformOrigin;
-  // Transition escape — smooths animatable changes (hover/responsive/state). An
-  // explicit value wins; otherwise auto-default to a gentle ease whenever a hover
-  // layer exists so the :hover overrides animate instead of snapping.
+  // Legacy transition shorthand. First-class longhands + hover auto-defaults
+  // emit through the renderer CSS var/data-attr path above.
   if (style.transition) out.transition = style.transition;
-  else if (style.hover) out.transition = "all .2s ease";
   // Flex/grid child placement — how this node sizes/aligns inside its parent
   // (0 is meaningful for grow/shrink, so test the type). No-op outside flex/grid.
   if (style.alignSelf) out.alignSelf = style.alignSelf;

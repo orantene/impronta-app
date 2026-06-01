@@ -109,6 +109,67 @@ test("escapes: surface + transform + blend escapes emit correct CSS", () => {
   assert.ok(html.toLowerCase().includes("backdrop-filter"), "backdrop-filter");
 });
 
+test("transitions: longhands emit through renderer CSS vars", () => {
+  const html = render([
+    container({
+      transitionProperty: "background-color, color",
+      transitionDuration: "320ms",
+      transitionTimingFunction: "cubic-bezier(.2,.8,.2,1)",
+      transitionDelay: "40ms",
+      responsive: {
+        mobile: {
+          transitionDuration: "120ms",
+        },
+      },
+    }),
+  ]);
+
+  assert.ok(
+    html.includes(
+      ".site-builder-node[data-builder-style-transition]{transition-property:var(--bn-transition-property,all)",
+    ),
+    "static transition rule",
+  );
+  assert.ok(
+    html.includes('data-builder-style-transition=""'),
+    "base transition data gate",
+  );
+  assert.ok(
+    html.includes('data-builder-style-mobile-transition=""'),
+    "mobile transition data gate",
+  );
+  assert.ok(
+    html.includes("--bn-transition-property:background-color, color"),
+    "base property var",
+  );
+  assert.ok(html.includes("--bn-transition-duration:320ms"), "base duration");
+  assert.ok(
+    html.includes("--bn-transition-timing-function:cubic-bezier(.2,.8,.2,1)"),
+    "base easing",
+  );
+  assert.ok(html.includes("--bn-transition-delay:40ms"), "base delay");
+  assert.ok(
+    html.includes("--bn-mobile-transition-duration:120ms"),
+    "mobile duration",
+  );
+});
+
+test("transitions: hover auto-default emits easing without a shorthand", () => {
+  const html = render([
+    container({
+      hover: { backgroundColor: "#111" },
+    }),
+  ]);
+
+  assert.ok(
+    html.includes('data-builder-style-transition=""'),
+    "hover arms transition gate",
+  );
+  assert.ok(html.includes("--bn-transition-property:all"), "default property");
+  assert.ok(html.includes("--bn-transition-duration:.2s"), "default duration");
+  assert.ok(!html.includes("transition:all .2s ease"), "no inline shorthand");
+});
+
 // ── Entrance animation ────────────────────────────────────────────────────────
 
 test("animation: preset + easing resolution + scroll-driven timeline", () => {

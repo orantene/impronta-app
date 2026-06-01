@@ -155,9 +155,13 @@ const builderNodeStyleValueSchema = z.object({
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),
   transformOrigin: z.string().max(32).optional(),
-  // Transition escape — free CSS transition string that smooths animatable
-  // changes (hover/responsive/state). Auto-defaults to "all .2s ease" at render
-  // when a hover layer exists.
+  // First-class CSS transitions — longhands emit through renderer CSS vars so
+  // breakpoint/hover changes ease instead of snapping. The legacy shorthand is
+  // kept for existing snapshots and wins when present.
+  transitionProperty: z.string().max(120).optional(),
+  transitionDuration: z.string().max(24).optional(),
+  transitionTimingFunction: z.string().max(80).optional(),
+  transitionDelay: z.string().max(24).optional(),
   transition: z.string().max(120).optional(),
   // Flex/grid child placement — self-alignment + flex sizing inside a parent.
   alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),

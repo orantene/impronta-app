@@ -1047,6 +1047,12 @@ function cleanBuilderNodeStyle(
   if (value.scale) out.scale = value.scale;
   if (value.translate) out.translate = value.translate;
   if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
+  if (value.transitionProperty) out.transitionProperty = value.transitionProperty;
+  if (value.transitionDuration) out.transitionDuration = value.transitionDuration;
+  if (value.transitionTimingFunction) {
+    out.transitionTimingFunction = value.transitionTimingFunction;
+  }
+  if (value.transitionDelay) out.transitionDelay = value.transitionDelay;
   if (value.transition) out.transition = value.transition;
   if (value.alignSelf) out.alignSelf = value.alignSelf;
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
@@ -1163,6 +1169,12 @@ function cleanBuilderNodeStyleValue(
   if (value.scale) out.scale = value.scale;
   if (value.translate) out.translate = value.translate;
   if (value.transformOrigin) out.transformOrigin = value.transformOrigin;
+  if (value.transitionProperty) out.transitionProperty = value.transitionProperty;
+  if (value.transitionDuration) out.transitionDuration = value.transitionDuration;
+  if (value.transitionTimingFunction) {
+    out.transitionTimingFunction = value.transitionTimingFunction;
+  }
+  if (value.transitionDelay) out.transitionDelay = value.transitionDelay;
   if (value.transition) out.transition = value.transition;
   if (value.alignSelf) out.alignSelf = value.alignSelf;
   if (typeof value.flexGrow === "number") out.flexGrow = value.flexGrow;
@@ -6736,8 +6748,129 @@ export function StylePanel({
                 <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
                   <span className={FIELD_LABEL}>Effects &amp; interaction</span>
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-                </summary>
+              </summary>
               <div className="flex flex-col gap-2 mt-2">
+              <div
+                className="flex flex-col gap-1.5"
+                data-builder-node-style-control="transitionProperty"
+              >
+                <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                  Transition props
+                </span>
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="background-color, color, scale"
+                  value={selectedStandaloneViewportStyle?.transitionProperty ?? ""}
+                  onChange={(e) =>
+                    patchSelectedStandaloneStyle({
+                      transitionProperty: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="transitionDuration"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Duration
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder=".2s"
+                    value={selectedStandaloneViewportStyle?.transitionDuration ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        transitionDuration: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="transitionTimingFunction"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Easing
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="ease"
+                    value={
+                      selectedStandaloneViewportStyle?.transitionTimingFunction ?? ""
+                    }
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        transitionTimingFunction:
+                          e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-builder-node-style-control="transitionDelay"
+                >
+                  <span className="text-[11px]" style={{ color: CHROME.muted }}>
+                    Delay
+                  </span>
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder="0s"
+                    value={selectedStandaloneViewportStyle?.transitionDelay ?? ""}
+                    onChange={(e) =>
+                      patchSelectedStandaloneStyle({
+                        transitionDelay: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="clipPath"
