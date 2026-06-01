@@ -53,9 +53,9 @@ Screenshots: `fidelity/editorial/editorial-1440.png` · `-768.png` · `-390.png`
 | Color and surface | 4.0 | Cohesive cream `#ece2d4`/ink `#1b1713`/terracotta accent; tasteful image shadows. −1.0: deliberately flat — little depth/gradient/material variety (no glass in this archetype). |
 | Spacing rhythm | 4.0 | Consistent gutters and triptych gap, generous section padding. −1.0: the hero→triptych vertical transition could tighten; the reveal band's top margin is large. |
 | Responsive behavior | 4.5 | 3→1 col series; nav secondary links hide cleanly (brand persists, **no broken nav**); hero collapses with the portrait full-width. −0.5: the mobile hero overlap crop sits a touch tight. |
-| Interaction and motion | 3.5 | `editorial-1440-reveal.png` proves the scroll-driven `rise` entrance settles to its visible end state (not stuck at `opacity:0`). −1.5: only one motion behavior; the hero CTA declares `style.hover` but is **not** captured as a golden for this design, so it isn't frame-proven. |
+| Interaction and motion | 4.5 | **(P5 M3)** Two behaviours now frame-proven: `editorial-1440-reveal.png` (scroll-driven `rise` entrance settled) + `editorial-1440-hover.png` (hero CTA hover end-state). −0.5: built from intent. |
 | Asset handling | 4.5 | Real photography throughout — portrait hero + 3 distinct cover-cropped series photos, all stable, focal via `object-position`. −0.5: a couple of series crops are center-top compromises (group scene cropped to 3:4). |
-| **Total** | **82.9 / 100** | `29.0 * 20 / 7` |
+| **Total** | **85.7 / 100** | `30.0 * 20 / 7` (M2 82.9; +1.0 Motion via P5 Lane A) |
 
 ---
 
@@ -102,9 +102,9 @@ Screenshots: `fidelity/agency/agency-1440.png` · `-768.png` · `-390.png`
 | Color and surface | 4.0 | Premium ink `#15120e`/bone `#efeae1` alternation + bronze accent; good contrast and band rhythm. −1.0: no depth/glass; the bronze accent is subtle and does little work. |
 | Spacing rhythm | 4.5 | Generous, even cadence; the cinematic band + work-grid + pricing rhythm is balanced. −0.5: the bone work section could use slightly more breathing room above the grid. |
 | Responsive behavior | 4.5 | Hero/band/grid/pricing all collapse cleanly to 1 col; nav links hide (brand persists); the cinematic band re-crops taller (`2.4`→`1.4`) on mobile. −0.5: 3-col work grid at 768 is a little tight. |
-| Interaction and motion | 3.0 | Work cards declare a `style.hover` lift (translate) + transition and the hero CTA declares hover — but **no motion frame is captured for this design**, so none of it is frame-proven; there is no sticky/reveal either. Scored on what the frames show: effectively static. −2.0. |
+| Interaction and motion | 4.5 | **(P5 M3)** Two behaviours now frame-proven: `agency-1440-hover.png` (hero CTA hover — scale + glow end-state) + `agency-1440-reveal.png` (the "selected work" contact sheet's scroll `rise` settled). Work-card lift hover remains declared-but-uncaptured (hover frame targets the hero CTA). −0.5: built from intent. |
 | Asset handling | 4.5 | Richest real-photo usage — cinematic band + 5 distinct cover-cropped work photos, all stable with sensible focal crops. −0.5: a couple of group-shot 4:3 crops are generic. |
-| **Total** | **84.3 / 100** | `29.5 * 20 / 7` |
+| **Total** | **88.6 / 100** | `31.0 * 20 / 7` (M2 84.3; +1.5 Motion via P5 Lane A) |
 
 ---
 
@@ -112,10 +112,15 @@ Screenshots: `fidelity/agency/agency-1440.png` · `-768.png` · `-390.png`
 
 | | M1 (baseline) | M2 | Δ |
 |---|---:|---:|---:|
-| editorial | ~58 (placeholder build) | **82.9** | +24.9 |
+| editorial | ~58 (placeholder build) | **82.9** → **85.7 (M3)** | +27.7 |
 | saas | ~58 (placeholder build) | **84.3** | +26.3 |
-| agency | — (new archetype) | **84.3** | new |
-| **Blended (3 archetypes)** | **~58** | **83.8** | **+25.8** |
+| agency | — (new archetype) | **84.3** → **88.6 (M3)** | new |
+| **Blended (3 archetypes)** | **~58** | **M2 83.8 → M3 86.2** | **+28.2** |
+
+> **P5 Lane A (motion capture)** lifted editorial + agency Motion to 4.5 by frame-proving the
+> already-declared hover + a new agency scroll-reveal — `(85.7 + 84.3 + 88.6) / 3 = 86.2`. saas was
+> unchanged (its motion was already 4.5). Remaining to 90: P5 Lane B closes saas Assets (3.5),
+> editorial Layout/Color/Spacing (4.0), agency Color (4.0), and the 768-tablet density.
 
 > `(82.9 + 84.3 + 84.3) / 3 = 83.8`. The blend is the mean of the three
 > overalls — **not** a sum of per-axis deltas.

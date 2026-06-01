@@ -48,6 +48,14 @@ export const FIDELITY_MOTION_FRAMES: readonly FidelityMotionFrame[] = [
   { design: "saas", state: "hover", width: 1440, height: 1100 },
   // editorial scroll-driven entrance animation settled at its end state.
   { design: "editorial", state: "reveal", width: 1440, height: 1100 },
+  // editorial hero CTA hovered — its 2nd proven motion behaviour alongside the
+  // reveal (lifts Motion from "only one behaviour" toward faithful).
+  { design: "editorial", state: "hover", width: 1440, height: 1100 },
+  // agency hero CTA hovered — proves the declared hover (scale + glow); first
+  // captured motion for agency (was built-but-uncaptured → scored static).
+  { design: "agency", state: "hover", width: 1440, height: 1100 },
+  // agency "selected work" scroll-reveal settled — agency's 2nd proven behaviour.
+  { design: "agency", state: "reveal", width: 1440, height: 1100 },
 ];
 
 /** First CTA on the page — hovered to prove the hover/transition system. */
