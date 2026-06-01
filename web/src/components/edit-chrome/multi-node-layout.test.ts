@@ -21,18 +21,48 @@ test("computeAlignDeltas aligns selected rects to the selection bounds", () => {
     b: { x: -40, y: 0 },
     c: { x: -90, y: 0 },
   });
+  assert.deepEqual(computeAlignDeltas(rects, "center"), {
+    a: { x: 45, y: 0 },
+    b: { x: 10, y: 0 },
+    c: { x: -45, y: 0 },
+  });
+  assert.deepEqual(computeAlignDeltas(rects, "right"), {
+    a: { x: 90, y: 0 },
+    b: { x: 60, y: 0 },
+    c: { x: 0, y: 0 },
+  });
+  assert.deepEqual(computeAlignDeltas(rects, "top"), {
+    a: { x: 0, y: 0 },
+    b: { x: 0, y: -10 },
+    c: { x: 0, y: -20 },
+  });
   assert.deepEqual(computeAlignDeltas(rects, "middle"), {
     a: { x: 0, y: 15 },
     b: { x: 0, y: 5 },
     c: { x: 0, y: -10 },
   });
+  assert.deepEqual(computeAlignDeltas(rects, "bottom"), {
+    a: { x: 0, y: 30 },
+    b: { x: 0, y: 20 },
+    c: { x: 0, y: 0 },
+  });
 });
 
 test("computeDistributeDeltas spaces middle nodes evenly", () => {
-  const deltas = computeDistributeDeltas(rects, "horizontal");
-  assert.deepEqual(deltas.a, { x: 0, y: 0 });
-  assert.deepEqual(deltas.b, { x: 10, y: 0 });
-  assert.deepEqual(deltas.c, { x: 0, y: 0 });
+  assert.deepEqual(computeDistributeDeltas(rects, "horizontal"), {
+    a: { x: 0, y: 0 },
+    b: { x: 10, y: 0 },
+    c: { x: 0, y: 0 },
+  });
+  assert.deepEqual(computeDistributeDeltas([
+    { id: "a", left: 10, top: 20, width: 20, height: 10 },
+    { id: "b", left: 50, top: 70, width: 10, height: 10 },
+    { id: "c", left: 100, top: 100, width: 20, height: 20 },
+  ], "vertical"), {
+    a: { x: 0, y: 0 },
+    b: { x: 0, y: -10 },
+    c: { x: 0, y: 0 },
+  });
 });
 
 test("addTranslateDeltaToTree accumulates existing translate style", () => {

@@ -324,6 +324,8 @@ export function SelectionLayer() {
     removeSelectedBuilderNodes,
     duplicateSelectedBuilderNodes,
     translateSelectedBuilderNodes,
+    alignSelectedBuilderNodes,
+    distributeSelectedBuilderNodes,
     additionalSelectedIds,
     extendSelection,
     toggleSelection,
@@ -2254,12 +2256,29 @@ export function SelectionLayer() {
 	            <MultiSelectionToolbar
 	              rect={renderSelectedRect}
 	              count={Math.max(1, selectedBuilderNodeRects.length)}
-	              disabled={saving}
-	              canGroup={multiNodeSelectionActive}
-	              canUngroup={canUngroupSelectedNode}
-	              onGroup={() => {
-	                void groupSelectedBuilderNodes().then((result) => {
-	                  if (!result.ok && result.error) reportMutationError(result.error);
+		              disabled={saving}
+		              canGroup={multiNodeSelectionActive}
+		              canUngroup={canUngroupSelectedNode}
+		              canDistribute={selectedBuilderNodeRects.length >= 3}
+		              onAlign={(mode) => {
+		                void alignSelectedBuilderNodes(
+		                  mode,
+		                  selectedBuilderNodeRects,
+		                ).then((result) => {
+		                  if (!result.ok && result.error) reportMutationError(result.error);
+		                });
+		              }}
+		              onDistribute={(mode) => {
+		                void distributeSelectedBuilderNodes(
+		                  mode,
+		                  selectedBuilderNodeRects,
+		                ).then((result) => {
+		                  if (!result.ok && result.error) reportMutationError(result.error);
+		                });
+		              }}
+		              onGroup={() => {
+		                void groupSelectedBuilderNodes().then((result) => {
+		                  if (!result.ok && result.error) reportMutationError(result.error);
 	                });
 	              }}
 	              onUngroup={() => {
