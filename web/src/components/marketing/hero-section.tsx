@@ -128,8 +128,8 @@ export function HeroSection({ locale }: { locale: string }) {
         </div>
       </MarketingContainer>
 
-      {/* Floating outcome card — the headline, made literal */}
-      <BookingAccent />
+      {/* Floating booking card — synced to the active slide */}
+      <BookingAccent index={active} />
 
       {/* Slide indicators */}
       <div className="absolute inset-x-0 bottom-6 z-10 flex items-center justify-center gap-2">
@@ -152,10 +152,36 @@ export function HeroSection({ locale }: { locale: string }) {
   );
 }
 
-function BookingAccent() {
+type BookingTone = "paid" | "new" | "sent";
+type BookingCard = {
+  label: string;
+  status: string;
+  tone: BookingTone;
+  amount: string;
+  who: string;
+  when: string;
+};
+
+/** One booking per slide — the card mirrors the talent on screen. */
+const BOOKING_CARDS: BookingCard[] = [
+  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
+  { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
+  { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
+  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$140", who: "Renata · Massage", when: "Today · 4pm" },
+];
+
+const STATUS_TONES: Record<BookingTone, { bg: string; fg: string }> = {
+  paid: { bg: "rgba(52,193,110,0.16)", fg: "#1F7B3E" },
+  new: { bg: "rgba(46,107,82,0.16)", fg: "var(--plt-forest)" },
+  sent: { bg: "rgba(15,23,20,0.07)", fg: "var(--plt-ink-soft)" },
+};
+
+function BookingAccent({ index }: { index: number }) {
+  const card = BOOKING_CARDS[index % BOOKING_CARDS.length];
+  const tone = STATUS_TONES[card.tone];
   return (
     <div
-      className="pointer-events-none absolute right-[5%] top-1/2 z-10 hidden w-[216px] -translate-y-1/2 rotate-[3deg] rounded-2xl p-4 lg:block"
+      className="pointer-events-none absolute right-[5%] top-1/2 z-10 hidden w-[234px] -translate-y-1/2 rotate-[3deg] rounded-2xl p-4 lg:block"
       style={{
         background: "var(--plt-bg-raised)",
         border: "1px solid var(--plt-hairline-strong)",
@@ -168,24 +194,27 @@ function BookingAccent() {
           className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em]"
           style={{ color: "var(--plt-forest)" }}
         >
-          New booking
+          {card.label}
         </span>
         <span
           className="plt-mono inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-[0.12em]"
-          style={{ background: "rgba(52,193,110,0.16)", color: "#1F7B3E" }}
+          style={{ background: tone.bg, color: tone.fg }}
         >
-          <span className="inline-block h-1 w-1 rounded-full" style={{ background: "#1F7B3E" }} />
-          Paid
+          <span className="inline-block h-1 w-1 rounded-full" style={{ background: tone.fg }} />
+          {card.status}
         </span>
       </div>
       <div
-        className="plt-display mt-2.5 text-[1.5rem] font-semibold leading-none tracking-[-0.02em]"
+        className="plt-display mt-2.5 text-[1.625rem] font-semibold leading-none tracking-[-0.02em]"
         style={{ color: "var(--plt-ink)" }}
       >
-        $1,200
+        {card.amount}
       </div>
-      <div className="mt-1 text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-        Wedding set · Saturday
+      <div className="mt-2 text-[0.8125rem] font-medium" style={{ color: "var(--plt-ink-soft)" }}>
+        {card.who}
+      </div>
+      <div className="mt-0.5 text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
+        {card.when}
       </div>
     </div>
   );
