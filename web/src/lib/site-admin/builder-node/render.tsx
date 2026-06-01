@@ -1965,6 +1965,12 @@ function isSafeBuilderImageSrc(value: string | null | undefined): value is strin
   const trimmed = value?.trim();
   if (!trimmed) return false;
   if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true;
+  // `data:image/*` URIs are safe in an <img src>: the <img> element never
+  // executes embedded SVG scripts, and only image MIME types match here
+  // (`data:text/html`, `data:application/*`, etc. are NOT accepted). Without
+  // this, inline-SVG / data-URI images render as nothing — a regression
+  // introduced when the image case gained src validation in P3.
+  if (/^data:image\/[a-z0-9.+-]+[,;]/i.test(trimmed)) return true;
   try {
     const url = new URL(trimmed);
     return url.protocol === "http:" || url.protocol === "https:";
