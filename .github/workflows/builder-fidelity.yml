@@ -43,20 +43,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install chromium
+      # Chromium = full frame set (static + motion). WebKit (Safari's engine) =
+      # static frames only; the motion frames self-skip on non-chromium (see
+      # fidelity.spec.ts). The platform is PWA-first, so Safari rendering is a
+      # real regression surface.
+      - name: Install Playwright Chromium + WebKit
+        run: npx playwright install chromium webkit
 
+      # Chromium is the blocking gate today. WebKit goldens are macos-14-seeded
+      # and must exist before webkit can join the blocking run — otherwise a
+      # missing snapshot fails the gate. Seed them once (the step below, via
+      # `workflow_dispatch` with update_snapshots=true), commit the
+      # `*-webkit-darwin.png` frames, then add `--project=webkit` here to make
+      # the cross-engine coverage blocking. The webkit project + install + seed
+      # path are already wired; only this line stays chromium-only until the
+      # goldens land. (Seeding needs `workflow_dispatch` on the default branch,
+      # which arrives with the P4 harness lane.)
       - name: Run fidelity golden tests
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.update_snapshots) }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium
 
       # Manual seeding path. Goldens are macos-14-specific; new/updated frames
-      # (e.g. the motion frames) can only be seeded to match CI on this runner.
-      # Run this workflow with update_snapshots=true, then download the artifact
-      # and commit its PNGs into e2e/fidelity/fidelity.spec.ts-snapshots/.
+      # (e.g. the motion frames, or the webkit cross-engine set) can only be
+      # seeded to match CI on this runner. Run this workflow with
+      # update_snapshots=true, then download the artifact and commit its PNGs
+      # into e2e/fidelity/fidelity.spec.ts-snapshots/.
       - name: Seed fidelity goldens (--update-snapshots)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
-        run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium --update-snapshots
+        run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium --project=webkit --update-snapshots
 
       - name: Upload seeded goldens
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
