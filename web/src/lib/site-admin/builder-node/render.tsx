@@ -32,6 +32,7 @@ export interface BuilderNodeRenderOptions {
   publicPathPrefix?: string;
   mode?: "all" | "freeform";
   dataSources?: BuilderNodeRenderDataSources;
+  includeRendererStyles?: boolean;
   // Phase 3 — saved component definitions (componentId → master subtree root).
   // When provided, linked instances (containers tagged props.instanceOf) render
   // the master subtree LIVE with per-instance overrides. When absent or the
@@ -1676,20 +1677,24 @@ export function renderBuilderNodes(
     publicPathPrefix: options.publicPathPrefix ?? "",
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
+    includeRendererStyles: options.includeRendererStyles ?? true,
     components: options.components ?? {},
   };
   const renderedNodes = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions.mode))
     .map((node) => renderBuilderNode(node, normalizedOptions));
   if (renderedNodes.length === 0) return null;
-  return [
+  if (!normalizedOptions.includeRendererStyles) return renderedNodes;
+  return [<BuilderNodeRendererStyles key="site-builder-node-styles" />, ...renderedNodes];
+}
+
+export function BuilderNodeRendererStyles(): ReactNode {
+  return (
     <style
-      key="site-builder-node-styles"
       data-builder-node-renderer-styles=""
       dangerouslySetInnerHTML={{ __html: BUILDER_NODE_RENDERER_CSS }}
-    />,
-    ...renderedNodes,
-  ];
+    />
+  );
 }
 
 export function hasRenderableBuilderNodes(

@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { renderBuilderNodes } from "./render";
+import { BuilderNodeRendererStyles, renderBuilderNodes } from "./render";
 import type { BuilderNode } from "./types";
 
 /**
@@ -30,6 +31,10 @@ function container(style: Record<string, unknown>): BuilderNode {
     props: { layout: "stack", style },
     children: [{ id: "h", kind: "heading", props: { text: "Hi", level: 2 } }],
   } as BuilderNode;
+}
+
+function countRendererStyles(html: string): number {
+  return (html.match(/data-builder-node-renderer-styles/g) ?? []).length;
 }
 
 // ── Style escapes → CSS ───────────────────────────────────────────────────────
@@ -135,6 +140,31 @@ test("animation: all keyframes + reduced-motion guard ship in the static sheet",
     assert.ok(html.includes(kf), `expected ${kf}`);
   }
   assert.ok(html.includes("prefers-reduced-motion"), "reduced-motion guard");
+});
+
+// ── Renderer stylesheet de-duplication ───────────────────────────────────────
+
+test("renderer css: standalone render remains self-contained", () => {
+  const html = render([container({})]);
+  assert.equal(countRendererStyles(html), 1);
+  assert.ok(html.includes(".site-builder-node--container"), "static sheet");
+});
+
+test("renderer css: page-level sheet plus opt-out renders one style tag", () => {
+  const first = renderBuilderNodes([container({})], {
+    mode: "freeform",
+    includeRendererStyles: false,
+  });
+  const second = renderBuilderNodes([container({ marginTop: "s" })], {
+    mode: "freeform",
+    includeRendererStyles: false,
+  });
+  const html = renderToStaticMarkup(
+    createElement(Fragment, null, createElement(BuilderNodeRendererStyles), first, second),
+  );
+
+  assert.equal(countRendererStyles(html), 1);
+  assert.ok(html.includes("data-builder-node-id=\"c1\""), "first section renders");
 });
 
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
