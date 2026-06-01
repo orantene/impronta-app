@@ -24,6 +24,8 @@ import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
+  BuilderNodeRendererStyles,
+  hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
   indexBuilderSectionNodes,
@@ -156,6 +158,7 @@ interface HomepageCmsSectionsProps {
   locale: string;
   /** Restrict rendering to a specific slot key (e.g. `"hero"`). */
   onlySlot?: string;
+  includeBuilderNodeRendererStyles?: boolean;
   /**
    * When the caller maps one section per `<HomepageCmsSections />` mount (storefront
    * layout), pass the **full** `snapshot` (including `builderTree`) and set this to
@@ -171,6 +174,7 @@ export async function HomepageCmsSections({
   tenantId,
   locale,
   onlySlot,
+  includeBuilderNodeRendererStyles = true,
   onlySectionId,
 }: HomepageCmsSectionsProps) {
   const [editMode, previewActive, publicPathPrefix] = await Promise.all([
@@ -235,8 +239,15 @@ export async function HomepageCmsSections({
     });
   }
 
+  const shouldIncludeBuilderNodeRendererStyles =
+    includeBuilderNodeRendererStyles &&
+    hasRenderableBuilderNodes(builderTreeResolution.tree, { mode: "freeform" });
+
   return (
     <>
+      {shouldIncludeBuilderNodeRendererStyles ? (
+        <BuilderNodeRendererStyles />
+      ) : null}
       {entries.map((entry) => {
         // Registry entries are keyed by type key; we widen to the generic
         // `SectionRegistryEntry` to hand off to the version-agnostic
@@ -452,6 +463,7 @@ export async function HomepageCmsSections({
               ? renderBuilderNodes(builderSectionChildren, {
                   publicPathPrefix,
                   mode: "freeform",
+                  includeRendererStyles: false,
                   dataSources: builderDataSources,
                   components: builderComponents,
                 })

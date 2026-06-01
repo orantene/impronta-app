@@ -27,6 +27,8 @@ import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
 import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
+  BuilderNodeRendererStyles,
+  hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
   indexBuilderSectionNodes,
@@ -81,9 +83,11 @@ export async function shouldRenderSnapshotShell(
 export async function PublishedShellHeader({
   tenantId,
   locale,
+  includeBuilderNodeRendererStyles = true,
 }: {
   tenantId: string;
   locale: Locale;
+  includeBuilderNodeRendererStyles?: boolean;
 }) {
   if (!isSiteShellEnabledForTenant(tenantId)) return null;
   const shell = await loadPublishedShell(tenantId, locale);
@@ -107,6 +111,7 @@ export async function PublishedShellHeader({
     builderSectionNodeIds,
     builderSectionNodes,
     builderSectionChildNodeIds,
+    { includeBuilderNodeRendererStyles },
   );
 }
 
@@ -117,9 +122,11 @@ export async function PublishedShellHeader({
 export async function PublishedShellFooter({
   tenantId,
   locale,
+  includeBuilderNodeRendererStyles = true,
 }: {
   tenantId: string;
   locale: Locale;
+  includeBuilderNodeRendererStyles?: boolean;
 }) {
   if (!isSiteShellEnabledForTenant(tenantId)) return null;
   const shell = await loadPublishedShell(tenantId, locale);
@@ -143,6 +150,7 @@ export async function PublishedShellFooter({
     builderSectionNodeIds,
     builderSectionNodes,
     builderSectionChildNodeIds,
+    { includeBuilderNodeRendererStyles },
   );
 }
 
@@ -156,9 +164,18 @@ export async function PublishedShellFooter({
 export async function PublishedShell({ tenantId, locale, children }: Props) {
   return (
     <>
-      <PublishedShellHeader tenantId={tenantId} locale={locale} />
+      <BuilderNodeRendererStyles />
+      <PublishedShellHeader
+        tenantId={tenantId}
+        locale={locale}
+        includeBuilderNodeRendererStyles={false}
+      />
       {children}
-      <PublishedShellFooter tenantId={tenantId} locale={locale} />
+      <PublishedShellFooter
+        tenantId={tenantId}
+        locale={locale}
+        includeBuilderNodeRendererStyles={false}
+      />
     </>
   );
 }
@@ -176,6 +193,7 @@ async function renderShellSlot(
   builderSectionNodeIds: ReadonlyMap<string, string>,
   builderSectionNodes: ReturnType<typeof indexBuilderSectionNodes>,
   builderSectionChildNodeIds: ReadonlyMap<string, ReadonlyArray<string>>,
+  options: { includeBuilderNodeRendererStyles?: boolean } = {},
 ): Promise<React.ReactNode> {
   const reg = getSectionType(slot.sectionTypeKey);
   if (!reg) {
@@ -204,6 +222,9 @@ async function renderShellSlot(
     }) ?? "",
   );
   const builderSectionChildren = builderSectionNode?.children ?? [];
+  const shouldIncludeBuilderNodeRendererStyles =
+    options.includeBuilderNodeRendererStyles !== false &&
+    hasRenderableBuilderNodes(builderSectionChildren, { mode: "freeform" });
   const roleBindingResult = buildBuilderNodeRoleBindings(
     builderNodeId
       ? (builderSectionChildNodeIds.get(builderNodeId) ?? []).filter((id) =>
@@ -253,6 +274,9 @@ async function renderShellSlot(
         slot.sectionTypeKey === "site_header" ? undefined : builderNodeId
       }
     >
+      {shouldIncludeBuilderNodeRendererStyles ? (
+        <BuilderNodeRendererStyles />
+      ) : null}
       <Comp
         sectionId={slot.sectionId}
         tenantId={tenantId}
@@ -266,6 +290,7 @@ async function renderShellSlot(
         ? renderBuilderNodes(builderSectionChildren, {
             publicPathPrefix,
             mode: "freeform",
+            includeRendererStyles: false,
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
             components: treeHasInstances(builderSectionChildren)

@@ -25,6 +25,7 @@ import {
   isPreviewActiveForTenant,
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
+import { BuilderNodeRendererStyles } from "@/lib/site-admin/builder-node";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -142,6 +143,8 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const cmsSectionCount = cmsSlots.length;
   /** Non-hero slots render below the full-bleed hero in snapshot order. */
   const hasRenderableNonHeroSlots = cmsSlots.some((s) => s.slotKey !== "hero");
+  const shouldRenderBuilderNodeStyles =
+    snapshotShellActive || (cmsSectionCount > 0 && Boolean(cmsHomepage?.snapshot));
 
   const year = new Date().getFullYear();
 
@@ -166,10 +169,15 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         <DirectoryInquiryModalProvider>
           <FavoritesDrawerProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
+        {shouldRenderBuilderNodeStyles ? <BuilderNodeRendererStyles /> : null}
         {/* Phase B.2.A mutex — snapshot shell wins when its gates open;
          *  otherwise legacy PublicHeader. Never both. Kept in Phase 5. */}
         {snapshotShellActive && cmsLocale ? (
-          <PublishedShellHeader tenantId={tenantId} locale={cmsLocale} />
+          <PublishedShellHeader
+            tenantId={tenantId}
+            locale={cmsLocale}
+            includeBuilderNodeRendererStyles={false}
+          />
         ) : (
           <PublicHeader />
         )}
@@ -191,6 +199,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                   tenantId={tenantId}
                   locale={locale}
                   onlySlot="hero"
+                  includeBuilderNodeRendererStyles={false}
                 />
               ) : null}
               {hasRenderableNonHeroSlots
@@ -206,6 +215,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                           onlySectionId={entry.sectionId}
                           tenantId={tenantId}
                           locale={locale}
+                          includeBuilderNodeRendererStyles={false}
                         />
                       );
                     })
@@ -229,7 +239,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           )}
 
           {snapshotShellActive && cmsLocale ? (
-            <PublishedShellFooter tenantId={tenantId} locale={cmsLocale} />
+            <PublishedShellFooter
+              tenantId={tenantId}
+              locale={cmsLocale}
+              includeBuilderNodeRendererStyles={false}
+            />
           ) : (
             <footer className="border-t border-border px-4 py-10 sm:px-6 lg:px-8">
               <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center text-sm text-muted-foreground">

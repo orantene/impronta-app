@@ -1,0 +1,63 @@
+{
+  "results": [
+    {
+      "design": "trivial",
+      "breakpoint": "desktop",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/trivial/trivial-1440.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/trivial/trivial-1440.png"
+    },
+    {
+      "design": "trivial",
+      "breakpoint": "tablet",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/trivial/trivial-768.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/trivial/trivial-768.png"
+    },
+    {
+      "design": "trivial",
+      "breakpoint": "mobile",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/trivial/trivial-390.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/trivial/trivial-390.png"
+    },
+    {
+      "design": "editorial",
+      "breakpoint": "desktop",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/editorial/editorial-1440.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/editorial/editorial-1440.png"
+    },
+    {
+      "design": "editorial",
+      "breakpoint": "tablet",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/editorial/editorial-768.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/editorial/editorial-768.png"
+    },
+    {
+      "design": "editorial",
+      "breakpoint": "mobile",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/editorial/editorial-390.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/editorial/editorial-390.png"
+    },
+    {
+      "design": "saas",
+      "breakpoint": "desktop",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/saas/saas-1440.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/saas/saas-1440.png"
+    },
+    {
+      "design": "saas",
+      "breakpoint": "tablet",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/saas/saas-768.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/saas/saas-768.png"
+    },
+    {
+      "design": "saas",
+      "breakpoint": "mobile",
+      "htmlPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/saas/saas-390.html",
+      "pngPath": "/Users/oranpersonal/Desktop/impronta-p1/web/fidelity/saas/saas-390.png"
+    }
+  ],
+  "determinism": {
+    "design": "trivial",
+    "breakpoint": "desktop",
+    "byteDifferences": 0
+  }
+}
