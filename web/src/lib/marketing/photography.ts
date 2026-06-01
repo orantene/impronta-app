@@ -156,6 +156,24 @@ export const MARKETING_PHOTOS = {
     "A business owner running their own business",
     "center",
   )("heroBusiness"),
+  modelsRunway: local(
+    "/marketing/photos/mk-models-runway.jpg",
+    "Fashion model walking the runway in an editorial silk ensemble at a glamorous show",
+    "A model walking a runway at a fashion show",
+    "top",
+  )("modelsRunway"),
+  modelsParty: local(
+    "/marketing/photos/mk-models-party.jpg",
+    "Well-dressed guests toasting with champagne at an upscale celebration",
+    "Models and guests toasting at an upscale event",
+    "center",
+  )("modelsParty"),
+  hostsRestaurant: local(
+    "/marketing/photos/mk-hosts-restaurant.jpg",
+    "Refined host in a bow tie at the bar of an upscale restaurant in the evening",
+    "A host at a luxury restaurant",
+    "top",
+  )("hostsRestaurant"),
 } as const;
 
 export type MarketingPhotoKey = keyof typeof MARKETING_PHOTOS;

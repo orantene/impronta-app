@@ -10,8 +10,11 @@ import { OpenTalentModalButton } from "./open-talent-modal-button";
 /** Full-bleed hero slider — rotates through the breadth of talent the platform serves. */
 const SLIDES: MarketingPhoto[] = [
   MARKETING_PHOTOS.heroServices,
+  MARKETING_PHOTOS.modelsRunway,
   MARKETING_PHOTOS.heroPerform,
+  MARKETING_PHOTOS.modelsParty,
   MARKETING_PHOTOS.heroBusiness,
+  MARKETING_PHOTOS.hostsRestaurant,
   MARKETING_PHOTOS.heroService,
 ];
 
@@ -37,7 +40,7 @@ export function HeroSection({ locale }: { locale: string }) {
             loading={idx === 0 ? "eager" : "lazy"}
             fetchPriority={idx === 0 ? "high" : "auto"}
             className="absolute inset-0 h-full w-full object-cover transition-opacity ease-out"
-            style={{ opacity: idx === active ? 1 : 0, transitionDuration: "1200ms" }}
+            style={{ opacity: idx === active ? 1 : 0, transitionDuration: "1200ms", objectPosition: "50% 36%" }}
           />
         ))}
         <div
@@ -162,11 +165,14 @@ type BookingCard = {
   when: string;
 };
 
-/** One booking per slide — the card mirrors the talent on screen. */
+/** One booking per slide — the card mirrors the talent on screen (same order as SLIDES). */
 const BOOKING_CARDS: BookingCard[] = [
   { label: "Booking paid", status: "Paid", tone: "paid", amount: "$1,400", who: "Mateo · Private chef", when: "Saturday · 8 guests" },
+  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$2,500", who: "Valentina · Runway", when: "Fashion week · Sat" },
   { label: "New booking", status: "New", tone: "new", amount: "$900", who: "Daniela · DJ set", when: "Friday · 9pm–1am" },
+  { label: "New booking", status: "New", tone: "new", amount: "$1,800", who: "Brand launch · 3 models", when: "Friday night" },
   { label: "Offer sent", status: "Sent", tone: "sent", amount: "$1,600", who: "Casa Rizo · Event bar", when: "Awaiting reply" },
+  { label: "Booking paid", status: "Paid", tone: "paid", amount: "$640", who: "Tomás · Event host", when: "Dinner · 6 hrs" },
   { label: "Booking paid", status: "Paid", tone: "paid", amount: "$140", who: "Renata · Massage", when: "Today · 4pm" },
 ];
 
