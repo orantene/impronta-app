@@ -80,7 +80,7 @@ export function AudienceSplitSection() {
             className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--mkt-ink)" }}
           >
-            Three rosters. One platform.
+            Three ways to build. One platform.
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
@@ -101,9 +101,10 @@ export function AudienceSplitSection() {
           className="mx-auto mt-10 max-w-2xl text-center text-[0.875rem]"
           style={{ color: "var(--mkt-muted)" }}
         >
-          Talent and model agencies are one strong example — the same infrastructure
-          works for cleaning teams, private chefs, beauty pros, performers, healthcare
-          clinics, accounting firms, and any service business built around people.
+          And you don&rsquo;t have to pick one — talent can run their own workspace too,
+          switching between selling their craft and managing a team from a single login.
+          The same infrastructure powers cleaning teams, private chefs, beauty pros,
+          performers, clinics, and any business built around people.
         </p>
       </MarketingContainer>
     </MarketingSection>

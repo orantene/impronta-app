@@ -2,24 +2,110 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 
-type NavItem = { label: string; href: string; description?: string };
+type NavLeaf = { label: string; href: string; description?: string };
+type NavNode =
+  | { kind: "link"; label: string; href: string }
+  | { kind: "menu"; label: string; blurb: string; items: NavLeaf[] };
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Product", href: "/how-it-works", description: "The talent business platform, end to end" },
-  { label: "Operators", href: "/operators", description: "For independents running solo" },
-  { label: "Agencies", href: "/agencies", description: "For representation teams" },
-  { label: "Discover", href: "/discover-agencies", description: "Browse agencies and hubs" },
-  { label: "Network", href: "/network", description: "The shared discovery layer" },
-  { label: "Talent", href: "/directory", description: "Browse the global talent directory" },
-  { label: "Integrations", href: "/integrations", description: "Render your roster anywhere" },
-  { label: "Pricing", href: "/pricing", description: "Free to start, simple to scale" },
+/**
+ * Product-forward navigation. Three menus carry the whole story:
+ *   Platform  → what Tulala is (flagship: one-click builder + booking messenger)
+ *   Solutions → who it's for (talent / business / hubs / the hybrid)
+ *   Discover  → the single browse surface (talent, agencies & hubs, network)
+ * plus Pricing and Stories as direct links. This collapses the old eight flat
+ * links and removes the Talent/Discover/Agencies overlap.
+ */
+const NAV: NavNode[] = [
+  {
+    kind: "menu",
+    label: "Platform",
+    blurb: "One platform to build a business around people — and get paid.",
+    items: [
+      {
+        label: "One-click page builder",
+        href: "/#builder",
+        description: "Your services website and business workspace, generated in a click.",
+      },
+      {
+        label: "Booking messenger",
+        href: "/#messenger",
+        description: "Inquiry → offer → booking → payment, all inside one chat.",
+      },
+      {
+        label: "The network",
+        href: "/network",
+        description: "Opt into shared, cross-roster discovery.",
+      },
+      {
+        label: "Integrations & API",
+        href: "/integrations",
+        description: "Embed your roster anywhere, or build on the API.",
+      },
+      {
+        label: "How it works",
+        href: "/how-it-works",
+        description: "The full platform tour, end to end.",
+      },
+    ],
+  },
+  {
+    kind: "menu",
+    label: "Solutions",
+    blurb: "However you work — sell your own services, run a business, or both.",
+    items: [
+      {
+        label: "For talent",
+        href: "/operators",
+        description: "Sell your services from one page. Free to start.",
+      },
+      {
+        label: "For business",
+        href: "/agencies",
+        description: "Run an agency, studio, or salon on your own domain.",
+      },
+      {
+        label: "For hubs",
+        href: "/organizations",
+        description: "Build a city-wide network of vetted service pros.",
+      },
+      {
+        label: "Talent + workspace",
+        href: "/#stories",
+        description: "Be the talent and run the business. One account.",
+      },
+    ],
+  },
+  {
+    kind: "menu",
+    label: "Discover",
+    blurb: "Browse the whole network — then start a conversation.",
+    items: [
+      {
+        label: "Browse talent",
+        href: "/directory",
+        description: "Every roster, one global directory.",
+      },
+      {
+        label: "Agencies & hubs",
+        href: "/discover-agencies",
+        description: "Find where your talent can grow next.",
+      },
+      {
+        label: "The network",
+        href: "/network",
+        description: "How shared, opt-in discovery works.",
+      },
+    ],
+  },
+  { kind: "link", label: "Pricing", href: "/pricing" },
+  { kind: "link", label: "Stories", href: "/#stories" },
 ];
 
 const APP_LOGIN_URL = `${getAppUrl()}/login`;
@@ -28,6 +114,11 @@ export function MarketingHeader() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** Which desktop dropdown is open (by label), or null. */
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  /** Which mobile accordion section is expanded (by label), or null. */
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -46,10 +137,14 @@ export function MarketingHeader() {
     };
   }, []);
 
+  // Reset all open state on route change.
   useEffect(() => {
     setMenuOpen(false);
+    setOpenMenu(null);
+    setMobileExpanded(null);
   }, [pathname]);
 
+  // Lock body scroll while the mobile menu is open.
   useEffect(() => {
     if (!menuOpen) return;
     const prev = document.body.style.overflow;
@@ -59,10 +154,30 @@ export function MarketingHeader() {
     };
   }, [menuOpen]);
 
-  const condensed = scrolled || menuOpen;
+  // Desktop dropdown: close on Escape or click/focus outside the nav.
+  useEffect(() => {
+    if (openMenu === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenMenu(null);
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [openMenu]);
+
+  const condensed = scrolled || menuOpen || openMenu !== null;
 
   return (
     <header
+      ref={navRef}
       className={cn(
         "fixed inset-x-0 top-0 z-40 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300",
       )}
@@ -88,32 +203,27 @@ export function MarketingHeader() {
           <TulalaWordmark />
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "relative rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors",
-                  isActive
-                    ? "text-[var(--plt-ink)]"
-                    : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",
-                )}
-              >
-                {item.label}
-                {isActive ? (
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-3 -bottom-0.5 h-px"
-                    style={{ background: "var(--plt-forest)" }}
-                  />
-                ) : null}
-              </Link>
-            );
-          })}
+        <nav className="hidden items-center gap-0.5 lg:flex">
+          {NAV.map((node) =>
+            node.kind === "link" ? (
+              <DesktopLink
+                key={node.label}
+                node={node}
+                active={isActive(pathname, node.href)}
+              />
+            ) : (
+              <DesktopMenu
+                key={node.label}
+                node={node}
+                open={openMenu === node.label}
+                onOpen={() => setOpenMenu(node.label)}
+                onClose={() => setOpenMenu(null)}
+                onToggle={() =>
+                  setOpenMenu((cur) => (cur === node.label ? null : node.label))
+                }
+              />
+            ),
+          )}
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
@@ -160,34 +270,37 @@ export function MarketingHeader() {
 
       {menuOpen ? (
         <div
-          className="lg:hidden"
+          className="max-h-[calc(100dvh-4rem)] overflow-y-auto lg:hidden"
           style={{
             background: "var(--plt-bg)",
             borderTop: "1px solid var(--plt-hairline)",
           }}
         >
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-5 py-5 sm:px-8">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium transition-colors hover:bg-[var(--plt-bg-deep)]"
-                style={{ color: "var(--plt-ink)" }}
-              >
-                <span className="flex flex-col">
-                  <span>{item.label}</span>
-                  {item.description ? (
-                    <span
-                      className="mt-0.5 text-[0.8125rem] font-normal"
-                      style={{ color: "var(--plt-muted)" }}
-                    >
-                      {item.description}
-                    </span>
-                  ) : null}
-                </span>
-                <ChevronGlyph />
-              </Link>
-            ))}
+            {NAV.map((node) =>
+              node.kind === "link" ? (
+                <Link
+                  key={node.label}
+                  href={node.href}
+                  className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium transition-colors hover:bg-[var(--plt-bg-deep)]"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  {node.label}
+                  <ChevronGlyph />
+                </Link>
+              ) : (
+                <MobileSection
+                  key={node.label}
+                  node={node}
+                  expanded={mobileExpanded === node.label}
+                  onToggle={() =>
+                    setMobileExpanded((cur) =>
+                      cur === node.label ? null : node.label,
+                    )
+                  }
+                />
+              ),
+            )}
             <div
               className="mt-3 flex flex-col gap-2 border-t pt-4"
               style={{ borderColor: "var(--plt-hairline)" }}
@@ -232,11 +345,190 @@ export function MarketingHeader() {
   );
 }
 
+function isActive(pathname: string, href: string) {
+  const base = href.split("#")[0];
+  if (!base || base === "/") return pathname === "/";
+  return pathname === base || pathname.startsWith(base);
+}
+
+/* ───────────────────────── Desktop nav ───────────────────────── */
+
+function DesktopLink({ node, active }: { node: { label: string; href: string }; active: boolean }) {
+  return (
+    <Link
+      href={node.href}
+      className={cn(
+        "relative rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors",
+        active ? "text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",
+      )}
+    >
+      {node.label}
+      {active ? (
+        <span
+          aria-hidden
+          className="absolute inset-x-3 -bottom-0.5 h-px"
+          style={{ background: "var(--plt-forest)" }}
+        />
+      ) : null}
+    </Link>
+  );
+}
+
+function DesktopMenu({
+  node,
+  open,
+  onOpen,
+  onClose,
+  onToggle,
+}: {
+  node: Extract<NavNode, { kind: "menu" }>;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className="relative"
+      onMouseEnter={onOpen}
+      onMouseLeave={onClose}
+    >
+      <button
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={onToggle}
+        onFocus={onOpen}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors",
+          open ? "text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",
+        )}
+      >
+        {node.label}
+        <ChevronDownGlyph open={open} />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute left-0 top-[calc(100%+0.5rem)] w-[22rem] mkt-rise"
+          role="menu"
+          aria-label={node.label}
+        >
+          <div
+            className="overflow-hidden rounded-[20px] p-2"
+            style={{
+              background: "var(--plt-bg-elevated)",
+              border: "1px solid var(--plt-hairline-strong)",
+              boxShadow: "0 28px 64px -28px rgba(15,23,20,0.4), 0 2px 6px -2px rgba(15,23,20,0.08)",
+            }}
+          >
+            <p
+              className="px-3 pb-2 pt-2 text-[0.8125rem] leading-[1.45]"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              {node.blurb}
+            </p>
+            <div
+              className="my-1 h-px"
+              style={{ background: "var(--plt-hairline)" }}
+              aria-hidden
+            />
+            <ul className="flex flex-col gap-0.5">
+              {node.items.map((item) => (
+                <li key={item.href} role="none">
+                  <Link
+                    href={item.href}
+                    role="menuitem"
+                    onClick={onClose}
+                    className="group flex flex-col gap-0.5 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[var(--plt-bg-raised)]"
+                  >
+                    <span
+                      className="inline-flex items-center gap-1.5 text-[0.875rem] font-medium leading-none"
+                      style={{ color: "var(--plt-ink)" }}
+                    >
+                      {item.label}
+                      <ArrowTiny />
+                    </span>
+                    {item.description ? (
+                      <span
+                        className="text-[0.8125rem] leading-[1.4]"
+                        style={{ color: "var(--plt-muted)" }}
+                      >
+                        {item.description}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ───────────────────────── Mobile nav ───────────────────────── */
+
+function MobileSection({
+  node,
+  expanded,
+  onToggle,
+}: {
+  node: Extract<NavNode, { kind: "menu" }>;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className="rounded-2xl"
+      style={{ background: expanded ? "var(--plt-bg-raised)" : "transparent" }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium transition-colors"
+        style={{ color: "var(--plt-ink)" }}
+      >
+        {node.label}
+        <ChevronDownGlyph open={expanded} />
+      </button>
+      {expanded ? (
+        <ul className="flex flex-col gap-0.5 px-2 pb-2">
+          {node.items.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="flex flex-col gap-0.5 rounded-xl px-3 py-3 transition-colors hover:bg-[var(--plt-bg-deep)]"
+              >
+                <span
+                  className="text-[0.9375rem] font-medium leading-none"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  {item.label}
+                </span>
+                {item.description ? (
+                  <span
+                    className="text-[0.8125rem] leading-[1.4]"
+                    style={{ color: "var(--plt-muted)" }}
+                  >
+                    {item.description}
+                  </span>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Tulala wordmark — all-lowercase bold sans (Geist), with a full-stop as the
- * punctuation mark that carries the brand. No secondary glyph; the wordmark
- * is the logo. The period is intentionally in `--tl-forest` so the brand
- * accent lives on the mark itself.
+ * punctuation mark that carries the brand. The period is intentionally in
+ * `--tl-forest` so the brand accent lives on the mark itself.
  */
 function TulalaWordmark() {
   return (
@@ -283,6 +575,50 @@ function ChevronGlyph() {
       <path
         d="M1 1L7 6L1 11"
         stroke="var(--plt-muted)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronDownGlyph({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="10"
+      height="7"
+      viewBox="0 0 10 7"
+      fill="none"
+      aria-hidden
+      className="transition-transform duration-200"
+      style={{ transform: open ? "rotate(180deg)" : "none", opacity: 0.7 }}
+    >
+      <path
+        d="M1 1.5L5 5.5L9 1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowTiny() {
+  return (
+    <svg
+      aria-hidden
+      width="11"
+      height="8"
+      viewBox="0 0 14 10"
+      fill="none"
+      className="opacity-0 -translate-x-1 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
+      style={{ color: "var(--plt-forest)" }}
+    >
+      <path
+        d="M1 5H13M13 5L9 1M13 5L9 9"
+        stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"

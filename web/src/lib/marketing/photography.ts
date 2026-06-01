@@ -121,3 +121,86 @@ export const MARKETING_PHOTOS = {
 } as const;
 
 export type MarketingPhotoKey = keyof typeof MARKETING_PHOTOS;
+
+/**
+ * Case-study lifestyle imagery. One photo per story card, curated to match the
+ * craft (singer, chef, salon, hub, etc.). Files live under
+ * `/public/marketing/photos/case-studies/` and are graded through
+ * `EditorialFrame` like the rest of the surface so they stay on-palette.
+ */
+export const CASE_STUDY_PHOTOS = {
+  singer: local(
+    "/marketing/photos/case-studies/cs-singer.jpg",
+    "Singer-songwriter performing with a microphone in a warm studio",
+    "Independent performer turning music into bookings",
+    "center",
+  )("cs-singer"),
+  massage: local(
+    "/marketing/photos/case-studies/cs-massage.jpg",
+    "Serene massage therapy treatment in a calm wellness space",
+    "Solo wellness professional taking online reservations",
+    "center",
+  )("cs-massage"),
+  wedding: local(
+    "/marketing/photos/case-studies/cs-wedding.jpg",
+    "Golden-hour wedding moment captured by a photographer",
+    "Wedding professional booking destination clients",
+    "center",
+  )("cs-wedding"),
+  tattoo: local(
+    "/marketing/photos/case-studies/cs-tattoo.jpg",
+    "Tattoo artist working on a client in a modern studio",
+    "Tattoo artist running a deposit-backed waitlist",
+    "center",
+  )("cs-tattoo"),
+  band: local(
+    "/marketing/photos/case-studies/cs-band.jpg",
+    "Live band performing on a stage under warm lights",
+    "Music collective operating as a business",
+    "center",
+  )("cs-band"),
+  salon: local(
+    "/marketing/photos/case-studies/cs-salon.jpg",
+    "Hair stylist at work in a bright modern salon",
+    "Salon team booking every chair online",
+    "center",
+  )("cs-salon"),
+  models: local(
+    "/marketing/photos/case-studies/cs-models.jpg",
+    "Editorial fashion-model portrait with premium agency styling",
+    "Model agency running a branded roster and pipeline",
+    "center",
+  )("cs-models"),
+  fitness: local(
+    "/marketing/photos/case-studies/cs-fitness.jpg",
+    "Pilates and movement class in a bright airy studio",
+    "Boutique studio selling class packs online",
+    "center",
+  )("cs-fitness"),
+  cityhub: local(
+    "/marketing/photos/case-studies/cs-city-hub.jpg",
+    "Friendly hospitality worker in a warm professional setting",
+    "City services hub of vetted local pros",
+    "center",
+  )("cs-city-hub"),
+  chefs: local(
+    "/marketing/photos/case-studies/cs-chefs.jpg",
+    "Private chef plating a beautifully presented dish",
+    "Culinary hub of curated private chefs",
+    "center",
+  )("cs-chefs"),
+  villa: local(
+    "/marketing/photos/case-studies/cs-villa.jpg",
+    "Luxury villa and pool in an aspirational travel setting",
+    "Hospitality hub staffing luxury rentals",
+    "center",
+  )("cs-villa"),
+  hybrid: local(
+    "/marketing/photos/case-studies/cs-hybrid.jpg",
+    "Makeup artist applying makeup to a client in a studio",
+    "Solo artist who grew into running her own studio",
+    "center",
+  )("cs-hybrid"),
+} as const;
+
+export type CaseStudyPhotoKey = keyof typeof CASE_STUDY_PHOTOS;

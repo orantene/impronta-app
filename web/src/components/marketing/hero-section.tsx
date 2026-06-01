@@ -28,9 +28,10 @@ export function HeroSection() {
               className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[34rem] text-[1.0625rem] leading-[1.6] sm:text-[1.125rem]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Open a free Tulala page, show what you do, and start taking
-              requests. Upgrade when you want a personal site, reservations, or
-              a full workspace for your agency.
+              Open a free page and start taking requests in minutes. When
+              you&rsquo;re ready, build your own services website and business
+              workspace in one click &mdash; and take bookings and payments
+              right inside the chat.
             </p>
 
             <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
@@ -46,13 +47,13 @@ export function HeroSection() {
                 Join as talent free
               </OpenTalentModalButton>
               <MarketingCta
-                href="/discover-agencies"
+                href="/get-started"
                 variant="secondary"
                 size="lg"
                 eventSource="home-hero"
-                eventIntent="discover-agencies"
+                eventIntent="start-business"
               >
-                Browse agencies & hubs
+                Start a business
               </MarketingCta>
             </div>
 
@@ -60,7 +61,7 @@ export function HeroSection() {
               className="mkt-rise mkt-rise-delay-4 mt-5 max-w-[30rem] text-[0.875rem]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Free page first. Paid tools when you are ready.
+              Free to start. One platform for talent, businesses, and hubs.
             </p>
           </div>
 
@@ -107,7 +108,7 @@ function HeroVisual() {
           className="plt-display mt-2 text-[1.7rem] font-semibold leading-[1.08] sm:text-[2.25rem]"
           style={{ color: "var(--plt-on-inverse)" }}
         >
-          Cleaner, chef, beauty pro, performer. One place to start selling.
+          Singer, salon, agency, hub. One platform to sell, book, and grow.
         </p>
       </figcaption>
     </figure>

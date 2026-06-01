@@ -1,8 +1,10 @@
 import { AudienceSplitSection } from "./audience-split-section";
+import { CaseStudiesSection } from "./case-studies-section";
 import { ContrastSection } from "./contrast-section";
 import { FaqSection } from "./faq-section";
 import { FeatureGridSection } from "./feature-grid-section";
 import { FinalCtaSection } from "./final-cta-section";
+import { FlagshipSection } from "./flagship-section";
 import { HeroSection } from "./hero-section";
 import { HowItWorksSection } from "./how-it-works-section";
 import { LifestyleBandSection } from "./lifestyle-band-section";
@@ -18,10 +20,12 @@ import { TrustStripSection } from "./trust-strip-section";
  * Layout rhythm (by section):
  *   hero  → contrast    (pain/gain primer)
  *         → how-it-works (3 steps, instantly graspable)
+ *         → flagship     (one-click builder + booking messenger)
  *         → trust        (founder-led principles, no fake logos)
- *         → audience     (three buyer pathways)
+ *         → audience     (three ways to build)
  *         → features     (six-feature grid)
  *         → product-tour (mock browser + surfaces)
+ *         → stories      (filterable case-study grid + modal)
  *         → network      (the differentiator)
  *         → pricing      (free-first)
  *         → faq          (short version)
@@ -45,6 +49,9 @@ export async function MarketingHomePage() {
       <div data-mkt-section="how-it-works">
         <HowItWorksSection />
       </div>
+      <div data-mkt-section="flagship">
+        <FlagshipSection />
+      </div>
       <div data-mkt-section="trust-strip">
         <TrustStripSection />
       </div>
@@ -56,6 +63,9 @@ export async function MarketingHomePage() {
       </div>
       <div data-mkt-section="product-tour">
         <ProductTourSection />
+      </div>
+      <div data-mkt-section="stories">
+        <CaseStudiesSection />
       </div>
       <div data-mkt-section="network">
         <NetworkSection />

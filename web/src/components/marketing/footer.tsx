@@ -10,39 +10,38 @@ type FooterColumn = {
 
 const COLUMNS: FooterColumn[] = [
   {
-    label: "Product",
-    items: [
-      { label: "How it works", href: "/how-it-works" },
-      { label: "The network", href: "/network" },
-      { label: "Agencies & hubs", href: "/discover-agencies" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "FAQ", href: "/faq" },
-      { label: "Start free", href: "/get-started" },
-    ],
-  },
-  {
-    label: "Who it's for",
-    items: [
-      { label: "Independent operators", href: "/operators" },
-      { label: "Agencies & representation", href: "/agencies" },
-      { label: "Talent applying to hubs", href: "/discover-agencies" },
-      { label: "Staffing & casting", href: "/organizations" },
-    ],
-  },
-  {
     label: "Platform",
     items: [
-      { label: "Branded roster site", href: "/agencies#site" },
-      { label: "People profiles", href: "/how-it-works#profiles" },
-      { label: "Inquiry engine", href: "/agencies#pipeline" },
-      { label: "Shared hub", href: "/network" },
-      { label: "Apply discovery", href: "/discover-agencies" },
-      { label: "API & embeds", href: "/integrations" },
+      { label: "One-click page builder", href: "/#builder" },
+      { label: "Booking messenger", href: "/#messenger" },
+      { label: "The network", href: "/network" },
+      { label: "Integrations & API", href: "/integrations" },
+      { label: "How it works", href: "/how-it-works" },
     ],
   },
   {
-    label: "Legal",
+    label: "Solutions",
     items: [
+      { label: "For talent", href: "/operators" },
+      { label: "For business", href: "/agencies" },
+      { label: "For hubs", href: "/organizations" },
+      { label: "Talent + workspace", href: "/#stories" },
+    ],
+  },
+  {
+    label: "Discover",
+    items: [
+      { label: "Browse talent", href: "/directory" },
+      { label: "Agencies & hubs", href: "/discover-agencies" },
+      { label: "Stories", href: "/#stories" },
+    ],
+  },
+  {
+    label: "Company",
+    items: [
+      { label: "Pricing", href: "/pricing" },
+      { label: "Start free", href: "/get-started" },
+      { label: "FAQ", href: "/faq" },
       { label: "Privacy", href: "/legal/privacy" },
       { label: "Terms", href: "/legal/terms" },
     ],
