@@ -68,3 +68,20 @@ test("filterVisibleShortcuts removes revisions shortcut when not homepage editin
   assert.equal(visible.some((entry) => entry.id === "open-revisions"), false);
   assert.ok(visible.some((entry) => entry.id === "open-publish"));
 });
+
+test("shortcut registry includes builder keyboard editing coverage", () => {
+  const ids = new Set(SHORTCUTS.map((entry) => entry.id));
+  for (const id of [
+    "copy-block",
+    "cut-block",
+    "paste-block",
+    "duplicate-section",
+    "delete-section",
+    "nudge-block",
+    "select-parent-block",
+    "select-child-block",
+    "shortcut-overlay",
+  ]) {
+    assert.ok(ids.has(id), `${id} should be discoverable`);
+  }
+});

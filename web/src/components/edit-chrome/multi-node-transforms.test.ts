@@ -115,6 +115,35 @@ test("clipboard serialization and paste re-mint ids for node subtrees", () => {
   assert.notEqual(ids[4], "paragraph-1");
 });
 
+test("clipboard payloads paste across page trees with fresh ids", () => {
+  const serialized = serializeBuilderNodeClipboard(fixtureTree(), [
+    "heading-1",
+    "paragraph-1",
+  ]);
+  assert.ok(!("error" in serialized));
+  if ("error" in serialized) return;
+  const targetTree: BuilderNodeTree = [
+    {
+      id: "section-2",
+      kind: "section",
+      props: {
+        sectionId: "22222222-2222-4222-8222-222222222222",
+        sectionTypeKey: "custom",
+      },
+      children: [
+        { id: "button-target", kind: "button", props: { label: "Target", href: "/" } },
+      ],
+    },
+  ];
+  const pasted = pasteBuilderNodeClipboard(targetTree, serialized, "button-target");
+  assert.equal(pasted.ok, true);
+  if (!pasted.ok) return;
+  assert.equal(pasted.nodeIds.length, 2);
+  assert.ok(pasted.nodeIds.every((id) => !["heading-1", "paragraph-1"].includes(id)));
+  const ids = firstSection(pasted.tree).children?.map((node) => node.id) ?? [];
+  assert.deepEqual(ids, ["button-target", ...pasted.nodeIds]);
+});
+
 test("cloneNodeWithFreshIds rewrites tab default ids alongside descendants", () => {
   let next = 0;
   const tab = {
