@@ -414,8 +414,8 @@ export function TalentTodayHero({
         <HeroStat
           label="Paid this month"
           value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
-          caption="+€800 vs prior 30d"
-          captionTone="success"
+          caption={paidThisMonth > 0 ? "This month's settled payouts" : "No payouts yet this month"}
+          captionTone={paidThisMonth > 0 ? "success" : "default"}
           tone="ink"
           onClick={onOpenActivity}
         />
