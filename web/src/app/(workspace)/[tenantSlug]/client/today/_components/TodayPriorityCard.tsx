@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import type { UpcomingBooking } from "../../../_data-bridge/client-upcoming";
+import { getClientDateParts } from "../../date-format";
 import { CallSheetDrawer } from "./CallSheetDrawer";
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -212,57 +213,60 @@ export function UpcomingEventsTile({
           Coming up
         </div>
         <div className="flex flex-col gap-2">
-          {bookings.map((b, i) => (
-            <button
-              key={b.inquiry_id}
-              type="button"
-              onClick={() => setOpenIdx(i)}
-              style={{
-                background: "transparent",
-                border: `1px solid rgba(24,24,27,0.06)`,
-                borderRadius: 9,
-                padding: "10px 12px",
-                cursor: "pointer",
-                textAlign: "left",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                fontFamily: FONT,
-              }}
-            >
-              <div
+          {bookings.map((b, i) => {
+            const dateParts = getClientDateParts(b.event_date);
+            return (
+              <button
+                key={b.inquiry_id}
+                type="button"
+                onClick={() => setOpenIdx(i)}
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 8,
-                  background: "rgba(15,81,50,0.06)",
-                  color: C.successDeep,
-                  display: "inline-flex",
-                  flexDirection: "column",
+                  background: "transparent",
+                  border: `1px solid rgba(24,24,27,0.06)`,
+                  borderRadius: 9,
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  gap: 12,
+                  fontFamily: FONT,
                 }}
               >
-                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>
-                  {new Date(b.event_date).getDate()}
-                </span>
-                <span style={{ fontSize: 9, fontWeight: 600, marginTop: 2, textTransform: "uppercase", letterSpacing: 0.4 }}>
-                  {new Date(b.event_date).toLocaleDateString(undefined, { month: "short" })}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {b.title}
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 8,
+                    background: "rgba(15,81,50,0.06)",
+                    color: C.successDeep,
+                    display: "inline-flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>
+                    {dateParts?.day ?? "--"}
+                  </span>
+                  <span style={{ fontSize: 9, fontWeight: 600, marginTop: 2, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                    {dateParts?.monthShort ?? "TBC"}
+                  </span>
                 </div>
-                <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-                  {b.start_time ? `${b.start_time} · ` : ""}
-                  {b.venue_name ?? b.city ?? "Location TBD"}
+                <div className="flex-1 min-w-0">
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {b.title}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
+                    {b.start_time ? `${b.start_time} · ` : ""}
+                    {b.venue_name ?? b.city ?? "Location TBD"}
+                  </div>
                 </div>
-              </div>
-              <span style={{ color: C.inkMuted, fontSize: 18 }}>›</span>
-            </button>
-          ))}
+                <span style={{ color: C.inkMuted, fontSize: 18 }}>›</span>
+              </button>
+            );
+          })}
         </div>
       </section>
       {openIdx !== null && bookings[openIdx] && (
