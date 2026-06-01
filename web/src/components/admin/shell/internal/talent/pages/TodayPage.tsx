@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
 import { COLORS, EARNINGS_ROWS, FONTS, MY_TALENT_PROFILE, RADIUS, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, computeProfileCompleteness, useAdminShell } from "../../state";
@@ -14,10 +15,10 @@ import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 
-
+const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
 export function TalentTodayPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, state } = useAdminShell();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentEarnings, state } = useAdminShell();
   // "Start a workspace" tile is for talents who don't already own one.
   // `state.alsoTalent` flips to true once a workspace is provisioned for
   // this user (the hybrid identity), so we hide the tile in that case.
@@ -75,12 +76,24 @@ export function TalentTodayPage() {
   // click takes the talent straight to the logistics tab inside the
   // messages shell where the call sheet, transport, hotel, schedule live.
   const upcoming = conversations.filter((c) => c.stage === "booked");
-  const paidThisMonth = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
-  const paidThisMonthTotal = paidThisMonth.reduce((sum, e) => {
-    const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
-    return sum + (isNaN(num) ? 0 : num);
-  }, 0);
-  const paidThisMonthCurrency = paidThisMonth[0]?.amount.match(/[€£$]/)?.[0] ?? "€";
+  // Paid this month — REAL data when the talent bridge is active (matches the
+  // Money page); the EARNINGS_ROWS fixture only renders in standalone/demo mode
+  // (no bridge). A real talent with no paid bookings now honestly sees 0
+  // instead of the old hard-coded €6,800 demo total.
+  let paidThisMonthTotal: number;
+  let paidThisMonthCurrency: string;
+  if (bridgeTalentEarnings != null) {
+    const ptm = computePaidThisMonth(bridgeTalentEarnings);
+    paidThisMonthTotal = ptm.totalCents / 100;
+    paidThisMonthCurrency = CURRENCY_SYMBOL[ptm.currency.toUpperCase()] ?? ptm.currency.toUpperCase();
+  } else {
+    const fixtureRows = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
+    paidThisMonthTotal = fixtureRows.reduce((sum, e) => {
+      const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
+      return sum + (isNaN(num) ? 0 : num);
+    }, 0);
+    paidThisMonthCurrency = fixtureRows[0]?.amount.match(/[€£$]/)?.[0] ?? "€";
+  }
   const pendingCount = replyConvs.length;
 
   // Pin a conversation and route into the messages shell. Single
@@ -427,6 +440,7 @@ export function TalentTodayPage() {
         <EarningsTile
           currency={paidThisMonthCurrency}
           monthTotal={paidThisMonthTotal}
+          earnings={bridgeTalentEarnings}
           onSeeAll={() => openDrawer("talent-career-analytics")}
           onLogWork={() => openDrawer("talent-add-event", { mode: "work" })}
         />
