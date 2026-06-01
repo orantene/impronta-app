@@ -1,5 +1,8 @@
 import type { BuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
-import { filterKindsForShippedElementCatalog } from "./mvp-allow-list";
+import {
+  filterKindsForOwnerOnlyAccess,
+  filterKindsForShippedElementCatalog,
+} from "./mvp-allow-list";
 import type { BuilderNodeOperationKind } from "./operations";
 import type { BuilderNodeKind } from "./types";
 
@@ -60,14 +63,23 @@ export function filterKindsForAdvancedElementLibrary(
   return [...kinds];
 }
 
-/** Plan gate + shipped 7A catalog — use for every nested insert surface. */
+/**
+ * Plan gate + shipped 7A catalog + owner-only gate — use for every nested
+ * insert surface. `canInsertOwnerOnly` defaults to false (default-deny), so
+ * raw-HTML `code` only appears for platform owners (super_admin); every
+ * existing 2-arg call site keeps excluding it automatically.
+ */
 export function gateNestedInsertKinds(
   kinds: ReadonlyArray<BuilderNodeKind>,
   advancedElementLibraryEnabled: boolean,
+  canInsertOwnerOnly = false,
 ): BuilderNodeKind[] {
-  return filterKindsForAdvancedElementLibrary(
-    filterKindsForShippedElementCatalog(kinds),
-    advancedElementLibraryEnabled,
+  return filterKindsForOwnerOnlyAccess(
+    filterKindsForAdvancedElementLibrary(
+      filterKindsForShippedElementCatalog(kinds),
+      advancedElementLibraryEnabled,
+    ),
+    canInsertOwnerOnly,
   );
 }
 

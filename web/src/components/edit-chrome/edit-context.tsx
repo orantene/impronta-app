@@ -227,6 +227,12 @@ export interface EditContextValue {
    * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.
    */
   advancedElementLibraryEnabled: boolean;
+  /**
+   * True only for platform owners (super_admin). Gates insertion of
+   * owner-only blocks (raw-HTML `code`) — workspace editors (agency_staff)
+   * never see them in the element library. See OWNER_ONLY_ELEMENT_INSERT_KINDS.
+   */
+  canInsertRawHtmlElements: boolean;
   locale: string;
   /**
    * Tenant default storefront locale (URL may omit prefix). TopBar locale
@@ -1501,6 +1507,8 @@ interface EditProviderProps {
    * storefronts; null on hub — callers fall back to legacy `/admin/site-settings/*`.
    */
   workspaceMembershipSlug?: string | null;
+  /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
+  canInsertRawHtmlElements?: boolean;
   children: ReactNode;
 }
 
@@ -1514,6 +1522,7 @@ export function EditProvider({
   initialComposition = null,
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
+  canInsertRawHtmlElements = false,
   children,
 }: EditProviderProps) {
   const router = useRouter();
@@ -5080,6 +5089,7 @@ export function EditProvider({
       workspacePlan: normalizedWorkspacePlan,
       canEditSiteShell,
       advancedElementLibraryEnabled,
+      canInsertRawHtmlElements,
       locale,
       defaultLocale,
       pageSlug,
@@ -5260,6 +5270,7 @@ export function EditProvider({
       normalizedWorkspacePlan,
       canEditSiteShell,
       advancedElementLibraryEnabled,
+      canInsertRawHtmlElements,
       locale,
       defaultLocale,
       pageSlug,

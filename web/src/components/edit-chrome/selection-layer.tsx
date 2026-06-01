@@ -392,6 +392,7 @@ export function SelectionLayer() {
     unejectSection,
     reportMutationError,
     advancedElementLibraryEnabled,
+    canInsertRawHtmlElements,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -1263,8 +1264,8 @@ export function SelectionLayer() {
     if (!selectedBuilderNode) return [];
     const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
     const raw = policy.type === "allow_list" ? [...policy.kinds] : [];
-    return gateNestedInsertKinds(raw, advancedElementLibraryEnabled);
-  }, [selectedBuilderNode, advancedElementLibraryEnabled]);
+    return gateNestedInsertKinds(raw, advancedElementLibraryEnabled, canInsertRawHtmlElements);
+  }, [selectedBuilderNode, advancedElementLibraryEnabled, canInsertRawHtmlElements]);
   const selectedNodeChildren = useMemo(
     () =>
       selectedBuilderNode && "children" in selectedBuilderNode
@@ -1471,6 +1472,7 @@ export function SelectionLayer() {
       allowedKinds: gateNestedInsertKinds(
         [...policy.kinds],
         advancedElementLibraryEnabled,
+        canInsertRawHtmlElements,
       ),
       canMoveUp: selectedIndex > 0,
       canMoveDown: selectedIndex < parentChildren.length - 1,
@@ -1480,6 +1482,7 @@ export function SelectionLayer() {
     selectedNodeIsEditableBlock,
     selectedNodePath,
     advancedElementLibraryEnabled,
+    canInsertRawHtmlElements,
   ]);
   const canInsertIntoSelectedNode =
     !!selectedCanvasNodeId && selectedNodeAllowedKinds.length > 0;
@@ -3810,6 +3813,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
     case "pricing_table":
       return `${node.props.tiers.length} pricing tier${node.props.tiers.length === 1 ? "" : "s"}`;
+    case "code":
+      return "Raw HTML (sandboxed)";
     case "accordion_item":
     case "tab_panel":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;

@@ -254,6 +254,7 @@ export function NavigatorPanel() {
     reportMutationError,
     builderTree,
     advancedElementLibraryEnabled,
+    canInsertRawHtmlElements,
   } = useEditContext();
 
   const [search, setSearch] = useState("");
@@ -819,8 +820,8 @@ export function NavigatorPanel() {
   );
   const gateChildInsertKinds = useCallback(
     (kinds: ReadonlyArray<BuilderNodeKind>) =>
-      gateNestedInsertKinds(kinds, advancedElementLibraryEnabled),
-    [advancedElementLibraryEnabled],
+      gateNestedInsertKinds(kinds, advancedElementLibraryEnabled, canInsertRawHtmlElements),
+    [advancedElementLibraryEnabled, canInsertRawHtmlElements],
   );
   const toggleNodeInsertTarget = useCallback((target: NodeInsertTarget) => {
     setNodeInsertTarget((prev) => (prev?.key === target.key ? null : target));

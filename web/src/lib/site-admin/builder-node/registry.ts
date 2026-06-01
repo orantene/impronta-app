@@ -21,6 +21,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "icon",
   "pricing_table",
   "rich_text",
+  "code",
   "divider",
   "spacer",
 ];
@@ -531,6 +532,7 @@ const pricingTablePropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), fieldBindings: fieldBindingPropsSchema.optional(), style: builderNodeStyleSchema });
+const codePropsSchema = z.object({ html: z.string().max(20000), minHeight: z.number().int().min(40).max(5000).optional(), style: builderNodeStyleSchema }); // safety = opaque-origin sandbox in render.tsx, not markup validation
 
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
@@ -782,6 +784,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
     },
     pricing_table: { kind: "pricing_table", label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" }, propsSchema: pricingTablePropsSchema },
     rich_text: { kind: "rich_text", label: "Rich text", description: "Body copy with bold, italic, and sanitized links.", children: { type: "none" }, propsSchema: richTextPropsSchema },
+    code: { kind: "code", label: "Code / HTML", description: "Raw HTML/CSS in a sandboxed iframe (owner only) — for static markup the Embed node can't cover.", children: { type: "none" }, propsSchema: codePropsSchema },
     divider: {
       kind: "divider",
       label: "Divider",

@@ -61,6 +61,7 @@ export function BuilderNodeContentInspector({
     saveCopiedBuilderNodeAsPreset,
     selectBuilderNode,
     advancedElementLibraryEnabled,
+    canInsertRawHtmlElements,
   } = useEditContext();
 
   async function commitPatch(patch: Record<string, unknown>) {
@@ -190,8 +191,12 @@ export function BuilderNodeContentInspector({
   const nestedChildren = childNodes(node);
   const quickAddKinds = useMemo(
     () =>
-      gateNestedInsertKinds(allowedChildKinds(node), advancedElementLibraryEnabled),
-    [node, advancedElementLibraryEnabled],
+      gateNestedInsertKinds(
+        allowedChildKinds(node),
+        advancedElementLibraryEnabled,
+        canInsertRawHtmlElements,
+      ),
+    [node, advancedElementLibraryEnabled, canInsertRawHtmlElements],
   );
   const groupPastePreview = getCopiedBuilderNodePastePreview(node.id);
 
@@ -258,6 +263,79 @@ export function BuilderNodeContentInspector({
               />
               <Helper>Standalone paragraph block with inline text formatting.</Helper>
             </Field>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (node.kind === "code") {
+    if (!canInsertRawHtmlElements) {
+      return (
+        <div className="flex flex-col gap-3">
+          <Card state="active">
+            <CardHead title="Code / HTML node" sub="Canvas selection" iconAccent="blue" />
+            <CardBody>
+              <Helper>
+                Raw HTML blocks can only be edited by a platform owner. The block
+                stays live on the page — ask an owner to change its markup.
+              </Helper>
+            </CardBody>
+          </Card>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        <Card state="active">
+          <CardHead title="Code / HTML node" sub="Canvas selection" iconAccent="blue" />
+          <CardBody>
+            <div className="flex flex-col gap-3">
+              <Field flush>
+                <FieldLabel>HTML</FieldLabel>
+                <textarea
+                  key={`${node.id}:html`}
+                  defaultValue={node.props.html}
+                  className={`${KIT.textarea} min-h-[200px] whitespace-pre break-all font-mono text-[12px]`}
+                  spellCheck={false}
+                  aria-label="Raw HTML"
+                  onBlur={(event) => {
+                    const next = event.currentTarget.value;
+                    if (next !== node.props.html) {
+                      void commitPatch({ html: next });
+                    }
+                  }}
+                />
+                <Helper>
+                  Rendered inside a sandboxed iframe on an isolated origin — it
+                  cannot read your site&rsquo;s cookies or DOM. Any scripts run
+                  only within the frame.
+                </Helper>
+              </Field>
+              <Field flush>
+                <FieldLabel>Min height (px)</FieldLabel>
+                <input
+                  type="number"
+                  min={40}
+                  max={5000}
+                  key={`${node.id}:minHeight:${node.props.minHeight ?? ""}`}
+                  defaultValue={node.props.minHeight ?? 120}
+                  className={KIT.input}
+                  onBlur={(event) => {
+                    const parsed = Number.parseInt(event.currentTarget.value, 10);
+                    if (Number.isFinite(parsed)) {
+                      void commitPatch({
+                        minHeight: Math.min(Math.max(parsed, 40), 5000),
+                      });
+                    }
+                  }}
+                />
+                <Helper>
+                  Floor height shown before the frame reports its measured
+                  content height.
+                </Helper>
+              </Field>
+            </div>
           </CardBody>
         </Card>
       </div>
@@ -1705,6 +1783,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
     case "pricing_table":
       return `${node.props.tiers.length} pricing tier${node.props.tiers.length === 1 ? "" : "s"}`;
+    case "code":
+      return "Raw HTML (sandboxed)";
     case "accordion_item":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "tab_panel":

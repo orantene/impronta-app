@@ -51,6 +51,7 @@ interface IframeChildProps {
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
   tenantSiteLabel?: string | null;
   workspaceMembershipSlug?: string | null;
+  canInsertRawHtmlElements?: boolean;
 }
 
 export function IframeChild({
@@ -63,6 +64,7 @@ export function IframeChild({
   initialComposition,
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
+  canInsertRawHtmlElements = false,
 }: IframeChildProps) {
   return (
     <EditErrorBoundary>
@@ -87,6 +89,7 @@ export function IframeChild({
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
       >
         {/* The storefront DOM is rendered by the host page (page.tsx →
             AgencyHomeStorefront). All we add here is the selection

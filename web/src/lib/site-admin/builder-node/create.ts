@@ -316,6 +316,15 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           text: "Write {b}rich copy{/b}, {i}editorial emphasis{/i}, and [safe links](/directory).",
         },
       };
+    case "code":
+      return {
+        id: makeId("code"),
+        kind: "code",
+        props: {
+          html: '<div style="padding:24px;text-align:center;font:500 15px/1.5 system-ui,sans-serif;color:#475569;border:1px dashed #cbd5e1;border-radius:12px">Paste any HTML/CSS here. It renders in a sandboxed frame.</div>',
+          minHeight: 120,
+        },
+      };
     case "divider":
       return {
         id: makeId("divider"),
