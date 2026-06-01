@@ -59,6 +59,12 @@ const agencyTree: BuilderNode[] = [
             paddingLeft: "44px",
             gap: "22px",
             backgroundColor: "#15120e",
+            // Whisper of depth on the ink masthead: a faint bronze light bleeding
+            // from the top edge + a vertical ink deepening, so the band reads as
+            // material and the bronze accent works at architectural scale (not
+            // just on eyebrow text). Proven in agency-1440.png.
+            backgroundImage:
+              "radial-gradient(78% 56% at 50% 0%, rgba(199,154,94,0.15), rgba(199,154,94,0) 56%), linear-gradient(180deg,#1a1510 0%,#120f0a 100%)",
             textColor: "#f3ece0",
             responsive: { mobile: { paddingRight: "22px", paddingLeft: "22px", paddingBottom: "64px" } },
           },
@@ -260,15 +266,40 @@ const agencyTree: BuilderNode[] = [
             ],
           },
           {
+            // Full-width bronze hairline under the section head — makes the
+            // bronze accent do structural work (a deliberate contact-sheet rule)
+            // at architectural scale, not just on eyebrow text. Proven in
+            // agency-1440.png.
+            id: "agency-work-rule",
+            kind: "divider",
+            props: {
+              style: {
+                backgroundColor: "rgba(199,154,94,0.55)",
+                height: "1px",
+                marginTopFree: "2px",
+                marginBottomFree: "6px",
+              },
+            },
+          },
+          {
             id: "agency-work-grid",
             kind: "container",
             props: {
               layout: "grid",
               columns: 3,
               gap: "m",
-              responsive: { tablet: { columns: 3 }, mobile: { columns: 1 } },
               dataBinding: { sourceKey: "agency_work", mode: "bound", repeat: true, maxItems: 6 },
-              style: { width: "100%", maxWidthFree: "100%", gap: "22px" },
+              // 2-col at the 768 tablet width (was a tight 3-up) so the
+              // contact-sheet cards breathe. gridTemplateColumns is a STYLE-responsive
+              // override (emitted !important in the tablet @media); `tablet.columns`
+              // is inert without a paired tablet.layout. Mobile auto-collapses to one
+              // column. Proven in agency-768.png.
+              style: {
+                width: "100%",
+                maxWidthFree: "100%",
+                gap: "22px",
+                responsive: { tablet: { gridTemplateColumns: "repeat(2,minmax(0,1fr))" } },
+              },
             },
             children: [
               {
@@ -358,6 +389,14 @@ const agencyTree: BuilderNode[] = [
             paddingBottom: "104px",
             paddingLeft: "28px",
             backgroundColor: "#15120e",
+            // Depth on the second ink band to match the masthead, plus a bronze
+            // hairline at the bone→ink seam so the accent marks the band change.
+            // Proven in agency-1440.png.
+            backgroundImage:
+              "radial-gradient(70% 60% at 50% 0%, rgba(199,154,94,0.12), rgba(199,154,94,0) 58%), linear-gradient(180deg,#181308 0%,#13100b 100%)",
+            borderColor: "rgba(199,154,94,0.32)",
+            borderWidth: "1px 0px 0px 0px",
+            borderStyle: "solid",
             textColor: "#f3ece0",
           },
         },
