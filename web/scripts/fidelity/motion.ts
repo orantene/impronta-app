@@ -96,6 +96,30 @@ export const FIDELITY_MOTION_FRAMES: readonly FidelityMotionFrame[] = [
   },
   // agency "selected work" scroll-reveal settled — agency's 2nd proven behaviour.
   { design: "agency", state: "reveal", width: 1440, height: 1100 },
+  // ── P5 Lane C — two new archetypes (append-only) ─────────────────────────────
+  // store sticky add-to-cart bar + backdrop-filter glass rendered OVER scrolled
+  // content (the e-commerce signature: the buy bar pins as you scroll the page).
+  { design: "store", state: "scrolled", width: 1440, height: 1100 },
+  // store "you may also like" product-card hover-lift — targets a repeated
+  // related-product card (NOT the first button) so the frame proves the lift.
+  {
+    design: "store",
+    state: "hover",
+    width: 1440,
+    height: 1100,
+    targetSelector: '[data-builder-node-id$="__store-related-card"]',
+  },
+  // festival lineup scroll-reveal settled at its end state (rise into place).
+  { design: "festival", state: "reveal", width: 1440, height: 1100 },
+  // festival lineup-card hover-lift — targets a repeated performer card so the
+  // frame proves the translate lift (not the hero "Get passes" CTA).
+  {
+    design: "festival",
+    state: "hover",
+    width: 1440,
+    height: 1100,
+    targetSelector: '[data-builder-node-id$="__festival-lineup-card"]',
+  },
 ];
 
 /** First CTA on the page — hovered to prove the hover/transition system. */
