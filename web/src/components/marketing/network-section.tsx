@@ -36,23 +36,23 @@ export function NetworkSection() {
               className="mt-6 max-w-[30rem] text-[1.0625rem] leading-[1.6]"
               style={{ color: "var(--mkt-ink-soft)" }}
             >
-              Talent can browse agencies and hubs to apply, clients can discover the right
-              people, and workspaces can grow beyond their own website. The network should
-              feel like an opportunity feed, not a static list.
+              Talent finds agencies and hubs to apply to, clients discover the right people,
+              and businesses grow beyond their own site. It&rsquo;s an opportunity feed, not a
+              static list.
             </p>
 
             <ul className="mt-8 space-y-4">
               <NetworkBullet
                 title="Talent applies where they fit"
-                body="A singer, cleaner, chef, or model can find open agencies and hubs, then apply from the talent dashboard."
+                body="Find open agencies and hubs and apply right from your talent dashboard."
               />
               <NetworkBullet
-                title="Agencies build their own business"
-                body="Each workspace keeps its brand, inquiry pipeline, roster, and site while still benefiting from shared discovery."
+                title="Businesses keep their own brand"
+                body="Every workspace keeps its site, roster, and bookings — and still gets found through shared discovery."
               />
               <NetworkBullet
                 title="Your data stays yours"
-                body="Opt in to the hub, opt out any time. Your roster, your branding, your relationships — always portable."
+                body="Opt in any time, opt out any time. Your roster, brand, and relationships are always portable."
               />
             </ul>
 

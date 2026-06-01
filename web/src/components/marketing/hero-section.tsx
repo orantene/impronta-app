@@ -1,137 +1,209 @@
-import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
+"use client";
+
+import { useEffect, useState } from "react";
+import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 
+/** Full-bleed hero slider — rotates through the breadth of talent the platform serves. */
+const SLIDES: MarketingPhoto[] = [
+  MARKETING_PHOTOS.heroServices,
+  MARKETING_PHOTOS.heroPerform,
+  MARKETING_PHOTOS.heroBusiness,
+  MARKETING_PHOTOS.heroService,
+];
+
+const TRUST = ["Free forever", "No code", "Bookings & payments built in"];
+
 export function HeroSection() {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setActive((p) => (p + 1) % SLIDES.length), 5500);
+    return () => clearInterval(t);
+  }, []);
+
   return (
-    <section className="relative overflow-hidden pb-16 pt-12 sm:pb-20 sm:pt-16 md:pt-20">
-      <HeroBackdrop />
+    <section className="relative w-full overflow-hidden" style={{ background: "#0a1d16" }}>
+      {/* Full-bleed background slider */}
+      <div aria-hidden className="absolute inset-0">
+        {SLIDES.map((photo, idx) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={photo.key}
+            src={photo.url()}
+            alt=""
+            loading={idx === 0 ? "eager" : "lazy"}
+            fetchPriority={idx === 0 ? "high" : "auto"}
+            className="absolute inset-0 h-full w-full object-cover transition-opacity ease-out"
+            style={{ opacity: idx === active ? 1 : 0, transitionDuration: "1200ms" }}
+          />
+        ))}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(100deg, rgba(8,18,14,0.96) 0%, rgba(8,18,14,0.9) 32%, rgba(8,18,14,0.66) 52%, rgba(8,18,14,0.34) 74%, rgba(8,18,14,0.5) 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(8,18,14,0.35) 0%, transparent 24%, transparent 70%, rgba(8,18,14,0.4) 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-x-0 bottom-0 h-44"
+          style={{ background: "linear-gradient(180deg, transparent, rgba(8,18,14,0.55))" }}
+        />
+        <div className="plt-grain absolute inset-0 opacity-[0.15]" />
+      </div>
+
+      {/* Content */}
       <MarketingContainer size="wide" className="relative">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-16">
-          <div className="relative">
-            <MarketingEyebrow className="mkt-rise">
-              Talent businesses start here
-            </MarketingEyebrow>
+        <div className="max-w-[40rem] py-24 sm:py-32 lg:py-44">
+          <MarketingEyebrow tone="inverse" className="mkt-rise">
+            The talent business platform
+          </MarketingEyebrow>
 
-            <h1
-              className="plt-display mkt-rise mkt-rise-delay-1 mt-5 max-w-[40rem] text-[2.9rem] font-semibold leading-[0.98] sm:text-[4rem] lg:text-[4.75rem]"
-              style={{ color: "var(--plt-ink)" }}
+          <h1
+            className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[3rem] font-semibold leading-[0.95] tracking-[-0.03em] sm:text-[4.25rem] lg:text-[5.25rem]"
+            style={{ color: "var(--plt-on-inverse)" }}
+          >
+            <span className="block">Your talent is</span>
+            <span
+              className="block"
+              style={{
+                background: "linear-gradient(110deg, #e8f1ea 0%, #bcdcc9 45%, #6fa489 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
             >
-              <span className="block">Your talent is</span>
-              <span className="block" style={{ color: "var(--plt-forest)" }}>
-                worth money.
-              </span>
-            </h1>
+              worth money.
+            </span>
+          </h1>
 
-            <p
-              className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[34rem] text-[1.0625rem] leading-[1.6] sm:text-[1.125rem]"
-              style={{ color: "var(--plt-muted)" }}
+          <p
+            className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[33rem] text-[1.0625rem] leading-[1.6] sm:text-[1.1875rem]"
+            style={{ color: "rgba(241,237,227,0.82)" }}
+          >
+            Open a free page and start taking requests in minutes. When you&rsquo;re
+            ready, build your own site and business workspace in one click &mdash; and
+            take bookings and payments right inside the chat.
+          </p>
+
+          <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
+            <OpenTalentModalButton
+              eventSource="home-hero"
+              className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-transform duration-200 hover:-translate-y-[1px]"
+              style={{ background: "var(--plt-on-inverse)", color: "var(--plt-forest)" }}
             >
-              Open a free page and start taking requests in minutes. When
-              you&rsquo;re ready, build your own services website and business
-              workspace in one click &mdash; and take bookings and payments
-              right inside the chat.
-            </p>
-
-            <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
-              <OpenTalentModalButton
-                eventSource="home-hero"
-                className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-[background,transform,box-shadow] duration-200 hover:-translate-y-[1px]"
-                style={{
-                  background: "var(--plt-forest)",
-                  color: "var(--plt-forest-on)",
-                  boxShadow: "var(--plt-shadow-forest)",
-                }}
-              >
-                Join as talent free
-              </OpenTalentModalButton>
-              <MarketingCta
-                href="/get-started"
-                variant="secondary"
-                size="lg"
-                eventSource="home-hero"
-                eventIntent="start-business"
-              >
-                Start a business
-              </MarketingCta>
-            </div>
-
-            <p
-              className="mkt-rise mkt-rise-delay-4 mt-5 max-w-[30rem] text-[0.875rem]"
-              style={{ color: "var(--plt-muted)" }}
+              Sell your work — free
+            </OpenTalentModalButton>
+            <MarketingCta
+              href="/get-started"
+              variant="secondary"
+              size="lg"
+              eventSource="home-hero"
+              eventIntent="start-business"
+              className="!border-[rgba(241,237,227,0.34)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
             >
-              Free to start. One platform for talent, businesses, and hubs.
-            </p>
+              Start a business
+            </MarketingCta>
           </div>
 
-          <HeroVisual />
+          <ul className="mkt-rise mkt-rise-delay-4 mt-7 flex flex-wrap items-center gap-x-5 gap-y-2">
+            {TRUST.map((t) => (
+              <li
+                key={t}
+                className="inline-flex items-center gap-1.5 text-[0.8125rem]"
+                style={{ color: "rgba(241,237,227,0.72)" }}
+              >
+                <TrustTick />
+                {t}
+              </li>
+            ))}
+          </ul>
         </div>
       </MarketingContainer>
+
+      {/* Floating outcome card — the headline, made literal */}
+      <BookingAccent />
+
+      {/* Slide indicators */}
+      <div className="absolute inset-x-0 bottom-6 z-10 flex items-center justify-center gap-2">
+        {SLIDES.map((photo, idx) => (
+          <button
+            key={photo.key}
+            type="button"
+            onClick={() => setActive(idx)}
+            aria-label={`Show slide ${idx + 1}`}
+            aria-current={idx === active}
+            className="h-1.5 rounded-full transition-all duration-300"
+            style={{
+              width: idx === active ? "24px" : "7px",
+              background: idx === active ? "var(--plt-on-inverse)" : "rgba(241,237,227,0.42)",
+            }}
+          />
+        ))}
+      </div>
     </section>
   );
 }
 
-function HeroVisual() {
+function BookingAccent() {
   return (
-    <figure
-      className="relative min-h-[24rem] overflow-hidden rounded-[30px] mkt-rise mkt-rise-delay-3 sm:min-h-[33rem]"
+    <div
+      className="pointer-events-none absolute right-[5%] top-1/2 z-10 hidden w-[216px] -translate-y-1/2 rotate-[3deg] rounded-2xl p-4 lg:block"
       style={{
-        background: "var(--plt-bg-deep)",
+        background: "var(--plt-bg-raised)",
         border: "1px solid var(--plt-hairline-strong)",
-        boxShadow: "0 48px 96px -52px rgba(15,23,20,0.42)",
+        boxShadow: "0 34px 64px -24px rgba(0,0,0,0.6)",
       }}
+      aria-hidden
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={MARKETING_PHOTOS.heroServices.url()}
-        alt={MARKETING_PHOTOS.heroServices.alt}
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(90deg, rgba(15,23,20,0.46) 0%, rgba(15,23,20,0.08) 46%, rgba(15,23,20,0.22) 100%)",
-        }}
-      />
-      <div aria-hidden className="plt-grain pointer-events-none absolute inset-0 opacity-[0.14]" />
-      <figcaption className="absolute inset-x-5 bottom-5 max-w-[29rem] sm:inset-x-8 sm:bottom-8">
+      <div className="flex items-center justify-between">
         <span
-          className="plt-mono text-[0.6875rem] font-medium uppercase"
-          style={{ color: "rgba(241,237,227,0.72)" }}
+          className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em]"
+          style={{ color: "var(--plt-forest)" }}
         >
-          Real services, real requests
+          New booking
         </span>
-        <p
-          className="plt-display mt-2 text-[1.7rem] font-semibold leading-[1.08] sm:text-[2.25rem]"
-          style={{ color: "var(--plt-on-inverse)" }}
+        <span
+          className="plt-mono inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-[0.12em]"
+          style={{ background: "rgba(52,193,110,0.16)", color: "#1F7B3E" }}
         >
-          Singer, salon, agency, hub. One platform to sell, book, and grow.
-        </p>
-      </figcaption>
-    </figure>
+          <span className="inline-block h-1 w-1 rounded-full" style={{ background: "#1F7B3E" }} />
+          Paid
+        </span>
+      </div>
+      <div
+        className="plt-display mt-2.5 text-[1.5rem] font-semibold leading-none tracking-[-0.02em]"
+        style={{ color: "var(--plt-ink)" }}
+      >
+        $1,200
+      </div>
+      <div className="mt-1 text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
+        Wedding set · Saturday
+      </div>
+    </div>
   );
 }
 
-function HeroBackdrop() {
+function TrustTick() {
   return (
-    <>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(244,239,230,0.94) 0%, rgba(244,239,230,0.72) 54%, rgba(255,253,248,0.96) 100%)",
-        }}
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <circle cx="7" cy="7" r="6.25" stroke="rgba(241,237,227,0.6)" strokeWidth="1.2" />
+      <path
+        d="M4.5 7.25L6.2 9L9.5 5.5"
+        stroke="rgba(241,237,227,0.9)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <div aria-hidden className="plt-grain absolute inset-0 -z-10" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-px"
-        style={{ background: "var(--plt-hairline)" }}
-      />
-    </>
+    </svg>
   );
 }

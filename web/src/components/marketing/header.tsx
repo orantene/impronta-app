@@ -410,7 +410,7 @@ function DesktopMenu({
 
       {open ? (
         <div
-          className="absolute left-0 top-[calc(100%+0.5rem)] w-[22rem] mkt-rise"
+          className="absolute left-0 top-full w-[22rem] pt-2 mkt-rise"
           role="menu"
           aria-label={node.label}
         >

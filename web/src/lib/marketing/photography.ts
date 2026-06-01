@@ -118,6 +118,44 @@ export const MARKETING_PHOTOS = {
     "Systems, integrations, multi-surface workspace",
     "center",
   )("systems"),
+
+  /* ── Fresh 2026 set — distinct, single-subject scenes (no phone/laptop clichés) ── */
+  audienceTalent: local(
+    "/marketing/photos/mk-audience-talent.jpg",
+    "Musician absorbed in playing electric guitar in warm studio light",
+    "A single creative fully absorbed in their craft",
+    "center",
+  )("audienceTalent"),
+  audienceBusiness: local(
+    "/marketing/photos/mk-audience-business.jpg",
+    "Independent cafe owner standing behind the counter of her coffee shop",
+    "A confident small-business owner in their own space",
+    "center",
+  )("audienceBusiness"),
+  audienceHub: local(
+    "/marketing/photos/mk-audience-hub.jpg",
+    "Creative production team collaborating on a photo shoot in a studio",
+    "A collective of service professionals working together",
+    "center",
+  )("audienceHub"),
+  heroPerform: local(
+    "/marketing/photos/mk-hero-perform.jpg",
+    "DJ performing to a packed crowd under dramatic stage lights",
+    "An aspirational performer earning from their craft",
+    "center",
+  )("heroPerform"),
+  heroService: local(
+    "/marketing/photos/mk-hero-service.jpg",
+    "Massage therapist delivering a treatment in a bright, calm studio",
+    "A premium service professional at work",
+    "center",
+  )("heroService"),
+  heroBusiness: local(
+    "/marketing/photos/mk-hero-business.jpg",
+    "Cafe owner managing orders on a tablet while running their coffee shop",
+    "A business owner running their own business",
+    "center",
+  )("heroBusiness"),
 } as const;
 
 export type MarketingPhotoKey = keyof typeof MARKETING_PHOTOS;

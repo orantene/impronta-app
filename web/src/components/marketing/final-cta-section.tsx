@@ -62,8 +62,8 @@ export function FinalCtaSection() {
               className="mx-auto mt-6 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
               style={{ color: "rgba(241,237,227,0.76)" }}
             >
-              Talent can open a free page and start taking requests. Agencies and
-              workspaces can launch a real site, collect inquiries, and run the business.
+              Open a free page and start taking requests today. When you&rsquo;re ready,
+              launch your own site, collect inquiries, and run the whole business.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
@@ -75,7 +75,7 @@ export function FinalCtaSection() {
                   color: "var(--plt-forest)",
                 }}
               >
-                Join as talent free
+                Sell your work — free
               </OpenTalentModalButton>
               <MarketingCta
                 href="/get-started"
@@ -85,17 +85,7 @@ export function FinalCtaSection() {
                 eventIntent="get-started"
                 className="!border-[rgba(241,237,227,0.3)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
               >
-                Build workspace
-              </MarketingCta>
-              <MarketingCta
-                href="/discover-agencies"
-                variant="secondary"
-                size="lg"
-                eventSource="home-final-cta"
-                eventIntent="discover-agencies"
-                className="!border-[rgba(241,237,227,0.3)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)] hover:!border-[var(--plt-on-inverse)]"
-              >
-                Browse agencies & hubs
+                Start a business
               </MarketingCta>
             </div>
 

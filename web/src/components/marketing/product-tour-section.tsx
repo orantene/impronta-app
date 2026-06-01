@@ -13,27 +13,27 @@ type Tab = {
 const TABS: Tab[] = [
   {
     id: "site",
-    label: "Roster site",
-    eyebrow: "01 · Branded directory",
-    title: "Your roster site, ready in minutes.",
+    label: "Your page",
+    eyebrow: "01 · Public site",
+    title: "A site that's ready to book in minutes.",
     body:
-      "A real, editorial-grade directory with your people front-and-centre. Your subdomain on day one, your own domain whenever you want it. No developer, no template feel.",
+      "A real, editorial-grade page with your work front and centre. Your subdomain on day one, your own domain whenever you want it. No developer, no template feel.",
   },
   {
     id: "profile",
-    label: "Profile page",
-    eyebrow: "02 · Public profile",
+    label: "Profiles",
+    eyebrow: "02 · Public profiles",
     title: "Every person, presented properly.",
     body:
-      "Portfolio, specs, availability, and one clean inquiry button — on one shareable URL. The way representation was always supposed to look online.",
+      "Portfolio, services, availability, and one clean booking button — on one shareable link. The way selling your work was always supposed to look online.",
   },
   {
     id: "inbox",
-    label: "Inquiry inbox",
-    eyebrow: "03 · Inquiry pipeline",
-    title: "From inquiry to booking, in one place.",
+    label: "Bookings inbox",
+    eyebrow: "03 · Booking pipeline",
+    title: "From inquiry to paid booking, in one place.",
     body:
-      "Structured inquiries, versioned offers, multi-party approvals, traceable bookings. Everything a real business needs that a group chat can't give you.",
+      "Structured inquiries, versioned offers, approvals, and traceable bookings. Everything a real business needs that a group chat can't give you.",
   },
 ];
 
@@ -47,14 +47,14 @@ export function ProductTourSection() {
             className="plt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            Three surfaces. One product.
+            Everything they see. Everything you run.
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--plt-muted)" }}
           >
-            A branded directory site, a proper profile page, and a real inquiry inbox — all
-            wired together so nothing slips between them.
+            A public page clients can book from, profiles that show your work properly, and an
+            inbox where inquiries turn into paid bookings — all wired together.
           </p>
         </div>
 
@@ -176,7 +176,7 @@ function MockSite() {
             className="plt-mono text-[0.6875rem] uppercase tracking-[0.22em]"
             style={{ color: "var(--plt-forest)" }}
           >
-            Representation · Mexico City
+            Studio · Mexico City
           </div>
         </div>
         <div className="hidden gap-5 text-[0.75rem] sm:flex" style={{ color: "var(--plt-ink-soft)" }}>
@@ -209,7 +209,7 @@ function MockSite() {
             className="plt-display mt-2 text-[1.5rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[1.75rem]"
             style={{ color: "var(--plt-ink)" }}
           >
-            People worth sending.
+            People worth booking.
           </div>
           <div
             className="mt-3 text-[0.75rem] leading-[1.5]"

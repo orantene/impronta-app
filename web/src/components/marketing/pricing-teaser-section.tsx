@@ -56,15 +56,14 @@ export async function PricingTeaserSection({
               className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
               style={{ color: "var(--mkt-ink)" }}
             >
-              One pipeline. Four sizes.
+              Start free. Grow when you&rsquo;re ready.
             </h2>
             <p
               className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
               style={{ color: "var(--mkt-muted)" }}
             >
-              Every plan turns inquiries into bookings — the full pipeline is on Free.
-              What grows with each tier is roster size, notification channels, and how
-              branded the surface is.
+              Every plan takes you from inquiry to booked and paid &mdash; for free. Paid tiers
+              add roster size, branding, and channels as your business grows.
             </p>
           </div>
         )}
@@ -81,9 +80,8 @@ export async function PricingTeaserSection({
           className="mx-auto mt-10 max-w-xl text-center text-[0.875rem]"
           style={{ color: "var(--mkt-muted)" }}
         >
-          WhatsApp notifications roll out to Studio+ as features ship. Currency
-          converts for LATAM &amp; EU. Annual plans save 20%. No setup fees, no exports
-          held hostage — your data is always yours.
+          Currency converts for LATAM &amp; EU. Annual plans save 20%. No setup fees, and
+          your data is always yours &mdash; export anytime.
         </p>
       </MarketingContainer>
     </MarketingSection>

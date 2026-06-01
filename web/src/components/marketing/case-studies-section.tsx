@@ -112,19 +112,24 @@ export function CaseStudiesSection() {
   );
 }
 
-const MOTION_TONE: Record<Motion, { bg: string; fg: string }> = {
-  Talent: { bg: "rgba(46,107,82,0.12)", fg: "var(--plt-forest)" },
-  Business: { bg: "rgba(15,23,20,0.08)", fg: "var(--plt-ink)" },
-  Hub: { bg: "rgba(179,136,107,0.16)", fg: "#8a5a3c" },
-  Hybrid: { bg: "rgba(46,107,82,0.14)", fg: "var(--plt-forest-bright)" },
+const MOTION_FG: Record<Motion, string> = {
+  Talent: "var(--plt-forest)",
+  Business: "var(--plt-ink)",
+  Hub: "#3f6b54",
+  Hybrid: "var(--plt-forest-bright)",
 };
 
+/** Solid, readable plan pill — works as a raised tab on a card or a label over a photo. */
 function MotionPill({ motion, plan }: { motion: Motion; plan: string }) {
-  const t = MOTION_TONE[motion];
   return (
     <span
-      className="plt-mono inline-flex items-center rounded-full px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.14em]"
-      style={{ background: t.bg, color: t.fg }}
+      className="plt-mono inline-flex items-center rounded-full px-3 py-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.16em]"
+      style={{
+        background: "var(--plt-bg-elevated)",
+        color: MOTION_FG[motion],
+        border: "1px solid var(--plt-hairline-strong)",
+        boxShadow: "0 8px 22px -10px rgba(15,23,20,0.45)",
+      }}
     >
       {plan}
     </span>
@@ -134,27 +139,31 @@ function MotionPill({ motion, plan }: { motion: Motion; plan: string }) {
 function CaseStudyCard({ study, onOpen }: { study: CaseStudy; onOpen: () => void }) {
   return (
     <article
-      className="group relative flex h-full flex-col overflow-hidden rounded-[24px] p-3 transition-transform duration-300 hover:-translate-y-1"
+      className="group relative flex h-full flex-col rounded-[20px] transition-transform duration-300 hover:-translate-y-1"
       style={{
         background: "var(--plt-bg-elevated)",
         border: "1px solid var(--plt-hairline)",
         boxShadow: "0 24px 56px -32px rgba(15,23,20,0.22)",
       }}
     >
-      <EditorialFrame
-        photo={CASE_STUDY_PHOTOS[study.key] as MarketingPhoto}
-        aspect="landscape"
-        size="md"
-        tone="cream"
-        className="w-full"
-      />
+      {/* Plan badge — a raised tab that hangs off the top-right edge */}
+      <div className="pointer-events-none absolute -top-3 right-4 z-20">
+        <MotionPill motion={study.motion} plan={study.plan} />
+      </div>
 
-      <div className="flex flex-1 flex-col px-3 pb-2 pt-5">
-        <div className="flex items-center gap-2">
-          <MotionPill motion={study.motion} plan={study.plan} />
-        </div>
+      <div className="overflow-hidden rounded-t-[20px]">
+        <EditorialFrame
+          bare
+          photo={CASE_STUDY_PHOTOS[study.key] as MarketingPhoto}
+          aspect="landscape"
+          tone="cream"
+          className="w-full"
+        />
+      </div>
+
+      <div className="flex flex-1 flex-col p-6">
         <h3
-          className="plt-display mt-3 text-[1.1875rem] font-semibold leading-[1.2] tracking-[-0.02em]"
+          className="plt-display text-[1.1875rem] font-semibold leading-[1.2] tracking-[-0.02em]"
           style={{ color: "var(--plt-ink)" }}
         >
           {study.cardTitle}
@@ -182,7 +191,7 @@ function CaseStudyCard({ study, onOpen }: { study: CaseStudy; onOpen: () => void
       <button
         type="button"
         onClick={onOpen}
-        className="absolute inset-0 rounded-[24px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
+        className="absolute inset-0 rounded-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
         aria-label={`Read ${study.persona}'s story`}
       />
     </article>

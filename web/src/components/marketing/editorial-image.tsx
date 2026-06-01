@@ -46,6 +46,7 @@ export function EditorialFrame({
   aspect = "landscape",
   size = "md",
   priority = false,
+  bare = false,
   className,
   caption,
   eyebrow,
@@ -55,6 +56,8 @@ export function EditorialFrame({
   aspect?: FrameAspect;
   size?: FrameSize;
   priority?: boolean;
+  /** Flush mode: no own radius/border/shadow + gentle grade, for sitting inside a card. */
+  bare?: boolean;
   className?: string;
   caption?: string;
   eyebrow?: string;
@@ -72,8 +75,9 @@ export function EditorialFrame({
         ? "rgba(46,107,82,0.28)"
         : "var(--plt-hairline-strong)";
 
-  const gradeOverlay =
-    tone === "ink"
+  const gradeOverlay = bare
+    ? "linear-gradient(180deg, rgba(15,23,20,0.03) 0%, rgba(15,23,20,0.10) 100%)"
+    : tone === "ink"
       ? "linear-gradient(180deg, rgba(15,23,20,0.12) 0%, rgba(15,23,20,0.36) 100%)"
       : tone === "forest"
         ? "linear-gradient(180deg, rgba(31,74,58,0.14) 0%, rgba(31,74,58,0.32) 100%)"
@@ -90,13 +94,13 @@ export function EditorialFrame({
     <figure
       className={cn(
         "relative overflow-hidden",
-        RADIUS_BY_SIZE[size],
+        bare ? "" : RADIUS_BY_SIZE[size],
         ASPECT_CLASSES[aspect],
         className,
       )}
       style={{
-        border: `1px solid ${borderColor}`,
-        boxShadow: shadow,
+        border: bare ? "none" : `1px solid ${borderColor}`,
+        boxShadow: bare ? "none" : shadow,
         background: "var(--plt-bg-deep)",
       }}
     >
