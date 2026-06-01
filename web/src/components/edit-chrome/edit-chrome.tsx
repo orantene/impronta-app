@@ -94,6 +94,8 @@ interface EditChromeProps {
    * Null on hub storefronts (no host-level slug); edit chrome falls back to legacy `/admin/site-settings/*` redirects.
    */
   workspaceMembershipSlug?: string | null;
+  /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
+  canInsertRawHtmlElements?: boolean;
 }
 
 export function EditChrome({
@@ -107,6 +109,7 @@ export function EditChrome({
   initialComposition,
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
+  canInsertRawHtmlElements = false,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -142,6 +145,7 @@ export function EditChrome({
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
       />
     );
   }
@@ -171,6 +175,7 @@ export function EditChrome({
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
       />
     </>
   );

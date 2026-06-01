@@ -102,6 +102,8 @@ interface EditShellProps {
   tenantSiteLabel?: string | null;
   /** Workspace URL segment (`/{slug}/admin/*`). See EditChrome. */
   workspaceMembershipSlug?: string | null;
+  /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
+  canInsertRawHtmlElements?: boolean;
   children?: React.ReactNode;
 }
 
@@ -115,6 +117,7 @@ export function EditShell({
   initialComposition,
   tenantSiteLabel = null,
   workspaceMembershipSlug = null,
+  canInsertRawHtmlElements = false,
   children,
 }: EditShellProps) {
   return (
@@ -129,6 +132,7 @@ export function EditShell({
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
         workspaceMembershipSlug={workspaceMembershipSlug}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
       >
         <EditShellInner>{children}</EditShellInner>
       </EditProvider>

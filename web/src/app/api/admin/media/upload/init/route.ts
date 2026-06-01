@@ -35,7 +35,7 @@ const BUCKET = "media-public";
 // Allowed extensions per kind. Caller (compressImage on the client)
 // passes whichever the compressed File ends up as. Defaults to jpg —
 // the dominant case for photos.
-const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif", "svg"]);
+const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 const DOCUMENT_EXTS = new Set([
   "pdf",
   "doc",

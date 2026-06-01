@@ -79,7 +79,7 @@ import {
   scanAssetUsageAction,
   type AssetUsage,
 } from "@/lib/site-admin/edit-mode/assets-actions";
-import type { MediaLibraryItem } from "@/lib/site-admin/server/media-library";
+import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
@@ -429,8 +429,11 @@ export function AssetsDrawer(): ReactElement | null {
           width: raw.width ?? null,
           height: raw.height ?? null,
           fileSize: raw.fileSize ?? file.size,
+          mime: raw.mime ?? null,
+          alt: raw.alt ?? null,
           createdAt: raw.createdAt ?? new Date().toISOString(),
           sourceHint: raw.sourceHint ?? null,
+          folderIds: raw.folderIds ?? [],
         };
         setItems((prev) => (prev ? [item, ...prev] : [item]));
         // The new asset isn't referenced anywhere yet — record an explicit

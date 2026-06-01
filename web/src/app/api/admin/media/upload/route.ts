@@ -16,7 +16,7 @@
  * Size / type guards:
  *   - Max 10 MB (enforced in-process; Supabase bucket may also cap).
  *   - MIME whitelist: image/jpeg, image/png, image/webp, image/gif,
- *     image/svg+xml. Unknown types rejected with 415.
+ *     image/gif. Unknown types rejected with 415.
  */
 
 import { NextResponse } from "next/server";
@@ -31,6 +31,8 @@ import {
   shouldResize,
   MAX_UPLOAD_BYTES,
 } from "@/lib/server/media-resize";
+import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
+import { validateImageUpload } from "@/lib/site-admin/media/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +53,6 @@ const IMAGE_MIME_TO_EXT: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
   "image/gif": "gif",
-  "image/svg+xml": "svg",
 };
 
 const DOCUMENT_MIME_TO_EXT: Record<string, string> = {
@@ -107,7 +108,7 @@ function resolveKindConfig(kind: AssetKind): {
         maxBytes: MAX_BYTES_IMAGE,
         purpose: "cms",
         variantKind: "original",
-        acceptedLabel: "JPEG, PNG, WebP, GIF, SVG",
+        acceptedLabel: "JPEG, PNG, WebP, GIF",
       };
   }
 }
@@ -166,7 +167,21 @@ export async function POST(req: Request) {
   }
 
   const mime = (file.type || "").toLowerCase();
-  const ext = kindCfg.mimeMap[mime];
+  const imageValidation =
+    kind === "image"
+      ? validateImageUpload({
+          mime,
+          byteSize: file.size,
+          maxBytes: MAX_BYTES_IMAGE,
+        })
+      : null;
+  if (imageValidation && !imageValidation.ok) {
+    return NextResponse.json(
+      { ok: false, error: imageValidation.error },
+      { status: imageValidation.status },
+    );
+  }
+  const ext = imageValidation?.ok ? imageValidation.ext : kindCfg.mimeMap[mime];
   if (!ext) {
     return NextResponse.json(
       {
@@ -226,6 +241,47 @@ export async function POST(req: Request) {
       { ok: false, error: `Storage upload failed: ${upload.error.message}` },
       { status: 500 },
     );
+  }
+
+  if (kind === "image") {
+    const inserted = await insertTenantImageAsset({
+      supabase,
+      tenantId: scope.tenantId,
+      createdByUserId: auth.user.id,
+      storagePath,
+      mime: uploadContentType,
+      byteSize: uploadBuffer.length,
+      metadata: {
+        source: "admin-upload",
+        original_mime: mime,
+        kind,
+        original_file_name: (file as { name?: string }).name ?? null,
+      },
+    });
+    if (!inserted.item) {
+      await supabase.storage.from(BUCKET).remove([storagePath]);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Could not record the uploaded asset: ${inserted.error ?? "unknown"}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      item: {
+        id: inserted.item.id,
+        variantKind: inserted.item.variantKind,
+        storagePath: inserted.item.storagePath,
+        publicUrl: inserted.item.publicUrl,
+        createdAt: inserted.item.createdAt,
+        width: inserted.item.width,
+        height: inserted.item.height,
+        alt: inserted.item.alt,
+      },
+    });
   }
 
   const { data: inserted, error: insertErr } = await supabase

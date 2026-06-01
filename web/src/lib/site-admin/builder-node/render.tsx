@@ -3,9 +3,13 @@ import type { CSSProperties, ReactNode } from "react";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
-import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
+import {
+  isSafeRichTextHref,
+  renderInlineRich,
+} from "@/lib/site-admin/sections/shared/rich-text";
 
 import { BuilderNodeCarouselTrack } from "./carousel";
+import { BuilderNodeCodeFrame } from "./code-frame";
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   resolveInstanceChildren,
@@ -16,9 +20,21 @@ import {
   collectBuilderNodeFontFamilies,
 } from "./fonts-registry";
 import { getBuilderIconDefinition } from "./icon-registry";
+import {
+  getBuilderNodeDataBinding,
+  isBuilderDataBindingRepeater,
+  isSafeBuilderBoundImageSrc,
+  resolveBuilderDataBindingCollection,
+  resolveBuilderFieldBindingValue,
+  type BuilderDataSourceRecord,
+  type BuilderRepeatItem,
+  type BuilderFieldBindingProp,
+} from "./data-bindings";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
+import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
 export interface BuilderNodeRenderDataSources {
+  collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
   featuredTalentProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
   talentLocations?: ReadonlyArray<{
     id: string;
@@ -31,6 +47,7 @@ export interface BuilderNodeRenderDataSources {
     slug: string;
     name: string;
   }>;
+  mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
 }
 
 export interface BuilderNodeRenderOptions {
@@ -45,6 +62,13 @@ export interface BuilderNodeRenderOptions {
   // component is missing, instances fall back to their own stored children.
   components?: ComponentDefinitions;
 }
+
+type NormalizedBuilderNodeRenderOptions = Required<BuilderNodeRenderOptions> & {
+  repeatItem: BuilderRepeatItem | null;
+  repeatDepth: number;
+};
+
+const MAX_REPEAT_RENDER_DEPTH = 1;
 
 const GAP_BY_SIZE = {
   s: "0.75rem",
@@ -288,6 +312,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--pricing-feature-mark{font-weight:800;color:var(--token-color-primary,#111)}
 .site-builder-node--pricing-feature[data-builder-feature-included="false"] .site-builder-node--pricing-feature-mark{color:rgba(18,18,18,0.34)}
 .site-builder-node--pricing-cta{margin-top:auto;display:inline-flex;width:100%;align-items:center;justify-content:center;border:1px solid var(--token-color-primary,#111);border-radius:999px;background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff);padding:0.8rem 1rem;font-weight:800;text-align:center;text-decoration:none}
+.site-builder-node--code{display:block;width:100%;max-width:100%;margin:0 auto;border:0;background:transparent;box-sizing:border-box}
 .site-builder-node--rich-text{width:100%;max-width:100%;font-family:var(--site-body-font,inherit)}
 .site-builder-node--rich-text .site-link{color:inherit;text-decoration:underline;text-underline-offset:0.16em}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
@@ -1564,16 +1589,104 @@ function hasRenderableChildren(
 
 function renderChildren(
   node: BuilderNode & { children: BuilderNode[] },
-  options: Required<BuilderNodeRenderOptions>,
+  options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   return node.children
     .filter((child) => shouldRenderNode(child, options.mode))
     .map((child) => renderBuilderNode(child, options));
 }
 
+function renderRepeatContainerChildren(
+  node: Extract<BuilderNode, { kind: "container" }>,
+  options: NormalizedBuilderNodeRenderOptions,
+): ReactNode | null {
+  const template = node.children.find((child) => shouldRenderNode(child, options.mode));
+  if (!template) return renderChildren(node, options);
+  const binding = getBuilderNodeDataBinding(node);
+  const records = binding
+    ? collectionRecordsForSource(binding.sourceKey, options.dataSources)
+    : [];
+  const items = resolveBuilderDataBindingCollection(binding, records);
+  if (items.length === 0 || options.repeatDepth >= MAX_REPEAT_RENDER_DEPTH) {
+    return renderBuilderNode(template, options);
+  }
+  return items.map((item) => {
+    const namespace = `${node.id}__repeat_${item.key}`;
+    const materialized = materializeRepeatTemplateIds(template, namespace);
+    return renderBuilderNode(materialized, {
+      ...options,
+      repeatItem: item,
+      repeatDepth: options.repeatDepth + 1,
+    });
+  });
+}
+
+function collectionRecordsForSource(
+  sourceKey: string,
+  dataSources: BuilderNodeRenderDataSources,
+): ReadonlyArray<BuilderDataSourceRecord> {
+  const custom = dataSources.collections?.[sourceKey];
+  if (custom) return custom;
+  switch (sourceKey) {
+    case "featured_talent_profiles":
+      return (dataSources.featuredTalentProfiles ?? []).map((card) => ({
+        ...card,
+        imageUrl: card.thumbnailUrl,
+        href: profileHrefForRepeat(card),
+      }));
+    case "talent_locations":
+      return (dataSources.talentLocations ?? []).map((location) => ({
+        ...location,
+        href: `/directory?location=${encodeURIComponent(location.citySlug)}`,
+      }));
+    case "tenant_directory_search":
+      return (dataSources.directoryShortcuts ?? []).map((shortcut) => ({
+        ...shortcut,
+        href: `/directory?type=${encodeURIComponent(shortcut.slug)}`,
+      }));
+    default:
+      return [];
+  }
+}
+
+function profileHrefForRepeat(card: FeaturedTalentCardDTO): string {
+  const code = encodeURIComponent(card.profileCode);
+  return card.slugPart
+    ? `/t/${code}-${encodeURIComponent(card.slugPart)}`
+    : `/t/${code}`;
+}
+
+function materializeRepeatTemplateIds(node: BuilderNode, namespace: string): BuilderNode {
+  const namespacedId = `${namespace}__${node.id}`;
+  if (!("children" in node) || !Array.isArray(node.children)) {
+    return { ...node, id: namespacedId } as BuilderNode;
+  }
+  const props = node.props as Record<string, unknown>;
+  let nextProps: Record<string, unknown> = { ...props };
+  if (node.kind === "accordion" && Array.isArray(props.defaultOpenItemIds)) {
+    nextProps = {
+      ...nextProps,
+      defaultOpenItemIds: (props.defaultOpenItemIds as string[]).map(
+        (id) => `${namespace}__${id}`,
+      ),
+    };
+  }
+  if (node.kind === "tabs" && typeof props.defaultTabId === "string") {
+    nextProps = { ...nextProps, defaultTabId: `${namespace}__${props.defaultTabId}` };
+  }
+  return {
+    ...node,
+    id: namespacedId,
+    props: nextProps,
+    children: node.children.map((child) =>
+      materializeRepeatTemplateIds(child, namespace),
+    ),
+  } as BuilderNode;
+}
+
 function renderDataBoundContainerChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
-  options: Required<BuilderNodeRenderOptions>,
+  options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   // Phase 3 — live component instance. When this container is a linked instance
   // and its master definition is available, render the resolved master subtree
@@ -1587,6 +1700,9 @@ function renderDataBoundContainerChildren(
         .filter((child) => shouldRenderNode(child, options.mode))
         .map((child) => renderBuilderNode(child, options));
     }
+  }
+  if (isBuilderDataBindingRepeater(getBuilderNodeDataBinding(node))) {
+    return renderRepeatContainerChildren(node, options);
   }
   const sourceKey = node.props.dataBinding?.sourceKey;
   if (sourceKey === "tenant_directory_search") {
@@ -1603,7 +1719,7 @@ function renderDataBoundContainerChildren(
 
 function renderFeaturedTalentChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
-  options: Required<BuilderNodeRenderOptions>,
+  options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   const limit = node.props.dataBinding?.maxItems ?? 4;
   const cards = (options.dataSources.featuredTalentProfiles ?? []).slice(0, limit);
@@ -1641,7 +1757,7 @@ function renderFeaturedTalentChildren(
 
 function renderTalentLocationChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
-  options: Required<BuilderNodeRenderOptions>,
+  options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   const limit = node.props.dataBinding?.maxItems ?? 6;
   const locations = (options.dataSources.talentLocations ?? []).slice(0, limit);
@@ -1682,7 +1798,7 @@ function renderTalentLocationChildren(
 
 function renderDirectorySearchChildren(
   node: Extract<BuilderNode, { kind: "container" }>,
-  options: Required<BuilderNodeRenderOptions>,
+  options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   const shortcuts = (options.dataSources.directoryShortcuts ?? []).slice(0, 6);
   if (shortcuts.length === 0) return renderChildren(node, options);
@@ -1724,7 +1840,7 @@ function renderDirectorySearchChildren(
 
 function shouldRenderNode(
   node: BuilderNode,
-  mode: Required<BuilderNodeRenderOptions>["mode"],
+  mode: NormalizedBuilderNodeRenderOptions["mode"],
 ): boolean {
   if (node.kind === "section") return false;
   if (mode === "freeform" && resolveBuilderNodeRole(node.id)) return false;
@@ -1805,6 +1921,36 @@ function pricingTableStyle(
   };
 }
 
+function resolveNodeStringProp(
+  node: BuilderNode,
+  prop: BuilderFieldBindingProp,
+  fallbackValue: string,
+  repeatItem: BuilderRepeatItem | null,
+): { value: string; bound: boolean } {
+  const fieldBindings = (node.props as { fieldBindings?: Record<string, string> })
+    .fieldBindings;
+  return resolveBuilderFieldBindingValue(
+    fallbackValue,
+    fieldBindings?.[prop],
+    repeatItem,
+  );
+}
+
+function renderButtonHref(
+  href: { value: string; bound: boolean },
+  publicPathPrefix: string,
+): string | undefined {
+  if (!href.value.trim()) return undefined;
+  if (href.bound && !isSafeRichTextHref(href.value)) return undefined;
+  return prefixPublicHref(href.value, publicPathPrefix);
+}
+
+function renderImageSrc(src: { value: string; bound: boolean }): string | undefined {
+  if (!src.value.trim()) return undefined;
+  if (src.bound && !isSafeBuilderBoundImageSrc(src.value)) return undefined;
+  return src.value;
+}
+
 function buttonStateAttrs(node: Extract<BuilderNode, { kind: "button" }>) {
   return {
     "data-builder-button-tone": node.props.tone ?? "primary",
@@ -1815,9 +1961,21 @@ function buttonStateAttrs(node: Extract<BuilderNode, { kind: "button" }>) {
   };
 }
 
+function isSafeBuilderImageSrc(value: string | null | undefined): value is string {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function renderBuilderNode(
   node: BuilderNode,
-  options: Required<BuilderNodeRenderOptions>,
+  options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   switch (node.kind) {
     case "section":
@@ -2038,6 +2196,12 @@ function renderBuilderNode(
       );
     case "heading": {
       const Tag = `h${node.props.level}` as "h1" | "h2" | "h3" | "h4";
+      const text = resolveNodeStringProp(
+        node,
+        "text",
+        node.props.text,
+        options.repeatItem,
+      ).value;
       return (
         <Tag
           key={node.id}
@@ -2052,11 +2216,17 @@ function renderBuilderNode(
             ...alignSelfStyle(node.props.style),
           }}
         >
-          {renderInlineRich(node.props.text)}
+          {renderInlineRich(text)}
         </Tag>
       );
     }
-    case "paragraph":
+    case "paragraph": {
+      const text = resolveNodeStringProp(
+        node,
+        "text",
+        node.props.text,
+        options.repeatItem,
+      ).value;
       return (
         <p
           key={node.id}
@@ -2072,10 +2242,21 @@ function renderBuilderNode(
             ...alignSelfStyle(node.props.style),
           }}
         >
-          {renderInlineRich(node.props.text)}
+          {renderInlineRich(text)}
         </p>
       );
-    case "button":
+    }
+    case "button": {
+      const label = resolveNodeStringProp(
+        node,
+        "label",
+        node.props.label,
+        options.repeatItem,
+      ).value;
+      const href = renderButtonHref(
+        resolveNodeStringProp(node, "href", node.props.href, options.repeatItem),
+        options.publicPathPrefix,
+      );
       return (
         <a
           key={node.id}
@@ -2084,26 +2265,51 @@ function renderBuilderNode(
           {...buttonStateAttrs(node)}
           {...builderNodeStyleAttrs(node.props.style)}
           className={`site-builder-node site-builder-node--button site-builder-node--button-${node.props.tone ?? "primary"}`}
-          href={prefixPublicHref(node.props.href, options.publicPathPrefix)}
+          href={href}
           style={{
             ...sharedNodeStyle(node.props.style),
             ...alignSelfStyle(node.props.style),
           }}
         >
-          {node.props.label}
+          {label}
         </a>
       );
-    case "image":
+    }
+    case "image": {
+      // Compose media-library resolution (Lane B) with field-binding (Lane A):
+      // mediaId → publicUrl is the base src/alt; a {{field}} binding overrides it
+      // per repeat item when present. Final src is validated either way.
+      const mediaAsset =
+        node.props.mediaId && options.dataSources.mediaAssets
+          ? options.dataSources.mediaAssets.find(
+              (asset) => asset.id === node.props.mediaId,
+            )
+          : null;
+      const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
+      const baseAlt = node.props.alt?.trim()
+        ? node.props.alt
+        : (mediaAsset?.alt ?? "");
+      const src = renderImageSrc(
+        resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
+      );
+      const alt = resolveNodeStringProp(
+        node,
+        "alt",
+        baseAlt,
+        options.repeatItem,
+      ).value;
+      if (!src || !isSafeBuilderImageSrc(src)) return null;
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
+          data-builder-media-id={node.props.mediaId}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--image"
-          src={node.props.src}
-          alt={node.props.alt ?? ""}
+          src={src}
+          alt={alt}
           loading="lazy"
           style={{
             display: "block",
@@ -2119,6 +2325,7 @@ function renderBuilderNode(
           }}
         />
       );
+    }
     case "video":
       return (
         <video
@@ -2289,7 +2496,13 @@ function renderBuilderNode(
           ))}
         </div>
       );
-    case "rich_text":
+    case "rich_text": {
+      const text = resolveNodeStringProp(
+        node,
+        "text",
+        node.props.text,
+        options.repeatItem,
+      ).value;
       return (
         <div
           key={node.id}
@@ -2306,8 +2519,28 @@ function renderBuilderNode(
             ...alignSelfStyle(node.props.style),
           }}
         >
-          {renderInlineRich(sanitizeBuilderRichText(node.props.text))}
+          {renderInlineRich(sanitizeBuilderRichText(text))}
         </div>
+      );
+    }
+    case "code":
+      // SECURITY: author HTML is NEVER inlined into the page DOM. It is mounted
+      // inside an opaque-origin sandboxed iframe (sandbox="allow-scripts" only)
+      // by BuilderNodeCodeFrame — see that file for the full threat model. No
+      // DOM-level sanitizer is used (none is sound on this shared-apex origin).
+      return (
+        <BuilderNodeCodeFrame
+          key={node.id}
+          nodeId={node.id}
+          html={node.props.html}
+          minHeight={node.props.minHeight}
+          className="site-builder-node site-builder-node--code"
+          dataAttrs={builderNodeStyleAttrs(node.props.style)}
+          style={{
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
       );
     case "divider":
       return (
@@ -2345,13 +2578,15 @@ export function renderBuilderNodes(
   nodes: ReadonlyArray<BuilderNode>,
   options: BuilderNodeRenderOptions = {},
 ): ReactNode {
-  const normalizedOptions: Required<BuilderNodeRenderOptions> = {
+  const normalizedOptions: NormalizedBuilderNodeRenderOptions = {
     publicPathPrefix: options.publicPathPrefix ?? "",
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
     includeRendererStyles: options.includeRendererStyles ?? true,
     includeFontLinks: options.includeFontLinks ?? true,
     components: options.components ?? {},
+    repeatItem: null,
+    repeatDepth: 0,
   };
   const renderedNodes = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions.mode))
@@ -2372,6 +2607,22 @@ export function renderBuilderNodes(
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
   return [...headNodes, ...renderedNodes];
+}
+
+export function collectBuilderImageMediaIds(
+  nodes: ReadonlyArray<BuilderNode>,
+): string[] {
+  const ids = new Set<string>();
+  const visit = (node: BuilderNode) => {
+    if (node.kind === "image" && node.props.mediaId) {
+      ids.add(node.props.mediaId);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of nodes) visit(node);
+  return [...ids];
 }
 
 export function BuilderNodeFontLinks({

@@ -204,6 +204,7 @@ export type CmsMediaItem = {
   createdAt: string;
   width: number | null;
   height: number | null;
+  alt?: string | null;
 };
 
 export type CmsUploadOk = {

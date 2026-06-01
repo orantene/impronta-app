@@ -3,13 +3,18 @@ import test from "node:test";
 
 import {
   BUILDER_DATA_SOURCE_REGISTRY,
+  builderNodeSupportsFieldBindings,
   builderNodeSupportsDataBinding,
   collectBuilderDataBindingTreeFindings,
   getBuilderDataBindingFindings,
   getBuilderDataSourceDefinition,
   getBuilderNodeDataBinding,
+  getBuilderNodeFieldBindingProps,
   getDefaultBuilderDataBinding,
+  isSafeBuilderBoundImageSrc,
   normalizeBuilderDataBinding,
+  resolveBuilderDataBindingCollection,
+  resolveBuilderFieldBindingValue,
 } from "./data-bindings";
 import type { BuilderNode } from "./types";
 
@@ -85,12 +90,14 @@ test("normalizes persisted binding payloads", () => {
       mode: "manual",
       filterQuery: " featured = true ",
       maxItems: 999,
+      repeat: true,
     }),
     {
       sourceKey: "featured_talent_profiles",
       mode: "manual",
       filterQuery: "featured = true",
       maxItems: 100,
+      repeat: true,
     },
   );
   assert.deepEqual(
@@ -103,6 +110,81 @@ test("normalizes persisted binding payloads", () => {
       mode: "bound",
     },
   );
+});
+
+test("resolves repeat collections deterministically with filter and maxItems", () => {
+  const items = resolveBuilderDataBindingCollection(
+    {
+      sourceKey: "featured_talent_profiles",
+      repeat: true,
+      filterQuery: "locationLabel=Cancun",
+      maxItems: 2,
+    },
+    [
+      { id: "talent-1", displayName: "Ari", locationLabel: "Cancun" },
+      { id: "talent-2", displayName: "Bea", locationLabel: "Tulum" },
+      { id: "talent-3", displayName: "Cleo", locationLabel: "Cancun" },
+    ],
+  );
+
+  assert.deepEqual(
+    items.map((item) => ({
+      key: item.key,
+      index: item.index,
+      name: item.fields.displayName,
+    })),
+    [
+      { key: "talent-1-1", index: 0, name: "Ari" },
+      { key: "talent-3-2", index: 1, name: "Cleo" },
+    ],
+  );
+  assert.deepEqual(
+    resolveBuilderDataBindingCollection(
+      { sourceKey: "featured_talent_profiles", repeat: true },
+      [],
+    ),
+    [],
+  );
+});
+
+test("resolves per-prop field tokens against the current repeat item", () => {
+  const [item] = resolveBuilderDataBindingCollection(
+    { sourceKey: "featured_talent_profiles", repeat: true },
+    [{ id: "talent-1", displayName: "Adriana", href: "/t/adriana" }],
+  );
+  assert.ok(item);
+  assert.deepEqual(
+    resolveBuilderFieldBindingValue("Fallback", "displayName", item),
+    { value: "Adriana", bound: true },
+  );
+  assert.deepEqual(
+    resolveBuilderFieldBindingValue("Meet {{displayName}}", undefined, item),
+    { value: "Meet Adriana", bound: true },
+  );
+  assert.deepEqual(
+    resolveBuilderFieldBindingValue("Fallback", "missing", item),
+    { value: "", bound: true },
+  );
+  assert.deepEqual(
+    resolveBuilderFieldBindingValue("Fallback", "displayName", null),
+    { value: "Fallback", bound: false },
+  );
+});
+
+test("field bindings are scoped to supported leaf props", () => {
+  assert.equal(builderNodeSupportsFieldBindings("heading"), true);
+  assert.equal(builderNodeSupportsFieldBindings("container"), false);
+  assert.deepEqual(getBuilderNodeFieldBindingProps("button"), ["label", "href"]);
+  assert.deepEqual(getBuilderNodeFieldBindingProps("image"), ["src", "alt"]);
+});
+
+test("bound image sources allow only http(s) and relative assets", () => {
+  assert.equal(isSafeBuilderBoundImageSrc("https://cdn.example.com/a.jpg"), true);
+  assert.equal(isSafeBuilderBoundImageSrc("/assets/a.jpg"), true);
+  assert.equal(isSafeBuilderBoundImageSrc("./a.jpg"), true);
+  assert.equal(isSafeBuilderBoundImageSrc("javascript:alert(1)"), false);
+  assert.equal(isSafeBuilderBoundImageSrc("data:image/svg+xml,<svg/>"), false);
+  assert.equal(isSafeBuilderBoundImageSrc("//cdn.example.com/a.jpg"), false);
 });
 
 test("default binding follows source capabilities", () => {

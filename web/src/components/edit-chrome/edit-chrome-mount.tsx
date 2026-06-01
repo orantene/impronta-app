@@ -240,6 +240,10 @@ export async function EditChromeMount() {
       ? ctx.tenantSlug
       : null;
 
+  // Owner-only gate: raw-HTML `code` blocks are insertable only by platform
+  // owners (super_admin), never by ordinary workspace editors (agency_staff).
+  const canInsertRawHtmlElements = staff.profile?.app_role === "super_admin";
+
   return (
     <EditChrome
       tenantId={ctx.tenantId}
@@ -252,6 +256,7 @@ export async function EditChromeMount() {
       workspacePlan={workspacePlan}
       tenantSiteLabel={tenantSiteLabel}
       workspaceMembershipSlug={workspaceMembershipSlug}
+      canInsertRawHtmlElements={canInsertRawHtmlElements}
     />
   );
 }
