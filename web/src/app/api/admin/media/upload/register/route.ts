@@ -27,6 +27,8 @@ import {
   resizeUploadForStorage,
   shouldResize,
 } from "@/lib/server/media-resize";
+import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
+import { validateImageUpload } from "@/lib/site-admin/media/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -128,10 +130,32 @@ export async function POST(req: Request) {
   let storedType = blob.type || "application/octet-stream";
   let width: number | null = null;
   let height: number | null = null;
+  const originalFilename =
+    typeof body.originalFilename === "string" ? body.originalFilename : null;
+  const originalMime =
+    typeof body.originalMime === "string" ? body.originalMime : storedType;
+  const initialMime =
+    storedType && storedType !== "application/octet-stream"
+      ? storedType
+      : originalMime;
+
+  if (kind === "image") {
+    const validation = validateImageUpload({
+      mime: initialMime,
+      byteSize: storedSize,
+    });
+    if (!validation.ok) {
+      await supabase.storage.from(BUCKET).remove([storagePath]);
+      return NextResponse.json(
+        { ok: false, error: validation.error },
+        { status: validation.status },
+      );
+    }
+  }
 
   // Defense-in-depth resize for images. Documents and videos pass
   // through unchanged (legacy route doesn't touch them either).
-  if (kind === "image" && shouldResize(storedType)) {
+  if (kind === "image" && shouldResize(initialMime)) {
     try {
       const resized = await resizeUploadForStorage(storedBuf, "gallery");
       width = resized.width;
@@ -164,10 +188,48 @@ export async function POST(req: Request) {
     }
   }
 
-  const originalFilename =
-    typeof body.originalFilename === "string" ? body.originalFilename : null;
-  const originalMime =
-    typeof body.originalMime === "string" ? body.originalMime : storedType;
+  if (kind === "image") {
+    const inserted = await insertTenantImageAsset({
+      supabase,
+      tenantId: scope.tenantId,
+      createdByUserId: auth.user.id,
+      storagePath,
+      mime: storedType && storedType !== "application/octet-stream" ? storedType : initialMime,
+      byteSize: storedSize,
+      width,
+      height,
+      metadata: {
+        source: "admin-upload-signed",
+        original_mime: originalMime,
+        kind,
+        original_file_name: originalFilename,
+      },
+    });
+    if (!inserted.item) {
+      await supabase.storage.from(BUCKET).remove([storagePath]);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Could not record the uploaded asset: ${inserted.error ?? "unknown"}`,
+        },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      item: {
+        id: inserted.item.id,
+        variantKind: inserted.item.variantKind,
+        storagePath: inserted.item.storagePath,
+        publicUrl: inserted.item.publicUrl,
+        createdAt: inserted.item.createdAt,
+        width: inserted.item.width,
+        height: inserted.item.height,
+        alt: inserted.item.alt,
+      },
+    });
+  }
 
   const { data: inserted, error: insertErr } = await supabase
     .from("media_assets")

@@ -335,7 +335,14 @@ export function BuilderNodeContentInspector({
                 value={node.props.src}
                 onChange={(next) => {
                   if (!next) return;
-                  void commitPatch({ src: next });
+                  void commitPatch({ src: next, mediaId: undefined });
+                }}
+                onPickItem={(item) => {
+                  void commitPatch({
+                    src: item.publicUrl,
+                    mediaId: item.id,
+                    alt: node.props.alt ?? item.alt ?? undefined,
+                  });
                 }}
                 emptyLabel="Choose image"
                 aspect="4/5"

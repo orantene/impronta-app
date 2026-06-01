@@ -16,13 +16,17 @@
 
 import { useState } from "react";
 
-import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
+import {
+  MediaPicker,
+  type MediaPickedItem,
+} from "@/lib/site-admin/sections/shared/MediaPicker";
 
 interface MediaPickerButtonProps {
   tenantId: string;
   /** Current image URL (null or empty → empty state). */
   value: string | null | undefined;
   onChange: (next: string | null) => void;
+  onPickItem?: (item: MediaPickedItem) => void;
   /** Label shown in the empty state tile. */
   emptyLabel?: string;
   /** Aspect ratio for the thumbnail. Defaults to 16/9. */
@@ -33,6 +37,7 @@ export function MediaPickerButton({
   tenantId,
   value,
   onChange,
+  onPickItem,
   emptyLabel = "Add image",
   aspect = "16/9",
 }: MediaPickerButtonProps) {
@@ -69,7 +74,13 @@ export function MediaPickerButton({
           <MediaPicker
             tenantId={tenantId}
             label="Pick from library"
-            onPick={(url) => onChange(url)}
+            onPick={(url) => {
+              if (!onPickItem) onChange(url);
+            }}
+            onPickItem={(item) => {
+              if (onPickItem) onPickItem(item);
+              else onChange(item.publicUrl);
+            }}
           />
           <button
             type="button"
@@ -114,7 +125,13 @@ export function MediaPickerButton({
           <MediaPicker
             tenantId={tenantId}
             label="Change"
-            onPick={(url) => onChange(url)}
+            onPick={(url) => {
+              if (!onPickItem) onChange(url);
+            }}
+            onPickItem={(item) => {
+              if (onPickItem) onPickItem(item);
+              else onChange(item.publicUrl);
+            }}
           />
           <button
             type="button"

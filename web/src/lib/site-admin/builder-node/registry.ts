@@ -458,7 +458,8 @@ const buttonPropsSchema = z.object({
 });
 
 const imagePropsSchema = z.object({
-  src: z.string().url().max(2048),
+  src: z.string().max(2048),
+  mediaId: z.string().uuid().optional(),
   alt: z.string().max(240).optional(),
   style: builderNodeStyleSchema,
 });

@@ -473,6 +473,7 @@ export interface BuilderImageNode extends BuilderNodeBase {
   kind: "image";
   props: {
     src: string;
+    mediaId?: string;
     alt?: string;
     style?: BuilderNodeStyle;
   };

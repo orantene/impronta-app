@@ -17,6 +17,7 @@ import {
 } from "./fonts-registry";
 import { getBuilderIconDefinition } from "./icon-registry";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
+import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
 export interface BuilderNodeRenderDataSources {
   featuredTalentProfiles?: ReadonlyArray<FeaturedTalentCardDTO>;
@@ -31,6 +32,7 @@ export interface BuilderNodeRenderDataSources {
     slug: string;
     name: string;
   }>;
+  mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
 }
 
 export interface BuilderNodeRenderOptions {
@@ -1815,6 +1817,34 @@ function buttonStateAttrs(node: Extract<BuilderNode, { kind: "button" }>) {
   };
 }
 
+function isSafeBuilderImageSrc(value: string | null | undefined): value is string {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function resolveImageRenderProps(
+  node: Extract<BuilderNode, { kind: "image" }>,
+  options: Required<BuilderNodeRenderOptions>,
+): { src: string; alt: string } | null {
+  const media =
+    node.props.mediaId && options.dataSources.mediaAssets
+      ? options.dataSources.mediaAssets.find((asset) => asset.id === node.props.mediaId)
+      : null;
+  const src = media?.publicUrl ?? node.props.src;
+  if (!isSafeBuilderImageSrc(src)) return null;
+  return {
+    src,
+    alt: node.props.alt?.trim() ? node.props.alt : (media?.alt ?? ""),
+  };
+}
+
 function renderBuilderNode(
   node: BuilderNode,
   options: Required<BuilderNodeRenderOptions>,
@@ -2093,17 +2123,20 @@ function renderBuilderNode(
           {node.props.label}
         </a>
       );
-    case "image":
+    case "image": {
+      const image = resolveImageRenderProps(node, options);
+      if (!image) return null;
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
+          data-builder-media-id={node.props.mediaId}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--image"
-          src={node.props.src}
-          alt={node.props.alt ?? ""}
+          src={image.src}
+          alt={image.alt}
           loading="lazy"
           style={{
             display: "block",
@@ -2119,6 +2152,7 @@ function renderBuilderNode(
           }}
         />
       );
+    }
     case "video":
       return (
         <video
@@ -2372,6 +2406,22 @@ export function renderBuilderNodes(
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
   return [...headNodes, ...renderedNodes];
+}
+
+export function collectBuilderImageMediaIds(
+  nodes: ReadonlyArray<BuilderNode>,
+): string[] {
+  const ids = new Set<string>();
+  const visit = (node: BuilderNode) => {
+    if (node.kind === "image" && node.props.mediaId) {
+      ids.add(node.props.mediaId);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of nodes) visit(node);
+  return [...ids];
 }
 
 export function BuilderNodeFontLinks({
