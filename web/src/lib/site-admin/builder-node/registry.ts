@@ -19,6 +19,8 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "video",
   "embed",
   "icon",
+  "pricing_table",
+  "rich_text",
   "divider",
   "spacer",
 ];
@@ -139,6 +141,9 @@ const builderNodeStyleValueSchema = z.object({
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
   gap: z.string().max(16).optional(),
+  // Container-query registration — turns this node into a query container.
+  containerType: z.enum(["normal", "inline-size", "size"]).optional(),
+  containerName: z.string().max(80).optional(),
   // Positioning escapes — context + inset offsets (negatives allowed).
   position: z.enum(["relative", "absolute", "sticky"]).optional(),
   top: z.string().max(16).optional(),
@@ -155,9 +160,13 @@ const builderNodeStyleValueSchema = z.object({
   scale: z.string().max(16).optional(),
   translate: z.string().max(24).optional(),
   transformOrigin: z.string().max(32).optional(),
-  // Transition escape — free CSS transition string that smooths animatable
-  // changes (hover/responsive/state). Auto-defaults to "all .2s ease" at render
-  // when a hover layer exists.
+  // First-class CSS transitions — longhands emit through renderer CSS vars so
+  // breakpoint/hover changes ease instead of snapping. The legacy shorthand is
+  // kept for existing snapshots and wins when present.
+  transitionProperty: z.string().max(120).optional(),
+  transitionDuration: z.string().max(24).optional(),
+  transitionTimingFunction: z.string().max(80).optional(),
+  transitionDelay: z.string().max(24).optional(),
   transition: z.string().max(120).optional(),
   // Flex/grid child placement — self-alignment + flex sizing inside a parent.
   alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),
@@ -269,6 +278,12 @@ const builderNodeHoverStyleSchema = z.object({
 const builderNodeStyleSchema = builderNodeStyleValueSchema
   .extend({
     responsive: z
+      .object({
+        tablet: builderNodeStyleValueSchema.optional(),
+        mobile: builderNodeStyleValueSchema.optional(),
+      })
+      .optional(),
+    containerQueries: z
       .object({
         tablet: builderNodeStyleValueSchema.optional(),
         mobile: builderNodeStyleValueSchema.optional(),
@@ -508,6 +523,12 @@ const iconPropsSchema = z.object({
   size: z.enum(["sm", "md", "lg", "xl"]).optional(),
   style: builderNodeStyleSchema,
 });
+
+const pricingTablePropsSchema = z.object({
+  tiers: z.array(z.object({ id: z.string().min(1).max(80), name: z.string().min(1).max(120), description: z.string().max(500).optional(), price: z.string().min(1).max(80), period: z.string().max(80).optional(), ctaLabel: z.string().max(80).optional(), ctaHref: z.string().max(500).optional(), highlighted: z.boolean().optional(), features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional() })).min(2).max(4),
+  style: builderNodeStyleSchema,
+});
+const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), style: builderNodeStyleSchema });
 
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
@@ -757,6 +778,8 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       children: { type: "none" },
       propsSchema: iconPropsSchema,
     },
+    pricing_table: { kind: "pricing_table", label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" }, propsSchema: pricingTablePropsSchema },
+    rich_text: { kind: "rich_text", label: "Rich text", description: "Body copy with bold, italic, and sanitized links.", children: { type: "none" }, propsSchema: richTextPropsSchema },
     divider: {
       kind: "divider",
       label: "Divider",

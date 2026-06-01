@@ -878,7 +878,7 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /scale:var\(--bn-hover-scale\)/);
   });
 
-  it("auto-defaults the transition when a hover layer is set without one", () => {
+  it("auto-defaults the transition vars when a hover layer is set without one", () => {
     const html = render([
       {
         id: "free:hover-auto",
@@ -890,9 +890,13 @@ describe("renderBuilderNodes", () => {
       },
     ]);
 
-    // No explicit transition + a hover layer ⇒ gentle auto-ease so hover animates.
-    assert.match(html, /transition:all \.2s ease/);
+    // No explicit transition + a hover layer ⇒ data-gated longhand vars so hover animates.
+    assert.match(html, /data-builder-style-transition=""/);
+    assert.match(html, /--bn-transition-property:all/);
+    assert.match(html, /--bn-transition-duration:\.2s/);
+    assert.match(html, /--bn-transition-timing-function:ease/);
     assert.match(html, /data-builder-style-hover-bg=""/);
+    assert.doesNotMatch(html, /transition:all \.2s ease/);
   });
 
   it("emits no hover gate or auto-transition when there is no hover layer", () => {
@@ -909,6 +913,7 @@ describe("renderBuilderNodes", () => {
 
     // A base (non-hover) scale must not arm any hover gate or auto-transition.
     assert.doesNotMatch(html, /data-builder-style-hover-scale=""/);
+    assert.doesNotMatch(html, /data-builder-style-transition=""/);
     assert.doesNotMatch(html, /transition:all \.2s ease/);
   });
 

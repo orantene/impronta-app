@@ -5,6 +5,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { BuilderNodeRendererStyles, renderBuilderNodes } from "./render";
 import type { BuilderNode } from "./types";
+import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
+
+function renderRich(input: string): string {
+  return renderToStaticMarkup(
+    createElement(Fragment, null, ...renderInlineRich(input)) as Parameters<
+      typeof renderToStaticMarkup
+    >[0],
+  );
+}
 
 /**
  * Render-output regression suite — locks in that the builder's STYLE ESCAPES,
@@ -109,6 +118,135 @@ test("escapes: surface + transform + blend escapes emit correct CSS", () => {
   assert.ok(html.toLowerCase().includes("backdrop-filter"), "backdrop-filter");
 });
 
+test("transitions: longhands emit through renderer CSS vars", () => {
+  const html = render([
+    container({
+      transitionProperty: "background-color, color",
+      transitionDuration: "320ms",
+      transitionTimingFunction: "cubic-bezier(.2,.8,.2,1)",
+      transitionDelay: "40ms",
+      responsive: {
+        mobile: {
+          transitionDuration: "120ms",
+        },
+      },
+    }),
+  ]);
+
+  assert.ok(
+    html.includes(
+      ".site-builder-node[data-builder-style-transition]{transition-property:var(--bn-transition-property,all)",
+    ),
+    "static transition rule",
+  );
+  assert.ok(
+    html.includes('data-builder-style-transition=""'),
+    "base transition data gate",
+  );
+  assert.ok(
+    html.includes('data-builder-style-mobile-transition=""'),
+    "mobile transition data gate",
+  );
+  assert.ok(
+    html.includes("--bn-transition-property:background-color, color"),
+    "base property var",
+  );
+  assert.ok(html.includes("--bn-transition-duration:320ms"), "base duration");
+  assert.ok(
+    html.includes("--bn-transition-timing-function:cubic-bezier(.2,.8,.2,1)"),
+    "base easing",
+  );
+  assert.ok(html.includes("--bn-transition-delay:40ms"), "base delay");
+  assert.ok(
+    html.includes("--bn-mobile-transition-duration:120ms"),
+    "mobile duration",
+  );
+});
+
+test("transitions: hover auto-default emits easing without a shorthand", () => {
+  const html = render([
+    container({
+      hover: { backgroundColor: "#111" },
+    }),
+  ]);
+
+  assert.ok(
+    html.includes('data-builder-style-transition=""'),
+    "hover arms transition gate",
+  );
+  assert.ok(html.includes("--bn-transition-property:all"), "default property");
+  assert.ok(html.includes("--bn-transition-duration:.2s"), "default duration");
+  assert.ok(!html.includes("transition:all .2s ease"), "no inline shorthand");
+});
+
+test("container queries: query containers and slot-width overrides emit", () => {
+  const html = render([
+    {
+      id: "slot",
+      kind: "container",
+      props: {
+        layout: "stack",
+        style: {
+          containerType: "inline-size",
+          containerName: "pricing-card",
+        },
+      },
+      children: [
+        {
+          id: "copy",
+          kind: "paragraph",
+          props: {
+            text: "Slot-aware copy",
+            style: {
+              containerQueries: {
+                mobile: {
+                  fontSize: "14px",
+                  backgroundColor: "#f8fafc",
+                  gridTemplateColumns: "1fr",
+                },
+              },
+            },
+          },
+        },
+      ],
+    } as BuilderNode,
+  ]);
+
+  assert.ok(
+    html.includes(
+      ".site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)",
+    ),
+    "container-type static rule",
+  );
+  assert.ok(html.includes("--bn-container-type:inline-size"), "container type var");
+  assert.ok(html.includes("--bn-container-name:pricing-card"), "container name var");
+  assert.ok(html.includes("@container (max-width:640px)"), "mobile container query");
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-font-size=""'),
+    "container mobile font-size gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-font-size:14px"),
+    "container mobile font-size var",
+  );
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-bg-color=""'),
+    "container mobile background gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-bg-color:#f8fafc"),
+    "container mobile background var",
+  );
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-grid-template-columns=""'),
+    "container mobile grid-template gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-grid-template-columns:1fr"),
+    "container mobile grid-template var",
+  );
+});
+
 // ── Entrance animation ────────────────────────────────────────────────────────
 
 test("animation: preset + easing resolution + scroll-driven timeline", () => {
@@ -181,6 +319,11 @@ test("font loading: node font families emit Google stylesheet links", () => {
                 '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',
             },
           },
+          containerQueries: {
+            tablet: {
+              fontFamily: '"DM Sans", system-ui, sans-serif',
+            },
+          },
         }),
       ],
       {
@@ -198,6 +341,10 @@ test("font loading: node font families emit Google stylesheet links", () => {
   assert.ok(
     html.includes("family=IBM+Plex+Mono:wght@400;500;700"),
     "responsive family loaded",
+  );
+  assert.ok(
+    html.includes("family=DM+Sans:wght@400;500;700"),
+    "container-query family loaded",
   );
   assert.equal(countRendererStyles(html), 0);
 });
@@ -303,6 +450,60 @@ test("node kind: icon renders inline currentColor svg", () => {
   assert.ok(html.includes("color:#0f766e"), "shared style color");
 });
 
+test("node kind: pricing_table renders responsive tiers with feature marks", () => {
+  const html = render([
+    {
+      id: "pricing-1",
+      kind: "pricing_table",
+      props: {
+        style: { gap: "24px" },
+        tiers: [
+          {
+            id: "tier-basic",
+            name: "Basic",
+            description: "A lean launch package.",
+            price: "$800",
+            period: "project",
+            ctaLabel: "Start basic",
+            ctaHref: "/inquire",
+            features: [
+              { label: "Planning call" },
+              { label: "Priority revisions", included: false },
+            ],
+          },
+          {
+            id: "tier-pro",
+            name: "Pro",
+            price: "$1,600",
+            period: "project",
+            ctaLabel: "Start pro",
+            ctaHref: "/inquire?plan=pro",
+            highlighted: true,
+            features: [{ label: "Planning call" }],
+          },
+        ],
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="pricing_table"'), "kind marker");
+  assert.ok(
+    html.includes(".site-builder-node--pricing-table{width:100%"),
+    "static pricing table CSS",
+  );
+  assert.ok(
+    html.includes(".site-builder-node--pricing-table{grid-template-columns:1fr}"),
+    "mobile stack rule",
+  );
+  assert.ok(html.includes("--bn-pricing-columns:2"), "column count var");
+  assert.ok(html.includes("--bn-gap:24px"), "gap style override");
+  assert.ok(html.includes('data-builder-pricing-highlighted="true"'), "highlight");
+  assert.ok(html.includes('href="/inquire?plan=pro"'), "CTA href");
+  assert.ok(html.includes('data-builder-feature-included="false"'), "excluded feature");
+  assert.ok(html.includes("✓"), "check mark");
+  assert.ok(html.includes("×"), "x mark");
+});
+
 test("security: embed sandbox never grants allow-same-origin (would defeat itself)", () => {
   const html = render([
     {
@@ -315,6 +516,29 @@ test("security: embed sandbox never grants allow-same-origin (would defeat itsel
   // sandbox attribute — they must never ship together.
   assert.ok(html.includes("allow-scripts"), "scripts allowed (players need it)");
   assert.ok(!html.includes("allow-same-origin"), "must NOT grant allow-same-origin");
+});
+
+test("node kind: rich_text renders annotations and sanitizes unsafe links", () => {
+  const html = render([
+    {
+      id: "rich-1",
+      kind: "rich_text",
+      props: {
+        text: "{b}Bold{/b} and {i}italic{/i} with [safe](https://example.com) plus [local](/directory) and [bad](javascript:alert(1)).",
+        style: { textColor: "#111827" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="rich_text"'), "kind marker");
+  assert.ok(html.includes("<strong>Bold</strong>"), "bold annotation");
+  assert.ok(html.includes("<em>italic</em>"), "italic annotation");
+  assert.ok(html.includes('href="https://example.com"'), "https link kept");
+  assert.ok(html.includes('target="_blank"'), "external link target");
+  assert.ok(html.includes('href="/directory"'), "relative link kept");
+  assert.ok(html.includes("bad"), "unsafe label kept as text");
+  assert.ok(!html.includes("javascript:alert"), "unsafe href removed");
+  assert.ok(html.includes("color:#111827"), "shared style");
 });
 
 test("a11y: non-decorative icon without a label falls back to an accessible name", () => {
@@ -367,4 +591,34 @@ test("phase3: missing component + no-components both fall back to stored childre
   // no components passed at all
   const none = render([instance("instD")]);
   assert.ok(none.includes("FALLBACK") && !none.includes("MASTER HEADING"), "no components → stored fallback");
+});
+
+// ── SECURITY: section-level inline rich text href allowlist ───────────────────
+// Regression for a LIVE pre-Wave-2 prod XSS: renderInlineRich rendered markdown
+// link hrefs straight into <a href> with no scheme guard, so a `javascript:`
+// link in any section text field was a clickable cross-tenant XSS on the shared
+// apex (parent-scoped cookies, unsafe-inline CSP). The href allowlist now blocks
+// it at the shared chokepoint that ~45 section components funnel through.
+
+test("security: renderInlineRich keeps safe https + relative markdown links", () => {
+  const html = renderRich("[ext](https://example.com) and [home](/directory) and [anchor](#top)");
+  assert.ok(html.includes('href="https://example.com"'), "https anchor kept");
+  assert.ok(html.includes('href="/directory"'), "relative anchor kept");
+  assert.ok(html.includes('href="#top"'), "in-page anchor kept");
+  assert.ok(html.includes('target="_blank"'), "external link target preserved");
+});
+
+test("security: renderInlineRich neutralizes javascript:/data:/vbscript: links to plain text", () => {
+  for (const scheme of [
+    "[click](javascript:alert(1))",
+    "[x](JavaScript:alert(1))",
+    "[y](data:text/html,<script>alert(1)</script>)",
+    "[z](vbscript:msgbox(1))",
+  ]) {
+    const html = renderRich(scheme).toLowerCase();
+    assert.ok(!/<a[\s>]/.test(html), `no anchor rendered for ${scheme}`);
+    assert.ok(!html.includes("href="), `no href attribute emitted for ${scheme}`);
+  }
+  // the link label survives as readable text
+  assert.ok(renderRich("[click](javascript:alert(1))").includes("click"), "label kept as text");
 });

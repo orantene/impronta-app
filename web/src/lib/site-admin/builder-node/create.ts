@@ -75,6 +75,47 @@ export function createImage(index = 0, style?: BuilderNodeStyle): BuilderNode {
   };
 }
 
+export function createPricingTable(style?: BuilderNodeStyle): BuilderNode {
+  return {
+    id: makeId("pricing_table"),
+    kind: "pricing_table",
+    props: {
+      style,
+      tiers: [
+        {
+          id: makeId("pricing_table"),
+          name: "Starter",
+          description: "For focused launches and light-touch support.",
+          price: "$1,200",
+          period: "project",
+          ctaLabel: "Choose Starter",
+          ctaHref: "/inquire",
+          features: [
+            { label: "Discovery call" },
+            { label: "Launch checklist" },
+            { label: "Priority revisions", included: false },
+          ],
+        },
+        {
+          id: makeId("pricing_table"),
+          name: "Signature",
+          description: "A fuller package with guided strategy and polish.",
+          price: "$2,800",
+          period: "project",
+          ctaLabel: "Choose Signature",
+          ctaHref: "/inquire",
+          highlighted: true,
+          features: [
+            { label: "Discovery call" },
+            { label: "Launch checklist" },
+            { label: "Priority revisions" },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 export function createAccordionItem(title: string, body: string): BuilderNode {
   return {
     id: makeId("accordion_item"),
@@ -263,6 +304,16 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           icon: "sparkle",
           label: "Sparkle",
           size: "lg",
+        },
+      };
+    case "pricing_table":
+      return createPricingTable();
+    case "rich_text":
+      return {
+        id: makeId("rich_text"),
+        kind: "rich_text",
+        props: {
+          text: "Write {b}rich copy{/b}, {i}editorial emphasis{/i}, and [safe links](/directory).",
         },
       };
     case "divider":

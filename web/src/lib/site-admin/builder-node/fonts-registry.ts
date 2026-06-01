@@ -260,6 +260,8 @@ export function collectBuilderNodeFontFamilies(
     add(style?.fontFamily);
     add(style?.responsive?.tablet?.fontFamily);
     add(style?.responsive?.mobile?.fontFamily);
+    add(style?.containerQueries?.tablet?.fontFamily);
+    add(style?.containerQueries?.mobile?.fontFamily);
   };
   const visit = (node: BuilderNode) => {
     addStyle((node.props as { style?: BuilderNodeStyle }).style);

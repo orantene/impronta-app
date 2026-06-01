@@ -37,6 +37,32 @@ const BOLD_RE = /^\{b\}(.*)\{\/b\}$/;
 const ITALIC_RE = /^\{i\}(.*)\{\/i\}$/;
 const LINK_RE = /^\[([^\]]+)\]\(([^)]+)\)$/;
 
+/**
+ * SECURITY — markdown-link href allowlist. Author-supplied text fields render on
+ * published pages on the shared apex domain (.tulala.digital cookies are
+ * parent-scoped) under a `script-src 'unsafe-inline'` CSP, so a `javascript:`
+ * href here is clickable cross-tenant XSS. React does NOT neutralize
+ * `javascript:`/`data:` URLs in `href` at runtime — only the allowlist below
+ * does. Permits http(s):// + relative / in-page targets only; everything else
+ * is rendered as plain label text (no anchor). Slightly more lenient than
+ * `isSafeBuilderRichTextHref` in builder-node/render.tsx (which is https-only
+ * for greenfield nodes) — http is allowed here to preserve legacy published
+ * links; the XSS-bearing schemes (javascript:/data:/vbscript:) are what matter.
+ */
+export function isSafeRichTextHref(value: string): boolean {
+  const href = value.trim();
+  if (!href || href.startsWith("//")) return false;
+  if (/^https?:\/\//i.test(href)) return true;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return false;
+  return (
+    href.startsWith("/") ||
+    href.startsWith("#") ||
+    href.startsWith("?") ||
+    href.startsWith("./") ||
+    href.startsWith("../")
+  );
+}
+
 export function renderInlineRich(
   input: string | null | undefined,
 ): ReactNode[] {
@@ -73,18 +99,24 @@ export function renderInlineRich(
     m = part.match(LINK_RE);
     if (m) {
       const href = m[2].trim();
-      const isExternal = /^https?:\/\//i.test(href);
-      return (
-        <a
-          key={i}
-          href={href}
-          className="site-link"
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noopener noreferrer" : undefined}
-        >
-          {m[1]}
-        </a>
-      );
+      // SECURITY: only render an anchor for allowlisted hrefs. Unsafe schemes
+      // (javascript:/data:/vbscript:/…) fall through to a plain-text label so a
+      // malicious markdown link can never become a clickable XSS sink.
+      if (isSafeRichTextHref(href)) {
+        const isExternal = /^https?:\/\//i.test(href);
+        return (
+          <a
+            key={i}
+            href={href}
+            className="site-link"
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noopener noreferrer" : undefined}
+          >
+            {m[1]}
+          </a>
+        );
+      }
+      return <span key={i}>{m[1]}</span>;
     }
     return <span key={i}>{part}</span>;
   });

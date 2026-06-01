@@ -15,6 +15,8 @@ export type BuilderNodeKind =
   | "video"
   | "embed"
   | "icon"
+  | "pricing_table"
+  | "rich_text"
   | "divider"
   | "spacer"
   | "card"
@@ -118,6 +120,10 @@ export interface BuilderNodeStyleValue {
   // split / card / cta_group / carousel / masonry by reassigning the --bn-gap
   // CSS variable, so every consumer (incl. child tracks) picks it up.
   gap?: string;
+  // Container-query registration — applied to a wrapper node so descendants can
+  // respond to that slot's width via BuilderNodeStyle.containerQueries.
+  containerType?: "normal" | "inline-size" | "size";
+  containerName?: string;
   // Positioning escapes — establish a positioning context and nudge the node
   // with inset offsets (CSS length strings; negatives allowed for overlaps).
   position?: "relative" | "absolute" | "sticky";
@@ -139,10 +145,15 @@ export interface BuilderNodeStyleValue {
   scale?: string;
   translate?: string;
   transformOrigin?: string;
-  // Transition escape — free CSS transition string that smooths any animatable
-  // property change (hover, responsive, state). e.g. "all .2s ease",
-  // "transform .3s cubic-bezier(.2,.8,.2,1)". When a hover layer is present the
-  // renderer auto-defaults this to "all .2s ease" so hover changes ease in.
+  // First-class CSS transitions — smooth animatable changes (hover, responsive,
+  // state). The longhands are emitted through the renderer CSS var/data-attr
+  // path, so breakpoint overrides work like the rest of the freeform escapes.
+  transitionProperty?: string;
+  transitionDuration?: string;
+  transitionTimingFunction?: string;
+  transitionDelay?: string;
+  // Legacy shorthand escape. When present it wins over the longhands, matching
+  // normal CSS cascade behavior for an inline transition declaration.
   transition?: string;
   // Flex/grid child placement — how this node sizes & aligns inside a row/grid
   // parent. alignSelf overrides the parent's cross-axis alignment for just this
@@ -268,6 +279,10 @@ export interface BuilderNodeHoverStyle {
 
 export interface BuilderNodeStyle extends BuilderNodeStyleValue {
   responsive?: {
+    tablet?: BuilderNodeStyleValue;
+    mobile?: BuilderNodeStyleValue;
+  };
+  containerQueries?: {
     tablet?: BuilderNodeStyleValue;
     mobile?: BuilderNodeStyleValue;
   };
@@ -498,6 +513,35 @@ export interface BuilderIconNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderPricingTableNode extends BuilderNodeBase {
+  kind: "pricing_table";
+  props: {
+    tiers: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      price: string;
+      period?: string;
+      ctaLabel?: string;
+      ctaHref?: string;
+      highlighted?: boolean;
+      features?: Array<{
+        label: string;
+        included?: boolean;
+      }>;
+    }>;
+    style?: BuilderNodeStyle;
+  };
+}
+
+export interface BuilderRichTextNode extends BuilderNodeBase {
+  kind: "rich_text";
+  props: {
+    text: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -553,6 +597,8 @@ export type BuilderNode =
   | BuilderVideoNode
   | BuilderEmbedNode
   | BuilderIconNode
+  | BuilderPricingTableNode
+  | BuilderRichTextNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode
