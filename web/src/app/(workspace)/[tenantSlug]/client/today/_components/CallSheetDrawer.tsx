@@ -20,6 +20,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import type { UpcomingBooking } from "../../../_data-bridge/client-upcoming";
+import { formatClientWeekdayDate } from "../../date-format";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -344,14 +345,5 @@ function initials(name: string): string {
 }
 
 function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+  return formatClientWeekdayDate(iso, iso);
 }
