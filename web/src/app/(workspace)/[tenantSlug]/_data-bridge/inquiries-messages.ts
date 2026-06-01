@@ -453,7 +453,12 @@ export async function loadInquiriesForMessages(
     }[]) {
       offersById.set(row.id, {
         status: row.status,
-        totalMinor: row.total_client_price,
+        // total_client_price is stored in MAJOR units (e.g. 100.00 = €100), but
+        // `totalMinor` is the cents lane (formatMoneyMinor ÷100s it; fixtures use
+        // 740000 = €7,400). Without ×100 the admin offer total rendered as
+        // value/100 (e.g. €1 for a €100 offer; €100 for a €10,000 offer) while
+        // every other surface (client + OfferDraftEditor) showed the major value.
+        totalMinor: row.total_client_price == null ? null : Math.round(Number(row.total_client_price) * 100),
         currency: row.currency_code,
       });
     }

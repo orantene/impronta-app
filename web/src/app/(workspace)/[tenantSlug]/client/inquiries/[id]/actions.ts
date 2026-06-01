@@ -133,7 +133,7 @@ export async function clientApproveOfferAction(
   inquiryId: string,
   offerId: string,
   expectedVersion: number,
-): Promise<ServerActionResult> {
+): Promise<ServerActionResult<{ awaitingOthers: boolean }>> {
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) return { ok: false, error: "Workspace not found." };
 
@@ -171,9 +171,21 @@ export async function clientApproveOfferAction(
     return { ok: false, error: friendly, reason };
   }
 
+  // Honest feedback: the approval is RECORDED, but the offer only converts to a
+  // booking once ALL parties (the client AND every assigned talent) have
+  // approved — submitApproval returns success either way. Re-read the offer so
+  // the caller can distinguish "approved" from "recorded, waiting on the talent
+  // to confirm" instead of silently implying it booked.
+  const { data: offerAfter } = await supabase
+    .from("inquiry_offers")
+    .select("status")
+    .eq("id", offerId)
+    .maybeSingle();
+  const awaitingOthers = (offerAfter?.status as string | undefined) === "sent";
+
   revalidatePath(`/${tenantSlug}/client/inquiries/${inquiryId}`);
   revalidatePath(`/${tenantSlug}/client/inquiries`);
-  return { ok: true, data: undefined };
+  return { ok: true, data: { awaitingOthers } };
 }
 
 /**
