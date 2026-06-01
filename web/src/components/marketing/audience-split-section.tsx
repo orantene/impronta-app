@@ -1,92 +1,70 @@
-import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { EditorialFrame } from "./editorial-image";
 
-type Audience = {
+type AudienceConfig = {
   key: "talent" | "business" | "hub";
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-  points: string[];
-  cta: { label: string; href: string; intent: string };
+  href: string;
+  intent: string;
   accent: string;
   photo: MarketingPhoto;
 };
 
-const AUDIENCES: Audience[] = [
+/** Code-side config — copy (labels/points) comes from the copy module per locale. */
+const AUDIENCE_CONFIG: AudienceConfig[] = [
   {
     key: "talent",
-    eyebrow: "For talent",
-    title: "Sell your work.",
-    subtitle:
-      "Give your skill a page, a booking flow, and room to grow — without building anything first.",
-    points: [
-      "Free profile and shareable link",
-      "Reservations and payments built in",
-      "Apply to agencies and hubs anytime",
-    ],
-    cta: { label: "Start as talent", href: "/operators", intent: "talent" },
+    href: "/operators",
+    intent: "talent",
     accent: "var(--plt-forest)",
     photo: MARKETING_PHOTOS.audienceTalent,
   },
   {
     key: "business",
-    eyebrow: "For business",
-    title: "Run the business.",
-    subtitle:
-      "A branded site on your own domain, your team, and inquiries that turn into real bookings.",
-    points: [
-      "Custom domain and branded pages",
-      "Roles and permissions for your team",
-      "Inquiry → offer → booking pipeline",
-    ],
-    cta: { label: "Build a business", href: "/agencies", intent: "business" },
+    href: "/agencies",
+    intent: "business",
     accent: "var(--plt-ink)",
     photo: MARKETING_PHOTOS.audienceBusiness,
   },
   {
     key: "hub",
-    eyebrow: "For hubs",
-    title: "Build a network.",
-    subtitle:
-      "Curate vetted pros into a searchable hub clients book from and talent apply to join.",
-    points: [
-      "Browse-and-filter directory",
-      "Applications and approvals",
-      "Routed, attributed bookings",
-    ],
-    cta: { label: "Explore hubs", href: "/organizations", intent: "hub" },
+    href: "/organizations",
+    intent: "hub",
     accent: "var(--tl-sage, #8a907b)",
     photo: MARKETING_PHOTOS.audienceHub,
   },
 ];
 
-export function AudienceSplitSection() {
+type AudienceCopy = MarketingCopy["audience"]["talent"];
+
+export async function AudienceSplitSection() {
+  const copy = getMarketingCopy(await getRequestLocale()).audience;
+
   return (
     <MarketingSection id="audiences">
       <MarketingContainer size="wide">
         <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Who it&rsquo;s for</MarketingEyebrow>
+          <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
           <h2
             className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
             style={{ color: "var(--mkt-ink)" }}
           >
-            Built for how you work.
+            {copy.title}
           </h2>
           <p
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--mkt-muted)" }}
           >
-            Sell your own services, run a full business, or curate a hub — {PLATFORM_BRAND.name}
-            {" "}scales with you. And you don&rsquo;t have to pick just one.
+            {copy.subtitle}
           </p>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-3 md:gap-6">
-          {AUDIENCES.map((a) => (
-            <AudienceCard key={a.key} audience={a} />
+          {AUDIENCE_CONFIG.map((config) => (
+            <AudienceCard key={config.key} config={config} copy={copy[config.key]} />
           ))}
         </div>
       </MarketingContainer>
@@ -94,7 +72,7 @@ export function AudienceSplitSection() {
   );
 }
 
-function AudienceCard({ audience }: { audience: Audience }) {
+function AudienceCard({ config, copy }: { config: AudienceConfig; copy: AudienceCopy }) {
   return (
     <article
       className="group flex h-full flex-col overflow-hidden rounded-[20px] transition-transform duration-300 hover:-translate-y-1"
@@ -106,7 +84,7 @@ function AudienceCard({ audience }: { audience: Audience }) {
     >
       <EditorialFrame
         bare
-        photo={audience.photo}
+        photo={config.photo}
         aspect="landscape"
         tone="cream"
         className="w-full"
@@ -115,32 +93,29 @@ function AudienceCard({ audience }: { audience: Audience }) {
       <div className="flex flex-1 flex-col p-6">
         <span
           className="plt-mono inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.18em]"
-          style={{ color: audience.accent }}
+          style={{ color: config.accent }}
         >
           <span
             className="inline-block h-1.5 w-1.5 rounded-full"
-            style={{ background: audience.accent }}
+            style={{ background: config.accent }}
             aria-hidden
           />
-          {audience.eyebrow}
+          {copy.eyebrow}
         </span>
 
         <h3
           className="plt-display mt-3 text-[1.5rem] font-semibold leading-[1.05] tracking-[-0.025em] sm:text-[1.625rem]"
           style={{ color: "var(--plt-ink)" }}
         >
-          {audience.title}
+          {copy.title}
         </h3>
 
-        <p
-          className="mt-2.5 text-[0.9375rem] leading-[1.55]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {audience.subtitle}
+        <p className="mt-2.5 text-[0.9375rem] leading-[1.55]" style={{ color: "var(--plt-muted)" }}>
+          {copy.subtitle}
         </p>
 
         <ul className="mt-5 space-y-2.5">
-          {audience.points.map((p) => (
+          {copy.points.map((p) => (
             <li
               key={p}
               className="flex items-start gap-2.5 text-[0.875rem] leading-[1.5]"
@@ -148,7 +123,7 @@ function AudienceCard({ audience }: { audience: Audience }) {
             >
               <span
                 className="mt-[7px] inline-block h-1 w-1 shrink-0 rounded-full"
-                style={{ background: audience.accent }}
+                style={{ background: config.accent }}
                 aria-hidden
               />
               {p}
@@ -158,13 +133,13 @@ function AudienceCard({ audience }: { audience: Audience }) {
 
         <div className="mt-auto pt-6">
           <MarketingCta
-            href={audience.cta.href}
+            href={config.href}
             variant="inline"
             size="md"
             eventSource="home-audience-split"
-            eventIntent={audience.cta.intent}
+            eventIntent={config.intent}
           >
-            {audience.cta.label}
+            {copy.cta}
           </MarketingCta>
         </div>
       </div>

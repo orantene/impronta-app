@@ -8,6 +8,7 @@ import { MarketingAnalyticsTracker } from "./analytics-tracker";
 import { NetworkSection } from "./network-section";
 import { PricingTeaserSection } from "./pricing-teaser-section";
 import { ProductTourSection } from "./product-tour-section";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 /**
  * The composed marketing homepage — a tight, conversion-first scroll.
@@ -26,10 +27,11 @@ import { ProductTourSection } from "./product-tour-section";
  * `marketing_section_viewed` event when it crosses the viewport.
  */
 export async function MarketingHomePage() {
+  const locale = await getRequestLocale();
   return (
     <MarketingAnalyticsTracker sourcePage="home">
       <div data-mkt-section="hero">
-        <HeroSection />
+        <HeroSection locale={locale} />
       </div>
       <div data-mkt-section="audience-split">
         <AudienceSplitSection />

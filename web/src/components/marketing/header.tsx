@@ -6,8 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
+import { MarketingLanguageToggle } from "./marketing-language-toggle";
 
 type NavLeaf = { label: string; href: string; description?: string };
 type NavNode =
@@ -19,98 +21,46 @@ type NavNode =
  *   Platform  → what Tulala is (flagship: one-click builder + booking messenger)
  *   Solutions → who it's for (talent / business / hubs / the hybrid)
  *   Discover  → the single browse surface (talent, agencies & hubs, network)
- * plus Pricing and Stories as direct links. This collapses the old eight flat
- * links and removes the Talent/Discover/Agencies overlap.
+ * plus Pricing and Stories. Labels/descriptions come from the copy module
+ * (per locale); hrefs live here and stay stable across languages.
  */
-const NAV: NavNode[] = [
-  {
+const NAV_HREFS = {
+  platform: ["/#builder", "/#messenger", "/network", "/integrations", "/how-it-works"],
+  solutions: ["/operators", "/agencies", "/organizations", "/#stories"],
+  discover: ["/directory", "/discover-agencies", "/network"],
+};
+
+function buildNav(copy: MarketingCopy): NavNode[] {
+  const menu = (m: MarketingCopy["nav"]["platform"], hrefs: string[]): NavNode => ({
     kind: "menu",
-    label: "Platform",
-    blurb: "One platform to build a business around people — and get paid.",
-    items: [
-      {
-        label: "One-click page builder",
-        href: "/#builder",
-        description: "Your services website and business workspace, generated in a click.",
-      },
-      {
-        label: "Booking messenger",
-        href: "/#messenger",
-        description: "Inquiry → offer → booking → payment, all inside one chat.",
-      },
-      {
-        label: "The network",
-        href: "/network",
-        description: "Opt into shared, cross-roster discovery.",
-      },
-      {
-        label: "Integrations & API",
-        href: "/integrations",
-        description: "Embed your roster anywhere, or build on the API.",
-      },
-      {
-        label: "How it works",
-        href: "/how-it-works",
-        description: "The full platform tour, end to end.",
-      },
-    ],
-  },
-  {
-    kind: "menu",
-    label: "Solutions",
-    blurb: "However you work — sell your own services, run a business, or both.",
-    items: [
-      {
-        label: "For talent",
-        href: "/operators",
-        description: "Sell your services from one page. Free to start.",
-      },
-      {
-        label: "For business",
-        href: "/agencies",
-        description: "Run an agency, studio, or salon on your own domain.",
-      },
-      {
-        label: "For hubs",
-        href: "/organizations",
-        description: "Build a city-wide network of vetted service pros.",
-      },
-      {
-        label: "Talent + workspace",
-        href: "/#stories",
-        description: "Be the talent and run the business. One account.",
-      },
-    ],
-  },
-  {
-    kind: "menu",
-    label: "Discover",
-    blurb: "Browse the whole network — then start a conversation.",
-    items: [
-      {
-        label: "Browse talent",
-        href: "/directory",
-        description: "Every roster, one global directory.",
-      },
-      {
-        label: "Agencies & hubs",
-        href: "/discover-agencies",
-        description: "Find where your talent can grow next.",
-      },
-      {
-        label: "The network",
-        href: "/network",
-        description: "How shared, opt-in discovery works.",
-      },
-    ],
-  },
-  { kind: "link", label: "Pricing", href: "/pricing" },
-  { kind: "link", label: "Stories", href: "/#stories" },
-];
+    label: m.label,
+    blurb: m.blurb,
+    items: m.items.map((it, i) => ({
+      label: it.label,
+      description: it.description,
+      href: hrefs[i],
+    })),
+  });
+  return [
+    menu(copy.nav.platform, NAV_HREFS.platform),
+    menu(copy.nav.solutions, NAV_HREFS.solutions),
+    menu(copy.nav.discover, NAV_HREFS.discover),
+    { kind: "link", label: copy.nav.pricing, href: "/pricing" },
+    { kind: "link", label: copy.nav.stories, href: "/#stories" },
+  ];
+}
 
 const APP_LOGIN_URL = `${getAppUrl()}/login`;
 
-export function MarketingHeader() {
+export function MarketingHeader({
+  locale,
+  pathnameWithoutLocale,
+}: {
+  locale: string;
+  pathnameWithoutLocale: string;
+}) {
+  const copy = getMarketingCopy(locale);
+  const NAV = buildNav(copy);
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -227,19 +177,24 @@ export function MarketingHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
+          <MarketingLanguageToggle
+            activeLocale={locale}
+            pathnameWithoutLocale={pathnameWithoutLocale}
+            className="mr-1"
+          />
           <OpenTalentModalButton
             eventSource="header"
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Join as talent
+            {copy.nav.joinAsTalent}
           </OpenTalentModalButton>
           <a
             href={APP_LOGIN_URL}
             className="rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Sign in
+            {copy.nav.signIn}
           </a>
           <MarketingCta
             href="/get-started"
@@ -248,7 +203,7 @@ export function MarketingHeader() {
             eventSource="header"
             eventIntent="get-started"
           >
-            Start free
+            {copy.nav.startFree}
           </MarketingCta>
         </div>
 
@@ -305,12 +260,18 @@ export function MarketingHeader() {
               className="mt-3 flex flex-col gap-2 border-t pt-4"
               style={{ borderColor: "var(--plt-hairline)" }}
             >
+              <div className="flex justify-center pb-1">
+                <MarketingLanguageToggle
+                  activeLocale={locale}
+                  pathnameWithoutLocale={pathnameWithoutLocale}
+                />
+              </div>
               <OpenTalentModalButton
                 eventSource="mobile-header"
                 className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
-                Join as talent
+                {copy.nav.joinAsTalent}
                 <ChevronGlyph />
               </OpenTalentModalButton>
               <a
@@ -318,7 +279,7 @@ export function MarketingHeader() {
                 className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
-                Sign in
+                {copy.nav.signIn}
                 <ChevronGlyph />
               </a>
               <MarketingCta
@@ -329,7 +290,7 @@ export function MarketingHeader() {
                 eventIntent="get-started"
                 className="w-full"
               >
-                Start free
+                {copy.nav.startFree}
               </MarketingCta>
               <p
                 className="mt-2 text-center text-[0.75rem]"
@@ -388,11 +349,7 @@ function DesktopMenu({
   onToggle: () => void;
 }) {
   return (
-    <div
-      className="relative"
-      onMouseEnter={onOpen}
-      onMouseLeave={onClose}
-    >
+    <div className="relative" onMouseEnter={onOpen} onMouseLeave={onClose}>
       <button
         type="button"
         aria-haspopup="true"
@@ -428,11 +385,7 @@ function DesktopMenu({
             >
               {node.blurb}
             </p>
-            <div
-              className="my-1 h-px"
-              style={{ background: "var(--plt-hairline)" }}
-              aria-hidden
-            />
+            <div className="my-1 h-px" style={{ background: "var(--plt-hairline)" }} aria-hidden />
             <ul className="flex flex-col gap-0.5">
               {node.items.map((item) => (
                 <li key={item.href} role="none">
@@ -613,7 +566,7 @@ function ArrowTiny() {
       height="8"
       viewBox="0 0 14 10"
       fill="none"
-      className="opacity-0 -translate-x-1 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
+      className="-translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
       style={{ color: "var(--plt-forest)" }}
     >
       <path
