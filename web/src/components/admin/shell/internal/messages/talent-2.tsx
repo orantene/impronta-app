@@ -8,7 +8,7 @@ import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContaine
 import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
-import { acceptInquiryInvitation, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
+import { acceptInquiryInvitation, declineInquiryInvitation, respondToInquiryOffer } from "@/lib/server-actions/talent-pipeline";
 import { useAdminShell, FONTS, COLORS } from "../state";
 import { MOCK_CONVERSATIONS, MOCK_THREAD, type Conversation } from "../talent";
 import { AdminReservationView } from "./admin-3";
@@ -351,10 +351,47 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           { onOpenOffer: () => setActiveTab("offer") },
         );
         const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
-        const inviteStage = !isCoordinator
-          && (conv.stage === "inquiry" || conv.stage === "hold")
-          && !MOCK_OFFER_FOR_CONV[conv.id];
-        if (!isRealUuid || !inviteStage) return baseAction;
+        const isMockConv = !!MOCK_OFFER_FOR_CONV[conv.id];
+        // conv.stage === "hold" maps to inquiry status `offer_pending` (the
+        // offer round is open). There the talent's action is to APPROVE THE
+        // OFFER — flipping their `inquiry_approvals` row, the missing half of
+        // the multi-party gate. conv.stage === "inquiry" is the pre-offer
+        // roster invite (accept/decline the shortlist).
+        const offerStage  = !isCoordinator && conv.stage === "hold"    && !isMockConv;
+        const inviteStage = !isCoordinator && conv.stage === "inquiry" && !isMockConv;
+        if (!isRealUuid || (!offerStage && !inviteStage)) return baseAction;
+        if (offerStage) {
+          return {
+            ...baseAction,
+            hint: "You've received an offer. Approve to lock your booking, or decline.",
+            primary: {
+              label: "Approve offer",
+              tone: "success",
+              disabled: invitePending,
+              onClick: () => {
+                if (invitePending) return;
+                startTalentInviteTransition(async () => {
+                  const r = await respondToInquiryOffer(conv.id, "accepted");
+                  if (!r.ok) toast(`Approve failed: ${r.error}`);
+                  else { toast("Offer approved"); router.refresh(); }
+                });
+              },
+            },
+            secondary: {
+              label: "Decline",
+              tone: "ghost",
+              disabled: invitePending,
+              onClick: () => {
+                if (invitePending) return;
+                startTalentInviteTransition(async () => {
+                  const r = await respondToInquiryOffer(conv.id, "rejected");
+                  if (!r.ok) toast(`Decline failed: ${r.error}`);
+                  else { toast("Offer declined"); router.refresh(); }
+                });
+              },
+            },
+          };
+        }
         return {
           ...baseAction,
           primary: baseAction.primary ? {

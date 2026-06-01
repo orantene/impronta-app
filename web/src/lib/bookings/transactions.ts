@@ -458,23 +458,33 @@ export async function markPaid(
     // historically only flipped booking_transactions.status — agency_bookings
     // (what talent earnings + workspace financials read) was never updated, so a
     // client's real payment never showed as "paid" on those surfaces. Money
-    // received ⇒ payment_status='paid' + client_revenue_lifecycle='paid' (talent
+    // received ⇒ payment_status='paid' + client_revenue_lifecycle='fully_paid' (talent
     // moves confirmed→pending; payout_lifecycle flips to 'paid' later, when
     // executeBookingTransfers actually disburses the talent's funds).
     if (result.data.bookingId) {
       const sbBooking = createServiceRoleClient();
       if (sbBooking) {
-        sbBooking
+        // MUST be awaited: this runs inside the Stripe webhook handler, and a
+        // fire-and-forget `.then` is dropped once the route returns its 200
+        // (Next.js tears down the request context before the microtask flushes).
+        // That silently left agency_bookings.payment_status='unpaid' after a real
+        // client payment — the talent earnings + workspace financials never
+        // reflected the money. Awaiting guarantees the sync lands before markPaid
+        // resolves (and before the webhook responds).
+        const { error: bookingSyncError } = await sbBooking
           .from("agency_bookings")
           .update({
             payment_status: "paid",
-            client_revenue_lifecycle: "paid",
+            // 'fully_paid' (NOT 'paid') — the agency_bookings_client_revenue_lifecycle_check
+            // CHECK only allows pending|deposit_paid|fully_paid|refunded|failed. The prior
+            // 'paid' value violated the constraint, so this whole update was rejected on
+            // every real payment (silently, via the swallowed fire-and-forget) and the
+            // booking never synced to paid.
+            client_revenue_lifecycle: "fully_paid",
             updated_at: new Date().toISOString(),
           })
-          .eq("id", result.data.bookingId)
-          .then((r) => {
-            if (r.error) logServerError("transactions.markPaid.bookingSync", r.error);
-          });
+          .eq("id", result.data.bookingId);
+        if (bookingSyncError) logServerError("transactions.markPaid.bookingSync", bookingSyncError);
       }
     }
     notifyPaymentReceived({

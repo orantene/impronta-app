@@ -23,6 +23,9 @@ import {
 import {
   submitTalentRate,
 } from "@/lib/inquiry/inquiry-engine-offers";
+import {
+  talentRespondToOffer,
+} from "@/lib/inquiry/inquiry-engine-approvals";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently kept
 // as a structurally compatible local type so `withInquiryContext` can return
@@ -84,6 +87,47 @@ export async function acceptInquiryInvitation(inquiryId: string): Promise<Talent
         (r as { reason?: string; error?: string }).reason
         ?? (r as { error?: string }).error
         ?? "Could not accept.",
+      );
+    }
+  });
+  return result.ok ? { ok: true } : result;
+}
+
+/**
+ * Talent approves (or rejects) the active offer on an inquiry.
+ *
+ * Talent-side counterpart to the client's `clientAcceptOffer`. An offer only
+ * converts to a booking once EVERY party (client + each assigned talent) has
+ * accepted; before this existed the talent had no UI path to record their
+ * approval, so any offer with an assigned talent dead-ended at
+ * "awaiting talent" forever. Resolves the inquiry's current/sent offer, then
+ * delegates to the engine, which flips the talent's `inquiry_approvals` row
+ * and — once all parties are in — advances the inquiry to `approved`.
+ */
+export async function respondToInquiryOffer(
+  inquiryId: string,
+  decision: "accepted" | "rejected",
+): Promise<TalentActionResult> {
+  const result = await withInquiryContext(inquiryId, async ({ supabase, userId, tenantId, inquiryVersion }) => {
+    // Offer resolution (current pointer → latest SENT) lives in the engine so
+    // this server action stays free of raw tenant-scoped reads.
+    const r = await talentRespondToOffer(supabase, {
+      inquiryId,
+      tenantId,
+      actorUserId: userId,
+      expectedVersion: inquiryVersion,
+      decision,
+    });
+    if (!r.success) {
+      const reason = (r as { reason?: string; error?: string }).reason
+        ?? (r as { error?: string }).error
+        ?? "Could not record your response.";
+      throw new Error(
+        reason === "version_conflict" ? "Something changed since you opened this. Refresh and try again."
+        : reason === "forbidden" ? "You don't have permission to respond to this offer."
+        : reason === "no_active_offer" ? "There's no active offer to respond to."
+        : reason === "no_talent_participant" ? "You're not assigned to this offer."
+        : reason,
       );
     }
   });

@@ -30,7 +30,7 @@ export {
   counterOffer,
 } from "./inquiry-engine-offers";
 export type { OfferLineDraft } from "./inquiry-engine-offers";
-export { submitApproval, rejectApproval, clientAcceptOffer } from "./inquiry-engine-approvals";
+export { submitApproval, rejectApproval, clientAcceptOffer, talentRespondToOffer } from "./inquiry-engine-approvals";
 export { convertToBooking } from "./inquiry-engine-booking";
 export {
   addRequirementGroup,
