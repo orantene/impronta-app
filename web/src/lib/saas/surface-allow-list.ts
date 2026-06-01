@@ -13,7 +13,7 @@
  *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |     ✓      |       ✓        |    ✓    |           |       ✓
  *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |           |       ✓
  *   hub        |  ✓   |   ✓    |      ✓       |  ✓   | path-slug  |  slugs ✓   |                |         |           |
- *   marketing  |  ✓   |   ✓    |      ✓       |      | path-slug  |            |                |         |    ✓      |       ✓
+ *   marketing  |  ✓   |   ✓    |      ✓       |  ✓   | path-slug  |            |                |         |    ✓      |       ✓
  *
  *   static        → `/sitemap.xml`, `/robots.txt` (handlers generate their
  *                   own host-appropriate output)
@@ -429,7 +429,11 @@ export function isPathAllowedForHostKind(
   if (kind === "marketing") {
     return (
       anyPrefix(pathname, MARKETING_PAGE_PREFIXES) ||
-      hasPrefix(pathname, CANONICAL_TALENT_PREFIX)
+      hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
+      // OAuth callbacks must be reachable on marketing because `window.location.origin`
+      // is used as the redirectTo base and tulala.digital is the apex. Without this,
+      // Google sign-in from any marketing-host entry point silently 404s.
+      anyPrefix(pathname, AUTH_PREFIXES)
     );
   }
 
