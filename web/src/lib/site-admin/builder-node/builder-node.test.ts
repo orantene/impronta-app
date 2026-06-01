@@ -51,6 +51,31 @@ test("validates a registry-backed node tree", () => {
   assert.equal(result.ok, true);
 });
 
+test("rejects an embed whose src host is off the provider allowlist", () => {
+  const treeWithEmbedSrc = (src: string) =>
+    validateBuilderNodeTree([
+      {
+        id: "root",
+        kind: "container",
+        props: { layout: "stack" },
+        children: [
+          { id: "embed-1", kind: "embed", props: { src, provider: "youtube", style: {} } },
+        ],
+      },
+    ]);
+  // Only the src host differs between the two trees.
+  assert.equal(
+    treeWithEmbedSrc("https://player.vimeo.com/video/123").ok,
+    true,
+    "allowlisted host (vimeo) is accepted",
+  );
+  assert.equal(
+    treeWithEmbedSrc("https://attacker.example.com/embed").ok,
+    false,
+    "off-allowlist host is rejected at validation",
+  );
+});
+
 test("validates advanced layout/container kinds", () => {
   const result = validateBuilderNodeTree([
     {

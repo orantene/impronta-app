@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BUILDER_ICON_NAMES } from "./icon-registry";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -15,6 +16,9 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "paragraph",
   "button",
   "image",
+  "video",
+  "embed",
+  "icon",
   "divider",
   "spacer",
 ];
@@ -444,6 +448,67 @@ const imagePropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const videoPropsSchema = z.object({
+  src: z.string().url().max(2048),
+  poster: z.string().url().max(2048).optional(),
+  autoplay: z.boolean().optional(),
+  muted: z.boolean().optional(),
+  loop: z.boolean().optional(),
+  controls: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+// Embed iframes are gated to the same hosts as the CSP frame-src allowlist
+// (next.config.ts builderEmbedCsp + googleMapsCsp). Validating here is
+// defense-in-depth: the iframe DOM is never emitted for an off-allowlist origin,
+// so a mismatched provider/src (e.g. provider:"youtube" + src:"https://attacker.com")
+// is rejected at authoring time instead of relying solely on the browser CSP.
+const ALLOWED_EMBED_HOST_SUFFIXES = [
+  "youtube.com",
+  "youtube-nocookie.com",
+  "vimeo.com",
+  "calendly.com",
+  "google.com",
+] as const;
+
+function isAllowedEmbedSrc(value: string): boolean {
+  let host: string;
+  try {
+    host = new URL(value).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return ALLOWED_EMBED_HOST_SUFFIXES.some(
+    (suffix) => host === suffix || host.endsWith(`.${suffix}`),
+  );
+}
+
+const embedPropsSchema = z.object({
+  src: z
+    .string()
+    .url()
+    .max(2048)
+    .refine((value) => value.startsWith("https://"), {
+      message: "Embed URLs must use https://.",
+    })
+    .refine(isAllowedEmbedSrc, {
+      message:
+        "Embed host must be YouTube, Vimeo, Calendly, or Google Maps (the allowed embed providers).",
+    }),
+  title: z.string().max(160).optional(),
+  provider: z.enum(["youtube", "vimeo", "maps", "calendly", "url"]).optional(),
+  allowFullScreen: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+const iconPropsSchema = z.object({
+  icon: z.enum(BUILDER_ICON_NAMES),
+  label: z.string().max(160).optional(),
+  decorative: z.boolean().optional(),
+  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  style: builderNodeStyleSchema,
+});
+
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
   style: builderNodeStyleSchema,
@@ -519,6 +584,9 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "video",
+          "embed",
+          "icon",
           "divider",
           "spacer",
           "container",
@@ -551,6 +619,9 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "video",
+          "embed",
+          "icon",
           "divider",
           "spacer",
           "container",
@@ -581,6 +652,9 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "video",
+          "embed",
+          "icon",
           "divider",
           "spacer",
           "container",
@@ -598,6 +672,9 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         type: "allow_list",
         kinds: [
           "image",
+          "video",
+          "embed",
+          "icon",
           "heading",
           "paragraph",
           "button",
@@ -617,6 +694,9 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         type: "allow_list",
         kinds: [
           "image",
+          "video",
+          "embed",
+          "icon",
           "heading",
           "paragraph",
           "button",
@@ -655,6 +735,27 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Standalone image node.",
       children: { type: "none" },
       propsSchema: imagePropsSchema,
+    },
+    video: {
+      kind: "video",
+      label: "Video",
+      description: "Hosted video with poster, playback, and control options.",
+      children: { type: "none" },
+      propsSchema: videoPropsSchema,
+    },
+    embed: {
+      kind: "embed",
+      label: "Embed",
+      description: "Sandboxed iframe for video, maps, booking, or other embeds.",
+      children: { type: "none" },
+      propsSchema: embedPropsSchema,
+    },
+    icon: {
+      kind: "icon",
+      label: "Icon",
+      description: "Inline SVG icon that inherits current text color.",
+      children: { type: "none" },
+      propsSchema: iconPropsSchema,
     },
     divider: {
       kind: "divider",

@@ -112,6 +112,31 @@ import {
   resolveHonestSelectedBuilderNodeId,
   treeContainsBuilderNodeId,
 } from "./inspectors/builder-node-content-utils";
+import {
+  addTranslateDeltaToTree,
+  computeAlignDeltas,
+  computeDistributeDeltas,
+  type MultiNodeAlignMode,
+  type MultiNodeDistributeMode,
+  type MultiNodeRect,
+  type TranslateDelta,
+} from "./multi-node-layout";
+import {
+  extendSelection as extendMultiSelection,
+  removeMissingSelectionIds,
+  replaceSelection as replaceMultiSelection,
+  selectedIdsFromState,
+  toggleSelection as toggleMultiSelection,
+} from "./multi-node-selection";
+import {
+  duplicateBuilderNodes,
+  groupSiblingBuilderNodes,
+  pasteBuilderNodeClipboard as pasteBuilderNodeClipboardIntoTree,
+  removeBuilderNodes,
+  serializeBuilderNodeClipboard,
+  ungroupBuilderNode,
+  type SerializedBuilderNodeClipboard,
+} from "./multi-node-transforms";
 
 /** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
 export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
@@ -260,6 +285,31 @@ export interface EditContextValue {
    * future nested nodes can route through the same API without forking state.
    */
   selectBuilderNode: (nodeId: string) => void;
+  additionalSelectedBuilderNodeIds: ReadonlySet<string>;
+  extendBuilderNodeSelection: (nodeId: string) => void;
+  toggleBuilderNodeSelection: (nodeId: string) => void;
+  replaceBuilderNodeSelection: (nodeIds: ReadonlyArray<string>) => void;
+  getAllSelectedBuilderNodeIds: () => string[];
+  groupSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  ungroupSelectedBuilderNode: () => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
+  removeSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string }>;
+  duplicateSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
+  translateSelectedBuilderNodes: (
+    deltas: Readonly<Record<string, TranslateDelta>>,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  alignSelectedBuilderNodes: (
+    mode: MultiNodeAlignMode,
+    rects: ReadonlyArray<MultiNodeRect>,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  distributeSelectedBuilderNodes: (
+    mode: MultiNodeDistributeMode,
+    rects: ReadonlyArray<MultiNodeRect>,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  copySelectedBuilderNodes: () => { ok: boolean; error?: string; count?: number };
+  cutSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; count?: number }>;
+  pasteBuilderNodeClipboard: (
+    targetNodeId?: string | null,
+  ) => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
   /**
    * Jump the editor to a section by cms id — same targeting as a navigator row
    * when the section root builder node is known (inspector + canvas parity).
@@ -771,6 +821,8 @@ const DEFAULT_METADATA: PageMetadata = {
 };
 
 const BUILDER_NODE_CLIPBOARD_STORAGE_KEY = "impronta.builderNodeClipboard.v1";
+const BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY =
+  "impronta.builderNodeClipboard.v2";
 const BUILDER_BLOCK_PRESETS_STORAGE_KEY = "impronta.builderBlockPresets.v1";
 const BUILDER_BLOCK_PRESET_LIMIT = 24;
 const NAVIGATOR_WIDTH_STORAGE_KEY = "impronta.editChrome.navigator.width.v1";
@@ -938,6 +990,40 @@ function writeStoredBuilderNodeClipboard(node: BuilderNode | null) {
   } catch {
     // Storage can fail in private browsing or under quota. The in-memory
     // clipboard still works for the current edit session.
+  }
+}
+
+function readStoredBuilderNodeMultiClipboard(): SerializedBuilderNodeClipboard | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SerializedBuilderNodeClipboard>;
+    if (parsed.version !== 2 || !Array.isArray(parsed.nodes)) return null;
+    const nodes = parsed.nodes
+      .map((node) => validateStoredBuilderNodeClipboard(node))
+      .filter((node): node is BuilderNode => Boolean(node));
+    return nodes.length > 0 ? { version: 2, nodes } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredBuilderNodeMultiClipboard(
+  clipboard: SerializedBuilderNodeClipboard | null,
+) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!clipboard || clipboard.nodes.length === 0) {
+      window.sessionStorage.removeItem(BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(
+      BUILDER_NODE_MULTI_CLIPBOARD_STORAGE_KEY,
+      JSON.stringify(clipboard),
+    );
+  } catch {
+    // Clipboard persistence is best-effort only.
   }
 }
 
@@ -1504,18 +1590,28 @@ export function EditProvider({
   >(() => new Set());
   const [selectedBuilderNodeIdOverride, setSelectedBuilderNodeIdOverride] =
     useState<string | null>(null);
+  const [
+    additionalSelectedBuilderNodeIds,
+    setAdditionalSelectedBuilderNodeIds,
+  ] = useState<ReadonlySet<string>>(() => new Set());
   const [copiedBuilderNode, setCopiedBuilderNode] = useState<BuilderNode | null>(
     null,
   );
+  const [copiedBuilderNodeClipboard, setCopiedBuilderNodeClipboard] =
+    useState<SerializedBuilderNodeClipboard | null>(null);
   const [builderBlockPresets, setBuilderBlockPresets] = useState<
     BuilderBlockPreset[]
   >(() => readStoredBuilderBlockPresets());
   useEffect(() => {
     setCopiedBuilderNode(readStoredBuilderNodeClipboard());
+    setCopiedBuilderNodeClipboard(readStoredBuilderNodeMultiClipboard());
   }, []);
   useEffect(() => {
     writeStoredBuilderNodeClipboard(copiedBuilderNode);
   }, [copiedBuilderNode]);
+  useEffect(() => {
+    writeStoredBuilderNodeMultiClipboard(copiedBuilderNodeClipboard);
+  }, [copiedBuilderNodeClipboard]);
   useEffect(() => {
     writeStoredBuilderBlockPresets(builderBlockPresets);
   }, [builderBlockPresets]);
@@ -1527,8 +1623,16 @@ export function EditProvider({
       setSelectedSectionIdRaw(id);
       setSelectedBuilderNodeIdOverride(null);
       setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+      setAdditionalSelectedBuilderNodeIds((prev) =>
+        prev.size === 0 ? prev : new Set(),
+      );
     },
-    [],
+    [
+      setSelectedSectionIdRaw,
+      setSelectedBuilderNodeIdOverride,
+      setAdditionalSelectedIds,
+      setAdditionalSelectedBuilderNodeIds,
+    ],
   );
 
   // Shift-click extension. If no primary, the new id BECOMES primary.
@@ -1545,7 +1649,7 @@ export function EditProvider({
       });
       return prevPrimary;
     });
-  }, []);
+  }, [setSelectedSectionIdRaw, setAdditionalSelectedIds]);
 
   // Cmd/Ctrl-click toggle. Removes if present in the multi-set; if it's
   // the primary, demotes (clears primary, leaves multi alone); else
@@ -1576,7 +1680,7 @@ export function EditProvider({
       // If primary was null, promote the toggled id to primary.
       return prevPrimary === null ? id : prevPrimary;
     });
-  }, []);
+  }, [setSelectedSectionIdRaw, setAdditionalSelectedIds]);
 
   const getAllSelectedIds = useCallback(() => {
     const out: string[] = [];
@@ -1618,6 +1722,9 @@ export function EditProvider({
     if (selectedSectionId !== null) return;
     setSelectedBuilderNodeIdOverride((prev) => (prev === null ? prev : null));
     setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+    setAdditionalSelectedBuilderNodeIds((prev) =>
+      prev.size === 0 ? prev : new Set(),
+    );
   }, [selectedSectionId]);
 
   // ── composition state ───────────────────────────────────────────────
@@ -2104,8 +2211,109 @@ export function EditProvider({
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
-    [builderTree, sectionIdByBuilderNodeId, setSelectedSectionId],
+    [
+      builderTree,
+      sectionIdByBuilderNodeId,
+      setSelectedBuilderNodeIdOverride,
+      setSelectedSectionId,
+    ],
   );
+
+  const replaceBuilderNodeSelection = useCallback<
+    EditContextValue["replaceBuilderNodeSelection"]
+  >(
+    (nodeIds) => {
+      const liveIds = nodeIds.filter((nodeId) =>
+        treeContainsBuilderNodeId(builderTreeRef.current, nodeId),
+      );
+      const next = replaceMultiSelection(liveIds);
+      if (!next.primaryId) {
+        setSelectedSectionId(null);
+        return;
+      }
+      const sectionId = sectionIdByBuilderNodeId.get(next.primaryId);
+      if (!sectionId) return;
+      setSelectedSectionIdRaw(sectionId);
+      setSelectedBuilderNodeIdOverride(next.primaryId);
+      setAdditionalSelectedBuilderNodeIds(next.additionalIds);
+      setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+    },
+    [
+      sectionIdByBuilderNodeId,
+      setSelectedSectionId,
+      setSelectedSectionIdRaw,
+      setSelectedBuilderNodeIdOverride,
+      setAdditionalSelectedBuilderNodeIds,
+      setAdditionalSelectedIds,
+    ],
+  );
+
+  const getAllSelectedBuilderNodeIds = useCallback<
+    EditContextValue["getAllSelectedBuilderNodeIds"]
+  >(
+    () =>
+      selectedIdsFromState(
+        selectedBuilderNodeId,
+        additionalSelectedBuilderNodeIds,
+      ),
+    [selectedBuilderNodeId, additionalSelectedBuilderNodeIds],
+  );
+
+  const extendBuilderNodeSelection = useCallback<
+    EditContextValue["extendBuilderNodeSelection"]
+  >(
+    (nodeId) => {
+      const next = extendMultiSelection(
+        {
+          primaryId: selectedBuilderNodeId,
+          additionalIds: additionalSelectedBuilderNodeIds,
+        },
+        nodeId,
+      );
+      replaceBuilderNodeSelection(
+        selectedIdsFromState(next.primaryId, next.additionalIds),
+      );
+    },
+    [
+      additionalSelectedBuilderNodeIds,
+      replaceBuilderNodeSelection,
+      selectedBuilderNodeId,
+    ],
+  );
+
+  const toggleBuilderNodeSelection = useCallback<
+    EditContextValue["toggleBuilderNodeSelection"]
+  >(
+    (nodeId) => {
+      const next = toggleMultiSelection(
+        {
+          primaryId: selectedBuilderNodeId,
+          additionalIds: additionalSelectedBuilderNodeIds,
+        },
+        nodeId,
+      );
+      replaceBuilderNodeSelection(
+        selectedIdsFromState(next.primaryId, next.additionalIds),
+      );
+    },
+    [
+      additionalSelectedBuilderNodeIds,
+      replaceBuilderNodeSelection,
+      selectedBuilderNodeId,
+    ],
+  );
+
+  useEffect(() => {
+    setAdditionalSelectedBuilderNodeIds((prev) => {
+      const cleaned = removeMissingSelectionIds(
+        { primaryId: selectedBuilderNodeId, additionalIds: prev },
+        (id) => treeContainsBuilderNodeId(builderTree, id),
+      );
+      return cleaned.additionalIds.size === prev.size
+        ? prev
+        : cleaned.additionalIds;
+    });
+  }, [builderTree, selectedBuilderNodeId]);
 
   const focusSectionForEdit = useCallback(
     (sectionId: string) => {
@@ -3483,6 +3691,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
     ],
   );
@@ -3522,6 +3731,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
     ],
   );
@@ -3878,6 +4088,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
     ],
   );
@@ -3899,9 +4110,12 @@ export function EditProvider({
       }
       const copiedNode = cloneBuilderNode(location.node);
       setCopiedBuilderNode(copiedNode);
+      const clipboard = { version: 2 as const, nodes: [copiedNode] };
+      setCopiedBuilderNodeClipboard(clipboard);
       // Persist immediately so paste stays reliable even if an interaction
       // sequence closes the action row before the state effect runs.
       writeStoredBuilderNodeClipboard(copiedNode);
+      writeStoredBuilderNodeMultiClipboard(clipboard);
       return { ok: true };
     },
     [builderTree],
@@ -4021,6 +4235,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
     ],
   );
@@ -4079,6 +4294,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      setSelectedBuilderNodeIdOverride,
       markNavigatorAddition,
     ],
   );
@@ -4131,6 +4347,249 @@ export function EditProvider({
       );
     },
     [moveBuilderNodeToParentIndex],
+  );
+
+  const guardSelectedBuilderNodes = useCallback(
+    (nodeIds: ReadonlyArray<string>) => {
+      if (canEditSiteShell) return null;
+      const blocked = nodeIds.find((nodeId) =>
+        findSiteShellSlotForBuilderNode(builderTreeRef.current, nodeId),
+      );
+      return blocked
+        ? "Your current plan cannot edit site shell blocks (header/footer). Upgrade to edit shell structure."
+        : null;
+    },
+    [canEditSiteShell],
+  );
+
+  const groupSelectedBuilderNodes = useCallback<
+    EditContextValue["groupSelectedBuilderNodes"]
+  >(async () => {
+    const nodeIds = getAllSelectedBuilderNodeIds();
+    const guarded = guardSelectedBuilderNodes(nodeIds);
+    if (guarded) return { ok: false, error: guarded };
+    let groupId: string | undefined;
+    const grouped = await executeBuilderNodeOperation({
+      operation: "patch",
+      nodeId: nodeIds[0],
+      run: (tree) => {
+        const result = groupSiblingBuilderNodes(tree, nodeIds);
+        if (!result.ok) {
+          return { ok: false, code: "INVALID_MOVE_TARGET", error: result.error };
+        }
+        groupId = result.nodeId;
+        return { ok: true, tree: result.tree, nodeId: result.nodeId };
+      },
+    });
+    if (!grouped.ok) return { ok: false, error: grouped.error };
+    if (groupId) replaceBuilderNodeSelection([groupId]);
+    return { ok: true, nodeId: groupId };
+  }, [
+    executeBuilderNodeOperation,
+    getAllSelectedBuilderNodeIds,
+    guardSelectedBuilderNodes,
+    replaceBuilderNodeSelection,
+  ]);
+
+  const ungroupSelectedBuilderNode = useCallback<
+    EditContextValue["ungroupSelectedBuilderNode"]
+  >(async () => {
+    const nodeId = selectedBuilderNodeId;
+    if (!nodeId) return { ok: false, error: "Select a group first." };
+    const guarded = guardSelectedBuilderNodes([nodeId]);
+    if (guarded) return { ok: false, error: guarded };
+    let childIds: string[] = [];
+    const ungrouped = await executeBuilderNodeOperation({
+      operation: "patch",
+      nodeId,
+      run: (tree) => {
+        const result = ungroupBuilderNode(tree, nodeId);
+        if (!result.ok) {
+          return { ok: false, code: "INVALID_MOVE_TARGET", error: result.error };
+        }
+        childIds = result.nodeIds;
+        return { ok: true, tree: result.tree };
+      },
+    });
+    if (!ungrouped.ok) return { ok: false, error: ungrouped.error };
+    replaceBuilderNodeSelection(childIds);
+    return { ok: true, nodeIds: childIds };
+  }, [
+    executeBuilderNodeOperation,
+    guardSelectedBuilderNodes,
+    replaceBuilderNodeSelection,
+    selectedBuilderNodeId,
+  ]);
+
+  const removeSelectedBuilderNodes = useCallback<
+    EditContextValue["removeSelectedBuilderNodes"]
+  >(async () => {
+    const nodeIds = getAllSelectedBuilderNodeIds();
+    const guarded = guardSelectedBuilderNodes(nodeIds);
+    if (guarded) return { ok: false, error: guarded };
+    const removed = await executeBuilderNodeOperation({
+      operation: "remove",
+      nodeId: nodeIds[0],
+      run: (tree) => {
+        const result = removeBuilderNodes(tree, nodeIds);
+        if (!result.ok) {
+          return { ok: false, code: "INVALID_MOVE_TARGET", error: result.error };
+        }
+        return { ok: true, tree: result.tree };
+      },
+    });
+    if (!removed.ok) return { ok: false, error: removed.error };
+    setAdditionalSelectedBuilderNodeIds(new Set());
+    setSelectedBuilderNodeIdOverride(null);
+    return { ok: true };
+  }, [
+    executeBuilderNodeOperation,
+    getAllSelectedBuilderNodeIds,
+    guardSelectedBuilderNodes,
+    setAdditionalSelectedBuilderNodeIds,
+    setSelectedBuilderNodeIdOverride,
+  ]);
+
+  const duplicateSelectedBuilderNodes = useCallback<
+    EditContextValue["duplicateSelectedBuilderNodes"]
+  >(async () => {
+    const nodeIds = getAllSelectedBuilderNodeIds();
+    const guarded = guardSelectedBuilderNodes(nodeIds);
+    if (guarded) return { ok: false, error: guarded };
+    let duplicatedIds: string[] = [];
+    const duplicated = await executeBuilderNodeOperation({
+      operation: "duplicate",
+      nodeId: nodeIds[0],
+      run: (tree) => {
+        const result = duplicateBuilderNodes(tree, nodeIds);
+        if (!result.ok) {
+          return { ok: false, code: "INVALID_MOVE_TARGET", error: result.error };
+        }
+        duplicatedIds = result.nodeIds;
+        return { ok: true, tree: result.tree, nodeId: result.nodeIds[0] };
+      },
+    });
+    if (!duplicated.ok) return { ok: false, error: duplicated.error };
+    replaceBuilderNodeSelection(duplicatedIds);
+    return { ok: true, nodeIds: duplicatedIds };
+  }, [
+    executeBuilderNodeOperation,
+    getAllSelectedBuilderNodeIds,
+    guardSelectedBuilderNodes,
+    replaceBuilderNodeSelection,
+  ]);
+
+  const translateSelectedBuilderNodes = useCallback<
+    EditContextValue["translateSelectedBuilderNodes"]
+  >(
+    async (deltas) => {
+      const nodeIds = Object.keys(deltas);
+      if (nodeIds.length === 0) return { ok: true };
+      const guarded = guardSelectedBuilderNodes(nodeIds);
+      if (guarded) return { ok: false, error: guarded };
+      const moved = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: nodeIds[0],
+        run: (tree) => ({
+          ok: true,
+          tree: addTranslateDeltaToTree(tree, deltas),
+        }),
+      });
+      if (!moved.ok) return { ok: false, error: moved.error };
+      return { ok: true };
+    },
+    [executeBuilderNodeOperation, guardSelectedBuilderNodes],
+  );
+
+  const alignSelectedBuilderNodes = useCallback<
+    EditContextValue["alignSelectedBuilderNodes"]
+  >(
+    async (mode, rects) => {
+      if (rects.length < 2) return { ok: false, error: "Select at least two blocks." };
+      return translateSelectedBuilderNodes(computeAlignDeltas(rects, mode));
+    },
+    [translateSelectedBuilderNodes],
+  );
+
+  const distributeSelectedBuilderNodes = useCallback<
+    EditContextValue["distributeSelectedBuilderNodes"]
+  >(
+    async (mode, rects) => {
+      if (rects.length < 3) {
+        return { ok: false, error: "Select at least three blocks to distribute." };
+      }
+      return translateSelectedBuilderNodes(computeDistributeDeltas(rects, mode));
+    },
+    [translateSelectedBuilderNodes],
+  );
+
+  const copySelectedBuilderNodes = useCallback<
+    EditContextValue["copySelectedBuilderNodes"]
+  >(() => {
+    const serialized = serializeBuilderNodeClipboard(
+      builderTreeRef.current,
+      getAllSelectedBuilderNodeIds(),
+    );
+    if ("error" in serialized) return { ok: false, error: serialized.error };
+    setCopiedBuilderNodeClipboard(serialized);
+    setCopiedBuilderNode(serialized.nodes.length === 1 ? serialized.nodes[0]! : null);
+    writeStoredBuilderNodeMultiClipboard(serialized);
+    if (serialized.nodes.length === 1) {
+      writeStoredBuilderNodeClipboard(serialized.nodes[0]!);
+    } else {
+      writeStoredBuilderNodeClipboard(null);
+    }
+    return { ok: true, count: serialized.nodes.length };
+  }, [getAllSelectedBuilderNodeIds]);
+
+  const cutSelectedBuilderNodes = useCallback<
+    EditContextValue["cutSelectedBuilderNodes"]
+  >(async () => {
+    const copied = copySelectedBuilderNodes();
+    if (!copied.ok) return copied;
+    const removed = await removeSelectedBuilderNodes();
+    if (!removed.ok) return { ok: false, error: removed.error };
+    return { ok: true, count: copied.count };
+  }, [copySelectedBuilderNodes, removeSelectedBuilderNodes]);
+
+  const pasteBuilderNodeClipboard = useCallback<
+    EditContextValue["pasteBuilderNodeClipboard"]
+  >(
+    async (targetNodeId) => {
+      const clipboard =
+        copiedBuilderNodeClipboard ??
+        (copiedBuilderNode
+          ? { version: 2 as const, nodes: [copiedBuilderNode] }
+          : readStoredBuilderNodeMultiClipboard());
+      if (!clipboard) return { ok: false, error: "Copy a block before pasting." };
+      const target = targetNodeId ?? selectedBuilderNodeId;
+      const guarded = target ? guardSelectedBuilderNodes([target]) : null;
+      if (guarded) return { ok: false, error: guarded };
+      let pastedIds: string[] = [];
+      const pasted = await executeBuilderNodeOperation({
+        operation: "paste",
+        nodeId: target ?? undefined,
+        run: (tree) => {
+          const result = pasteBuilderNodeClipboardIntoTree(tree, clipboard, target);
+          if (!result.ok) {
+            return { ok: false, code: "INVALID_MOVE_TARGET", error: result.error };
+          }
+          pastedIds = result.nodeIds;
+          return { ok: true, tree: result.tree, nodeId: result.nodeIds[0] };
+        },
+      });
+      if (!pasted.ok) return { ok: false, error: pasted.error };
+      replaceBuilderNodeSelection(pastedIds);
+      return { ok: true, nodeIds: pastedIds };
+    },
+    [
+      copiedBuilderNode,
+      copiedBuilderNodeClipboard,
+      executeBuilderNodeOperation,
+      guardSelectedBuilderNodes,
+      replaceBuilderNodeSelection,
+      selectedBuilderNodeId,
+    ],
   );
 
   // ── undo / redo ────────────────────────────────────────────────────
@@ -4632,18 +5091,34 @@ export function EditProvider({
       additionalSelectedIds,
       extendSelection,
       toggleSelection,
-      getAllSelectedIds,
-      selectedBuilderNodeId,
-      selectBuilderNode,
-      focusSectionForEdit,
-      copiedBuilderNodeKind: copiedBuilderNode?.kind ?? null,
+	      getAllSelectedIds,
+	      selectedBuilderNodeId,
+	      selectBuilderNode,
+	      additionalSelectedBuilderNodeIds,
+	      extendBuilderNodeSelection,
+	      toggleBuilderNodeSelection,
+	      replaceBuilderNodeSelection,
+	      getAllSelectedBuilderNodeIds,
+	      groupSelectedBuilderNodes,
+	      ungroupSelectedBuilderNode,
+	      removeSelectedBuilderNodes,
+	      duplicateSelectedBuilderNodes,
+	      translateSelectedBuilderNodes,
+	      alignSelectedBuilderNodes,
+	      distributeSelectedBuilderNodes,
+	      copySelectedBuilderNodes,
+	      cutSelectedBuilderNodes,
+	      pasteBuilderNodeClipboard,
+	      focusSectionForEdit,
+	      copiedBuilderNodeKind:
+	        copiedBuilderNode?.kind ?? copiedBuilderNodeClipboard?.nodes[0]?.kind ?? null,
       builderBlockPresets,
       getCopiedBuilderNodePastePreview,
       copyBuilderNode,
       saveCopiedBuilderNodeAsPreset,
       pasteBuilderBlockPreset,
       removeBuilderBlockPreset,
-      pasteCopiedBuilderNode,
+	      pasteCopiedBuilderNode,
       hoveredSectionId,
       setHoveredSectionId,
       device,
@@ -4795,12 +5270,28 @@ export function EditProvider({
       additionalSelectedIds,
       extendSelection,
       toggleSelection,
-      getAllSelectedIds,
-      selectedBuilderNodeId,
-      selectBuilderNode,
-      focusSectionForEdit,
-      copiedBuilderNode,
-      setSelectedSectionId,
+	      getAllSelectedIds,
+	      selectedBuilderNodeId,
+	      selectBuilderNode,
+	      additionalSelectedBuilderNodeIds,
+	      extendBuilderNodeSelection,
+	      toggleBuilderNodeSelection,
+	      replaceBuilderNodeSelection,
+	      getAllSelectedBuilderNodeIds,
+	      groupSelectedBuilderNodes,
+	      ungroupSelectedBuilderNode,
+	      removeSelectedBuilderNodes,
+	      duplicateSelectedBuilderNodes,
+	      translateSelectedBuilderNodes,
+	      alignSelectedBuilderNodes,
+	      distributeSelectedBuilderNodes,
+	      copySelectedBuilderNodes,
+	      cutSelectedBuilderNodes,
+	      pasteBuilderNodeClipboard,
+	      focusSectionForEdit,
+	      copiedBuilderNode,
+	      copiedBuilderNodeClipboard,
+	      setSelectedSectionId,
       hoveredSectionId,
       device,
       dirty,

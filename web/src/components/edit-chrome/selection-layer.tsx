@@ -77,13 +77,45 @@ import {
 } from "./canvas-spacing-handles";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
+import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
+import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
+import type { MultiNodeRect } from "./multi-node-layout";
 
 interface Rect {
   top: number;
   left: number;
   width: number;
   height: number;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  const tag = target.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    (target instanceof HTMLElement && target.isContentEditable) ||
+    target.closest('[contenteditable="true"]') !== null ||
+    target.closest('[role="textbox"]') !== null
+  );
+}
+
+function hasNativeTextSelection(): boolean {
+  const selection = window.getSelection();
+  return Boolean(selection && !selection.isCollapsed && selection.toString());
+}
+
+function keyboardFocusIsOnCanvas(): boolean {
+  const active = document.activeElement;
+  if (!active || active === document.body) return true;
+  if (!(active instanceof Element)) return false;
+  return Boolean(
+    active.closest(
+      "[data-cms-section], [data-builder-node-id], [data-edit-overlay]",
+    ),
+  );
 }
 
 function eventTargetElement(target: EventTarget | null): Element | null {
@@ -220,6 +252,16 @@ type DragState =
       pointerY: number;
       sourceRect: Rect;
       drop: DropTarget | null;
+	    };
+
+type MarqueeState =
+  | { phase: "idle" }
+  | {
+      phase: "dragging";
+      startX: number;
+      startY: number;
+      currentX: number;
+      currentY: number;
     };
 
 const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
@@ -301,6 +343,21 @@ export function SelectionLayer() {
     setSelectedSectionId,
     focusSectionForEdit,
     selectBuilderNode,
+    additionalSelectedBuilderNodeIds,
+    extendBuilderNodeSelection,
+    toggleBuilderNodeSelection,
+    replaceBuilderNodeSelection,
+    getAllSelectedBuilderNodeIds,
+    groupSelectedBuilderNodes,
+    ungroupSelectedBuilderNode,
+    removeSelectedBuilderNodes,
+    duplicateSelectedBuilderNodes,
+    translateSelectedBuilderNodes,
+    alignSelectedBuilderNodes,
+    distributeSelectedBuilderNodes,
+    copySelectedBuilderNodes,
+    cutSelectedBuilderNodes,
+    pasteBuilderNodeClipboard,
     additionalSelectedIds,
     extendSelection,
     toggleSelection,
@@ -348,6 +405,8 @@ export function SelectionLayer() {
     null,
   );
   const [drag, setDrag] = useState<DragState>({ phase: "idle" });
+  const [marquee, setMarquee] = useState<MarqueeState>({ phase: "idle" });
+  const suppressNextClickRef = useRef(false);
   const autoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
@@ -552,31 +611,37 @@ export function SelectionLayer() {
   // captured stale callback references. Mirror each callback in a ref
   // so the handler always calls the freshest version without
   // re-registering.
-  const callbacksRef = useRef({
-    setSelectedSectionId,
-    focusSectionForEdit,
-    selectBuilderNode,
-    extendSelection,
-    toggleSelection,
-    setHoveredSectionId,
-  });
+	  const callbacksRef = useRef({
+	    setSelectedSectionId,
+	    focusSectionForEdit,
+	    selectBuilderNode,
+	    extendBuilderNodeSelection,
+	    toggleBuilderNodeSelection,
+	    extendSelection,
+	    toggleSelection,
+	    setHoveredSectionId,
+	  });
   useEffect(() => {
     callbacksRef.current = {
-      setSelectedSectionId,
-      focusSectionForEdit,
-      selectBuilderNode,
-      extendSelection,
-      toggleSelection,
-      setHoveredSectionId,
-    };
-  }, [
-    setSelectedSectionId,
-    focusSectionForEdit,
-    selectBuilderNode,
-    extendSelection,
-    toggleSelection,
-    setHoveredSectionId,
-  ]);
+	      setSelectedSectionId,
+	      focusSectionForEdit,
+	      selectBuilderNode,
+	      extendBuilderNodeSelection,
+	      toggleBuilderNodeSelection,
+	      extendSelection,
+	      toggleSelection,
+	      setHoveredSectionId,
+	    };
+	  }, [
+	    setSelectedSectionId,
+	    focusSectionForEdit,
+	    selectBuilderNode,
+	    extendBuilderNodeSelection,
+	    toggleBuilderNodeSelection,
+	    extendSelection,
+	    toggleSelection,
+	    setHoveredSectionId,
+	  ]);
 
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
@@ -588,6 +653,12 @@ export function SelectionLayer() {
       callbacksRef.current.setHoveredSectionId(null);
     }
     function onClickCapture(e: MouseEvent) {
+      if (suppressNextClickRef.current) {
+        suppressNextClickRef.current = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       // Ignore clicks originating inside the edit chrome (top bar, inspector,
       // overlay controls). Those elements live above the storefront but must
       // remain interactive.
@@ -615,9 +686,11 @@ export function SelectionLayer() {
       // navigator's row click handler. Shift extends, Cmd/Ctrl toggles,
       // plain click sets primary and clears multi.
       if (e.shiftKey) {
-        callbacksRef.current.extendSelection(id);
+        if (builderNodeId) callbacksRef.current.extendBuilderNodeSelection(builderNodeId);
+        else callbacksRef.current.extendSelection(id);
       } else if (e.metaKey || e.ctrlKey) {
-        callbacksRef.current.toggleSelection(id);
+        if (builderNodeId) callbacksRef.current.toggleBuilderNodeSelection(builderNodeId);
+        else callbacksRef.current.toggleSelection(id);
       } else {
         if (builderNodeId) {
           callbacksRef.current.selectBuilderNode(builderNodeId);
@@ -713,7 +786,117 @@ export function SelectionLayer() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
-  }, [contextMenu, hoveredSectionId]);
+	  }, [contextMenu, hoveredSectionId]);
+
+  useEffect(() => {
+    function shouldIgnoreMarqueeTarget(target: EventTarget | null) {
+      const source = eventTargetElement(target);
+      if (!source) return true;
+      if (
+        source.closest(
+          "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay], input, textarea, select, button, [contenteditable='true']",
+        )
+      ) {
+        return true;
+      }
+      return Boolean(source.closest("[data-builder-node-id]"));
+    }
+
+    function rectsIntersect(a: Rect, b: Rect) {
+      return (
+        a.left < b.left + b.width &&
+        a.left + a.width > b.left &&
+        a.top < b.top + b.height &&
+        a.top + a.height > b.top
+      );
+    }
+
+    function selectedNodeIdsForRect(rect: Rect) {
+      const candidates = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-builder-node-id]"),
+      ).flatMap((el) => {
+        const id = el.getAttribute("data-builder-node-id");
+        if (!id) return [];
+        const node = findBuilderNodeById(builderTree, id);
+        if (!node || node.kind === "section" || resolveBuilderNodeRole(node.id)) {
+          return [];
+        }
+        const box = rectOf(el);
+        return rectsIntersect(rect, box) ? [{ id, el }] : [];
+      });
+      return candidates
+        .filter(
+          (candidate) =>
+            !candidates.some(
+              (other) => other !== candidate && candidate.el.contains(other.el),
+            ),
+        )
+        .map((candidate) => candidate.id);
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (event.button !== 0) return;
+      if (previewing()) return;
+      if (shouldIgnoreMarqueeTarget(event.target)) return;
+      setMarquee({
+        phase: "dragging",
+        startX: event.clientX,
+        startY: event.clientY,
+        currentX: event.clientX,
+        currentY: event.clientY,
+      });
+    }
+
+    function onPointerMove(event: PointerEvent) {
+      setMarquee((current) =>
+        current.phase === "dragging"
+          ? { ...current, currentX: event.clientX, currentY: event.clientY }
+          : current,
+      );
+    }
+
+    function onPointerUp(event: PointerEvent) {
+      setMarquee((current) => {
+        if (current.phase !== "dragging") return current;
+        const rect = {
+          left: Math.min(current.startX, current.currentX),
+          top: Math.min(current.startY, current.currentY),
+          width: Math.abs(current.currentX - current.startX),
+          height: Math.abs(current.currentY - current.startY),
+        };
+        if (rect.width >= 8 && rect.height >= 8) {
+          suppressNextClickRef.current = true;
+          const ids = selectedNodeIdsForRect(rect);
+          if (ids.length > 0) {
+            const nextIds = event.shiftKey
+              ? [...getAllSelectedBuilderNodeIds(), ...ids]
+              : ids;
+            replaceBuilderNodeSelection(nextIds);
+          }
+        }
+        return { phase: "idle" };
+      });
+    }
+
+    function previewing() {
+      return document.body.dataset.editPreview === "1";
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [
+    builderTree,
+    getAllSelectedBuilderNodeIds,
+    replaceBuilderNodeSelection,
+  ]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
   // Drop target under the cursor given the current section layout.
@@ -1011,7 +1194,52 @@ export function SelectionLayer() {
     return sectionEl?.getAttribute("data-builder-node-id") ?? null;
   }, [getSelectedSectionEl]);
   const selectedCanvasNodeId = selectedBuilderNodeId ?? selectedSectionNodeId;
+  const getBuilderNodeEl = useCallback((nodeId: string): HTMLElement | null => {
+    return document.querySelector<HTMLElement>(
+      `[data-builder-node-id="${CSS.escape(nodeId)}"]`,
+    );
+  }, []);
+  const selectedBuilderNodeRects = useMemo<MultiNodeRect[]>(() => {
+    return getAllSelectedBuilderNodeIds().flatMap((id) => {
+      const el = getBuilderNodeEl(id);
+      if (!el) return [];
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return [];
+      return [
+        {
+          id,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+      ];
+    });
+  }, [
+    additionalSelectedBuilderNodeIds,
+    getAllSelectedBuilderNodeIds,
+    getBuilderNodeEl,
+    pageVersion,
+    selectedBuilderNodeId,
+    selectedSectionNodeId,
+  ]);
+  const multiSelectedRect = useMemo<Rect | null>(() => {
+    if (selectedBuilderNodeRects.length < 2) return null;
+    let left = Number.POSITIVE_INFINITY;
+    let top = Number.POSITIVE_INFINITY;
+    let right = Number.NEGATIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
+    for (const rect of selectedBuilderNodeRects) {
+      left = Math.min(left, rect.left);
+      top = Math.min(top, rect.top);
+      right = Math.max(right, rect.left + rect.width);
+      bottom = Math.max(bottom, rect.top + rect.height);
+    }
+    return { left, top, width: right - left, height: bottom - top };
+  }, [selectedBuilderNodeRects]);
+  const multiNodeSelectionActive = selectedBuilderNodeRects.length > 1;
   const renderSelectedRect = useMemo(() => {
+    if (multiSelectedRect) return multiSelectedRect;
     if (selectedRect) return selectedRect;
     if (!selectedSectionId) return null;
     const sectionEl = getSelectedSectionEl();
@@ -1023,6 +1251,7 @@ export function SelectionLayer() {
   }, [
     getSelectedBuilderNodeEl,
     getSelectedSectionEl,
+    multiSelectedRect,
     selectedRect,
     selectedSectionId,
   ]);
@@ -1077,7 +1306,7 @@ export function SelectionLayer() {
   // nodes own their width). Commits once on release through the normal
   // patch flow, so undo/redo and persistence come for free.
   const canResizeSelectedNode =
-    selectedNodeIsEditableBlock && device === "desktop";
+    selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop";
   const commitSelectedNodeSize = useCallback(
     (dims: { width?: number | null; height?: number | null }) => {
       if (!selectedBuilderNodeId) return;
@@ -1154,12 +1383,12 @@ export function SelectionLayer() {
     },
     [selectedBuilderNodeId, builderTree, patchBuilderNodeProps],
   );
-  // Keyboard nudge — arrow keys move the selected freeform block by translate
-  // (1px, or 10px with Shift). Complements the centre move grip for precise
-  // positioning. Gated so it never hijacks typing or panel/tree navigation:
-  // only fires when focus is on the canvas itself (or nothing).
+  // Keyboard nudge — arrow keys move the selected freeform block/set by
+  // translate (1px, or 10px with Shift). Complements the centre move grip for
+  // precise positioning. Gated so it never hijacks typing or panel/tree
+  // navigation.
   useEffect(() => {
-    if (!canResizeSelectedNode) return;
+    if (!canResizeSelectedNode && !multiNodeSelectionActive) return;
     const DELTAS: Record<string, [number, number]> = {
       ArrowLeft: [-1, 0],
       ArrowRight: [1, 0],
@@ -1170,26 +1399,33 @@ export function SelectionLayer() {
       const delta = DELTAS[e.key];
       if (!delta) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const ae = document.activeElement;
-      // Only act when focus is on the page body / canvas — never while an
-      // input, the navigator tree, or the inspector panel has focus.
-      // Guard `closest` — activeElement is usually an Element but can be a
-      // non-Element (e.g. an SVG/foreign node) where closest is absent.
-      const onCanvas =
-        !ae ||
-        ae === document.body ||
-        (typeof (ae as Element).closest === "function" &&
-          !!(ae as Element).closest(
-            "[data-cms-section], [data-builder-node-id]",
-          ));
-      if (!onCanvas) return;
-      const el = getSelectedBuilderNodeEl();
-      if (!el) return;
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
+      const dx = delta[0] * step;
+      const dy = delta[1] * step;
+      if (multiNodeSelectionActive) {
+        const nodeIds = selectedBuilderNodeRects.map((rect) => rect.id);
+        for (const nodeId of nodeIds) {
+          const el = getBuilderNodeEl(nodeId);
+          if (!el) continue;
+          const cur = parseTranslate(getComputedStyle(el).translate);
+          el.style.translate = `${cur.x + dx}px ${cur.y + dy}px`;
+        }
+        void translateSelectedBuilderNodes(
+          Object.fromEntries(
+            nodeIds.map((nodeId) => [nodeId, { x: dx, y: dy }]),
+          ),
+        ).then((result) => {
+          if (!result.ok && result.error) reportMutationError(result.error);
+        });
+        return;
+      }
+      const el = getSelectedBuilderNodeEl();
+      if (!el) return;
       const cur = parseTranslate(getComputedStyle(el).translate);
-      const nx = cur.x + delta[0] * step;
-      const ny = cur.y + delta[1] * step;
+      const nx = cur.x + dx;
+      const ny = cur.y + dy;
       // Immediate inline preview so rapid presses accumulate without waiting
       // for the round-trip; the commit then persists it.
       el.style.translate = `${nx}px ${ny}px`;
@@ -1199,8 +1435,13 @@ export function SelectionLayer() {
     return () => window.removeEventListener("keydown", onNudge);
   }, [
     canResizeSelectedNode,
+    getBuilderNodeEl,
     getSelectedBuilderNodeEl,
     commitSelectedNodeTranslate,
+    multiNodeSelectionActive,
+    reportMutationError,
+    selectedBuilderNodeRects,
+    translateSelectedBuilderNodes,
   ]);
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
@@ -1247,8 +1488,15 @@ export function SelectionLayer() {
     !!selectedBuilderNode &&
     selectedBuilderNode.kind !== "section" &&
     selectedCanvasNodeId !== selectedSectionNodeId;
+  const canUngroupSelectedNode =
+    !!selectedBuilderNode &&
+    selectedBuilderNode.kind === "container" &&
+    selectedNodeIsEditableBlock;
+  const showMultiSelectionToolbar =
+    multiNodeSelectionActive || canUngroupSelectedNode;
   const canManageSelectedNodeChildren =
     drag.phase === "idle" &&
+    !multiNodeSelectionActive &&
     !!selectedCanvasNodeId &&
     selectedNodeChildren.length > 0;
   const commitNodeRemoval = useCallback(async () => {
@@ -1323,6 +1571,135 @@ export function SelectionLayer() {
     },
     [pasteCopiedBuilderNode, reportMutationError],
   );
+  useEffect(() => {
+    if (drag.phase !== "idle") return;
+    function reportResult(result: { ok: boolean; error?: string }) {
+      if (!result.ok && result.error) reportMutationError(result.error);
+    }
+    async function duplicateSelectedSections() {
+      const ids = getAllSelectedIds();
+      if (ids.length === 0) return;
+      const results = await Promise.all(ids.map((id) => duplicateSection(id)));
+      const failed = results.find((result) => !result.ok);
+      if (failed?.error) {
+        reportMutationError(failed.error);
+        return;
+      }
+      const firstNew = results.find(
+        (result) => result.ok && "newSectionId" in result && result.newSectionId,
+      );
+      if (firstNew && "newSectionId" in firstNew && firstNew.newSectionId) {
+        focusSectionForEdit(firstNew.newSectionId);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
+      if (contextMenu) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+      const blockClipboardActive =
+        multiNodeSelectionActive ||
+        (!!selectedBuilderNodeId && selectedNodeIsEditableBlock);
+      const pasteTargetNodeId = selectedCanvasNodeId ?? selectedSectionNodeId;
+
+      if (mod && !e.altKey && !e.shiftKey && key === "c") {
+        if (!blockClipboardActive || hasNativeTextSelection()) return;
+        e.preventDefault();
+        reportResult(copySelectedBuilderNodes());
+        return;
+      }
+
+      if (mod && !e.altKey && !e.shiftKey && key === "x") {
+        if (!blockClipboardActive || hasNativeTextSelection() || saving) return;
+        e.preventDefault();
+        void cutSelectedBuilderNodes().then(reportResult);
+        return;
+      }
+
+      if (mod && !e.altKey && !e.shiftKey && key === "v") {
+        if (!pasteTargetNodeId || hasNativeTextSelection() || saving) return;
+        e.preventDefault();
+        void pasteBuilderNodeClipboard(pasteTargetNodeId).then(reportResult);
+        return;
+      }
+
+      if (mod && !e.altKey && !e.shiftKey && key === "d") {
+        if (saving) return;
+        e.preventDefault();
+        if (multiNodeSelectionActive) {
+          void duplicateSelectedBuilderNodes().then(reportResult);
+          return;
+        }
+        if (selectedBuilderNodeId && selectedNodeIsEditableBlock) {
+          void duplicateBuilderNode(selectedBuilderNodeId).then(reportResult);
+          return;
+        }
+        void duplicateSelectedSections();
+        return;
+      }
+
+      if (!mod && !e.altKey && !e.shiftKey && (e.key === "Backspace" || e.key === "Delete")) {
+        if (saving) return;
+        if (multiNodeSelectionActive) {
+          e.preventDefault();
+          void removeSelectedBuilderNodes().then(reportResult);
+          return;
+        }
+        if (canRemoveSelectedNode) {
+          e.preventDefault();
+          void commitNodeRemoval();
+          return;
+        }
+        if (selectedSectionId) {
+          e.preventDefault();
+          setConfirmRemove(true);
+        }
+        return;
+      }
+
+      if (!mod && !e.altKey && !e.shiftKey && e.key === "[") {
+        const parentNode = selectedNodePath[selectedNodePath.length - 2];
+        if (!parentNode) return;
+        e.preventDefault();
+        selectBuilderNode(parentNode.id);
+        return;
+      }
+
+      if (!mod && !e.altKey && !e.shiftKey && e.key === "]") {
+        const childNode = selectedNodeChildren[0];
+        if (!childNode) return;
+        e.preventDefault();
+        selectBuilderNode(childNode.id);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    canRemoveSelectedNode,
+    commitNodeRemoval,
+    contextMenu,
+    copySelectedBuilderNodes,
+    cutSelectedBuilderNodes,
+    drag.phase,
+    duplicateBuilderNode,
+    duplicateSection,
+    duplicateSelectedBuilderNodes,
+    focusSectionForEdit,
+    getAllSelectedIds,
+    multiNodeSelectionActive,
+    pasteBuilderNodeClipboard,
+    removeSelectedBuilderNodes,
+    reportMutationError,
+    saving,
+    selectBuilderNode,
+    selectedBuilderNodeId,
+    selectedCanvasNodeId,
+    selectedNodeChildren,
+    selectedNodeIsEditableBlock,
+    selectedNodePath,
+    selectedSectionId,
+    selectedSectionNodeId,
+  ]);
   const requestInlineEdit = useCallback(
     (nodeId?: string | null) => {
       const nodeEl = nodeId
@@ -1420,10 +1797,28 @@ export function SelectionLayer() {
       {/* P3-2 — keyframes for drop-cap pulse + drag-ghost spawn.
        * Consumers gate on `reduceMotion`; the rules themselves are
        * cheap and inert when no element references them. */}
-      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
-        {SELECTION_LAYER_KEYFRAMES}
-      </style>
-      {/* ── Hover ring + per-section left-corner rail ───────────────
+	      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
+	        {SELECTION_LAYER_KEYFRAMES}
+	      </style>
+	      {marquee.phase === "dragging" ? (
+	        <div
+	          data-builder-node-marquee=""
+	          style={{
+	            position: "fixed",
+	            top: Math.min(marquee.startY, marquee.currentY),
+	            left: Math.min(marquee.startX, marquee.currentX),
+	            width: Math.abs(marquee.currentX - marquee.startX),
+	            height: Math.abs(marquee.currentY - marquee.startY),
+	            borderRadius: 6,
+	            border: "1px solid rgba(47,70,120,0.78)",
+	            background: "rgba(47,70,120,0.10)",
+	            boxShadow: "0 0 0 1px rgba(255,255,255,0.60) inset",
+	            pointerEvents: "none",
+	            zIndex: 98,
+	          }}
+	        />
+	      ) : null}
+	      {/* ── Hover ring + per-section left-corner rail ───────────────
        *
        * Sprint 3.1 — replaces the between-section "+" bars (composition-
        * inserter.tsx is now a no-op) with a per-section affordance:
@@ -1625,8 +2020,8 @@ export function SelectionLayer() {
               </button>
             </div>
           ) : null}
-        </>
-      ) : null}
+	        </>
+	      ) : null}
 
       {/* Sprint 4 — additional-selection rings. Render a quieter ring
        *  on every section in the multi-set (the primary keeps the full
@@ -1636,7 +2031,7 @@ export function SelectionLayer() {
        *  typically used for a quick burst of bulk action and the
        *  operator's eye is on the chip's count badge, not on every
        *  ring's pixel-perfect tracking. */}
-      {Array.from(additionalSelectedIds).map((id) => {
+	      {Array.from(additionalSelectedIds).map((id) => {
         if (id === selectedSectionId) return null;
         const el =
           typeof document === "undefined"
@@ -1663,9 +2058,31 @@ export function SelectionLayer() {
             }}
           />
         );
-      })}
+	      })}
 
-      {/* ── Selection ring ────────────────────────────────────────── */}
+	      {selectedBuilderNodeRects.map((rect) => {
+	        if (!multiNodeSelectionActive) return null;
+	        return (
+	          <div
+	            key={`builder-add-${rect.id}`}
+	            data-builder-node-multi-ring=""
+	            data-builder-node-id={rect.id}
+	            style={{
+	              position: "fixed",
+	              top: rect.top,
+	              left: rect.left,
+	              width: rect.width,
+	              height: rect.height,
+	              borderRadius: CANVAS_SELECTION_RADIUS,
+	              boxShadow:
+	                "inset 0 0 0 1px rgba(255,255,255,0.58), 0 0 0 2px rgba(47,70,120,0.82), 0 0 0 6px rgba(47,70,120,0.10)",
+	              pointerEvents: "none",
+	            }}
+	          />
+	        );
+	      })}
+
+	      {/* ── Selection ring ────────────────────────────────────────── */}
       {renderSelectedRect ? (
         <>
           <div
@@ -1719,15 +2136,32 @@ export function SelectionLayer() {
           ) : null}
 
           {/* Direct manipulation — drag the centre grip to move (translate). */}
-          {canResizeSelectedNode && !isDragging ? (
-            <CanvasMoveHandle
-              rect={renderSelectedRect}
-              liveEl={getSelectedBuilderNodeEl()}
-              onCommitTranslate={commitSelectedNodeTranslate}
-            />
-          ) : null}
+	          {canResizeSelectedNode && !isDragging ? (
+	            <CanvasMoveHandle
+	              rect={renderSelectedRect}
+	              liveEl={getSelectedBuilderNodeEl()}
+	              onCommitTranslate={commitSelectedNodeTranslate}
+	            />
+	          ) : null}
 
-          {drag.phase === "idle" && (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
+	          {multiNodeSelectionActive && !isDragging ? (
+	            <MultiSelectionMoveHandle
+	              rect={renderSelectedRect}
+	              nodeIds={selectedBuilderNodeRects.map((rect) => rect.id)}
+	              getElement={getBuilderNodeEl}
+	              onCommitDeltas={(deltas) => {
+	                void translateSelectedBuilderNodes(deltas).then((result) => {
+	                  if (!result.ok && result.error) {
+	                    reportMutationError(result.error);
+	                  }
+	                });
+	              }}
+	            />
+	          ) : null}
+
+          {drag.phase === "idle" &&
+          !multiNodeSelectionActive &&
+          (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
               data-edit-overlay="builder-node-canvas-rail"
               style={{
@@ -1991,8 +2425,56 @@ export function SelectionLayer() {
             }}
           />
 
-          {/* ── Premium selection chip ────────────────────────────── */}
-          <div
+	          {showMultiSelectionToolbar ? (
+	            <MultiSelectionToolbar
+	              rect={renderSelectedRect}
+	              count={Math.max(1, selectedBuilderNodeRects.length)}
+		              disabled={saving}
+		              canGroup={multiNodeSelectionActive}
+		              canUngroup={canUngroupSelectedNode}
+		              canDistribute={selectedBuilderNodeRects.length >= 3}
+		              onAlign={(mode) => {
+		                void alignSelectedBuilderNodes(
+		                  mode,
+		                  selectedBuilderNodeRects,
+		                ).then((result) => {
+		                  if (!result.ok && result.error) reportMutationError(result.error);
+		                });
+		              }}
+		              onDistribute={(mode) => {
+		                void distributeSelectedBuilderNodes(
+		                  mode,
+		                  selectedBuilderNodeRects,
+		                ).then((result) => {
+		                  if (!result.ok && result.error) reportMutationError(result.error);
+		                });
+		              }}
+		              onGroup={() => {
+		                void groupSelectedBuilderNodes().then((result) => {
+		                  if (!result.ok && result.error) reportMutationError(result.error);
+	                });
+	              }}
+	              onUngroup={() => {
+	                void ungroupSelectedBuilderNode().then((result) => {
+	                  if (!result.ok && result.error) reportMutationError(result.error);
+	                });
+	              }}
+	              onDuplicate={() => {
+	                void duplicateSelectedBuilderNodes().then((result) => {
+	                  if (!result.ok && result.error) reportMutationError(result.error);
+	                });
+	              }}
+	              onRemove={() => {
+	                void removeSelectedBuilderNodes().then((result) => {
+	                  if (!result.ok && result.error) reportMutationError(result.error);
+	                });
+	              }}
+	            />
+	          ) : null}
+
+	          {/* ── Premium selection chip ────────────────────────────── */}
+	          {!multiNodeSelectionActive ? (
+	          <div
             data-selection-chip=""
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
@@ -2151,7 +2633,7 @@ export function SelectionLayer() {
                   </span>
                 </span>
               ) : null}
-            </div>
+		          </div>
 
             {/* Toolbar buttons.
              *
@@ -2266,9 +2748,10 @@ export function SelectionLayer() {
                 onRemoveCancel={() => setConfirmRemove(false)}
               />
             )}
-          </div>
-        </>
-      ) : null}
+	          </div>
+	        ) : null}
+	        </>
+	      ) : null}
 
       {/* ── Drop indicator ────────────────────────────────────────── */}
       {drag.phase === "dragging" && drag.drop ? (
@@ -3295,6 +3778,8 @@ function canvasChildPrimaryLabel(node: BuilderNode): string {
       return node.props.label;
     case "image":
       return node.props.alt?.trim() || "Image block";
+    case "icon":
+      return node.props.label || BUILDER_NODE_REGISTRY[node.kind].label;
     case "accordion_item":
     case "tab_panel":
       return node.props.title;
@@ -3313,6 +3798,12 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return node.props.href || "Button link";
     case "image":
       return "Image block";
+    case "video":
+      return "Video block";
+    case "embed":
+      return "Embed block";
+    case "icon":
+      return node.props.size ? `Icon · ${node.props.size.toUpperCase()}` : "Icon";
     case "accordion_item":
     case "tab_panel":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;

@@ -10,6 +10,8 @@ export * from "./operations";
 export * from "./drop-policy";
 export * from "./layout-health";
 export * from "./render";
+export * from "./fonts-registry";
+export * from "./icon-registry";
 export * from "./mutation-feedback";
 export * from "./performance-budget";
 export * from "./collab-audit";

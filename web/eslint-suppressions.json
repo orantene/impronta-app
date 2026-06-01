@@ -1222,9 +1222,6 @@
     "react-hooks/immutability": {
       "count": 2
     },
-    "react-hooks/preserve-manual-memoization": {
-      "count": 10
-    },
     "react-hooks/refs": {
       "count": 4
     }
