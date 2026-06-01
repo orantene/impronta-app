@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import { fidelityDesigns } from "../../scripts/fidelity/designs";
 import { FIDELITY_BREAKPOINTS } from "../../scripts/fidelity/html";
+import { applyMotionState, FIDELITY_MOTION_FRAMES } from "../../scripts/fidelity/motion";
 
 // FIX: no retries for fidelity tests — a flaky 1-pixel diff must be
 // investigated, not silently retried to green. This overrides the global
@@ -50,3 +51,28 @@ for (const design of fidelityDesigns) {
     }
   });
 }
+
+// Motion-state goldens. These convert two previously-unscoreable axes into
+// measured ones: `scrolled` proves sticky headers + backdrop-filter glass OVER
+// real scrolled content, and `reveal` proves a scroll-driven entrance animation
+// settles to its end state. They run with reduced-motion OFF (so the animation
+// exists to be fast-forwarded) and are clipped to the viewport at a scroll/hover
+// state, unlike the full-page static frames. Sub-pixel AA drift across machines
+// is absorbed by a tight `maxDiffPixels`; a hard regression still fails.
+test.describe("fidelity: motion", () => {
+  test.use({ reducedMotion: "no-preference" });
+  for (const frame of FIDELITY_MOTION_FRAMES) {
+    test(`${frame.design} ${frame.state} ${frame.width}px`, async ({ page }) => {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.setContent(buildHtmlInRendererProcess(frame.design), { waitUntil: "load" });
+      await page.evaluate(() => document.fonts.ready);
+      await applyMotionState(page, frame.state);
+
+      await expect(page).toHaveScreenshot(`${frame.design}-${frame.width}-${frame.state}.png`, {
+        clip: { x: 0, y: 0, width: frame.width, height: frame.height },
+        animations: "disabled",
+        maxDiffPixels: 250,
+      });
+    });
+  }
+});

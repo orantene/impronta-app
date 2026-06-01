@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { renderBuilderNodes } from "../../src/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
+import { planFidelityFonts, type PlanFidelityFontsOptions } from "./fonts-bridge";
+
+export { planFidelityFonts, type FidelityFontPlan } from "./fonts-bridge";
 
 export interface FidelityDesign {
   id: string;
@@ -34,14 +37,22 @@ export function renderFidelityMarkup(tree: ReadonlyArray<BuilderNode>): string {
   );
 }
 
-export function buildFidelityHtml(design: FidelityDesign): string {
+export function buildFidelityHtml(
+  design: FidelityDesign,
+  options: PlanFidelityFontsOptions = {},
+): string {
   const markup = renderFidelityMarkup(design.tree);
+  // Font bridge: inject Google links for CDN faces + self-hosted @font-face for
+  // bundled faces so declared registry families render with their real glyphs
+  // instead of silently falling back to the system serif/sans.
+  const fontPlan = planFidelityFonts(design.tree, options);
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(design.title)}</title>
+    ${fontPlan.headHtml}
     <style>
       :root { color-scheme: light; }
       * { box-sizing: border-box; }

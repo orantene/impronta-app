@@ -5,6 +5,12 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Regenerate (seed) the fidelity goldens on this runner and upload them as an artifact to commit. The goldens are macos-14-specific, so new/updated goldens must be seeded here, not on a dev mac."
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +47,24 @@ jobs:
         run: npx playwright install chromium
 
       - name: Run fidelity golden tests
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.update_snapshots) }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium
+
+      # Manual seeding path. Goldens are macos-14-specific; new/updated frames
+      # (e.g. the motion frames) can only be seeded to match CI on this runner.
+      # Run this workflow with update_snapshots=true, then download the artifact
+      # and commit its PNGs into e2e/fidelity/fidelity.spec.ts-snapshots/.
+      - name: Seed fidelity goldens (--update-snapshots)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+        run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium --update-snapshots
+
+      - name: Upload seeded goldens
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidelity-goldens-seeded
+          path: web/e2e/fidelity/fidelity.spec.ts-snapshots
+          if-no-files-found: warn
 
       - name: Upload fidelity diffs
         if: failure()
