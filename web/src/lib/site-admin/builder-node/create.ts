@@ -255,6 +255,16 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           style: { aspectRatio: "16:9" },
         },
       };
+    case "icon":
+      return {
+        id: makeId("icon"),
+        kind: "icon",
+        props: {
+          icon: "sparkle",
+          label: "Sparkle",
+          size: "lg",
+        },
+      };
     case "divider":
       return {
         id: makeId("divider"),

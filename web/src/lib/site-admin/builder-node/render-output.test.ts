@@ -280,6 +280,29 @@ test("node kind: embed renders a sandboxed iframe", () => {
   assert.ok(html.includes("aspect-ratio:16 / 9"), "aspect ratio");
 });
 
+test("node kind: icon renders inline currentColor svg", () => {
+  const html = render([
+    {
+      id: "icon-1",
+      kind: "icon",
+      props: {
+        icon: "check",
+        label: "Included",
+        size: "lg",
+        style: { textColor: "#0f766e" },
+      },
+    } as BuilderNode,
+  ]);
+
+  assert.ok(html.includes('data-builder-node-kind="icon"'), "kind marker");
+  assert.ok(html.includes('data-builder-icon="check"'), "icon marker");
+  assert.ok(html.includes('role="img"'), "semantic icon");
+  assert.ok(html.includes('aria-label="Included"'), "accessible label");
+  assert.ok(html.includes('stroke="currentColor"'), "currentColor stroke");
+  assert.ok(html.includes("font-size:3rem"), "size");
+  assert.ok(html.includes("color:#0f766e"), "shared style color");
+});
+
 // ── Living Components Phase 3 ─────────────────────────────────────────────────
 
 const MASTER: BuilderNode = {

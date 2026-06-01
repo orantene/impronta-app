@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BUILDER_ICON_NAMES } from "./icon-registry";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -17,6 +18,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "image",
   "video",
   "embed",
+  "icon",
   "divider",
   "spacer",
 ];
@@ -470,6 +472,14 @@ const embedPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const iconPropsSchema = z.object({
+  icon: z.enum(BUILDER_ICON_NAMES),
+  label: z.string().max(160).optional(),
+  decorative: z.boolean().optional(),
+  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  style: builderNodeStyleSchema,
+});
+
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
   style: builderNodeStyleSchema,
@@ -547,6 +557,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "image",
           "video",
           "embed",
+          "icon",
           "divider",
           "spacer",
           "container",
@@ -581,6 +592,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "image",
           "video",
           "embed",
+          "icon",
           "divider",
           "spacer",
           "container",
@@ -613,6 +625,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "image",
           "video",
           "embed",
+          "icon",
           "divider",
           "spacer",
           "container",
@@ -632,6 +645,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "image",
           "video",
           "embed",
+          "icon",
           "heading",
           "paragraph",
           "button",
@@ -653,6 +667,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "image",
           "video",
           "embed",
+          "icon",
           "heading",
           "paragraph",
           "button",
@@ -705,6 +720,13 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Sandboxed iframe for video, maps, booking, or other embeds.",
       children: { type: "none" },
       propsSchema: embedPropsSchema,
+    },
+    icon: {
+      kind: "icon",
+      label: "Icon",
+      description: "Inline SVG icon that inherits current text color.",
+      children: { type: "none" },
+      propsSchema: iconPropsSchema,
     },
     divider: {
       kind: "divider",

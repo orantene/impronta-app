@@ -15,6 +15,7 @@ import {
   buildGoogleFontsHrefForFamilies,
   collectBuilderNodeFontFamilies,
 } from "./fonts-registry";
+import { getBuilderIconDefinition } from "./icon-registry";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
 
 export interface BuilderNodeRenderDataSources {
@@ -55,6 +56,13 @@ const SPACER_BY_SIZE = {
   s: "1rem",
   m: "2rem",
   l: "3rem",
+} as const;
+
+const ICON_SIZE = {
+  sm: "1.25rem",
+  md: "2rem",
+  lg: "3rem",
+  xl: "4.5rem",
 } as const;
 
 const NODE_SPACING = {
@@ -145,6 +153,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--paragraph{font-family:var(--site-body-font,inherit)}
 .site-builder-node--video{display:block;width:100%;max-width:100%;background:#000}
 .site-builder-node--embed{display:block;width:100%;max-width:100%;border:0;background:#000}
+.site-builder-node--icon{display:inline-flex;align-items:center;justify-content:center;color:currentColor;line-height:1}
 .site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
 .site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
 .site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
@@ -1696,6 +1705,56 @@ function renderBuilderNode(
           }}
         />
       );
+    case "icon": {
+      const icon = getBuilderIconDefinition(node.props.icon);
+      const decorative = node.props.decorative ?? !node.props.label;
+      return (
+        <span
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-icon={icon.name}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--icon"
+          role={decorative ? undefined : "img"}
+          aria-label={decorative ? undefined : node.props.label}
+          aria-hidden={decorative ? true : undefined}
+          style={{
+            fontSize: ICON_SIZE[node.props.size ?? "md"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="1em"
+            height="1em"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            {icon.paths.map((path) => (
+              <path key={path} d={path} />
+            ))}
+            {icon.circles?.map((circle) => (
+              <circle
+                key={`${circle.cx}-${circle.cy}-${circle.r}`}
+                cx={circle.cx}
+                cy={circle.cy}
+                r={circle.r}
+              />
+            ))}
+            {icon.polygons?.map((points) => (
+              <polygon key={points} points={points} />
+            ))}
+          </svg>
+        </span>
+      );
+    }
     case "divider":
       return (
         <hr

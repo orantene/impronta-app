@@ -14,6 +14,7 @@ export type BuilderNodeKind =
   | "image"
   | "video"
   | "embed"
+  | "icon"
   | "divider"
   | "spacer"
   | "card"
@@ -486,6 +487,17 @@ export interface BuilderEmbedNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderIconNode extends BuilderNodeBase {
+  kind: "icon";
+  props: {
+    icon: import("./icon-registry").BuilderIconName;
+    label?: string;
+    decorative?: boolean;
+    size?: "sm" | "md" | "lg" | "xl";
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
@@ -540,6 +552,7 @@ export type BuilderNode =
   | BuilderImageNode
   | BuilderVideoNode
   | BuilderEmbedNode
+  | BuilderIconNode
   | BuilderDividerNode
   | BuilderSpacerNode
   | BuilderCardNode
