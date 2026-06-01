@@ -29,7 +29,7 @@ import {
   getTalentConnectedAccountSnapshot,
   canRouteTransfersToTalent,
 } from "@/lib/payments/stripe-connect-talent";
-import { recordPayoutLeg } from "@/lib/payments/booking-payouts-ledger";
+import { recordPayoutLeg, syncBookingPayoutLifecycle } from "@/lib/payments/booking-payouts-ledger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
@@ -247,6 +247,11 @@ export async function executeBookingTransfers(
       }
       // Platform retains platform_fee_cents — already on the platform account.
     }
+
+    // If the talent has now actually received their funds (all talent legs
+    // transferred), flip the booking's payout_lifecycle to 'paid' so the talent
+    // dashboard moves from "pending" to "paid" + surfaces "Paid this month".
+    await syncBookingPayoutLifecycle(sb, bookingId);
 
     // Surface anything that didn't transfer (failed, or held pending an
     // onboarded account) so it can be reconciled / retried later.

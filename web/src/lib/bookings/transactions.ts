@@ -434,6 +434,29 @@ export async function markPaid(
   // inquiry; the dispatcher no-ops without RESEND_API_KEY and dedupes a retry
   // on the stable transaction-scoped eventId.
   if (result.ok) {
+    // Sync the booking the talent/agency dashboards read. The payment flow
+    // historically only flipped booking_transactions.status — agency_bookings
+    // (what talent earnings + workspace financials read) was never updated, so a
+    // client's real payment never showed as "paid" on those surfaces. Money
+    // received ⇒ payment_status='paid' + client_revenue_lifecycle='paid' (talent
+    // moves confirmed→pending; payout_lifecycle flips to 'paid' later, when
+    // executeBookingTransfers actually disburses the talent's funds).
+    if (result.data.bookingId) {
+      const sbBooking = createServiceRoleClient();
+      if (sbBooking) {
+        sbBooking
+          .from("agency_bookings")
+          .update({
+            payment_status: "paid",
+            client_revenue_lifecycle: "paid",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", result.data.bookingId)
+          .then((r) => {
+            if (r.error) logServerError("transactions.markPaid.bookingSync", r.error);
+          });
+      }
+    }
     notifyPaymentReceived({
       transactionId: result.data.id,
       tenantId: result.data.sourceTenantId,

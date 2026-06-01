@@ -95,6 +95,41 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
   }
 }
 
+/**
+ * Flip a booking's `agency_bookings.payout_lifecycle` to 'paid' once the TALENT
+ * has actually received their money — i.e. every talent payout leg recorded for
+ * the booking is 'transferred'. This is the link that moves the talent dashboard
+ * from "pending" to "paid" (and surfaces it under "Paid this month"):
+ * `mapBookingPayoutStatus` reads `agency_bookings.payout_lifecycle`, which the
+ * payment flow otherwise never updated (it only flips `booking_transactions`).
+ *
+ * TALENT legs only — a held AGENCY leg (workspace not yet onboarded) is tracked
+ * separately by the held-payouts system and must NOT block the talent's paid
+ * status, since the talent has been paid in full regardless. Best-effort; the
+ * money already moved, so a bookkeeping failure here is logged, never thrown.
+ */
+export async function syncBookingPayoutLifecycle(
+  sb: SupabaseClient,
+  bookingId: string,
+): Promise<void> {
+  try {
+    const { data, error } = await sb
+      .from("booking_payouts")
+      .select("status")
+      .eq("booking_id", bookingId)
+      .eq("party", "talent");
+    if (error || !data?.length) return;
+    const allTransferred = data.every((r) => (r.status as string) === "transferred");
+    if (!allTransferred) return;
+    await sb
+      .from("agency_bookings")
+      .update({ payout_lifecycle: "paid", updated_at: new Date().toISOString() })
+      .eq("id", bookingId);
+  } catch (err) {
+    logServerError(`booking-payouts.syncLifecycle[booking=${bookingId}]`, err);
+  }
+}
+
 type HeldRow = {
   id: string;
   booking_id: string;
@@ -219,6 +254,9 @@ export async function releaseHeldPayouts(
           })
           .eq("id", row.id);
         outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "released", transferId: transfer.id });
+        // A released talent leg may complete the booking's talent payout →
+        // flip it to 'paid' so the talent dashboard reflects the late payout.
+        if (row.party === "talent") await syncBookingPayoutLifecycle(sb, row.booking_id);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "transfer failed";
         await sb
