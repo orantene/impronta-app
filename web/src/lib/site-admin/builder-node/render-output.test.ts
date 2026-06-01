@@ -179,6 +179,68 @@ test("transitions: hover auto-default emits easing without a shorthand", () => {
   assert.ok(!html.includes("transition:all .2s ease"), "no inline shorthand");
 });
 
+test("image mediaId resolves to the tenant media asset public URL", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        {
+          id: "img1",
+          kind: "image",
+          props: {
+            mediaId: "11111111-1111-4111-8111-111111111111",
+            src: "https://example.com/fallback.jpg",
+            alt: "",
+          },
+        },
+      ],
+      {
+        mode: "freeform",
+        dataSources: {
+          mediaAssets: [
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              publicUrl: "https://pluhdapdnuiulvxmyspd.supabase.co/storage/v1/object/public/media-public/tenant/a/library/photo.webp",
+              alt: "Library portrait",
+              width: 1200,
+              height: 1600,
+            },
+          ],
+        },
+      },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(html.includes("photo.webp"), "resolved public URL");
+  assert.ok(html.includes('alt="Library portrait"'), "asset alt fallback");
+  assert.ok(
+    html.includes('data-builder-media-id="11111111-1111-4111-8111-111111111111"'),
+    "media id marker",
+  );
+  assert.ok(!html.includes("fallback.jpg"), "raw fallback should not win");
+});
+
+test("image mediaId falls back without rendering unsafe raw src", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        {
+          id: "img1",
+          kind: "image",
+          props: {
+            mediaId: "22222222-2222-4222-8222-222222222222",
+            src: "javascript:alert(1)",
+            alt: "Unsafe",
+          },
+        },
+      ],
+      { mode: "freeform", dataSources: { mediaAssets: [] } },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+
+  assert.ok(!html.includes("<img"), "unsafe unresolved image is omitted");
+  assert.ok(!html.includes("javascript:"), "unsafe src is never rendered");
+});
+
 test("container queries: query containers and slot-width overrides emit", () => {
   const html = render([
     {

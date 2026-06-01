@@ -1,31 +1,11 @@
 "use client";
 
 /**
- * MediaPickerDialog — headless-open variant of the shared MediaPicker.
- *
- * The shared picker owns its own trigger button, which is the right shape
- * for inspector forms but not for canvas-initiated flows like "click image →
- * replace". This variant takes an explicit `open` boolean and fires
- * `onPick(url)` / `onClose()` — no trigger. Library fetch + upload logic is
- * duplicated (rather than refactored out of MediaPicker) because the source
- * component is in wide use by section editors and we don't want to risk a
- * coordinated regression.
+ * Back-compat controlled picker used by canvas image replacement.
+ * The UI is now the canonical media picker drawer.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { CHROME, CHROME_SHADOWS, CHROME_RADII, DrawerHead } from "./kit";
-import { uploadCmsMedia } from "@/lib/client/signed-upload";
-
-interface MediaItem {
-  id: string;
-  publicUrl: string;
-  storagePath: string;
-  variantKind: string;
-  width: number | null;
-  height: number | null;
-  createdAt: string;
-}
+import { MediaPickerDrawer } from "./media-picker-drawer";
 
 interface Props {
   tenantId: string;
@@ -35,191 +15,13 @@ interface Props {
 }
 
 export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
-  const [items, setItems] = useState<MediaItem[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const loadLibrary = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}`,
-        { cache: "no-store" },
-      );
-      const body = await res.json();
-      if (!res.ok || !body.ok) {
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      setItems(body.items as MediaItem[]);
-    } catch (e) {
-      setError(String(e).slice(0, 200));
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (items !== null || loading) return;
-    void loadLibrary();
-  }, [open, items, loading, loadLibrary]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  async function handleFileChosen(file: File) {
-    setUploading(true);
-    setUploadError(null);
-    try {
-      // Signed-upload pipeline first (browser compress → direct PUT
-      // to Supabase → register), legacy /api/admin/media/upload as
-      // fallback. See lib/client/signed-upload.ts.
-      let item: MediaItem;
-      const fast = await uploadCmsMedia({ file, tenantId, kind: "image" });
-      if (fast.ok) {
-        item = fast.item as MediaItem;
-      } else if (!fast.fallbackToLegacy) {
-        throw new Error(fast.error);
-      } else {
-        const form = new FormData();
-        form.set("tenantId", tenantId);
-        form.set("file", file);
-        const res = await fetch("/api/admin/media/upload", {
-          method: "POST",
-          body: form,
-        });
-        const body = await res.json();
-        if (!res.ok || !body.ok) {
-          throw new Error(body.error ?? `HTTP ${res.status}`);
-        }
-        item = body.item as MediaItem;
-      }
-      setItems((prev) => [item, ...(prev ?? [])]);
-      onPick(item.publicUrl);
-    } catch (e) {
-      setUploadError(String(e).slice(0, 200));
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  if (!open) return null;
-
   return (
-    <div
-      data-edit-overlay="media-picker"
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-[#242942]/60 p-6 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="media-picker-dialog-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="flex h-[80vh] w-[min(100%,960px)] flex-col overflow-hidden"
-        style={{
-          background: CHROME.paper2,
-          border: `1px solid ${CHROME.lineMid}`,
-          borderRadius: CHROME_RADII.lg,
-          boxShadow: CHROME_SHADOWS.popover,
-        }}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleFileChosen(file);
-          }}
-        />
-        <DrawerHead
-          titleId="media-picker-dialog-title"
-          title="Replace image"
-          saveChip={
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#4a5e94] disabled:opacity-60"
-            >
-              {uploading ? "Uploading…" : "Upload"}
-            </button>
-          }
-          onClose={onClose}
-        />
-
-        {uploadError ? (
-          <p
-            className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-700"
-            role="alert"
-            aria-live="assertive"
-          >
-            Upload failed — {uploadError}
-          </p>
-        ) : null}
-
-        <div className="flex-1 overflow-y-auto p-4">
-          {loading ? (
-            <p className="text-sm text-stone-500">Loading…</p>
-          ) : error ? (
-            <p
-              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-              role="alert"
-              aria-live="assertive"
-            >
-              {error}
-            </p>
-          ) : items && items.length > 0 ? (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {items.map((m) => (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPick(m.publicUrl)}
-                    className="flex w-full flex-col gap-1 overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-1 text-left transition hover:border-indigo-400 hover:shadow-md"
-                  >
-                    <span
-                      className="aspect-[3/4] w-full overflow-hidden rounded-md bg-stone-100 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${m.publicUrl})` }}
-                      aria-hidden
-                    />
-                    <span className="px-1 pb-1 text-[10px] text-stone-500">
-                      {m.variantKind}
-                      {m.width && m.height ? (
-                        <>
-                          {" "}
-                          · {m.width}×{m.height}
-                        </>
-                      ) : null}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="rounded-md border border-dashed border-stone-200 bg-stone-50 p-8 text-center">
-              <p className="text-sm font-medium text-stone-700">No media yet</p>
-              <p className="mt-1 text-xs text-stone-500">
-                Upload an image to start.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <MediaPickerDrawer
+      tenantId={tenantId}
+      open={open}
+      title="Replace image"
+      onPick={onPick}
+      onClose={onClose}
+    />
   );
 }

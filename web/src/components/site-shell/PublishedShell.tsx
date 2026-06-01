@@ -28,6 +28,7 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
@@ -38,12 +39,14 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
+import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import type { Locale } from "@/i18n/config";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 interface Props {
   tenantId: string;
@@ -251,6 +254,16 @@ async function renderShellSlot(
           nodeIdsByRole: roleBindings,
         }
       : undefined;
+  const mediaIds = collectBuilderImageMediaIds(builderSectionChildren);
+  const mediaSupabase = mediaIds.length > 0 ? createServiceRoleClient() : null;
+  const [builderComponents, mediaAssets] = await Promise.all([
+    treeHasInstances(builderSectionChildren)
+      ? loadBuilderComponentsForTenant(tenantId)
+      : Promise.resolve({}),
+    mediaSupabase
+      ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
+      : Promise.resolve(undefined),
+  ]);
   // Phase B.2.B — wrap each shell section in the same `data-cms-section`
   // outer the homepage composer uses (see homepage-cms-sections.tsx). The
   // EditShell selection layer queries `[data-cms-section]` to detect
@@ -291,11 +304,10 @@ async function renderShellSlot(
             publicPathPrefix,
             mode: "freeform",
             includeRendererStyles: false,
+            dataSources: { mediaAssets },
             // Phase 3 — resolve live component instances in shell slots too.
             // Gated: the DB query only runs when the slot actually has instances.
-            components: treeHasInstances(builderSectionChildren)
-              ? await loadBuilderComponentsForTenant(tenantId)
-              : {},
+            components: builderComponents,
           })
         : null}
     </div>

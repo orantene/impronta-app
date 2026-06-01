@@ -32,8 +32,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   listTenantMediaLibrary,
-  type MediaLibraryItem,
-} from "@/lib/site-admin/server/media-library";
+} from "@/lib/site-admin/media/assets";
+import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";

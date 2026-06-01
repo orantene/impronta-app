@@ -25,6 +25,7 @@ import {
   buildBuilderNodeRoleBindings,
   builderSectionNodeAddressKey,
   BuilderNodeRendererStyles,
+  collectBuilderImageMediaIds,
   hasRenderableBuilderNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
@@ -54,6 +55,8 @@ import {
   presentationVideoBackground,
 } from "@/lib/site-admin/sections/shared/presentation";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
+import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 import { getHomepageData } from "@/lib/home-data";
@@ -516,11 +519,18 @@ async function loadBuilderNodeDataSources(
     nodes,
     "tenant_directory_search",
   );
-  if (featuredLimit == null && !needsLocations && !needsDirectoryShortcuts) {
+  const mediaIds = collectBuilderImageMediaIds(nodes);
+  if (
+    featuredLimit == null &&
+    !needsLocations &&
+    !needsDirectoryShortcuts &&
+    mediaIds.length === 0
+  ) {
     return {};
   }
+  const mediaSupabase = mediaIds.length > 0 ? createServiceRoleClient() : null;
 
-  const [featuredTalentProfiles, homepageData] = await Promise.all([
+  const [featuredTalentProfiles, homepageData, mediaAssets] = await Promise.all([
     featuredLimit == null
       ? Promise.resolve(undefined)
       : fetchFeaturedTalentForSection(
@@ -537,11 +547,15 @@ async function loadBuilderNodeDataSources(
     needsLocations || needsDirectoryShortcuts
       ? getHomepageData({ tenantId })
       : Promise.resolve(null),
+    mediaSupabase
+      ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
+      : Promise.resolve(undefined),
   ]);
 
   return {
     featuredTalentProfiles,
     talentLocations: homepageData?.locations,
     directoryShortcuts: homepageData?.talentTypes,
+    mediaAssets,
   };
 }

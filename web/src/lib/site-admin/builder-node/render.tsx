@@ -31,6 +31,7 @@ import {
   type BuilderFieldBindingProp,
 } from "./data-bindings";
 import type { BuilderNode, BuilderNodeStyle, BuilderNodeStyleValue } from "./types";
+import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -46,6 +47,7 @@ export interface BuilderNodeRenderDataSources {
     slug: string;
     name: string;
   }>;
+  mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
 }
 
 export interface BuilderNodeRenderOptions {
@@ -1959,6 +1961,18 @@ function buttonStateAttrs(node: Extract<BuilderNode, { kind: "button" }>) {
   };
 }
 
+function isSafeBuilderImageSrc(value: string | null | undefined): value is string {
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return true;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function renderBuilderNode(
   node: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
@@ -2262,21 +2276,36 @@ function renderBuilderNode(
       );
     }
     case "image": {
+      // Compose media-library resolution (Lane B) with field-binding (Lane A):
+      // mediaId → publicUrl is the base src/alt; a {{field}} binding overrides it
+      // per repeat item when present. Final src is validated either way.
+      const mediaAsset =
+        node.props.mediaId && options.dataSources.mediaAssets
+          ? options.dataSources.mediaAssets.find(
+              (asset) => asset.id === node.props.mediaId,
+            )
+          : null;
+      const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
+      const baseAlt = node.props.alt?.trim()
+        ? node.props.alt
+        : (mediaAsset?.alt ?? "");
       const src = renderImageSrc(
-        resolveNodeStringProp(node, "src", node.props.src, options.repeatItem),
+        resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
       );
       const alt = resolveNodeStringProp(
         node,
         "alt",
-        node.props.alt ?? "",
+        baseAlt,
         options.repeatItem,
       ).value;
+      if (!src || !isSafeBuilderImageSrc(src)) return null;
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
+          data-builder-media-id={node.props.mediaId}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--image"
           src={src}
@@ -2578,6 +2607,22 @@ export function renderBuilderNodes(
   ].filter(Boolean);
   if (headNodes.length === 0) return renderedNodes;
   return [...headNodes, ...renderedNodes];
+}
+
+export function collectBuilderImageMediaIds(
+  nodes: ReadonlyArray<BuilderNode>,
+): string[] {
+  const ids = new Set<string>();
+  const visit = (node: BuilderNode) => {
+    if (node.kind === "image" && node.props.mediaId) {
+      ids.add(node.props.mediaId);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of nodes) visit(node);
+  return [...ids];
 }
 
 export function BuilderNodeFontLinks({

@@ -19,8 +19,10 @@ import { NextResponse } from "next/server";
 
 import {
   getTenantMediaAsset,
+  listTenantMediaFolders,
   listTenantMediaLibrary,
-} from "@/lib/site-admin/server/media-library";
+  updateTenantMediaAssetAlt,
+} from "@/lib/site-admin/media/assets";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 
@@ -70,6 +72,58 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, items: item ? [item] : [] });
   }
 
-  const items = await listTenantMediaLibrary(auth.supabase, scope.tenantId);
-  return NextResponse.json({ ok: true, items });
+  const [items, folders] = await Promise.all([
+    listTenantMediaLibrary(auth.supabase, scope.tenantId),
+    listTenantMediaFolders(auth.supabase, scope.tenantId),
+  ]);
+  return NextResponse.json({ ok: true, items, folders });
+}
+
+export async function PATCH(req: Request) {
+  const auth = await requireStaff();
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
+  }
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return NextResponse.json(
+      { ok: false, error: "Select an agency workspace first." },
+      { status: 400 },
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ ok: false, error: "Malformed JSON." }, { status: 400 });
+  }
+
+  const requestedTenant = typeof body.tenantId === "string" ? body.tenantId : null;
+  if (!requestedTenant || requestedTenant !== scope.tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "tenantId mismatch" },
+      { status: 403 },
+    );
+  }
+
+  const assetId = typeof body.id === "string" ? body.id : "";
+  if (!UUID_RE.test(assetId)) {
+    return NextResponse.json({ ok: false, error: "invalid id" }, { status: 400 });
+  }
+
+  const item = await updateTenantMediaAssetAlt({
+    supabase: auth.supabase,
+    tenantId: scope.tenantId,
+    assetId,
+    alt: typeof body.alt === "string" ? body.alt : null,
+  });
+  if (!item) {
+    return NextResponse.json(
+      { ok: false, error: "Asset not found for this workspace." },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({ ok: true, item });
 }
