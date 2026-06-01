@@ -50,6 +50,73 @@ async function ensureClientParticipant(
   });
 }
 
+/**
+ * 1J fix — a talent priced on an offer LINE ITEM must also be a lineup
+ * participant, or the offer can't convert to a booking (the convert/call-sheet
+ * step builds booking_talent + the commission snapshot from inquiry_participants,
+ * and seedApprovalsForOffer only seeds approvals for ACTIVE talent participants).
+ * Previously the offer editor let you price a talent who wasn't on the lineup,
+ * producing a silently un-bookable offer. This upserts each line-item talent as
+ * an active talent participant (idempotent) so a priced offer is always bookable.
+ */
+async function ensureOfferTalentsOnLineup(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+  offerId: string,
+  actorUserId: string,
+): Promise<void> {
+  const { data: lines } = await supabase
+    .from("inquiry_offer_line_items")
+    .select("talent_profile_id")
+    .eq("offer_id", offerId)
+    .eq("tenant_id", tenantId);
+  const talentIds = [
+    ...new Set(
+      ((lines ?? []) as { talent_profile_id: string | null }[])
+        .map((l) => l.talent_profile_id)
+        .filter((x): x is string => !!x),
+    ),
+  ];
+  for (const talentProfileId of talentIds) {
+    const { data: existing } = await supabase
+      .from("inquiry_participants")
+      .select("id")
+      .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .eq("role", "talent")
+      .maybeSingle();
+    if (existing) continue;
+    const { data: tp } = await supabase
+      .from("talent_profiles")
+      .select("user_id")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    const { data: maxSort } = await supabase
+      .from("inquiry_participants")
+      .select("sort_order")
+      .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .eq("role", "talent")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextSort = ((maxSort?.sort_order as number | null) ?? -1) + 1;
+    const { error } = await supabase.from("inquiry_participants").insert({
+      inquiry_id: inquiryId,
+      tenant_id: tenantId,
+      user_id: (tp?.user_id as string | null) ?? null,
+      talent_profile_id: talentProfileId,
+      role: "talent",
+      status: "active",
+      sort_order: nextSort,
+      added_by_user_id: actorUserId,
+    });
+    if (error) logServerError("inquiry-engine-offers.ensureOfferTalentsOnLineup", error);
+  }
+}
+
 async function seedApprovalsForOffer(
   supabase: SupabaseClient,
   inquiryId: string,
@@ -326,6 +393,10 @@ export async function sendOffer(
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "send_offer");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
+    // 1J: ensure every talent priced on the offer is a lineup participant BEFORE
+    // sending — so approval seeding includes them and the offer is bookable.
+    await ensureOfferTalentsOnLineup(supabase, ctx.inquiryId, ctx.tenantId, ctx.offerId, ctx.actorUserId);
+
     const { data, error } = await supabase.rpc("engine_send_offer", {
       p_inquiry_id: ctx.inquiryId,
       p_offer_id: ctx.offerId,
@@ -502,6 +573,11 @@ export async function updateOfferDraft(
       });
       if (liErr) return { success: false, error: liErr.message };
     }
+
+    // 1J: keep the lineup in sync with the offer — a talent priced on a line
+    // item is added to inquiry_participants so the Lineup tab + booking convert
+    // see them (the offer editor otherwise lets you price an off-lineup talent).
+    await ensureOfferTalentsOnLineup(supabase, ctx.inquiryId, ctx.tenantId, ctx.offerId, ctx.actorUserId);
 
     const writeDraft = await inquiryWriteClient(supabase);
     const { data: offerUp, error: oerr } = await writeDraft
