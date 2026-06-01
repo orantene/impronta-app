@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { OfferCard, PaymentRequestCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
+import { OfferCard, PaymentRequestCard, BookingConfirmedCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
 import { adminAddSuggestedTalent } from "@/lib/server-actions/admin-suggested-talent";
 import { ReservationThread, type ReservationStage, type PillDescriptor, type PillKind, type SheetDescriptor } from "@/components/reservation-thread";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
@@ -326,6 +326,21 @@ export function renderChatCardForMessage(
       );
     case "payment_paid":
       return <PaymentRequestCard amountLabel={get<string>("amount_label", "—")} status="paid" />;
+    case "booking_confirmed":
+      return (
+        <BookingConfirmedCard
+          totalLabel={get<string>("total_label", "")}
+          summary={get<string>("summary", "")}
+        />
+      );
+    case "talent_rate_confirmed":
+      return (
+        <TalentRateCard
+          talentName={get<string>("talent_name", "Your rate")}
+          rateLabel={get<string>("rate_label", "—")}
+          state="accepted"
+        />
+      );
     case "coordinator_request":
       return (
         <CoordinatorRequestCard

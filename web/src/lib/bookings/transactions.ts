@@ -427,6 +427,26 @@ export async function markPaid(
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.chatCard", r.error);
       });
+      // §6 chat-card: booking-confirmed milestone — the money settled, so the
+      // job is locked. Emitted alongside payment_paid so every role sees the
+      // same "booking confirmed" card in the thread. Role-safe payload (label
+      // only — no margin/commission). booking_confirmed message_kind added in
+      // migration 20260601155328.
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "private",
+        sender_user_id: null,
+        body: "Booking confirmed",
+        message_kind: "booking_confirmed",
+        card_payload: {
+          total_label: amountLabel,
+          summary: "Payment received — the booking is confirmed.",
+          transaction_id: result.data.id,
+        },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.bookingConfirmedCard", r.error);
+      });
     }
   }
   // Slice 15.4: payment.received → client receipt (email) + workspace alert

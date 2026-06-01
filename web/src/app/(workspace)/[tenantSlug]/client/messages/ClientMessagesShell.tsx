@@ -2636,6 +2636,34 @@ function renderClientChatCard(
         </div>
       );
     }
+    case "booking_confirmed": {
+      const totalLabel = get<string>("total_label", "");
+      const summary = get<string>("summary", "Payment received — your booking is confirmed.");
+      return (
+        <div
+          style={{
+            background: "rgba(16,185,129,0.06)",
+            border: `1px solid rgba(16,185,129,0.20)`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            fontFamily: FONT,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#047857", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Booking confirmed
+          </div>
+          {totalLabel && (
+            <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
+              {totalLabel}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: C.inkMuted }}>{summary}</div>
+        </div>
+      );
+    }
     case "call_sheet_update": {
       const changedField = get<string>("changed_field", "");
       const byName = get<string>("by_name", "");
