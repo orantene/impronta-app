@@ -225,8 +225,28 @@ async function loadDesignPage(
   });
   await page.evaluate(async () => {
     await document.fonts.ready;
+    // Trigger `loading="lazy"` images below the fold to fetch before we decode.
+    // Without this, an off-screen lazy image never loads, and `img.decode()`
+    // below blocks FOREVER (no timeout) — the hang that wedged tall (390px)
+    // captures + the golden spec. Scroll the full height a viewport at a time,
+    // then return to the top (motion frames re-apply their own scroll later).
+    const fullHeight = document.documentElement.scrollHeight;
+    for (let y = 0; y <= fullHeight; y += window.innerHeight) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    }
+    window.scrollTo(0, 0);
+    // Decode every image, but race each decode against a 3s timeout so a still-
+    // unfetched image degrades to a skip instead of hanging the whole capture.
+    // (Inlined anonymously — a named `const fn = …` here trips tsx/esbuild's
+    // `__name` helper, which is undefined in the page-evaluate browser context.)
     await Promise.all(
-      Array.from(document.images).map((img) => img.decode().catch(() => undefined)),
+      Array.from(document.images).map((img) =>
+        Promise.race([
+          img.decode().catch(() => undefined),
+          new Promise((resolve) => setTimeout(() => resolve(undefined), 3000)),
+        ]),
+      ),
     );
   });
 }
