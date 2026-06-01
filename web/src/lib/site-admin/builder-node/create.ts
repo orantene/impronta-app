@@ -116,6 +116,27 @@ export function createPricingTable(style?: BuilderNodeStyle): BuilderNode {
   };
 }
 
+export function createNav(style?: BuilderNodeStyle): BuilderNode {
+  return {
+    id: makeId("nav"),
+    kind: "nav",
+    props: {
+      brand: "Brand",
+      brandHref: "/",
+      collapseAt: "mobile",
+      menuLabel: "Menu",
+      ariaLabel: "Primary",
+      links: [
+        { id: crypto.randomUUID(), label: "Work", href: "/work" },
+        { id: crypto.randomUUID(), label: "About", href: "/about" },
+        { id: crypto.randomUUID(), label: "Services", href: "/services" },
+        { id: crypto.randomUUID(), label: "Contact", href: "/contact" },
+      ],
+      style,
+    },
+  };
+}
+
 export function createAccordionItem(title: string, body: string): BuilderNode {
   return {
     id: makeId("accordion_item"),
@@ -358,6 +379,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           createButton("Secondary", "/", "secondary"),
         ],
       };
+    case "nav":
+      return createNav();
   }
 }
 

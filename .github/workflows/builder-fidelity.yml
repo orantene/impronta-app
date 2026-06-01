@@ -5,6 +5,12 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Regenerate (seed) the fidelity goldens on this runner and upload them as an artifact to commit. The goldens are macos-14-specific, so new/updated goldens must be seeded here, not on a dev mac."
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,11 +43,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install chromium
+      # Chromium = full frame set (static + motion). WebKit (Safari's engine) =
+      # static frames only; the motion frames self-skip on non-chromium (see
+      # fidelity.spec.ts). The platform is PWA-first, so Safari rendering is a
+      # real regression surface.
+      - name: Install Playwright Chromium + WebKit
+        run: npx playwright install chromium webkit
 
+      # Chromium is the blocking gate today. WebKit goldens are macos-14-seeded
+      # and must exist before webkit can join the blocking run — otherwise a
+      # missing snapshot fails the gate. Seed them once (the step below, via
+      # `workflow_dispatch` with update_snapshots=true), commit the
+      # `*-webkit-darwin.png` frames, then add `--project=webkit` here to make
+      # the cross-engine coverage blocking. The webkit project + install + seed
+      # path are already wired; only this line stays chromium-only until the
+      # goldens land. (Seeding needs `workflow_dispatch` on the default branch,
+      # which arrives with the P4 harness lane.)
       - name: Run fidelity golden tests
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.update_snapshots) }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium
+
+      # Manual seeding path. Goldens are macos-14-specific; new/updated frames
+      # (e.g. the motion frames, or the webkit cross-engine set) can only be
+      # seeded to match CI on this runner. Run this workflow with
+      # update_snapshots=true, then download the artifact and commit its PNGs
+      # into e2e/fidelity/fidelity.spec.ts-snapshots/.
+      - name: Seed fidelity goldens (--update-snapshots)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+        run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium --project=webkit --update-snapshots
+
+      - name: Upload seeded goldens
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidelity-goldens-seeded
+          path: web/e2e/fidelity/fidelity.spec.ts-snapshots
+          if-no-files-found: warn
 
       - name: Upload fidelity diffs
         if: failure()
@@ -52,3 +89,43 @@ jobs:
             web/test-results
             web/playwright-report
           if-no-files-found: ignore
+
+  perf-budget:
+    name: Builder perf budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Enforce the published-page weight ceilings (HTML / renderer CSS / fonts /
+      # images / DOM nodes / total transfer). Deterministic + offline — no browser
+      # needed. Rationale + change-discipline: web/docs/builder-perf-budget.md.
+      - name: Enforce perf budget
+        run: npm run perf:builder-budget
+
+      # Prove the gate still REJECTS bloat. A budget that can never fail is worse
+      # than no budget — this fails CI if the enforcement is ever weakened.
+      - name: Verify the gate rejects over-budget pages
+        run: npm run perf:builder-budget:selftest
+
+      - name: Upload perf budget report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-perf-budget-report
+          path: web/fidelity/perf-budget.json
+          if-no-files-found: warn

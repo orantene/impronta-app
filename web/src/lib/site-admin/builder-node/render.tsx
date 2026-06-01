@@ -237,6 +237,40 @@ const BUILDER_NODE_CONTAINER_QUERY_CSS = `${builderNodeContainerQueryCss(
 )}
 ${builderNodeContainerQueryCss("mobile", "640px")}`;
 
+// Nav primitive — inline link row on desktop, CSS-only hamburger→menu
+// disclosure on mobile. The inline <ul.nav-links> and the <details.nav-disclosure>
+// are mutually exclusive by breakpoint (driven by data-bn-collapse), so exactly
+// one set of links is in the layout + a11y tree at any width. No client JS:
+// the native <details>/<summary> manages open/closed and announces its state.
+// Menu colours fall back to an opaque card (readable over any themed band) but
+// are overridable via the --bn-nav-menu-* custom properties.
+const BUILDER_NODE_NAV_CSS = `
+.site-builder-node--nav{position:relative;width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:1.25rem}
+.site-builder-node--nav-brand{font-weight:700;text-decoration:none;color:inherit}
+.site-builder-node--nav-links{display:flex;flex-direction:row;align-items:center;gap:1.5rem;margin:0;padding:0;list-style:none}
+.site-builder-node--nav-links>li{margin:0;padding:0}
+.site-builder-node--nav-links a{text-decoration:none;color:inherit}
+.site-builder-node--nav-disclosure{display:none;position:static}
+.site-builder-node--nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.5rem;cursor:pointer;list-style:none;border:1px solid currentColor;border-radius:8px;color:inherit;-webkit-tap-highlight-color:transparent}
+.site-builder-node--nav-toggle::-webkit-details-marker{display:none}
+.site-builder-node--nav-toggle::marker{content:""}
+.site-builder-node--nav-toggle:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.site-builder-node--nav-burger{position:relative;display:block;width:18px;height:2px;background:currentColor;border-radius:2px}
+.site-builder-node--nav-burger::before,.site-builder-node--nav-burger::after{content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor;border-radius:2px}
+.site-builder-node--nav-burger::before{top:-6px}
+.site-builder-node--nav-burger::after{top:6px}
+.site-builder-node--nav-menu{list-style:none;margin:0;padding:0.5rem;display:flex;flex-direction:column;gap:0.25rem;position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:30;background:var(--bn-nav-menu-bg,#ffffff);color:var(--bn-nav-menu-color,#111111);border:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12));border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.16)}
+.site-builder-node--nav-menu>li{margin:0;padding:0}
+.site-builder-node--nav-menu a{display:block;padding:0.6rem 0.75rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.95rem}
+@media (max-width:900px){
+  .site-builder-node--nav[data-bn-collapse="tablet"] .site-builder-node--nav-links{display:none}
+  .site-builder-node--nav[data-bn-collapse="tablet"] .site-builder-node--nav-disclosure{display:block}
+}
+@media (max-width:640px){
+  .site-builder-node--nav[data-bn-collapse="mobile"] .site-builder-node--nav-links{display:none}
+  .site-builder-node--nav[data-bn-collapse="mobile"] .site-builder-node--nav-disclosure{display:block}
+}`;
+
 const CONTAINER_STYLE: CSSProperties = {
   width: "100%",
   maxWidth: "1120px",
@@ -534,6 +568,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--pricing-table{grid-template-columns:1fr}
 }
 ${BUILDER_NODE_CONTAINER_QUERY_CSS}
+${BUILDER_NODE_NAV_CSS}
 `;
 
 function builderNodeStyleVars(
@@ -2575,6 +2610,65 @@ function renderBuilderNode(
           style={{ height: SPACER_BY_SIZE[node.props.size], ...sharedNodeStyle(node.props.style) }}
         />
       );
+    case "nav": {
+      const navProps = node.props;
+      const collapseAt = navProps.collapseAt ?? "mobile";
+      const menuLabel = navProps.menuLabel?.trim() || "Menu";
+      const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
+      const menuId = `${node.id}-menu`;
+      const links = navProps.links ?? [];
+      const renderNavLinks = (variant: "inline" | "menu") =>
+        links.map((link) => (
+          <li key={`${node.id}:${variant}:${link.id}`}>
+            <a href={prefixPublicHref(link.href, options.publicPathPrefix)}>
+              {link.label}
+            </a>
+          </li>
+        ));
+      return (
+        <nav
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(navProps.style)}
+          data-bn-collapse={collapseAt}
+          aria-label={navAriaLabel}
+          className="site-builder-node site-builder-node--nav"
+          style={{ ...sharedNodeStyle(navProps.style), ...alignSelfStyle(navProps.style) }}
+        >
+          {navProps.brand ? (
+            <a
+              className="site-builder-node--nav-brand"
+              href={prefixPublicHref(navProps.brandHref ?? "/", options.publicPathPrefix)}
+            >
+              {navProps.brand}
+            </a>
+          ) : null}
+          <ul className="site-builder-node--nav-links">{renderNavLinks("inline")}</ul>
+          {/*
+            Mobile disclosure — native <details>/<summary>, CSS-only, no client
+            JS. <summary> is focusable + Enter/Space operable, and the platform
+            announces its expanded/collapsed state to assistive tech natively, so
+            we wire aria-controls (→ the menu) but deliberately OMIT a static
+            aria-expanded: it can't update without JS and would lie once toggled.
+            Both link sets render in full markup (never visibility:hidden-into-
+            nothing), so the links stay reachable at the mobile breakpoint.
+          */}
+          <details className="site-builder-node--nav-disclosure">
+            <summary
+              className="site-builder-node--nav-toggle"
+              aria-label={menuLabel}
+              aria-controls={menuId}
+            >
+              <span className="site-builder-node--nav-burger" aria-hidden="true" />
+            </summary>
+            <ul id={menuId} className="site-builder-node--nav-menu">
+              {renderNavLinks("menu")}
+            </ul>
+          </details>
+        </nav>
+      );
+    }
     default:
       return null;
   }

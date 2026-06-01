@@ -977,3 +977,153 @@ test("regression: data:image/* image src renders; data:text/html is rejected", (
   ]);
   assert.ok(!bad.includes("<img"), "data:text/html is not a valid image src and is dropped");
 });
+
+// ── Nav node → mobile disclosure (Responsive-axis fix) ──────────────────────────
+//
+// The desktop link row used to vanish on mobile (visibility:hidden, no
+// replacement). The `nav` node renders the links inline on desktop AND inside a
+// CSS-only <details>/<summary> hamburger menu, so they stay reachable at every
+// width. A single-frame static render can't evaluate @media, so these assert
+// BOTH halves of the proof: (a) the disclosure markup + every link exist in the
+// DOM (not visibility:hidden-into-nothing), and (b) the emitted stylesheet
+// reveals the disclosure / hides the inline row at the collapse breakpoint.
+
+function navNode(props: Record<string, unknown> = {}): BuilderNode {
+  return {
+    id: "nav1",
+    kind: "nav",
+    props: {
+      brand: "Atelier",
+      brandHref: "/",
+      collapseAt: "mobile",
+      menuLabel: "Open menu",
+      ariaLabel: "Primary",
+      links: [
+        { id: "l1", label: "Work", href: "/work" },
+        { id: "l2", label: "About", href: "/about" },
+        { id: "l3", label: "Contact", href: "/contact" },
+      ],
+      ...props,
+    },
+  } as BuilderNode;
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+function disclosureBlock(html: string): string {
+  const start = html.indexOf("<details");
+  const end = html.indexOf("</details>");
+  assert.ok(start !== -1 && end !== -1, "nav renders a <details> disclosure");
+  return html.slice(start, end + "</details>".length);
+}
+
+test("nav: renders a <nav> landmark with inline link row + hamburger disclosure", () => {
+  const html = render([navNode()]);
+  // Element-level claims use the rendered class="…" attribute (the bare class
+  // names also appear in the <style> rules, so a substring check would be a
+  // false positive). renderToStaticMarkup keeps composed classNames intact.
+  assert.ok(html.includes("<nav"), "uses a real <nav> landmark element");
+  assert.ok(html.includes('aria-label="Primary"'), "nav landmark is labelled");
+  assert.ok(html.includes('data-bn-collapse="mobile"'), "collapse breakpoint attr");
+  assert.ok(html.includes('class="site-builder-node site-builder-node--nav"'), "nav root element");
+  assert.ok(html.includes('class="site-builder-node--nav-links"'), "inline desktop link row");
+  assert.ok(html.includes('class="site-builder-node--nav-disclosure"'), "mobile disclosure element");
+  assert.ok(html.includes('class="site-builder-node--nav-burger"'), "hamburger glyph element");
+  // Brand renders as a link to its href.
+  assert.ok(html.includes(">Atelier<"), "brand label");
+  // Renderer CSS still emits exactly once (PERF-1 not regressed).
+  assert.equal(countRendererStyles(html), 1);
+});
+
+test("nav: links remain reachable on mobile — every link is inside the disclosure menu", () => {
+  const html = render([navNode()]);
+  const disclosure = disclosureBlock(html);
+  // The toggle is a focusable <summary> wired to the menu, with an accessible
+  // label — keyboard-operable, not hover-dependent.
+  assert.ok(disclosure.includes("<summary"), "toggle is a <summary> (focusable, keyboard-operable)");
+  assert.ok(disclosure.includes("site-builder-node--nav-toggle"), "toggle class");
+  assert.ok(disclosure.includes('aria-label="Open menu"'), "toggle has accessible label");
+  assert.ok(disclosure.includes('aria-controls="nav1-menu"'), "toggle controls the menu");
+  assert.ok(disclosure.includes('id="nav1-menu"'), "menu has the controlled id");
+  // EVERY link is present *inside the disclosure menu* (mobile copy), with real
+  // hrefs — not collapsed to nothing.
+  for (const [label, href] of [["Work", "/work"], ["About", "/about"], ["Contact", "/contact"]]) {
+    assert.ok(disclosure.includes(`>${label}<`), `menu contains "${label}"`);
+    assert.ok(disclosure.includes(`href="${href}"`), `menu contains href ${href}`);
+  }
+  // Each link appears twice overall: once inline (desktop) + once in the menu
+  // (mobile). That duplication is the static proof both code paths emit links.
+  assert.equal(countOccurrences(html, 'href="/work"'), 2, "Work link in both rows");
+  assert.equal(countOccurrences(html, 'href="/about"'), 2, "About link in both rows");
+  assert.equal(countOccurrences(html, 'href="/contact"'), 2, "Contact link in both rows");
+});
+
+test("nav: stylesheet reveals the disclosure and hides the inline row at the mobile breakpoint", () => {
+  const html = render([navNode({ collapseAt: "mobile" })]);
+  // Desktop default: disclosure hidden, inline row shown.
+  assert.ok(
+    html.includes(".site-builder-node--nav-disclosure{display:none"),
+    "disclosure hidden by default (desktop)",
+  );
+  // ≤640px: inline row hides, disclosure shows — links reachable via hamburger.
+  assert.ok(html.includes("@media (max-width:640px)"), "mobile media query present");
+  assert.ok(
+    html.includes('[data-bn-collapse="mobile"] .site-builder-node--nav-links{display:none}'),
+    "inline row hidden on mobile",
+  );
+  assert.ok(
+    html.includes('[data-bn-collapse="mobile"] .site-builder-node--nav-disclosure{display:block}'),
+    "disclosure revealed on mobile",
+  );
+});
+
+test("nav: collapseAt='tablet' collapses at the 900px breakpoint", () => {
+  const html = render([navNode({ collapseAt: "tablet" })]);
+  assert.ok(html.includes('data-bn-collapse="tablet"'), "tablet collapse attr");
+  assert.ok(
+    html.includes('[data-bn-collapse="tablet"] .site-builder-node--nav-disclosure{display:block}'),
+    "disclosure revealed at the tablet breakpoint",
+  );
+});
+
+test("nav: defaults apply when optional props are omitted", () => {
+  const html = render([
+    {
+      id: "nav2",
+      kind: "nav",
+      props: { links: [{ id: "x", label: "Home", href: "/" }] },
+    } as BuilderNode,
+  ]);
+  assert.ok(html.includes('data-bn-collapse="mobile"'), "defaults to mobile collapse");
+  assert.ok(html.includes('aria-label="Primary"'), "defaults nav landmark label");
+  assert.ok(html.includes('aria-label="Menu"'), "defaults toggle label");
+  // No brand ELEMENT (the class also appears in the <style> rule, so match the
+  // rendered class attribute, not the bare class name).
+  assert.ok(
+    !html.includes('class="site-builder-node--nav-brand"'),
+    "no brand link when brand omitted",
+  );
+});
+
+test("nav: dangerous link + brand hrefs are neutralized at render time", () => {
+  const html = render([
+    navNode({
+      brandHref: "javascript:alert(1)",
+      links: [
+        { id: "l1", label: "Safe", href: "/ok" },
+        { id: "l2", label: "Bad", href: "javascript:alert(document.cookie)" },
+      ],
+    }),
+  ]);
+  assert.ok(!html.toLowerCase().includes("javascript:"), "no javascript: scheme survives");
+  assert.ok(html.includes('href="#"'), "dangerous hrefs neutralized to #");
+  assert.ok(html.includes(">Bad<"), "neutralized link still renders its label");
+  assert.ok(html.includes('href="/ok"'), "safe link preserved");
+});
+
+test("nav: re-render is byte-identical (determinism)", () => {
+  const node = navNode();
+  assert.equal(render([node]), render([node]));
+});
