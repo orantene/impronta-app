@@ -196,6 +196,7 @@ interface StylePanelProps {
 
 type EditableNodeRole = BuilderNodeRole;
 type NodeViewport = "desktop" | "tablet" | "mobile";
+type StandaloneStyleScope = "viewport" | "container";
 type HorizontalSpacingMode = "linked" | "custom";
 
 const ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -530,6 +531,19 @@ const VIEWPORT_OPTIONS: ReadonlyArray<SegmentedOption<NodeViewport>> = [
   { value: "desktop", label: "Desktop" },
   { value: "tablet", label: "Tablet" },
   { value: "mobile", label: "Mobile" },
+];
+const STANDALONE_STYLE_SCOPE_OPTIONS: ReadonlyArray<
+  SegmentedOption<StandaloneStyleScope>
+> = [
+  { value: "viewport", label: "Viewport" },
+  { value: "container", label: "Container" },
+];
+const BUILDER_NODE_CONTAINER_TYPE_OPTIONS: ReadonlyArray<
+  SegmentedOption<string>
+> = [
+  { value: "", label: "Off" },
+  { value: "inline-size", label: "Width" },
+  { value: "size", label: "Size" },
 ];
 
 const HORIZONTAL_MODE_OPTIONS: ReadonlyArray<SegmentedOption<HorizontalSpacingMode>> = [
@@ -1036,6 +1050,8 @@ function cleanBuilderNodeStyle(
   if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
+  if (value.containerType) out.containerType = value.containerType;
+  if (value.containerName) out.containerName = value.containerName;
   if (value.position) out.position = value.position;
   if (value.top) out.top = value.top;
   if (value.right) out.right = value.right;
@@ -1092,6 +1108,17 @@ function cleanBuilderNodeStyle(
     out.responsive = {};
     if (tablet) out.responsive.tablet = tablet;
     if (mobile) out.responsive.mobile = mobile;
+  }
+  const containerTablet = cleanBuilderNodeStyleValue(
+    value.containerQueries?.tablet,
+  );
+  const containerMobile = cleanBuilderNodeStyleValue(
+    value.containerQueries?.mobile,
+  );
+  if (containerTablet || containerMobile) {
+    out.containerQueries = {};
+    if (containerTablet) out.containerQueries.tablet = containerTablet;
+    if (containerMobile) out.containerQueries.mobile = containerMobile;
   }
   const hover = cleanHoverStyle(value.hover);
   if (hover) out.hover = hover;
@@ -1158,6 +1185,8 @@ function cleanBuilderNodeStyleValue(
   if (value.backgroundClip) out.backgroundClip = value.backgroundClip;
   if (typeof value.opacity === "number") out.opacity = value.opacity;
   if (value.gap) out.gap = value.gap;
+  if (value.containerType) out.containerType = value.containerType;
+  if (value.containerName) out.containerName = value.containerName;
   if (value.position) out.position = value.position;
   if (value.top) out.top = value.top;
   if (value.right) out.right = value.right;
@@ -1214,8 +1243,10 @@ function cleanBuilderNodeStyleValue(
 function resolveBuilderNodeViewportStyle(
   style: BuilderNodeStyle | undefined,
   viewport: NodeViewport,
+  scope: StandaloneStyleScope = "viewport",
 ): BuilderNodeStyleValue | undefined {
   if (viewport === "desktop") return style;
+  if (scope === "container") return style?.containerQueries?.[viewport];
   return style?.responsive?.[viewport];
 }
 
@@ -1599,6 +1630,10 @@ export function StylePanel({
       ? (selectedStandaloneStyleNode.props.instanceOf ?? null)
       : null;
   const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
+  const [selectedStandaloneStyleScope, setSelectedStandaloneStyleScope] =
+    useState<StandaloneStyleScope>("viewport");
+  const effectiveStandaloneStyleScope: StandaloneStyleScope =
+    selectedViewport === "desktop" ? "viewport" : selectedStandaloneStyleScope;
   const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
   const selectedNodeIsButton =
     selectedNodeRole === "primaryCta" ||
@@ -1741,6 +1776,7 @@ export function StylePanel({
   const selectedStandaloneViewportStyle = resolveBuilderNodeViewportStyle(
     selectedStandaloneFullStyle,
     selectedViewport,
+    effectiveStandaloneStyleScope,
   );
   const selectedStandaloneViewportOverrideCount = Object.keys(
     selectedStandaloneViewportStyle ?? {},
@@ -1748,7 +1784,9 @@ export function StylePanel({
   const canResetSelectedStandaloneViewport =
     selectedViewport === "desktop"
       ? Boolean(selectedStandaloneFullStyle)
-      : Boolean(selectedStandaloneFullStyle?.responsive?.[selectedViewport]);
+      : effectiveStandaloneStyleScope === "container"
+        ? Boolean(selectedStandaloneFullStyle?.containerQueries?.[selectedViewport])
+        : Boolean(selectedStandaloneFullStyle?.responsive?.[selectedViewport]);
   const canCopyStandaloneDesktopToViewport =
     selectedViewport !== "desktop" &&
     Boolean(cleanBuilderNodeStyleValue(selectedStandaloneFullStyle));
@@ -3020,6 +3058,18 @@ export function StylePanel({
       });
   }
 
+  function selectViewport(next: NodeViewport) {
+    setSelectedViewport(next);
+    if (next === "desktop") setSelectedStandaloneStyleScope("viewport");
+  }
+
+  function selectStandaloneStyleScope(next: StandaloneStyleScope) {
+    setSelectedStandaloneStyleScope(next);
+    if (next === "container" && selectedViewport === "desktop") {
+      setSelectedViewport("tablet");
+    }
+  }
+
   function patchSelectedStandaloneStyle(patch: Partial<BuilderNodeStyleValue>) {
     if (!selectedStandaloneStyleNode) return;
     const currentStyle =
@@ -3032,6 +3082,17 @@ export function StylePanel({
             ...currentStyle,
             ...patch,
           })
+        : effectiveStandaloneStyleScope === "container"
+          ? cleanBuilderNodeStyle({
+              ...currentStyle,
+              containerQueries: {
+                ...(currentStyle?.containerQueries ?? {}),
+                [selectedViewport]: cleanBuilderNodeStyleValue({
+                  ...(currentStyle?.containerQueries?.[selectedViewport] ?? {}),
+                  ...patch,
+                }),
+              },
+            })
         : cleanBuilderNodeStyle({
             ...currentStyle,
             responsive: {
@@ -3096,6 +3157,7 @@ export function StylePanel({
     const current = resolveBuilderNodeViewportStyle(
       currentStyle,
       selectedViewport,
+      effectiveStandaloneStyleScope,
     )?.[key];
     patchSelectedStandaloneStyle({
       [key]: current === next ? undefined : next,
@@ -3116,6 +3178,22 @@ export function StylePanel({
       standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
         ? standaloneStyleDraftRef.current.style
         : selectedStandaloneStyleNode.props.style;
+    if (effectiveStandaloneStyleScope === "container") {
+      const nextContainerQueries = {
+        ...(currentStyle?.containerQueries ?? {}),
+      };
+      delete nextContainerQueries[selectedViewport];
+      const nextStyle = cleanBuilderNodeStyle({
+        ...currentStyle,
+        containerQueries: nextContainerQueries,
+      });
+      standaloneStyleDraftRef.current = {
+        nodeId: selectedStandaloneStyleNode.id,
+        style: nextStyle ? { ...nextStyle } : undefined,
+      };
+      patchSelectedStandaloneNodeProps({ style: nextStyle });
+      return;
+    }
     const nextResponsive = {
       ...(currentStyle?.responsive ?? {}),
     };
@@ -3143,6 +3221,17 @@ export function StylePanel({
             ...currentStyle,
             ...(preset.style ?? {}),
           })
+        : effectiveStandaloneStyleScope === "container"
+          ? cleanBuilderNodeStyle({
+              ...currentStyle,
+              containerQueries: {
+                ...(currentStyle?.containerQueries ?? {}),
+                [selectedViewport]: cleanBuilderNodeStyleValue({
+                  ...(currentStyle?.containerQueries?.[selectedViewport] ?? {}),
+                  ...(preset.style ?? {}),
+                }),
+              },
+            })
         : cleanBuilderNodeStyle({
             ...currentStyle,
             responsive: {
@@ -3170,7 +3259,11 @@ export function StylePanel({
         ? standaloneStyleDraftRef.current.style
         : selectedStandaloneStyleNode.props.style;
     const cleanedStyle = cleanBuilderNodeStyleValue(
-      resolveBuilderNodeViewportStyle(currentStyle, selectedViewport),
+      resolveBuilderNodeViewportStyle(
+        currentStyle,
+        selectedViewport,
+        effectiveStandaloneStyleScope,
+      ),
     );
     const clipboard: StandaloneStyleClipboard = {
       kind: selectedStandaloneStyleNode.kind,
@@ -3215,6 +3308,17 @@ export function StylePanel({
             ...currentStyle,
             ...(standaloneStyleClipboard.style ?? {}),
           })
+        : effectiveStandaloneStyleScope === "container"
+          ? cleanBuilderNodeStyle({
+              ...currentStyle,
+              containerQueries: {
+                ...(currentStyle?.containerQueries ?? {}),
+                [selectedViewport]: cleanBuilderNodeStyleValue({
+                  ...(currentStyle?.containerQueries?.[selectedViewport] ?? {}),
+                  ...(standaloneStyleClipboard.style ?? {}),
+                }),
+              },
+            })
         : cleanBuilderNodeStyle({
             ...currentStyle,
             responsive: {
@@ -3260,8 +3364,12 @@ export function StylePanel({
     if (!desktopStyle) return;
     const nextStyle = cleanBuilderNodeStyle({
       ...currentStyle,
-      responsive: {
-        ...(currentStyle?.responsive ?? {}),
+      [effectiveStandaloneStyleScope === "container"
+        ? "containerQueries"
+        : "responsive"]: {
+        ...((effectiveStandaloneStyleScope === "container"
+          ? currentStyle?.containerQueries
+          : currentStyle?.responsive) ?? {}),
         [selectedViewport]: {
           ...desktopStyle,
         },
@@ -3730,7 +3838,7 @@ export function StylePanel({
                   fullWidth
                   compact
                   value={selectedViewport}
-                  onChange={(next) => setSelectedViewport(next as NodeViewport)}
+                  onChange={(next) => selectViewport(next as NodeViewport)}
                   options={VIEWPORT_OPTIONS}
                 />
                 {selectedViewport !== "desktop" ? (
@@ -4980,9 +5088,20 @@ export function StylePanel({
                 fullWidth
                 compact
                 value={selectedViewport}
-                onChange={(next) => setSelectedViewport(next as NodeViewport)}
+                onChange={(next) => selectViewport(next as NodeViewport)}
                 options={VIEWPORT_OPTIONS}
               />
+              {selectedViewport !== "desktop" ? (
+                <Segmented
+                  fullWidth
+                  compact
+                  value={effectiveStandaloneStyleScope}
+                  onChange={(next) =>
+                    selectStandaloneStyleScope(next as StandaloneStyleScope)
+                  }
+                  options={STANDALONE_STYLE_SCOPE_OPTIONS}
+                />
+              ) : null}
               {selectedViewport !== "desktop" ? (
                 <button
                   type="button"
@@ -5007,6 +5126,51 @@ export function StylePanel({
                 </button>
               ) : null}
             </div>
+
+            {["container", "split", "card", "cta_group"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div
+                className="flex flex-col gap-2 border-t pt-3"
+                data-builder-node-style-control="containerQueries"
+                style={{ borderColor: CHROME.line }}
+              >
+                <span className={FIELD_LABEL}>Query container</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneFullStyle?.containerType ?? ""}
+                  onChange={(next) =>
+                    patchSelectedBaseStyle({
+                      containerType:
+                        (next || undefined) as BuilderNodeStyleValue["containerType"],
+                    })
+                  }
+                  options={BUILDER_NODE_CONTAINER_TYPE_OPTIONS}
+                />
+                <input
+                  type="text"
+                  className="px-2"
+                  style={{
+                    height: 30,
+                    width: "100%",
+                    fontSize: 12,
+                    background: CHROME.surface2,
+                    border: `1px solid ${CHROME.controlBorder}`,
+                    borderRadius: 7,
+                    color: CHROME.ink,
+                    outline: "none",
+                  }}
+                  placeholder="container name"
+                  value={selectedStandaloneFullStyle?.containerName ?? ""}
+                  onChange={(e) =>
+                    patchSelectedBaseStyle({
+                      containerName: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </div>
+            ) : null}
 
             {selectedInstanceComponentId && selectedBuilderNodeId ? (
               <div

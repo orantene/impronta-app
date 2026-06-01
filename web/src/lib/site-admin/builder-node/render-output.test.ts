@@ -170,6 +170,74 @@ test("transitions: hover auto-default emits easing without a shorthand", () => {
   assert.ok(!html.includes("transition:all .2s ease"), "no inline shorthand");
 });
 
+test("container queries: query containers and slot-width overrides emit", () => {
+  const html = render([
+    {
+      id: "slot",
+      kind: "container",
+      props: {
+        layout: "stack",
+        style: {
+          containerType: "inline-size",
+          containerName: "pricing-card",
+        },
+      },
+      children: [
+        {
+          id: "copy",
+          kind: "paragraph",
+          props: {
+            text: "Slot-aware copy",
+            style: {
+              containerQueries: {
+                mobile: {
+                  fontSize: "14px",
+                  backgroundColor: "#f8fafc",
+                  gridTemplateColumns: "1fr",
+                },
+              },
+            },
+          },
+        },
+      ],
+    } as BuilderNode,
+  ]);
+
+  assert.ok(
+    html.includes(
+      ".site-builder-node[data-builder-style-container-type]{container-type:var(--bn-container-type)",
+    ),
+    "container-type static rule",
+  );
+  assert.ok(html.includes("--bn-container-type:inline-size"), "container type var");
+  assert.ok(html.includes("--bn-container-name:pricing-card"), "container name var");
+  assert.ok(html.includes("@container (max-width:640px)"), "mobile container query");
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-font-size=""'),
+    "container mobile font-size gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-font-size:14px"),
+    "container mobile font-size var",
+  );
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-bg-color=""'),
+    "container mobile background gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-bg-color:#f8fafc"),
+    "container mobile background var",
+  );
+  assert.ok(
+    html.includes('data-builder-style-cq-mobile-grid-template-columns=""'),
+    "container mobile grid-template gate",
+  );
+  assert.ok(
+    html.includes("--bn-cq-mobile-grid-template-columns:1fr"),
+    "container mobile grid-template var",
+  );
+});
+
 // ── Entrance animation ────────────────────────────────────────────────────────
 
 test("animation: preset + easing resolution + scroll-driven timeline", () => {
@@ -242,6 +310,11 @@ test("font loading: node font families emit Google stylesheet links", () => {
                 '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',
             },
           },
+          containerQueries: {
+            tablet: {
+              fontFamily: '"DM Sans", system-ui, sans-serif',
+            },
+          },
         }),
       ],
       {
@@ -259,6 +332,10 @@ test("font loading: node font families emit Google stylesheet links", () => {
   assert.ok(
     html.includes("family=IBM+Plex+Mono:wght@400;500;700"),
     "responsive family loaded",
+  );
+  assert.ok(
+    html.includes("family=DM+Sans:wght@400;500;700"),
+    "container-query family loaded",
   );
   assert.equal(countRendererStyles(html), 0);
 });

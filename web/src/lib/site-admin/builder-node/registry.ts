@@ -139,6 +139,9 @@ const builderNodeStyleValueSchema = z.object({
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
   gap: z.string().max(16).optional(),
+  // Container-query registration — turns this node into a query container.
+  containerType: z.enum(["normal", "inline-size", "size"]).optional(),
+  containerName: z.string().max(80).optional(),
   // Positioning escapes — context + inset offsets (negatives allowed).
   position: z.enum(["relative", "absolute", "sticky"]).optional(),
   top: z.string().max(16).optional(),
@@ -273,6 +276,12 @@ const builderNodeHoverStyleSchema = z.object({
 const builderNodeStyleSchema = builderNodeStyleValueSchema
   .extend({
     responsive: z
+      .object({
+        tablet: builderNodeStyleValueSchema.optional(),
+        mobile: builderNodeStyleValueSchema.optional(),
+      })
+      .optional(),
+    containerQueries: z
       .object({
         tablet: builderNodeStyleValueSchema.optional(),
         mobile: builderNodeStyleValueSchema.optional(),
