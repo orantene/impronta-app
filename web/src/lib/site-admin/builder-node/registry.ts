@@ -755,13 +755,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       children: { type: "none" },
       propsSchema: buttonPropsSchema,
     },
-    image: {
-      kind: "image",
-      label: "Image",
-      description: "Standalone image node.",
-      children: { type: "none" },
-      propsSchema: imagePropsSchema,
-    },
+    image: { kind: "image", label: "Image", description: "Standalone image node.", children: { type: "none" }, propsSchema: imagePropsSchema },
     video: {
       kind: "video",
       label: "Video",
